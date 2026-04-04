@@ -1,0 +1,13 @@
+-- ============================================================
+-- MIRROR APP — Skill Seed Data
+-- GENERATED FILE — do not edit manually.
+-- To regenerate: python3 backend/app/services/taxonomy_loader.py
+-- Source: skill_taxonomy mapping/taxonomy.json
+-- ============================================================
+
+-- This file will be populated by taxonomy_loader.py in Phase 1B.
+-- It will contain INSERT statements for:
+--   skill_domains   (10 rows)
+--   skill_families  (~20 rows)
+--   skills          (63 rows)
+--   skill_levels    (315 rows — 5 levels × 63 skills)

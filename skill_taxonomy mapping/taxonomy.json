@@ -1,0 +1,1166 @@
+{
+  "version": "2.0",
+  "generated_at": "2026-04-02 01:45",
+  "total_skills": 63,
+  "skills_by_demand": [
+    {
+      "skill": "agile & scrum practices",
+      "category": "Project & Process",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "amazon web services (aws)",
+      "category": "Cloud Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "api design & development",
+      "category": "Backend Frameworks",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "api testing (postman, rest assured)",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "application security (appsec)",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "bi & reporting (power bi, tableau, looker)",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "business analysis",
+      "category": "Project & Process",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "ci/cd for applications",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "classical machine learning",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "cloud security",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "compliance & governance (iso, soc2, gdpr)",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "computer vision",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "containerization (docker, kubernetes)",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "data lake & lakehouse architecture",
+      "category": "Databases",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "data modeling & governance",
+      "category": "Databases",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "data quality & observability",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "data visualization & storytelling",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "data warehousing (snowflake, redshift, bigquery)",
+      "category": "Databases",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "databases & data modeling",
+      "category": "Backend Frameworks",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "deep learning (neural networks)",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "design systems",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "etl / elt pipeline design",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "excel & spreadsheet analytics",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "generative ai & llms",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "google cloud platform (gcp)",
+      "category": "Cloud Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "html, css & web fundamentals",
+      "category": "Frontend & Mobile",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "identity & access management",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "infrastructure as code (terraform, pulumi)",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "interaction & visual design",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "javascript / typescript",
+      "category": "Frontend & Mobile",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "microsoft azure",
+      "category": "Cloud Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "mlops & model deployment",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "mobile development (react native / flutter)",
+      "category": "Frontend & Mobile",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "modern data stack (dbt, fivetran, airbyte)",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "monitoring & observability",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "natural language processing",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "network security",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "oracle applications (ebs, fusion, oci)",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "performance testing (jmeter, gatling, k6)",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "pipeline orchestration (airflow, dagster, prefect)",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "predictive analytics",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "product strategy & roadmapping",
+      "category": "Project & Process",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "react / angular / vue",
+      "category": "Frontend & Mobile",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "responsible ai & ethics",
+      "category": "AI & Machine Learning",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "salesforce (admin, development, architecture)",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "sap analytics (bw, hana, sac)",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "sap erp (fico, mm, sd, pp, hcm)",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "sap technical (abap, fiori, btp)",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "security operations (soc)",
+      "category": "Security & Compliance",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "security testing",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "server-side programming (java/python/node/go/.net)",
+      "category": "Backend Frameworks",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "servicenow",
+      "category": "Enterprise Platforms",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "site reliability engineering",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "sql & data manipulation",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "stakeholder communication",
+      "category": "Project & Process",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "statistical analysis & modeling",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "stream / real-time processing",
+      "category": "Data & Analytics",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "system design & architecture",
+      "category": "Backend Frameworks",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "technical program management",
+      "category": "Project & Process",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "test automation (selenium, cypress, playwright)",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "test strategy & planning",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "user research & discovery",
+      "category": "Other / Uncategorized",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    },
+    {
+      "skill": "version control (git)",
+      "category": "DevOps & Infrastructure",
+      "total_jobs": 0,
+      "required": 0,
+      "preferred": 0
+    }
+  ],
+  "categories": {
+    "Project & Process": {
+      "agile & scrum practices": {
+        "aliases": {
+          "domain": "Product & Project Management",
+          "skill_family": "Delivery Management",
+          "display_name": "Agile & Scrum Practices",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "business analysis": {
+        "aliases": {
+          "domain": "Product & Project Management",
+          "skill_family": "Product Skills",
+          "display_name": "Business Analysis",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "product strategy & roadmapping": {
+        "aliases": {
+          "domain": "Product & Project Management",
+          "skill_family": "Product Skills",
+          "display_name": "Product Strategy & Roadmapping",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "stakeholder communication": {
+        "aliases": {
+          "domain": "Product & Project Management",
+          "skill_family": "Product Skills",
+          "display_name": "Stakeholder Communication",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "technical program management": {
+        "aliases": {
+          "domain": "Product & Project Management",
+          "skill_family": "Delivery Management",
+          "display_name": "Technical Program Management",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Cloud Platforms": {
+      "amazon web services (aws)": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Cloud Platforms",
+          "display_name": "Amazon Web Services (AWS)",
+          "technologies": [
+            "AWS"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "google cloud platform (gcp)": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Cloud Platforms",
+          "display_name": "Google Cloud Platform (GCP)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "microsoft azure": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Cloud Platforms",
+          "display_name": "Microsoft Azure",
+          "technologies": [
+            "Azure"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Backend Frameworks": {
+      "api design & development": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Backend Development",
+          "display_name": "API Design & Development",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "databases & data modeling": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Backend Development",
+          "display_name": "Databases & Data Modeling",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "server-side programming (java/python/node/go/.net)": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Backend Development",
+          "display_name": "Server-Side Programming (Java/Python/Node/Go/.NET)",
+          "technologies": [
+            "Python",
+            "Java",
+            "Go",
+            "Rust"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "system design & architecture": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Backend Development",
+          "display_name": "System Design & Architecture",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Other / Uncategorized": {
+      "api testing (postman, rest assured)": {
+        "aliases": {
+          "domain": "Quality Assurance & Testing",
+          "skill_family": "Test Engineering",
+          "display_name": "API Testing (Postman, REST Assured)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "design systems": {
+        "aliases": {
+          "domain": "UI/UX Design",
+          "skill_family": "Design Practice",
+          "display_name": "Design Systems",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "interaction & visual design": {
+        "aliases": {
+          "domain": "UI/UX Design",
+          "skill_family": "Design Practice",
+          "display_name": "Interaction & Visual Design",
+          "technologies": [
+            "Figma"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "performance testing (jmeter, gatling, k6)": {
+        "aliases": {
+          "domain": "Quality Assurance & Testing",
+          "skill_family": "Test Engineering",
+          "display_name": "Performance Testing (JMeter, Gatling, k6)",
+          "technologies": [
+            "JMeter"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "security testing": {
+        "aliases": {
+          "domain": "Quality Assurance & Testing",
+          "skill_family": "Quality Strategy",
+          "display_name": "Security Testing",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "test automation (selenium, cypress, playwright)": {
+        "aliases": {
+          "domain": "Quality Assurance & Testing",
+          "skill_family": "Test Engineering",
+          "display_name": "Test Automation (Selenium, Cypress, Playwright)",
+          "technologies": [
+            "Selenium",
+            "Cypress",
+            "Playwright"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "test strategy & planning": {
+        "aliases": {
+          "domain": "Quality Assurance & Testing",
+          "skill_family": "Quality Strategy",
+          "display_name": "Test Strategy & Planning",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "user research & discovery": {
+        "aliases": {
+          "domain": "UI/UX Design",
+          "skill_family": "Design Practice",
+          "display_name": "User Research & Discovery",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Security & Compliance": {
+      "application security (appsec)": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Application & Cloud Security",
+          "display_name": "Application Security (AppSec)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "cloud security": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Application & Cloud Security",
+          "display_name": "Cloud Security",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "compliance & governance (iso, soc2, gdpr)": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Security Operations",
+          "display_name": "Compliance & Governance (ISO, SOC2, GDPR)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "identity & access management": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Application & Cloud Security",
+          "display_name": "Identity & Access Management",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "network security": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Security Operations",
+          "display_name": "Network Security",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "security operations (soc)": {
+        "aliases": {
+          "domain": "Cybersecurity",
+          "skill_family": "Security Operations",
+          "display_name": "Security Operations (SOC)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Data & Analytics": {
+      "bi & reporting (power bi, tableau, looker)": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Business Intelligence",
+          "display_name": "BI & Reporting (Power BI, Tableau, Looker)",
+          "technologies": [
+            "Power BI",
+            "Tableau",
+            "Looker",
+            "Cognos",
+            "OBIEE"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "data visualization & storytelling": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Business Intelligence",
+          "display_name": "Data Visualization & Storytelling",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "etl / elt pipeline design": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Integration & ETL",
+          "display_name": "ETL / ELT Pipeline Design",
+          "technologies": [
+            "Informatica",
+            "Talend"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "excel & spreadsheet analytics": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Business Intelligence",
+          "display_name": "Excel & Spreadsheet Analytics",
+          "technologies": [
+            "Hyperion"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "modern data stack (dbt, fivetran, airbyte)": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Integration & ETL",
+          "display_name": "Modern Data Stack (dbt, Fivetran, Airbyte)",
+          "technologies": [
+            "dbt"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "predictive analytics": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Statistical & Quantitative Analysis",
+          "display_name": "Predictive Analytics",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "sql & data manipulation": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Statistical & Quantitative Analysis",
+          "display_name": "SQL & Data Manipulation",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "statistical analysis & modeling": {
+        "aliases": {
+          "domain": "Data Science & Analytics",
+          "skill_family": "Statistical & Quantitative Analysis",
+          "display_name": "Statistical Analysis & Modeling",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "stream / real-time processing": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Integration & ETL",
+          "display_name": "Stream / Real-Time Processing",
+          "technologies": [
+            "Spark",
+            "Kafka"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "DevOps & Infrastructure": {
+      "ci/cd for applications": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "DevOps Practices for Developers",
+          "display_name": "CI/CD for Applications",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "containerization (docker, kubernetes)": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Infrastructure & Automation",
+          "display_name": "Containerization (Docker, Kubernetes)",
+          "technologies": [
+            "Kubernetes",
+            "Docker"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "data quality & observability": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Orchestration & Operations",
+          "display_name": "Data Quality & Observability",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "infrastructure as code (terraform, pulumi)": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Infrastructure & Automation",
+          "display_name": "Infrastructure as Code (Terraform, Pulumi)",
+          "technologies": [
+            "Terraform"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "monitoring & observability": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Infrastructure & Automation",
+          "display_name": "Monitoring & Observability",
+          "technologies": [
+            "Grafana",
+            "Prometheus"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "pipeline orchestration (airflow, dagster, prefect)": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Orchestration & Operations",
+          "display_name": "Pipeline Orchestration (Airflow, Dagster, Prefect)",
+          "technologies": [
+            "Airflow"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "site reliability engineering": {
+        "aliases": {
+          "domain": "Cloud & DevOps",
+          "skill_family": "Infrastructure & Automation",
+          "display_name": "Site Reliability Engineering",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "version control (git)": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "DevOps Practices for Developers",
+          "display_name": "Version Control (Git)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "AI & Machine Learning": {
+      "classical machine learning": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Core ML",
+          "display_name": "Classical Machine Learning",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "computer vision": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Core ML",
+          "display_name": "Computer Vision",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "deep learning (neural networks)": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Core ML",
+          "display_name": "Deep Learning (Neural Networks)",
+          "technologies": [
+            "TensorFlow",
+            "PyTorch"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "generative ai & llms": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Applied AI",
+          "display_name": "Generative AI & LLMs",
+          "technologies": [
+            "LangChain"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "mlops & model deployment": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Applied AI",
+          "display_name": "MLOps & Model Deployment",
+          "technologies": [
+            "MLflow"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "natural language processing": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Core ML",
+          "display_name": "Natural Language Processing",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "responsible ai & ethics": {
+        "aliases": {
+          "domain": "AI & Machine Learning",
+          "skill_family": "Applied AI",
+          "display_name": "Responsible AI & Ethics",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Databases": {
+      "data lake & lakehouse architecture": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Storage & Modeling",
+          "display_name": "Data Lake & Lakehouse Architecture",
+          "technologies": [
+            "Databricks"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "data modeling & governance": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Storage & Modeling",
+          "display_name": "Data Modeling & Governance",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "data warehousing (snowflake, redshift, bigquery)": {
+        "aliases": {
+          "domain": "Data Engineering",
+          "skill_family": "Data Storage & Modeling",
+          "display_name": "Data Warehousing (Snowflake, Redshift, BigQuery)",
+          "technologies": [
+            "Snowflake"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Frontend & Mobile": {
+      "html, css & web fundamentals": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Frontend Development",
+          "display_name": "HTML, CSS & Web Fundamentals",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "javascript / typescript": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Frontend Development",
+          "display_name": "JavaScript / TypeScript",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "mobile development (react native / flutter)": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Frontend Development",
+          "display_name": "Mobile Development (React Native / Flutter)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "react / angular / vue": {
+        "aliases": {
+          "domain": "Software Development",
+          "skill_family": "Frontend Development",
+          "display_name": "React / Angular / Vue",
+          "technologies": [
+            "React",
+            "Angular",
+            "Next.js"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    },
+    "Enterprise Platforms": {
+      "oracle applications (ebs, fusion, oci)": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "CRM & Enterprise Platforms",
+          "display_name": "Oracle Applications (EBS, Fusion, OCI)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "salesforce (admin, development, architecture)": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "CRM & Enterprise Platforms",
+          "display_name": "Salesforce (Admin, Development, Architecture)",
+          "technologies": [
+            "Salesforce"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "sap analytics (bw, hana, sac)": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "SAP",
+          "display_name": "SAP Analytics (BW, HANA, SAC)",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "sap erp (fico, mm, sd, pp, hcm)": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "SAP",
+          "display_name": "SAP ERP (FICO, MM, SD, PP, HCM)",
+          "technologies": [
+            "SAP FICO"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "sap technical (abap, fiori, btp)": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "SAP",
+          "display_name": "SAP Technical (ABAP, Fiori, BTP)",
+          "technologies": [
+            "SAP ABAP"
+          ]
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      },
+      "servicenow": {
+        "aliases": {
+          "domain": "Enterprise Applications",
+          "skill_family": "CRM & Enterprise Platforms",
+          "display_name": "ServiceNow",
+          "technologies": []
+        },
+        "primary_count": 0,
+        "secondary_count": 0
+      }
+    }
+  }
+}

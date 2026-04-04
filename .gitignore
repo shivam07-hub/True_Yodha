@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Environment — NEVER COMMIT
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Logs
+*.log
+logs/
+
+# Scraped data outputs — large data files, not code
+Market Data/Job_Scrapers/All_CSV_Outputs/
+Market Data/Job_Scrapers/.ipynb_checkpoints/
+Market Data/Job_Scrapers/.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Alembic — keep versions but ignore pyc
+backend/alembic/versions/__pycache__/
