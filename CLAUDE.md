@@ -84,22 +84,44 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 Date: 2026-04-05
 Phase file worked on: phase_1b_database.md
 What was completed:
-  - Full schema review conducted — major corrections made
-  - database/schema.sql rewritten as v3.0 (12 tables)
-  - docs/SCORING_ALGORITHM.md rewritten — XP system removed, replaced with taxonomy-level matching
-  - CLAUDE.md project description updated to reflect correct product flow
+  - Full schema review and rewrite — database/schema.sql v3.0 (12 tables, final)
+  - docs/SCORING_ALGORITHM.md rewritten — XP system removed, taxonomy-level matching
+  - CLAUDE.md project description updated to reflect correct Intelligence-as-a-Service flow
+  - database/seed_skills.sql generated (63 skills, 315 skill_level rows)
+  - backend/app/services/taxonomy_loader.py — reads taxonomy.json, generates seed SQL
+  - backend/app/services/skill_tagger.py — Groq llama3-70b contextual skill tagger;
+    extracts required_skills, preferred_skills, min_years_experience, min_qualification
+    per job; results cached in database/skill_tag_cache.json
+  - backend/app/services/csv_importer.py — reads master xlsx, Groq-tags skills,
+    upserts into Supabase job_postings
+  - backend/requirements.txt — added openpyxl, python-dotenv, groq
+
 Key decisions made this session:
-  - No XP accumulation system — skill level is matched from CV evidence against skill_levels taxonomy definitions
-  - skill_levels.description is the benchmark for both CV matching AND job requirement categorisation
-  - job_postings uses primary_skills/secondary_skills JSONB (stores skill_id + required_level per skill)
-  - user_skill_xp renamed to user_skills; xp column removed; inferred_level renamed to matched_level
-  - Job match pool = top 5 by overlap; top 3 surfaced to user as is_recommended = TRUE
-  - action_plan JSONB added to user_job_matches (7-day CV alignment plan per job)
-  - New table: job_applications — tracks applied/responded/status/week-checkin per user per job
-  - user_profiles.id now references auth.users(id) ON DELETE CASCADE (Supabase Auth FK fix)
-  - demand_trend now has CHECK constraint (rising/stable/falling)
-  - RLS added for job_applications table
-Where we stopped: Schema v3.0 written — not yet applied to Supabase
-Next task: Continue schema review section by section (users, scoring, jobs, matches, demand), then apply to Supabase
+  - No XP accumulation — skill level matched from CV evidence vs skill_levels.description
+  - skill_levels.description is the benchmark for both CV matching AND job tagging
+  - job_postings: primary_skills/secondary_skills as JSONB [{skill_id, required_level}]
+  - job_postings: added min_years_experience (INTEGER) and min_qualification (VARCHAR)
+    both LLM-extracted from raw_jd_text (not from xlsx columns which are mostly empty)
+  - user_skill_xp → renamed user_skills; xp dropped; inferred_level → matched_level
+  - Job match pool = top 5; top 3 flagged is_recommended = TRUE and shown to user
+  - action_plan JSONB on user_job_matches (7-day CV alignment plan per recommended job)
+  - New table: job_applications — full application lifecycle tracking
+  - user_profiles.id references auth.users(id) ON DELETE CASCADE (Supabase Auth FK)
+  - demand_trend CHECK constraint (rising/stable/falling)
+  - Groq skill tagger uses llama3-70b-8192 for contextual understanding (not keyword match)
+  - Taxonomy folder has a SPACE in name: "skill_taxonomy mapping/" — all scripts handle this
+
+Where we stopped:
+  Schema is final and committed. NOT yet applied to Supabase — user will do this next session.
+
+Next session run order:
+  1. Supabase SQL Editor → paste database/schema.sql → Run
+  2. source .venv/bin/activate && pip install -r backend/requirements.txt
+  3. python3 backend/app/services/taxonomy_loader.py
+  4. Supabase SQL Editor → paste database/seed_skills.sql → Run
+  5. python3 backend/app/services/csv_importer.py  (Groq tags + imports all jobs)
+  6. uvicorn app.main:app --reload --app-dir backend → curl localhost:8000/health
+  7. Mark phase_1b_database.md checklist complete → move to phase_1c_backend.md
+
 Blockers: None
 ```
