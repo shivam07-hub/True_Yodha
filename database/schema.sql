@@ -122,9 +122,11 @@ CREATE TABLE job_postings (
   location         VARCHAR(200),
   remote           BOOLEAN      DEFAULT FALSE,
   description      TEXT,
-  primary_skills   JSONB        DEFAULT '[]',   -- required skills (must-have)
-  secondary_skills JSONB        DEFAULT '[]',   -- nice-to-have skills
-  raw_skill_text   TEXT[]       DEFAULT '{}',   -- unmatched skill strings from source
+  primary_skills        JSONB        DEFAULT '[]',   -- required skills (must-have)
+  secondary_skills      JSONB        DEFAULT '[]',   -- nice-to-have skills
+  raw_skill_text        TEXT[]       DEFAULT '{}',   -- unmatched skill strings from source
+  min_years_experience  INTEGER,                     -- LLM-extracted minimum years required
+  min_qualification     VARCHAR(100),                -- LLM-extracted e.g. Bachelor's / Master's / PhD
   salary_min       INTEGER,
   salary_max       INTEGER,
   salary_currency  VARCHAR(10)  DEFAULT 'USD',

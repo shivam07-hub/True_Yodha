@@ -156,10 +156,12 @@ def job_to_posting(
 ) -> dict:
     required_level = infer_required_level(job.get("seniority_level"))
 
-    # Use Groq-tagged skills from cache
-    required_keys, preferred_keys = get_tags_for_job(job["job_id"], tag_cache)
+    # Use Groq-tagged skills from cache (contextual extraction)
+    required_keys, preferred_keys, min_years, min_qual = get_tags_for_job(
+        job["job_id"], tag_cache
+    )
 
-    # If explicit xlsx columns have data and cache is empty, fall back to those
+    # Fallback: if Groq returned nothing, try explicit xlsx columns
     if not required_keys and not preferred_keys:
         raw_req = job.get("skills_required_raw")
         raw_pref = job.get("skills_preferred_raw")
@@ -198,6 +200,8 @@ def job_to_posting(
         "primary_skills": json.dumps(primary_jsonb),
         "secondary_skills": json.dumps(secondary_jsonb),
         "raw_skill_text": [],
+        "min_years_experience": min_years,
+        "min_qualification": min_qual,
         "salary_min": job.get("salary_min"),
         "salary_max": job.get("salary_max"),
         "salary_currency": str(job.get("salary_currency") or "USD"),
