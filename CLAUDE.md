@@ -58,7 +58,7 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ## CODING CONVENTIONS (always apply)
 
-**Python:** 3.11+, async/await, type hints everywhere, Pydantic for validation, SQLAlchemy ORM, `HTTPException` only (never raw exceptions), 100% test coverage on scoring engine.
+**Python:** 3.11+, async/await, type hints everywhere, Pydantic for validation, Supabase client for all DB operations (no SQLAlchemy/Alembic), `HTTPException` only (never raw exceptions), 100% test coverage on scoring engine.
 
 **TypeScript:** Strict mode ON, no `any`, functional components only, all API calls via `lib/api.ts`, TanStack Query for server state, Zustand for UI-only state, 375px mobile viewport required.
 
@@ -81,47 +81,65 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 ## LAST SESSION SUMMARY
 
 ```
-Date: 2026-04-05
-Phase file worked on: phase_1b_database.md
-What was completed:
-  - Full schema review and rewrite — database/schema.sql v3.0 (12 tables, final)
-  - docs/SCORING_ALGORITHM.md rewritten — XP system removed, taxonomy-level matching
-  - CLAUDE.md project description updated to reflect correct Intelligence-as-a-Service flow
-  - database/seed_skills.sql generated (63 skills, 315 skill_level rows)
-  - backend/app/services/taxonomy_loader.py — reads taxonomy.json, generates seed SQL
-  - backend/app/services/skill_tagger.py — Groq llama3-70b contextual skill tagger;
-    extracts required_skills, preferred_skills, min_years_experience, min_qualification
-    per job; results cached in database/skill_tag_cache.json
-  - backend/app/services/csv_importer.py — reads master xlsx, Groq-tags skills,
-    upserts into Supabase job_postings
-  - backend/requirements.txt — added openpyxl, python-dotenv, groq
+Date: 2026-04-06
+Phase files worked on: phase_1b_database.md, phase_1c_backend.md (design decisions)
 
-Key decisions made this session:
-  - No XP accumulation — skill level matched from CV evidence vs skill_levels.description
-  - skill_levels.description is the benchmark for both CV matching AND job tagging
-  - job_postings: primary_skills/secondary_skills as JSONB [{skill_id, required_level}]
-  - job_postings: added min_years_experience (INTEGER) and min_qualification (VARCHAR)
-    both LLM-extracted from raw_jd_text (not from xlsx columns which are mostly empty)
-  - user_skill_xp → renamed user_skills; xp dropped; inferred_level → matched_level
-  - Job match pool = top 5; top 3 flagged is_recommended = TRUE and shown to user
-  - action_plan JSONB on user_job_matches (7-day CV alignment plan per recommended job)
-  - New table: job_applications — full application lifecycle tracking
-  - user_profiles.id references auth.users(id) ON DELETE CASCADE (Supabase Auth FK)
-  - demand_trend CHECK constraint (rising/stable/falling)
-  - Groq skill tagger uses llama3-70b-8192 for contextual understanding (not keyword match)
-  - Taxonomy folder has a SPACE in name: "skill_taxonomy mapping/" — all scripts handle this
+What was completed:
+  PIPELINE SPLIT (Phase 1B):
+  - preprocessor.py created: HTML strip, quality filter (<150 chars), title normalisation,
+    INR salary normalisation (LPA/K/crore formats), staleness filter (50 days)
+  - groq_tagger.py created: reads raw xlsx → preprocesses → Groq tags → writes enhanced xlsx
+    Output: Market Data/.../Enhanced/ENHANCED_JOBS_<YYYYMMDD>.xlsx
+  - csv_importer.py rewritten: reads enhanced xlsx only (no Groq), upserts to Supabase,
+    deactivation sweep (marks jobs absent from current run as is_active=false)
+  - skill_tagger.py: model updated to llama-3.1-8b-instant (higher free tier limit)
+
+  ARCHITECTURE DECISIONS:
+  - Dropped SQLAlchemy/asyncpg/alembic entirely — Supabase client for all DB ops
+  - database.py replaced with Supabase client factory (get_supabase + get_supabase_admin)
+  - config.py: added supabase_anon_key, removed database_url
+  - backend/.env.example created
+  - backend/app/scrapers/ deleted (scrapers run locally, never in backend)
+  - requirements.txt: removed duplicate httpx, spacy pinned to >=3.8.0 for Python 3.13
+  - salary_currency default changed USD → INR in schema.sql
+
+  SCHEMA UPDATES (applied to Supabase):
+  - daily_logs table added (14 tables total): free-text diary, skills_delta JSONB,
+    one entry per user per day, RLS enabled
+  - user_job_matches: batch_week DATE column added, UNIQUE constraint updated
+  - TECH_STACK.md, phase_1a_infra.md, phase_1c_backend.md, CLAUDE.md all updated
+
+  PRODUCT DESIGN DECISIONS (Phase 1C inputs):
+  - Core loop: weekly job matches (top 3, every Monday) + daily diary + score updates
+  - Diary: free text, Groq extracts skill XP in real-time, triggers score recompute
+  - Job matches: top 3 by overlap score + overlap % + Groq reasoning (not explicit/inferred split)
+  - Onboarding v1: CV upload first, target role questionnaire deferred to v2
+  - Weekly batch: automatic every Monday when job data refreshes
 
 Where we stopped:
-  Schema is final and committed. NOT yet applied to Supabase — user will do this next session.
+  groq_tagger.py is RUNNING IN BACKGROUND (process ID: bmzdehayy)
+  Model: llama-3.1-8b-instant, 5,218 jobs across 1,740 batches
+  Hit 100K token/day limit on llama-3.3-70b-versatile earlier — switched to 8b
+  Cache preserved: 60 good entries so far, 5,158 remaining
+
+Blocker:
+  Groq free tier (llama-3.1-8b-instant) may also hit daily token limit before finishing.
+  Plan: refactor skill_tagger.py to auto-switch providers on 429:
+    1. Groq llama-3.1-8b-instant
+    2. Gemini 1.5 Flash (GOOGLE_API_KEY already in .env)
+    3. OpenRouter free models (needs free account + API key)
+  This refactor is PENDING — do NOT start until current run finishes or hits limit.
 
 Next session run order:
-  1. Supabase SQL Editor → paste database/schema.sql → Run
-  2. source .venv/bin/activate && pip install -r backend/requirements.txt
-  3. python3 backend/app/services/taxonomy_loader.py
-  4. Supabase SQL Editor → paste database/seed_skills.sql → Run
-  5. python3 backend/app/services/csv_importer.py  (Groq tags + imports all jobs)
-  6. uvicorn app.main:app --reload --app-dir backend → curl localhost:8000/health
-  7. Mark phase_1b_database.md checklist complete → move to phase_1c_backend.md
+  1. Check if groq_tagger.py finished successfully
+     → If yes: review enhanced xlsx, run csv_importer.py, verify Supabase
+     → If hit rate limit again: refactor skill_tagger.py for multi-provider fallback
+  2. Once Supabase populated: test uvicorn + curl /health
+  3. Mark Phase 1B complete
+  4. Start Phase 1C: Pydantic schemas → auth routes → user routes → CV upload → scoring → jobs → diary
+```
+  5. uvicorn app.main:app --reload --app-dir backend → curl localhost:8000/health
+  6. Mark phase_1b_database.md checklist complete → move to phase_1c_backend.md
 
 Blockers: None
 ```

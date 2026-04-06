@@ -10,8 +10,7 @@
 | Frontend data | TanStack Query | 5.x | Server state, caching |
 | Backend | FastAPI | 0.110+ | Async Python, aligns with scraper codebase |
 | Database | PostgreSQL via Supabase | 15 | Free tier, auth built-in |
-| ORM | SQLAlchemy | 2.x | Async, migration support |
-| Migrations | Alembic | 1.x | Paired with SQLAlchemy |
+| DB Client | Supabase Python client | 2.x | RLS-aware, no dual schema maintenance |
 | Auth | Supabase Auth | — | JWT, LinkedIn OAuth, RLS |
 | CV Parsing | PyMuPDF + python-docx | — | Extract text from PDF/DOCX |
 | Skill Tagging | spaCy + keyword map | — | Maps extracted skills to taxonomy |

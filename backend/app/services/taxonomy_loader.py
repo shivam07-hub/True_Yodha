@@ -180,7 +180,11 @@ def build_seed_sql(taxonomy: dict) -> str:
     lines.append("-- skills")
     for idx, skill in enumerate(skills_data):
         domain_code = DOMAIN_CODE_MAP[skill["domain_name"]]
-        tech_array = "{" + ",".join(f'"{t}"' for t in skill["technologies"]) + "}"
+        techs = skill["technologies"]
+        if techs:
+            tech_literal = "ARRAY[" + ",".join(f"'{sql_escape(t)}'" for t in techs) + "]::text[]"
+        else:
+            tech_literal = "'{}'::text[]"
         fam_code = (
             f"{domain_code}_{skill['family_name'][:8].upper().replace(' ', '_').replace('&', 'N')}"
         )
@@ -191,7 +195,7 @@ def build_seed_sql(taxonomy: dict) -> str:
             f"SELECT d.id, f.id, "
             f"'{sql_escape(skill['taxonomy_key'])}', "
             f"'{sql_escape(skill['display_name'])}', "
-            f"ARRAY{tech_array}::text[], {idx + 1} "
+            f"{tech_literal}, {idx + 1} "
             f"FROM skill_domains d "
             f"JOIN skill_families f ON f.domain_id = d.id AND f.code = '{sql_escape(fam_code)}' "
             f"WHERE d.code = '{domain_code}' "

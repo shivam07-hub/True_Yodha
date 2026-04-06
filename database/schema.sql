@@ -129,7 +129,7 @@ CREATE TABLE job_postings (
   min_qualification     VARCHAR(100),                -- LLM-extracted e.g. Bachelor's / Master's / PhD
   salary_min       INTEGER,
   salary_max       INTEGER,
-  salary_currency  VARCHAR(10)  DEFAULT 'USD',
+  salary_currency  VARCHAR(10)  DEFAULT 'INR',
   source           VARCHAR(100),
   source_url       VARCHAR(500),
   posted_at        TIMESTAMPTZ,
@@ -138,21 +138,23 @@ CREATE TABLE job_postings (
 );
 
 -- ─── JOB MATCHES ────────────────────────────────────────────
--- Top 5 jobs per user by skill overlap, LLM-ranked.
--- is_recommended = TRUE marks the top 3 surfaced to the user.
--- action_plan stores the 7-day CV alignment plan per job.
+-- Top 3 jobs per user per week by skill overlap.
+-- batch_week = the Monday this set of matches was generated.
+-- is_recommended = TRUE marks the 3 surfaced to the user this week.
+-- llm_explanation = Groq-generated reasoning for why this job fits.
 
 CREATE TABLE user_job_matches (
   id              SERIAL       PRIMARY KEY,
   user_id         UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   job_id          INTEGER      NOT NULL REFERENCES job_postings(id),
+  batch_week      DATE         NOT NULL,                -- Monday of the week this was generated
   overlap_score   DECIMAL(5,2) NOT NULL,
   llm_rank        INTEGER,
-  llm_explanation TEXT,
-  is_recommended  BOOLEAN      DEFAULT FALSE,   -- TRUE for top 3 surfaced to user
-  action_plan     JSONB        DEFAULT '[]',    -- 7-day plan: [{day: 1, tasks: [...]}]
+  llm_explanation TEXT,                                 -- Groq: why this job fits the user (2-3 sentences)
+  is_recommended  BOOLEAN      DEFAULT FALSE,           -- TRUE for top 3 surfaced this week
+  action_plan     JSONB        DEFAULT '[]',            -- 7-day plan: [{day: 1, tasks: [...]}]
   computed_at     TIMESTAMPTZ  DEFAULT NOW(),
-  UNIQUE(user_id, job_id)
+  UNIQUE(user_id, job_id, batch_week)
 );
 
 -- ─── JOB APPLICATIONS ───────────────────────────────────────
@@ -173,6 +175,41 @@ CREATE TABLE job_applications (
   notes            TEXT,
   created_at       TIMESTAMPTZ  DEFAULT NOW(),
   UNIQUE(user_id, job_id)
+);
+
+-- ─── DAILY LOGS ─────────────────────────────────────────────
+-- User's free-text diary entry for each day of their job search.
+-- Groq reads entry_text in real-time and extracts skill signals →
+-- awards XP on matching taxonomy skills → triggers Mirror Score recompute.
+-- One entry per user per day (upsert on user_id + log_date conflict).
+
+CREATE TABLE daily_logs (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  log_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
+  entry_text   TEXT        NOT NULL,
+  skills_delta JSONB       NOT NULL DEFAULT '[]',  -- [{taxonomy_key, xp_added, evidence}]
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, log_date)
+);
+
+-- ─── CANDIDATE SKILLS QUEUE ─────────────────────────────────
+-- Unknown skills found in JDs that don't map to the 63-skill taxonomy.
+-- Populated automatically by csv_importer.py on each weekly run.
+-- Reviewed manually once a week: map to existing skill, add to taxonomy, or reject.
+-- Never auto-add to taxonomy — L1-L5 descriptions must be written by a human.
+
+CREATE TABLE candidate_skills_queue (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  skill_name_raw     TEXT        NOT NULL UNIQUE,
+  job_count          INTEGER     DEFAULT 1,
+  first_seen_at      TIMESTAMPTZ DEFAULT NOW(),
+  status             VARCHAR(20) DEFAULT 'pending'
+                     CHECK (status IN ('pending', 'mapped', 'added', 'rejected')),
+  mapped_to_skill_id INTEGER     REFERENCES skills(id),  -- set if mapped to existing skill
+  reviewed_at        TIMESTAMPTZ,
+  notes              TEXT
 );
 
 -- ─── SKILL DEMAND ────────────────────────────────────────────
@@ -201,9 +238,13 @@ CREATE INDEX idx_jobs_active          ON job_postings(is_active) WHERE is_active
 CREATE INDEX idx_jobs_primary_skills  ON job_postings USING GIN(primary_skills);
 CREATE INDEX idx_jobs_secondary_skills ON job_postings USING GIN(secondary_skills);
 CREATE INDEX idx_matches_user         ON user_job_matches(user_id);
+CREATE INDEX idx_matches_batch_week   ON user_job_matches(user_id, batch_week DESC);
 CREATE INDEX idx_matches_recommended  ON user_job_matches(user_id) WHERE is_recommended = TRUE;
 CREATE INDEX idx_applications_user    ON job_applications(user_id);
+CREATE INDEX idx_daily_logs_user      ON daily_logs(user_id);
+CREATE INDEX idx_daily_logs_date      ON daily_logs(user_id, log_date DESC);
 CREATE INDEX idx_demand_skill         ON skill_demand_snapshots(skill_id, snapshot_date DESC);
+CREATE INDEX idx_candidates_pending   ON candidate_skills_queue(status) WHERE status = 'pending';
 
 -- ─── ROW LEVEL SECURITY ─────────────────────────────────────
 
@@ -212,11 +253,13 @@ ALTER TABLE user_skills        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own scores"         ON mirror_scores     FOR SELECT  USING (auth.uid() = user_id);
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
+CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "skills public read" ON skills            FOR SELECT  USING (true);
 CREATE POLICY "jobs public read"   ON job_postings      FOR SELECT  USING (is_active = true);

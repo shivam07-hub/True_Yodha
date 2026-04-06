@@ -4,17 +4,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Database
-    database_url: str = ""
-
     # Supabase
     supabase_url: str = ""
-    supabase_service_key: str = ""
+    supabase_anon_key: str = ""       # used in user-facing routes (respects RLS)
+    supabase_service_key: str = ""    # used in admin/import scripts only (bypasses RLS)
 
-    # OpenAI
-    openai_api_key: str = ""
+    # LLM keys — fallback order: groq → gemini → openrouter
+    # All three used in skill_tagger.py and diary_processor.py
+    groq_api_key: str = ""
+    google_api_key: str = ""        # Gemini 1.5 Flash — 1,500 req/day free
+    openrouter_api_key: str = ""    # OpenRouter free models — no daily cap
+    openai_api_key: str = ""        # GPT-4o mini — job re-ranking (Phase 1F)
+    anthropic_api_key: str = ""
 
-    # SendGrid
+    # Email (post-MVP)
     sendgrid_api_key: str = ""
 
     # Environment

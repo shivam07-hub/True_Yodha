@@ -57,13 +57,11 @@ mirror-app/
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── models/
-│   │   ├── schemas/
+│   │   ├── database.py          ← Supabase client factory (not SQLAlchemy)
+│   │   ├── models/              ← reserved for future use
+│   │   ├── schemas/             ← Pydantic request/response models
 │   │   ├── routers/
-│   │   ├── services/
-│   │   └── scrapers/
-│   ├── alembic/
+│   │   └── services/            ← business logic + import pipeline scripts
 │   ├── tests/
 │   ├── requirements.txt
 │   ├── Dockerfile
@@ -165,9 +163,10 @@ jobs:
 
 **`backend/.env.example`:**
 ```
-DATABASE_URL=
 SUPABASE_URL=
+SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_KEY=
+GROQ_API_KEY=
 OPENAI_API_KEY=
 SENDGRID_API_KEY=
 RAILWAY_ENVIRONMENT=

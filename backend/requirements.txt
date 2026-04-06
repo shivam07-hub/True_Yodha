@@ -4,12 +4,11 @@ uvicorn[standard]==0.29.0
 python-multipart==0.0.9          # file uploads
 
 # ── Database ────────────────────────────────────────────────────
-sqlalchemy[asyncio]==2.0.30
-asyncpg==0.29.0                  # async PostgreSQL driver
-alembic==1.13.1
+# SQLAlchemy/asyncpg/alembic removed — Supabase client handles all DB ops.
+# Schema lives in database/schema.sql, applied via Supabase SQL Editor.
 
 # ── Config & validation ─────────────────────────────────────────
-pydantic==2.7.1
+pydantic[email]==2.7.1
 pydantic-settings==2.2.1
 
 # ── Auth ────────────────────────────────────────────────────────
@@ -20,11 +19,11 @@ passlib[bcrypt]==1.7.4           # password hashing
 # ── CV parsing ──────────────────────────────────────────────────
 openpyxl==3.1.2                  # read xlsx files for csv_importer
 python-dotenv==1.0.1             # load .env in standalone scripts
-pymupdf==1.24.2                  # PDF text extraction
+pymupdf>=1.24.2                  # PDF text extraction (no strict pin — ARM64 wheel availability varies)
 python-docx==1.1.0               # DOCX text extraction
 
 # ── Skill tagging (NLP) ─────────────────────────────────────────
-spacy==3.7.4                     # NLP pipeline for skill NER
+spacy>=3.8.0                     # NLP pipeline for skill NER — needs >=3.8.0 for Python 3.13 support
 # After pip install, run: python -m spacy download en_core_web_sm
 
 # ── LLM (job re-ranking) ────────────────────────────────────────
@@ -40,7 +39,6 @@ sendgrid==6.11.0
 # ── Testing ─────────────────────────────────────────────────────
 pytest==8.2.0
 pytest-asyncio==0.23.6
-httpx==0.27.0                    # also used as async test client
 
 # ── Linting ─────────────────────────────────────────────────────
 ruff==0.4.4

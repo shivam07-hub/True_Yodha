@@ -10,9 +10,9 @@
 
 ### Setup
 - [ ] FastAPI project initialised in `backend/`
-- [ ] Existing scraper code moved to `backend/app/scrapers/`
-- [ ] SQLAlchemy async models created for all tables
-- [ ] Alembic migrations set up and first migration run
+- [ ] Supabase client dependency wired into FastAPI (see `database.py`)
+- [ ] Pydantic response schemas created in `app/schemas/` for all endpoints
+- [ ] `SUPABASE_ANON_KEY` added to `backend/.env` and `.env.example`
 
 ### Endpoints
 - [ ] `POST /auth/signup` and `POST /auth/login` (Supabase Auth)
