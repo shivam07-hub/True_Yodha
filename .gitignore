@@ -37,6 +37,9 @@ Thumbs.db
 *.sqlite-shm
 *.sqlite-wal
 
+# LLM cache — runtime artifact, not source code
+database/skill_tag_cache.json
+
 # Logs
 *.log
 logs/

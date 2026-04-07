@@ -13,14 +13,14 @@
 
 ---
 
-## CURRENT PHASE → `docs/phases/phase_1b_database.md`
+## CURRENT PHASE → `docs/phases/phase_1c_backend.md`
 
-Status: Phase 1A complete. Phase 1B is next — but user wants to review and adjust table structures in `database/schema.sql` BEFORE applying to Supabase.
+Status: Phase 1A complete. Phase 1B complete. Phase 1C code complete — Railway deployed, awaiting health check confirmation.
 
 Phase order:
 1. `docs/phases/phase_1a_infra.md` ← **COMPLETE**
-2. `docs/phases/phase_1b_database.md` ← **YOU ARE HERE**
-3. `docs/phases/phase_1c_backend.md`
+2. `docs/phases/phase_1b_database.md` ← **COMPLETE**
+3. `docs/phases/phase_1c_backend.md` ← **YOU ARE HERE**
 4. `docs/phases/phase_1d_frontend.md`
 5. `docs/phases/phase_1e_scoring.md`
 6. `docs/phases/phase_1f_jobs.md`
@@ -81,65 +81,45 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 ## LAST SESSION SUMMARY
 
 ```
-Date: 2026-04-06
-Phase files worked on: phase_1b_database.md, phase_1c_backend.md (design decisions)
+Date: 2026-04-07
+Phase files worked on: phase_1c_backend.md
 
 What was completed:
-  PIPELINE SPLIT (Phase 1B):
-  - preprocessor.py created: HTML strip, quality filter (<150 chars), title normalisation,
-    INR salary normalisation (LPA/K/crore formats), staleness filter (50 days)
-  - groq_tagger.py created: reads raw xlsx → preprocesses → Groq tags → writes enhanced xlsx
-    Output: Market Data/.../Enhanced/ENHANCED_JOBS_<YYYYMMDD>.xlsx
-  - csv_importer.py rewritten: reads enhanced xlsx only (no Groq), upserts to Supabase,
-    deactivation sweep (marks jobs absent from current run as is_active=false)
-  - skill_tagger.py: model updated to llama-3.1-8b-instant (higher free tier limit)
-
-  ARCHITECTURE DECISIONS:
-  - Dropped SQLAlchemy/asyncpg/alembic entirely — Supabase client for all DB ops
-  - database.py replaced with Supabase client factory (get_supabase + get_supabase_admin)
-  - config.py: added supabase_anon_key, removed database_url
-  - backend/.env.example created
-  - backend/app/scrapers/ deleted (scrapers run locally, never in backend)
-  - requirements.txt: removed duplicate httpx, spacy pinned to >=3.8.0 for Python 3.13
-  - salary_currency default changed USD → INR in schema.sql
-
-  SCHEMA UPDATES (applied to Supabase):
-  - daily_logs table added (14 tables total): free-text diary, skills_delta JSONB,
-    one entry per user per day, RLS enabled
-  - user_job_matches: batch_week DATE column added, UNIQUE constraint updated
-  - TECH_STACK.md, phase_1a_infra.md, phase_1c_backend.md, CLAUDE.md all updated
-
-  PRODUCT DESIGN DECISIONS (Phase 1C inputs):
-  - Core loop: weekly job matches (top 3, every Monday) + daily diary + score updates
-  - Diary: free text, Groq extracts skill XP in real-time, triggers score recompute
-  - Job matches: top 3 by overlap score + overlap % + Groq reasoning (not explicit/inferred split)
-  - Onboarding v1: CV upload first, target role questionnaire deferred to v2
-  - Weekly batch: automatic every Monday when job data refreshes
+  groq_tagger.py debugging session — attempted to run the full tagging pipeline.
+  - Installed missing packages into .venv: openai, google-generativeai
+  - Changed provider fallback order to Groq → OpenRouter → Gemini
+  - Identified all currently working free OpenRouter models via /api/v1/models
+    (meta-llama/llama-3.3-70b-instruct:free is the best available for JSON tasks)
+  - Updated PROVIDERS list in skill_tagger.py with correct model names
 
 Where we stopped:
-  groq_tagger.py is RUNNING IN BACKGROUND (process ID: bmzdehayy)
-  Model: llama-3.1-8b-instant, 5,218 jobs across 1,740 batches
-  Hit 100K token/day limit on llama-3.3-70b-versatile earlier — switched to 8b
-  Cache preserved: 60 good entries so far, 5,158 remaining
+  groq_tagger.py could not complete a single batch due to cascading provider failures.
+  Session closed to wait for Groq daily limit reset overnight.
 
-Blocker:
-  Groq free tier (llama-3.1-8b-instant) may also hit daily token limit before finishing.
-  Plan: refactor skill_tagger.py to auto-switch providers on 429:
-    1. Groq llama-3.1-8b-instant
-    2. Gemini 1.5 Flash (GOOGLE_API_KEY already in .env)
-    3. OpenRouter free models (needs free account + API key)
-  This refactor is PENDING — do NOT start until current run finishes or hits limit.
+BLOCKERS — must fix before next run:
+  1. GROQ: Daily free tier exhausted. Resets midnight UTC. Run tomorrow morning.
+  2. OPENROUTER model: meta-llama/llama-3.3-70b-instruct:free exists but is
+     temporarily rate-limited. Current code permanently switches away on any 429
+     — needs retry logic instead of hard switch for temporary limits.
+  3. GEMINI model: gemini-1.5-flash is deprecated/removed. Must update to
+     gemini-2.0-flash in skill_tagger.py PROVIDERS list before next run.
+  4. OPENROUTER 429 handling: _is_rate_limit() treats temporary 429 as permanent
+     → code never retries the same provider. Should add per-batch retry with
+     backoff before switching.
 
 Next session run order:
-  1. Check if groq_tagger.py finished successfully
-     → If yes: review enhanced xlsx, run csv_importer.py, verify Supabase
-     → If hit rate limit again: refactor skill_tagger.py for multi-provider fallback
-  2. Once Supabase populated: test uvicorn + curl /health
-  3. Mark Phase 1B complete
-  4. Start Phase 1C: Pydantic schemas → auth routes → user routes → CV upload → scoring → jobs → diary
-```
-  5. uvicorn app.main:app --reload --app-dir backend → curl localhost:8000/health
-  6. Mark phase_1b_database.md checklist complete → move to phase_1c_backend.md
-
-Blockers: None
+  0. Fix skill_tagger.py before running:
+     a. Change Gemini model: "gemini-1.5-flash" → "gemini-2.0-flash"
+     b. Add retry-with-backoff for 429 on OpenRouter before hard-switching
+  1. Run groq_tagger.py (after Groq daily limit resets — midnight UTC):
+     → cd /Users/incognito/True_Yodha/backend
+     → source ../.venv/bin/activate
+     → python3 -m app.services.groq_tagger
+     → Cache at database/skill_tag_cache.json has ~461 jobs already tagged
+     → 4,757 jobs still need tagging across 1,586 batches
+  2. Review enhanced xlsx output
+  3. Run csv_importer.py to push jobs to Supabase
+  4. Verify jobs appear in Supabase dashboard
+  5. Mark Phase 1C complete
+  6. Start Phase 1D: Next.js 14 frontend
 ```

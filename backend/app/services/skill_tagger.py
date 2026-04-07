@@ -4,8 +4,8 @@ Multi-provider LLM skill extractor for raw job descriptions.
 
 Provider fallback order (auto-switches on rate limit / 429):
   1. Groq       — llama-3.1-8b-instant  (~500K tokens/day free)
-  2. Gemini     — gemini-1.5-flash       (1,500 req/day free)
-  3. OpenRouter — llama-3.1-8b-instruct:free (no daily cap, rate limited per min)
+  2. OpenRouter — llama-3.1-8b-instruct:free (no daily cap, rate limited per min)
+  3. Gemini     — gemini-2.0-flash       (1,500 req/day free)
 
 Add api_keys for all three providers to exhaust free tiers before manual fallback.
 Results cached in database/skill_tag_cache.json — re-runs skip already-tagged jobs.
@@ -25,8 +25,8 @@ VALID_QUALIFICATIONS = {"High School", "Diploma", "Bachelor's", "Master's", "MBA
 
 PROVIDERS = [
     {"name": "groq",        "model": "llama-3.1-8b-instant"},
-    {"name": "gemini",      "model": "gemini-1.5-flash"},
-    {"name": "openrouter",  "model": "meta-llama/llama-3.1-8b-instruct:free"},
+    {"name": "openrouter",  "model": "meta-llama/llama-3.3-70b-instruct:free"},
+    {"name": "gemini",      "model": "gemini-2.0-flash"},
 ]
 
 _EMPTY_TAGS: dict = {
@@ -123,6 +123,31 @@ def _is_rate_limit(error: Exception) -> bool:
     return any(k in msg for k in ("429", "rate_limit", "quota", "exhausted", "resource_exhausted"))
 
 
+_OPENROUTER_RETRY_WAITS = [15, 30, 60]  # seconds between retries on openrouter 429
+
+
+def _call_provider_with_retry(
+    prompt: str, provider: dict, api_keys: dict[str, str], verbose: bool
+) -> str:
+    """Wraps _call_provider with backoff retries for openrouter 429s.
+    Other providers and other errors raise immediately."""
+    last_exc: Exception | None = None
+    attempts = [None] + _OPENROUTER_RETRY_WAITS  # None = no wait on first try
+    for wait in attempts:
+        if wait is not None:
+            if verbose:
+                print(f"openrouter 429 — retrying in {wait}s...", end=" ", flush=True)
+            time.sleep(wait)
+        try:
+            return _call_provider(prompt, provider, api_keys)
+        except Exception as e:
+            last_exc = e
+            if _is_rate_limit(e) and provider["name"] == "openrouter" and wait != attempts[-1]:
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
+
+
 # ── Response parsing ──────────────────────────────────────────────────────────
 
 def parse_llm_response(text: str) -> list[dict]:
@@ -131,10 +156,13 @@ def parse_llm_response(text: str) -> list[dict]:
         text = text.split("```")[1].split("```")[0].strip()
         if text.startswith("json"):
             text = text[4:].strip()
-    start, end = text.find("["), text.rfind("]") + 1
-    if start == -1 or end == 0:
+    start = text.find("[")
+    if start == -1:
         return []
-    return json.loads(text[start:end])
+    # raw_decode stops at the end of the first valid JSON value,
+    # ignoring any extra text the LLM appended after the array.
+    result, _ = json.JSONDecoder().raw_decode(text, start)
+    return result if isinstance(result, list) else []
 
 
 def validate_result(result: dict, valid_keys: set[str]) -> dict:
@@ -202,7 +230,7 @@ def tag_jobs_with_llm(
 
             for attempt in range(provider_idx, len(active)):
                 try:
-                    raw_text = _call_provider(prompt, active[attempt], api_keys)
+                    raw_text = _call_provider_with_retry(prompt, active[attempt], api_keys, verbose)
                     results = parse_llm_response(raw_text)
                     for r in results:
                         jid = str(r.get("job_id", ""))
@@ -221,6 +249,17 @@ def tag_jobs_with_llm(
                     else:
                         if verbose:
                             print(f"ERROR: {e}")
+                        if _is_rate_limit(e) and attempt == len(active) - 1:
+                            # All providers exhausted
+                            remaining = len(uncached) - batch_start
+                            if verbose:
+                                print(f"\n\n  ⚠  All API providers exhausted.")
+                                print(f"  {remaining} jobs still untagged.")
+                                print(f"  Tag manually with:")
+                                print(f"    python3 -m app.services.interactive_tagger")
+                                print(f"  Then re-run groq_tagger.py when limits reset.\n")
+                            save_cache(cache)
+                            return cache, {}
                         break
 
             if success:
