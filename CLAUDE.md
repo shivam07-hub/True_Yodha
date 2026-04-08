@@ -81,48 +81,40 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 ## LAST SESSION SUMMARY
 
 ```
-Date: 2026-04-07
-Phase files worked on: phase_1c_backend.md + phase_1d_frontend.md
+Date: 2026-04-08
+Phase files worked on: Phase 1E (scoring engine), Phase 1F (job matching), skill tagger rebuild
 
 What was completed:
-  Phase 1C:
-  - Railway deployment fixed (Root Directory → backend/)
-  - skill_tagger.py: fixed JSON parser (raw_decode), Gemini model → gemini-2.0-flash,
-    added retry-with-backoff for OpenRouter 429s
-  - Added interactive_tagger.py: company-by-company copy-paste CLI (human-in-loop)
-  - Added manual_tag_exporter.py + manual_tag_importer.py (Excel-based human-in-loop)
-  - groq_tagger.py now prints guidance to interactive_tagger on provider exhaustion
-
-  Phase 1D (frontend fully scaffolded and built):
-  - Next.js 14 App Router in frontend/ — TypeScript + Tailwind v3 + shadcn/ui
-  - lib/supabase.ts, lib/api.ts (typed), lib/query-client.ts, components/providers.tsx
-  - Landing page (/) with CV upload CTA + how-it-works
-  - /login and /signup with shared AuthForm component
-  - /onboarding: 3-step flow — CV drag-and-drop → target role → animated score reveal
-  - /dashboard: Mirror Score gauge + domain radar + top 5 skill upgrades + top 10 jobs
-  - All pages mobile-responsive, TanStack Query for all server state
-  - Build clean, 6 routes all pass
+  [tools/tagger_ui.py] Built Streamlit HITL tagger UI — browser copy/paste instead of terminal
+  [backend/app/services/scoring_engine.py] Added certification signal type, fixed null-safety bug on skill_domains
+  [backend/tests/test_scoring.py] 60 tests, 100% line coverage on scoring_engine.py
+  [backend/app/services/job_matcher.py] Full implementation: overlap scorer, primary×2/secondary×1 weights
+  [backend/app/services/llm_ranker.py] GPT-4o-mini re-ranker + action plans, weekly cache check
+  [backend/app/routers/jobs.py] POST /jobs/compute endpoint
+  [backend/tests/test_job_matcher.py] 24 tests covering all job matcher logic
+  [backend/app/services/skill_tagger.py] Rebuilt as 5-provider fallback chain (Gemini→Cerebras→Groq→SambaNova→OpenRouter)
+    - Sequential integer IDs in prompts (key fix: small LLMs mangled ?team= query strings)
+    - Max 2 rate-limit retries per provider, then falls through
+    - 0-tagged guard, description truncated to 1500 chars
+  [backend/app/services/groq_tagger.py] Updated to pass all 5 provider API keys
+  [backend/.env.example] Updated with all 5 provider keys + signup URLs
+  [.gitmodules] Added cheahjs/free-llm-api-resources submodule at docs/free-llm-api-resources
+  Ran tagger: ~1,339 jobs cached before all daily limits exhausted (Gemini, SambaNova, OpenRouter)
 
 Where we stopped:
-  Frontend built and committed to Develop branch.
-  User will push to GitHub + deploy to Vercel manually next session.
+  Job tagging incomplete — ~3,879 jobs still untagged.
+  Daily limits exhausted for Gemini, SambaNova, OpenRouter.
+  Cerebras and Groq should be fresh next run.
 
-DEFERRED — job tagging pipeline (do before Phase 1E scoring):
-  skill_tagger.py fixes are done. When ready:
-  → cd /Users/incognito/True_Yodha/backend && source ../.venv/bin/activate
-  → python3 -m app.services.groq_tagger   (API auto-pipeline)
-  → python3 -m app.services.interactive_tagger  (manual company-by-company)
-  Cache: ~483 jobs tagged, ~5,735 still untagged across 30 companies.
-  After tagging: run csv_importer.py → verify in Supabase.
+DEFERRED — must complete before Phase 1G:
+  Run tagger when limits reset:
+  → cd /Users/incognito/True_Yodha/backend
+  → ../.venv/bin/python3 -m app.services.groq_tagger
+  After tagging completes: run csv_importer.py → verify in Supabase → Phase 1G validation
 
 Next session start order:
-  1. Push Develop → GitHub (GitHub Desktop)
-  2. Merge Develop → main (GitHub PR)
-  3. Connect Vercel → import True_Yodha repo
-     - Root Directory: frontend
-     - Add 3 env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
-       NEXT_PUBLIC_API_URL (https://truemirror.up.railway.app)
-  4. Verify Vercel deployment live
-  5. Mark Phase 1D complete
-  6. Start Phase 1E: Scoring engine
+  1. Run groq_tagger.py (Cerebras+Groq should clear ~3,879 remaining in ~30 min)
+  2. Run csv_importer.py to push tagged jobs to Supabase
+  3. Verify job count in Supabase dashboard
+  4. Phase 1G: smoke tests + end-to-end pipeline validation
 ```
