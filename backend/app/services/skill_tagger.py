@@ -2,13 +2,21 @@
 skill_tagger.py
 Multi-provider LLM skill extractor for raw job descriptions.
 
-Provider fallback order (auto-switches on rate limit / 429):
-  1. Groq       — llama-3.1-8b-instant  (~500K tokens/day free)
-  2. OpenRouter — llama-3.1-8b-instruct:free (no daily cap, rate limited per min)
-  3. Gemini     — gemini-2.0-flash       (1,500 req/day free)
+Provider fallback order — all OpenAI-compatible endpoints, single SDK:
+  1. Gemini 2.0 Flash-Lite  500 req/day,  250k tok/min  GEMINI_API_KEY
+  2. Cerebras Llama 3.3 70B  14,400 req/day, 60k tok/min  CEREBRAS_API_KEY
+  3. Groq Llama 3.1 8B      14,400 req/day,  6k tok/min  GROQ_API_KEY
+  4. SambaNova Llama 3.1 8B  1,000 req/day               SAMBANOVA_API_KEY
+  5. OpenRouter Llama 3.3 70B  50 req/day (free tier)    OPENROUTER_API_KEY
 
-Add api_keys for all three providers to exhaust free tiers before manual fallback.
+Provider list sourced from:
+  docs/free-llm-api-resources/  (git submodule — cheahjs/free-llm-api-resources)
+  See that repo's README for up-to-date rate limits and model availability.
+
+Add any of the above API keys to backend/.env. Providers with missing keys are
+skipped. On rate-limit (HTTP 429), automatically switches to the next provider.
 Results cached in database/skill_tag_cache.json — re-runs skip already-tagged jobs.
+
 Called by groq_tagger.py — not run directly.
 """
 
@@ -16,17 +24,60 @@ import json
 import time
 from pathlib import Path
 
+from openai import OpenAI, RateLimitError
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_FILE = PROJECT_ROOT / "database" / "skill_tag_cache.json"
 
-BATCH_SIZE = 3
-BATCH_PAUSE_SECONDS = 3.0
+BATCH_SIZE = 10          # jobs per LLM call — small enough to fit any provider's context
+BATCH_PAUSE_SECONDS = 2  # politeness pause between batches
 VALID_QUALIFICATIONS = {"High School", "Diploma", "Bachelor's", "Master's", "MBA", "PhD", "Any"}
 
+# ── Provider registry ─────────────────────────────────────────────────────────
+# Sourced from docs/free-llm-api-resources (cheahjs/free-llm-api-resources).
+# All use OpenAI-compatible chat completions endpoints — single client pattern.
+
 PROVIDERS = [
-    {"name": "groq",        "model": "llama-3.1-8b-instant"},
-    {"name": "openrouter",  "model": "meta-llama/llama-3.3-70b-instruct:free"},
-    {"name": "gemini",      "model": "gemini-2.0-flash"},
+    {
+        "name":        "gemini",
+        "display":     "Gemini 2.0 Flash-Lite",
+        "base_url":    "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model":       "gemini-2.0-flash-lite",
+        "max_tokens":  2048,
+    },
+    {
+        "name":        "cerebras",
+        "display":     "Cerebras Llama 3.3 70B",
+        "base_url":    "https://api.cerebras.ai/v1",
+        "api_key_env": "CEREBRAS_API_KEY",
+        "model":       "llama-3.3-70b",
+        "max_tokens":  2048,
+    },
+    {
+        "name":        "groq",
+        "display":     "Groq Llama 3.1 8B",
+        "base_url":    "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "model":       "llama-3.1-8b-instant",
+        "max_tokens":  2048,
+    },
+    {
+        "name":        "sambanova",
+        "display":     "SambaNova Llama 3.1 8B",
+        "base_url":    "https://api.sambanova.ai/v1",
+        "api_key_env": "SAMBANOVA_API_KEY",
+        "model":       "Meta-Llama-3.1-8B-Instruct",
+        "max_tokens":  2048,
+    },
+    {
+        "name":        "openrouter",
+        "display":     "OpenRouter Llama 3.3 70B",
+        "base_url":    "https://openrouter.ai/api/v1",
+        "api_key_env": "OPENROUTER_API_KEY",
+        "model":       "meta-llama/llama-3.3-70b-instruct:free",
+        "max_tokens":  2048,
+    },
 ]
 
 _EMPTY_TAGS: dict = {
@@ -86,69 +137,31 @@ Return a JSON array — one object per job:
 Rules: taxonomy keys only for required/preferred. Same skill cannot appear in both. Return valid JSON only."""
 
 
-# ── Provider calls ────────────────────────────────────────────────────────────
+# ── Provider call ─────────────────────────────────────────────────────────────
 
 def _call_provider(prompt: str, provider: dict, api_keys: dict[str, str]) -> str:
-    name, model = provider["name"], provider["model"]
-
-    if name == "groq":
-        from groq import Groq
-        resp = Groq(api_key=api_keys["groq"]).chat.completions.create(
-            model=model, messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, max_tokens=2048,
-        )
-        return resp.choices[0].message.content or ""
-
-    if name == "gemini":
-        import google.generativeai as genai
-        genai.configure(api_key=api_keys["gemini"])
-        return genai.GenerativeModel(model).generate_content(prompt).text or ""
-
-    if name == "openrouter":
-        from openai import OpenAI
-        resp = OpenAI(
-            api_key=api_keys["openrouter"],
-            base_url="https://openrouter.ai/api/v1",
-        ).chat.completions.create(
-            model=model, messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, max_tokens=2048,
-        )
-        return resp.choices[0].message.content or ""
-
-    raise ValueError(f"Unknown provider: {name}")
+    """Single unified call — all providers use OpenAI-compatible chat completions."""
+    client = OpenAI(
+        api_key=api_keys[provider["api_key_env"]],
+        base_url=provider["base_url"],
+    )
+    resp = client.chat.completions.create(
+        model=provider["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.0,
+        max_tokens=provider["max_tokens"],
+    )
+    return resp.choices[0].message.content or ""
 
 
-def _is_rate_limit(error: Exception) -> bool:
-    msg = str(error).lower()
+def _is_rate_limit(exc: Exception) -> bool:
+    if isinstance(exc, RateLimitError):
+        return True
+    msg = str(exc).lower()
     return any(k in msg for k in ("429", "rate_limit", "quota", "exhausted", "resource_exhausted"))
 
 
-_OPENROUTER_RETRY_WAITS = [15, 30, 60]  # seconds between retries on openrouter 429
-
-
-def _call_provider_with_retry(
-    prompt: str, provider: dict, api_keys: dict[str, str], verbose: bool
-) -> str:
-    """Wraps _call_provider with backoff retries for openrouter 429s.
-    Other providers and other errors raise immediately."""
-    last_exc: Exception | None = None
-    attempts = [None] + _OPENROUTER_RETRY_WAITS  # None = no wait on first try
-    for wait in attempts:
-        if wait is not None:
-            if verbose:
-                print(f"openrouter 429 — retrying in {wait}s...", end=" ", flush=True)
-            time.sleep(wait)
-        try:
-            return _call_provider(prompt, provider, api_keys)
-        except Exception as e:
-            last_exc = e
-            if _is_rate_limit(e) and provider["name"] == "openrouter" and wait != attempts[-1]:
-                continue
-            raise
-    raise last_exc  # type: ignore[misc]
-
-
-# ── Response parsing ──────────────────────────────────────────────────────────
+# ── Response parsing + validation ─────────────────────────────────────────────
 
 def parse_llm_response(text: str) -> list[dict]:
     text = text.strip()
@@ -159,9 +172,10 @@ def parse_llm_response(text: str) -> list[dict]:
     start = text.find("[")
     if start == -1:
         return []
-    # raw_decode stops at the end of the first valid JSON value,
-    # ignoring any extra text the LLM appended after the array.
-    result, _ = json.JSONDecoder().raw_decode(text, start)
+    try:
+        result, _ = json.JSONDecoder().raw_decode(text, start)
+    except json.JSONDecodeError:
+        return []
     return result if isinstance(result, list) else []
 
 
@@ -193,10 +207,13 @@ def tag_jobs_with_llm(
     verbose: bool = True,
 ) -> tuple[dict[str, dict], dict[str, int]]:
     """
-    Tags all jobs with multi-provider fallback.
-    api_keys: {"groq": "...", "gemini": "...", "openrouter": "..."}
-    Missing keys skip that provider. Saves cache after each successful batch.
-    Returns (cache, candidate_counts).
+    Tags all jobs using multi-provider fallback.
+
+    api_keys: {env_var_name: value} — e.g. {"GEMINI_API_KEY": "...", "GROQ_API_KEY": "..."}
+    Missing keys skip that provider. On rate-limit, auto-switches to next provider.
+    Saves cache after each successful batch.
+
+    Returns (cache, candidate_unknown_skill_counts).
     """
     cache = load_cache()
     taxonomy_keys = build_taxonomy_list(alias_map)
@@ -207,14 +224,16 @@ def tag_jobs_with_llm(
         if verbose:
             print(f"  All {len(jobs)} jobs already cached — skipping LLM calls")
     else:
-        active = [p for p in PROVIDERS if api_keys.get(p["name"])]
+        active = [p for p in PROVIDERS if api_keys.get(p["api_key_env"])]
         if not active:
-            print("  ERROR: No API keys configured for any provider.")
+            print("  ERROR: No API keys configured. Add at least one of:")
+            for p in PROVIDERS:
+                print(f"    {p['api_key_env']} ({p['display']})")
             return cache, {}
 
         if verbose:
             print(f"  {len(uncached)} jobs need tagging ({len(jobs) - len(uncached)} cached)")
-            print(f"  Providers available: {[p['name'] for p in active]}")
+            print(f"  Providers: {[p['name'] for p in active]}")
 
         provider_idx = 0
         total_batches = (len(uncached) + BATCH_SIZE - 1) // BATCH_SIZE
@@ -226,11 +245,12 @@ def tag_jobs_with_llm(
             success = False
 
             if verbose:
-                print(f"  Batch {batch_num}/{total_batches} [{active[provider_idx]['name']}]...", end=" ", flush=True)
+                provider_name = active[provider_idx]["name"]
+                print(f"  Batch {batch_num}/{total_batches} [{provider_name}]...", end=" ", flush=True)
 
             for attempt in range(provider_idx, len(active)):
                 try:
-                    raw_text = _call_provider_with_retry(prompt, active[attempt], api_keys, verbose)
+                    raw_text = _call_provider(prompt, active[attempt], api_keys)
                     results = parse_llm_response(raw_text)
                     for r in results:
                         jid = str(r.get("job_id", ""))
@@ -240,24 +260,21 @@ def tag_jobs_with_llm(
                     provider_idx = attempt
                     success = True
                     break
-                except Exception as e:
-                    if _is_rate_limit(e) and attempt < len(active) - 1:
+
+                except Exception as exc:
+                    if _is_rate_limit(exc) and attempt < len(active) - 1:
                         next_name = active[attempt + 1]["name"]
                         if verbose:
-                            print(f"rate limit → switching to {next_name}...", end=" ", flush=True)
+                            print(f"rate limit → {next_name}...", end=" ", flush=True)
                         provider_idx = attempt + 1
                     else:
                         if verbose:
-                            print(f"ERROR: {e}")
-                        if _is_rate_limit(e) and attempt == len(active) - 1:
-                            # All providers exhausted
+                            print(f"ERROR [{active[attempt]['name']}]: {exc}")
+                        if _is_rate_limit(exc) and attempt == len(active) - 1:
                             remaining = len(uncached) - batch_start
                             if verbose:
-                                print(f"\n\n  ⚠  All API providers exhausted.")
-                                print(f"  {remaining} jobs still untagged.")
-                                print(f"  Tag manually with:")
-                                print(f"    python3 -m app.services.interactive_tagger")
-                                print(f"  Then re-run groq_tagger.py when limits reset.\n")
+                                print(f"\n  All providers exhausted. {remaining} jobs still untagged.")
+                                print("  Add more API keys to backend/.env, or use tagger_ui.py (Streamlit).")
                             save_cache(cache)
                             return cache, {}
                         break
@@ -268,7 +285,7 @@ def tag_jobs_with_llm(
                         cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
                 save_cache(cache)
                 if verbose:
-                    print(f"done ({len(tagged_ids)} tagged)")
+                    print(f"done ({len(tagged_ids)}/{len(batch)} tagged)")
 
             if batch_num < total_batches:
                 time.sleep(BATCH_PAUSE_SECONDS)
@@ -288,7 +305,7 @@ def tag_jobs_with_groq(
     verbose: bool = True,
 ) -> tuple[dict[str, dict], dict[str, int]]:
     """Backward-compatible wrapper — passes only Groq key."""
-    return tag_jobs_with_llm(jobs, alias_map, {"groq": groq_api_key}, verbose)
+    return tag_jobs_with_llm(jobs, alias_map, {"GROQ_API_KEY": groq_api_key}, verbose)
 
 
 def get_tags_for_job(job_id: str, cache: dict[str, dict]) -> tuple[list[str], list[str], int | None, str]:

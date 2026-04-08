@@ -189,12 +189,14 @@ def main() -> None:
     print(f"  {stats['dropped_staleness']} dropped — posted >50 days before most recent")
     print(f"  {stats['output']} jobs remaining")
 
-    # Step 4: Tag with LLM (Groq → Gemini → OpenRouter fallback)
+    # Step 4: Tag with LLM (5-provider fallback chain — see skill_tagger.py)
     print("\nTagging skills with LLM (cached)...")
     api_keys = {
-        "groq":        groq_api_key,
-        "gemini":      os.getenv("GOOGLE_API_KEY", ""),
-        "openrouter":  os.getenv("OPENROUTER_API_KEY", ""),
+        "GEMINI_API_KEY":    os.getenv("GEMINI_API_KEY", ""),
+        "CEREBRAS_API_KEY":  os.getenv("CEREBRAS_API_KEY", ""),
+        "GROQ_API_KEY":      groq_api_key,
+        "SAMBANOVA_API_KEY": os.getenv("SAMBANOVA_API_KEY", ""),
+        "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
     }
     from app.services.skill_tagger import tag_jobs_with_llm
     tag_cache, _ = tag_jobs_with_llm(jobs, alias_map, api_keys, verbose=True)
