@@ -17,13 +17,15 @@ from datetime import datetime, timezone
 
 from supabase import Client
 
-# XP thresholds → inferred skill level
-# Based on signal type accumulation (not raw XP sum — highest signal wins)
+# Signal type → base level (highest signal wins as the floor)
+# "certification" and "years_experience" are handled separately below.
 _SIGNAL_LEVEL_MAP = {
-    "mention":    1,   # L1 Foundation
-    "project":    2,   # L2 Practitioner
-    "impact":     3,   # L3 Professional
-    "leadership": 4,   # L4 Expert
+    "mention":       1,   # L1 Foundation  — named in skills section only
+    "project":       2,   # L2 Practitioner — used in a real project
+    "impact":        3,   # L3 Professional — applied with measurable metrics
+    "leadership":    4,   # L4 Expert       — led design / architecture
+    "certification": 3,   # L3 Professional — third-party cert verifies competency
+    # "years_experience" is NOT in this map — it contributes XP only (see below)
 }
 
 _RANK_TIERS = [
@@ -41,7 +43,16 @@ _RANK_TIERS = [
 def infer_level_from_signals(signals: list[dict]) -> int:
     """
     Returns inferred level (0–5) for a single taxonomy key from its signals.
-    Highest signal type wins; XP accumulation can boost one level further.
+
+    All 6 signal types:
+      mention        → L1, +50 XP
+      project        → L2, +150 XP
+      impact         → L3, +350 XP
+      leadership     → L4, +500 XP
+      certification  → L3, +200–400 XP  (third-party cert verifies competency)
+      years_experience → no base level, +XP only (years × weight acts as multiplier)
+
+    Highest base level wins. XP ≥ 1000 boosts one extra level (evidence of depth).
     """
     if not signals:
         return 0
@@ -49,7 +60,7 @@ def infer_level_from_signals(signals: list[dict]) -> int:
     level = max(_SIGNAL_LEVEL_MAP.get(s["signal_type"], 0) for s in signals)
     total_xp = sum(s["xp_awarded"] for s in signals)
 
-    # Boost one level if XP is high enough (evidence of depth, not just breadth)
+    # Boost one level if total XP shows depth beyond the highest single signal
     if total_xp >= 1000 and level < 5:
         level += 1
 
@@ -163,7 +174,7 @@ def fetch_taxonomy(db: Client) -> tuple[list[str], dict[str, list[str]], dict[st
     all_keys, by_domain, display = [], {}, {}
     for row in result.data:
         key = row["taxonomy_key"]
-        domain = row.get("skill_domains", {}).get("code", "UNKNOWN")
+        domain = (row.get("skill_domains") or {}).get("code", "UNKNOWN")
         all_keys.append(key)
         by_domain.setdefault(domain, []).append(key)
         display[key] = row["display_name"]
