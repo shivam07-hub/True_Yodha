@@ -10,6 +10,7 @@ from app.schemas.jobs import (
     ActionPlanDay,
     ApplicationResponse,
     ApplicationStatusUpdate,
+    ComputeJobMatchesResponse,
     JobMatchesResponse,
     JobMatchResponse,
 )
@@ -32,7 +33,7 @@ __all__ = [
     "CVUploadResponse",
     "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse", "SkillDeltaItem",
     "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",
-    "ApplicationStatusUpdate", "ApplicationResponse",
+    "ApplicationStatusUpdate", "ApplicationResponse", "ComputeJobMatchesResponse",
     "GapSkillResponse", "MirrorScoreResponse", "ComputeScoreResponse",
     "SkillLevelResponse", "SkillResponse", "SkillDomainResponse",
     "SkillsListResponse", "DomainsListResponse",

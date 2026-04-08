@@ -4,7 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.database import get_supabase_admin
 from app.deps import get_current_user
-from app.schemas import ActionPlanDay, ApplicationResponse, ApplicationStatusUpdate, JobMatchResponse, JobMatchesResponse
+from app.schemas import (
+    ActionPlanDay,
+    ApplicationResponse,
+    ApplicationStatusUpdate,
+    ComputeJobMatchesResponse,
+    JobMatchResponse,
+    JobMatchesResponse,
+)
+from app.services import job_matcher, llm_ranker
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -34,6 +42,68 @@ async def get_job_matches(current_user: dict = Depends(get_current_user)) -> Job
 
     jobs = [_to_job_match(row, batch_week) for row in result.data]
     return JobMatchesResponse(jobs=jobs, batch_week=batch_week, total=len(jobs))
+
+
+@router.post("/compute", response_model=ComputeJobMatchesResponse)
+async def compute_job_matches(
+    current_user: dict = Depends(get_current_user),
+) -> ComputeJobMatchesResponse:
+    """
+    Run the full job-matching pipeline for the current user:
+      1. Load user's skill map from user_skills
+      2. Score all active job_postings by skill overlap
+      3. Send top 10 to GPT-4o mini for re-ranking + explanations + action plans
+      4. Persist results to user_job_matches (top 3 marked is_recommended=True)
+
+    Cached per batch_week — skips LLM if already computed this week.
+    """
+    db = get_supabase_admin()
+    user_id = current_user["user_id"]
+    batch_week = _last_monday()
+
+    # Cache check
+    if llm_ranker.is_cache_valid(db, user_id, batch_week):
+        return ComputeJobMatchesResponse(
+            matches_written=0,
+            from_cache=True,
+            batch_week=batch_week,
+        )
+
+    # Build user skill map from user_skills table
+    skills_result = (
+        db.table("user_skills")
+        .select("matched_level, skills(taxonomy_key)")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not skills_result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No skills found. Upload your CV first.",
+        )
+
+    user_skill_map: dict[str, int] = {
+        row["skills"]["taxonomy_key"]: row["matched_level"]
+        for row in skills_result.data
+        if row.get("skills")
+    }
+
+    # Get top 10 by overlap
+    top_jobs = job_matcher.get_top_matches(db, user_skill_map, top_n=10)
+    if not top_jobs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tagged job postings found. Complete job tagging first.",
+        )
+
+    # LLM re-rank + persist
+    written = llm_ranker.rank_and_persist(db, user_id, batch_week, user_skill_map, top_jobs)
+
+    return ComputeJobMatchesResponse(
+        matches_written=written,
+        from_cache=False,
+        batch_week=batch_week,
+    )
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])

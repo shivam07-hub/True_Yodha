@@ -35,6 +35,12 @@ class ApplicationStatusUpdate(BaseModel):
     company_response: str | None = None
 
 
+class ComputeJobMatchesResponse(BaseModel):
+    matches_written: int     # rows upserted to user_job_matches
+    from_cache: bool         # True if LLM was skipped (already computed this week)
+    batch_week: date
+
+
 class ApplicationResponse(BaseModel):
     id: int
     job_id: int
