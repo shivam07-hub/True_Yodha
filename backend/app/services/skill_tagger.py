@@ -29,8 +29,8 @@ from openai import OpenAI, RateLimitError
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CACHE_FILE = PROJECT_ROOT / "database" / "skill_tag_cache.json"
 
-BATCH_SIZE = 10          # jobs per LLM call — small enough to fit any provider's context
-BATCH_PAUSE_SECONDS = 2  # politeness pause between batches
+BATCH_SIZE = 10          # jobs per LLM call
+BATCH_PAUSE_SECONDS = 5  # 5s gap → safely under Gemini's 15 req/min limit
 VALID_QUALIFICATIONS = {"High School", "Diploma", "Bachelor's", "Master's", "MBA", "PhD", "Any"}
 
 # ── Provider registry ─────────────────────────────────────────────────────────
@@ -45,15 +45,18 @@ PROVIDERS = [
         "api_key_env": "GEMINI_API_KEY",
         "model":       "gemini-2.0-flash-lite",
         "max_tokens":  2048,
+        "rate_limit_wait": 10,  # 15 req/min → wait 10s then retry
     },
     {
         "name":        "cerebras",
-        "display":     "Cerebras Llama 3.3 70B",
+        "display":     "Cerebras Llama 3.1 8B",
         "base_url":    "https://api.cerebras.ai/v1",
         "api_key_env": "CEREBRAS_API_KEY",
-        "model":       "llama-3.3-70b",
+        "model":       "llama3.1-8b",
         "max_tokens":  2048,
+        "rate_limit_wait": 5,   # seconds to wait before retrying on 429
     },
+
     {
         "name":        "groq",
         "display":     "Groq Llama 3.1 8B",
@@ -61,13 +64,14 @@ PROVIDERS = [
         "api_key_env": "GROQ_API_KEY",
         "model":       "llama-3.1-8b-instant",
         "max_tokens":  2048,
+        "rate_limit_wait": 60,  # tokens/min limit — wait 60s then retry same provider
     },
     {
         "name":        "sambanova",
-        "display":     "SambaNova Llama 3.1 8B",
+        "display":     "SambaNova Llama 3.3 70B",
         "base_url":    "https://api.sambanova.ai/v1",
         "api_key_env": "SAMBANOVA_API_KEY",
-        "model":       "Meta-Llama-3.1-8B-Instruct",
+        "model":       "Meta-Llama-3.3-70B-Instruct",
         "max_tokens":  2048,
     },
     {
@@ -107,14 +111,25 @@ def build_taxonomy_list(alias_map: dict[str, str]) -> list[str]:
     return sorted(set(alias_map.values()))
 
 
-def build_batch_prompt(jobs: list[dict], taxonomy_keys: list[str]) -> str:
+def build_batch_prompt(jobs: list[dict], taxonomy_keys: list[str]) -> tuple[str, dict[str, str]]:
+    """
+    Returns (prompt, idx_to_real_id).
+    Uses sequential integer IDs (1, 2, 3...) in the prompt to avoid
+    special characters in real job IDs confusing smaller LLMs.
+    """
     taxonomy_str = "\n".join(f"- {k}" for k in taxonomy_keys)
-    jobs_str = "\n\n---\n\n".join(
-        f"JOB_ID: {j['job_id']}\nTITLE: {j['title']}\nCOMPANY: {j.get('company', 'Unknown')}\n"
-        f"DESCRIPTION:\n{(j.get('raw_jd_text') or '')[:3000]}"
-        for j in jobs
-    )
-    return f"""You are an expert job analyst. Read each job description and extract structured skill data.
+    idx_to_real: dict[str, str] = {}
+    jobs_str_parts = []
+    for i, j in enumerate(jobs, 1):
+        idx = str(i)
+        idx_to_real[idx] = str(j["job_id"])
+        jobs_str_parts.append(
+            f"JOB_ID: {idx}\nTITLE: {j['title']}\nCOMPANY: {j.get('company', 'Unknown')}\n"
+            f"DESCRIPTION:\n{(j.get('raw_jd_text') or '')[:1500]}"
+        )
+    jobs_str = "\n\n---\n\n".join(jobs_str_parts)
+    n = len(jobs)
+    prompt = f"""You are an expert job analyst. Read each job description and extract structured skill data.
 
 SKILL TAXONOMY (use ONLY these exact keys — lowercase):
 {taxonomy_str}
@@ -131,10 +146,11 @@ For each job extract:
 4. min_qualification: one of "High School","Diploma","Bachelor's","Master's","MBA","PhD","Any"
 5. unknown_skills: skills clearly needed but NOT in taxonomy (raw lowercase names, max 5)
 
-Return a JSON array — one object per job:
-[{{"job_id":"...","required_skills":[...],"preferred_skills":[...],"unknown_skills":[...],"min_years_experience":3,"min_qualification":"Bachelor's"}}]
+Return a JSON array of exactly {n} objects — one per job:
+[{{"job_id":"1","required_skills":[...],"preferred_skills":[...],"unknown_skills":[...],"min_years_experience":3,"min_qualification":"Bachelor's"}},...]
 
-Rules: taxonomy keys only for required/preferred. Same skill cannot appear in both. Return valid JSON only."""
+Rules: use the integer job_id exactly as shown. Taxonomy keys only for required/preferred. Return valid JSON only."""
+    return prompt, idx_to_real
 
 
 # ── Provider call ─────────────────────────────────────────────────────────────
@@ -159,6 +175,14 @@ def _is_rate_limit(exc: Exception) -> bool:
         return True
     msg = str(exc).lower()
     return any(k in msg for k in ("429", "rate_limit", "quota", "exhausted", "resource_exhausted"))
+
+
+def _should_skip_provider(exc: Exception) -> bool:
+    """True for errors that mean this provider should be skipped entirely (not retried)."""
+    if _is_rate_limit(exc):
+        return True
+    msg = str(exc).lower()
+    return any(k in msg for k in ("404", "model_not_found", "does not exist", "no access"))
 
 
 # ── Response parsing + validation ─────────────────────────────────────────────
@@ -240,52 +264,83 @@ def tag_jobs_with_llm(
 
         for batch_num, batch_start in enumerate(range(0, len(uncached), BATCH_SIZE), 1):
             batch = uncached[batch_start: batch_start + BATCH_SIZE]
-            prompt = build_batch_prompt(batch, taxonomy_keys)
-            tagged_ids: set[str] = set()
-            success = False
+            prompt, idx_to_real = build_batch_prompt(batch, taxonomy_keys)
 
             if verbose:
-                provider_name = active[provider_idx]["name"]
-                print(f"  Batch {batch_num}/{total_batches} [{provider_name}]...", end=" ", flush=True)
+                print(f"  Batch {batch_num}/{total_batches} [{active[provider_idx]['name']}]...", end=" ", flush=True)
 
-            for attempt in range(provider_idx, len(active)):
+            # Try each provider in order, retrying on per-minute rate limits
+            attempt = provider_idx
+            rate_limit_retries: dict[int, int] = {}  # attempt_idx → retry count
+            while attempt < len(active):
                 try:
                     raw_text = _call_provider(prompt, active[attempt], api_keys)
                     results = parse_llm_response(raw_text)
+                    tagged_ids: set[str] = set()
                     for r in results:
-                        jid = str(r.get("job_id", ""))
+                        if not isinstance(r, dict):
+                            continue
+                        # Map sequential idx back to real job_id
+                        idx = str(r.get("job_id", ""))
+                        jid = idx_to_real.get(idx, idx)
                         if jid:
                             cache[jid] = validate_result(r, valid_keys)
                             tagged_ids.add(jid)
+
+                    # 0/N tagged = model replied but IDs didn't match — try next provider
+                    if not tagged_ids and attempt < len(active) - 1:
+                        if verbose:
+                            print(f"0 tagged → {active[attempt + 1]['name']}...", end=" ", flush=True)
+                        attempt += 1
+                        continue
+
+                    # Success
                     provider_idx = attempt
-                    success = True
+                    for job in batch:
+                        if str(job["job_id"]) not in tagged_ids:
+                            cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
+                    save_cache(cache)
+                    if verbose:
+                        print(f"done ({len(tagged_ids)}/{len(batch)} tagged)")
                     break
 
                 except Exception as exc:
-                    if _is_rate_limit(exc) and attempt < len(active) - 1:
-                        next_name = active[attempt + 1]["name"]
+                    wait_secs = active[attempt].get("rate_limit_wait", 0)
+                    if _is_rate_limit(exc) and wait_secs:
+                        retries = rate_limit_retries.get(attempt, 0)
+                        if retries < 2:
+                            # Per-minute limit — wait and retry same provider + batch
+                            if verbose:
+                                print(f"rate limit, waiting {wait_secs}s...", end=" ", flush=True)
+                            time.sleep(wait_secs)
+                            rate_limit_retries[attempt] = retries + 1
+                            continue
+                        # Max retries hit — move to next provider
+                        if attempt < len(active) - 1:
+                            if verbose:
+                                print(f"max retries → {active[attempt + 1]['name']}...", end=" ", flush=True)
+                            provider_idx = attempt + 1
+                            attempt += 1
+                            continue
+
+                    elif _should_skip_provider(exc) and attempt < len(active) - 1:
                         if verbose:
-                            print(f"rate limit → {next_name}...", end=" ", flush=True)
+                            reason = "rate limit" if _is_rate_limit(exc) else "provider error"
+                            print(f"{reason} → {active[attempt + 1]['name']}...", end=" ", flush=True)
                         provider_idx = attempt + 1
+                        attempt += 1
+
                     else:
                         if verbose:
                             print(f"ERROR [{active[attempt]['name']}]: {exc}")
-                        if _is_rate_limit(exc) and attempt == len(active) - 1:
+                        if attempt >= len(active) - 1:
                             remaining = len(uncached) - batch_start
                             if verbose:
                                 print(f"\n  All providers exhausted. {remaining} jobs still untagged.")
                                 print("  Add more API keys to backend/.env, or use tagger_ui.py (Streamlit).")
                             save_cache(cache)
                             return cache, {}
-                        break
-
-            if success:
-                for job in batch:
-                    if str(job["job_id"]) not in tagged_ids:
-                        cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
-                save_cache(cache)
-                if verbose:
-                    print(f"done ({len(tagged_ids)}/{len(batch)} tagged)")
+                        attempt += 1
 
             if batch_num < total_batches:
                 time.sleep(BATCH_PAUSE_SECONDS)
