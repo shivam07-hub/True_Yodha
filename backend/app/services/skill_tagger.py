@@ -3,6 +3,7 @@ skill_tagger.py
 Multi-provider LLM skill extractor for raw job descriptions.
 
 Provider fallback order — all OpenAI-compatible endpoints, single SDK:
+  0. LM Studio (local)       unlimited, no rate limits    LM_STUDIO_MODEL (value = model name)
   1. Gemini 2.0 Flash-Lite  500 req/day,  250k tok/min  GEMINI_API_KEY
   2. Cerebras Llama 3.3 70B  14,400 req/day, 60k tok/min  CEREBRAS_API_KEY
   3. Groq Llama 3.1 8B      14,400 req/day,  6k tok/min  GROQ_API_KEY
@@ -21,9 +22,12 @@ Called by groq_tagger.py — not run directly.
 """
 
 import json
+import re
+import threading
 import time
 from pathlib import Path
 
+import httpx
 from openai import OpenAI, RateLimitError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -38,6 +42,16 @@ VALID_QUALIFICATIONS = {"High School", "Diploma", "Bachelor's", "Master's", "MBA
 # All use OpenAI-compatible chat completions endpoints — single client pattern.
 
 PROVIDERS = [
+    {
+        "name":        "lmstudio",
+        "display":     "LM Studio (local — instruction model)",
+        "base_url":    "http://localhost:1234/v1",
+        "api_key_env": "LM_STUDIO_TAGGER_MODEL",  # env var value IS the model name; any non-empty value enables
+        "model":       "",                          # overridden at runtime from LM_STUDIO_TAGGER_MODEL value
+        "max_tokens":  2048,
+        "rate_limit_wait": 0,
+        "timeout_seconds": 120, # wall-clock hard limit — 0.5B at ~150 tok/s should finish in ~15s
+    },
     {
         "name":        "gemini",
         "display":     "Gemini 2.0 Flash-Lite",
@@ -157,17 +171,56 @@ Rules: use the integer job_id exactly as shown. Taxonomy keys only for required/
 
 def _call_provider(prompt: str, provider: dict, api_keys: dict[str, str]) -> str:
     """Single unified call — all providers use OpenAI-compatible chat completions."""
+    # LM Studio: env var value IS the model name; API key is a dummy string
+    if provider["name"] == "lmstudio":
+        model = api_keys[provider["api_key_env"]]  # LM_STUDIO_TAGGER_MODEL value = model name
+        api_key = "lm-studio"
+    else:
+        model = provider["model"]
+        api_key = api_keys[provider["api_key_env"]]
+    # Local models stream tokens one-by-one — the SDK's built-in timeout never fires.
+    # Solution: share an httpx.Client between caller and thread so we can close() it
+    # on timeout, aborting the in-flight connection and letting the thread exit cleanly.
+    wall_timeout = provider.get("timeout_seconds")
+    http_client = httpx.Client() if wall_timeout else None
     client = OpenAI(
-        api_key=api_keys[provider["api_key_env"]],
+        api_key=api_key,
         base_url=provider["base_url"],
+        **({"http_client": http_client} if http_client else {}),
     )
-    resp = client.chat.completions.create(
-        model=provider["model"],
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.0,
-        max_tokens=provider["max_tokens"],
-    )
-    return resp.choices[0].message.content or ""
+
+    def _call() -> str:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=provider["max_tokens"],
+        )
+        return resp.choices[0].message.content or ""
+
+    if wall_timeout and http_client:
+        result: list = [None]
+        error:  list = [None]
+
+        def _run() -> None:
+            try:
+                result[0] = _call()
+            except Exception as e:
+                error[0] = e
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        t.join(timeout=wall_timeout)
+        if t.is_alive():
+            http_client.close()  # aborts the in-flight HTTP connection → thread exits
+            t.join(timeout=5)    # brief wait for thread to notice and clean up
+            raise Exception(f"lmstudio timed out after {wall_timeout}s — batch skipped")
+        http_client.close()
+        if error[0]:
+            raise error[0]
+        return result[0] or ""
+
+    return _call()
 
 
 def _is_rate_limit(exc: Exception) -> bool:
@@ -188,7 +241,8 @@ def _should_skip_provider(exc: Exception) -> bool:
 # ── Response parsing + validation ─────────────────────────────────────────────
 
 def parse_llm_response(text: str) -> list[dict]:
-    text = text.strip()
+    # Strip <think>...</think> blocks emitted by reasoning-distilled models (safe no-op if absent)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     if "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
         if text.startswith("json"):
@@ -287,6 +341,22 @@ def tag_jobs_with_llm(
                             cache[jid] = validate_result(r, valid_keys)
                             tagged_ids.add(jid)
 
+                    # 0/N tagged — local provider: retry once then skip batch (don't fall to cloud)
+                    if not tagged_ids and active[attempt]["name"] == "lmstudio":
+                        retries = rate_limit_retries.get(attempt, 0)
+                        if retries < 1:
+                            if verbose:
+                                print(f"0 tagged, retrying...", end=" ", flush=True)
+                            rate_limit_retries[attempt] = retries + 1
+                            continue
+                        # Still 0 after retry — skip batch, stay on lmstudio
+                        for job in batch:
+                            cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
+                        save_cache(cache)
+                        if verbose:
+                            print(f"skipped (0 tagged after retry)")
+                        break
+
                     # 0/N tagged = model replied but IDs didn't match — try next provider
                     if not tagged_ids and attempt < len(active) - 1:
                         if verbose:
@@ -305,6 +375,15 @@ def tag_jobs_with_llm(
                     break
 
                 except Exception as exc:
+                    # lmstudio wall-clock timeout — skip batch, stay on lmstudio (don't fall to cloud)
+                    if active[attempt]["name"] == "lmstudio" and "timed out" in str(exc).lower():
+                        for job in batch:
+                            cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
+                        save_cache(cache)
+                        if verbose:
+                            print(f"timeout — batch skipped")
+                        break
+
                     wait_secs = active[attempt].get("rate_limit_wait", 0)
                     if _is_rate_limit(exc) and wait_secs:
                         retries = rate_limit_retries.get(attempt, 0)

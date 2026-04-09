@@ -1,10 +1,13 @@
 """
 llm_ranker.py
-Re-ranks the top 10 job matches using GPT-4o mini.
+Re-ranks the top 10 job matches using an LLM.
 Generates per-job explanations and 7-day action plans for the top 3.
 
+Provider priority:
+  1. LM Studio (local)  — if LM_STUDIO_MODEL is set in .env (no cost, no rate limits)
+  2. GPT-4o mini        — fallback if LM Studio is not running
+
 Cost control:
-  - Model: gpt-4o-mini only
   - One call per user per batch_week — cached in user_job_matches
   - Cache is invalidated when the user uploads a new CV (external — not handled here)
 
@@ -13,15 +16,32 @@ Called from: POST /jobs/compute
 
 import json
 import logging
+import re
 from datetime import date, datetime, timezone
 
 from openai import OpenAI
 from supabase import Client
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
-_MODEL = "gpt-4o-mini"
 _MAX_TOKENS = 4096
+
+
+def _get_client_and_model() -> tuple[OpenAI, str, bool]:
+    """
+    Returns (client, model_name, supports_json_mode).
+    Prefers LM Studio reasoning model if LM_STUDIO_RANKER_MODEL is configured; falls back to GPT-4o mini.
+    json_object response_format is disabled for local models to maximise compatibility.
+    """
+    if settings.lm_studio_ranker_model:
+        return (
+            OpenAI(api_key="lm-studio", base_url=settings.lm_studio_base_url),
+            settings.lm_studio_ranker_model,
+            False,
+        )
+    return OpenAI(), "gpt-4o-mini", True
 
 SYSTEM_PROMPT = (
     "You are a senior career strategist. Given a candidate's skill profile and a list of job postings, "
@@ -88,7 +108,8 @@ Rules:
 
 def parse_llm_response(text: str) -> list[dict] | None:
     """Extract and validate the JSON array from the LLM response."""
-    text = text.strip()
+    # Strip <think>...</think> blocks emitted by reasoning-distilled models (safe no-op if absent)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     if "```" in text:
         text = text.split("```")[1].split("```")[0].strip()
         if text.startswith("json"):
@@ -108,20 +129,24 @@ def parse_llm_response(text: str) -> list[dict] | None:
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
 def call_llm(user_skill_map: dict[str, int], top_jobs: list[dict]) -> list[dict] | None:
-    """Call GPT-4o mini. Returns parsed list or None on failure."""
-    client = OpenAI()  # reads OPENAI_API_KEY from env
+    """Call LLM (LM Studio if available, else GPT-4o mini). Returns parsed list or None on failure."""
+    client, model, supports_json_mode = _get_client_and_model()
     prompt = build_prompt(user_skill_map, top_jobs)
+    logger.info("LLM ranker using model: %s", model)
+
+    kwargs: dict = dict(
+        model=model,
+        max_tokens=_MAX_TOKENS,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": prompt},
+        ],
+    )
+    if supports_json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
 
     try:
-        response = client.chat.completions.create(
-            model=_MODEL,
-            max_tokens=_MAX_TOKENS,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        )
+        response = client.chat.completions.create(**kwargs)
         content = response.choices[0].message.content or ""
     except Exception as exc:
         logger.error("LLM ranking call failed: %s", exc)

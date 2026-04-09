@@ -3,9 +3,10 @@ diary_processor.py
 Processes a free-text diary entry to extract skill signals.
 
 Provider fallback order (same as skill_tagger.py):
-  1. Groq       — llama-3.1-8b-instant
-  2. Gemini     — gemini-1.5-flash
-  3. OpenRouter — llama-3.1-8b-instruct:free
+  0. LM Studio (local)  — if LM_STUDIO_MODEL is set (no rate limits)
+  1. Groq               — llama-3.1-8b-instant
+  2. Gemini             — gemini-1.5-flash
+  3. OpenRouter         — llama-3.1-8b-instruct:free
 
 Returns a list of skill signals: [{taxonomy_key, signal_type, xp_awarded, evidence}]
 Called by POST /diary/entry — not run directly.
@@ -79,15 +80,17 @@ def _parse_response(text: str) -> list[dict]:
 
 def extract_skill_signals(entry_text: str, taxonomy_keys: list[str]) -> list[dict]:
     """
-    Call LLM (Groq → Gemini → OpenRouter) to extract skill signals from a diary entry.
+    Call LLM (LM Studio → Groq → Gemini → OpenRouter) to extract skill signals from a diary entry.
     Returns [] if all providers fail or no skills found.
     """
+    # Keys must match provider["api_key_env"] values (what _call_provider expects)
     api_keys = {
-        "groq":       settings.groq_api_key,
-        "gemini":     settings.google_api_key,
-        "openrouter": settings.openrouter_api_key,
+        "LM_STUDIO_TAGGER_MODEL": settings.lm_studio_tagger_model,
+        "GROQ_API_KEY":       settings.groq_api_key,
+        "GEMINI_API_KEY":     settings.google_api_key,
+        "OPENROUTER_API_KEY": settings.openrouter_api_key,
     }
-    active = [p for p in PROVIDERS if api_keys.get(p["name"])]
+    active = [p for p in PROVIDERS if api_keys.get(p["api_key_env"])]
     if not active:
         return []
 

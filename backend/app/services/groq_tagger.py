@@ -162,15 +162,17 @@ def write_enhanced_xlsx(
 def main() -> None:
     load_dotenv(ENV_FILE)
     groq_api_key = os.getenv("GROQ_API_KEY", "")
+    lm_studio_tagger_model = os.getenv("LM_STUDIO_TAGGER_MODEL", "")
 
-    if not groq_api_key:
-        print("ERROR: GROQ_API_KEY must be set in backend/.env")
+    if not groq_api_key and not lm_studio_tagger_model:
+        print("ERROR: Set at least one of GROQ_API_KEY or LM_STUDIO_TAGGER_MODEL in backend/.env")
         sys.exit(1)
 
-    master_files = sorted(MASTER_OUTPUT_DIR.glob("ALL_JOBS_NORMALIZED_*.xlsx"))
-    if not master_files:
+    all_master_files = sorted(MASTER_OUTPUT_DIR.glob("ALL_JOBS_NORMALIZED_*.xlsx"), key=lambda p: p.stat().st_mtime)
+    if not all_master_files:
         print(f"ERROR: No master xlsx files found in {MASTER_OUTPUT_DIR}")
         sys.exit(1)
+    master_files = [all_master_files[-1]]  # only the latest scrape run
 
     # Step 1: Load taxonomy
     print("Loading taxonomy...")
@@ -178,7 +180,7 @@ def main() -> None:
     print(f"  {len(alias_map)} aliases")
 
     # Step 2: Read raw jobs (deduped by job_id)
-    print(f"\nReading {len(master_files)} master file(s)...")
+    print(f"\nReading latest master file: {master_files[0].name}")
     raw_jobs = read_all_jobs(master_files)
     print(f"  {len(raw_jobs)} unique jobs loaded")
 
@@ -192,11 +194,12 @@ def main() -> None:
     # Step 4: Tag with LLM (5-provider fallback chain — see skill_tagger.py)
     print("\nTagging skills with LLM (cached)...")
     api_keys = {
-        "GEMINI_API_KEY":    os.getenv("GEMINI_API_KEY", ""),
-        "CEREBRAS_API_KEY":  os.getenv("CEREBRAS_API_KEY", ""),
-        "GROQ_API_KEY":      groq_api_key,
-        "SAMBANOVA_API_KEY": os.getenv("SAMBANOVA_API_KEY", ""),
-        "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
+        "LM_STUDIO_TAGGER_MODEL": lm_studio_tagger_model,
+        "GEMINI_API_KEY":         os.getenv("GEMINI_API_KEY", ""),
+        "CEREBRAS_API_KEY":       os.getenv("CEREBRAS_API_KEY", ""),
+        "GROQ_API_KEY":           groq_api_key,
+        "SAMBANOVA_API_KEY":      os.getenv("SAMBANOVA_API_KEY", ""),
+        "OPENROUTER_API_KEY":     os.getenv("OPENROUTER_API_KEY", ""),
     }
     from app.services.skill_tagger import tag_jobs_with_llm
     tag_cache, _ = tag_jobs_with_llm(jobs, alias_map, api_keys, verbose=True)
