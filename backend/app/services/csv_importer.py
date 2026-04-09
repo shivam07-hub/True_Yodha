@@ -24,7 +24,9 @@ Safe to re-run — upserts on external_id conflict key.
 
 import json
 import os
+import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
@@ -52,6 +54,23 @@ SENIORITY_LEVEL_MAP: dict[str, int] = {
 DEFAULT_LEVEL = 3
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def parse_date_safe(val: object) -> str | None:
+    """Parse date to ISO string. Returns None for unparseable values like 'Posted Today'."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.date().isoformat()
+    if isinstance(val, date):
+        return val.isoformat()
+    s = str(val).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%d %b %Y", "%d %B %Y"):
+        try:
+            return datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None  # "Posted Today", "2 days ago", etc. → null
+
 
 def latest_enhanced_file() -> Path | None:
     files = sorted(ENHANCED_OUTPUT_DIR.glob("ENHANCED_JOBS_*.xlsx"), key=lambda p: p.stat().st_mtime)
@@ -134,7 +153,7 @@ def build_posting(job: dict, skill_id_map: dict[str, int]) -> dict:
         "salary_currency": str(job.get("salary_currency") or "INR"),
         "source": job.get("source_file") or None,
         "source_url": job.get("job_url") or None,
-        "posted_at": str(date_posted) if date_posted else None,
+        "posted_at": parse_date_safe(date_posted),
         "is_active": True,
     }
 
