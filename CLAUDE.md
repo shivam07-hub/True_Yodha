@@ -81,40 +81,51 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 ## LAST SESSION SUMMARY
 
 ```
-Date: 2026-04-08
-Phase files worked on: Phase 1E (scoring engine), Phase 1F (job matching), skill tagger rebuild
+Date: 2026-04-09
+Phase files worked on: Skill tagger — LM Studio local model integration
 
 What was completed:
-  [tools/tagger_ui.py] Built Streamlit HITL tagger UI — browser copy/paste instead of terminal
-  [backend/app/services/scoring_engine.py] Added certification signal type, fixed null-safety bug on skill_domains
-  [backend/tests/test_scoring.py] 60 tests, 100% line coverage on scoring_engine.py
-  [backend/app/services/job_matcher.py] Full implementation: overlap scorer, primary×2/secondary×1 weights
-  [backend/app/services/llm_ranker.py] GPT-4o-mini re-ranker + action plans, weekly cache check
-  [backend/app/routers/jobs.py] POST /jobs/compute endpoint
-  [backend/tests/test_job_matcher.py] 24 tests covering all job matcher logic
-  [backend/app/services/skill_tagger.py] Rebuilt as 5-provider fallback chain (Gemini→Cerebras→Groq→SambaNova→OpenRouter)
-    - Sequential integer IDs in prompts (key fix: small LLMs mangled ?team= query strings)
-    - Max 2 rate-limit retries per provider, then falls through
-    - 0-tagged guard, description truncated to 1500 chars
-  [backend/app/services/groq_tagger.py] Updated to pass all 5 provider API keys
-  [backend/.env.example] Updated with all 5 provider keys + signup URLs
-  [.gitmodules] Added cheahjs/free-llm-api-resources submodule at docs/free-llm-api-resources
-  Ran tagger: ~1,339 jobs cached before all daily limits exhausted (Gemini, SambaNova, OpenRouter)
+  [backend/app/config.py] Split lm_studio_model → lm_studio_tagger_model + lm_studio_ranker_model
+  [backend/app/services/skill_tagger.py] Major upgrades:
+    - LM_STUDIO_TAGGER_MODEL as provider 0 (instruction model for tagging)
+    - <think> tag stripping in parse_llm_response (regex, safe no-op if absent)
+    - daemon-thread wall-clock timeout with httpx.Client.close() abort (SDK timeout doesn't work for local streaming)
+    - lmstudio timeout exception → skip batch + stay on lmstudio (don't fall to cloud)
+    - lmstudio 0-tagged → retry once, then skip batch (don't fall to cloud)
+    - batch_size remains 10, description truncation remains 1500 chars
+  [backend/app/services/llm_ranker.py]
+    - <think> tag stripping in parse_llm_response
+    - Uses settings.lm_studio_ranker_model (reasoning model for ranking)
+  [backend/app/services/groq_tagger.py]
+    - Passes LM_STUDIO_TAGGER_MODEL key to tag_jobs_with_llm
+    - Startup check: accepts either GROQ_API_KEY or LM_STUDIO_TAGGER_MODEL
+    - Reads only the LATEST ALL_JOBS_NORMALIZED_*.xlsx (by mtime) — not all historical files
+  [backend/.env] LM_STUDIO_TAGGER_MODEL=qwen2.5-0.5b-instruct, LM_STUDIO_RANKER_MODEL=qwen3.5-9b-claude-4.6-opus-reasoning-distilled
+  [backend/.env.example] Updated with LM_STUDIO_TAGGER_MODEL and LM_STUDIO_RANKER_MODEL
 
-Where we stopped:
-  Job tagging incomplete — ~3,879 jobs still untagged.
-  Daily limits exhausted for Gemini, SambaNova, OpenRouter.
-  Cerebras and Groq should be fresh next run.
+LM Studio setup (M4 Mac):
+  Tagger model: qwen2.5-0.5b-instruct — context 8192, GPU max — runs at ~150 tok/s, ~8s per batch
+  Ranker model: qwen3.5-9b-claude-4.6-opus-reasoning-distilled — for llm_ranker.py (job ranking + action plans)
+  Server: http://localhost:1234/v1
+
+Tagger run status (still running at session close):
+  Cache at session start: ~1,339 jobs
+  Cache at session close: ~1,864 + (232 batches × 10) = ~4,184 jobs tagged
+  Tagger running in background: batch 232/336, 10/10 per batch with qwen2.5-0.5b-instruct
+  Estimated completion: ~30 min from session close
 
 DEFERRED — must complete before Phase 1G:
-  Run tagger when limits reset:
-  → cd /Users/incognito/True_Yodha/backend
-  → ../.venv/bin/python3 -m app.services.groq_tagger
-  After tagging completes: run csv_importer.py → verify in Supabase → Phase 1G validation
-
-Next session start order:
-  1. Run groq_tagger.py (Cerebras+Groq should clear ~3,879 remaining in ~30 min)
+  1. Wait for tagger to finish (or rerun if interrupted):
+     → cd /Users/incognito/True_Yodha/backend
+     → ../.venv/bin/python3 -m app.services.groq_tagger
   2. Run csv_importer.py to push tagged jobs to Supabase
   3. Verify job count in Supabase dashboard
   4. Phase 1G: smoke tests + end-to-end pipeline validation
+
+CODE NOT YET COMMITTED — review and commit manually:
+  backend/app/config.py
+  backend/app/services/skill_tagger.py
+  backend/app/services/llm_ranker.py
+  backend/app/services/groq_tagger.py
+  backend/.env.example
 ```

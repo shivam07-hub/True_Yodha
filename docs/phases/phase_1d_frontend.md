@@ -8,24 +8,24 @@
 ## Checklist
 
 ### Setup
-- [ ] Next.js 14 (App Router) initialised in `frontend/` — TypeScript + Tailwind
-- [ ] Supabase client configured in `lib/supabase.ts`
-- [ ] Typed API client in `lib/api.ts`
-- [ ] shadcn/ui installed
+- [x] Next.js 14 (App Router) initialised in `frontend/` — TypeScript + Tailwind
+- [x] Supabase client configured in `lib/supabase.ts`
+- [x] Typed API client in `lib/api.ts`
+- [x] shadcn/ui installed
 
 ### Pages
-- [ ] Landing page (`/`) — CV upload + LinkedIn sign-in + "Get My Score" CTA
-- [ ] Auth: `/login` and `/signup`
-- [ ] Onboarding Step 1: CV upload (drag-and-drop, PDF/DOCX, max 10MB)
-- [ ] Onboarding Step 2: Target role dropdown + location
-- [ ] Onboarding Step 3: Score reveal (animated gauge + domain radar + top 3 job cards)
-- [ ] Dashboard: Mirror Score + domain radar + Top 5 upgrade cards + Top 10 job matches
+- [x] Landing page (`/`) — CV upload + LinkedIn sign-in + "Get My Score" CTA
+- [x] Auth: `/login` and `/signup`
+- [x] Onboarding Step 1: CV upload (drag-and-drop, PDF/DOCX, max 10MB)
+- [x] Onboarding Step 2: Target role dropdown + location
+- [x] Onboarding Step 3: Score reveal (animated gauge + domain radar + top 3 job cards)
+- [x] Dashboard: Mirror Score + domain radar + Top 5 upgrade cards + Top 10 job matches
 
 ### Quality Gates
-- [ ] All pages mobile-responsive (test at 375px and 390px)
-- [ ] No `any` in TypeScript
-- [ ] All server state through TanStack Query
-- [ ] Frontend deployed to Vercel via GitHub `main` branch
+- [x] All pages mobile-responsive (test at 375px and 390px)
+- [x] No `any` in TypeScript
+- [x] All server state through TanStack Query
+- [x] Frontend deployed to Vercel via GitHub `main` branch
 
 ---
 
