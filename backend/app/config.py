@@ -10,9 +10,10 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""    # used in admin/import scripts only (bypasses RLS)
 
     # Local LLM via LM Studio (priority 0 — no rate limits)
-    lm_studio_tagger_model: str = ""   # instruction model for skill tagging — e.g. qwen2.5-7b-instruct
-    lm_studio_ranker_model: str = ""   # reasoning model for job ranking  — e.g. qwen3.5-9b-reasoning-distilled
-    lm_studio_base_url: str = "http://localhost:1234/v1"
+    lm_studio_tagger_model: str    = ""   # instruction model for skill tagging — e.g. qwen2.5-7b-instruct
+    lm_studio_ranker_model: str    = ""   # reasoning model for job ranking — e.g. qwen3.5-9b-reasoning-distilled
+    lm_studio_extractor_model: str = ""   # model for JD field extraction (defaults to tagger_model if empty)
+    lm_studio_base_url: str        = "http://localhost:1234/v1"
 
     # LLM keys — fallback order: groq → gemini → openrouter
     # All three used in skill_tagger.py and diary_processor.py

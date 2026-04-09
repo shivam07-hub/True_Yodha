@@ -33,6 +33,8 @@ import openpyxl
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
+from app.services.schema_validator import validate_jobs, ValidationResult
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -124,37 +126,80 @@ def read_enhanced_jobs(xlsx_path: Path) -> list[dict]:
 
 # ── Build Supabase row ────────────────────────────────────────────────────────
 
+def _coalesce(*values: object) -> object:
+    """Return the first non-empty value."""
+    for v in values:
+        if v is not None and str(v).strip() not in ("", "nan", "None"):
+            return v
+    return None
+
+
 def build_posting(job: dict, skill_id_map: dict[str, int]) -> dict:
-    required_level = infer_required_level(job.get("seniority_level"))
+    # Resolve seniority: scraper value → jd_enricher value → default
+    seniority = _coalesce(job.get("seniority_level"), job.get("jd_seniority_level"))
+    required_level = infer_required_level(str(seniority) if seniority else None)
 
-    primary = parse_skill_list(job.get("groq_required_skills"), skill_id_map, required_level)
-    secondary = parse_skill_list(job.get("groq_preferred_skills"), skill_id_map, required_level)
+    # Skills: prefer LM skill-tagger (groq_*), fall back to regex raw skills
+    groq_req  = job.get("groq_required_skills")  or ""
+    groq_pref = job.get("groq_preferred_skills") or ""
+    raw_req   = job.get("skills_required_raw")   or ""
+    raw_pref  = job.get("skills_preferred_raw")  or ""
 
-    location_parts = [p for p in [job.get("location_city"), job.get("location_country")] if p]
+    primary   = parse_skill_list(groq_req  or raw_req,  skill_id_map, required_level)
+    secondary = parse_skill_list(groq_pref or raw_pref, skill_id_map, required_level)
+
+    # Location: scraper city → jd_enricher city; country always India
+    city    = _coalesce(job.get("location_city"),    job.get("jd_location_city"))
+    country = job.get("location_country") or "India"
+    location_parts = [p for p in [city, country] if p]
     location = ", ".join(str(p) for p in location_parts) or None
 
-    work_mode = str(job.get("work_mode") or "").lower()
-    date_posted = job.get("date_posted")
+    # Work mode: scraper → jd_enricher
+    work_mode = str(_coalesce(job.get("work_mode"), job.get("jd_work_mode")) or "").lower()
+
+    # Employment type: scraper → jd_enricher
+    emp_type = _coalesce(job.get("employment_type"), job.get("jd_employment_type"))
+
+    # Industry: jd_enricher is always better here (scraper never populates it)
+    # prefer jd_industry; scraper value is a secondary signal
+    industry = _coalesce(job.get("jd_industry"), job.get("industry"))
+
+    # Experience: groq skill-tagger → jd_enricher → scraper regex
+    min_exp = _coalesce(
+        job.get("groq_min_years_experience"),
+        job.get("jd_min_years_exp"),
+        job.get("min_years_experience"),
+    )
+
+    # Qualification/degree: groq skill-tagger → jd_enricher → scraper regex
+    qualification = _coalesce(
+        job.get("groq_min_qualification"),
+        job.get("jd_degree_required"),
+        job.get("degree_required"),
+    ) or "Any"
 
     return {
-        "external_id": str(job["job_id"]),
-        "title": str(job["title"]),
-        "company": job.get("company") or None,
-        "location": location,
-        "remote": work_mode in ("remote", "hybrid"),
-        "description": job.get("raw_jd_text") or None,
-        "primary_skills": json.dumps(primary),
-        "secondary_skills": json.dumps(secondary),
-        "raw_skill_text": [],
-        "min_years_experience": job.get("groq_min_years_experience") or None,
-        "min_qualification": job.get("groq_min_qualification") or "Any",
-        "salary_min": job.get("salary_min") or None,
-        "salary_max": job.get("salary_max") or None,
-        "salary_currency": str(job.get("salary_currency") or "INR"),
-        "source": job.get("source_file") or None,
-        "source_url": job.get("job_url") or None,
-        "posted_at": parse_date_safe(date_posted),
-        "is_active": True,
+        "external_id":         str(job["job_id"]),
+        "title":               str(job["title"]),
+        "company":             job.get("company_name") or None,
+        "location":            location,
+        "remote":              work_mode in ("remote", "hybrid"),
+        "description":         job.get("raw_jd_text") or None,
+        "primary_skills":      json.dumps(primary),
+        "secondary_skills":    json.dumps(secondary),
+        "raw_skill_text":      [],
+        "min_years_experience": min_exp,
+        "min_qualification":   qualification,
+        "employment_type":     emp_type or None,
+        "industry":            industry or None,
+        "salary_min":          job.get("salary_min") or None,
+        "salary_max":          job.get("salary_max") or None,
+        "salary_currency":     str(job.get("salary_currency") or "INR"),
+        "source":              job.get("source_file") or None,
+        "source_platform":     job.get("source_platform") or None,
+        "source_url":          job.get("job_url") or None,
+        "posted_at":           parse_date_safe(job.get("date_posted")),
+        "is_active":           True,
     }
 
 # ── Upsert helpers ────────────────────────────────────────────────────────────
@@ -209,7 +254,16 @@ def main() -> None:
     jobs = read_enhanced_jobs(enhanced_file)
     print(f"  {len(jobs)} jobs loaded")
 
-    print("\nConnecting to Supabase...")
+    # ── Schema validation gate (blocks import if critical errors found) ────────
+    print("\nRunning schema validation...")
+    validation = validate_jobs(jobs, stage="enhanced")
+    print(validation.report)
+    if not validation.is_valid:
+        print("\n❌ Import BLOCKED by schema validator. Fix errors above then re-run.")
+        sys.exit(1)
+    print("✅ Schema validation passed.\n")
+
+    print("Connecting to Supabase...")
     supabase: Client = create_client(supabase_url, supabase_key)
     skill_id_map = fetch_skill_id_map(supabase)
     if not skill_id_map:
