@@ -292,8 +292,15 @@ def save_results(jobs, company_name, output_dir):
 # Helper: Get output directory for a company
 # ============================================================
 def get_output_dir(company_name):
-    """Return the standard output directory for a company."""
-    base = Path.home() / "Job_Scrapers" / "All_CSV_Outputs" / company_name
+    """Return the standard output directory for a company.
+
+    Resolves relative to this file so the path is correct regardless of
+    where the script is invoked from or whether Job_Scrapers lives under
+    the user home directory or inside the project repo.
+    """
+    # scraper_utils.py lives in …/Job_Scrapers/All_Scripts/
+    # parents[0] = All_Scripts, parents[1] = Job_Scrapers
+    base = Path(__file__).resolve().parents[1] / "All_CSV_Outputs" / company_name
     date_folder = datetime.now().strftime("%Y_%m_%d")
     out_dir = base / "Outputs" / date_folder
     out_dir.mkdir(parents=True, exist_ok=True)

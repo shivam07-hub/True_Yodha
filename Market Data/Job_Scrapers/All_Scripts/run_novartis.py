@@ -6,7 +6,7 @@ to avoid nbconvert timeout (broad Workday fetch takes >600s).
 import sys
 from pathlib import Path
 
-SCRIPTS_DIR = Path.home() / "Job_Scrapers" / "All_Scripts"
+SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from scraper_utils import *

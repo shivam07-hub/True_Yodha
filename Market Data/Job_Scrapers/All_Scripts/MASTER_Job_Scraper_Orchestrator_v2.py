@@ -21,9 +21,12 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-BASE_DIR = Path.home() / "Job_Scrapers"
-SCRIPTS_DIR = BASE_DIR / "All_Scripts"
-MASTER_OUT = BASE_DIR / "All_CSV_Outputs" / "Master_Output"
+# Resolve paths relative to this file so they work regardless of cwd or
+# whether Job_Scrapers lives under home or inside the project repo.
+# parents[0] = All_Scripts, parents[1] = Job_Scrapers
+SCRIPTS_DIR = Path(__file__).resolve().parent
+BASE_DIR    = SCRIPTS_DIR.parent
+MASTER_OUT  = BASE_DIR / "All_CSV_Outputs" / "Master_Output"
 MASTER_OUT.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
@@ -179,15 +182,19 @@ def step2_run_scrapers():
 # ============================================================
 # STEP 3: Consolidate all outputs into master Excel
 # ============================================================
+# Canonical 25-column schema — must stay in sync with scraper_utils.py COLS.
+# source_api_url: internal debugging field (API endpoint that returned this job)
+# business_unit: division/team within the company (e.g. "Apple Retail")
+# source_platform: ATS platform name (e.g. "Workday", "SuccessFactors", "SmartRecruiters")
 COLS = [
-    "job_id", "title", "company_name", "raw_jd_text",
-    "skills_required", "skills_preferred",
+    "job_id", "title", "company_name", "job_url", "source_api_url", "business_unit",
+    "raw_jd_text", "skills_required", "skills_preferred",
     "min_years_experience", "max_years_experience",
     "seniority_level", "location_city", "location_country",
     "work_mode", "employment_type",
     "degree_required", "degree_preferred_field",
     "industry", "salary_min", "salary_max", "salary_currency",
-    "date_posted", "is_active", "job_url"
+    "date_posted", "is_active", "source_platform",
 ]
 
 VALID_SENIORITY = {"junior", "mid", "senior", "lead"}

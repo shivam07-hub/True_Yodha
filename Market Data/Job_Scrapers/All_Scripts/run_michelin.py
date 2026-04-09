@@ -23,7 +23,7 @@ from pathlib import Path
 from datetime import datetime
 import json, urllib.parse
 
-SCRIPTS_DIR = Path.home() / "Job_Scrapers" / "All_Scripts"
+SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from scraper_utils import *
