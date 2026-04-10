@@ -8,9 +8,10 @@ import { DomainRadar } from "@/components/dashboard/domain-radar"
 import { SkillUpgradeCard } from "@/components/dashboard/skill-upgrade-card"
 import { JobMatchCard } from "@/components/dashboard/job-match-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AppShell } from "@/components/app-shell"
 
 export default function DashboardPage() {
-  const { token, ready, signOut } = useAuth()
+  const { token, ready } = useAuth()
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: ["scores", token],
@@ -27,19 +28,8 @@ export default function DashboardPage() {
   if (!ready) return null
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Nav */}
-      <nav className="border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 bg-background z-10">
-        <span className="text-lg font-semibold tracking-tight">Mirror</span>
-        <button
-          onClick={signOut}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Sign out
-        </button>
-      </nav>
-
-      <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-10">
+    <AppShell>
+      <div className="mx-auto flex max-w-2xl flex-col gap-10">
 
         {/* Mirror Score */}
         <section>
@@ -121,6 +111,6 @@ export default function DashboardPage() {
         </section>
 
       </div>
-    </div>
+    </AppShell>
   )
 }

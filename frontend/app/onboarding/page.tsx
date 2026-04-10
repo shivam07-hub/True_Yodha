@@ -5,22 +5,20 @@ import { useRouter } from "next/navigation"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
 import { StepScore } from "@/components/onboarding/step-score"
-import { uploadCV, scores, users } from "@/lib/api"
+import { uploadCV, jobs, scores, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 type Step = "cv" | "role" | "score"
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { token, ready } = useAuth()
   const [step, setStep] = useState<Step>("cv")
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scoreData, setScoreData] = useState<ScoreResponse | null>(null)
-
-  function getToken(): string | null {
-    return typeof window !== "undefined" ? localStorage.getItem("mirror_token") : null
-  }
 
   function handleCVNext(file: File) {
     setCvFile(file)
@@ -28,12 +26,10 @@ export default function OnboardingPage() {
   }
 
   async function handleRoleNext(role: string, location: string) {
-    const token = getToken()
     if (!token) {
-      // Not logged in — save intent and redirect to signup
       sessionStorage.setItem("pending_role", role)
       sessionStorage.setItem("pending_location", location)
-      router.push("/signup")
+      router.push("/login")
       return
     }
 
@@ -42,7 +38,10 @@ export default function OnboardingPage() {
 
     try {
       // 1. Update profile with target role + location
-      await users.updateProfile(token, { target_role: role, location })
+      await users.updateProfile(token, {
+        target_roles: [role],
+        target_location: location,
+      })
 
       // 2. Upload CV if we have one
       if (cvFile) {
@@ -51,6 +50,7 @@ export default function OnboardingPage() {
 
       // 3. Compute score
       const result = await scores.compute(token)
+      await jobs.compute(token).catch(() => null)
       setScoreData(result)
       setStep("score")
     } catch (err) {
@@ -62,6 +62,8 @@ export default function OnboardingPage() {
 
   const STEPS: Step[] = ["cv", "role", "score"]
   const stepIndex = STEPS.indexOf(step)
+
+  if (!ready) return null
 
   return (
     <main className="min-h-screen flex flex-col">

@@ -14,8 +14,8 @@ TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 # Set LLM_PROVIDER to: "anthropic" (default) | "openai" | "gemini"
 # Set the matching API key env var before running extract_skills.py
 #
-#   export LLM_PROVIDER=anthropic  &&  export ANTHROPIC_API_KEY=sk-ant-...
-#   export LLM_PROVIDER=openai     &&  export OPENAI_API_KEY=sk-...
+#   export LLM_PROVIDER=anthropic  &&  export ANTHROPIC_API_KEY=your-anthropic-api-key
+#   export LLM_PROVIDER=openai     &&  export OPENAI_API_KEY=your-openai-api-key
 #   export LLM_PROVIDER=gemini     &&  export GEMINI_API_KEY=AIza...
 #
 LLM_PROVIDER      = os.getenv("LLM_PROVIDER", "anthropic")

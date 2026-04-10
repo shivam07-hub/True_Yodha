@@ -13,18 +13,18 @@
 
 ---
 
-## CURRENT PHASE → `docs/phases/phase_1c_backend.md`
+## CURRENT PHASE → `docs/phases/phase_1g_validation.md`
 
-Status: Phase 1A complete. Phase 1B complete. Phase 1C code complete — Railway deployed, awaiting health check confirmation.
+Status: Phase 1A–1F complete. Phase 1G validation/testing in progress.
 
 Phase order:
 1. `docs/phases/phase_1a_infra.md` ← **COMPLETE**
 2. `docs/phases/phase_1b_database.md` ← **COMPLETE**
-3. `docs/phases/phase_1c_backend.md` ← **YOU ARE HERE**
-4. `docs/phases/phase_1d_frontend.md`
-5. `docs/phases/phase_1e_scoring.md`
-6. `docs/phases/phase_1f_jobs.md`
-7. `docs/phases/phase_1g_validation.md`
+3. `docs/phases/phase_1c_backend.md` ← **COMPLETE**
+4. `docs/phases/phase_1d_frontend.md` ← **COMPLETE**
+5. `docs/phases/phase_1e_scoring.md` ← **COMPLETE**
+6. `docs/phases/phase_1f_jobs.md` ← **COMPLETE**
+7. `docs/phases/phase_1g_validation.md` ← **YOU ARE HERE**
 
 ---
 
@@ -81,51 +81,44 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 ## LAST SESSION SUMMARY
 
 ```
-Date: 2026-04-09
-Phase files worked on: Skill tagger — LM Studio local model integration
+Date: 2026-04-10
+Phase files worked on: phase_1g_validation.md + Career Ops canonical frontend/backend integration
 
 What was completed:
-  [backend/app/config.py] Split lm_studio_model → lm_studio_tagger_model + lm_studio_ranker_model
-  [backend/app/services/skill_tagger.py] Major upgrades:
-    - LM_STUDIO_TAGGER_MODEL as provider 0 (instruction model for tagging)
-    - <think> tag stripping in parse_llm_response (regex, safe no-op if absent)
-    - daemon-thread wall-clock timeout with httpx.Client.close() abort (SDK timeout doesn't work for local streaming)
-    - lmstudio timeout exception → skip batch + stay on lmstudio (don't fall to cloud)
-    - lmstudio 0-tagged → retry once, then skip batch (don't fall to cloud)
-    - batch_size remains 10, description truncation remains 1500 chars
-  [backend/app/services/llm_ranker.py]
-    - <think> tag stripping in parse_llm_response
-    - Uses settings.lm_studio_ranker_model (reasoning model for ranking)
-  [backend/app/services/groq_tagger.py]
-    - Passes LM_STUDIO_TAGGER_MODEL key to tag_jobs_with_llm
-    - Startup check: accepts either GROQ_API_KEY or LM_STUDIO_TAGGER_MODEL
-    - Reads only the LATEST ALL_JOBS_NORMALIZED_*.xlsx (by mtime) — not all historical files
-  [backend/.env] LM_STUDIO_TAGGER_MODEL=qwen2.5-0.5b-instruct, LM_STUDIO_RANKER_MODEL=qwen3.5-9b-claude-4.6-opus-reasoning-distilled
-  [backend/.env.example] Updated with LM_STUDIO_TAGGER_MODEL and LM_STUDIO_RANKER_MODEL
+  - Deleted untracked AGENTS.md and Market Data/Job_Scrapers/KNOWN_PORTALS.md per user request.
+  - Inspected canonical frontend/backend and career-ops-web frontend reference app.
+  - Made canonical frontend login-first by redirecting `/` to `/login`.
+  - Fixed signup/auth contract:
+    - frontend sends full_name
+    - backend supports email-confirmation signup responses without requiring an immediate session
+    - backend upserts user_profiles on signup
+  - Fixed frontend API types to match FastAPI response shapes:
+    - scores.compute unwraps ComputeScoreResponse.score
+    - user profile update uses target_roles and target_location
+    - jobs/applications/diary API clients added
+  - Added protected canonical app shell and routes:
+    - /jobs for Supabase-backed market job matches
+    - /tracker for job_applications status tracking
+    - /diary for private daily_logs entries and skill-signal updates
+    - /cv for CV upload, score refresh, and job-match refresh
+  - Dashboard now uses the protected app shell.
+  - Onboarding now updates target_roles/target_location, uploads CV, computes score, and attempts job matching.
+  - Read/update routes for users, scores/me, job matches, applications, and diary history now use Supabase anon client with the user JWT so RLS is exercised where policies support it.
+  - CV upload now marks onboarding_complete true.
+  - Cleaned secret-like API-key placeholder strings from helper files; exact secret-prefix grep still has known false positives from the Phase 1G checklist text and queue-microtask package URL.
 
-LM Studio setup (M4 Mac):
-  Tagger model: qwen2.5-0.5b-instruct — context 8192, GPU max — runs at ~150 tok/s, ~8s per batch
-  Ranker model: qwen3.5-9b-claude-4.6-opus-reasoning-distilled — for llm_ranker.py (job ranking + action plans)
-  Server: http://localhost:1234/v1
+Validation:
+  - Backend: ../.venv/bin/python -m pytest tests/ -q → 85 passed
+  - Frontend: npm run lint → passed
+  - Frontend: npm run build → passed
+  - rank_tier/percentile search in frontend + API schemas/routers only found explanatory comments, not response fields.
 
-Tagger run status (still running at session close):
-  Cache at session start: ~1,339 jobs
-  Cache at session close: ~1,864 + (232 batches × 10) = ~4,184 jobs tagged
-  Tagger running in background: batch 232/336, 10/10 per batch with qwen2.5-0.5b-instruct
-  Estimated completion: ~30 min from session close
+Where we stopped:
+  - Local integration is complete and ready for cloud smoke testing.
 
-DEFERRED — must complete before Phase 1G:
-  1. Wait for tagger to finish (or rerun if interrupted):
-     → cd /Users/incognito/True_Yodha/backend
-     → ../.venv/bin/python3 -m app.services.groq_tagger
-  2. Run csv_importer.py to push tagged jobs to Supabase
-  3. Verify job count in Supabase dashboard
-  4. Phase 1G: smoke tests + end-to-end pipeline validation
+Next task:
+  - Run Phase 1G staging checks: Railway /health, Vercel production load, real Supabase auth/email verification, real CV upload, job import count, full user journey, mobile viewport checks, and 3 external user tests.
 
-CODE NOT YET COMMITTED — review and commit manually:
-  backend/app/config.py
-  backend/app/services/skill_tagger.py
-  backend/app/services/llm_ranker.py
-  backend/app/services/groq_tagger.py
-  backend/.env.example
+Blockers:
+  - Cloud-only Phase 1G checks require deployed Railway/Vercel/Supabase access and real user testing.
 ```

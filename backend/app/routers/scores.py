@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring_engine
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 @router.get("/me", response_model=MirrorScoreResponse)
 async def get_my_score(current_user: dict = Depends(get_current_user)) -> MirrorScoreResponse:
     result = (
-        get_supabase_admin()
+        get_supabase_for_token(current_user["token"])
         .table("mirror_scores")
         .select("*")
         .eq("user_id", current_user["user_id"])

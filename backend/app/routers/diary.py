@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.schemas import DiaryEntryRequest, DiaryEntryResponse, DiaryHistoryResponse, SkillDeltaItem
 from app.services import scoring_engine
@@ -67,7 +67,7 @@ async def get_diary_history(
     limit: int = 30,
 ) -> DiaryHistoryResponse:
     result = (
-        get_supabase_admin()
+        get_supabase_for_token(current_user["token"])
         .table("daily_logs")
         .select("*")
         .eq("user_id", current_user["user_id"])

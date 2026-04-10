@@ -33,3 +33,10 @@ def get_supabase_admin() -> Client:
 def get_supabase() -> Client:
     """Anon client — respects RLS. Use in user-facing FastAPI routes."""
     return create_client(settings.supabase_url, settings.supabase_anon_key)
+
+
+def get_supabase_for_token(token: str) -> Client:
+    """Anon client with the user's JWT attached for RLS-protected PostgREST calls."""
+    client = get_supabase()
+    client.postgrest.auth(token)
+    return client

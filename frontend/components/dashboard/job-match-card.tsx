@@ -23,17 +23,31 @@ export function JobMatchCard({ job }: Props) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold leading-tight truncate">{job.title}</p>
-          <p className="text-xs text-muted-foreground">{job.company}</p>
+          <p className="text-xs text-muted-foreground">
+            {[job.company, job.location].filter(Boolean).join(" · ") || "Company not listed"}
+          </p>
         </div>
-        <Badge variant="secondary" className="text-xs shrink-0">
-          #{job.llm_rank}
-        </Badge>
+        {job.llm_rank && (
+          <Badge variant="secondary" className="text-xs shrink-0">
+            #{job.llm_rank}
+          </Badge>
+        )}
       </div>
       <OverlapBar value={job.overlap_score} />
       {job.llm_explanation && (
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
           {job.llm_explanation}
         </p>
+      )}
+      {job.source_url && (
+        <a
+          href={job.source_url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-foreground underline underline-offset-2"
+        >
+          View posting
+        </a>
       )}
     </div>
   )

@@ -8,8 +8,8 @@ Supported providers  (set via LLM_PROVIDER env var):
 
 Environment variables:
   LLM_PROVIDER       = anthropic | openai | gemini
-  ANTHROPIC_API_KEY  = sk-ant-...
-  OPENAI_API_KEY     = sk-...
+  ANTHROPIC_API_KEY  = your-anthropic-api-key
+  OPENAI_API_KEY     = your-openai-api-key
   GEMINI_API_KEY     = AIza...
   LLM_MODEL          = optional model override (else provider default is used)
 """

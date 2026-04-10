@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.schemas import (
     ActionPlanDay,
@@ -25,7 +25,7 @@ def _last_monday() -> date:
 @router.get("/matches", response_model=JobMatchesResponse)
 async def get_job_matches(current_user: dict = Depends(get_current_user)) -> JobMatchesResponse:
     batch_week = _last_monday()
-    db = get_supabase_admin()
+    db = get_supabase_for_token(current_user["token"])
 
     result = (
         db.table("user_job_matches")
@@ -109,7 +109,7 @@ async def compute_job_matches(
 @router.get("/applications", response_model=list[ApplicationResponse])
 async def get_applications(current_user: dict = Depends(get_current_user)) -> list[ApplicationResponse]:
     result = (
-        get_supabase_admin()
+        get_supabase_for_token(current_user["token"])
         .table("job_applications")
         .select("*, job_postings(title, company)")
         .eq("user_id", current_user["user_id"])
@@ -139,7 +139,7 @@ async def update_application(
         updates["applied_at"] = datetime.now(timezone.utc).isoformat()
 
     result = (
-        get_supabase_admin()
+        get_supabase_for_token(current_user["token"])
         .table("job_applications")
         .upsert({"user_id": current_user["user_id"], "job_id": job_id, **updates}, on_conflict="user_id,job_id")
         .select("*, job_postings(title, company)")

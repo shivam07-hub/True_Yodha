@@ -11,21 +11,30 @@ interface Props {
 
 export function AuthForm({ mode }: Props) {
   const router = useRouter()
+  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     setLoading(true)
     try {
       const res = mode === "login"
         ? await auth.login(email, password)
-        : await auth.signup(email, password)
+        : await auth.signup(email, password, fullName)
+
+      if (!res.access_token || res.requires_email_confirmation) {
+        setNotice(res.message ?? "Check your email for a confirmation link, then sign in.")
+        return
+      }
+
       localStorage.setItem("mirror_token", res.access_token)
-      router.push("/onboarding")
+      router.push(mode === "login" ? "/dashboard" : "/onboarding")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -46,6 +55,21 @@ export function AuthForm({ mode }: Props) {
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {mode === "signup" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" htmlFor="full-name">Full name</label>
+              <input
+                id="full-name"
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your name"
+                className="border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" htmlFor="email">Email</label>
             <input
@@ -75,6 +99,12 @@ export function AuthForm({ mode }: Props) {
 
           {error && (
             <p className="text-xs text-destructive">{error}</p>
+          )}
+
+          {notice && (
+            <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+              {notice}
+            </p>
           )}
 
           <button

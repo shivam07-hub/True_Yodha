@@ -45,6 +45,7 @@ async def upload_cv(
     # Mark CV as parsed on user profile
     db.table("user_profiles").update({
         "cv_parsed_at": score_row.get("computed_at"),
+        "onboarding_complete": True,
     }).eq("id", current_user["user_id"]).execute()
 
     return CVUploadResponse(

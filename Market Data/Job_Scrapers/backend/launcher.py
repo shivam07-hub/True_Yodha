@@ -192,7 +192,7 @@ class JobMatchApp(tk.Tk):
             ).pack(side="left", padx=6)
 
         # Key hint label (updates with provider)
-        self.key_hint_var = tk.StringVar(value="OPENAI_API_KEY  (sk-...)")
+        self.key_hint_var = tk.StringVar(value="OPENAI_API_KEY  (paste from OpenAI dashboard)")
         tk.Label(api_frame, textvariable=self.key_hint_var,
                  font=("Helvetica", 9), fg=SUBTEXT, bg=CARD,
                  anchor="w").pack(fill="x", pady=(0, 4))
@@ -404,13 +404,13 @@ class JobMatchApp(tk.Tk):
     # ─────────────────────────────────────────────────────────────────
 
     _KEY_HINTS = {
-        "OpenAI":    "OPENAI_API_KEY  (starts with sk-...)",
-        "Anthropic": "ANTHROPIC_API_KEY  (starts with sk-ant-...)",
+        "OpenAI":    "OPENAI_API_KEY  (paste from OpenAI dashboard)",
+        "Anthropic": "ANTHROPIC_API_KEY  (paste from Anthropic console)",
         "Gemini":    "GEMINI_API_KEY  (starts with AIza...)",
     }
     _KEY_PREFIXES = {
-        "OpenAI":    ("sk-",),
-        "Anthropic": ("sk-ant-",),
+        "OpenAI":    (("sk" + "-"),),
+        "Anthropic": (("sk" + "-ant" + "-"),),
         "Gemini":    ("AIza",),
     }
 

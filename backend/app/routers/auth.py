@@ -1,9 +1,22 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.database import get_supabase
+from app.database import get_supabase, get_supabase_admin
 from app.schemas import AuthResponse, LoginRequest, SignupRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _upsert_user_profile(user_id: str, email: str | None, full_name: str | None) -> None:
+    if not email:
+        return
+    get_supabase_admin().table("user_profiles").upsert(
+        {
+            "id": user_id,
+            "email": email,
+            "full_name": full_name,
+        },
+        on_conflict="id",
+    ).execute()
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -17,15 +30,30 @@ async def signup(body: SignupRequest) -> AuthResponse:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    if not response.user or not response.session:
+    if not response.user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Signup failed — check your email for a confirmation link.",
+            detail="Signup failed. Please try again.",
         )
 
+    try:
+        _upsert_user_profile(response.user.id, response.user.email, body.full_name)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    if not response.session:
+        return AuthResponse(
+            user_id=response.user.id,
+            email=response.user.email,
+            requires_email_confirmation=True,
+            message="Check your email for a confirmation link, then sign in.",
+        )
+
+    access_token = response.session.access_token
     return AuthResponse(
-        access_token=response.session.access_token,
+        access_token=access_token,
         user_id=response.user.id,
+        email=response.user.email,
     )
 
 
@@ -48,4 +76,5 @@ async def login(body: LoginRequest) -> AuthResponse:
     return AuthResponse(
         access_token=response.session.access_token,
         user_id=response.user.id,
+        email=response.user.email,
     )
