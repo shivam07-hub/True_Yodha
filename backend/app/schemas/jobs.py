@@ -10,17 +10,19 @@ class ActionPlanDay(BaseModel):
 
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
-    job_id: int
+    job_id: str
     title: str
     company: str | None
     location: str | None
+    industry: str | None = None
     remote: bool
     overlap_score: float                # 0–100
     llm_rank: int | None                # 1–3 within this week's batch
-    llm_explanation: str | None         # Groq: why this job fits (2–3 sentences)
+    llm_explanation: str | None         # why this job fits (2–3 sentences)
     action_plan: list[ActionPlanDay]    # 7-day gap-closing plan
     batch_week: date                    # Monday this match was generated
     source_url: str | None
+    matched_skills: list[str] = []
 
 
 class JobMatchesResponse(BaseModel):
@@ -39,11 +41,12 @@ class ComputeJobMatchesResponse(BaseModel):
     matches_written: int     # rows upserted to user_job_matches
     from_cache: bool         # True if LLM was skipped (already computed this week)
     batch_week: date
+    needs_onboarding: bool = False
 
 
 class ApplicationResponse(BaseModel):
     id: int
-    job_id: int
+    job_id: str
     title: str
     company: str | None
     status: str
@@ -52,3 +55,25 @@ class ApplicationResponse(BaseModel):
     checkin_sent_at: datetime | None
     notes: str | None
     created_at: datetime
+
+
+class NameCountItem(BaseModel):
+    name: str
+    count: int
+
+
+class SkillCountItem(BaseModel):
+    skill: str
+    count: int
+
+
+class MarketAnalyticsResponse(BaseModel):
+    total_jobs: int
+    total_companies: int
+    total_industries: int
+    latest_batch: str | None
+    by_company: list[NameCountItem]
+    by_industry: list[NameCountItem]
+    top_skills: list[SkillCountItem]
+    company_skills: dict[str, list[str]] = {}
+    industry_skills: dict[str, list[str]] = {}

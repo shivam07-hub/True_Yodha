@@ -77,6 +77,7 @@ def build_prompt(user_skill_map: dict[str, int], top_jobs: list[dict]) -> str:
             "company": j.get("company"),
             "description_snippet": j.get("description", "")[:800],
             "overlap_score": j["overlap_score"],
+            "matched_skills": j.get("matched_skills", []),
         }
         for j in top_jobs
     ]
@@ -89,7 +90,7 @@ Top {len(top_jobs)} jobs by skill overlap (ranked by overlap_score):
 Return a JSON array of {len(top_jobs)} objects, best fit first:
 [
   {{
-    "job_id": <int>,
+    "job_id": "<string>",
     "rank": <1–{len(top_jobs)}>,
     "explanation": "<2 sentences: why this job fits this candidate>",
     "action_plan": <7-day plan array OR null>
@@ -181,12 +182,12 @@ def persist_matches(
     Top 3 by LLM rank → is_recommended=True.
     Returns count of rows written.
     """
-    rank_map: dict[int, dict] = {r["job_id"]: r for r in ranked}
+    rank_map: dict[str, dict] = {str(r["job_id"]): r for r in ranked}
     now = datetime.now(timezone.utc).isoformat()
 
     rows = []
     for job in top_jobs:
-        jid = job["job_id"]
+        jid = str(job["job_id"])
         llm_data = rank_map.get(jid, {})
         llm_rank: int | None = llm_data.get("rank")
         rows.append({
@@ -198,6 +199,7 @@ def persist_matches(
             "llm_explanation": llm_data.get("explanation"),
             "is_recommended": isinstance(llm_rank, int) and llm_rank <= 3,
             "action_plan": llm_data.get("action_plan") or [],
+            "matched_skills": job.get("matched_skills") or [],
             "computed_at": now,
         })
 
