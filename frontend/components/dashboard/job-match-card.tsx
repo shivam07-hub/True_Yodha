@@ -17,6 +17,26 @@ function OverlapBar({ value }: { value: number }) {
   )
 }
 
+function MatchedSkills({ skills }: { skills: string[] }) {
+  if (!skills || skills.length === 0) return null
+  const visible = skills.slice(0, 6)
+  const overflow = skills.length - visible.length
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {visible.map((s) => (
+        <Badge key={s} variant="secondary" className="text-xs font-normal">
+          {s}
+        </Badge>
+      ))}
+      {overflow > 0 && (
+        <Badge variant="outline" className="text-xs font-normal">
+          +{overflow} more
+        </Badge>
+      )}
+    </div>
+  )
+}
+
 export function JobMatchCard({ job }: Props) {
   return (
     <div className="border border-border rounded-xl p-4 flex flex-col gap-2">
@@ -39,6 +59,7 @@ export function JobMatchCard({ job }: Props) {
           {job.llm_explanation}
         </p>
       )}
+      <MatchedSkills skills={job.matched_skills} />
       {job.source_url && (
         <a
           href={job.source_url}

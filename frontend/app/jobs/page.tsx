@@ -14,7 +14,7 @@ function scoreTone(score: number): string {
   return "bg-muted-foreground"
 }
 
-function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: number) => void }) {
+function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => void }) {
   const firstPlan = job.action_plan[0]
 
   return (
@@ -93,7 +93,7 @@ export default function JobsPage() {
   })
 
   const track = useMutation({
-    mutationFn: (jobId: number) => jobs.updateApplication(token!, jobId, { status: "pending" }),
+    mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
   })
 

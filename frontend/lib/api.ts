@@ -10,13 +10,21 @@ const BASE =
   ""
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = init ?? {}
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
-    ...init,
+    headers: { "Content-Type": "application/json", ...extraHeaders },
+    ...rest,
   })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(error.detail ?? "API error")
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = body?.detail
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+          : `HTTP ${res.status}`
+    throw new Error(message)
   }
   return res.json() as Promise<T>
 }
@@ -98,8 +106,15 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadRespo
     body: form,
   })
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(error.detail ?? "Upload failed")
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = body?.detail
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+          : `HTTP ${res.status}`
+    throw new Error(message)
   }
   return res.json()
 }
@@ -144,10 +159,11 @@ export const scores = {
 
 export interface JobMatch {
   id: number
-  job_id: number
+  job_id: string
   title: string
   company: string | null
   location: string | null
+  industry?: string | null
   remote: boolean
   overlap_score: number
   llm_rank: number | null
@@ -155,6 +171,7 @@ export interface JobMatch {
   action_plan: ActionPlanDay[]
   batch_week: string
   source_url: string | null
+  matched_skills: string[]
 }
 
 export interface JobMatchesResponse {
@@ -173,6 +190,7 @@ export interface ComputeJobMatchesResponse {
   matches_written: number
   from_cache: boolean
   batch_week: string
+  needs_onboarding?: boolean
 }
 
 export type ApplicationStatus =
@@ -186,7 +204,7 @@ export type ApplicationStatus =
 
 export interface ApplicationResponse {
   id: number
-  job_id: number
+  job_id: string
   title: string
   company: string | null
   status: ApplicationStatus
@@ -197,7 +215,30 @@ export interface ApplicationResponse {
   created_at: string
 }
 
+export interface NameCountItem {
+  name: string
+  count: number
+}
+
+export interface SkillCountItem {
+  skill: string
+  count: number
+}
+
+export interface MarketAnalytics {
+  total_jobs: number
+  total_companies: number
+  total_industries: number
+  latest_batch: string | null
+  by_company: NameCountItem[]
+  by_industry: NameCountItem[]
+  top_skills: SkillCountItem[]
+  company_skills: Record<string, string[]>
+  industry_skills: Record<string, string[]>
+}
+
 export const jobs = {
+  analytics: () => request<MarketAnalytics>("/jobs/analytics"),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },
@@ -213,7 +254,7 @@ export const jobs = {
     }),
   updateApplication: (
     token: string,
-    jobId: number,
+    jobId: string,
     data: { status: ApplicationStatus; notes?: string | null; company_response?: string | null },
   ) =>
     request<ApplicationResponse>(`/jobs/applications/${jobId}`, {
