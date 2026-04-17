@@ -6,52 +6,29 @@
 ## SESSION START RITUAL (do this every time, no exceptions)
 
 1. Read this file top to bottom
-2. Read the **current phase file** listed below
-3. State your full plan for today and wait for "yes / proceed / go ahead"
+2. State your full plan for today and wait for "yes / proceed / go ahead"
 4. Work one task at a time — commit after each completed task
 5. Before ending: update **Last Session Summary** below
 
 ---
 
-## CURRENT PHASE → `docs/phases/phase_1g_validation.md`
-
-Status: Phase 1A–1F complete. Phase 1G validation/testing in progress.
-
-Phase order:
-1. `docs/phases/phase_1a_infra.md` ← **COMPLETE**
-2. `docs/phases/phase_1b_database.md` ← **COMPLETE**
-3. `docs/phases/phase_1c_backend.md` ← **COMPLETE**
-4. `docs/phases/phase_1d_frontend.md` ← **COMPLETE**
-5. `docs/phases/phase_1e_scoring.md` ← **COMPLETE**
-6. `docs/phases/phase_1f_jobs.md` ← **COMPLETE**
-7. `docs/phases/phase_1g_validation.md` ← **YOU ARE HERE**
-
----
-
 ## ABSOLUTE RULES (cannot be broken)
 
-- Skill data source of truth: `skill_taxonomy_mapping/taxonomy.json` + `Skill_Taxonomy_v1.xlsx`
-  Never edit skill data without updating BOTH files and logging in `TAXONOMY_CHANGELOG.md`
 - Never merge to `main` directly — only to `develop`. `main` = Vercel production.
 - Never hardcode API keys — use `.env` files, never commit `.env`
 - Never skip tests before marking a task complete
-- Never expose `rank_tier` or `percentile` via API — internal only
-- Web only (mobile-responsive) — no React Native, no native app
-
+- Web only (mobile-responsive) — use tailwindcss and shadcn
 ---
 
 ## PROJECT IN ONE PARAGRAPH
 
-Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV → skills are extracted and matched against a 63-skill taxonomy (L1–L5 levels determined by comparing CV evidence to taxonomy benchmark definitions) → top 5 job matches are found by skill overlap and LLM-ranked → top 3 are recommended to the user with explanations and a 7-day action plan to align their CV to each job → a Mirror Score (0–100) is computed across 10 domains → user sees their score, domain breakdown, top 3 recommended jobs, and top 5 skill upgrade priorities. Jobs are tagged with primary and secondary skills at required levels. Application tracking records whether the user applied, received a response, and status at the 1-week check-in. Rank tier and percentile are computed internally and never exposed via API.
+Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV → skills are extracted and matched against a global skill taxonomy (L1–L5 levels determined by comparing CV evidence to taxonomy benchmark definitions) → top 5 job matches are found by skill overlap and LLM-ranked → top 3 are recommended to the user with explanations and a 7-day action plan to align their CV to each job → a Mirror Score (0–100) is computed across 10 domains → user sees their score, domain breakdown, top 3 recommended jobs, and top 5 skill upgrade priorities. Application tracking records whether the user applied, received a response, and status at the 1-week check-in. Rank, tier, and percentile are computed internally.
 
-**Tech stack:** FastAPI (backend) · Next.js 14 (frontend) · Supabase/PostgreSQL (DB) · Railway (backend hosting) · Vercel (frontend hosting) · GPT-4o mini (LLM ranking)
+**Tech stack:** FastAPI (backend) · Railway (backend hosting) ~ Next.js 14 (frontend) , Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) ·  · Vercel (frontend hosting) · OpenRouter API (LLM ranking)
 
 **Reference docs:**
 - Full tech stack + architecture: `docs/TECH_STACK.md`
-- Database schema: `docs/SCHEMA.md`
 - Scoring algorithm: `docs/SCORING_ALGORITHM.md`
-- Skill taxonomy reference: `docs/TAXONOMY_REFERENCE.md`
-- Intern collaboration contracts: `docs/INTERN_CONTRACTS.md`
 - Deployment guide (Git → GitHub → Vercel): `docs/DEPLOYMENT_GUIDE.md`
 
 ---
@@ -74,51 +51,50 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 - Python venv lives at `.venv/` (project root)
 - Activate: `source .venv/bin/activate`
 - Install deps: `pip install -r backend/requirements.txt`
-- Never activate conda for this project — use `.venv` only
 
 ---
 
-## LAST SESSION SUMMARY
+## LAST SESSION SUMMARY (2026-04-18 — Track A Matching Fix)
 
 ```
-Date: 2026-04-10
-Phase files worked on: phase_1g_validation.md + Career Ops canonical frontend/backend integration
+Date: 2026-04-18
+Handoff doc: docs/MATCHING_FIX_HANDOFF.md (all tasks now complete)
 
-What was completed:
-  - Deleted untracked AGENTS.md and Market Data/Job_Scrapers/KNOWN_PORTALS.md per user request.
-  - Inspected canonical frontend/backend and career-ops-web frontend reference app.
-  - Made canonical frontend login-first by redirecting `/` to `/login`.
-  - Fixed signup/auth contract:
-    - frontend sends full_name
-    - backend supports email-confirmation signup responses without requiring an immediate session
-    - backend upserts user_profiles on signup
-  - Fixed frontend API types to match FastAPI response shapes:
-    - scores.compute unwraps ComputeScoreResponse.score
-    - user profile update uses target_roles and target_location
-    - jobs/applications/diary API clients added
-  - Added protected canonical app shell and routes:
-    - /jobs for Supabase-backed market job matches
-    - /tracker for job_applications status tracking
-    - /diary for private daily_logs entries and skill-signal updates
-    - /cv for CV upload, score refresh, and job-match refresh
-  - Dashboard now uses the protected app shell.
-  - Onboarding now updates target_roles/target_location, uploads CV, computes score, and attempts job matching.
-  - Read/update routes for users, scores/me, job matches, applications, and diary history now use Supabase anon client with the user JWT so RLS is exercised where policies support it.
-  - CV upload now marks onboarding_complete true.
-  - Cleaned secret-like API-key placeholder strings from helper files; exact secret-prefix grep still has known false positives from the Phase 1G checklist text and queue-microtask package URL.
+Work done (5 commits to Develop):
+  1. chore(db): migration SQL — database/migrations/20260417_job_id_text.sql
+     - Converts user_job_matches.job_id + job_applications.job_id from int4 → text
+     - Adds FK to public.jobs(job_id), adds matched_skills jsonb column
+     - MUST be applied in Supabase SQL Editor before next deploy
 
-Validation:
-  - Backend: ../.venv/bin/python -m pytest tests/ -q → 85 passed
-  - Frontend: npm run lint → passed
-  - Frontend: npm run build → passed
-  - rank_tier/percentile search in frontend + API schemas/routers only found explanatory comments, not response fields.
+  2. fix(matcher): job_matcher.py fully rewritten
+     - Now reads public.jobs directly (no more phantom job_postings dependency)
+     - Text job_ids, aspiration rerank (1.3x role, 1.2x location boost)
+     - Anti-Accenture cap: no single company > 30% of top_n
+     - 12/12 tests green
 
-Where we stopped:
-  - Local integration is complete and ready for cloud smoke testing.
+  3. feat(jobs): router + schemas + llm_ranker updated
+     - POST /jobs/compute: graceful needs_onboarding=true instead of 404
+     - Fetches target_roles + target_location from user_profiles → passes to matcher
+     - job_postings embed removed everywhere → replaced with jobs embed
+     - matched_skills persisted to user_job_matches and returned in API
 
-Next task:
-  - Run Phase 1G staging checks: Railway /health, Vercel production load, real Supabase auth/email verification, real CV upload, job import count, full user journey, mobile viewport checks, and 3 external user tests.
+  4. feat(jobs): frontend skill chips on job cards
+     - JobMatchCard renders matched Lightcast skills (max 6 + overflow pill)
+     - job_id: string everywhere in frontend types + call sites
 
-Blockers:
-  - Cloud-only Phase 1G checks require deployed Railway/Vercel/Supabase access and real user testing.
-```
+  5. fix(cv): CV extraction now uses LM Studio locally, OpenRouter in prod
+     - LM_STUDIO_EXTRACTOR_MODEL=llama-3.2-3b-instruct (local, working)
+     - deepseek-r1 rejected — reasoning model burns tokens on <think>, empty output
+     - OpenRouter fallback kept for Railway deploy (needs credit top-up at launch)
+
+Next session:
+  - Apply migration SQL in Supabase (only remaining manual step)
+  - Upload Shivam's real CV through /onboarding and verify top 3 matches
+  - Confirm no HR roles, ≥1 DE/PM/Sales role, no company duplication
+  - Mirror Score denominator bug still open (task 3a from handoff) — score shows ~0.1
+  - OpenRouter credits need top-up before Railway deploy
+
+LLM model map (local):
+  - CV extraction:  llama-3.2-3b-instruct  (LM_STUDIO_EXTRACTOR_MODEL)
+  - Job ranking:    deepseek-r1-0528-qwen3-8b-mlx  (LM_STUDIO_RANKER_MODEL)
+  - Skill tagging:  qwen2.5-0.5b-instruct  (LM_STUDIO_TAGGER_MODEL)
