@@ -54,44 +54,32 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — Track A Matching Fix)
+## LAST SESSION SUMMARY (2026-04-18 — Scoring Engine Rewrite)
 
 ```
 Date: 2026-04-18
-Handoff doc: docs/MATCHING_FIX_HANDOFF.md (all tasks now complete)
+Handoff doc: DELETED (all Track A tasks complete)
 
-Work done (5 commits to Develop):
-  1. chore(db): migration SQL — database/migrations/20260417_job_id_text.sql
-     - Converts user_job_matches.job_id + job_applications.job_id from int4 → text
-     - Adds FK to public.jobs(job_id), adds matched_skills jsonb column
-     - MUST be applied in Supabase SQL Editor before next deploy
+Work done this session:
 
-  2. fix(matcher): job_matcher.py fully rewritten
-     - Now reads public.jobs directly (no more phantom job_postings dependency)
-     - Text job_ids, aspiration rerank (1.3x role, 1.2x location boost)
-     - Anti-Accenture cap: no single company > 30% of top_n
-     - 12/12 tests green
+  1. feat(scoring): full scoring engine rewrite (backend/app/services/scoring_engine.py)
+     - New model: cluster_coverage × (max_proficiency/5) per Tax-L2 cluster
+     - Domain score = mean(cluster_scores) × 100, Tax-L1 level, present-only
+     - Mirror Score = mean(domain_scores) — no penalty for absent domains
+     - Proficiency tiers renamed: Scout → Trailblazer → Excavator → Cartographer → Legend
+     - Gap analysis aspiration-driven, 7-day day-budget packing
+     - Tests split: test_scoring.py + test_scoring_io.py — 68/68 green
 
-  3. feat(jobs): router + schemas + llm_ranker updated
-     - POST /jobs/compute: graceful needs_onboarding=true instead of 404
-     - Fetches target_roles + target_location from user_profiles → passes to matcher
-     - job_postings embed removed everywhere → replaced with jobs embed
-     - matched_skills persisted to user_job_matches and returned in API
+  2. docs/SCORING_ALGORITHM.md — fully rewritten to match new model
 
-  4. feat(jobs): frontend skill chips on job cards
-     - JobMatchCard renders matched Lightcast skills (max 6 + overflow pill)
-     - job_id: string everywhere in frontend types + call sites
-
-  5. fix(cv): CV extraction now uses LM Studio locally, OpenRouter in prod
-     - LM_STUDIO_EXTRACTOR_MODEL=llama-3.2-3b-instruct (local, working)
-     - deepseek-r1 rejected — reasoning model burns tokens on <think>, empty output
-     - OpenRouter fallback kept for Railway deploy (needs credit top-up at launch)
+  3. chore(git): agency-agents submodule pointer removed
+     - 184 agents installed to ~/.claude/agents/ (user-wide, all sessions)
+     - agency-agents/ added to .gitignore
 
 Next session:
-  - Apply migration SQL in Supabase (only remaining manual step)
+  - CV upload + parsing is struggling — start with testing/debugging cv_parser.py
+  - Apply migration SQL in Supabase (still pending manual step)
   - Upload Shivam's real CV through /onboarding and verify top 3 matches
-  - Confirm no HR roles, ≥1 DE/PM/Sales role, no company duplication
-  - Mirror Score denominator bug still open (task 3a from handoff) — score shows ~0.1
   - OpenRouter credits need top-up before Railway deploy
 
 LLM model map (local):
