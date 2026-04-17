@@ -1,246 +1,231 @@
 """
 test_scoring.py
-100% coverage on scoring_engine.py — pure unit tests, no Supabase required.
+Pure formula unit tests for scoring_engine.py — no Supabase required.
 
-Five synthetic profiles:
-  P1 — Zero XP: Mirror Score = 0
-  P2 — Full L5 (all 63 skills at leadership + XP boost): Mirror Score = 100
-  P3 — Mixed profile: correct domain + Mirror Score arithmetic
-  P4 — Gap analysis: gap_score ordering and undetected high-demand skills
-  P5 — Rank tier bands: each tier computed correctly, tier never in schema
-
-DB tests: mock the Supabase client to cover fetch_* and persist_* functions.
+Covers:
+  - Cluster coverage scoring (Tax-L2 level)
+  - Domain score aggregation (Tax-L1 level)
+  - Mirror Score (mean of domain scores)
+  - Gap analysis (aspiration-driven, 7-day budget)
+  - Rank tiers
+  - Signal type → proficiency level
+  - XP boost logic
 """
-
-from unittest.mock import MagicMock, call
 
 import pytest
 
 from app.services.scoring_engine import (
+    _DAYS_PER_STEP,
+    _PROFICIENCY_TITLES,
     _RANK_TIERS,
     _SIGNAL_LEVEL_MAP,
     build_skill_level_map,
-    compute_and_persist_score,
+    compute_cluster_scores,
     compute_domain_scores,
     compute_gap_skills,
     compute_mirror_score,
     compute_rank_tier,
-    fetch_skill_demand,
-    fetch_taxonomy,
     infer_level_from_signals,
-    persist_score,
-    persist_user_skills,
 )
 
 # ── Shared taxonomy fixtures ──────────────────────────────────────────────────
 
-ALL_KEYS = ["python", "sql", "data_visualisation", "statistical_analysis", "docker"]
-
-SKILLS_BY_DOMAIN = {
-    "DSA": ["sql", "data_visualisation", "statistical_analysis"],
-    "SD":  ["python"],
-    "CDO": ["docker"],
+# Synthetic 3-cluster, 2-domain taxonomy (3 skills each cluster)
+CLUSTER_CHILDREN = {
+    "Web Frameworks": ["Django", "Flask", "FastAPI"],
+    "Databases":      ["SQL", "PostgreSQL", "MySQL"],
+    "Cloud":          ["AWS", "GCP", "Azure"],
+}
+SKILL_TO_CLUSTER = {
+    "Django": "Web Frameworks", "Flask": "Web Frameworks", "FastAPI": "Web Frameworks",
+    "SQL": "Databases", "PostgreSQL": "Databases", "MySQL": "Databases",
+    "AWS": "Cloud", "GCP": "Cloud", "Azure": "Cloud",
+}
+CLUSTER_TO_DOMAIN = {
+    "Web Frameworks": "IT",
+    "Databases":      "IT",
+    "Cloud":          "Engineering",
 }
 
-SKILL_DISPLAY = {
-    "python":               "Python",
-    "sql":                  "SQL",
-    "data_visualisation":   "Data Visualisation",
-    "statistical_analysis": "Statistical Analysis",
-    "docker":               "Docker",
-}
+
+# ── Cluster Score ─────────────────────────────────────────────────────────────
+
+class TestClusterScores:
+    def test_single_skill_p3(self) -> None:
+        # coverage=1/3, proficiency=3/5 → score=0.2
+        scores = compute_cluster_scores({"Django": 3}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert scores["Web Frameworks"] == pytest.approx(1/3 * 3/5, rel=1e-3)
+
+    def test_full_cluster_p4(self) -> None:
+        # coverage=3/3=1.0, proficiency=4/5=0.8 → score=0.8
+        level_map = {"Django": 4, "Flask": 4, "FastAPI": 4}
+        scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert scores["Web Frameworks"] == pytest.approx(0.8)
+
+    def test_partial_cluster_uses_max_proficiency(self) -> None:
+        # Django P2, Flask P4 → max_proficiency=4/5=0.8, coverage=2/3
+        level_map = {"Django": 2, "Flask": 4}
+        scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert scores["Web Frameworks"] == pytest.approx(2/3 * 4/5, rel=1e-3)
+
+    def test_empty_skill_map_returns_empty(self) -> None:
+        assert compute_cluster_scores({}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER) == {}
+
+    def test_unknown_skill_not_in_any_cluster(self) -> None:
+        scores = compute_cluster_scores({"UnknownSkill": 3}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert scores == {}
+
+    def test_multiple_clusters_scored_independently(self) -> None:
+        level_map = {"Django": 3, "SQL": 2}
+        scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert "Web Frameworks" in scores
+        assert "Databases" in scores
+        assert scores["Web Frameworks"] != scores["Databases"]
+
+    def test_zero_level_skill_gives_zero_cluster_score(self) -> None:
+        scores = compute_cluster_scores({"Django": 0}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        assert scores.get("Web Frameworks", 0.0) == pytest.approx(0.0)
 
 
-# ── Profile 1: Zero XP ────────────────────────────────────────────────────────
+# ── Domain Score ──────────────────────────────────────────────────────────────
 
-class TestZeroXP:
-    def test_mirror_score_is_zero(self) -> None:
-        assert compute_mirror_score({}, ALL_KEYS) == 0.0
+class TestDomainScores:
+    def test_single_cluster_domain(self) -> None:
+        # Cloud cluster in Engineering domain, score=0.6 → domain=60.0
+        cluster_scores = {"Cloud": 0.6}
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        assert domain_scores["Engineering"] == pytest.approx(60.0)
 
-    def test_mirror_score_empty_taxonomy(self) -> None:
-        assert compute_mirror_score({"python": 3}, []) == 0.0
+    def test_two_clusters_same_domain(self) -> None:
+        # Web Frameworks=0.2, Databases=0.4 both in IT → IT domain=(0.2+0.4)/2×100=30.0
+        cluster_scores = {"Web Frameworks": 0.2, "Databases": 0.4}
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        assert domain_scores["IT"] == pytest.approx(30.0)
 
-    def test_domain_scores_all_zero(self) -> None:
-        scores = compute_domain_scores({}, SKILLS_BY_DOMAIN)
-        assert all(v == 0.0 for v in scores.values())
+    def test_absent_domain_not_included(self) -> None:
+        cluster_scores = {"Cloud": 0.5}
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        assert "IT" not in domain_scores
 
-    def test_infer_level_no_signals(self) -> None:
-        assert infer_level_from_signals([]) == 0
+    def test_empty_cluster_scores_returns_empty(self) -> None:
+        assert compute_domain_scores({}, CLUSTER_TO_DOMAIN) == {}
 
-    def test_build_skill_level_map_empty(self) -> None:
-        assert build_skill_level_map([]) == {}
-
-
-# ── Profile 2: Full L5 ────────────────────────────────────────────────────────
-
-class TestFullL5:
-    """All 5 keys at leadership signal + enough XP to boost to L5."""
-
-    def _full_signals(self) -> list[dict]:
-        return [
-            {
-                "taxonomy_key": key,
-                "signal_type": "leadership",   # base L4
-                "xp_awarded": 700,             # 700 XP → total ≥ 1000 when combined
-                "evidence": f"Led {key}",
-            }
-            for key in ALL_KEYS
-        ] + [
-            {
-                "taxonomy_key": key,
-                "signal_type": "impact",
-                "xp_awarded": 350,             # combined: 1050 XP → boost to L5
-                "evidence": f"Measurable impact in {key}",
-            }
-            for key in ALL_KEYS
-        ]
-
-    def test_infer_level_leadership_with_boost(self) -> None:
-        signals = [
-            {"signal_type": "leadership", "xp_awarded": 700, "taxonomy_key": "python", "evidence": ""},
-            {"signal_type": "impact",     "xp_awarded": 350, "taxonomy_key": "python", "evidence": ""},
-        ]
-        assert infer_level_from_signals(signals) == 5
-
-    def test_mirror_score_is_100(self) -> None:
-        level_map = build_skill_level_map(self._full_signals())
-        score = compute_mirror_score(level_map, ALL_KEYS)
-        assert score == 100.0
-
-    def test_level_capped_at_5(self) -> None:
-        # Even with huge XP, level must not exceed 5
-        signals = [
-            {"signal_type": "leadership", "xp_awarded": 9999, "taxonomy_key": "sql", "evidence": ""},
-        ]
-        assert infer_level_from_signals(signals) == 5
+    def test_unknown_cluster_falls_back_to_general(self) -> None:
+        cluster_scores = {"SomeUnknownCluster": 0.5}
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        assert "General" in domain_scores
 
 
-# ── Profile 3: Mixed profile ─────────────────────────────────────────────────
+# ── Mirror Score ──────────────────────────────────────────────────────────────
 
-class TestMixedProfile:
-    """
-    python:               L4 (leadership, 500 XP — no boost, <1000)
-    sql:                  L3 (impact, 350 XP)
-    data_visualisation:   L2 (project, 150 XP)
-    statistical_analysis: L1 (mention, 50 XP)
-    docker:               L0 (not detected)
-    """
+class TestMirrorScore:
+    def test_empty_returns_zero(self) -> None:
+        assert compute_mirror_score({}) == 0.0
 
-    SIGNALS = [
-        {"taxonomy_key": "python",               "signal_type": "leadership", "xp_awarded": 500, "evidence": "Led backend arch"},
-        {"taxonomy_key": "sql",                   "signal_type": "impact",     "xp_awarded": 350, "evidence": "Reduced query time 60%"},
-        {"taxonomy_key": "data_visualisation",    "signal_type": "project",    "xp_awarded": 150, "evidence": "Built Tableau dashboards"},
-        {"taxonomy_key": "statistical_analysis",  "signal_type": "mention",    "xp_awarded": 50,  "evidence": "Statistical analysis"},
-    ]
+    def test_single_domain(self) -> None:
+        assert compute_mirror_score({"IT": 60.0}) == 60.0
 
-    def test_skill_levels(self) -> None:
-        level_map = build_skill_level_map(self.SIGNALS)
-        assert level_map["python"] == 4
-        assert level_map["sql"] == 3
-        assert level_map["data_visualisation"] == 2
-        assert level_map["statistical_analysis"] == 1
-        assert level_map.get("docker", 0) == 0
+    def test_two_domains_averaged(self) -> None:
+        assert compute_mirror_score({"IT": 30.0, "Engineering": 60.0}) == pytest.approx(45.0)
 
-    def test_mirror_score_arithmetic(self) -> None:
-        # (4/5*100 + 3/5*100 + 2/5*100 + 1/5*100 + 0/5*100) / 5
-        # = (80 + 60 + 40 + 20 + 0) / 5 = 40.0
-        level_map = build_skill_level_map(self.SIGNALS)
-        score = compute_mirror_score(level_map, ALL_KEYS)
-        assert score == 40.0
+    def test_all_100_returns_100(self) -> None:
+        assert compute_mirror_score({"A": 100.0, "B": 100.0}) == 100.0
 
-    def test_domain_scores(self) -> None:
-        level_map = build_skill_level_map(self.SIGNALS)
-        domain_scores = compute_domain_scores(level_map, SKILLS_BY_DOMAIN)
-        # DSA: (sql=60 + data_vis=40 + stats=20) / 3 = 40.0
-        assert domain_scores["DSA"] == pytest.approx(40.0)
-        # SD: python=80 → 80.0
-        assert domain_scores["SD"] == 80.0
-        # CDO: docker=0 → 0.0
-        assert domain_scores["CDO"] == 0.0
+    def test_full_pipeline_cluster_to_mirror(self) -> None:
+        # Django P3 in Web Frameworks (IT domain)
+        # cluster_score = 1/3 × 3/5 = 0.2
+        # domain_score IT = 0.2 × 100 = 20.0
+        # mirror = 20.0
+        level_map = {"Django": 3}
+        cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        mirror = compute_mirror_score(domain_scores)
+        assert mirror == pytest.approx(20.0, rel=1e-2)
 
-    def test_domain_scores_only_include_known_domains(self) -> None:
-        scores = compute_domain_scores({}, SKILLS_BY_DOMAIN)
-        assert set(scores.keys()) == {"DSA", "SD", "CDO"}
-
-    def test_empty_key_list_domain_skipped(self) -> None:
-        # Domain with empty skills list must be skipped (hits the `continue` branch)
-        domains_with_empty = {"SD": ["python"], "EMPTY": []}
-        scores = compute_domain_scores({"python": 3}, domains_with_empty)
-        assert "EMPTY" not in scores
-        assert "SD" in scores
+    def test_zero_level_skills_score_zero(self) -> None:
+        level_map = {"Django": 0, "SQL": 0}
+        cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
+        assert compute_mirror_score(domain_scores) == pytest.approx(0.0)
 
 
-# ── Profile 4: Gap analysis ───────────────────────────────────────────────────
+# ── Gap Analysis ──────────────────────────────────────────────────────────────
 
 class TestGapAnalysis:
-    """
-    Verifies gap_score ordering and that undetected high-demand skills appear.
-    """
-
-    LEVEL_MAP = {
-        "python": 3,           # gap = (5-3) × weight
-        "sql":    1,           # gap = (5-1) × weight
-        "docker": 0,           # not detected — treated as fully missing
+    SKILL_DEMAND = {
+        "Django": 100, "SQL": 80, "AWS": 60,
+        "Flask": 40,   "GCP": 20,
     }
 
-    DEMAND = {
-        "python": 100,         # max demand → weight=1.0
-        "sql":    50,          # weight=0.5
-        "docker": 80,          # weight=0.8 — undetected, should appear
-        "data_visualisation": 10,
-        "statistical_analysis": 5,
-    }
+    def test_aspiration_skill_missing_from_cv(self) -> None:
+        gaps = compute_gap_skills(
+            {}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER
+        )
+        assert any(g["taxonomy_key"] == "Django" for g in gaps)
 
-    def test_gap_score_formula(self) -> None:
-        gaps = compute_gap_skills(self.LEVEL_MAP, self.DEMAND, SKILL_DISPLAY)
-        # sql: (5-1) × 0.5 = 2.0
-        sql_gap = next(g for g in gaps if g["taxonomy_key"] == "sql")
-        assert sql_gap["gap_score"] == pytest.approx(2.0)
+    def test_days_to_close_scout_to_trailblazer(self) -> None:
+        # P1→P2 = 2 days
+        gaps = compute_gap_skills(
+            {"Django": 1}, self.SKILL_DEMAND, {"Django": 2}, SKILL_TO_CLUSTER
+        )
+        dj = next(g for g in gaps if g["taxonomy_key"] == "Django")
+        assert dj["days_to_close"] == _DAYS_PER_STEP[(1, 2)]
 
-    def test_undetected_skill_included(self) -> None:
-        gaps = compute_gap_skills(self.LEVEL_MAP, self.DEMAND, SKILL_DISPLAY)
-        keys = [g["taxonomy_key"] for g in gaps]
-        assert "docker" in keys
+    def test_days_to_close_trailblazer_to_excavator(self) -> None:
+        # P2→P3 = 5 days
+        gaps = compute_gap_skills(
+            {"SQL": 2}, self.SKILL_DEMAND, {"SQL": 3}, SKILL_TO_CLUSTER
+        )
+        sql = next(g for g in gaps if g["taxonomy_key"] == "SQL")
+        assert sql["days_to_close"] == 5
 
-    def test_undetected_skill_target_level_is_1(self) -> None:
-        gaps = compute_gap_skills(self.LEVEL_MAP, self.DEMAND, SKILL_DISPLAY)
-        docker_gap = next(g for g in gaps if g["taxonomy_key"] == "docker")
-        assert docker_gap["current_level"] == 0
-        assert docker_gap["target_level"] == 1
+    def test_7_day_budget_not_exceeded(self) -> None:
+        aspiration = {"Django": 3, "SQL": 3, "AWS": 3, "Flask": 3, "GCP": 3}
+        gaps = compute_gap_skills(
+            {}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER, max_days=7
+        )
+        assert sum(g["days_allocated"] for g in gaps) <= 7
 
-    def test_gaps_sorted_descending(self) -> None:
-        gaps = compute_gap_skills(self.LEVEL_MAP, self.DEMAND, SKILL_DISPLAY)
-        scores = [g["gap_score"] for g in gaps]
-        assert scores == sorted(scores, reverse=True)
+    def test_skill_at_target_excluded(self) -> None:
+        gaps = compute_gap_skills(
+            {"Django": 3}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER
+        )
+        assert not any(g["taxonomy_key"] == "Django" for g in gaps)
+
+    def test_skill_above_target_excluded(self) -> None:
+        gaps = compute_gap_skills(
+            {"Django": 4}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER
+        )
+        assert not any(g["taxonomy_key"] == "Django" for g in gaps)
 
     def test_top_n_respected(self) -> None:
-        gaps = compute_gap_skills(self.LEVEL_MAP, self.DEMAND, SKILL_DISPLAY, top_n=2)
+        aspiration = {s: 3 for s in ["Django", "SQL", "AWS", "Flask", "GCP"]}
+        gaps = compute_gap_skills({}, self.SKILL_DEMAND, aspiration, SKILL_TO_CLUSTER, top_n=2)
         assert len(gaps) <= 2
 
-    def test_l5_skill_excluded_from_gaps(self) -> None:
-        level_map = {"python": 5, "sql": 2}
-        demand = {"python": 100, "sql": 80}
-        gaps = compute_gap_skills(level_map, demand, SKILL_DISPLAY)
-        keys = [g["taxonomy_key"] for g in gaps]
-        assert "python" not in keys
+    def test_proficiency_titles_set_correctly(self) -> None:
+        gaps = compute_gap_skills(
+            {"Django": 1}, self.SKILL_DEMAND, {"Django": 3}, SKILL_TO_CLUSTER
+        )
+        dj = next(g for g in gaps if g["taxonomy_key"] == "Django")
+        assert dj["current_title"] == "Scout"
+        assert dj["target_title"] == "Excavator"
 
-    def test_zero_demand_excluded(self) -> None:
-        level_map = {"python": 2}
-        demand = {"python": 0}
-        gaps = compute_gap_skills(level_map, demand, SKILL_DISPLAY)
-        assert len(gaps) == 0
+    def test_fallback_no_aspiration_uses_demand(self) -> None:
+        level_map = {"Django": 1}
+        gaps = compute_gap_skills(level_map, self.SKILL_DEMAND, {}, SKILL_TO_CLUSTER)
+        assert len(gaps) > 0
 
-    def test_empty_demand(self) -> None:
-        gaps = compute_gap_skills({"python": 2}, {}, SKILL_DISPLAY)
+    def test_empty_demand_fallback_returns_empty(self) -> None:
+        gaps = compute_gap_skills({"Django": 2}, {}, {}, SKILL_TO_CLUSTER)
         assert gaps == []
 
 
-# ── Profile 5: Rank tiers ─────────────────────────────────────────────────────
+# ── Rank Tiers ────────────────────────────────────────────────────────────────
 
 class TestRankTier:
     @pytest.mark.parametrize("score, expected", [
         (0.0,   "Newcomer"),
-        (10.0,  "Newcomer"),
         (20.0,  "Newcomer"),
         (21.0,  "Explorer"),
         (40.0,  "Explorer"),
@@ -256,256 +241,95 @@ class TestRankTier:
     def test_tier_bands(self, score: float, expected: str) -> None:
         assert compute_rank_tier(score) == expected
 
-    def test_all_tiers_covered(self) -> None:
-        # Every tier in the constant table must be reachable
-        tiers_reachable = {compute_rank_tier(float((lo + hi) / 2)) for lo, hi, _ in _RANK_TIERS}
-        expected = {tier for _, _, tier in _RANK_TIERS}
-        assert tiers_reachable == expected
+    def test_all_tiers_reachable(self) -> None:
+        tiers_hit = {compute_rank_tier(float((lo + hi) / 2)) for lo, hi, _ in _RANK_TIERS}
+        assert tiers_hit == {t for _, _, t in _RANK_TIERS}
 
-
-# ── Signal type coverage ──────────────────────────────────────────────────────
-
-class TestSignalTypes:
-    """All 6 signal types produce the correct base level or XP contribution."""
-
-    def test_mention_is_l1(self) -> None:
-        s = [{"signal_type": "mention", "xp_awarded": 50, "taxonomy_key": "x", "evidence": ""}]
-        assert infer_level_from_signals(s) == 1
-
-    def test_project_is_l2(self) -> None:
-        s = [{"signal_type": "project", "xp_awarded": 150, "taxonomy_key": "x", "evidence": ""}]
-        assert infer_level_from_signals(s) == 2
-
-    def test_impact_is_l3(self) -> None:
-        s = [{"signal_type": "impact", "xp_awarded": 350, "taxonomy_key": "x", "evidence": ""}]
-        assert infer_level_from_signals(s) == 3
-
-    def test_leadership_is_l4(self) -> None:
-        s = [{"signal_type": "leadership", "xp_awarded": 500, "taxonomy_key": "x", "evidence": ""}]
-        assert infer_level_from_signals(s) == 4
-
-    def test_certification_is_l3(self) -> None:
-        s = [{"signal_type": "certification", "xp_awarded": 300, "taxonomy_key": "x", "evidence": "AWS cert"}]
-        assert infer_level_from_signals(s) == 3
-
-    def test_certification_boosts_to_l4_with_high_xp(self) -> None:
-        # cert (300) + impact (350) + project (350) = 1000 XP → base L3 → boosted to L4
-        s = [
-            {"signal_type": "certification", "xp_awarded": 300, "taxonomy_key": "x", "evidence": "AWS cert"},
-            {"signal_type": "impact",        "xp_awarded": 350, "taxonomy_key": "x", "evidence": "Built at scale"},
-            {"signal_type": "project",       "xp_awarded": 350, "taxonomy_key": "x", "evidence": ""},
-        ]
-        assert infer_level_from_signals(s) == 4
-
-    def test_years_experience_contributes_xp(self) -> None:
-        # years_experience alone has no level mapping → base L0, but counts toward XP boost
-        # Paired with a project signal: base L2, if total XP ≥ 1000 → L3
-        s = [
-            {"signal_type": "project",          "xp_awarded": 150,  "taxonomy_key": "x", "evidence": ""},
-            {"signal_type": "years_experience",  "xp_awarded": 900,  "taxonomy_key": "x", "evidence": "5 years"},
-        ]
-        # base = L2 (project), total XP = 1050 ≥ 1000 → boosted to L3
-        assert infer_level_from_signals(s) == 3
-
-    def test_unknown_signal_type_ignored(self) -> None:
-        s = [{"signal_type": "unknown_future_type", "xp_awarded": 999, "taxonomy_key": "x", "evidence": ""}]
-        assert infer_level_from_signals(s) == 0
-
-    def test_all_six_in_signal_level_map(self) -> None:
-        # Ensure the 5 mapped types are present (years_experience intentionally absent)
-        for t in ("mention", "project", "impact", "leadership", "certification"):
-            assert t in _SIGNAL_LEVEL_MAP
-        assert "years_experience" not in _SIGNAL_LEVEL_MAP
-
-
-# ── Rank tier out-of-range fallback ──────────────────────────────────────────
-
-class TestRankTierFallback:
-    def test_negative_score_returns_newcomer(self) -> None:
-        # Fallback branch (line after loop) — score outside all tier bands
+    def test_out_of_range_returns_newcomer(self) -> None:
         assert compute_rank_tier(-1.0) == "Newcomer"
-
-    def test_score_above_100_returns_newcomer(self) -> None:
         assert compute_rank_tier(101.0) == "Newcomer"
 
 
-# ── Supabase I/O mocks ────────────────────────────────────────────────────────
+# ── Signal types → Proficiency level ─────────────────────────────────────────
 
-def _make_query_mock(data: list[dict]) -> MagicMock:
-    """Return a MagicMock that mimics a Supabase fluent query chain ending in .execute()."""
-    q = MagicMock()
-    q.select.return_value = q
-    q.eq.return_value = q
-    q.order.return_value = q
-    q.limit.return_value = q
-    q.upsert.return_value = q
-    q.insert.return_value = q
-    result = MagicMock()
-    result.data = data
-    q.execute.return_value = result
-    return q
+class TestSignalTypes:
+    def test_mention_is_p1_scout(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "mention", "xp_awarded": 50, "taxonomy_key": "x", "evidence": ""}]
+        ) == 1
 
+    def test_project_is_p2_trailblazer(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "project", "xp_awarded": 150, "taxonomy_key": "x", "evidence": ""}]
+        ) == 2
 
-class TestFetchTaxonomy:
-    def _make_db(self) -> MagicMock:
-        rows = [
-            {"taxonomy_key": "python",  "display_name": "Python",  "skill_domains": {"code": "SD"}},
-            {"taxonomy_key": "sql",     "display_name": "SQL",     "skill_domains": {"code": "DSA"}},
-            {"taxonomy_key": "docker",  "display_name": "Docker",  "skill_domains": None},
-        ]
-        db = MagicMock()
-        db.table.return_value = _make_query_mock(rows)
-        return db
+    def test_impact_is_p3_excavator(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "impact", "xp_awarded": 350, "taxonomy_key": "x", "evidence": ""}]
+        ) == 3
 
-    def test_all_keys_returned(self) -> None:
-        all_keys, _, _ = fetch_taxonomy(self._make_db())
-        assert set(all_keys) == {"python", "sql", "docker"}
+    def test_leadership_is_p4_cartographer(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "leadership", "xp_awarded": 500, "taxonomy_key": "x", "evidence": ""}]
+        ) == 4
 
-    def test_by_domain_grouped(self) -> None:
-        _, by_domain, _ = fetch_taxonomy(self._make_db())
-        assert by_domain["SD"] == ["python"]
-        assert by_domain["DSA"] == ["sql"]
+    def test_certification_is_p3_excavator(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "certification", "xp_awarded": 300, "taxonomy_key": "x", "evidence": "AWS"}]
+        ) == 3
 
-    def test_missing_domain_falls_back_to_unknown(self) -> None:
-        _, by_domain, _ = fetch_taxonomy(self._make_db())
-        assert "docker" in by_domain.get("UNKNOWN", [])
-
-    def test_display_names(self) -> None:
-        _, _, display = fetch_taxonomy(self._make_db())
-        assert display["python"] == "Python"
-        assert display["sql"] == "SQL"
-
-
-class TestFetchSkillDemand:
-    def test_returns_demand_map(self) -> None:
-        rows = [
-            {"skill_id": 1, "job_count_30d": 120, "skills": {"taxonomy_key": "python"}},
-            {"skill_id": 2, "job_count_30d": 80,  "skills": {"taxonomy_key": "sql"}},
-            {"skill_id": 3, "job_count_30d": 50,  "skills": None},  # missing skills → skip
-        ]
-        db = MagicMock()
-        db.table.return_value = _make_query_mock(rows)
-        demand = fetch_skill_demand(db)
-        assert demand == {"python": 120, "sql": 80}
-
-    def test_empty_result(self) -> None:
-        db = MagicMock()
-        db.table.return_value = _make_query_mock([])
-        assert fetch_skill_demand(db) == {}
-
-
-class TestPersistUserSkills:
-    def _make_db(self, skill_rows: list[dict]) -> MagicMock:
-        db = MagicMock()
-        # First call: db.table("skills") for skill_id lookup
-        # Second call: db.table("user_skills") for upsert
-        skills_q = _make_query_mock(skill_rows)
-        user_skills_q = _make_query_mock([])
-        db.table.side_effect = lambda name: skills_q if name == "skills" else user_skills_q
-        return db
-
-    def test_returns_count_of_matched_skills(self) -> None:
-        skill_rows = [{"taxonomy_key": "python", "id": 1}, {"taxonomy_key": "sql", "id": 2}]
-        db = self._make_db(skill_rows)
-        level_map = {"python": 3, "sql": 2}
+    def test_xp_boost_pushes_one_level_higher(self) -> None:
+        # leadership (P4) + enough XP → P5 Legend
         signals = [
-            {"taxonomy_key": "python", "xp_awarded": 350, "signal_type": "impact", "evidence": "Led ETL"},
-            {"taxonomy_key": "sql",    "xp_awarded": 150, "signal_type": "project", "evidence": "Queries"},
+            {"signal_type": "leadership", "xp_awarded": 700, "taxonomy_key": "x", "evidence": ""},
+            {"signal_type": "impact",     "xp_awarded": 350, "taxonomy_key": "x", "evidence": ""},
         ]
-        count = persist_user_skills(db, "user-1", level_map, signals)
-        assert count == 2
+        assert infer_level_from_signals(signals) == 5
 
-    def test_skips_skills_not_in_db(self) -> None:
-        # Only python in DB — docker is unknown
-        skill_rows = [{"taxonomy_key": "python", "id": 1}]
-        db = self._make_db(skill_rows)
-        level_map = {"python": 3, "docker": 2}
+    def test_level_capped_at_5(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "leadership", "xp_awarded": 9999, "taxonomy_key": "x", "evidence": ""}]
+        ) == 5
+
+    def test_years_experience_contributes_xp_only(self) -> None:
+        # project (P2) + years_experience XP → total 1050 ≥ 1000 → boosted to P3
         signals = [
-            {"taxonomy_key": "python", "xp_awarded": 350, "signal_type": "impact", "evidence": ""},
-            {"taxonomy_key": "docker", "xp_awarded": 150, "signal_type": "project", "evidence": ""},
+            {"signal_type": "project",          "xp_awarded": 150, "taxonomy_key": "x", "evidence": ""},
+            {"signal_type": "years_experience",  "xp_awarded": 900, "taxonomy_key": "x", "evidence": "5 yrs"},
         ]
-        count = persist_user_skills(db, "user-1", level_map, signals)
-        assert count == 1
+        assert infer_level_from_signals(signals) == 3
 
-    def test_empty_level_map_no_upsert(self) -> None:
-        db = self._make_db([])
-        count = persist_user_skills(db, "user-1", {}, [])
-        assert count == 0
+    def test_unknown_signal_type_ignored(self) -> None:
+        assert infer_level_from_signals(
+            [{"signal_type": "future_unknown", "xp_awarded": 999, "taxonomy_key": "x", "evidence": ""}]
+        ) == 0
 
+    def test_empty_signals_returns_zero(self) -> None:
+        assert infer_level_from_signals([]) == 0
 
-class TestPersistScore:
-    def _make_db(self, upsert_result: list[dict]) -> MagicMock:
-        db = MagicMock()
-        scores_q = _make_query_mock(upsert_result)
-        history_q = _make_query_mock([])
-        db.table.side_effect = lambda name: scores_q if name == "mirror_scores" else history_q
-        return db
+    def test_years_experience_absent_from_level_map(self) -> None:
+        assert "years_experience" not in _SIGNAL_LEVEL_MAP
 
-    def test_returns_first_data_row_when_present(self) -> None:
-        expected = {"user_id": "u1", "total_score": 72.5}
-        db = self._make_db([expected])
-        result = persist_score(db, "u1", 72.5, {}, [], 5, "Specialist")
-        assert result == expected
-
-    def test_returns_constructed_row_when_data_empty(self) -> None:
-        db = self._make_db([])
-        result = persist_score(db, "u1", 50.0, {"SD": 60.0}, [], 3, "Practitioner")
-        assert result["user_id"] == "u1"
-        assert result["total_score"] == 50.0
-        assert result["rank_tier"] == "Practitioner"
-
-    def test_history_insert_called(self) -> None:
-        history_q = _make_query_mock([])
-        scores_q = _make_query_mock([{"user_id": "u1", "total_score": 50.0}])
-        db = MagicMock()
-        db.table.side_effect = lambda name: scores_q if name == "mirror_scores" else history_q
-        persist_score(db, "u1", 50.0, {}, [], 0, "Practitioner")
-        history_q.insert.assert_called_once()
+    def test_all_mapped_signal_types_present(self) -> None:
+        for t in ("mention", "project", "impact", "leadership", "certification"):
+            assert t in _SIGNAL_LEVEL_MAP
 
 
-class TestComputeAndPersistScore:
-    """Integration test of the full pipeline via mocks."""
+# ── Proficiency title constants ───────────────────────────────────────────────
 
-    def _make_db(self) -> MagicMock:
-        skills_rows = [
-            {"taxonomy_key": "python", "display_name": "Python", "skill_domains": {"code": "SD"}, "id": 1},
-        ]
-        demand_rows = [
-            {"skill_id": 1, "job_count_30d": 100, "skills": {"taxonomy_key": "python"}},
-        ]
-        user_skills_q = _make_query_mock([])
-        scores_q = _make_query_mock([{"user_id": "u1", "total_score": 60.0}])
-        history_q = _make_query_mock([])
+class TestProficiencyTitles:
+    def test_all_five_levels_named(self) -> None:
+        assert _PROFICIENCY_TITLES[1] == "Scout"
+        assert _PROFICIENCY_TITLES[2] == "Trailblazer"
+        assert _PROFICIENCY_TITLES[3] == "Excavator"
+        assert _PROFICIENCY_TITLES[4] == "Cartographer"
+        assert _PROFICIENCY_TITLES[5] == "Legend"
 
-        skills_q = _make_query_mock(skills_rows)
-        demand_q = _make_query_mock(demand_rows)
+    def test_days_table_covers_all_steps(self) -> None:
+        for step in [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]:
+            assert step in _DAYS_PER_STEP
 
-        call_count = {"n": 0}
-
-        def table_side_effect(name: str) -> MagicMock:
-            if name == "skills":
-                return skills_q
-            if name == "skill_demand_snapshots":
-                return demand_q
-            if name == "user_skills":
-                return user_skills_q
-            if name == "mirror_scores":
-                return scores_q
-            if name == "mirror_score_history":
-                return history_q
-            return MagicMock()
-
-        db = MagicMock()
-        db.table.side_effect = table_side_effect
-        return db
-
-    def test_pipeline_returns_score_row(self) -> None:
-        db = self._make_db()
-        signals = [{"taxonomy_key": "python", "signal_type": "impact", "xp_awarded": 350, "evidence": "Built ETL"}]
-        result = compute_and_persist_score(db, "u1", signals)
-        assert "total_score" in result
-
-    def test_pipeline_with_empty_signals(self) -> None:
-        db = self._make_db()
-        result = compute_and_persist_score(db, "u1", [])
-        assert result is not None
+    def test_days_increase_with_level(self) -> None:
+        steps = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]
+        days = [_DAYS_PER_STEP[s] for s in steps]
+        assert days == sorted(days)
