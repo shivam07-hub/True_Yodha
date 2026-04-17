@@ -54,3 +54,6 @@ Market Data/Job_Scrapers/.venv/
 
 # Alembic — keep versions but ignore pyc
 backend/alembic/versions/__pycache__/
+
+# Reference frontend (do not track)
+career-ops-web/frontend/
