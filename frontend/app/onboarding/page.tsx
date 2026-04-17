@@ -48,8 +48,8 @@ export default function OnboardingPage() {
         await uploadCV(token, cvFile)
       }
 
-      // 3. Compute score
-      const result = await scores.compute(token)
+      // 3. CV upload already persisted the score — just fetch it
+      const result = await scores.me(token)
       await jobs.compute(token).catch(() => null)
       setScoreData(result)
       setStep("score")
@@ -69,7 +69,7 @@ export default function OnboardingPage() {
     <main className="min-h-screen flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <span className="text-lg font-semibold tracking-tight">Mirror</span>
+        <span className="text-lg font-semibold tracking-tight">Truth Mirror</span>
         {/* Step indicators */}
         <div className="flex items-center gap-2">
           {STEPS.map((s, i) => (

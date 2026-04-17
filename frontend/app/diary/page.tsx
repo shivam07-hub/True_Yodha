@@ -1,17 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { BookOpen, Loader2 } from "lucide-react"
+import { BookOpen, Loader2, X } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { diary } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
-export default function DiaryPage() {
+function buildSkillPrompt(skills: string[]): string {
+  if (skills.length === 0) return ""
+  return `I want to focus on developing these skills: ${skills.join(", ")}.\n\n`
+}
+
+function DiaryPageInner() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   const [entry, setEntry] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [promptSkills, setPromptSkills] = useState<string[]>([])
+
+  useEffect(() => {
+    const raw = searchParams.get("skills")
+    if (!raw) return
+    const skills = raw.split(",").map((s) => s.trim()).filter(Boolean)
+    if (skills.length === 0) return
+    setPromptSkills(skills)
+    setEntry(buildSkillPrompt(skills))
+  }, [searchParams])
 
   const history = useQuery({
     queryKey: ["diary", token],
@@ -24,11 +41,20 @@ export default function DiaryPage() {
     onMutate: () => setError(null),
     onSuccess: () => {
       setEntry("")
+      setPromptSkills([])
       queryClient.invalidateQueries({ queryKey: ["diary", token] })
       queryClient.invalidateQueries({ queryKey: ["scores", token] })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save entry"),
   })
+
+  function removePromptSkill(skill: string) {
+    const next = promptSkills.filter((s) => s !== skill)
+    setPromptSkills(next)
+    if (entry.startsWith("I want to focus on developing these skills:")) {
+      setEntry(buildSkillPrompt(next) + entry.replace(/^I want to focus on developing these skills:[^\n]*\n\n/, ""))
+    }
+  }
 
   if (!ready) return null
 
@@ -49,6 +75,32 @@ export default function DiaryPage() {
           <label htmlFor="diary-entry" className="text-sm font-medium">
             Today&apos;s entry
           </label>
+
+          {promptSkills.length > 0 && (
+            <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">
+                Skills tagged from Market Intelligence
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {promptSkills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                  >
+                    {skill}
+                    <button
+                      onClick={() => removePromptSkill(skill)}
+                      className="opacity-60 hover:opacity-100"
+                      title={`Remove ${skill}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <textarea
             id="diary-entry"
             value={entry}
@@ -110,5 +162,13 @@ export default function DiaryPage() {
         </section>
       </div>
     </AppShell>
+  )
+}
+
+export default function DiaryPage() {
+  return (
+    <Suspense>
+      <DiaryPageInner />
+    </Suspense>
   )
 }

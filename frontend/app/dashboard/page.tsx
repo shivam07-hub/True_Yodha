@@ -31,10 +31,10 @@ export default function DashboardPage() {
     <AppShell>
       <div className="mx-auto flex max-w-2xl flex-col gap-10">
 
-        {/* Mirror Score */}
+        {/* Truth Score */}
         <section>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            Mirror Score
+            Truth Score
           </h2>
           {scoreLoading ? (
             <div className="flex flex-col items-center gap-4">

@@ -1,8 +1,6 @@
-# Mirror — The Job Seeker's Reality Check
+# Mirror — A career Intelligence platform in the age of AI
 
-Upload your CV. See exactly where you stand. Know what to fix next.
-
-Mirror maps your skills against live job market demand, computes a personalised Mirror Score across 10 domains, and shows you the top 10 matching jobs with a clear explanation of why each one fits — or doesn't.
+Upload your CV. See top matching jobs based on the skills in your CV. Know your matching score for that CV. Know what to fix next in the next 7 days, with the ability to track the weekly progress. Mirror engine maps your skills against skills collected from live job market demand collected from the recruitment pages of top 100 companies in India to work for, computes a personalised Mirror Score across the skills that are matching and how they are matching, and shows you the top 5 matching jobs with a clear explanation of why each one fits — and a 7 day plan to improve your chances to improve your chances.
 
 ---
 
@@ -10,13 +8,13 @@ Mirror maps your skills against live job market demand, computes a personalised 
 
 ```
 mirror-app/
-├── backend/          FastAPI API — scoring engine, CV parsing, job matching
-├── frontend/         Next.js 14 — landing, onboarding, dashboard
-├── database/         SQL schema and seed data
-├── Market Data/      Job scraping engine (existing Python engine)
-├── skill_taxonomy mapping/   63-skill taxonomy + human-in-loop review tools
+├── backend/          FastAPI API, railway — scoring engine, CV parsing, job matching
+├── frontend/         Next.js 14, tailwindCSS, ShadeCN — landing, onboarding, dashboard
+├── database/         Supabase : Postgre Scehma with relational database
+├── Scraper/          Job scraping engine built in combination with Firecrawl (existing Python engine) - This folder is not in this project and the Json file is dropped directly from the output of the scraper.
+├── skill_taxonomy mapping/   Master skill taxonomy loaded in the Scraper folder.
 ├── spec doc/         Product, architecture, and business model documents
-└── docs/             Phase trackers and reference guides
+└── docs/             reference guides
 ```
 
 ## Quick Start

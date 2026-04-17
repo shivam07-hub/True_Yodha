@@ -142,6 +142,7 @@ async def _llm_extract(cv_text: str) -> list[dict]:
         resp = await client.chat.completions.create(
             model=model,
             max_tokens=2048,
+            temperature=0,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user",   "content": user_prompt},

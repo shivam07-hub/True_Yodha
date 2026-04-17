@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
-  title: "Mirror — Know Your Market Value",
-  description: "Upload your CV and discover your Mirror Score across 10 professional domains.",
+  title: "Truth Mirror — Know Your Market Value",
+  description: "Upload your CV and discover your Truth Score across 10 professional domains. See exactly where you stand in the skills economy.",
 }
 
 export const viewport: Viewport = {

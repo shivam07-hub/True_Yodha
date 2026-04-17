@@ -34,15 +34,14 @@ git branch -M main
 
 ### 2. Create GitHub repository
 
-1. Go to github.com → click **New repository**
-2. Name: `mirror-app` | Visibility: **Private** | No README (you already have files)
+1. Go to github.com → Name: `True_Yodha` | Visibility: **Private** | No README (you already have files)
 3. Click **Create repository**
-4. Copy the remote URL shown (looks like `https://github.com/YOUR_USERNAME/mirror-app.git`)
+4. Copy the remote URL shown
 
 ### 3. Connect local repo to GitHub
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/mirror-app.git
+git remote add origin
 git add .
 git commit -m "chore: initial project scaffold"
 git push -u origin main
@@ -102,6 +101,7 @@ You never deploy manually. Every merge to `main` is a production release.
 
 1. vercel.com → Add New Project → Import from GitHub → select `mirror-app`
 2. Framework preset: **Next.js**
+3. Need to add TailCSS and ShadeCN - Do it when working on frontend.
 3. Root directory: **`frontend`** (important — not the repo root)
 4. Add environment variables (from your `.env.local`)
 5. Deploy → Vercel gives you a URL like `mirror-app.vercel.app`
@@ -111,7 +111,7 @@ You never deploy manually. Every merge to `main` is a production release.
 
 ## Connecting Railway (Backend)
 
-1. railway.app → New Project → Deploy from GitHub → select `mirror-app`
+1. railway.app → New Project → Deploy from GitHub → select `True_Yodha`
 2. Root directory: `backend`
 3. Railway detects the `Dockerfile` automatically
 4. Add environment variables (from your `backend/.env`)

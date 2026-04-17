@@ -2,29 +2,35 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, BookOpen, Briefcase, FileText, LogOut, Target } from "lucide-react"
+import { BarChart3, BookOpen, Briefcase, FileText, Globe, LogOut } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { TruthMirrorLogo } from "@/components/truth-mirror-logo"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/diary", label: "Diary", icon: BookOpen },
-  { href: "/tracker", label: "Tracker", icon: Target },
-  { href: "/cv", label: "CV", icon: FileText },
+  { href: "/tracker",   label: "Jobs",      icon: Briefcase  },
+  { href: "/market",    label: "Intel",     icon: Globe      },
+  { href: "/diary",     label: "Diary",     icon: BookOpen   },
+  { href: "/cv",        label: "CV",        icon: FileText   },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { ready, signOut } = useAuth()
-
   if (!ready) return null
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4">
-          <Link href="/dashboard" className="text-sm font-semibold tracking-tight">
-            Mirror
+
+          {/* Logo + wordmark — navigates to mission page */}
+          <Link
+            href="/mission"
+            className="flex items-center gap-2 text-sm font-semibold tracking-tight hover:opacity-80 transition-opacity"
+          >
+            <TruthMirrorLogo size="sm" className="text-primary" />
+            <span>Truth Mirror</span>
           </Link>
 
           <div className="flex items-center gap-1 overflow-x-auto">
@@ -58,6 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+
     </div>
   )
 }

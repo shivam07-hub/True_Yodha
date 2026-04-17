@@ -24,9 +24,9 @@ async def create_or_update_entry(
     existing_score = db.table("mirror_scores").select("total_score").eq("user_id", user_id).maybe_single().execute()
     score_before = existing_score.data["total_score"] if existing_score.data else None
 
-    # Fetch taxonomy keys for Groq
-    taxonomy_result = db.table("skills").select("taxonomy_key").eq("is_active", True).execute()
-    taxonomy_keys = [r["taxonomy_key"] for r in taxonomy_result.data]
+    # Fetch market-relevant Lightcast skill names for diary signal extraction
+    from app.services.taxonomy_loader import get_market_skills
+    taxonomy_keys = get_market_skills(db)
 
     # Extract skill signals from diary text
     signals = extract_skill_signals(body.entry_text, taxonomy_keys)
@@ -42,22 +42,25 @@ async def create_or_update_entry(
     # Upsert diary entry
     skills_delta = [{"taxonomy_key": s["taxonomy_key"], "xp_added": s["xp_awarded"], "evidence": s["evidence"]} for s in signals]
     now = datetime.now(timezone.utc).isoformat()
+    db.table("daily_logs").upsert(
+        {
+            "user_id": user_id,
+            "log_date": str(log_date),
+            "entry_text": body.entry_text,
+            "skills_delta": skills_delta,
+            "updated_at": now,
+        },
+        on_conflict="user_id,log_date",
+    ).execute()
     result = (
         db.table("daily_logs")
-        .upsert(
-            {
-                "user_id": user_id,
-                "log_date": str(log_date),
-                "entry_text": body.entry_text,
-                "skills_delta": skills_delta,
-                "updated_at": now,
-            },
-            on_conflict="user_id,log_date",
-        )
-        .select()
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("log_date", str(log_date))
+        .single()
         .execute()
     )
-    row = result.data[0]
+    row = result.data
     return _to_diary_response(row, score_before, score_after)
 
 

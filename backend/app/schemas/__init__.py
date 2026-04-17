@@ -13,6 +13,9 @@ from app.schemas.jobs import (
     ComputeJobMatchesResponse,
     JobMatchesResponse,
     JobMatchResponse,
+    MarketAnalyticsResponse,
+    NameCountItem,
+    SkillCountItem,
 )
 from app.schemas.scores import (
     ComputeScoreResponse,
@@ -34,6 +37,7 @@ __all__ = [
     "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse", "SkillDeltaItem",
     "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ComputeJobMatchesResponse",
+    "MarketAnalyticsResponse", "NameCountItem", "SkillCountItem",
     "GapSkillResponse", "MirrorScoreResponse", "ComputeScoreResponse",
     "SkillLevelResponse", "SkillResponse", "SkillDomainResponse",
     "SkillsListResponse", "DomainsListResponse",

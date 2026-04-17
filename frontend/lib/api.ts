@@ -100,11 +100,22 @@ export interface CVUploadResponse {
 export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {
   const form = new FormData()
   form.append("file", file)
-  const res = await fetch(`${BASE}/cv/upload`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 180_000)
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/cv/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new Error("CV processing timed out — try again")
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     const detail = body?.detail
