@@ -56,4 +56,7 @@ Market Data/Job_Scrapers/.venv/
 backend/alembic/versions/__pycache__/
 
 # Reference frontend (do not track)
-career-ops-web/frontend/
+career-ops-web/frontend/agency-agents/
+
+# External tool repos — not part of this project
+agency-agents/
