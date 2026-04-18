@@ -54,7 +54,7 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — Dashboard Restructure + Docs Sync)
+## LAST SESSION SUMMARY (2026-04-18 — Skill Table Flatten + Archon Setup)
 
 ```
 Date: 2026-04-18
@@ -79,6 +79,26 @@ Work done this session:
   4. docs: synced all project MD files to current state (README, frontend/README,
      docs/TECH_STACK.md created, DEPLOYMENT_GUIDE updated)
 
+  5. refactor(db): flattened 3-table skill hierarchy → single skills table (APPLIED TO PROD)
+     - skill_domains + skill_clusters tables DROPPED
+     - skills table: cluster_id FK dropped; l1_domain + l2_cluster columns added
+     - Populated via JOIN before drop: all 35,108 rows have l1_domain + l2_cluster
+     - Users match at L3 (user_skills.skill_id). L2/L1 aggregated at query time.
+     - All backend code updated: taxonomy_loader, scoring_engine, routers, schemas
+     - 102 tests pass
+     - Migration file deleted after apply (was: 20260418_flatten_skills_table.sql)
+     - See docs/schema.md for full DB schema reference
+
+  6. chore: added Archon CLI skill (.claude/commands/archon.md)
+     - Archon binary at /Users/incognito/.local/bin/archon
+     - Use /archon after Claude Code restart
+
+## CURRENT DB STATE (as of 2026-04-18)
+
+skills table columns: id, taxonomy_key, display_name, lightcast_id, l1_domain, l2_cluster, is_active, created_at
+user_skills links: user_id → skill_id (L3). Scoring groups by l2_cluster, l1_domain at query time.
+DROPPED tables: skill_domains, skill_clusters
+
 ## CURRENT UI STATE (as of 2026-04-18)
 
 Nav order: CV → Dashboard → Jobs → Intel → Diary
@@ -97,7 +117,6 @@ Page map:
 
 Next session:
   - Upload Shivam's real CV through /onboarding UI and verify top 3 matches
-  - Backfill 86 skills rows (null category/subcategory) from lightcast_skills_taxonomy.json
   - OpenRouter credits top-up before Railway deploy
   - Add env-path sanity check to backend startup log
 
