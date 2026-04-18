@@ -1,55 +1,37 @@
 -- ============================================================
--- MIRROR APP — Database Schema v3.0
+-- MIRROR APP — Database Schema v4.0
 -- Apply in Supabase SQL Editor (Project → SQL Editor → New query)
+-- Last updated: 2026-04-18
+--
+-- Skill taxonomy source of truth: Lightcast Skills Taxonomy
+--   L1 = category   (31 top-level domains, e.g. "Information Technology")
+--   L2 = subcategory (442 clusters, e.g. "Software Development")
+--   L3 = skill leaf  (35,108 skills with hex IDs)
+--
+-- Removed tables (dropped 2026-04-18):
+--   skill_domains, skill_families, skill_levels,
+--   candidate_skills_queue, skill_demand_snapshots
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ─── SKILL TAXONOMY ─────────────────────────────────────────
-
-CREATE TABLE skill_domains (
-  id          SERIAL PRIMARY KEY,
-  code        VARCHAR(10)  NOT NULL UNIQUE,  -- SD, DE, DSA, AML, CDO, CS, QAT, EA, PPM, UX
-  name        VARCHAR(100) NOT NULL,
-  description TEXT,
-  sort_order  INTEGER      NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ  DEFAULT NOW()
-);
-
-CREATE TABLE skill_families (
-  id         SERIAL       PRIMARY KEY,
-  domain_id  INTEGER      NOT NULL REFERENCES skill_domains(id),
-  code       VARCHAR(20)  NOT NULL UNIQUE,
-  name       VARCHAR(100) NOT NULL,
-  sort_order INTEGER      NOT NULL DEFAULT 0
-);
+-- Single source of truth for all skills.
+-- Populated on demand by taxonomy_loader.ensure_skill_in_db()
+-- from the bundled Lightcast JSON taxonomy.
+-- category    = Lightcast L1 domain name
+-- subcategory = Lightcast L2 cluster name
+-- lightcast_id = hex skill ID from Lightcast (e.g. KS126XS6CQCFGC3NG79X)
 
 CREATE TABLE skills (
-  id                 SERIAL       PRIMARY KEY,
-  domain_id          INTEGER      NOT NULL REFERENCES skill_domains(id),
-  family_id          INTEGER      NOT NULL REFERENCES skill_families(id),
-  taxonomy_key       VARCHAR(200) NOT NULL UNIQUE,
-  display_name       VARCHAR(200) NOT NULL,
-  demand_trend       VARCHAR(20)  DEFAULT 'stable'
-                     CHECK (demand_trend IN ('rising', 'stable', 'falling')),
-  technology_aliases TEXT[]       DEFAULT '{}',
-  is_active          BOOLEAN      DEFAULT TRUE,
-  sort_order         INTEGER      DEFAULT 0,
-  created_at         TIMESTAMPTZ  DEFAULT NOW()
-);
-
--- skill_levels defines what L1–L5 means for each skill.
--- This is the taxonomy benchmark — used to:
---   (a) match CV evidence to a level for the user
---   (b) categorise what level a job posting requires
--- Definitions update when market evidence warrants it.
-CREATE TABLE skill_levels (
-  id          SERIAL      PRIMARY KEY,
-  skill_id    INTEGER     NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-  level       INTEGER     NOT NULL CHECK (level BETWEEN 1 AND 5),
-  label       VARCHAR(20) NOT NULL,   -- Foundation / Practitioner / Professional / Expert / Authority
-  description TEXT        NOT NULL,  -- The benchmark definition — critical for CV matching and job tagging
-  UNIQUE(skill_id, level)
+  id           SERIAL       PRIMARY KEY,
+  taxonomy_key VARCHAR(200) NOT NULL UNIQUE,   -- canonical lowercase skill name
+  display_name VARCHAR(200) NOT NULL,
+  lightcast_id VARCHAR(50),                    -- Lightcast hex skill ID (nullable until looked up)
+  category     VARCHAR(200) NOT NULL DEFAULT 'General',   -- Lightcast L1
+  subcategory  VARCHAR(200) NOT NULL DEFAULT 'General',   -- Lightcast L2
+  is_active    BOOLEAN      DEFAULT TRUE,
+  created_at   TIMESTAMPTZ  DEFAULT NOW()
 );
 
 -- ─── USERS ──────────────────────────────────────────────────
@@ -62,30 +44,47 @@ CREATE TABLE user_profiles (
   target_roles        TEXT[]       DEFAULT '{}',
   target_location     VARCHAR(200),
   cv_url              VARCHAR(500),
+  cv_raw_text         TEXT,                    -- raw extracted text from latest CV upload
   cv_parsed_at        TIMESTAMPTZ,
   onboarding_complete BOOLEAN      DEFAULT FALSE,
   created_at          TIMESTAMPTZ  DEFAULT NOW(),
   last_active_at      TIMESTAMPTZ  DEFAULT NOW()
 );
 
+-- ─── CV HISTORY ─────────────────────────────────────────────
+-- One row per CV upload. Tracks score trajectory over time.
+
+CREATE TABLE cv_history (
+  id           SERIAL       PRIMARY KEY,
+  user_id      UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  skills_count INTEGER      NOT NULL DEFAULT 0,
+  mirror_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+  uploaded_at  TIMESTAMPTZ  DEFAULT NOW()
+);
+
 -- ─── USER SKILLS ────────────────────────────────────────────
 -- One row per skill per user.
--- matched_level is determined by comparing CV evidence text
--- against skill_levels.description — NOT a direct self-assessment.
+-- matched_level 0–5 maps to: None / Scout / Trailblazer / Excavator / Cartographer / Legend
+-- proficiency_title is the human-readable label for matched_level.
+-- source: 'cv' (parsed from CV) | 'diary' (awarded from diary entry) | 'manual'
 
 CREATE TABLE user_skills (
-  id            SERIAL       PRIMARY KEY,
-  user_id       UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  skill_id      INTEGER      NOT NULL REFERENCES skills(id),
-  matched_level INTEGER      NOT NULL DEFAULT 0 CHECK (matched_level BETWEEN 0 AND 5),
-  source        VARCHAR(30)  DEFAULT 'cv',     -- 'cv' | 'manual'
-  confidence    DECIMAL(3,2) DEFAULT 0.5,      -- parser confidence 0.0–1.0
-  evidence_text TEXT,                          -- raw CV text that triggered this match
-  last_updated  TIMESTAMPTZ  DEFAULT NOW(),
+  id               SERIAL       PRIMARY KEY,
+  user_id          UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  skill_id         INTEGER      NOT NULL REFERENCES skills(id),
+  matched_level    INTEGER      NOT NULL DEFAULT 0 CHECK (matched_level BETWEEN 0 AND 5),
+  proficiency_title VARCHAR(30) DEFAULT 'Scout',
+  source           VARCHAR(30)  DEFAULT 'cv',
+  evidence_text    TEXT,
+  last_updated     TIMESTAMPTZ  DEFAULT NOW(),
   UNIQUE(user_id, skill_id)
 );
 
 -- ─── MIRROR SCORES ──────────────────────────────────────────
+-- One row per user (upserted on each score compute).
+-- domain_scores: {L1_domain_name: 0–100}
+-- gap_skills: aspiration-driven skill gaps for the current week
+-- rank_tier + percentile: INTERNAL ONLY — never expose via API
 
 CREATE TABLE mirror_scores (
   id              SERIAL       PRIMARY KEY,
@@ -94,7 +93,6 @@ CREATE TABLE mirror_scores (
   domain_scores   JSONB        NOT NULL DEFAULT '{}',
   skill_scores    JSONB        NOT NULL DEFAULT '{}',
   gap_skills      JSONB        NOT NULL DEFAULT '[]',
-  -- rank_tier and percentile: INTERNAL ONLY — never expose via API
   rank_tier       VARCHAR(30),
   percentile      DECIMAL(5,2),
   skills_assessed INTEGER      NOT NULL DEFAULT 0,
@@ -109,142 +107,96 @@ CREATE TABLE mirror_score_history (
   recorded_at TIMESTAMPTZ  DEFAULT NOW()
 );
 
--- ─── JOB POSTINGS ───────────────────────────────────────────
--- primary_skills and secondary_skills store skill_id + required_level per skill.
--- Format: [{"skill_id": 1, "required_level": 3}, ...]
--- required_level maps to skill_levels.level for that skill.
+-- ─── JOBS ───────────────────────────────────────────────────
+-- Scraped job postings. job_id is a stable external identifier.
+-- main_skills = required (must-have), side_skills = nice-to-have.
+-- Skill demand is computed live from these arrays by scoring_engine.
+-- fetch_skill_demand(): main_skills weighted ×2, side_skills ×1.
 
-CREATE TABLE job_postings (
-  id               SERIAL       PRIMARY KEY,
-  external_id      VARCHAR(200) UNIQUE,
-  title            VARCHAR(300) NOT NULL,
-  company          VARCHAR(200),
+CREATE TABLE jobs (
+  job_id           TEXT         PRIMARY KEY,
+  job_title        VARCHAR(300) NOT NULL,
+  company_name     VARCHAR(200),
+  industry         VARCHAR(200),
   location         VARCHAR(200),
-  remote           BOOLEAN      DEFAULT FALSE,
-  description      TEXT,
-  primary_skills        JSONB        DEFAULT '[]',   -- required skills (must-have)
-  secondary_skills      JSONB        DEFAULT '[]',   -- nice-to-have skills
-  raw_skill_text        TEXT[]       DEFAULT '{}',   -- unmatched skill strings from source
-  min_years_experience  INTEGER,                     -- LLM-extracted minimum years required
-  min_qualification     VARCHAR(100),                -- LLM-extracted e.g. Bachelor's / Master's / PhD
-  salary_min       INTEGER,
-  salary_max       INTEGER,
-  salary_currency  VARCHAR(10)  DEFAULT 'INR',
-  source           VARCHAR(100),
-  source_url       VARCHAR(500),
-  posted_at        TIMESTAMPTZ,
-  ingested_at      TIMESTAMPTZ  DEFAULT NOW(),
-  is_active        BOOLEAN      DEFAULT TRUE
+  apply_url        VARCHAR(500),
+  job_description  TEXT,
+  main_skills      TEXT[]       DEFAULT '{}',
+  side_skills      TEXT[]       DEFAULT '{}',
+  batch_date       DATE         NOT NULL DEFAULT CURRENT_DATE
 );
 
 -- ─── JOB MATCHES ────────────────────────────────────────────
--- Top 3 jobs per user per week by skill overlap.
--- batch_week = the Monday this set of matches was generated.
--- is_recommended = TRUE marks the 3 surfaced to the user this week.
--- llm_explanation = Groq-generated reasoning for why this job fits.
+-- Top matches per user per week by skill overlap + LLM ranking.
+-- batch_week = Monday of the week this set was generated.
+-- is_recommended = TRUE marks the top 3 surfaced to the user.
 
 CREATE TABLE user_job_matches (
   id              SERIAL       PRIMARY KEY,
   user_id         UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  job_id          INTEGER      NOT NULL REFERENCES job_postings(id),
-  batch_week      DATE         NOT NULL,                -- Monday of the week this was generated
+  job_id          TEXT         NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  batch_week      DATE         NOT NULL,
   overlap_score   DECIMAL(5,2) NOT NULL,
   llm_rank        INTEGER,
-  llm_explanation TEXT,                                 -- Groq: why this job fits the user (2-3 sentences)
-  is_recommended  BOOLEAN      DEFAULT FALSE,           -- TRUE for top 3 surfaced this week
-  action_plan     JSONB        DEFAULT '[]',            -- 7-day plan: [{day: 1, tasks: [...]}]
+  llm_explanation TEXT,
+  is_recommended  BOOLEAN      DEFAULT FALSE,
+  action_plan     JSONB        DEFAULT '[]',
   computed_at     TIMESTAMPTZ  DEFAULT NOW(),
   UNIQUE(user_id, job_id, batch_week)
 );
 
 -- ─── JOB APPLICATIONS ───────────────────────────────────────
--- Tracks the user's real-world application journey per job.
--- Checkin at 1 week: system notifies user of application status.
 
 CREATE TABLE job_applications (
   id               SERIAL      PRIMARY KEY,
   user_id          UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  job_id           INTEGER     NOT NULL REFERENCES job_postings(id),
+  job_id           TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
   match_id         INTEGER     REFERENCES user_job_matches(id),
   status           VARCHAR(30) NOT NULL DEFAULT 'pending'
                    CHECK (status IN ('pending','applied','no_response','responded','interviewing','rejected','offer')),
   applied_at       TIMESTAMPTZ,
   company_response TEXT,
   response_at      TIMESTAMPTZ,
-  checkin_sent_at  TIMESTAMPTZ,  -- when the week-1 check-in notification was sent
+  checkin_sent_at  TIMESTAMPTZ,
   notes            TEXT,
   created_at       TIMESTAMPTZ  DEFAULT NOW(),
   UNIQUE(user_id, job_id)
 );
 
 -- ─── DAILY LOGS ─────────────────────────────────────────────
--- User's free-text diary entry for each day of their job search.
--- Groq reads entry_text in real-time and extracts skill signals →
--- awards XP on matching taxonomy skills → triggers Mirror Score recompute.
--- One entry per user per day (upsert on user_id + log_date conflict).
+-- One entry per user per day (upsert on user_id + log_date).
+-- skills_delta: [{taxonomy_key, xp_added, evidence}]
 
 CREATE TABLE daily_logs (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   log_date     DATE        NOT NULL DEFAULT CURRENT_DATE,
   entry_text   TEXT        NOT NULL,
-  skills_delta JSONB       NOT NULL DEFAULT '[]',  -- [{taxonomy_key, xp_added, evidence}]
+  skills_delta JSONB       NOT NULL DEFAULT '[]',
   created_at   TIMESTAMPTZ DEFAULT NOW(),
   updated_at   TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, log_date)
 );
 
--- ─── CANDIDATE SKILLS QUEUE ─────────────────────────────────
--- Unknown skills found in JDs that don't map to the 63-skill taxonomy.
--- Populated automatically by csv_importer.py on each weekly run.
--- Reviewed manually once a week: map to existing skill, add to taxonomy, or reject.
--- Never auto-add to taxonomy — L1-L5 descriptions must be written by a human.
-
-CREATE TABLE candidate_skills_queue (
-  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  skill_name_raw     TEXT        NOT NULL UNIQUE,
-  job_count          INTEGER     DEFAULT 1,
-  first_seen_at      TIMESTAMPTZ DEFAULT NOW(),
-  status             VARCHAR(20) DEFAULT 'pending'
-                     CHECK (status IN ('pending', 'mapped', 'added', 'rejected')),
-  mapped_to_skill_id INTEGER     REFERENCES skills(id),  -- set if mapped to existing skill
-  reviewed_at        TIMESTAMPTZ,
-  notes              TEXT
-);
-
--- ─── SKILL DEMAND ────────────────────────────────────────────
--- Snapshot of how many jobs require each skill.
--- demand_trend on skills table is computed from these counts over time.
-
-CREATE TABLE skill_demand_snapshots (
-  id             SERIAL  PRIMARY KEY,
-  skill_id       INTEGER NOT NULL REFERENCES skills(id),
-  job_count_7d   INTEGER DEFAULT 0,
-  job_count_30d  INTEGER DEFAULT 0,
-  avg_salary_min INTEGER,
-  avg_salary_max INTEGER,
-  snapshot_date  DATE    NOT NULL,
-  UNIQUE(skill_id, snapshot_date)
-);
-
 -- ─── INDEXES ────────────────────────────────────────────────
 
-CREATE INDEX idx_skills_domain        ON skills(domain_id);
-CREATE INDEX idx_skills_family        ON skills(family_id);
+CREATE INDEX idx_skills_category      ON skills(category);
+CREATE INDEX idx_skills_subcategory   ON skills(subcategory);
+CREATE INDEX idx_skills_lightcast_id  ON skills(lightcast_id) WHERE lightcast_id IS NOT NULL;
 CREATE INDEX idx_user_skills_user     ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill    ON user_skills(skill_id);
 CREATE INDEX idx_scores_user          ON mirror_scores(user_id);
-CREATE INDEX idx_jobs_active          ON job_postings(is_active) WHERE is_active = TRUE;
-CREATE INDEX idx_jobs_primary_skills  ON job_postings USING GIN(primary_skills);
-CREATE INDEX idx_jobs_secondary_skills ON job_postings USING GIN(secondary_skills);
+CREATE INDEX idx_score_history_user   ON mirror_score_history(user_id, recorded_at DESC);
+CREATE INDEX idx_cv_history_user      ON cv_history(user_id, uploaded_at DESC);
+CREATE INDEX idx_jobs_main_skills     ON jobs USING GIN(main_skills);
+CREATE INDEX idx_jobs_side_skills     ON jobs USING GIN(side_skills);
+CREATE INDEX idx_jobs_batch_date      ON jobs(batch_date DESC);
 CREATE INDEX idx_matches_user         ON user_job_matches(user_id);
 CREATE INDEX idx_matches_batch_week   ON user_job_matches(user_id, batch_week DESC);
 CREATE INDEX idx_matches_recommended  ON user_job_matches(user_id) WHERE is_recommended = TRUE;
 CREATE INDEX idx_applications_user    ON job_applications(user_id);
 CREATE INDEX idx_daily_logs_user      ON daily_logs(user_id);
 CREATE INDEX idx_daily_logs_date      ON daily_logs(user_id, log_date DESC);
-CREATE INDEX idx_demand_skill         ON skill_demand_snapshots(skill_id, snapshot_date DESC);
-CREATE INDEX idx_candidates_pending   ON candidate_skills_queue(status) WHERE status = 'pending';
 
 -- ─── ROW LEVEL SECURITY ─────────────────────────────────────
 
@@ -254,6 +206,7 @@ ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cv_history         ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);
@@ -261,5 +214,6 @@ CREATE POLICY "own scores"         ON mirror_scores     FOR SELECT  USING (auth.
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.uid() = user_id);
+CREATE POLICY "own cv history"     ON cv_history        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "skills public read" ON skills            FOR SELECT  USING (true);
-CREATE POLICY "jobs public read"   ON job_postings      FOR SELECT  USING (is_active = true);
+CREATE POLICY "jobs public read"   ON jobs              FOR SELECT  USING (true);

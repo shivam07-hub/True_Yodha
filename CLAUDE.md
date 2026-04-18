@@ -54,32 +54,47 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — Scoring Engine Rewrite)
+## LAST SESSION SUMMARY (2026-04-18 — Skills Schema Overhaul + Dashboard Fixes)
 
 ```
 Date: 2026-04-18
-Handoff doc: DELETED (all Track A tasks complete)
 
 Work done this session:
 
-  1. feat(scoring): full scoring engine rewrite (backend/app/services/scoring_engine.py)
-     - New model: cluster_coverage × (max_proficiency/5) per Tax-L2 cluster
-     - Domain score = mean(cluster_scores) × 100, Tax-L1 level, present-only
-     - Mirror Score = mean(domain_scores) — no penalty for absent domains
-     - Proficiency tiers renamed: Scout → Trailblazer → Excavator → Cartographer → Legend
-     - Gap analysis aspiration-driven, 7-day day-budget packing
-     - Tests split: test_scoring.py + test_scoring_io.py — 68/68 green
+  1. fix(jobs): job card "Company not listed" — switched get_job_matches to admin client
+     (RLS was blocking cross-table join from user_job_matches → jobs)
 
-  2. docs/SCORING_ALGORITHM.md — fully rewritten to match new model
+  2. fix(scoring): gap skills never showing — fetch_skill_demand was querying empty
+     skill_demand_snapshots table. Rewrote to count from jobs.main_skills (×2) +
+     jobs.side_skills (×1) directly.
 
-  3. chore(git): agency-agents submodule pointer removed
-     - 184 agents installed to ~/.claude/agents/ (user-wide, all sessions)
-     - agency-agents/ added to .gitignore
+  3. feat(dashboard): domain radar labels clickable → DomainDrillDialog
+     - Shows user's skills per domain, per-skill level badge
+     - Log button pre-fills diary entry for that skill
+
+  4. feat(cv): CV page full redesign — 1:4 layout
+     - Left: extracted skills grouped by Lightcast domain + evidence_text toggle
+     - Right: CV raw text + upload history (score trajectory timeline)
+     - Stores cv_raw_text in user_profiles, cv_history table per upload
+
+  5. feat(shell): Truth Score in header next to logo (color-coded by level)
+     Nav reordered: CV first, then Dashboard
+
+  6. feat(skills/schema): Lightcast taxonomy as single source of truth
+     - Dropped: skill_domains, skill_families, skill_levels,
+                candidate_skills_queue, skill_demand_snapshots
+     - skills table now: id, taxonomy_key, display_name, lightcast_id,
+                         category (L1), subcategory (L2), is_active
+     - taxonomy_loader.py + skills router + schemas rewritten to match
+     - Migration applied in Supabase via MCP
+
+  7. docs: database/schema.sql rewritten to v4.0 (current state)
+     docs/SCORING_ALGORITHM.md gap-analysis field names corrected
 
 Next session:
-  - CV upload + parsing is struggling — start with testing/debugging cv_parser.py
-  - Apply migration SQL in Supabase (still pending manual step)
+  - CV upload + parsing is struggling — debug cv_parser.py
   - Upload Shivam's real CV through /onboarding and verify top 3 matches
+  - Backfill existing 86 skills rows (null category/subcategory) from taxonomy JSON
   - OpenRouter credits need top-up before Railway deploy
 
 LLM model map (local):

@@ -116,9 +116,9 @@ After computing `cluster_score(C)` for a user, the **normalised_skill_score** is
 normalised_skill_score(C) = percentile_rank(cluster_score(C), all_users_scored_on_C)
 ```
 
-- Stored in `user_skill_scores.percentile`
 - Used for display and peer comparison only
 - Not fed back into Mirror Score (avoids circular dependency on user pool size)
+- Percentile computation deferred — not yet stored in DB
 
 ---
 
@@ -202,18 +202,21 @@ days_to_close(S) = days_table[current_proficiency(S) → target_proficiency(S)]
 4. Remaining gaps carry over to week 2 (surfaced as "coming next week" — not shown yet)
 
 ```python
-# gap_analysis output per skill
+# gap_analysis output per skill (field names match compute_gap_skills() return value)
 {
-  "skill_name": str,
+  "taxonomy_key": str,
+  "skill": str,
   "taxonomy_l2_cluster": str,
-  "current_proficiency": int,         # 0–5
-  "target_proficiency": int,          # 0–5
-  "days_to_close": int,               # contribution to the 7-day window
-  "cluster_coverage_current": float,  # 0–1
-  "cluster_coverage_required": float, # 0–1
+  "current_level": int,               # 0–5
+  "target_level": int,                # 0–5
+  "gap_score": float,                 # (5 - current_level) × market_demand_weight
+  "current_title": str,               # e.g. "Scout"
+  "target_title": str,                # e.g. "Excavator"
+  "days_to_close": int,               # days for next single proficiency step
+  "days_allocated": int,              # days actually allocated within 7-day budget
   "market_demand_weight": float,      # 0–1, normalised job demand
-  "action_this_week": str,            # specific task for the 7-day window
-  "why_it_matters": str               # templated or LLM-generated
+  "job_count_30d": int,               # raw demand count from jobs table
+  "why_it_matters": str               # templated explanation
 }
 ```
 
