@@ -146,11 +146,13 @@ def update_cluster_counts(db, cluster_ids: dict[str, int]) -> None:
         if cid:
             counts[cid] = counts.get(cid, 0) + 1
 
-    rows = [{"id": cid, "skill_count": n} for cid, n in counts.items()]
-    for i in range(0, len(rows), BATCH_SIZE):
-        db.table("skill_clusters").upsert(rows[i:i+BATCH_SIZE], on_conflict="id").execute()
-        time.sleep(0.05)
-    print(f"  skill_count updated for {len(rows)} clusters")
+    updated = 0
+    for cid, n in counts.items():
+        db.table("skill_clusters").update({"skill_count": n}).eq("id", cid).execute()
+        updated += 1
+        if updated % 50 == 0:
+            print(f"  {updated}/{len(counts)} clusters updated…", end="\r")
+    print(f"  skill_count updated for {updated} clusters    ")
 
 
 # ── Main ──────────────────────────────────────────────────────
