@@ -54,73 +54,89 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — Skill Table Flatten + Archon Setup)
+## LAST SESSION SUMMARY (2026-04-18 — FIRST PRODUCTION DEPLOYMENT 🚀)
 
 ```
 Date: 2026-04-18
+Milestone: First successful end-to-end deployment on Railway + Vercel (Develop branch)
 
 Work done this session:
 
-  1. chore: deleted entire Version1/ directory (6,793 lines, 49 files)
-     All legacy code superseded by current backend/
+  1. fix(llm): CV upload LLM routing for production
+     - cv_parser: LM Studio → OpenRouter free llama → Groq → Gemini → OpenRouter paid
+     - llm_ranker: LM Studio → OpenRouter → GPT-4o mini fallback chain
+     - diary_processor: continue to next provider on any exception (not just rate limits)
+     - Changed OpenRouter model from claude-3.5-sonnet ($15/MTok) to llama-3.3-70b-instruct:free
 
-  2. debug(cv): all 21 unit tests pass. Root cause of "struggling": scripts run from
-     project root can't find backend/.env → LLM config loads empty → silent [].
-     Not a code bug. LM Studio live, llama-3.2-3b-instruct returns correct skill JSON.
+  2. fix(taxonomy): moved lightcast_skills_taxonomy.json into backend/
+     - Was at project root — Docker COPY . . (from backend/) never included it
+     - taxonomy_loader.py: parents[3] → parents[2]
+     - database/backfill_skills.py: path updated to ROOT / "backend" / "lightcast_skills_taxonomy.json"
 
-  3. feat(dashboard): major layout restructure
-     - Domain Breakdown radar + Skill Intelligence panel now SIDE BY SIDE (lg:grid-cols-2)
-     - "Top Job Matches" section removed from Dashboard (belongs in Jobs/Tracker)
-     - Dashboard container widened: max-w-2xl → max-w-5xl
-     - SkillIntelligencePanel moved: tracker/page.tsx → dashboard/page.tsx
-     - Tracker: collapsed to single-column job grid (md:2col, lg:3col); removed scoreQuery
-     - Fixed pre-existing TS bug: Record<number> → Record<string> in appsByJobId
+  3. fix(cors): resolved CORS preflight 400 errors
+     - Root cause 1: pydantic-settings v2 JSON-decoded list[str] before validators — using str + property
+     - Root cause 2: allow_credentials=True + allow_origins=["*"] invalid per CORS spec
+     - Fix: allow_origins=["*"], allow_credentials=False (Bearer JWT auth doesn't need credentials mode)
+     - No Railway env var needed — works for all Vercel URLs automatically
 
-  4. docs: synced all project MD files to current state (README, frontend/README,
-     docs/TECH_STACK.md created, DEPLOYMENT_GUIDE updated)
+  4. Railway env vars added this session:
+     OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY
+     SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY (set earlier)
+     LM_STUDIO_* vars cleared (local only)
 
-  5. refactor(db): flattened 3-table skill hierarchy → single skills table (APPLIED TO PROD)
-     - skill_domains + skill_clusters tables DROPPED
-     - skills table: cluster_id FK dropped; l1_domain + l2_cluster columns added
-     - Populated via JOIN before drop: all 35,108 rows have l1_domain + l2_cluster
-     - Users match at L3 (user_skills.skill_id). L2/L1 aggregated at query time.
-     - All backend code updated: taxonomy_loader, scoring_engine, routers, schemas
-     - 102 tests pass
-     - Migration file deleted after apply (was: 20260418_flatten_skills_table.sql)
-     - See docs/schema.md for full DB schema reference
+  5. DEPLOYMENT RESULT (first ever):
+     - CV upload: 201 Created ✓ (free Llama 429d → Groq fallback succeeded)
+     - Scores compute: 200 ✓
+     - Jobs compute: 200 ✓ (LLM ranking degraded to overlap-only; Groq key fixes this)
+     - All GET endpoints: 200 ✓
+     - Login / signup: working ✓
 
-  6. chore: added Archon CLI skill (.claude/commands/archon.md)
-     - Archon binary at /Users/incognito/.local/bin/archon
-     - Use /archon after Claude Code restart
+## CURRENT INFRASTRUCTURE STATE (as of 2026-04-18)
+
+Railway service: True_Yodha → Develop branch → auto-deploys on push
+Vercel: truemirror.vercel.app + preview URLs (develop branch)
+Supabase: gipvxuugajkugntwkeiz (prod DB — shared dev/prod for now)
+
+LLM fallback chain (production):
+  CV extraction:   OpenRouter free llama → Groq llama-3.1-8b → Gemini 2.0 flash-lite → OpenRouter gemini-flash-1.5
+  Job ranking:     OpenRouter free llama → (no further fallback yet — gracefully degrades)
+  Diary:           LM Studio → Groq → Gemini → OpenRouter
 
 ## CURRENT DB STATE (as of 2026-04-18)
 
-skills table columns: id, taxonomy_key, display_name, lightcast_id, l1_domain, l2_cluster, is_active, created_at
-user_skills links: user_id → skill_id (L3). Scoring groups by l2_cluster, l1_domain at query time.
-DROPPED tables: skill_domains, skill_clusters
+skills table: id, taxonomy_key, display_name, lightcast_id, l1_domain, l2_cluster, is_active, created_at
+user_skills: user_id → skill_id (L3). Scoring groups by l2_cluster / l1_domain at query time.
+DROPPED: skill_domains, skill_clusters
 
 ## CURRENT UI STATE (as of 2026-04-18)
 
 Nav order: CV → Dashboard → Jobs → Intel → Diary
 
 Page map:
-  /cv          Upload CV, view extracted skills by Lightcast domain, CV history timeline
-  /dashboard   Truth Score (header) | Domain Breakdown ↔ Skill Intelligence (side-by-side)
+  /cv          Upload CV, view extracted skills by L2 cluster, CV history timeline
+  /dashboard   Truth Score (header) | Domain Breakdown radar ↔ Skill Intelligence (side-by-side)
                Below: Top 5 Skills to Upgrade (SkillUpgradeCard list)
-  /tracker     Jobs Tracker — top 5 matches + application status (add/track/status change)
+  /tracker     Jobs Tracker — top 5 matches + application status
                Nav label: "Jobs"
-  /jobs        Full job list with search (not in nav — accessed directly)
+  /jobs        Full job list with search
   /market      Intel — market intelligence panel
   /diary       Daily skill diary + XP log
   /onboarding  CV upload → role selection → score reveal flow
   /mission     About / mission statement
 
-Next session:
-  - Upload Shivam's real CV through /onboarding UI and verify top 3 matches
-  - OpenRouter credits top-up before Railway deploy
-  - Add env-path sanity check to backend startup log
+## NEXT SESSION FOCUS
 
-LLM model map (local):
-  - CV extraction:  llama-3.2-3b-instruct  (LM_STUDIO_EXTRACTOR_MODEL)
-  - Job ranking:    deepseek-r1-0528-qwen3-8b-mlx  (LM_STUDIO_RANKER_MODEL)
-  - Skill tagging:  qwen2.5-0.5b-instruct  (LM_STUDIO_TAGGER_MODEL)
+  FRONTEND REDESIGN — Apple-inspired, modern, elegant, smooth
+  Goal: awe users on first load. Every screen should feel premium.
+
+  Design principles to apply:
+    - Apple HIG: clarity, deference, depth
+    - Generous whitespace, large typography, subtle motion
+    - Monochromatic base + single accent color
+    - Smooth transitions (Framer Motion)
+    - Cards with soft shadows, rounded corners, blur backdrops
+    - Data visualisations that feel like art, not spreadsheets
+
+  Start with: /cv and /dashboard pages (most user-facing)
+  Reference: FrontEND INSPIRATION/ folder in project root
+```
