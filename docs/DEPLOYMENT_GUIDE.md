@@ -41,17 +41,16 @@ git branch -M main
 ### 3. Connect local repo to GitHub
 
 ```bash
-git remote add origin
+git remote add origin https://github.com/TrueMirror/True_Yodha.git
 git add .
 git commit -m "chore: initial project scaffold"
 git push -u origin main
 ```
 
-### 4. Create the develop branch
+### 4. Develop branch (already exists — active branch)
 
 ```bash
-git checkout -b develop
-git push -u origin develop
+git checkout develop   # already tracking origin/develop
 ```
 
 ### 5. Protect the main branch (on GitHub.com)
@@ -101,7 +100,6 @@ You never deploy manually. Every merge to `main` is a production release.
 
 1. vercel.com → Add New Project → Import from GitHub → select `mirror-app`
 2. Framework preset: **Next.js**
-3. Need to add TailCSS and ShadeCN - Do it when working on frontend.
 3. Root directory: **`frontend`** (important — not the repo root)
 4. Add environment variables (from your `.env.local`)
 5. Deploy → Vercel gives you a URL like `mirror-app.vercel.app`

@@ -54,27 +54,52 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — CV Parser Debug + Version1 Cleanup)
+## LAST SESSION SUMMARY (2026-04-18 — Dashboard Restructure + Docs Sync)
 
 ```
 Date: 2026-04-18
 
 Work done this session:
 
-  1. chore: staged and committed deletion of entire Version1/ directory
-     (legacy code — all superseded by current backend/)
+  1. chore: deleted entire Version1/ directory (6,793 lines, 49 files)
+     All legacy code superseded by current backend/
 
-  2. debug(cv): investigated "CV parsing struggling" — all 21 unit tests pass
-     Root cause: scripts run from project root can't find backend/.env → LLM config
-     loads empty → extractor silently returns []. Not a code bug — a run-context issue.
-     Confirmed LM Studio live: llama-3.2-3b-instruct returns correct skill JSON
-     when backend/ is CWD.
+  2. debug(cv): all 21 unit tests pass. Root cause of "struggling": scripts run from
+     project root can't find backend/.env → LLM config loads empty → silent [].
+     Not a code bug. LM Studio live, llama-3.2-3b-instruct returns correct skill JSON.
+
+  3. feat(dashboard): major layout restructure
+     - Domain Breakdown radar + Skill Intelligence panel now SIDE BY SIDE (lg:grid-cols-2)
+     - "Top Job Matches" section removed from Dashboard (belongs in Jobs/Tracker)
+     - Dashboard container widened: max-w-2xl → max-w-5xl
+     - SkillIntelligencePanel moved: tracker/page.tsx → dashboard/page.tsx
+     - Tracker: collapsed to single-column job grid (md:2col, lg:3col); removed scoreQuery
+     - Fixed pre-existing TS bug: Record<number> → Record<string> in appsByJobId
+
+  4. docs: synced all project MD files to current state (README, frontend/README,
+     docs/TECH_STACK.md created, DEPLOYMENT_GUIDE updated)
+
+## CURRENT UI STATE (as of 2026-04-18)
+
+Nav order: CV → Dashboard → Jobs → Intel → Diary
+
+Page map:
+  /cv          Upload CV, view extracted skills by Lightcast domain, CV history timeline
+  /dashboard   Truth Score (header) | Domain Breakdown ↔ Skill Intelligence (side-by-side)
+               Below: Top 5 Skills to Upgrade (SkillUpgradeCard list)
+  /tracker     Jobs Tracker — top 5 matches + application status (add/track/status change)
+               Nav label: "Jobs"
+  /jobs        Full job list with search (not in nav — accessed directly)
+  /market      Intel — market intelligence panel
+  /diary       Daily skill diary + XP log
+  /onboarding  CV upload → role selection → score reveal flow
+  /mission     About / mission statement
 
 Next session:
   - Upload Shivam's real CV through /onboarding UI and verify top 3 matches
-  - Backfill existing 86 skills rows (null category/subcategory) from taxonomy JSON
-  - OpenRouter credits need top-up before Railway deploy
-  - Consider adding env-path sanity check to backend startup log
+  - Backfill 86 skills rows (null category/subcategory) from lightcast_skills_taxonomy.json
+  - OpenRouter credits top-up before Railway deploy
+  - Add env-path sanity check to backend startup log
 
 LLM model map (local):
   - CV extraction:  llama-3.2-3b-instruct  (LM_STUDIO_EXTRACTOR_MODEL)
