@@ -15,21 +15,38 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ─── SKILL TAXONOMY ─────────────────────────────────────────
--- Single source of truth for all skills.
--- Populated on demand by taxonomy_loader.ensure_skill_in_db()
--- from the bundled Lightcast JSON taxonomy.
--- category    = Lightcast L1 domain name
--- subcategory = Lightcast L2 cluster name
--- lightcast_id = hex skill ID from Lightcast (e.g. KS126XS6CQCFGC3NG79X)
+-- ─── SKILL TAXONOMY — 3-tier Lightcast hierarchy ────────────
+--
+-- L1: skill_domains  (31 rows)  e.g. "Information Technology"
+-- L2: skill_clusters (442 rows) e.g. "Software Development"
+-- L3: skills         (35,108 rows) e.g. "Python (Programming Language)"
+--
+-- Populated by: python database/backfill_skills.py
+-- Source:       lightcast_skills_taxonomy.json
+--
+-- Scoring engine uses in-memory maps (loaded from JSON) for performance.
+-- DB hierarchy used for queries, analytics, and data integrity.
+
+CREATE TABLE skill_domains (
+  id         SERIAL       PRIMARY KEY,
+  name       VARCHAR(200) NOT NULL UNIQUE,      -- Lightcast L1 name
+  created_at TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE TABLE skill_clusters (
+  id          SERIAL       PRIMARY KEY,
+  domain_id   INTEGER      NOT NULL REFERENCES skill_domains(id) ON DELETE CASCADE,
+  name        VARCHAR(200) NOT NULL,            -- Lightcast L2 name
+  skill_count INTEGER      NOT NULL DEFAULT 0, -- cached count of L3 skills in this cluster
+  UNIQUE(domain_id, name)
+);
 
 CREATE TABLE skills (
   id           SERIAL       PRIMARY KEY,
-  taxonomy_key VARCHAR(200) NOT NULL UNIQUE,   -- canonical lowercase skill name
+  cluster_id   INTEGER      NOT NULL REFERENCES skill_clusters(id),   -- L2 cluster FK
+  taxonomy_key VARCHAR(200) NOT NULL UNIQUE,   -- canonical Lightcast skill name
   display_name VARCHAR(200) NOT NULL,
-  lightcast_id VARCHAR(50),                    -- Lightcast hex skill ID (nullable until looked up)
-  category     VARCHAR(200) NOT NULL DEFAULT 'General',   -- Lightcast L1
-  subcategory  VARCHAR(200) NOT NULL DEFAULT 'General',   -- Lightcast L2
+  lightcast_id VARCHAR(50),                    -- Lightcast hex ID (e.g. KS126XS6CQCFGC3NG79X)
   is_active    BOOLEAN      DEFAULT TRUE,
   created_at   TIMESTAMPTZ  DEFAULT NOW()
 );
@@ -193,8 +210,10 @@ CREATE TABLE user_feedback (
 
 -- ─── INDEXES ────────────────────────────────────────────────
 
-CREATE INDEX idx_skills_category      ON skills(category);
-CREATE INDEX idx_skills_subcategory   ON skills(subcategory);
+CREATE INDEX idx_skill_domains_name   ON skill_domains(name);
+CREATE INDEX idx_skill_clusters_domain ON skill_clusters(domain_id);
+CREATE INDEX idx_skill_clusters_name  ON skill_clusters(name);
+CREATE INDEX idx_skills_cluster       ON skills(cluster_id);
 CREATE INDEX idx_skills_lightcast_id  ON skills(lightcast_id) WHERE lightcast_id IS NOT NULL;
 CREATE INDEX idx_user_skills_user     ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill    ON user_skills(skill_id);

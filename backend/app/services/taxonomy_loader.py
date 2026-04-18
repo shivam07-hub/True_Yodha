@@ -97,10 +97,27 @@ def get_market_skills(db: Client) -> list[str]:
 
 # ── DB sync ───────────────────────────────────────────────────────────────────
 
+def _get_cluster_id(db: Client, category: str, subcategory: str) -> int | None:
+    """Look up skill_clusters.id for a given L1+L2 pair. Returns None if not found."""
+    domain_row = db.table("skill_domains").select("id").eq("name", category).maybe_single().execute()
+    if not domain_row or not domain_row.data:
+        return None
+    cluster_row = (
+        db.table("skill_clusters")
+        .select("id")
+        .eq("domain_id", domain_row.data["id"])
+        .eq("name", subcategory)
+        .maybe_single()
+        .execute()
+    )
+    return cluster_row.data["id"] if cluster_row and cluster_row.data else None
+
+
 def ensure_skill_in_db(db: Client, skill_name: str) -> int | None:
     """
     Ensures a Lightcast skill exists in the DB `skills` table.
-    Inserts with category (L1) and subcategory (L2) from the taxonomy if missing.
+    Now that all 35,108 skills are pre-loaded via backfill_skills.py,
+    this almost always hits the early return — insert path is a safety net only.
     Returns skills.id, or None on failure.
     """
     existing = db.table("skills").select("id").eq("taxonomy_key", skill_name).maybe_single().execute()
@@ -108,15 +125,15 @@ def ensure_skill_in_db(db: Client, skill_name: str) -> int | None:
         return existing.data["id"]
 
     lc = lookup_by_name(skill_name)
+    cluster_id = _get_cluster_id(db, lc.category, lc.subcategory) if lc else None
 
     try:
         result = db.table("skills").insert({
-            "taxonomy_key":  skill_name,
-            "display_name":  skill_name,
-            "lightcast_id":  lc.id if lc else None,
-            "category":      lc.category if lc else "General",
-            "subcategory":   lc.subcategory if lc else "General",
-            "is_active":     True,
+            "taxonomy_key": skill_name,
+            "display_name": skill_name,
+            "lightcast_id": lc.id if lc else None,
+            "cluster_id":   cluster_id,
+            "is_active":    True,
         }).execute()
         return result.data[0]["id"] if result.data else None
     except Exception:
