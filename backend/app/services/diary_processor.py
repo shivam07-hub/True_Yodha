@@ -15,7 +15,7 @@ Called by POST /diary/entry — not run directly.
 import json
 
 from app.config import settings
-from app.services.skill_tagger import _call_provider, _is_rate_limit, PROVIDERS
+from app.services.skill_tagger import _call_provider, PROVIDERS
 
 _XP_MAP = {"mention": 50, "project": 150, "impact": 350, "leadership": 500}
 _VALID_SIGNAL_TYPES = set(_XP_MAP.keys())
@@ -102,9 +102,7 @@ def extract_skill_signals(entry_text: str, taxonomy_keys: list[str]) -> list[dic
             raw_text = _call_provider(prompt, provider, api_keys)
             raw = _parse_response(raw_text)
             return _validate(raw, valid_keys)
-        except Exception as e:
-            if _is_rate_limit(e):
-                continue  # try next provider
-            return []    # non-rate-limit error — give up
+        except Exception:
+            continue
 
     return []

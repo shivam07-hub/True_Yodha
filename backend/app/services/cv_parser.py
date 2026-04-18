@@ -61,7 +61,7 @@ _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
 
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-_OPENROUTER_MODEL = "anthropic/claude-3.5-sonnet"
+_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
 
 # ── Text extraction ───────────────────────────────────────────────────────────
@@ -113,21 +113,21 @@ Return JSON only — no prose, no markdown fences. Shape:
 {"skills": [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}]}"""
 
 
-def _get_extraction_client_and_model() -> tuple[AsyncOpenAI, str]:
-    """Prefer LM Studio (free, local). Fall back to OpenRouter."""
+async def _llm_extract(cv_text: str) -> list[dict]:
+    """Try LM Studio then OpenRouter. Returns [] if all providers fail."""
+    providers: list[tuple[AsyncOpenAI, str]] = []
     if settings.lm_studio_extractor_model:
-        return (
+        providers.append((
             AsyncOpenAI(api_key="lm-studio", base_url=settings.lm_studio_base_url),
             settings.lm_studio_extractor_model,
-        )
-    return AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE), _OPENROUTER_MODEL
+        ))
+    if settings.openrouter_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE),
+            _OPENROUTER_MODEL,
+        ))
 
-
-async def _llm_extract(cv_text: str) -> list[dict]:
-    """Call LM Studio or OpenRouter and return raw skill dicts. Returns [] on any failure."""
-    client, model = _get_extraction_client_and_model()
-
-    if not settings.lm_studio_extractor_model and not settings.openrouter_api_key:
+    if not providers:
         logger.error("No LLM configured for CV extraction — set LM_STUDIO_EXTRACTOR_MODEL or OPENROUTER_API_KEY")
         return []
 
@@ -137,23 +137,25 @@ async def _llm_extract(cv_text: str) -> list[dict]:
         "Extract the candidate's skills per the rules. Return JSON only."
     )
 
-    logger.info("CV extraction using model: %s", model)
-    try:
-        resp = await client.chat.completions.create(
-            model=model,
-            max_tokens=2048,
-            temperature=0,
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user",   "content": user_prompt},
-            ],
-        )
-        content = resp.choices[0].message.content or ""
-    except Exception as exc:
-        logger.error("CV extraction LLM call failed: %s", exc)
-        return []
+    for client, model in providers:
+        logger.info("CV extraction using model: %s", model)
+        try:
+            resp = await client.chat.completions.create(
+                model=model,
+                max_tokens=2048,
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_prompt},
+                ],
+            )
+            content = resp.choices[0].message.content or ""
+            return _parse_llm_json(content)
+        except Exception as exc:
+            logger.warning("CV extraction failed with %s: %s — trying next provider", model, exc)
 
-    return _parse_llm_json(content)
+    logger.error("All CV extraction providers failed")
+    return []
 
 
 def _parse_llm_json(text: str) -> list[dict]:

@@ -29,11 +29,11 @@ logger = logging.getLogger(__name__)
 _MAX_TOKENS = 4096
 
 
-def _get_client_and_model() -> tuple[OpenAI, str, bool]:
+def _get_client_and_model() -> tuple[OpenAI | None, str | None, bool]:
     """
     Returns (client, model_name, supports_json_mode).
-    Prefers LM Studio reasoning model if LM_STUDIO_RANKER_MODEL is configured; falls back to GPT-4o mini.
-    json_object response_format is disabled for local models to maximise compatibility.
+    Priority: LM Studio → OpenRouter → GPT-4o mini.
+    json_object response_format disabled for non-OpenAI providers.
     """
     if settings.lm_studio_ranker_model:
         return (
@@ -41,7 +41,15 @@ def _get_client_and_model() -> tuple[OpenAI, str, bool]:
             settings.lm_studio_ranker_model,
             False,
         )
-    return OpenAI(), "gpt-4o-mini", True
+    if settings.openrouter_api_key:
+        return (
+            OpenAI(api_key=settings.openrouter_api_key, base_url="https://openrouter.ai/api/v1"),
+            "meta-llama/llama-3.3-70b-instruct:free",
+            False,
+        )
+    if settings.openai_api_key:
+        return OpenAI(), "gpt-4o-mini", True
+    return None, None, False
 
 SYSTEM_PROMPT = (
     "You are a senior career strategist. Given a candidate's skill profile and a list of job postings, "
@@ -130,8 +138,11 @@ def parse_llm_response(text: str) -> list[dict] | None:
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
 def call_llm(user_skill_map: dict[str, int], top_jobs: list[dict]) -> list[dict] | None:
-    """Call LLM (LM Studio if available, else GPT-4o mini). Returns parsed list or None on failure."""
+    """Call LLM (LM Studio → OpenRouter → GPT-4o mini). Returns parsed list or None on failure."""
     client, model, supports_json_mode = _get_client_and_model()
+    if client is None:
+        logger.error("No LLM configured for job ranking — set OPENROUTER_API_KEY or OPENAI_API_KEY")
+        return None
     prompt = build_prompt(user_skill_map, top_jobs)
     logger.info("LLM ranker using model: %s", model)
 
