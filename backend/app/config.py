@@ -1,8 +1,16 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_origins(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v  # type: ignore[return-value]
 
     # Supabase
     supabase_url: str = ""
@@ -29,7 +37,8 @@ class Settings(BaseSettings):
     # Environment
     railway_environment: str = "development"
 
-    # CORS — comma-separated list of allowed origins
+    # CORS — set ALLOWED_ORIGINS on Railway as comma-separated string:
+    # https://truemirror.vercel.app,https://truemirror-*.vercel.app,http://localhost:3000
     allowed_origins: list[str] = ["http://localhost:3000"]
 
 
