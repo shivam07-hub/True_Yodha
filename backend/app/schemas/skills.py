@@ -6,8 +6,8 @@ class SkillResponse(BaseModel):
     taxonomy_key: str
     display_name: str
     lightcast_id: str | None = None
-    category: str       # Lightcast L1 — e.g. "Information Technology"
-    subcategory: str    # Lightcast L2 — e.g. "Software Development"
+    l1_domain: str
+    l2_cluster: str
 
 
 class SkillsListResponse(BaseModel):

@@ -72,8 +72,8 @@ def _build_cluster_maps() -> tuple[dict[str, list[str]], dict[str, str], dict[st
     skill_to_cluster: dict[str, str] = {}
     cluster_to_domain: dict[str, str] = {}
     for skill in get_all_skills():
-        cluster = skill.subcategory or "General"
-        domain = skill.category or "General"
+        cluster = skill.l2_cluster or "General"
+        domain = skill.l1_domain or "General"
         cluster_children.setdefault(cluster, []).append(skill.name)
         skill_to_cluster[skill.name] = cluster
         cluster_to_domain[cluster] = domain

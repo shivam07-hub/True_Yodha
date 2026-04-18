@@ -47,7 +47,7 @@ async def get_my_skills(current_user: dict = Depends(get_current_user)) -> UserS
         key = skill["taxonomy_key"]
         level = row["matched_level"]
         lc = lookup_by_name(key)
-        domain = (lc.category if lc else "") or "General"
+        domain = (lc.l1_domain if lc else "") or "General"
         by_domain.setdefault(domain, []).append({
             "key": key,
             "display_name": skill.get("display_name") or key,

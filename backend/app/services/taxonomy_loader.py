@@ -25,13 +25,13 @@ TAXONOMY_FILE = Path(__file__).resolve().parents[3] / "lightcast_skills_taxonomy
 
 
 class LightcastSkill:
-    __slots__ = ("id", "name", "category", "subcategory")
+    __slots__ = ("id", "name", "l1_domain", "l2_cluster")
 
-    def __init__(self, id: str, name: str, category: str, subcategory: str) -> None:
+    def __init__(self, id: str, name: str, l1_domain: str, l2_cluster: str) -> None:
         self.id = id
         self.name = name
-        self.category = category
-        self.subcategory = subcategory
+        self.l1_domain = l1_domain
+        self.l2_cluster = l2_cluster
 
 
 @lru_cache(maxsize=1)
@@ -42,16 +42,16 @@ def get_all_skills() -> list[LightcastSkill]:
 
     skills: list[LightcastSkill] = []
 
-    def _walk(node: dict, category: str | None = None, subcategory: str | None = None) -> None:
+    def _walk(node: dict, l1_domain: str | None = None, l2_cluster: str | None = None) -> None:
         if "id" in node and node["id"]:
-            skills.append(LightcastSkill(node["id"], node["name"], category or "", subcategory or ""))
+            skills.append(LightcastSkill(node["id"], node["name"], l1_domain or "", l2_cluster or ""))
         for child in node.get("children", []):
-            if category is None:
+            if l1_domain is None:
                 _walk(child, child["name"])
-            elif subcategory is None:
-                _walk(child, category, child["name"])
+            elif l2_cluster is None:
+                _walk(child, l1_domain, child["name"])
             else:
-                _walk(child, category, subcategory)
+                _walk(child, l1_domain, l2_cluster)
 
     _walk(data)
     return skills
@@ -97,27 +97,10 @@ def get_market_skills(db: Client) -> list[str]:
 
 # ── DB sync ───────────────────────────────────────────────────────────────────
 
-def _get_cluster_id(db: Client, category: str, subcategory: str) -> int | None:
-    """Look up skill_clusters.id for a given L1+L2 pair. Returns None if not found."""
-    domain_row = db.table("skill_domains").select("id").eq("name", category).maybe_single().execute()
-    if not domain_row or not domain_row.data:
-        return None
-    cluster_row = (
-        db.table("skill_clusters")
-        .select("id")
-        .eq("domain_id", domain_row.data["id"])
-        .eq("name", subcategory)
-        .maybe_single()
-        .execute()
-    )
-    return cluster_row.data["id"] if cluster_row and cluster_row.data else None
-
-
 def ensure_skill_in_db(db: Client, skill_name: str) -> int | None:
     """
     Ensures a Lightcast skill exists in the DB `skills` table.
-    Now that all 35,108 skills are pre-loaded via backfill_skills.py,
-    this almost always hits the early return — insert path is a safety net only.
+    All 35,108 skills are pre-loaded via backfill_skills.py — insert is a safety net.
     Returns skills.id, or None on failure.
     """
     existing = db.table("skills").select("id").eq("taxonomy_key", skill_name).maybe_single().execute()
@@ -125,14 +108,13 @@ def ensure_skill_in_db(db: Client, skill_name: str) -> int | None:
         return existing.data["id"]
 
     lc = lookup_by_name(skill_name)
-    cluster_id = _get_cluster_id(db, lc.category, lc.subcategory) if lc else None
-
     try:
         result = db.table("skills").insert({
             "taxonomy_key": skill_name,
             "display_name": skill_name,
             "lightcast_id": lc.id if lc else None,
-            "cluster_id":   cluster_id,
+            "l1_domain":    lc.l1_domain if lc else "",
+            "l2_cluster":   lc.l2_cluster if lc else "",
             "is_active":    True,
         }).execute()
         return result.data[0]["id"] if result.data else None

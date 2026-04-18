@@ -11,7 +11,7 @@ async def list_skills() -> SkillsListResponse:
     result = (
         get_supabase_admin()
         .table("skills")
-        .select("id, taxonomy_key, display_name, lightcast_id, category, subcategory")
+        .select("id, taxonomy_key, display_name, lightcast_id, l1_domain, l2_cluster")
         .eq("is_active", True)
         .order("display_name")
         .execute()
@@ -22,8 +22,8 @@ async def list_skills() -> SkillsListResponse:
             taxonomy_key=row["taxonomy_key"],
             display_name=row["display_name"],
             lightcast_id=row.get("lightcast_id"),
-            category=row.get("category") or "General",
-            subcategory=row.get("subcategory") or "General",
+            l1_domain=row.get("l1_domain") or "General",
+            l2_cluster=row.get("l2_cluster") or "General",
         )
         for row in result.data
     ]
@@ -36,9 +36,9 @@ async def list_domains() -> list[str]:
     result = (
         get_supabase_admin()
         .table("skills")
-        .select("category")
+        .select("l1_domain")
         .eq("is_active", True)
         .execute()
     )
-    domains = sorted({row["category"] for row in result.data if row.get("category")})
+    domains = sorted({row["l1_domain"] for row in result.data if row.get("l1_domain")})
     return domains

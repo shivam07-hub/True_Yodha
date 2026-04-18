@@ -1,52 +1,35 @@
 -- ============================================================
--- MIRROR APP — Database Schema v4.0
+-- MIRROR APP — Database Schema v5.0
 -- Apply in Supabase SQL Editor (Project → SQL Editor → New query)
 -- Last updated: 2026-04-18
 --
--- Skill taxonomy source of truth: Lightcast Skills Taxonomy
---   L1 = category   (31 top-level domains, e.g. "Information Technology")
---   L2 = subcategory (442 clusters, e.g. "Software Development")
---   L3 = skill leaf  (35,108 skills with hex IDs)
+-- Skill taxonomy: single skills table with l1_domain + l2_cluster denormalized
+--   L1 = l1_domain  (31 domains,  e.g. "Information Technology")
+--   L2 = l2_cluster (442 clusters, e.g. "Software Development")
+--   L3 = taxonomy_key (35,108 leaf skills with Lightcast hex IDs)
 --
--- Removed tables (dropped 2026-04-18):
---   skill_domains, skill_families, skill_levels,
---   candidate_skills_queue, skill_demand_snapshots
+-- Removed tables:
+--   skill_domains, skill_clusters (flattened into skills.l1_domain/l2_cluster)
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ─── SKILL TAXONOMY — 3-tier Lightcast hierarchy ────────────
+-- ─── SKILL TAXONOMY — single table, Lightcast L1/L2/L3 ──────
 --
--- L1: skill_domains  (31 rows)  e.g. "Information Technology"
--- L2: skill_clusters (442 rows) e.g. "Software Development"
--- L3: skills         (35,108 rows) e.g. "Python (Programming Language)"
+-- One row per L3 skill with l1_domain + l2_cluster denormalized.
+-- L1/L2 aggregation done at query time via GROUP BY.
+-- Users are always matched at L3 (skill_id in user_skills).
 --
 -- Populated by: python database/backfill_skills.py
 -- Source:       lightcast_skills_taxonomy.json
---
--- Scoring engine uses in-memory maps (loaded from JSON) for performance.
--- DB hierarchy used for queries, analytics, and data integrity.
-
-CREATE TABLE skill_domains (
-  id         SERIAL       PRIMARY KEY,
-  name       VARCHAR(200) NOT NULL UNIQUE,      -- Lightcast L1 name
-  created_at TIMESTAMPTZ  DEFAULT NOW()
-);
-
-CREATE TABLE skill_clusters (
-  id          SERIAL       PRIMARY KEY,
-  domain_id   INTEGER      NOT NULL REFERENCES skill_domains(id) ON DELETE CASCADE,
-  name        VARCHAR(200) NOT NULL,            -- Lightcast L2 name
-  skill_count INTEGER      NOT NULL DEFAULT 0, -- cached count of L3 skills in this cluster
-  UNIQUE(domain_id, name)
-);
 
 CREATE TABLE skills (
   id           SERIAL       PRIMARY KEY,
-  cluster_id   INTEGER      NOT NULL REFERENCES skill_clusters(id),   -- L2 cluster FK
-  taxonomy_key VARCHAR(200) NOT NULL UNIQUE,   -- canonical Lightcast skill name
+  taxonomy_key VARCHAR(200) NOT NULL UNIQUE,   -- canonical Lightcast skill name (L3)
   display_name VARCHAR(200) NOT NULL,
   lightcast_id VARCHAR(50),                    -- Lightcast hex ID (e.g. KS126XS6CQCFGC3NG79X)
+  l1_domain    VARCHAR(200) NOT NULL DEFAULT '',  -- Lightcast L1 e.g. "Information Technology"
+  l2_cluster   VARCHAR(200) NOT NULL DEFAULT '',  -- Lightcast L2 e.g. "Software Development"
   is_active    BOOLEAN      DEFAULT TRUE,
   created_at   TIMESTAMPTZ  DEFAULT NOW()
 );
@@ -210,11 +193,9 @@ CREATE TABLE user_feedback (
 
 -- ─── INDEXES ────────────────────────────────────────────────
 
-CREATE INDEX idx_skill_domains_name   ON skill_domains(name);
-CREATE INDEX idx_skill_clusters_domain ON skill_clusters(domain_id);
-CREATE INDEX idx_skill_clusters_name  ON skill_clusters(name);
-CREATE INDEX idx_skills_cluster       ON skills(cluster_id);
-CREATE INDEX idx_skills_lightcast_id  ON skills(lightcast_id) WHERE lightcast_id IS NOT NULL;
+CREATE INDEX idx_skills_l1_domain    ON skills(l1_domain);
+CREATE INDEX idx_skills_l2_cluster   ON skills(l2_cluster);
+CREATE INDEX idx_skills_lightcast_id ON skills(lightcast_id) WHERE lightcast_id IS NOT NULL;
 CREATE INDEX idx_user_skills_user     ON user_skills(user_id);
 CREATE INDEX idx_user_skills_skill    ON user_skills(skill_id);
 CREATE INDEX idx_scores_user          ON mirror_scores(user_id);
