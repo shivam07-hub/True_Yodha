@@ -36,12 +36,9 @@ async def signup(body: SignupRequest) -> AuthResponse:
             detail="Signup failed. Please try again.",
         )
 
-    try:
-        _upsert_user_profile(response.user.id, response.user.email, body.full_name)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
     if not response.session:
+        # Email confirmation required — auth.users row not yet confirmed.
+        # Profile will be created on first login after confirmation.
         return AuthResponse(
             user_id=response.user.id,
             email=response.user.email,
@@ -49,9 +46,13 @@ async def signup(body: SignupRequest) -> AuthResponse:
             message="Check your email for a confirmation link, then sign in.",
         )
 
-    access_token = response.session.access_token
+    try:
+        _upsert_user_profile(response.user.id, response.user.email, body.full_name)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     return AuthResponse(
-        access_token=access_token,
+        access_token=response.session.access_token,
         user_id=response.user.id,
         email=response.user.email,
     )
@@ -73,6 +74,11 @@ async def login(body: LoginRequest) -> AuthResponse:
             detail="Invalid email or password.",
         )
 
+    _upsert_user_profile(
+        response.user.id,
+        response.user.email,
+        response.user.user_metadata.get("full_name") if response.user.user_metadata else None,
+    )
     return AuthResponse(
         access_token=response.session.access_token,
         user_id=response.user.id,
