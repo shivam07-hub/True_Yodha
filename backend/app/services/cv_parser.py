@@ -61,7 +61,11 @@ _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
 
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-_OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+# Try free tier first; fall back to cheap paid model if rate-limited
+_OPENROUTER_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemini-flash-1.5",
+]
 
 
 # ── Text extraction ───────────────────────────────────────────────────────────
@@ -122,10 +126,9 @@ async def _llm_extract(cv_text: str) -> list[dict]:
             settings.lm_studio_extractor_model,
         ))
     if settings.openrouter_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE),
-            _OPENROUTER_MODEL,
-        ))
+        or_client = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
+        for model in _OPENROUTER_MODELS:
+            providers.append((or_client, model))
 
     if not providers:
         logger.error("No LLM configured for CV extraction — set LM_STUDIO_EXTRACTOR_MODEL or OPENROUTER_API_KEY")
