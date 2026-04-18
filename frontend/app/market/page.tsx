@@ -263,10 +263,10 @@ export default function MarketPage() {
   const maxIndustry = industryItems[0]?.count ?? 1
 
   function toggleCompany(name: string) {
-    setSelectedCompanies((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n })
+    setSelectedCompanies((prev) => { const n = new Set(prev); if (n.has(name)) { n.delete(name) } else { n.add(name) }; return n })
   }
   function toggleIndustry(name: string) {
-    setSelectedIndustries((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n })
+    setSelectedIndustries((prev) => { const n = new Set(prev); if (n.has(name)) { n.delete(name) } else { n.add(name) }; return n })
   }
   function clearFilters() {
     setSelectedCompanies(new Set())
@@ -285,7 +285,7 @@ export default function MarketPage() {
   function toggleSkill(skill: string) {
     setTaggedSkills((prev) => {
       const next = new Set(prev)
-      next.has(skill) ? next.delete(skill) : next.add(skill)
+      if (next.has(skill)) { next.delete(skill) } else { next.add(skill) }
       return next
     })
   }

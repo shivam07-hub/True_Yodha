@@ -5,8 +5,6 @@ import { useMutation } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { diary } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
