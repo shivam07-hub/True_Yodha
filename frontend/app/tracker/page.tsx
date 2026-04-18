@@ -5,8 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Sparkles, Target } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { JobTrackerCard } from "@/components/tracker/job-tracker-card"
-import { SkillIntelligencePanel } from "@/components/tracker/skill-intelligence-panel"
-import { jobs, scores, type ApplicationStatus } from "@/lib/api"
+import { jobs, type ApplicationStatus } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 export default function TrackerPage() {
@@ -23,12 +22,6 @@ export default function TrackerPage() {
   const appsQuery = useQuery({
     queryKey: ["applications", token],
     queryFn: () => jobs.applications(token!),
-    enabled: !!token,
-  })
-
-  const scoreQuery = useQuery({
-    queryKey: ["scores", token],
-    queryFn: () => scores.me(token!),
     enabled: !!token,
   })
 
@@ -56,7 +49,7 @@ export default function TrackerPage() {
   )
 
   const appsByJobId = useMemo(() => {
-    const map: Record<number, { status: ApplicationStatus; appliedAt: string | null }> = {}
+    const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
     for (const app of appsQuery.data ?? []) {
       map[app.job_id] = { status: app.status, appliedAt: app.applied_at }
     }
@@ -66,8 +59,6 @@ export default function TrackerPage() {
   const activeCount = (appsQuery.data ?? []).filter((a) =>
     ["applied", "responded", "interviewing"].includes(a.status)
   ).length
-
-  const gapSkills = scoreQuery.data?.gap_skills ?? []
 
   if (!ready) return null
 
@@ -96,30 +87,28 @@ export default function TrackerPage() {
         </button>
       </div>
 
-      {/* ── Two-column layout ────────────────────────────────── */}
-      <div className="flex gap-6 items-start lg:flex-row flex-col">
+      {/* ── Job matches + application tracking ─────────────── */}
+      <div className="space-y-3">
+        <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Top matches from your CV
+        </h2>
 
-        {/* Left — Job matches + application tracking */}
-        <div className="w-full lg:w-[400px] shrink-0 space-y-3">
-          <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Top matches from your CV
-          </h2>
-
-          {matchesQuery.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-36 animate-pulse rounded-xl border border-border bg-muted/30" />
-              ))}
-            </div>
-          ) : topJobs.length === 0 ? (
-            <div className="rounded-xl border border-border px-4 py-10 text-center">
-              <p className="text-sm font-medium">No matches yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Upload your CV then refresh matches to see your top roles.
-              </p>
-            </div>
-          ) : (
-            topJobs.map((job) => {
+        {matchesQuery.isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-36 animate-pulse rounded-xl border border-border bg-muted/30" />
+            ))}
+          </div>
+        ) : topJobs.length === 0 ? (
+          <div className="rounded-xl border border-border px-4 py-10 text-center">
+            <p className="text-sm font-medium">No matches yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Upload your CV then refresh matches to see your top roles.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {topJobs.map((job) => {
               const app = appsByJobId[job.job_id]
               return (
                 <JobTrackerCard
@@ -133,18 +122,9 @@ export default function TrackerPage() {
                   onAddToTracker={() => addToTracker.mutate(job.job_id)}
                 />
               )
-            })
-          )}
-        </div>
-
-        {/* Right — Skill intelligence panel */}
-        <div className="flex-1 min-w-0">
-          <SkillIntelligencePanel
-            gapSkills={gapSkills}
-            isLoading={scoreQuery.isLoading}
-          />
-        </div>
-
+            })}
+          </div>
+        )}
       </div>
     </AppShell>
   )

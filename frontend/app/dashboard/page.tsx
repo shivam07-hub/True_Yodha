@@ -2,11 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { scores, jobs } from "@/lib/api"
-import { ScoreGauge } from "@/components/onboarding/score-gauge"
+import { scores, users } from "@/lib/api"
 import { DomainRadar } from "@/components/dashboard/domain-radar"
 import { SkillUpgradeCard } from "@/components/dashboard/skill-upgrade-card"
-import { JobMatchCard } from "@/components/dashboard/job-match-card"
+import { SkillIntelligencePanel } from "@/components/tracker/skill-intelligence-panel"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AppShell } from "@/components/app-shell"
 
@@ -19,9 +18,9 @@ export default function DashboardPage() {
     enabled: !!token,
   })
 
-  const { data: jobData, isLoading: jobsLoading } = useQuery({
-    queryKey: ["jobs", token],
-    queryFn: () => jobs.matches(token!),
+  const { data: skillsData } = useQuery({
+    queryKey: ["user-skills", token],
+    queryFn: () => users.mySkills(token!),
     enabled: !!token,
   })
 
@@ -29,42 +28,31 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto flex max-w-2xl flex-col gap-10">
+      <div className="mx-auto flex max-w-5xl flex-col gap-10">
 
-        {/* Truth Score */}
-        <section>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            Truth Score
-          </h2>
-          {scoreLoading ? (
-            <div className="flex flex-col items-center gap-4">
-              <Skeleton className="w-48 h-28 rounded-xl" />
-              <Skeleton className="w-24 h-8" />
-            </div>
-          ) : scoreData ? (
-            <div className="flex flex-col items-center">
-              <ScoreGauge score={scoreData.total_score} />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No score yet.{" "}
-              <a href="/onboarding" className="underline underline-offset-2">
-                Upload your CV
-              </a>{" "}
-              to get started.
-            </p>
-          )}
-        </section>
-
-        {/* Domain Radar */}
-        {scoreData && (
+        {/* Domain Breakdown + Skill Intelligence — side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <section>
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
               Domain Breakdown
             </h2>
-            <DomainRadar domainScores={scoreData.domain_scores} />
+            {scoreData ? (
+              <DomainRadar
+                domainScores={scoreData.domain_scores}
+                skillsByDomain={skillsData?.by_domain}
+              />
+            ) : (
+              <Skeleton className="h-64 rounded-xl" />
+            )}
           </section>
-        )}
+
+          <section>
+            <SkillIntelligencePanel
+              gapSkills={scoreData?.gap_skills ?? []}
+              isLoading={scoreLoading}
+            />
+          </section>
+        </div>
 
         {/* Top 5 Skill Upgrades */}
         <section>
@@ -85,28 +73,6 @@ export default function DashboardPage() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No skill gaps identified yet.</p>
-          )}
-        </section>
-
-        {/* Top 10 Job Matches */}
-        <section>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            Top Job Matches
-          </h2>
-          {jobsLoading ? (
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-xl" />
-              ))}
-            </div>
-          ) : jobData?.jobs.length ? (
-            <div className="flex flex-col gap-3">
-              {jobData.jobs.slice(0, 10).map((job) => (
-                <JobMatchCard key={job.id} job={job} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No job matches yet.</p>
           )}
         </section>
 
