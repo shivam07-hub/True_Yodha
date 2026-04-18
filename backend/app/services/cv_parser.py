@@ -60,8 +60,10 @@ _FUZZY_THRESHOLD = 0.88
 _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
 
-_OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-# Try free tier first; fall back to cheap paid model if rate-limited
+_OPENROUTER_BASE  = "https://openrouter.ai/api/v1"
+_GROQ_BASE        = "https://api.groq.com/openai/v1"
+_GEMINI_BASE      = "https://generativelanguage.googleapis.com/v1beta/openai/"
+# Free tier first; direct Groq/Gemini if OpenRouter rate-limits; paid OR last resort
 _OPENROUTER_MODELS = [
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemini-flash-1.5",
@@ -118,7 +120,7 @@ Return JSON only — no prose, no markdown fences. Shape:
 
 
 async def _llm_extract(cv_text: str) -> list[dict]:
-    """Try LM Studio then OpenRouter. Returns [] if all providers fail."""
+    """Try LM Studio → OpenRouter (free) → Groq → Gemini → OpenRouter (paid). Returns [] if all fail."""
     providers: list[tuple[AsyncOpenAI, str]] = []
     if settings.lm_studio_extractor_model:
         providers.append((
@@ -127,11 +129,25 @@ async def _llm_extract(cv_text: str) -> list[dict]:
         ))
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
-        for model in _OPENROUTER_MODELS:
-            providers.append((or_client, model))
+        providers.append((or_client, "meta-llama/llama-3.3-70b-instruct:free"))
+    if settings.groq_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            "llama-3.1-8b-instant",
+        ))
+    if settings.google_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            "gemini-2.0-flash-lite",
+        ))
+    if settings.openrouter_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE),
+            "google/gemini-flash-1.5",
+        ))
 
     if not providers:
-        logger.error("No LLM configured for CV extraction — set LM_STUDIO_EXTRACTOR_MODEL or OPENROUTER_API_KEY")
+        logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY, GROQ_API_KEY, or GOOGLE_API_KEY")
         return []
 
     truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
