@@ -32,7 +32,7 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
     .maybe_single().execute() → result.data = data[0] if list else data
     """
     q = MagicMock()
-    for method in ("select", "eq", "order", "limit", "upsert", "insert", "update"):
+    for method in ("select", "eq", "order", "limit", "range", "upsert", "insert", "update"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -55,18 +55,18 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
 
 class TestFetchSkillDemand:
     def test_returns_demand_map(self) -> None:
-        rows = [
-            {"skill_id": 1, "job_count_30d": 120, "skills": {"taxonomy_key": "python"}},
-            {"skill_id": 2, "job_count_30d": 80,  "skills": {"taxonomy_key": "sql"}},
-        ]
+        # Mock returns same rows for both page1 and page2 (both .range() calls share the mock).
+        # main_skills weighted ×2, side_skills ×1, counts doubled across 2 pages.
+        rows = [{"main_skills": ["Python"], "side_skills": ["SQL"]}]
         db = MagicMock()
         db.table.return_value = _q(rows)
-        assert fetch_skill_demand(db) == {"python": 120, "sql": 80}
+        result = fetch_skill_demand(db)
+        # page1 + page2 both return rows → Python: 2×2=4, SQL: 1×2=2
+        assert result["Python"] == 4
+        assert result["SQL"] == 2
 
-    def test_missing_skills_row_skipped(self) -> None:
-        rows = [
-            {"skill_id": 1, "job_count_30d": 100, "skills": None},
-        ]
+    def test_none_skills_skipped(self) -> None:
+        rows = [{"main_skills": None, "side_skills": None}]
         db = MagicMock()
         db.table.return_value = _q(rows)
         assert fetch_skill_demand(db) == {}
@@ -144,15 +144,16 @@ class TestComputeAndPersistScore:
     )
 
     def _make_db(self) -> MagicMock:
-        demand_q  = _q([{"skill_id": 1, "job_count_30d": 100, "skills": {"taxonomy_key": "Django"}}])
+        # fetch_skill_demand now reads from jobs table
+        demand_q  = _q([{"main_skills": ["Django"], "side_skills": []}])
         scores_q  = _q({"user_id": "u1", "total_score": 20.0})
         history_q = _q([])
         db = MagicMock()
         def _table(name: str) -> MagicMock:
             return {
-                "skill_demand_snapshots": demand_q,
-                "mirror_scores":         scores_q,
-                "mirror_score_history":  history_q,
+                "jobs":                 demand_q,
+                "mirror_scores":        scores_q,
+                "mirror_score_history": history_q,
             }.get(name, _q([]))
         db.table.side_effect = _table
         return db

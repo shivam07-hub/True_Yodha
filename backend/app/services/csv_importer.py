@@ -2,10 +2,7 @@
 csv_importer.py — JSON importer (Dump 2+)
 
 Walks All_CSV_Outputs_thru_firecrawl/, picks the latest jobs.json per company,
-and upserts directly into Supabase job_postings.
-
-Raw skill strings are stored in raw_skill_text for future taxonomy mapping.
-primary_skills / secondary_skills are left empty until the skill tagger runs.
+and upserts directly into Supabase public.jobs.
 
 Run from project root:
     python3 backend/app/services/csv_importer.py
@@ -105,52 +102,42 @@ def build_posting(job: dict, company_folder: str) -> dict:
     location_parts = [p for p in [city, country] if p]
     location = ", ".join(location_parts) or None
 
-    work_mode = str(job.get("work_mode") or "").lower()
-
-    raw_skills: list[str] = []
-    for field in ("skills_required", "skills_preferred"):
+    def _skill_list(field: str) -> list[str]:
         val = job.get(field)
         if isinstance(val, list):
-            raw_skills.extend(str(s) for s in val if s)
-        elif isinstance(val, str) and val.strip():
-            raw_skills.append(val.strip())
+            return [str(s).strip() for s in val if s and str(s).strip()]
+        if isinstance(val, str) and val.strip():
+            return [val.strip()]
+        return []
 
     return {
-        "external_id":          str(job["job_id"]),
-        "title":                str(job["title"]),
-        "company":              job.get("company_name") or None,
-        "location":             location,
-        "remote":               work_mode in ("remote", "hybrid"),
-        "description":          job.get("raw_jd_text") or None,
-        "primary_skills":       json.dumps([]),
-        "secondary_skills":     json.dumps([]),
-        "raw_skill_text":       raw_skills,
-        "min_years_experience": _to_int(job.get("min_years_experience")),
-        "min_qualification":    job.get("degree_required") or "Any",
-        "salary_min":           _to_int(job.get("salary_min")),
-        "salary_max":           _to_int(job.get("salary_max")),
-        "salary_currency":      job.get("salary_currency") or "INR",
-        "source":               company_folder,
-        "source_url":           job.get("job_url") or None,
-        "posted_at":            parse_date_safe(job.get("date_posted")),
-        "is_active":            True,
+        "job_id":           str(job["job_id"]),
+        "job_title":        str(job["title"]),
+        "company_name":     job.get("company_name") or None,
+        "industry":         job.get("industry") or None,
+        "location":         location,
+        "apply_url":        job.get("job_url") or None,
+        "job_description":  job.get("raw_jd_text") or None,
+        "main_skills":      _skill_list("skills_required"),
+        "side_skills":      _skill_list("skills_preferred"),
+        "batch_date":       parse_date_safe(job.get("date_posted")) or date.today().isoformat(),
     }
 
 
 def upsert_batch(supabase: Client, batch: list[dict]) -> None:
-    supabase.table("job_postings").upsert(batch, on_conflict="external_id").execute()
+    supabase.table("jobs").upsert(batch, on_conflict="job_id").execute()
 
 
 def deactivate_removed_jobs(supabase: Client, current_ids: set[str]) -> int:
-    result = supabase.table("job_postings").select("external_id").eq("is_active", True).execute()
-    to_deactivate = [r["external_id"] for r in result.data if r["external_id"] not in current_ids]
-    if not to_deactivate:
+    result = supabase.table("jobs").select("job_id").execute()
+    to_delete = [r["job_id"] for r in result.data if r["job_id"] not in current_ids]
+    if not to_delete:
         return 0
-    for i in range(0, len(to_deactivate), BATCH_SIZE):
-        supabase.table("job_postings").update({"is_active": False}).in_(
-            "external_id", to_deactivate[i : i + BATCH_SIZE]
+    for i in range(0, len(to_delete), BATCH_SIZE):
+        supabase.table("jobs").delete().in_(
+            "job_id", to_delete[i : i + BATCH_SIZE]
         ).execute()
-    return len(to_deactivate)
+    return len(to_delete)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

@@ -76,9 +76,25 @@ export interface ProfileUpdate {
   target_location?: string | null
 }
 
+export interface UserSkillItem {
+  key: string
+  display_name: string
+  level: number
+  proficiency_title: string
+  evidence_text: string | null
+}
+
+export interface UserSkillsByDomain {
+  by_domain: Record<string, UserSkillItem[]>
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  mySkills: (token: string) =>
+    request<UserSkillsByDomain>("/users/me/skills", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   updateProfile: (token: string, data: ProfileUpdate) =>
@@ -95,6 +111,26 @@ export interface CVUploadResponse {
   skills_detected: number
   score: number
   redirect_to: string
+}
+
+export interface CVHistoryItem {
+  id: number
+  skills_count: number
+  mirror_score: number
+  uploaded_at: string
+}
+
+export interface CVProfile {
+  cv_raw_text: string | null
+  cv_parsed_at: string | null
+  history: CVHistoryItem[]
+}
+
+export const cv = {
+  me: (token: string) =>
+    request<CVProfile>("/cv/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {

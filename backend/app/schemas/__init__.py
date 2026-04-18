@@ -23,13 +23,15 @@ from app.schemas.scores import (
     MirrorScoreResponse,
 )
 from app.schemas.skills import (
-    DomainsListResponse,
-    SkillDomainResponse,
-    SkillLevelResponse,
     SkillResponse,
     SkillsListResponse,
 )
-from app.schemas.users import UpdateProfileRequest, UserProfileResponse
+from app.schemas.users import (
+    UpdateProfileRequest,
+    UserProfileResponse,
+    UserSkillItem,
+    UserSkillsByDomainResponse,
+)
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse",
@@ -39,7 +41,7 @@ __all__ = [
     "ApplicationStatusUpdate", "ApplicationResponse", "ComputeJobMatchesResponse",
     "MarketAnalyticsResponse", "NameCountItem", "SkillCountItem",
     "GapSkillResponse", "MirrorScoreResponse", "ComputeScoreResponse",
-    "SkillLevelResponse", "SkillResponse", "SkillDomainResponse",
-    "SkillsListResponse", "DomainsListResponse",
+    "SkillResponse", "SkillsListResponse",
     "UpdateProfileRequest", "UserProfileResponse",
+    "UserSkillItem", "UserSkillsByDomainResponse",
 ]

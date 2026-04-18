@@ -90,7 +90,9 @@ async def get_market_analytics() -> MarketAnalyticsResponse:
 @router.get("/matches", response_model=JobMatchesResponse)
 async def get_job_matches(current_user: dict = Depends(get_current_user)) -> JobMatchesResponse:
     batch_week = _last_monday()
-    db = get_supabase_for_token(current_user["token"])
+    # Admin client so the join to `jobs` table works regardless of its RLS policy.
+    # user_id filter below enforces row-level security manually.
+    db = get_supabase_admin()
 
     result = (
         db.table("user_job_matches")
@@ -116,7 +118,7 @@ async def compute_job_matches(
     """
     Run the full job-matching pipeline for the current user:
       1. Load user's skill map from user_skills
-      2. Score all active job_postings by skill overlap
+      2. Score all active jobs by skill overlap
       3. Send top 10 to GPT-4o mini for re-ranking + explanations + action plans
       4. Persist results to user_job_matches (top 3 marked is_recommended=True)
 

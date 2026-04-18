@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import type { JobMatch } from "@/lib/api"
 
@@ -37,14 +40,50 @@ function MatchedSkills({ skills }: { skills: string[] }) {
   )
 }
 
+function ActionPlan({ plan }: { plan: JobMatch["action_plan"] }) {
+  const [open, setOpen] = useState(false)
+  if (!plan || plan.length === 0) return null
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+      >
+        {open ? "Hide" : "Show"} 7-day action plan
+      </button>
+      {open && (
+        <ol className="mt-2 flex flex-col gap-2">
+          {plan.map((d) => (
+            <li key={d.day} className="text-xs">
+              <span className="font-semibold">Day {d.day} — {d.focus}</span>
+              <ul className="list-disc list-inside text-muted-foreground mt-0.5 flex flex-col gap-0.5">
+                {d.tasks.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 export function JobMatchCard({ job }: Props) {
+  const meta = [
+    job.company,
+    job.location,
+    job.industry,
+    job.remote ? "Remote" : null,
+  ].filter(Boolean).join(" · ")
+
   return (
     <div className="border border-border rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold leading-tight truncate">{job.title}</p>
           <p className="text-xs text-muted-foreground">
-            {[job.company, job.location].filter(Boolean).join(" · ") || "Company not listed"}
+            {meta || "No company or location data"}
           </p>
         </div>
         {job.llm_rank && (
@@ -55,11 +94,12 @@ export function JobMatchCard({ job }: Props) {
       </div>
       <OverlapBar value={job.overlap_score} />
       {job.llm_explanation && (
-        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
           {job.llm_explanation}
         </p>
       )}
       <MatchedSkills skills={job.matched_skills} />
+      <ActionPlan plan={job.action_plan} />
       {job.source_url && (
         <a
           href={job.source_url}
@@ -67,7 +107,7 @@ export function JobMatchCard({ job }: Props) {
           rel="noreferrer"
           className="text-xs text-foreground underline underline-offset-2"
         >
-          View posting
+          View posting →
         </a>
       )}
     </div>

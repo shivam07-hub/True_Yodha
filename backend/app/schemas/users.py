@@ -21,3 +21,15 @@ class UpdateProfileRequest(BaseModel):
     linkedin_url: str | None = None
     target_roles: list[str] | None = None
     target_location: str | None = None
+
+
+class UserSkillItem(BaseModel):
+    key: str
+    display_name: str
+    level: int
+    proficiency_title: str
+    evidence_text: str | None = None
+
+
+class UserSkillsByDomainResponse(BaseModel):
+    by_domain: dict[str, list[UserSkillItem]]

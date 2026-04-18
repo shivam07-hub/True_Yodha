@@ -205,17 +205,18 @@ def compute_gap_skills(
         step = (current_level, min(current_level + 1, target_level))
         days = _DAYS_PER_STEP.get(step, 1)
         candidates.append({
-            "taxonomy_key":       skill,
-            "skill":              skill,
+            "taxonomy_key":        skill,
+            "skill":               skill,
             "taxonomy_l2_cluster": skill_to_cluster.get(skill, "General"),
-            "current_proficiency": current_level,
-            "current_title":      _PROFICIENCY_TITLES.get(current_level, "None"),
-            "target_proficiency": target_level,
-            "target_title":       _PROFICIENCY_TITLES.get(target_level, "Legend"),
-            "days_to_close":      days,
+            "current_level":       current_level,
+            "target_level":        target_level,
+            "gap_score":           round((5 - current_level) * weight, 3),
+            "current_title":       _PROFICIENCY_TITLES.get(current_level, "None"),
+            "target_title":        _PROFICIENCY_TITLES.get(target_level, "Legend"),
+            "days_to_close":       days,
             "market_demand_weight": round(weight, 3),
-            "job_count_30d":      demand,
-            "why_it_matters":     (
+            "job_count_30d":       demand,
+            "why_it_matters":      (
                 f"Required at {_PROFICIENCY_TITLES.get(target_level, 'Expert')} level "
                 "for your target role."
             ),
@@ -249,15 +250,22 @@ def compute_rank_tier(score: float) -> str:
 # ── Supabase I/O ──────────────────────────────────────────────────────────────
 
 def fetch_skill_demand(db: Client) -> dict[str, int]:
-    """Returns {taxonomy_key: job_count_30d} from latest demand snapshot."""
-    result = db.table("skill_demand_snapshots").select(
-        "skill_id, job_count_30d, skills(taxonomy_key)"
-    ).order("snapshot_date", desc=True).limit(63).execute()
-    return {
-        row["skills"]["taxonomy_key"]: row["job_count_30d"]
-        for row in result.data
-        if row.get("skills")
-    }
+    """
+    Returns {skill_name: job_count} by counting occurrences across
+    jobs.main_skills and jobs.side_skills. Source of truth: public.jobs table.
+    main_skills weighted ×2 to reflect must-have vs nice-to-have distinction.
+    """
+    page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
+    page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+    counts: dict[str, int] = {}
+    for row in page1 + page2:
+        for s in (row.get("main_skills") or []):
+            if s and s.strip():
+                counts[s.strip()] = counts.get(s.strip(), 0) + 2
+        for s in (row.get("side_skills") or []):
+            if s and s.strip():
+                counts[s.strip()] = counts.get(s.strip(), 0) + 1
+    return counts
 
 
 def persist_user_skills(
