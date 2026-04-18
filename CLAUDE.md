@@ -54,48 +54,27 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — Skills Schema Overhaul + Dashboard Fixes)
+## LAST SESSION SUMMARY (2026-04-18 — CV Parser Debug + Version1 Cleanup)
 
 ```
 Date: 2026-04-18
 
 Work done this session:
 
-  1. fix(jobs): job card "Company not listed" — switched get_job_matches to admin client
-     (RLS was blocking cross-table join from user_job_matches → jobs)
+  1. chore: staged and committed deletion of entire Version1/ directory
+     (legacy code — all superseded by current backend/)
 
-  2. fix(scoring): gap skills never showing — fetch_skill_demand was querying empty
-     skill_demand_snapshots table. Rewrote to count from jobs.main_skills (×2) +
-     jobs.side_skills (×1) directly.
-
-  3. feat(dashboard): domain radar labels clickable → DomainDrillDialog
-     - Shows user's skills per domain, per-skill level badge
-     - Log button pre-fills diary entry for that skill
-
-  4. feat(cv): CV page full redesign — 1:4 layout
-     - Left: extracted skills grouped by Lightcast domain + evidence_text toggle
-     - Right: CV raw text + upload history (score trajectory timeline)
-     - Stores cv_raw_text in user_profiles, cv_history table per upload
-
-  5. feat(shell): Truth Score in header next to logo (color-coded by level)
-     Nav reordered: CV first, then Dashboard
-
-  6. feat(skills/schema): Lightcast taxonomy as single source of truth
-     - Dropped: skill_domains, skill_families, skill_levels,
-                candidate_skills_queue, skill_demand_snapshots
-     - skills table now: id, taxonomy_key, display_name, lightcast_id,
-                         category (L1), subcategory (L2), is_active
-     - taxonomy_loader.py + skills router + schemas rewritten to match
-     - Migration applied in Supabase via MCP
-
-  7. docs: database/schema.sql rewritten to v4.0 (current state)
-     docs/SCORING_ALGORITHM.md gap-analysis field names corrected
+  2. debug(cv): investigated "CV parsing struggling" — all 21 unit tests pass
+     Root cause: scripts run from project root can't find backend/.env → LLM config
+     loads empty → extractor silently returns []. Not a code bug — a run-context issue.
+     Confirmed LM Studio live: llama-3.2-3b-instruct returns correct skill JSON
+     when backend/ is CWD.
 
 Next session:
-  - CV upload + parsing is struggling — debug cv_parser.py
-  - Upload Shivam's real CV through /onboarding and verify top 3 matches
+  - Upload Shivam's real CV through /onboarding UI and verify top 3 matches
   - Backfill existing 86 skills rows (null category/subcategory) from taxonomy JSON
   - OpenRouter credits need top-up before Railway deploy
+  - Consider adding env-path sanity check to backend startup log
 
 LLM model map (local):
   - CV extraction:  llama-3.2-3b-instruct  (LM_STUDIO_EXTRACTOR_MODEL)
