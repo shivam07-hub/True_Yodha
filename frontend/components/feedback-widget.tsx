@@ -11,8 +11,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { feedback as feedbackApi, type FeedbackType } from "@/lib/api"
+import { useAuth } from "@/lib/hooks/use-auth"
 
-type WidgetType = "feedback" | "company" | "bug"
+type WidgetType = FeedbackType
 
 interface WidgetConfig {
   type: WidgetType
@@ -105,9 +107,11 @@ function FeedbackForm({
   config: WidgetConfig
   onClose: () => void
 }) {
+  const { token } = useAuth()
   const [values, setValues] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handleChange(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -116,11 +120,16 @@ function FeedbackForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    // TODO: wire to POST /api/feedback with { type: config.type, ...values }
-    await new Promise((r) => setTimeout(r, 600))
-    setLoading(false)
-    setSubmitted(true)
-    setTimeout(onClose, 1800)
+    setError(null)
+    try {
+      await feedbackApi.submit(config.type, values, token ?? undefined)
+      setSubmitted(true)
+      setTimeout(onClose, 1800)
+    } catch {
+      setError("Failed to send — please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
@@ -161,6 +170,7 @@ function FeedbackForm({
         </div>
       ))}
 
+      {error && <p className="text-xs text-red-500">{error}</p>}
       <DialogFooter>
         <Button type="submit" disabled={loading} className="w-full sm:w-auto">
           {loading ? "Sending…" : "Send"}

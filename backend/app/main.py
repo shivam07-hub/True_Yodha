@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, cv, diary, jobs, scores, skills, users
+from app.routers import auth, cv, diary, feedback, jobs, scores, skills, users
 
 app = FastAPI(
     title="Mirror API",
@@ -20,6 +20,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(feedback.router)
 app.include_router(skills.router)
 app.include_router(cv.router)
 app.include_router(scores.router)

@@ -178,6 +178,19 @@ CREATE TABLE daily_logs (
   UNIQUE(user_id, log_date)
 );
 
+-- ─── USER FEEDBACK ──────────────────────────────────────────
+-- Collects in-app feedback, company suggestions, and bug reports.
+-- user_id nullable — feedback can be submitted without being logged in.
+-- payload is free-form JSONB keyed by form field names.
+
+CREATE TABLE user_feedback (
+  id         SERIAL       PRIMARY KEY,
+  user_id    UUID         REFERENCES user_profiles(id) ON DELETE SET NULL,
+  type       VARCHAR(20)  NOT NULL CHECK (type IN ('feedback', 'company', 'bug')),
+  payload    JSONB        NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ  DEFAULT NOW()
+);
+
 -- ─── INDEXES ────────────────────────────────────────────────
 
 CREATE INDEX idx_skills_category      ON skills(category);
@@ -197,6 +210,9 @@ CREATE INDEX idx_matches_recommended  ON user_job_matches(user_id) WHERE is_reco
 CREATE INDEX idx_applications_user    ON job_applications(user_id);
 CREATE INDEX idx_daily_logs_user      ON daily_logs(user_id);
 CREATE INDEX idx_daily_logs_date      ON daily_logs(user_id, log_date DESC);
+CREATE INDEX idx_feedback_user        ON user_feedback(user_id);
+CREATE INDEX idx_feedback_type        ON user_feedback(type);
+CREATE INDEX idx_feedback_created     ON user_feedback(created_at DESC);
 
 -- ─── ROW LEVEL SECURITY ─────────────────────────────────────
 
@@ -207,6 +223,7 @@ ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cv_history         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_feedback      ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);
@@ -217,3 +234,5 @@ CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.
 CREATE POLICY "own cv history"     ON cv_history        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "skills public read" ON skills            FOR SELECT  USING (true);
 CREATE POLICY "jobs public read"   ON jobs              FOR SELECT  USING (true);
+CREATE POLICY "feedback insert"    ON user_feedback     FOR INSERT  WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+CREATE POLICY "own feedback read"  ON user_feedback     FOR SELECT  USING (auth.uid() = user_id);

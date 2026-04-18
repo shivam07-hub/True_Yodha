@@ -362,6 +362,19 @@ export const skills = {
   domains: () => request<string[]>("/skills/domains"),
 }
 
+// ── Feedback ─────────────────────────────────────────────────────────────────
+
+export type FeedbackType = "feedback" | "company" | "bug"
+
+export const feedback = {
+  submit: (type: FeedbackType, payload: Record<string, string>, token?: string) =>
+    request<{ ok: boolean; id: number }>("/feedback", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify({ type, payload }),
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")
