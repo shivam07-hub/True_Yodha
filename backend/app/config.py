@@ -30,10 +30,12 @@ class Settings(BaseSettings):
 
     # CORS — comma-separated string, e.g.:
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
-    allowed_origins: str = "http://localhost:3000"
+    allowed_origins: str = "*"
 
     @property
     def cors_origins(self) -> list[str]:
+        if self.allowed_origins.strip() == "*":
+            return ["*"]
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
 
