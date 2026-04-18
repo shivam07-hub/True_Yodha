@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 ROOT          = Path(__file__).resolve().parents[1]
-TAXONOMY_FILE = ROOT / "lightcast_skills_taxonomy.json"
+TAXONOMY_FILE = ROOT / "backend" / "lightcast_skills_taxonomy.json"
 ENV_FILE      = ROOT / "backend" / ".env"
 BATCH_SIZE    = 500
 

@@ -21,7 +21,7 @@ from pathlib import Path
 
 from supabase import Client
 
-TAXONOMY_FILE = Path(__file__).resolve().parents[3] / "lightcast_skills_taxonomy.json"
+TAXONOMY_FILE = Path(__file__).resolve().parents[2] / "lightcast_skills_taxonomy.json"
 
 
 class LightcastSkill:
