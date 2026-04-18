@@ -128,10 +128,10 @@ export default function CVPage() {
   if (!ready) return null
 
   const hasCv = !!cvProfile?.cv_raw_text
-  const domainEntries = Object.entries(skillsData?.by_domain ?? {}).sort(
+  const clusterEntries = Object.entries(skillsData?.by_cluster ?? {}).sort(
     ([, a], [, b]) => b.length - a.length,
   )
-  const totalSkills = domainEntries.reduce((n, [, s]) => n + s.length, 0)
+  const totalSkills = clusterEntries.reduce((n, [, s]) => n + s.length, 0)
 
   return (
     <AppShell>
@@ -145,7 +145,7 @@ export default function CVPage() {
             </p>
             {!skillsLoading && totalSkills > 0 && (
               <p className="text-xs text-foreground font-medium mt-0.5">
-                {totalSkills} skills · {domainEntries.length} domains
+                {totalSkills} skills · {clusterEntries.length} clusters
               </p>
             )}
           </div>
@@ -153,13 +153,13 @@ export default function CVPage() {
           <div className="flex-1 overflow-y-auto px-3 py-3">
             {skillsLoading ? (
               <p className="text-xs text-muted-foreground">Loading skills…</p>
-            ) : domainEntries.length === 0 ? (
+            ) : clusterEntries.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Upload a CV to see extracted skills.
               </p>
             ) : (
-              domainEntries.map(([domain, skills]) => (
-                <DomainGroup key={domain} domain={domain} skills={skills} />
+              clusterEntries.map(([cluster, skills]) => (
+                <DomainGroup key={cluster} domain={cluster} skills={skills} />
               ))
             )}
           </div>

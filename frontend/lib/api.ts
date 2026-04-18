@@ -85,7 +85,8 @@ export interface UserSkillItem {
 }
 
 export interface UserSkillsByDomain {
-  by_domain: Record<string, UserSkillItem[]>
+  by_domain: Record<string, UserSkillItem[]>    // L1 domain — for radar drill-down
+  by_cluster: Record<string, UserSkillItem[]>   // L2 cluster — for CV page
 }
 
 export const users = {
@@ -351,10 +352,12 @@ export const diary = {
 // ── Skills ────────────────────────────────────────────────────────────────────
 
 export interface Skill {
-  key: string
+  id: number
+  taxonomy_key: string
   display_name: string
-  domain: string
-  level: number
+  lightcast_id?: string
+  l1_domain: string
+  l2_cluster: string
 }
 
 export const skills = {

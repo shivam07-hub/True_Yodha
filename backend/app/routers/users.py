@@ -39,7 +39,8 @@ async def get_my_skills(current_user: dict = Depends(get_current_user)) -> UserS
         .execute()
     )
 
-    by_domain: dict[str, list[dict]] = {}
+    by_domain: dict[str, list[dict]] = {}   # L1 — for radar drill-down
+    by_cluster: dict[str, list[dict]] = {}  # L2 — for CV page
     for row in result.data:
         if not row.get("skills"):
             continue
@@ -47,19 +48,23 @@ async def get_my_skills(current_user: dict = Depends(get_current_user)) -> UserS
         key = skill["taxonomy_key"]
         level = row["matched_level"]
         lc = lookup_by_name(key)
-        domain = (lc.l1_domain if lc else "") or "General"
-        by_domain.setdefault(domain, []).append({
+        item = {
             "key": key,
             "display_name": skill.get("display_name") or key,
             "level": level,
             "proficiency_title": row.get("proficiency_title") or _PROFICIENCY_TITLES.get(level, "Scout"),
             "evidence_text": row.get("evidence_text") or None,
-        })
+        }
+        l1 = (lc.l1_domain if lc else "") or "General"
+        l2 = (lc.l2_cluster if lc else "") or "General"
+        by_domain.setdefault(l1, []).append(item)
+        by_cluster.setdefault(l2, []).append(item)
 
-    for domain in by_domain:
-        by_domain[domain].sort(key=lambda x: x["level"], reverse=True)
+    for group in (by_domain, by_cluster):
+        for key in group:
+            group[key].sort(key=lambda x: x["level"], reverse=True)
 
-    return UserSkillsByDomainResponse(by_domain=by_domain)
+    return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
 
 
 @router.put("/me/profile", response_model=UserProfileResponse)

@@ -32,4 +32,5 @@ class UserSkillItem(BaseModel):
 
 
 class UserSkillsByDomainResponse(BaseModel):
-    by_domain: dict[str, list[UserSkillItem]]
+    by_domain: dict[str, list[UserSkillItem]]    # keyed by L1 domain (for radar drill-down)
+    by_cluster: dict[str, list[UserSkillItem]]   # keyed by L2 cluster (for CV page)
