@@ -44,8 +44,9 @@ function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }
           x={nx}
           y={ny + i * 13}
           textAnchor={textAnchor}
-          fontSize={11}
-          fill="hsl(var(--primary))"
+          fontSize={10}
+          fill="rgba(240,244,255,0.55)"
+          fontFamily="var(--font-sans), sans-serif"
         >
           {word}
         </text>
@@ -68,10 +69,10 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
 
   return (
     <>
-      <div className="w-full h-80">
+      <div className="w-full h-72">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="hsl(var(--border))" />
+            <PolarGrid stroke="rgba(0,245,212,0.1)" />
             <PolarAngleAxis
               dataKey="domain"
               tick={(props: Omit<TickProps, "onClick">) => (
@@ -80,15 +81,15 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
             />
             <Radar
               dataKey="score"
-              stroke="hsl(var(--primary))"
-              fill="hsl(var(--primary))"
-              fillOpacity={0.15}
-              strokeWidth={2}
+              stroke="#00F5D4"
+              fill="#00F5D4"
+              fillOpacity={0.12}
+              strokeWidth={1.5}
             />
           </RadarChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-center text-muted-foreground -mt-2">
+      <p style={{ fontSize: 11, textAlign: "center", color: "rgba(240,244,255,0.35)", marginTop: -8 }}>
         Tap a domain label to see your skills
       </p>
 
