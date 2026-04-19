@@ -346,7 +346,7 @@ def tag_jobs_with_llm(
                         retries = rate_limit_retries.get(attempt, 0)
                         if retries < 1:
                             if verbose:
-                                print(f"0 tagged, retrying...", end=" ", flush=True)
+                                print("0 tagged, retrying...", end=" ", flush=True)
                             rate_limit_retries[attempt] = retries + 1
                             continue
                         # Still 0 after retry — skip batch, stay on lmstudio
@@ -354,7 +354,7 @@ def tag_jobs_with_llm(
                             cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
                         save_cache(cache)
                         if verbose:
-                            print(f"skipped (0 tagged after retry)")
+                            print("skipped (0 tagged after retry)")
                         break
 
                     # 0/N tagged = model replied but IDs didn't match — try next provider
@@ -381,7 +381,7 @@ def tag_jobs_with_llm(
                             cache[str(job["job_id"])] = _EMPTY_TAGS.copy()
                         save_cache(cache)
                         if verbose:
-                            print(f"timeout — batch skipped")
+                            print("timeout — batch skipped")
                         break
 
                     wait_secs = active[attempt].get("rate_limit_wait", 0)

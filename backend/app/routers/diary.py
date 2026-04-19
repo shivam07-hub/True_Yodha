@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
@@ -86,7 +86,7 @@ async def get_diary_history(
 
 def _merge_signals_into_user_skills(db, user_id: str, signals: list[dict]) -> None:
     """Only upgrade a skill level — never downgrade from diary entries."""
-    from app.services.scoring_engine import _SIGNAL_LEVEL_MAP, infer_level_from_signals
+    from app.services.scoring_engine import infer_level_from_signals
 
     skill_id_result = db.table("skills").select("id, taxonomy_key").execute()
     skill_id_map = {r["taxonomy_key"]: r["id"] for r in skill_id_result.data}
