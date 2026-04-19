@@ -36,6 +36,46 @@ function computeTotalXP(entries: DiaryEntry[]): number {
   return entries.reduce((sum, e) => sum + e.skills_delta.reduce((s, d) => s + d.xp_added, 0), 0)
 }
 
+function MilestoneRing({ done, color, icon, label }: { done: boolean; color: string; icon: string; label: string }) {
+  const r = 22
+  const circ = 2 * Math.PI * r
+  const progress = done ? circ : 0
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+      padding: "16px 12px", borderRadius: 12,
+      background: done ? `${color}0a` : "rgba(255,255,255,0.02)",
+      border: `1px solid ${done ? color + "25" : "rgba(255,255,255,0.05)"}`,
+      opacity: done ? 1 : 0.5,
+      transition: "all 0.3s",
+    }}>
+      <div style={{ position: "relative", width: 56, height: 56 }}>
+        <svg width={56} height={56} viewBox="0 0 56 56" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+          <circle cx={28} cy={28} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={3} />
+          <circle
+            cx={28} cy={28} r={r} fill="none"
+            stroke={color} strokeWidth={3}
+            strokeDasharray={circ}
+            strokeDashoffset={circ - progress}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.16,1,0.3,1)", filter: done ? `drop-shadow(0 0 4px ${color})` : "none" }}
+          />
+        </svg>
+        <div style={{
+          position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18, color: done ? color : "rgba(240,244,255,0.3)",
+          filter: done ? `drop-shadow(0 0 6px ${color})` : "none",
+        }}>
+          {done ? icon : "○"}
+        </div>
+      </div>
+      <div style={{ fontSize: 10, fontWeight: 500, color: done ? "#F0F4FF" : "rgba(240,244,255,0.35)", textAlign: "center", lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: 9, color: done ? color : "rgba(240,244,255,0.2)" }}>{done ? "✓ Done" : "Locked"}</div>
+    </div>
+  )
+}
+
 function DiaryPageInner() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
@@ -82,169 +122,199 @@ function DiaryPageInner() {
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
   const totalXP = computeTotalXP(entries)
+  const truthScore = scoresQuery.data?.total_score ?? 0
 
   const ACHIEVEMENTS = [
     { label: "CV Analysed",       done: entries.length > 0 || !!scoresQuery.data,  icon: "◈", color: "#00F5D4" },
     { label: "Score Computed",    done: !!scoresQuery.data,                         icon: "◉", color: "#00F5D4" },
-    { label: "First Diary Entry", done: entries.length >= 1,                        icon: "▣", color: "#00F5D4" },
-    { label: "5-Day Streak",      done: streak >= 5,                               icon: "◆", color: "#A97FFF" },
-    { label: "First Gap Closed",  done: false,                                     icon: "◑", color: "#A97FFF" },
-    { label: "Truth Score 80+",   done: (scoresQuery.data?.total_score ?? 0) >= 80, icon: "▲", color: "#FFB347" },
+    { label: "First Entry",       done: entries.length >= 1,                        icon: "▣", color: "#00F5D4" },
+    { label: "5-Day Streak",      done: streak >= 5,                                icon: "◆", color: "#A97FFF" },
+    { label: "Gap Closed",        done: false,                                      icon: "◑", color: "#A97FFF" },
+    { label: "Score 80+",         done: truthScore >= 80,                           icon: "▲", color: "#FFB347" },
   ]
+
+  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  const gapSkills = scoresQuery.data?.gap_skills ?? []
+  const weekPlan = weekDays.map((day, i) => ({
+    day,
+    task: gapSkills[i]?.skill ? `Practice ${gapSkills[i].skill}` : i === 6 ? "Rest & reflect" : "Log your progress",
+    done: i < streak,
+  }))
 
   return (
     <AppShell>
-      <div style={{ padding: "28px 32px", overflowY: "auto", height: "100%" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, color: "rgba(0,245,212,0.7)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
-            Diary & Achievements
-          </div>
-          <h1 style={{ fontSize: 26, fontWeight: 600, color: "#F0F4FF", letterSpacing: "-0.02em", marginBottom: 4 }}>Progress</h1>
-          <p style={{ fontSize: 13, color: "rgba(240,244,255,0.45)" }}>Your 7-day plan, diary and milestone tracker</p>
-        </div>
-
-        {/* Top: stats + milestones */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-
-          {/* Stats */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.1)", borderRadius: 14, padding: 20 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>
-              Stats
+        {/* Victory ribbon — stats across top */}
+        <div style={{
+          flexShrink: 0,
+          background: "linear-gradient(135deg, rgba(0,245,212,0.07), rgba(123,47,255,0.05), rgba(255,179,71,0.04))",
+          borderBottom: "1px solid rgba(0,245,212,0.12)",
+          padding: "16px 32px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: "rgba(0,245,212,0.7)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Diary & Achievements
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-              {[
-                { label: "Streak", value: streak, unit: "d", color: "#FFB347" },
-                { label: "Entries", value: entries.length, unit: "", color: "#00F5D4" },
-                { label: "XP", value: totalXP, unit: "", color: "#A97FFF" },
-              ].map(({ label, value, unit, color }) => (
-                <div key={label} style={{ textAlign: "center", padding: "12px 8px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, filter: `drop-shadow(0 0 6px ${color}80)` }}>
-                    {value}{unit}
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(240,244,255,0.4)", marginTop: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Truth score trend */}
-            {scoresQuery.data && (
-              <div style={{ marginTop: 16, padding: "12px 14px", borderRadius: 10, background: "rgba(0,245,212,0.06)", border: "1px solid rgba(0,245,212,0.15)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 12, color: "rgba(240,244,255,0.6)" }}>Truth Score</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#00F5D4", filter: "drop-shadow(0 0 6px rgba(0,245,212,0.7))" }}>
-                    {Math.round(scoresQuery.data.total_score)}
-                  </span>
-                </div>
-                <div style={{ marginTop: 8, height: 3, borderRadius: 999, background: "rgba(255,255,255,0.07)" }}>
-                  <div style={{ height: "100%", width: `${scoresQuery.data.total_score}%`, background: "linear-gradient(90deg,#00F5D4,rgba(0,245,212,0.5))", borderRadius: 999 }} />
-                </div>
-              </div>
+            {streak >= 3 && (
+              <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "rgba(255,179,71,0.15)", border: "1px solid rgba(255,179,71,0.3)", color: "#FFB347" }}>
+                🔥 {streak}-day streak!
+              </span>
             )}
           </div>
-
-          {/* Milestones */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.1)", borderRadius: 14, padding: 20 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>Milestones</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {ACHIEVEMENTS.map((a) => (
-                <div key={a.label} style={{
-                  padding: 12, borderRadius: 10,
-                  background: a.done ? `${a.color}0a` : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${a.done ? a.color + "25" : "rgba(255,255,255,0.05)"}`,
-                  opacity: a.done ? 1 : 0.5,
-                }}>
-                  <div style={{ fontSize: 20, marginBottom: 6, filter: a.done ? `drop-shadow(0 0 6px ${a.color})` : "none", color: a.color }}>{a.icon}</div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: a.done ? "#F0F4FF" : "rgba(240,244,255,0.4)" }}>{a.label}</div>
-                  <div style={{ fontSize: 10, color: a.done ? a.color : "rgba(240,244,255,0.25)", marginTop: 3 }}>{a.done ? "✓ Complete" : "Locked"}</div>
+          <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+            {[
+              { label: "Streak",      value: streak,              unit: "d",   color: "#FFB347" },
+              { label: "Entries",     value: entries.length,      unit: "",    color: "#00F5D4" },
+              { label: "Total XP",    value: totalXP,             unit: "",    color: "#A97FFF" },
+              { label: "Truth Score", value: Math.round(truthScore), unit: "/100", color: "#00F5D4" },
+            ].map(({ label, value, unit, color }, idx) => (
+              <div key={label} style={{
+                flex: 1,
+                padding: "8px 20px",
+                borderRight: idx < 3 ? "1px solid rgba(0,245,212,0.08)" : "none",
+                display: "flex", flexDirection: "column", gap: 2,
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1, filter: `drop-shadow(0 0 8px ${color}60)` }}>
+                  {value}{unit}
                 </div>
-              ))}
+                <div style={{ fontSize: 10, color: "rgba(240,244,255,0.4)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</div>
+              </div>
+            ))}
+            {/* Score bar */}
+            <div style={{ flex: 2, padding: "8px 20px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+              <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${Math.min(100, truthScore)}%`,
+                  background: "linear-gradient(90deg,#00F5D4,rgba(123,47,255,0.6))",
+                  borderRadius: 999, transition: "width 1s cubic-bezier(0.16,1,0.3,1)",
+                }} />
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(240,244,255,0.3)" }}>
+                {truthScore < 50 ? "Keep going — every entry counts" : truthScore < 80 ? "Strong progress — closing the gap" : "Excellent — top market position"}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Diary */}
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.08)", borderRadius: 14, padding: 20 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>Learning Diary</div>
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 32px 32px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
 
-          {/* Skills tagged from search params */}
-          {promptSkills.length > 0 && (
-            <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(0,245,212,0.06)", border: "1px solid rgba(0,245,212,0.18)" }}>
-              <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "#00F5D4", marginBottom: 6 }}>
-                Skills tagged from Intel
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {promptSkills.map((skill) => (
-                  <span key={skill} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.12)", border: "1px solid rgba(0,245,212,0.3)", color: "#00F5D4" }}>
-                    {skill}
-                  </span>
+            {/* 7-day plan */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.1)", borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>7-Day Bridge Plan</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {weekPlan.map(({ day, task, done }) => (
+                  <div key={day} style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "9px 12px", borderRadius: 8,
+                    background: done ? "rgba(0,245,212,0.06)" : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${done ? "rgba(0,245,212,0.18)" : "rgba(255,255,255,0.05)"}`,
+                  }}>
+                    <div style={{ width: 36, fontSize: 10, fontWeight: 600, color: done ? "#00F5D4" : "rgba(240,244,255,0.35)", letterSpacing: "0.04em" }}>{day}</div>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                      border: `1.5px solid ${done ? "#00F5D4" : "rgba(255,255,255,0.15)"}`,
+                      background: done ? "rgba(0,245,212,0.2)" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, color: "#00F5D4",
+                    }}>
+                      {done ? "✓" : ""}
+                    </div>
+                    <span style={{ fontSize: 12, color: done ? "rgba(240,244,255,0.7)" : "rgba(240,244,255,0.5)", textDecoration: done ? "line-through" : "none" }}>{task}</span>
+                  </div>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Entry input */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            <textarea
-              value={entryText}
-              onChange={(e) => setEntryText(e.target.value)}
-              placeholder="What did you learn today? Any blockers? How are you feeling about the journey?"
-              style={{
-                flex: 1, padding: "12px 14px", borderRadius: 10,
-                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.14)",
-                color: "#F0F4FF", fontSize: 12, lineHeight: 1.6,
-                resize: "none" as const, minHeight: 72, fontFamily: "inherit", outline: "none",
-              }}
-            />
-            <button
-              onClick={() => saveEntry.mutate()}
-              disabled={!entryText.trim() || saveEntry.isPending}
-              style={{
-                padding: "0 20px", borderRadius: 10,
-                background: "rgba(0,245,212,0.1)", border: "1px solid rgba(0,245,212,0.25)",
-                color: "#00F5D4", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-                whiteSpace: "nowrap", opacity: !entryText.trim() ? 0.4 : 1,
-              }}
-            >
-              {saveEntry.isPending ? "…" : "Add entry"}
-            </button>
+            {/* Milestones with circular rings */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.1)", borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>Milestones</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {ACHIEVEMENTS.map((a) => (
+                  <MilestoneRing key={a.label} done={a.done} color={a.color} icon={a.icon} label={a.label} />
+                ))}
+              </div>
+            </div>
           </div>
 
-          {error && <p style={{ fontSize: 12, color: "#A97FFF", marginBottom: 12 }}>{error}</p>}
+          {/* Diary */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.08)", borderRadius: 14, padding: 20 }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(0,245,212,0.6)", marginBottom: 16 }}>Learning Diary</div>
 
-          {/* Entry history */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {historyQuery.isLoading ? (
-              <div style={{ height: 80, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }} />
-            ) : entries.length === 0 ? (
-              <div style={{ padding: "24px", textAlign: "center", color: "rgba(240,244,255,0.3)", fontSize: 13 }}>
-                No entries yet. Write your first diary entry above.
+            {promptSkills.length > 0 && (
+              <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(0,245,212,0.06)", border: "1px solid rgba(0,245,212,0.18)" }}>
+                <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "#00F5D4", marginBottom: 6 }}>Skills tagged from Intel</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {promptSkills.map((skill) => (
+                    <span key={skill} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.12)", border: "1px solid rgba(0,245,212,0.3)", color: "#00F5D4" }}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
-            ) : (
-              entries.map((item) => (
-                <div key={item.id} style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: "rgba(240,244,255,0.35)", letterSpacing: "0.06em" }}>{item.log_date}</span>
-                    {item.score_after != null && (
-                      <span style={{ fontSize: 10, color: "rgba(0,245,212,0.6)", marginLeft: "auto" }}>
-                        Score: {item.score_before ?? "new"} → {item.score_after}
-                      </span>
+            )}
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <textarea
+                value={entryText}
+                onChange={(e) => setEntryText(e.target.value)}
+                placeholder="What did you learn today? Any blockers? How are you feeling about the journey?"
+                style={{
+                  flex: 1, padding: "12px 14px", borderRadius: 10,
+                  background: "rgba(255,255,255,0.03)", border: "1px solid rgba(0,245,212,0.14)",
+                  color: "#F0F4FF", fontSize: 12, lineHeight: 1.6,
+                  resize: "none" as const, minHeight: 72, fontFamily: "inherit", outline: "none",
+                }}
+              />
+              <button
+                onClick={() => saveEntry.mutate()}
+                disabled={!entryText.trim() || saveEntry.isPending}
+                style={{
+                  padding: "0 20px", borderRadius: 10,
+                  background: "rgba(0,245,212,0.1)", border: "1px solid rgba(0,245,212,0.25)",
+                  color: "#00F5D4", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+                  whiteSpace: "nowrap", opacity: !entryText.trim() ? 0.4 : 1,
+                }}
+              >
+                {saveEntry.isPending ? "…" : "Add entry"}
+              </button>
+            </div>
+
+            {error && <p style={{ fontSize: 12, color: "#A97FFF", marginBottom: 12 }}>{error}</p>}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {historyQuery.isLoading ? (
+                <div style={{ height: 80, borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }} />
+              ) : entries.length === 0 ? (
+                <div style={{ padding: "24px", textAlign: "center", color: "rgba(240,244,255,0.3)", fontSize: 13 }}>
+                  No entries yet. Write your first diary entry above.
+                </div>
+              ) : (
+                entries.map((item) => (
+                  <div key={item.id} style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, color: "rgba(240,244,255,0.35)", letterSpacing: "0.06em" }}>{item.log_date}</span>
+                      {item.score_after != null && (
+                        <span style={{ fontSize: 10, color: "rgba(0,245,212,0.6)", marginLeft: "auto" }}>
+                          Score: {item.score_before ?? "new"} → {item.score_after}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 12, color: "rgba(240,244,255,0.65)", lineHeight: 1.6 }}>{item.entry_text}</p>
+                    {item.skills_delta.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                        {item.skills_delta.map((sd) => (
+                          <span key={`${item.id}-${sd.taxonomy_key}`} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "rgba(0,245,212,0.08)", border: "1px solid rgba(0,245,212,0.2)", color: "#00F5D4" }}>
+                            {sd.taxonomy_key} +{sd.xp_added} XP
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <p style={{ fontSize: 12, color: "rgba(240,244,255,0.65)", lineHeight: 1.6 }}>{item.entry_text}</p>
-                  {item.skills_delta.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
-                      {item.skills_delta.map((sd) => (
-                        <span key={`${item.id}-${sd.taxonomy_key}`} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "rgba(0,245,212,0.08)", border: "1px solid rgba(0,245,212,0.2)", color: "#00F5D4" }}>
-                          {sd.taxonomy_key} +{sd.xp_added} XP
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

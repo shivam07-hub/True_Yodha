@@ -98,7 +98,7 @@ export default function CVPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
-  const [catFilter, setCatFilter] = useState("all")
+  const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft">("all")
   const [highlightedSkill] = useState<string | null>(null)
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
@@ -144,8 +144,33 @@ export default function CVPage() {
   if (!ready) return null
 
   const hasCv = !!cvProfile?.cv_raw_text
-  const clusterEntries = Object.entries(skillsData?.by_cluster ?? {}).sort(([, a], [, b]) => b.length - a.length)
-  const totalSkills = clusterEntries.reduce((n, [, s]) => n + s.length, 0)
+
+  const domainKeywords: Record<string, string[]> = {
+    technical: ["engineering", "programming", "software", "data", "cloud", "devops", "infrastructure", "database", "api", "security", "systems", "network", "code"],
+    domain:    ["finance", "analytics", "product", "strategy", "business", "marketing", "operations", "management", "research", "science"],
+    soft:      ["communication", "leadership", "collaboration", "soft", "interpersonal", "teamwork", "presentation", "writing", "people"],
+  }
+
+  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {}).sort(([, a], [, b]) => b.length - a.length)
+  const clusterEntries = catFilter === "all"
+    ? allClusterEntries
+    : (() => {
+        const domainEntries = Object.entries(skillsData?.by_domain ?? {})
+        if (domainEntries.length > 0) {
+          const keywords = domainKeywords[catFilter] ?? []
+          const matchingDomain = domainEntries
+            .filter(([domain]) => keywords.some((kw) => domain.toLowerCase().includes(kw)))
+          if (matchingDomain.length > 0) {
+            return matchingDomain.sort(([, a], [, b]) => b.length - a.length)
+          }
+        }
+        const keywords = domainKeywords[catFilter] ?? []
+        return allClusterEntries.filter(([cluster]) =>
+          keywords.some((kw) => cluster.toLowerCase().includes(kw))
+        )
+      })()
+
+  const totalSkills = allClusterEntries.reduce((n, [, s]) => n + s.length, 0)
 
   const counts = clusterEntries.reduce((acc, [, skills]) => {
     skills.forEach((s) => {
@@ -236,7 +261,7 @@ export default function CVPage() {
           <div style={{ overflowY: "auto", padding: "16px 20px 24px 32px", borderRight: "1px solid rgba(0,245,212,0.07)" }}>
             {/* Category filter */}
             <div style={{ display: "flex", gap: 5, marginBottom: 14 }}>
-              {["all", "by domain", "by cluster"].map((c) => (
+              {(["all", "technical", "domain", "soft"] as const).map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)} style={{
                   padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 500,
                   background: catFilter === c ? "rgba(0,245,212,0.12)" : "rgba(255,255,255,0.04)",

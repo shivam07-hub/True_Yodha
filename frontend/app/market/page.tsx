@@ -46,6 +46,7 @@ function IntelBar({ label, count, max, active, onClick }: {
 export default function MarketPage() {
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
+  const [skillFilter, setSkillFilter] = useState<string | null>(null)
 
   const { data: analytics, isLoading } = useQuery({
     queryKey: ["jobs-analytics"],
@@ -65,8 +66,11 @@ export default function MarketPage() {
     type: "industry" as const,
   }))
 
-  const list = view === "companies" ? companies : industries
-  const max = list.reduce((m, e) => Math.max(m, e.roles), 0)
+  const baseList = view === "companies" ? companies : industries
+  const list = skillFilter
+    ? baseList.filter((e) => e.skills.some((s) => s.toLowerCase().includes(skillFilter.toLowerCase())))
+    : baseList
+  const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
   const topSkills = analytics?.top_skills?.slice(0, 14) ?? []
 
   return (
@@ -96,16 +100,32 @@ export default function MarketPage() {
           </div>
         )}
 
-        {/* Top skills */}
+        {/* Top skills — clickable to filter */}
         {topSkills.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(240,244,255,0.35)", marginBottom: 10 }}>Most demanded skills</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(240,244,255,0.35)", marginBottom: 10 }}>
+              Most demanded skills {skillFilter && <span style={{ color: "#00F5D4" }}>· filtering by: {skillFilter}</span>}
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {topSkills.map((s) => (
-                <span key={s.skill} style={{ fontSize: 11, padding: "5px 12px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(240,244,255,0.5)" }}>
-                  {s.skill}
-                </span>
-              ))}
+              {topSkills.map((s) => {
+                const active = skillFilter === s.skill
+                return (
+                  <button
+                    key={s.skill}
+                    onClick={() => setSkillFilter(active ? null : s.skill)}
+                    style={{
+                      fontSize: 11, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
+                      background: active ? "rgba(0,245,212,0.15)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${active ? "rgba(0,245,212,0.4)" : "rgba(255,255,255,0.08)"}`,
+                      color: active ? "#00F5D4" : "rgba(240,244,255,0.5)",
+                      fontFamily: "inherit", transition: "all 0.15s",
+                      filter: active ? "drop-shadow(0 0 4px rgba(0,245,212,0.4))" : "none",
+                    }}
+                  >
+                    {s.skill}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -113,7 +133,7 @@ export default function MarketPage() {
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           {(["companies", "industries"] as const).map((v) => (
-            <button key={v} onClick={() => { setView(v); setSelected(null) }} style={{
+            <button key={v} onClick={() => { setView(v); setSelected(null); setSkillFilter(null) }} style={{
               padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 500,
               background: view === v ? "rgba(0,245,212,0.12)" : "rgba(255,255,255,0.04)",
               border: `1px solid ${view === v ? "rgba(0,245,212,0.4)" : "rgba(255,255,255,0.08)"}`,
