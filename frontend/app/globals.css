@@ -1,102 +1,25 @@
+/* ─────────────────────────────────────────────────────────────
+   Truth Mirror — globals
+   Tokens live in ./design-tokens.css (single source of truth).
+   ───────────────────────────────────────────────────────────── */
+@import "./design-tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* ── Truth Mirror dark theme ────────────────── */
-    --background:      219 65% 6%;    /* #050A18 */
-    --foreground:      220 100% 97%;  /* #F0F4FF */
-    --card:            220 50% 9%;
-    --card-foreground: 220 100% 97%;
-    --popover:         220 50% 9%;
-    --popover-foreground: 220 100% 97%;
-    --primary:         172 100% 48%;  /* #00F5D4 teal */
-    --primary-foreground: 219 65% 6%;
-    --secondary:       262 100% 59%;  /* #7B2FFF violet */
-    --secondary-foreground: 220 100% 97%;
-    --muted:           220 40% 12%;
-    --muted-foreground: 220 30% 55%;
-    --accent:          35 100% 64%;   /* #FFB347 amber */
-    --accent-foreground: 219 65% 6%;
-    --destructive:     0 84% 60%;
-    --destructive-foreground: 220 100% 97%;
-    --border:          220 25% 18%;
-    --input:           220 25% 18%;
-    --ring:            172 100% 48%;
-    --radius:          0.75rem;
-
-    /* ── TM raw color vars ──────────────────────── */
-    --tm-bg:     #050A18;
-    --tm-teal:   #00F5D4;
-    --tm-violet: #7B2FFF;
-    --tm-amber:  #FFB347;
-    --tm-white:  #F0F4FF;
-  }
-
   * {
     @apply border-border;
     box-sizing: border-box;
   }
-
-  html, body {
-    background: var(--tm-bg);
-    color: var(--tm-white);
-    font-family: var(--font-sans), 'Space Grotesk', sans-serif;
-  }
-
-  /* Grid texture overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgba(0, 245, 212, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 245, 212, 0.025) 1px, transparent 1px);
-    background-size: 44px 44px;
-  }
-
-  /* Radial vignette */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(5, 10, 24, 0.6) 100%);
-  }
 }
 
-/* ── Scrollbar ─────────────────────────────────── */
-::-webkit-scrollbar         { width: 3px; height: 3px; }
-::-webkit-scrollbar-track   { background: transparent; }
-::-webkit-scrollbar-thumb   { background: rgba(0, 245, 212, 0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0, 245, 212, 0.35); }
-
-/* ── Page slide animation ──────────────────────── */
+/* ── Page slide animation (legacy — kept for existing .page-enter users) */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(16px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-
 .page-enter {
   animation: pageSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* ── Selection ─────────────────────────────────── */
-::selection {
-  background: rgba(0, 245, 212, 0.2);
-  color: #F0F4FF;
-}
-
-/* ── Smooth easing globally ────────────────────── */
-* {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@layer utilities {
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
