@@ -119,36 +119,15 @@ export default function MarketPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-            Market Intelligence
-          </div>
+          {analytics && (
+            <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+              Market Intelligence · {analytics.total_jobs.toLocaleString()} jobs across {analytics.total_companies.toLocaleString()} companies in {analytics.total_industries} industries
+            </div>
+          )}
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
             Intel
           </h1>
         </div>
-
-        {/* Signal banner */}
-        {analytics && (
-          <div style={{
-            padding: "16px 20px", borderRadius: "var(--tm-radius)",
-            background: "var(--tm-accent-wash)",
-            border: "1px solid var(--tm-border-soft)",
-            marginBottom: 24, position: "relative", overflow: "hidden",
-          }}>
-            <div style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", fontSize: 48, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6 }}>
-              Market Signal
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", marginBottom: 4 }}>
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industries
-            </div>
-            {analytics.latest_batch && (
-              <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Latest batch: {analytics.latest_batch}</div>
-            )}
-          </div>
-        )}
 
         {/* Top skills — split hard / soft */}
         {topSkills.length > 0 && (() => {
