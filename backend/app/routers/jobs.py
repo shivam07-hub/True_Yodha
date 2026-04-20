@@ -12,6 +12,7 @@ from app.schemas import (
     ComputeJobMatchesResponse,
     JobMatchResponse,
     JobMatchesResponse,
+    JobSearchResponse,
     MarketAnalyticsResponse,
     NameCountItem,
     SkillCountItem,
@@ -88,6 +89,33 @@ async def get_market_analytics() -> MarketAnalyticsResponse:
     )
 
 
+@router.get("/search", response_model=JobSearchResponse)
+async def search_jobs(company: str | None = None, skill: str | None = None) -> JobSearchResponse:
+    """Public endpoint. Filter jobs by company name and/or skill (substring match on main_skills)."""
+    from app.schemas.jobs import JobSearchItem
+    db = get_supabase_admin()
+    query = db.table("jobs").select("job_id, job_title, company_name, job_description")
+    if company:
+        query = query.eq("company_name", company)
+    rows = query.limit(200).execute().data
+    if skill:
+        skill_lower = skill.lower()
+        rows = [
+            r for r in rows
+            if any(skill_lower in (s or "").lower() for s in (r.get("main_skills") or []))
+        ]
+    items = [
+        JobSearchItem(
+            job_id=r["job_id"],
+            job_title=r.get("job_title") or "",
+            company_name=r.get("company_name"),
+            job_description=r.get("job_description"),
+        )
+        for r in rows[:50]
+    ]
+    return JobSearchResponse(jobs=items, total=len(items))
+
+
 @router.get("/matches", response_model=JobMatchesResponse)
 async def get_job_matches(current_user: dict = Depends(get_current_user)) -> JobMatchesResponse:
     batch_week = _last_monday()
@@ -99,7 +127,7 @@ async def get_job_matches(current_user: dict = Depends(get_current_user)) -> Job
         db.table("user_job_matches")
         .select(
             "id, job_id, overlap_score, llm_rank, llm_explanation, is_recommended, action_plan, batch_week, computed_at, matched_skills,"
-            "jobs(job_title, company_name, industry, location, apply_url)"
+            "jobs(job_title, company_name, industry, location, apply_url, job_description)"
         )
         .eq("user_id", current_user["user_id"])
         .eq("batch_week", str(batch_week))
@@ -262,6 +290,7 @@ def _to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         batch_week=batch_week,
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
+        job_description=job.get("job_description"),
     )
 
 

@@ -23,6 +23,7 @@ class JobMatchResponse(BaseModel):
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
+    job_description: str | None = None
 
 
 class JobMatchesResponse(BaseModel):
@@ -65,6 +66,18 @@ class NameCountItem(BaseModel):
 class SkillCountItem(BaseModel):
     skill: str
     count: int
+
+
+class JobSearchItem(BaseModel):
+    job_id: str
+    job_title: str
+    company_name: str | None
+    job_description: str | None
+
+
+class JobSearchResponse(BaseModel):
+    jobs: list[JobSearchItem]
+    total: int
 
 
 class MarketAnalyticsResponse(BaseModel):
