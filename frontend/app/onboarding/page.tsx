@@ -25,9 +25,9 @@ export default function OnboardingPage() {
     setStep("role")
   }
 
-  async function handleRoleNext(role: string, location: string) {
+  async function handleRoleNext(roles: string[], location: string) {
     if (!token) {
-      sessionStorage.setItem("pending_role", role)
+      sessionStorage.setItem("pending_roles", JSON.stringify(roles))
       sessionStorage.setItem("pending_location", location)
       router.push("/login")
       return
@@ -37,9 +37,9 @@ export default function OnboardingPage() {
     setError(null)
 
     try {
-      // 1. Update profile with target role + location
+      // 1. Update profile with target roles + location
       await users.updateProfile(token, {
-        target_roles: [role],
+        target_roles: roles,
         target_location: location,
       })
 
