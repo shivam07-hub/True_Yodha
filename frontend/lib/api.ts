@@ -1,0 +1,383 @@
+/**
+ * Typed API client for the Mirror FastAPI backend.
+ * All server state should be fetched through this file.
+ * Never call fetch() directly in components — use TanStack Query + these functions.
+ */
+
+const BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  ""
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = init ?? {}
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...extraHeaders },
+    ...rest,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = body?.detail
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+          : `HTTP ${res.status}`
+    throw new Error(message)
+  }
+  return res.json() as Promise<T>
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export interface AuthResponse {
+  access_token: string | null
+  token_type: string
+  user_id: string
+  email: string | null
+  requires_email_confirmation: boolean
+  message: string | null
+}
+
+export const auth = {
+  signup: (email: string, password: string, fullName: string) =>
+    request<AuthResponse>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, full_name: fullName }),
+    }),
+  login: (email: string, password: string) =>
+    request<AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+}
+
+// ── User ──────────────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string | null
+  linkedin_url: string | null
+  target_roles: string[]
+  target_location: string | null
+  cv_url: string | null
+  cv_parsed_at: string | null
+  onboarding_complete: boolean
+  created_at: string
+  last_active_at: string
+}
+
+export interface ProfileUpdate {
+  full_name?: string | null
+  linkedin_url?: string | null
+  target_roles?: string[] | null
+  target_location?: string | null
+}
+
+export interface UserSkillItem {
+  key: string
+  display_name: string
+  level: number
+  proficiency_title: string
+  evidence_text: string | null
+}
+
+export interface UserSkillsByDomain {
+  by_domain: Record<string, UserSkillItem[]>    // L1 domain — for radar drill-down
+  by_cluster: Record<string, UserSkillItem[]>   // L2 cluster — for CV page
+}
+
+export const users = {
+  me: (token: string) =>
+    request<UserProfile>("/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  mySkills: (token: string) =>
+    request<UserSkillsByDomain>("/users/me/skills", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateProfile: (token: string, data: ProfileUpdate) =>
+    request<UserProfile>("/users/me/profile", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    }),
+}
+
+// ── CV ────────────────────────────────────────────────────────────────────────
+
+export interface CVUploadResponse {
+  skills_detected: number
+  score: number
+  redirect_to: string
+}
+
+export interface CVHistoryItem {
+  id: number
+  skills_count: number
+  mirror_score: number
+  uploaded_at: string
+}
+
+export interface CVProfile {
+  cv_raw_text: string | null
+  cv_parsed_at: string | null
+  history: CVHistoryItem[]
+}
+
+export const cv = {
+  me: (token: string) =>
+    request<CVProfile>("/cv/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {
+  const form = new FormData()
+  form.append("file", file)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 180_000)
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/cv/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new Error("CV processing timed out — try again")
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = body?.detail
+    const message =
+      typeof detail === "string"
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+          : `HTTP ${res.status}`
+    throw new Error(message)
+  }
+  return res.json()
+}
+
+// ── Scores ────────────────────────────────────────────────────────────────────
+
+export interface GapSkill {
+  skill: string
+  current_level: number
+  target_level: number
+  gap_score: number
+  job_count_30d: number
+  why_it_matters: string
+}
+
+export interface ScoreResponse {
+  total_score: number
+  domain_scores: Record<string, number>
+  gap_skills: GapSkill[]
+  skills_assessed: number
+  computed_at: string
+}
+
+interface ComputeScoreApiResponse {
+  score: ScoreResponse
+  skills_updated: number
+}
+
+export const scores = {
+  compute: (token: string) =>
+    request<ComputeScoreApiResponse>("/scores/compute", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.score),
+  me: (token: string) =>
+    request<ScoreResponse>("/scores/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+// ── Jobs ──────────────────────────────────────────────────────────────────────
+
+export interface JobMatch {
+  id: number
+  job_id: string
+  title: string
+  company: string | null
+  location: string | null
+  industry?: string | null
+  remote: boolean
+  overlap_score: number
+  llm_rank: number | null
+  llm_explanation: string | null
+  action_plan: ActionPlanDay[]
+  batch_week: string
+  source_url: string | null
+  matched_skills: string[]
+}
+
+export interface JobMatchesResponse {
+  jobs: JobMatch[]
+  batch_week: string
+  total: number
+}
+
+export interface ActionPlanDay {
+  day: number
+  focus: string
+  tasks: string[]
+}
+
+export interface ComputeJobMatchesResponse {
+  matches_written: number
+  from_cache: boolean
+  batch_week: string
+  needs_onboarding?: boolean
+}
+
+export type ApplicationStatus =
+  | "pending"
+  | "applied"
+  | "no_response"
+  | "responded"
+  | "interviewing"
+  | "rejected"
+  | "offer"
+
+export interface ApplicationResponse {
+  id: number
+  job_id: string
+  title: string
+  company: string | null
+  status: ApplicationStatus
+  applied_at: string | null
+  response_at: string | null
+  checkin_sent_at: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface NameCountItem {
+  name: string
+  count: number
+}
+
+export interface SkillCountItem {
+  skill: string
+  count: number
+}
+
+export interface MarketAnalytics {
+  total_jobs: number
+  total_companies: number
+  total_industries: number
+  latest_batch: string | null
+  by_company: NameCountItem[]
+  by_industry: NameCountItem[]
+  top_skills: SkillCountItem[]
+  company_skills: Record<string, string[]>
+  industry_skills: Record<string, string[]>
+}
+
+export const jobs = {
+  analytics: () => request<MarketAnalytics>("/jobs/analytics"),
+  matches: (token: string) =>
+    request<JobMatchesResponse>("/jobs/matches", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  compute: (token: string) =>
+    request<ComputeJobMatchesResponse>("/jobs/compute", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  applications: (token: string) =>
+    request<ApplicationResponse[]>("/jobs/applications", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateApplication: (
+    token: string,
+    jobId: string,
+    data: { status: ApplicationStatus; notes?: string | null; company_response?: string | null },
+  ) =>
+    request<ApplicationResponse>(`/jobs/applications/${jobId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    }),
+}
+
+// ── Diary ────────────────────────────────────────────────────────────────────
+
+export interface SkillDeltaItem {
+  taxonomy_key: string
+  xp_added: number
+  evidence: string
+}
+
+export interface DiaryEntry {
+  id: string
+  log_date: string
+  entry_text: string
+  skills_delta: SkillDeltaItem[]
+  score_before: number | null
+  score_after: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DiaryHistoryResponse {
+  entries: DiaryEntry[]
+  total: number
+}
+
+export const diary = {
+  createEntry: (token: string, entryText: string, logDate?: string) =>
+    request<DiaryEntry>("/diary/entry", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ entry_text: entryText, log_date: logDate }),
+    }),
+  history: (token: string, limit = 30) =>
+    request<DiaryHistoryResponse>(`/diary/history?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+// ── Skills ────────────────────────────────────────────────────────────────────
+
+export interface Skill {
+  id: number
+  taxonomy_key: string
+  display_name: string
+  lightcast_id?: string
+  l1_domain: string
+  l2_cluster: string
+}
+
+export const skills = {
+  all: () => request<Skill[]>("/skills"),
+  domains: () => request<string[]>("/skills/domains"),
+}
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+
+export type FeedbackType = "feedback" | "company" | "bug"
+
+export const feedback = {
+  submit: (type: FeedbackType, payload: Record<string, string>, token?: string) =>
+    request<{ ok: boolean; id: number }>("/feedback", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify({ type, payload }),
+    }),
+}
+
+// ── Health ────────────────────────────────────────────────────────────────────
+
+export const health = () => request<{ status: string }>("/health")

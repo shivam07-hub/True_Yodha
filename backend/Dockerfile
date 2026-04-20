@@ -2,15 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps for PyMuPDF and spaCy
-RUN apt-get update && apt-get install -y \
+# System deps for building Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
-    libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Download spaCy model (used in Phase 1C CV parsing)
 RUN python -m spacy download en_core_web_sm
 
 COPY . .

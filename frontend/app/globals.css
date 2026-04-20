@@ -1,0 +1,25 @@
+/* ─────────────────────────────────────────────────────────────
+   Truth Mirror — globals
+   Tokens live in ./design-tokens.css (single source of truth).
+   ───────────────────────────────────────────────────────────── */
+@import "./design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+}
+
+/* ── Page slide animation (legacy — kept for existing .page-enter users) */
+@keyframes pageSlideIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.page-enter {
+  animation: pageSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

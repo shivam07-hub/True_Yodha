@@ -37,6 +37,9 @@ Thumbs.db
 *.sqlite-shm
 *.sqlite-wal
 
+# LLM cache — runtime artifact, not source code
+database/skill_tag_cache.json
+
 # Logs
 *.log
 logs/
@@ -51,3 +54,24 @@ Market Data/Job_Scrapers/.venv/
 
 # Alembic — keep versions but ignore pyc
 backend/alembic/versions/__pycache__/
+
+# Reference frontend (do not track)
+career-ops-web/frontend/agency-agents/
+
+# External tool repos — not part of this project
+agency-agents/
+Screenshot*.png
+*.png
+
+# Claude Code settings — local only
+.claude/
+frontend/.claude/
+
+# Reference / design assets — not source code
+frontend/Black_futuristist_frontend/
+frontend/Brand/
+archon-install.sh
+
+# Taxonomy root copies — canonical copy lives in backend/
+lightcast_skills_taxonomy.json
+backend/lightcast_skills_taxonomy copy.json
