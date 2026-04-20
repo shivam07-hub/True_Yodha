@@ -119,6 +119,7 @@ export default function CVPage() {
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
   const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft">("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [highlightedSkill] = useState<string | null>(null)
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
@@ -192,6 +193,19 @@ export default function CVPage() {
 
   const totalSkills = allClusterEntries.reduce((n, [, s]) => n + s.length, 0)
 
+  function matchesStatus(level: number): boolean {
+    if (statusFilter === "strong")   return level >= 4
+    if (statusFilter === "gap")      return level >= 2 && level < 4
+    if (statusFilter === "critical") return level < 2
+    return true
+  }
+
+  const filteredClusterEntries = statusFilter === "all"
+    ? clusterEntries
+    : clusterEntries
+        .map(([cluster, skills]) => [cluster, skills.filter((s) => matchesStatus(s.level))] as [string, typeof skills])
+        .filter(([, skills]) => skills.length > 0)
+
   const counts = clusterEntries.reduce((acc, [, skills]) => {
     skills.forEach((s) => {
       if (s.level >= 4) acc.strong++
@@ -227,20 +241,31 @@ export default function CVPage() {
           {/* Summary stats */}
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
             {[
-              { label: "Strong",   count: counts.strong,   color: "var(--tm-success)", wash: "var(--tm-success-wash)" },
-              { label: "Gaps",     count: counts.gap,       color: "var(--tm-warning)", wash: "var(--tm-warning-wash)" },
-              { label: "Critical", count: counts.critical,  color: "var(--tm-danger)",  wash: "var(--tm-danger-wash)"  },
-            ].map(({ label, count, color, wash }) => (
-              <div key={label} style={{
-                padding: "6px 14px", borderRadius: "var(--tm-radius-sm)",
-                background: wash, border: `1px solid ${color}`,
-                display: "flex", alignItems: "center", gap: 8,
-                opacity: 0.9,
-              }}>
-                <span style={{ fontSize: 18, fontWeight: 700, color, lineHeight: 1 }}>{count}</span>
-                <span className="tm-meta">{label}</span>
-              </div>
-            ))}
+              { label: "Strong",   key: "strong",   count: counts.strong,   color: "var(--tm-success)", wash: "var(--tm-success-wash)" },
+              { label: "Gaps",     key: "gap",      count: counts.gap,       color: "var(--tm-warning)", wash: "var(--tm-warning-wash)" },
+              { label: "Critical", key: "critical", count: counts.critical,  color: "var(--tm-danger)",  wash: "var(--tm-danger-wash)"  },
+            ].map(({ label, key, count, color, wash }) => {
+              const active = statusFilter === key
+              return (
+                <button
+                  key={label}
+                  onClick={() => setStatusFilter(active ? "all" : key as typeof statusFilter)}
+                  style={{
+                    padding: "6px 14px", borderRadius: "var(--tm-radius-sm)",
+                    background: active ? color : wash,
+                    border: `1px solid ${color}`,
+                    display: "flex", alignItems: "center", gap: 8,
+                    cursor: "pointer", fontFamily: "inherit",
+                    boxShadow: active ? `0 0 10px ${color}40` : "none",
+                    transition: "all var(--tm-dur) var(--tm-ease)",
+                    outline: "none",
+                  }}
+                >
+                  <span style={{ fontSize: 18, fontWeight: 700, color: active ? "var(--tm-bg)" : color, lineHeight: 1 }}>{count}</span>
+                  <span className="tm-meta" style={{ color: active ? "var(--tm-bg)" : "inherit" }}>{label}</span>
+                </button>
+              )
+            })}
             {scoreData && (
               <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
                 <span className="tm-meta">Truth Score:</span>
@@ -306,13 +331,13 @@ export default function CVPage() {
               <div style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", padding: "32px 0", textAlign: "center" }}>
                 Loading skills…
               </div>
-            ) : clusterEntries.length === 0 ? (
+            ) : filteredClusterEntries.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>
                 <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◈</div>
-                Upload a CV to see extracted skills
+                {clusterEntries.length === 0 ? "Upload a CV to see extracted skills" : `No ${statusFilter} skills in this view`}
               </div>
             ) : (
-              clusterEntries.map(([cluster, skills]) => (
+              filteredClusterEntries.map(([cluster, skills]) => (
                 <ClusterSection
                   key={cluster}
                   cluster={cluster}
