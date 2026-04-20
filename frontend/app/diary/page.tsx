@@ -292,6 +292,11 @@ function DiaryPageInner() {
   const [entryText, setEntryText] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [promptSkills, setPromptSkills] = useState<string[]>([])
+  const [customPlan, setCustomPlan] = useState<Record<number, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("tm_week_plan") ?? "{}") } catch { return {} }
+  })
+  const [editingDay, setEditingDay] = useState<number | null>(null)
+  const [editText, setEditText] = useState("")
 
   useEffect(() => {
     // Single skill with level: ?skill=NAME&level=N
@@ -356,11 +361,21 @@ function DiaryPageInner() {
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
   const weekPlan = weekDays.map((day, i) => ({
     day,
-    task: gapSkills[i]?.skill
+    task: customPlan[i] ?? (gapSkills[i]?.skill
       ? `Practice ${gapSkills[i].skill}`
-      : i === 6 ? "Rest & reflect" : "Log your progress",
+      : i === 6 ? "Rest & reflect" : "Log your progress"),
     done: i < streak,
   }))
+
+  function saveDayEdit(i: number) {
+    const trimmed = editText.trim()
+    const next = { ...customPlan }
+    if (trimmed) next[i] = trimmed
+    else delete next[i]
+    setCustomPlan(next)
+    localStorage.setItem("tm_week_plan", JSON.stringify(next))
+    setEditingDay(null)
+  }
 
   // Today index (0=Mon … 6=Sun)
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
@@ -441,6 +456,7 @@ function DiaryPageInner() {
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 {weekPlan.map(({ day, task, done }, i) => {
                   const isToday = i === todayIdx
+                  const isEditing = editingDay === i
                   return (
                     <div key={day} style={{
                       display: "flex", alignItems: "center", gap: 10,
@@ -456,8 +472,7 @@ function DiaryPageInner() {
                       <div style={{
                         width: 30, fontSize: 10, fontWeight: 700,
                         color: done ? "var(--tm-accent)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
+                        letterSpacing: "0.06em", textTransform: "uppercase", flexShrink: 0,
                       }}>{day}</div>
 
                       {/* Status dot */}
@@ -472,15 +487,49 @@ function DiaryPageInner() {
                         {done ? "✓" : isToday ? "▸" : ""}
                       </div>
 
-                      {/* Task */}
-                      <span style={{
-                        flex: 1, fontSize: 12,
-                        color: done ? "var(--tm-text-faint)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
-                        textDecoration: done ? "line-through" : "none",
-                      }}>{task}</span>
+                      {/* Task or inline edit */}
+                      {isEditing ? (
+                        <input
+                          autoFocus
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onBlur={() => saveDayEdit(i)}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveDayEdit(i); if (e.key === "Escape") setEditingDay(null) }}
+                          style={{
+                            flex: 1, fontSize: 12, background: "var(--tm-surface-2)",
+                            border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
+                            color: "var(--tm-text)", padding: "2px 6px",
+                            fontFamily: "inherit", outline: "none",
+                          }}
+                        />
+                      ) : (
+                        <span style={{
+                          flex: 1, fontSize: 12,
+                          color: done ? "var(--tm-text-faint)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
+                          textDecoration: done ? "line-through" : "none",
+                        }}>{task}</span>
+                      )}
 
-                      {isToday && !done && (
+                      {isToday && !done && !isEditing && (
                         <span className="tm-label-caps" style={{ fontSize: 8, color: "var(--tm-accent)" }}>TODAY</span>
+                      )}
+
+                      {/* Edit icon */}
+                      {!isEditing && (
+                        <button
+                          onClick={() => { setEditingDay(i); setEditText(task) }}
+                          title="Edit this day's plan"
+                          style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "var(--tm-text-faint)", padding: "2px 4px",
+                            fontSize: 11, lineHeight: 1, flexShrink: 0,
+                            opacity: 0.4, transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
+                        >
+                          ✎
+                        </button>
                       )}
                     </div>
                   )
