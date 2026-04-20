@@ -12,12 +12,12 @@ interface Props {
 
 function TMLogo({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ color: "var(--tm-accent)" }}>
       <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
-        stroke="#00F5D4" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="#00F5D4" opacity="0.85" />
-      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="#00F5D4" opacity="0.2" />
-      <line x1="12" y1="2.5" x2="12" y2="22" stroke="#00F5D4" strokeWidth="0.8" opacity="0.6" />
+        stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
+      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
+      <line x1="12" y1="2.5" x2="12" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
     </svg>
   )
 }
@@ -47,7 +47,7 @@ export function AuthForm({ mode }: Props) {
       }
 
       localStorage.setItem("mirror_token", res.access_token)
-      router.push(mode === "login" ? "/dashboard" : "/onboarding")
+      router.push(mode === "login" ? "/market" : "/onboarding")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
