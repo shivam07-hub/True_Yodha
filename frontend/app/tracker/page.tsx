@@ -207,6 +207,11 @@ function JobCard({
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
+          {job.llm_explanation && (
+            <div style={{ fontSize: 11, color: "var(--tm-text-muted)", marginTop: 4, lineHeight: 1.5 }}>
+              {job.llm_explanation}
+            </div>
+          )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {tracked && (
