@@ -300,8 +300,8 @@ export interface MarketAnalytics {
 
 export const jobs = {
   analytics: () => request<MarketAnalytics>("/jobs/analytics"),
-  search: (company: string, skill: string) =>
-    request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}&skill=${encodeURIComponent(skill)}`),
+  search: (company: string) =>
+    request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}`),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },

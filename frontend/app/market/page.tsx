@@ -88,8 +88,8 @@ export default function MarketPage() {
   })
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: ["jobs-search", drillSkill?.company, drillSkill?.skill],
-    queryFn: () => jobs.search(drillSkill!.company, drillSkill!.skill),
+    queryKey: ["jobs-search", drillSkill?.company],
+    queryFn: () => jobs.search(drillSkill!.company),
     enabled: !!drillSkill,
     staleTime: 5 * 60 * 1000,
   })
@@ -276,7 +276,7 @@ export default function MarketPage() {
                         {drillSkill.company}
                       </div>
                       <div style={{ fontSize: 10, color: "var(--tm-accent)", marginTop: 1 }}>
-                        {drillSkill.skill} · {drillLoading ? "…" : `${drillData?.total ?? 0} roles`}
+                        All open roles · {drillLoading ? "…" : `${drillData?.total ?? 0} jobs`}
                       </div>
                     </div>
                   </div>
@@ -371,7 +371,7 @@ export default function MarketPage() {
                         {selected.type === "company" ? "Click a skill to see matching jobs" : "Skills in demand"}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        {selected.skills.slice(0, 10).map((s) => (
+                        {[...selected.skills].slice(0, 10).map((s) => (
                           <div
                             key={s}
                             onClick={() => selected.type === "company" ? setDrillSkill({ company: selected.name, skill: s }) : undefined}
