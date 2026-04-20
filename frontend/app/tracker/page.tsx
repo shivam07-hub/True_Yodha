@@ -6,6 +6,56 @@ import { AppShell } from "@/components/app-shell"
 import { jobs, scores, type ApplicationStatus, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
+function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+      onClick={onClose}
+    >
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative", zIndex: 1,
+          width: "min(560px, 92vw)", maxHeight: "80vh",
+          background: "var(--tm-surface)",
+          border: "1px solid var(--tm-border)",
+          borderRadius: "var(--tm-radius)",
+          padding: "24px",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+          display: "flex", flexDirection: "column", gap: 14,
+          overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{job.title}</div>
+            <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+              {[job.company, job.location].filter(Boolean).join(" · ")}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 12 }}>
+          <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job ID</span>
+          <span style={{ color: "var(--tm-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{job.job_id}</span>
+          <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job Title</span>
+          <span style={{ color: "var(--tm-text)" }}>{job.title}</span>
+        </div>
+        {job.job_description && (
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
+            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{job.job_description}</div>
+          </div>
+        )}
+        {!job.job_description && (
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TrackConfirmModal({ job, onConfirm, onClose }: { job: JobMatch; onConfirm: () => void; onClose: () => void }) {
   return (
     <div
@@ -87,10 +137,10 @@ function ScoreBar({ score }: { score: number }) {
 
 function JobCard({
   job, status, tracked, updating,
-  onStatusChange, onTrackClick,
+  onStatusChange, onTrackClick, onDetailClick,
 }: {
   job: JobMatch; status: ApplicationStatus; tracked: boolean; updating: boolean
-  onStatusChange: (s: ApplicationStatus) => void; onTrackClick: () => void
+  onStatusChange: (s: ApplicationStatus) => void; onTrackClick: () => void; onDetailClick: () => void
 }) {
   const [open, setOpen] = useState(false)
   const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
@@ -118,7 +168,7 @@ function JobCard({
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ minWidth: 0 }}>
           <div
-            onClick={(e) => { e.stopPropagation(); if (!tracked) onTrackClick() }}
+            onClick={(e) => { e.stopPropagation(); tracked ? onDetailClick() : onTrackClick() }}
             style={{
               fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3,
               cursor: "pointer", display: "inline-block",
@@ -367,6 +417,7 @@ export default function TrackerPage() {
   })
 
   const [confirmJob, setConfirmJob] = useState<JobMatch | null>(null)
+  const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
 
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
@@ -399,6 +450,7 @@ export default function TrackerPage() {
         onClose={() => setConfirmJob(null)}
       />
     )}
+    {detailJob && <JobDetailModal job={detailJob} onClose={() => setDetailJob(null)} />}
     <AppShell>
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
@@ -459,6 +511,7 @@ export default function TrackerPage() {
                     updating={updateStatus.isPending || addToTracker.isPending}
                     onStatusChange={(status) => updateStatus.mutate({ jobId: job.job_id, status })}
                     onTrackClick={() => setConfirmJob(job)}
+                    onDetailClick={() => setDetailJob(job)}
                   />
                 )
               })
