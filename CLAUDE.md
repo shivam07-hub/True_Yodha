@@ -54,7 +54,109 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-18 — FIRST PRODUCTION DEPLOYMENT 🚀)
+## LAST SESSION SUMMARY (2026-04-20 — PAGE REDESIGN + PARTICLE OVERHAUL)
+
+```
+Date: 2026-04-20
+Milestone: Full brand token pass applied to /dashboard, /cv, /diary, app-shell,
+           particle background. All hardcoded hex/purple removed. Signal/Forge
+           toggle now works across every redesigned surface.
+
+Commit: febd504
+
+Work done this session:
+
+  1. particle-bg.tsx — complete rewrite
+     - CONN=145 (doubled base connections), CURSOR_R=360 (doubled cursor reach)
+     - Cursor lerp speed 0.082 (was 0.038)
+     - Idle sphere: particles spring to imperfect circle (2-layer radial
+       distribution) when cursor hidden or idle 2.5s+; idleFactor ramps over 900ms
+     - Click: 28 radial blast particles + immediate shockwave push on nearby
+       particles + glide attractor toward Progress nav (sidebar x=32, y=320);
+       glide decays via strength *= 0.994; no ripple rings
+     - Accent-reactive: reads --tm-accent via getComputedStyle + hexToRgb;
+       MutationObserver watches data-accent attribute for live toggle
+
+  2. app-shell.tsx — full token pass
+     - TMLogo SVG: stroke/fill="currentColor" + style={{ color: var(--tm-accent) }}
+     - FEEDBACK_ACTIONS: added bg wash property (fixes CSS-var opacity-hex hack)
+     - Diary nav item: pulsing accent dot + "Log today →" nudge text
+     - Truth Score metric: var(--tm-text) (non-clickable; not accent per brand rules)
+     - About modal: purple section → var(--tm-surface-2); warning → var(--tm-warning-wash)
+     - All hover handlers: CSS var strings instead of hardcoded hex
+
+  3. dashboard/page.tsx — full token pass
+     - All hardcoded hex → var(--tm-*) tokens
+     - Truth Score: large monospaced hero display top-right
+     - Ambient accent glow: radial-gradient ellipse at 60% 0%
+     - .tm-page-enter + .tm-card wrappers throughout
+
+  4. cv/page.tsx — full token pass
+     - STATUS_CONFIG: strong→tm-success, close/gap→tm-warning, missing→tm-danger
+     - Purple (#A97FFF) removed entirely
+     - Level bars: var(--tm-accent); status dots: status color (distinct semantics)
+     - Filter tabs: active uses accent-wash + accent-ring
+     - Summary pills: mapped to success/warning/danger tokens
+
+  5. diary/page.tsx — complete rewrite
+     - DeepFocusTimer component: SVG ring timer (25/40/60 min), session dot tracker,
+       tm-btn-primary/ghost controls, tokn-reactive throughout
+     - MilestoneRing: removed hardcoded color prop; all accent-reactive
+     - Layout: LEFT=DeepFocusTimer, RIGHT=7-Day Milestone Plan (merged week plan
+       + achievements grid)
+     - Today's task highlighted via todayIdx from new Date().getDay()
+     - todayTask prop passed to timer for contextual display
+     - Purple removed; streak pill uses var(--tm-warning)
+
+  6. Verification
+     - tsc --noEmit → exit 0 ✓
+     - next lint → no warnings or errors ✓
+
+## CURRENT BRAND STATE (as of 2026-04-20)
+
+Brand name: "Truth Mirror — The Career Intelligence Platform"
+
+Accent system: dual, user-toggleable (FULLY WIRED)
+  - Signal (teal #00F5D4) — default
+  - Forge  (amber #FFB347)
+  - All redesigned surfaces flip correctly with the toggle
+
+Pages fully token-compliant: /dashboard, /cv, /diary, app-shell sidebar
+
+Pages NOT yet redesigned (old inline styles):
+  /tracker (Jobs), /market (Intel), /jobs (full list), /onboarding, /mission
+
+Components NOT yet redesigned:
+  components/dashboard/skill-upgrade-card.tsx — light-mode Tailwind classes
+  components/tracker/job-tracker-card.tsx     — light-mode Tailwind classes
+
+## KNOWN FOLLOW-UPS (carry into next session)
+
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode.
+      Current PNG has teal baked in — doesn't flip with accent toggle.
+  [ ] Replace TMLogo SVG in sidebar + About modal with new Signal Dot mark.
+  [ ] Redesign /tracker, /market, /jobs, /onboarding, /mission pages.
+  [ ] Token pass on skill-upgrade-card.tsx and job-tracker-card.tsx.
+
+## NEXT SESSION FOCUS
+
+  Continue page redesign pass:
+    - /tracker (Jobs Tracker) — highest user-facing priority
+    - /market (Intel panel)
+    - skill-upgrade-card.tsx + job-tracker-card.tsx components
+    - Then /jobs, /onboarding, /mission
+
+  Same checklist:
+    - All hardcoded hex → var(--tm-*) tokens
+    - Type scale: display/title/heading/body/meta (no arbitrary sizes)
+    - 4-signal affordance rule on all interactive elements
+    - Status semantics: success/warning/danger only (never accent for status)
+    - Test under both Signal and Forge accents before marking done
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-18 — FIRST PRODUCTION DEPLOYMENT 🚀)
 
 ```
 Date: 2026-04-18
