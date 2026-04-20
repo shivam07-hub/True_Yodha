@@ -7,6 +7,7 @@ from app.database import get_supabase_admin
 from app.deps import get_current_user
 from app.schemas import CVUploadResponse
 from app.services import cv_parser, scoring_engine
+from app.services.scoring_engine import fetch_aspiration_skills
 from app.services.rate_limit import assert_not_rate_limited
 
 router = APIRouter(prefix="/cv", tags=["cv"])
@@ -85,7 +86,14 @@ async def upload_cv(
             detail="No skills could be extracted from this CV. Try a more detailed document.",
         )
 
-    score_row = scoring_engine.compute_and_persist_score(db, current_user["user_id"], skills_detected)
+    # Read target roles so gap skills are role-specific, not generic market demand
+    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).single().execute()
+    target_roles: list[str] = (profile.data or {}).get("target_roles") or []
+    aspiration_skills = fetch_aspiration_skills(db, target_roles)
+
+    score_row = scoring_engine.compute_and_persist_score(
+        db, current_user["user_id"], skills_detected, aspiration_skills or None
+    )
     now = datetime.now(timezone.utc).isoformat()
 
     db.table("user_profiles").update({

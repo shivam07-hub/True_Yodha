@@ -6,6 +6,7 @@ from app.database import get_supabase_admin
 from app.deps import get_current_user
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring_engine
+from app.services.scoring_engine import fetch_aspiration_skills
 
 router = APIRouter(prefix="/scores", tags=["scores"])
 
@@ -66,7 +67,13 @@ async def recompute_score(current_user: dict = Depends(get_current_user)) -> Com
         if row.get("skills")
     ]
 
-    score_row = scoring_engine.compute_and_persist_score(db, current_user["user_id"], signals)
+    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).single().execute()
+    target_roles: list[str] = (profile.data or {}).get("target_roles") or []
+    aspiration_skills = fetch_aspiration_skills(db, target_roles)
+
+    score_row = scoring_engine.compute_and_persist_score(
+        db, current_user["user_id"], signals, aspiration_skills or None
+    )
 
     score_response = MirrorScoreResponse(
         total_score=score_row["total_score"],
