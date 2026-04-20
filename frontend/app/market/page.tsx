@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import type { JobSearchItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -19,6 +20,29 @@ const SOFT_SKILLS = new Set([
 
 function issoft(skill: string) {
   return SOFT_SKILLS.has(skill.toLowerCase())
+}
+
+interface TrackJob { job_id: string; job_title: string; company_name: string | null }
+
+function TrackConfirmModal({ job, onConfirm, onClose }: { job: TrackJob; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", zIndex: 1, width: "min(420px, 90vw)", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", borderRadius: "var(--tm-radius)", padding: "24px", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 10, opacity: 0.7 }}>Track this role?</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{job.job_title}</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 20 }}>{job.company_name ?? ""}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => { onConfirm(); onClose() }} style={{ flex: 1, padding: "9px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            Yes, track it →
+          </button>
+          <button onClick={onClose} style={{ padding: "9px 16px", borderRadius: "var(--tm-radius-sm)", background: "transparent", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 interface DrillEntity {
@@ -75,11 +99,19 @@ interface DrillSkill {
 }
 
 export default function MarketPage() {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
   const [skillFilter, setSkillFilter] = useState<string | null>(null)
   const [drillSkill, setDrillSkill] = useState<DrillSkill | null>(null)
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null)
+  const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
+
+  const addToTracker = useMutation({
+    mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
+  })
 
   const { data: analytics, isLoading } = useQuery({
     queryKey: ["jobs-analytics"],
@@ -114,6 +146,14 @@ export default function MarketPage() {
   const topSkills = analytics?.top_skills?.slice(0, 14) ?? []
 
   return (
+    <>
+    {trackJob && token && (
+      <TrackConfirmModal
+        job={trackJob}
+        onConfirm={() => addToTracker.mutate(trackJob.job_id)}
+        onClose={() => setTrackJob(null)}
+      />
+    )}
     <AppShell>
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
@@ -309,10 +349,16 @@ export default function MarketPage() {
                               {job.job_id}
                             </div>
                             {/* Title */}
-                            <div style={{
-                              fontSize: 11, fontWeight: 500, color: "var(--tm-text)",
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            }}>
+                            <div
+                              onClick={() => token && setTrackJob({ job_id: job.job_id, job_title: job.job_title, company_name: job.company_name })}
+                              style={{
+                                fontSize: 11, fontWeight: 500, color: token ? "var(--tm-accent)" : "var(--tm-text)",
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                cursor: token ? "pointer" : "default",
+                                textDecoration: token ? "underline" : "none",
+                                textDecorationColor: "var(--tm-accent-ring)",
+                              }}
+                            >
                               {job.job_title || "—"}
                             </div>
                             {/* Description */}
@@ -389,5 +435,6 @@ export default function MarketPage() {
         )}
       </div>
     </AppShell>
+    </>
   )
 }
