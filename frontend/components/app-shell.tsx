@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { scores } from "@/lib/api"
+import { scores, users } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { AccentToggle } from "@/components/accent-toggle"
 
@@ -266,7 +266,7 @@ function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]
   )
 }
 
-function UserFooter({ expanded }: { expanded: boolean }) {
+function UserFooter({ expanded, fullName }: { expanded: boolean; fullName: string | null }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showAbout, setShowAbout] = useState(false)
@@ -347,10 +347,9 @@ function UserFooter({ expanded }: { expanded: boolean }) {
             fontSize: 11, fontWeight: 700, color: "var(--tm-text)",
             transition: "all var(--tm-dur) var(--tm-ease)",
             boxShadow: menuOpen ? "0 0 12px var(--tm-accent-glow)" : "none",
-          }}>TM</div>
+          }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "TM"}</div>
           <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tm-text)" }}>My Account</div>
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>Options ↑</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
           </div>
           {expanded && (
             <div style={{ fontSize: 10, color: "var(--tm-text-faint)", transition: `transform var(--tm-dur)`, transform: menuOpen ? "rotate(180deg)" : "none", marginRight: 4 }}>▴</div>
@@ -401,7 +400,7 @@ function UserFooter({ expanded }: { expanded: boolean }) {
   )
 }
 
-function Sidebar({ score, onLogoClick }: { score: number | null; onLogoClick: () => void }) {
+function Sidebar({ score, fullName, onLogoClick }: { score: number | null; fullName: string | null; onLogoClick: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const pathname = usePathname()
 
@@ -541,7 +540,7 @@ function Sidebar({ score, onLogoClick }: { score: number | null; onLogoClick: ()
         </div>
       )}
 
-      <UserFooter expanded={expanded} />
+      <UserFooter expanded={expanded} fullName={fullName} />
     </nav>
   )
 }
@@ -557,12 +556,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: profileData } = useQuery({
+    queryKey: ["profile", token],
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 10 * 60 * 1000,
+  })
+
   if (!ready) return null
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <ParticleBg />
-      <Sidebar score={scoreData?.total_score ?? null} onLogoClick={() => setShowAbout(true)} />
+      <Sidebar score={scoreData?.total_score ?? null} fullName={profileData?.full_name ?? null} onLogoClick={() => setShowAbout(true)} />
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
         <div className="tm-page-enter" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {children}
