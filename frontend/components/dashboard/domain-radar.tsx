@@ -25,18 +25,52 @@ interface TickProps {
   [key: string]: unknown
 }
 
+// Wrap label into lines of at most MAX_CHARS, grouping words greedily
+function wrapLines(label: string, maxChars = 15): string[] {
+  const words = label.split(" ")
+  const lines: string[] = []
+  let cur = ""
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w
+    if (next.length <= maxChars) {
+      cur = next
+    } else {
+      if (cur) lines.push(cur)
+      cur = w
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
 function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }: TickProps) {
   const [hovered, setHovered] = useState(false)
   const label = payload?.value ?? ""
-  const words = label.split(" ")
+  const lines = wrapLines(label)
   const nx = typeof x === "string" ? parseFloat(x) : x
   const ny = typeof y === "string" ? parseFloat(y) : y
 
-  const lineH = 13
-  const boxW = Math.max(...words.map((w) => w.length)) * 5.6 + 16
-  const boxH = words.length * lineH + 10
-  const boxX = nx - boxW / 2
-  const boxY = ny - 12
+  const fontSize = 8
+  const charW  = 4.6          // px per char at fontSize 8 sans-serif
+  const lineH  = 11           // px between baselines
+  const padX   = 6            // horizontal inner padding
+  const padY   = 4            // vertical inner padding
+
+  // Box dimensions tight around the wrapped text
+  const boxW = Math.max(...lines.map((l) => l.length)) * charW + padX * 2
+  const boxH = lines.length * lineH + padY * 2
+
+  // Align box with textAnchor so it always encloses the text
+  const boxX =
+    textAnchor === "end"    ? nx - boxW :
+    textAnchor === "start"  ? nx :
+    /* middle */              nx - boxW / 2
+
+  // Center box vertically around recharts' tick anchor point
+  const boxY = ny - boxH / 2
+
+  // Text baseline positions: first line sits 70% down from box top
+  const firstBaseline = boxY + padY + fontSize
 
   return (
     <g
@@ -59,24 +93,24 @@ function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }
         style={{
           fill: hovered ? "var(--tm-accent-wash)" : "transparent",
           stroke: "var(--tm-accent)",
-          strokeWidth: 0.8,
+          strokeWidth: 0.75,
           transition: "fill 120ms ease",
         }}
       />
-      {words.map((word, i) => (
+      {lines.map((line, i) => (
         <text
           key={i}
-          x={nx}
-          y={ny + i * lineH}
+          x={nx + (textAnchor === "end" ? -padX : textAnchor === "start" ? padX : 0)}
+          y={firstBaseline + i * lineH}
           textAnchor={textAnchor}
-          fontSize={9}
+          fontSize={fontSize}
           style={{
-            fill: hovered ? "var(--tm-accent)" : "rgba(240,244,255,0.7)",
+            fill: hovered ? "var(--tm-accent)" : "rgba(240,244,255,0.72)",
             fontFamily: "var(--font-sans), sans-serif",
             transition: "fill 120ms ease",
           }}
         >
-          {word}
+          {line}
         </text>
       ))}
     </g>
@@ -99,7 +133,7 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
     <>
       <div className="w-full h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data}>
+          <RadarChart data={data} outerRadius="58%" margin={{ top: 18, right: 52, bottom: 18, left: 52 }}>
             <PolarGrid stroke="rgba(0,245,212,0.1)" />
             <PolarAngleAxis
               dataKey="domain"
