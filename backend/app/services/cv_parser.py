@@ -169,7 +169,10 @@ async def _llm_extract(cv_text: str) -> list[dict]:
                 ],
             )
             content = resp.choices[0].message.content or ""
-            return _parse_llm_json(content)
+            parsed = _parse_llm_json(content)
+            if parsed:
+                return parsed
+            logger.warning("CV extraction: %s returned unparseable response — trying next provider", model)
         except Exception as exc:
             logger.warning("CV extraction failed with %s: %s — trying next provider", model, exc)
 

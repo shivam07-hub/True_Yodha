@@ -7,6 +7,7 @@ from app.database import get_supabase_admin
 from app.deps import get_current_user
 from app.schemas import CVUploadResponse
 from app.services import cv_parser, scoring_engine
+from app.services.rate_limit import assert_not_rate_limited
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 
@@ -57,6 +58,9 @@ async def upload_cv(
     file: UploadFile,
     current_user: dict = Depends(get_current_user),
 ) -> CVUploadResponse:
+    db = get_supabase_admin()
+    assert_not_rate_limited(db, current_user["user_id"], "cv_history", "uploaded_at")
+
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -81,7 +85,6 @@ async def upload_cv(
             detail="No skills could be extracted from this CV. Try a more detailed document.",
         )
 
-    db = get_supabase_admin()
     score_row = scoring_engine.compute_and_persist_score(db, current_user["user_id"], skills_detected)
     now = datetime.now(timezone.utc).isoformat()
 
