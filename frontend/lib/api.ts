@@ -220,6 +220,7 @@ export interface JobMatch {
   batch_week: string
   source_url: string | null
   matched_skills: string[]
+  job_description?: string | null
 }
 
 export interface JobMatchesResponse {
@@ -273,6 +274,18 @@ export interface SkillCountItem {
   count: number
 }
 
+export interface JobSearchItem {
+  job_id: string
+  job_title: string
+  company_name: string | null
+  job_description: string | null
+}
+
+export interface JobSearchResponse {
+  jobs: JobSearchItem[]
+  total: number
+}
+
 export interface MarketAnalytics {
   total_jobs: number
   total_companies: number
@@ -287,6 +300,8 @@ export interface MarketAnalytics {
 
 export const jobs = {
   analytics: () => request<MarketAnalytics>("/jobs/analytics"),
+  search: (company: string, skill: string) =>
+    request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}&skill=${encodeURIComponent(skill)}`),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },

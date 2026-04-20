@@ -6,6 +6,134 @@ import { AppShell } from "@/components/app-shell"
 import { jobs, scores, type ApplicationStatus, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
+function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        display: "flex", alignItems: "flex-start", justifyContent: "flex-end",
+      }}
+      onClick={onClose}
+    >
+      {/* backdrop */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} />
+
+      {/* drawer */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative", zIndex: 1,
+          width: "min(560px, 92vw)", height: "100vh",
+          background: "var(--tm-surface)",
+          borderLeft: "1px solid var(--tm-border)",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "-8px 0 40px rgba(0,0,0,0.4)",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid var(--tm-border-soft)",
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6, opacity: 0.7 }}>
+              Job Detail
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>
+              {job.title}
+            </div>
+            {job.company && (
+              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 4 }}>
+                {[job.company, job.location].filter(Boolean).join(" · ")}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              flexShrink: 0, background: "none", border: "1px solid var(--tm-border-soft)",
+              borderRadius: 6, color: "var(--tm-text-faint)", cursor: "pointer",
+              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-faint)" }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Meta row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
+              <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 6 }}>Job ID</div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{job.job_id}</div>
+            </div>
+            <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
+              <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 6 }}>Job Title</div>
+              <div style={{ fontSize: 11, color: "var(--tm-text)", fontWeight: 500 }}>{job.title}</div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              Job Description
+            </div>
+            <div style={{
+              fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+              padding: "16px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+              whiteSpace: "pre-wrap", maxHeight: 420, overflowY: "auto",
+            }}>
+              {job.job_description || "No description available for this role."}
+            </div>
+          </div>
+
+          {/* Why it fits */}
+          {job.llm_explanation && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                Why it fits you
+              </div>
+              <div style={{
+                fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+                padding: "14px 16px", borderRadius: "var(--tm-radius-sm)",
+                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)",
+              }}>
+                {job.llm_explanation}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {job.source_url && (
+          <div style={{ padding: "14px 24px", borderTop: "1px solid var(--tm-border-soft)" }}>
+            <a
+              href={job.source_url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "block", textAlign: "center", padding: "10px",
+                borderRadius: "var(--tm-radius-sm)",
+                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)", fontSize: 12, fontWeight: 600, textDecoration: "none",
+              }}
+            >
+              Open full JD ↗
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const STATUSES: ApplicationStatus[] = ["pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer"]
 
 const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: string; border: string }> = {
@@ -32,10 +160,11 @@ function ScoreBar({ score }: { score: number }) {
 
 function JobCard({
   job, status, tracked, updating,
-  onStatusChange, onAddToTracker,
+  onStatusChange, onAddToTracker, onTitleClick,
 }: {
   job: JobMatch; status: ApplicationStatus; tracked: boolean; updating: boolean
   onStatusChange: (s: ApplicationStatus) => void; onAddToTracker: () => void
+  onTitleClick: () => void
 }) {
   const [open, setOpen] = useState(false)
   const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
@@ -62,7 +191,19 @@ function JobCard({
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{job.title}</div>
+          <div
+            onClick={(e) => { e.stopPropagation(); onTitleClick() }}
+            style={{
+              fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3,
+              cursor: "pointer", display: "inline-block",
+              borderBottom: "1px solid transparent",
+              transition: "color 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderBottomColor = "var(--tm-accent-ring)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.borderBottomColor = "transparent" }}
+          >
+            {job.title}
+          </div>
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
@@ -306,6 +447,8 @@ export default function TrackerPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
   })
 
+  const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
+
   const topJobs = useMemo(() => matchesQuery.data?.jobs ?? [], [matchesQuery.data])
 
   const appsByJobId = useMemo(() => {
@@ -321,6 +464,8 @@ export default function TrackerPage() {
   if (!ready) return null
 
   return (
+    <>
+    {detailJob && <JobDetailModal job={detailJob} onClose={() => setDetailJob(null)} />}
     <AppShell>
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
@@ -381,6 +526,7 @@ export default function TrackerPage() {
                     updating={updateStatus.isPending || addToTracker.isPending}
                     onStatusChange={(status) => updateStatus.mutate({ jobId: job.job_id, status })}
                     onAddToTracker={() => addToTracker.mutate(job.job_id)}
+                    onTitleClick={() => setDetailJob(job)}
                   />
                 )
               })
@@ -411,5 +557,6 @@ export default function TrackerPage() {
         </div>
       </div>
     </AppShell>
+    </>
   )
 }
