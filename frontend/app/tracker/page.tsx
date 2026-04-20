@@ -306,7 +306,7 @@ export default function TrackerPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
   })
 
-  const topJobs = useMemo(() => (matchesQuery.data?.jobs ?? []).slice(0, 5), [matchesQuery.data])
+  const topJobs = useMemo(() => matchesQuery.data?.jobs ?? [], [matchesQuery.data])
 
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}

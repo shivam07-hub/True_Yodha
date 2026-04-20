@@ -103,7 +103,6 @@ async def get_job_matches(current_user: dict = Depends(get_current_user)) -> Job
         )
         .eq("user_id", current_user["user_id"])
         .eq("batch_week", str(batch_week))
-        .eq("is_recommended", True)
         .order("llm_rank")
         .execute()
     )
