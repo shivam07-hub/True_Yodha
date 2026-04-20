@@ -66,28 +66,31 @@ export default function OnboardingPage() {
   if (!ready) return null
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <span className="text-lg font-semibold tracking-tight">Truth Mirror</span>
-        {/* Step indicators */}
-        <div className="flex items-center gap-2">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
+        <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
+          Truth Mirror
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {STEPS.map((s, i) => (
             <div
               key={s}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                i <= stepIndex ? "bg-primary" : "bg-muted"
-              }`}
+              style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: i <= stepIndex ? "var(--tm-accent)" : "var(--tm-border)",
+                transition: "background var(--tm-dur) var(--tm-ease)",
+              }}
             />
           ))}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 24px" }}>
         {error && (
-          <div className="mb-6 w-full max-w-md bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3">
-            <p className="text-xs text-destructive">{error}</p>
+          <div style={{ marginBottom: 24, width: "100%", maxWidth: 448, background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.3)", borderRadius: "var(--tm-radius)", padding: "12px 16px" }}>
+            <p style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</p>
           </div>
         )}
 

@@ -2,75 +2,95 @@
 
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Briefcase, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
+import { ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
-import { Badge } from "@/components/ui/badge"
 import { jobs, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
-function scoreTone(score: number): string {
-  if (score >= 75) return "bg-emerald-500"
-  if (score >= 50) return "bg-amber-500"
-  return "bg-muted-foreground"
+function scoreColor(score: number): string {
+  if (score >= 75) return "var(--tm-success)"
+  if (score >= 50) return "var(--tm-warning)"
+  return "var(--tm-text-faint)"
 }
 
 function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => void }) {
   const firstPlan = job.action_plan[0]
+  const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
+  const color = scoreColor(score)
 
   return (
-    <article className="rounded-lg border border-border p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold">{job.title}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+    <article style={{
+      borderRadius: "var(--tm-radius)",
+      border: "1px solid var(--tm-border-soft)",
+      background: "rgba(255,255,255,0.02)",
+      padding: "var(--tm-card-pad)",
+      transition: "border-color var(--tm-dur) var(--tm-ease)",
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
+    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {job.title}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 12, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
-          </p>
+          </div>
         </div>
         {job.llm_rank && (
-          <Badge variant="secondary" className="shrink-0 text-xs">
+          <span style={{
+            flexShrink: 0, fontSize: 10, fontWeight: 600,
+            padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
+            background: "var(--tm-accent-wash)",
+            color: "var(--tm-accent)",
+            border: "1px solid var(--tm-border-soft)",
+          }}>
             Rank {job.llm_rank}
-          </Badge>
+          </span>
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full ${scoreTone(job.overlap_score)}`}
-            style={{ width: `${Math.min(100, Math.max(0, job.overlap_score))}%` }}
-          />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16 }}>
+        <div style={{ flex: 1, height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
+          <div style={{ height: "100%", borderRadius: 999, width: `${score}%`, background: color, transition: "width 700ms var(--tm-ease)" }} />
         </div>
-        <span className="w-10 text-right text-xs font-medium">{Math.round(job.overlap_score)}%</span>
+        <span style={{ width: 40, textAlign: "right", fontSize: 12, fontWeight: 500, color }}>{score}%</span>
       </div>
 
       {job.llm_explanation && (
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{job.llm_explanation}</p>
+        <p style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+          {job.llm_explanation}
+        </p>
       )}
 
       {firstPlan && (
-        <div className="mt-3 rounded-md bg-muted px-3 py-2 text-xs">
-          <span className="font-medium">Next move: </span>
-          <span className="text-muted-foreground">{firstPlan.focus} · {firstPlan.tasks[0]}</span>
+        <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", fontSize: 12, color: "var(--tm-text-muted)" }}>
+          <span style={{ fontWeight: 600, color: "var(--tm-accent)" }}>Next: </span>
+          {firstPlan.focus} · {firstPlan.tasks[0]}
         </div>
       )}
 
-      {job.source_url && (
-        <a
-          href={job.source_url}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium underline underline-offset-2"
-        >
-          Open role <ExternalLink className="h-3 w-3" />
-        </a>
-      )}
-      <div className="mt-3">
+      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
         <button
           onClick={() => onTrack(job.job_id)}
-          className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+          className="tm-btn tm-btn-ghost"
+          style={{ height: 30, padding: "0 12px", fontSize: 12 }}
         >
-          Add to tracker
+          + Track
         </button>
+        {job.source_url && (
+          <a
+            href={job.source_url}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--tm-text-muted)", textDecoration: "none", transition: "color var(--tm-dur) var(--tm-ease)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+          >
+            Open role <ExternalLink style={{ width: 12, height: 12 }} />
+          </a>
+        )}
       </div>
     </article>
   )
@@ -112,57 +132,67 @@ export default function JobsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-base font-semibold">
-              <Briefcase className="h-4 w-4" />
-              Matched Jobs
-            </h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {matches.data?.total ?? 0} recommendations from your latest market batch
-            </p>
-          </div>
-          <button
-            onClick={() => compute.mutate()}
-            disabled={!token || compute.isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {compute.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Refresh matches
-          </button>
-        </div>
+      <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search matched roles or companies"
-            className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+                  Full Job List
+                </div>
+                <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
+                  Matched Jobs
+                </h1>
+                <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                  {matches.data?.total ?? 0} recommendations from latest market batch
+                </p>
+              </div>
+              <button
+                onClick={() => compute.mutate()}
+                disabled={!token || compute.isPending}
+                className="tm-btn tm-btn-ghost"
+                style={{ opacity: !token || compute.isPending ? 0.5 : 1 }}
+              >
+                {compute.isPending ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Sparkles style={{ width: 14, height: 14 }} />}
+                Refresh matches
+              </button>
+            </div>
 
-        {matches.isLoading ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-40 rounded-lg border border-border bg-muted/40" />
-            ))}
+            <div style={{ position: "relative" }}>
+              <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--tm-text-faint)", pointerEvents: "none" }} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search roles or companies…"
+                className="tm-input"
+                style={{ paddingLeft: 36 }}
+              />
+            </div>
           </div>
-        ) : filtered.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {filtered.map((job) => (
-              <JobCard key={job.id} job={job} onTrack={(jobId) => track.mutate(jobId)} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-border px-4 py-10 text-center">
-            <p className="text-sm font-medium">No matches yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Upload your CV, then refresh matches after the market data import is ready.
-            </p>
-          </div>
-        )}
+
+          {matches.isLoading ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ height: 160, borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)", animation: "pulse 2s infinite" }} />
+              ))}
+            </div>
+          ) : filtered.length ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+              {filtered.map((job) => (
+                <JobCard key={job.id} job={job} onTrack={(jobId) => track.mutate(jobId)} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</p>
+              <p style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                Upload your CV, then refresh after market data import.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   )

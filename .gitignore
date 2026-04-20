@@ -61,3 +61,17 @@ career-ops-web/frontend/agency-agents/
 # External tool repos — not part of this project
 agency-agents/
 Screenshot*.png
+*.png
+
+# Claude Code settings — local only
+.claude/
+frontend/.claude/
+
+# Reference / design assets — not source code
+frontend/Black_futuristist_frontend/
+frontend/Brand/
+archon-install.sh
+
+# Taxonomy root copies — canonical copy lives in backend/
+lightcast_skills_taxonomy.json
+backend/lightcast_skills_taxonomy copy.json
