@@ -66,6 +66,9 @@ Screenshot*.png
 # Claude Code settings — local only
 .claude/
 frontend/.claude/
+.agents/
+.continue/
+skills-lock.json
 
 # Reference / design assets — not source code
 frontend/Black_futuristist_frontend/
