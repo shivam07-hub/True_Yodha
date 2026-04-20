@@ -68,7 +68,7 @@ export function StepRole({ onNext, loading }: Props) {
           What roles are you targeting?
         </h2>
         <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", lineHeight: 1.6 }}>
-          Add up to {MAX_ROLES} roles. We'll match your gaps against live job postings for each.
+          Add up to {MAX_ROLES} roles. We&apos;ll match your gaps against live job postings for each.
         </p>
       </div>
 
