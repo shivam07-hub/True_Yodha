@@ -161,8 +161,7 @@ export default function DashboardPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16, position: "relative", zIndex: 1 }}>
 
           <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
-            <div className="tm-label-caps" style={{ marginBottom: 4 }}>Domain Breakdown</div>
-            <div className="tm-meta" style={{ marginBottom: 12 }}>Tap a domain to see skills</div>
+            <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
             {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
               <DomainRadar
                 domainScores={scoreData.domain_scores}

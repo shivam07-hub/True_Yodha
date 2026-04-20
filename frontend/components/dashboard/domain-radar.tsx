@@ -26,27 +26,55 @@ interface TickProps {
 }
 
 function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }: TickProps) {
+  const [hovered, setHovered] = useState(false)
   const label = payload?.value ?? ""
   const words = label.split(" ")
   const nx = typeof x === "string" ? parseFloat(x) : x
   const ny = typeof y === "string" ? parseFloat(y) : y
 
+  const lineH = 13
+  const boxW = Math.max(...words.map((w) => w.length)) * 5.6 + 16
+  const boxH = words.length * lineH + 10
+  const boxX = nx - boxW / 2
+  const boxY = ny - 12
+
   return (
     <g
       onClick={() => onClick(label)}
-      style={{ cursor: "pointer" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(label) } }}
+      tabIndex={0}
       role="button"
       aria-label={`View skills in ${label}`}
+      style={{ cursor: "pointer", outline: "none" }}
     >
+      <rect
+        x={boxX}
+        y={boxY}
+        width={boxW}
+        height={boxH}
+        rx={3}
+        ry={3}
+        style={{
+          fill: hovered ? "var(--tm-accent-wash)" : "transparent",
+          stroke: "var(--tm-accent)",
+          strokeWidth: 0.8,
+          transition: "fill 120ms ease",
+        }}
+      />
       {words.map((word, i) => (
         <text
           key={i}
           x={nx}
-          y={ny + i * 13}
+          y={ny + i * lineH}
           textAnchor={textAnchor}
-          fontSize={10}
-          fill="rgba(240,244,255,0.55)"
-          fontFamily="var(--font-sans), sans-serif"
+          fontSize={9}
+          style={{
+            fill: hovered ? "var(--tm-accent)" : "rgba(240,244,255,0.7)",
+            fontFamily: "var(--font-sans), sans-serif",
+            transition: "fill 120ms ease",
+          }}
         >
           {word}
         </text>
@@ -89,10 +117,6 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
           </RadarChart>
         </ResponsiveContainer>
       </div>
-      <p style={{ fontSize: 11, textAlign: "center", color: "rgba(240,244,255,0.35)", marginTop: -8 }}>
-        Tap a domain label to see your skills
-      </p>
-
       {selected && (
         <DomainDrillDialog
           domain={activeDomain}
