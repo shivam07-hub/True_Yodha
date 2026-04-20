@@ -7,20 +7,23 @@ export const STATUSES: ApplicationStatus[] = [
   "pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer",
 ]
 
-export const STATUS_META: Record<ApplicationStatus, { label: string; dot: string; pill: string }> = {
-  pending:      { label: "Pending",      dot: "bg-muted-foreground/40", pill: "bg-muted text-muted-foreground" },
-  applied:      { label: "Applied",      dot: "bg-blue-500",            pill: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
-  no_response:  { label: "No response",  dot: "bg-amber-500",           pill: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
-  responded:    { label: "Responded",    dot: "bg-cyan-500",            pill: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
-  interviewing: { label: "Interviewing", dot: "bg-purple-500",          pill: "bg-purple-500/10 text-purple-600 dark:text-purple-400" },
-  rejected:     { label: "Rejected",     dot: "bg-red-500",             pill: "bg-red-500/10 text-red-600 dark:text-red-400" },
-  offer:        { label: "Offer 🎉",     dot: "bg-emerald-500",         pill: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+export const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: string; border: string }> = {
+  pending:      { label: "Pending",      fg: "var(--tm-accent)",   bg: "var(--tm-accent-wash)",   border: "rgba(0,245,212,0.2)" },
+  applied:      { label: "Applied",      fg: "var(--tm-accent)",   bg: "var(--tm-accent-wash)",   border: "rgba(0,245,212,0.2)" },
+  no_response:  { label: "No response",  fg: "var(--tm-warning)",  bg: "var(--tm-warning-wash)",  border: "rgba(245,158,11,0.2)" },
+  responded:    { label: "Responded",    fg: "var(--tm-accent)",   bg: "var(--tm-accent-wash)",   border: "rgba(0,245,212,0.2)" },
+  interviewing: { label: "Interviewing", fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.2)" },
+  rejected:     { label: "Rejected",     fg: "var(--tm-danger)",   bg: "var(--tm-danger-wash)",   border: "rgba(251,113,133,0.2)" },
+  offer:        { label: "Offer 🎉",     fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.3)" },
 }
 
-function scoreTone(score: number) {
-  if (score >= 75) return "bg-emerald-500"
-  if (score >= 50) return "bg-amber-500"
-  return "bg-muted-foreground"
+function companyInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 3)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 3)
 }
 
 interface JobTrackerCardProps {
@@ -43,81 +46,151 @@ export function JobTrackerCard({
   tracked,
 }: JobTrackerCardProps) {
   const meta = STATUS_META[status]
+  const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
   const firstPlan = job.action_plan[0]
+  const scoreColor = score >= 75 ? "var(--tm-accent)" : score >= 55 ? "var(--tm-warning)" : "var(--tm-danger)"
 
   return (
-    <article className="rounded-xl border border-border bg-card p-4 space-y-3">
-      {/* Title + score */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold leading-snug">{job.title}</h3>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <span className="shrink-0 text-sm font-bold tabular-nums">
-          {Math.round(job.overlap_score)}%
+    <article
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        borderRadius: "var(--tm-radius-lg)",
+        background: "var(--tm-surface)",
+        border: "1px solid var(--tm-border-soft)",
+        padding: "var(--tm-card-pad)",
+        backdropFilter: "blur(20px)",
+        transition: "all var(--tm-dur) var(--tm-ease)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+        e.currentTarget.style.boxShadow = "var(--tm-shadow-2)"
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+        e.currentTarget.style.boxShadow = "none"
+      }}
+    >
+      {/* Status badge */}
+      {tracked && (
+        <span style={{
+          position: "absolute",
+          right: 16,
+          top: 16,
+          padding: "3px 10px",
+          borderRadius: "var(--tm-radius-pill)",
+          fontSize: "var(--tm-fs-meta)",
+          fontWeight: 500,
+          color: meta.fg,
+          background: meta.bg,
+          border: `1px solid ${meta.border}`,
+        }}>
+          {meta.label}
         </span>
+      )}
+
+      {/* Company logo + title */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <div style={{
+          width: 48,
+          height: 48,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "var(--tm-radius)",
+          border: "1px solid var(--tm-border)",
+          background: "var(--tm-surface-2)",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "var(--tm-accent)",
+          fontFamily: "var(--tm-font-mono)",
+        }}>
+          {companyInitials(job.company || "?")}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {job.title}
+          </div>
+          <div style={{ marginTop: 2, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
+          </div>
+        </div>
       </div>
 
-      {/* Overlap bar */}
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full transition-all ${scoreTone(job.overlap_score)}`}
-            style={{ width: `${Math.min(100, Math.max(0, job.overlap_score))}%` }}
-          />
+      {/* Match alignment bar */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "var(--tm-tracking-caps)", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+            Match Alignment
+          </span>
+          <span style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 500, color: scoreColor }}>{score}%</span>
         </div>
-        <span className="text-[10px] text-muted-foreground">skill match</span>
+        <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
+          <div style={{
+            height: "100%",
+            borderRadius: 999,
+            width: `${score}%`,
+            background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor})`,
+            transition: "width 700ms var(--tm-ease)",
+          }} />
+        </div>
       </div>
 
       {/* LLM explanation */}
       {job.llm_explanation && (
-        <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
+        <p style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-body)", color: "var(--tm-text-muted)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
           {job.llm_explanation}
         </p>
       )}
 
-      {/* First move */}
+      {/* Next move */}
       {firstPlan && (
-        <div className="rounded-md bg-muted/60 px-2.5 py-1.5 text-xs">
-          <span className="font-medium">Next move: </span>
-          <span className="text-muted-foreground">{firstPlan.focus}</span>
+        <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
+          <span style={{ fontWeight: 600, color: "var(--tm-accent)" }}>Next: </span>
+          {firstPlan.focus}
         </div>
       )}
 
-      {/* Footer row: status + links */}
-      <div className="flex items-center justify-between gap-2 pt-0.5">
+      {/* Footer */}
+      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingTop: 8 }}>
         {tracked ? (
-          <div className="flex items-center gap-2">
-            <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.pill}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-              {meta.label}
-            </span>
-            <select
-              value={status}
-              disabled={updating}
-              onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-              className="rounded-md border border-input bg-background px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_META[s].label}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={status}
+            disabled={updating}
+            onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "var(--tm-radius)",
+              border: "1px solid var(--tm-border)",
+              background: "var(--tm-surface-2)",
+              color: "var(--tm-text)",
+              fontSize: "var(--tm-fs-meta)",
+              fontFamily: "inherit",
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s} style={{ background: "var(--tm-surface-2)" }}>{STATUS_META[s].label}</option>
+            ))}
+          </select>
         ) : (
           <button
             onClick={onAddToTracker}
             disabled={updating}
-            className="rounded-full border border-border px-3 py-1 text-[11px] font-medium hover:bg-secondary transition-colors"
+            className="tm-btn tm-btn-ghost"
+            style={{ height: 32, padding: "0 14px", fontSize: "var(--tm-fs-meta)" }}
           >
-            + Track this role
+            + Track role
           </button>
         )}
 
-        <div className="flex items-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {appliedAt && (
-            <span className="text-[10px] text-muted-foreground">
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>
               {new Date(appliedAt).toLocaleDateString()}
             </span>
           )}
@@ -126,10 +199,12 @@ export function JobTrackerCard({
               href={job.source_url}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground"
               title="Open job posting"
+              style={{ color: "var(--tm-text-muted)", transition: "color var(--tm-dur) var(--tm-ease)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
             >
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink style={{ width: 14, height: 14 }} />
             </a>
           )}
         </div>
