@@ -125,9 +125,6 @@ export default function MarketPage() {
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
             Intel
           </h1>
-          <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-            Live hiring signals · click any entity to reveal skill data
-          </p>
         </div>
 
         {/* Signal banner */}

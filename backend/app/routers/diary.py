@@ -33,14 +33,30 @@ async def create_or_update_entry(
     else:
         score_after = score_before
 
-    # Upsert diary entry
-    skills_delta = [{"taxonomy_key": s["taxonomy_key"], "xp_added": s["xp_awarded"], "evidence": s["evidence"]} for s in signals]
+    # Append to existing entry for the day (never overwrite)
+    existing_entry = (
+        db.table("daily_logs")
+        .select("entry_text, skills_delta")
+        .eq("user_id", user_id)
+        .eq("log_date", str(log_date))
+        .maybe_single()
+        .execute()
+    )
+    if existing_entry.data:
+        prior_text = existing_entry.data.get("entry_text") or ""
+        combined_text = prior_text + "\n\n---\n\n" + body.entry_text if prior_text else body.entry_text
+        prior_delta = existing_entry.data.get("skills_delta") or []
+    else:
+        combined_text = body.entry_text
+        prior_delta = []
+
+    skills_delta = prior_delta + [{"taxonomy_key": s["taxonomy_key"], "xp_added": s["xp_awarded"], "evidence": s["evidence"]} for s in signals]
     now = datetime.now(timezone.utc).isoformat()
     db.table("daily_logs").upsert(
         {
             "user_id": user_id,
             "log_date": str(log_date),
-            "entry_text": body.entry_text,
+            "entry_text": combined_text,
             "skills_delta": skills_delta,
             "updated_at": now,
         },
