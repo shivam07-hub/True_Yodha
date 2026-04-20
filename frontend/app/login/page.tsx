@@ -81,9 +81,6 @@ function buildLists(analytics: MarketAnalytics | undefined) {
 export default function LoginPage() {
   const router = useRouter()
 
-  // Sidebar expand state (mirrors AppShell hover behaviour)
-  const [expanded, setExpanded] = useState(false)
-
   // Login form state
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -142,11 +139,8 @@ export default function LoginPage() {
 
       {/* ── Login sidebar — mirrors AppShell Sidebar exactly ── */}
       <nav
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
         style={{
-          width: expanded ? 220 : 64,
-          transition: "width 0.32s var(--tm-ease)",
+          width: 220,
           height: "100vh",
           flexShrink: 0,
           background: "rgba(5,10,24,0.97)",
@@ -168,49 +162,15 @@ export default function LoginPage() {
           <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}>
             <TMLogo />
           </div>
-          <div style={{ opacity: expanded ? 1 : 0, transition: "opacity var(--tm-dur)", whiteSpace: "nowrap", overflow: "hidden" }}>
+          <div style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Truth Mirror</div>
             <div style={{ fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>Career Intelligence</div>
           </div>
         </div>
 
-        {/* Collapsed icon hints — @ lock → */}
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
-          padding: "18px 0",
-          opacity: expanded ? 0 : 1,
-          transition: "opacity 0.15s",
-          pointerEvents: "none",
-          position: "absolute", top: 76, left: 0, width: 64,
-        }}>
-          {[
-            { glyph: "@", label: "email" },
-            { glyph: "⬡", label: "password" },
-            { glyph: "→", label: "sign in" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              aria-hidden="true"
-              title={item.label}
-              style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid var(--tm-border-soft)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, color: "rgba(240,244,255,0.3)",
-              }}
-            >
-              {item.glyph}
-            </div>
-          ))}
-        </div>
-
-        {/* Expanded login form */}
+        {/* Login form */}
         <div style={{
           flex: 1, padding: "16px 12px",
-          opacity: expanded ? 1 : 0,
-          transition: "opacity 0.18s",
-          pointerEvents: expanded ? "auto" : "none",
           overflow: "hidden",
           display: "flex", flexDirection: "column", gap: 14,
         }}>
@@ -320,7 +280,7 @@ export default function LoginPage() {
             }}>
               ?
             </div>
-            <div style={{ opacity: expanded ? 1 : 0, transition: "opacity var(--tm-dur)", whiteSpace: "nowrap", overflow: "hidden" }}>
+            <div style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
               <div style={{ fontSize: 11, color: "var(--tm-text-muted)" }}>No account?</div>
               <Link href="/signup" style={{ fontSize: 10, color: "var(--tm-accent)", textDecoration: "none" }}>
                 Sign up free →
