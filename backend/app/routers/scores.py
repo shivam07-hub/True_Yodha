@@ -17,7 +17,7 @@ async def get_my_score(current_user: dict = Depends(get_current_user)) -> Mirror
         .table("mirror_scores")
         .select("*")
         .eq("user_id", current_user["user_id"])
-        .single()
+        .maybe_single()
         .execute()
     )
     if not result.data:

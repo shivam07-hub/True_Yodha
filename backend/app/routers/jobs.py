@@ -17,6 +17,7 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.services import job_matcher, llm_ranker
+from app.services.rate_limit import assert_not_rate_limited
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -127,6 +128,8 @@ async def compute_job_matches(
     db = get_supabase_admin()
     user_id = current_user["user_id"]
     batch_week = _last_monday()
+
+    assert_not_rate_limited(db, user_id, "user_job_matches", "computed_at")
 
     # Cache check
     if llm_ranker.is_cache_valid(db, user_id, batch_week):
