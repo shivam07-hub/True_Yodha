@@ -401,16 +401,13 @@ function UserFooter({ expanded, fullName }: { expanded: boolean; fullName: strin
 }
 
 function Sidebar({ score, fullName, onLogoClick }: { score: number | null; fullName: string | null; onLogoClick: () => void }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = true
   const pathname = usePathname()
 
   return (
     <nav
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
       style={{
-        width: expanded ? 220 : 64,
-        transition: "width 0.32s var(--tm-ease)",
+        width: 220,
         height: "100vh",
         flexShrink: 0,
         background: "rgba(5,10,24,0.97)",
