@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
 import type { GapSkill } from "@/lib/api"
@@ -87,11 +87,18 @@ function GapCard({ skill, rank }: { skill: GapSkill; rank: number }) {
 
 export default function DashboardPage() {
   const { token, ready } = useAuth()
+  const queryClient = useQueryClient()
 
-  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading, isError: scoreError } = useQuery({
     queryKey: ["scores", token],
     queryFn: () => scores.me(token!),
     enabled: !!token,
+    retry: false,
+  })
+
+  const recompute = useMutation({
+    mutationFn: () => scores.compute(token!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["scores", token] }),
   })
 
   const { data: skillsData } = useQuery({
@@ -156,19 +163,61 @@ export default function DashboardPage() {
           <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
             <div className="tm-label-caps" style={{ marginBottom: 4 }}>Domain Breakdown</div>
             <div className="tm-meta" style={{ marginBottom: 12 }}>Tap a domain to see skills</div>
-            {scoreData ? (
+            {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
               <DomainRadar
                 domainScores={scoreData.domain_scores}
                 skillsByDomain={skillsData?.by_domain}
               />
-            ) : scoreLoading ? (
-              <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>
-                Loading…
+            ) : scoreLoading || recompute.isPending ? (
+              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  border: "2px solid var(--tm-border-soft)",
+                  borderTopColor: "var(--tm-accent)",
+                  animation: "spin 0.9s linear infinite",
+                }} />
+                <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                  {recompute.isPending ? "Computing scores…" : "Loading…"}
+                </span>
+              </div>
+            ) : scoreError || (scoreData && Object.keys(scoreData.domain_scores).length === 0) ? (
+              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: "var(--tm-radius)",
+                  background: "var(--tm-accent-wash)",
+                  border: "1px solid var(--tm-accent-ring)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20,
+                }}>◈</div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", marginBottom: 4 }}>
+                    {recompute.isError ? "Computation failed — try again" : "Scores not yet computed"}
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    Your CV has been processed
+                  </p>
+                </div>
+                <button
+                  onClick={() => recompute.mutate()}
+                  style={{
+                    padding: "7px 18px",
+                    borderRadius: "var(--tm-radius-sm)",
+                    background: "var(--tm-accent-wash)",
+                    border: "1px solid var(--tm-accent-ring)",
+                    color: "var(--tm-accent)",
+                    fontSize: 12, fontWeight: 500, cursor: "pointer",
+                    transition: "all var(--tm-dur) var(--tm-ease)",
+                  }}
+                >
+                  Compute Scores
+                </button>
               </div>
             ) : (
-              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", gap: 8 }}>
-                <div style={{ fontSize: 32, opacity: 0.3 }}>▣</div>
-                Upload a CV to see domain scores
+              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <div style={{ fontSize: 28, opacity: 0.2 }}>▣</div>
+                <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                  Upload a CV to see domain scores
+                </p>
               </div>
             )}
           </div>

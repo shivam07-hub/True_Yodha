@@ -15,6 +15,10 @@
   }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ── Page slide animation (legacy — kept for existing .page-enter users) */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(16px); }
