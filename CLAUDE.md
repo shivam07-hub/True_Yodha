@@ -54,7 +54,102 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-20 — PAGE REDESIGN + PARTICLE OVERHAUL)
+## LAST SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
+
+```
+Date: 2026-04-20
+Milestone: All pages token-compliant. First full production push to main (Vercel).
+
+Commits this session:
+  ba679f6  feat(auth): redirect to /market after login; TMLogo CSS-var fix
+  c28cb5f  feat(ui): tm-page-enter + TM spacing on /mission
+  f516299  feat(ui): token pass — /jobs, /onboarding, score-gauge; .gitignore cleanup
+  a36960a  feat(ui): token pass — skill-upgrade-card, job-tracker-card, /tracker, /market
+  f34d16c  chore: remove csv_importer.py
+
+Work done:
+
+  1. skill-upgrade-card.tsx — full dark token pass
+     - Light-mode Tailwind → inline styles with var(--tm-*) tokens
+     - ringColor() → gapColor() using danger/warning/accent semantics
+     - Rank number, skill name, job count, gap ring all token-reactive
+
+  2. job-tracker-card.tsx — full dark token pass
+     - STATUS_META refactored: single color string → {fg, bg, border} CSS-var fields
+     - Light bg-white/70 → var(--tm-surface); borders → var(--tm-border-soft)
+     - Score bar color: success/warning/danger based on overlap_score
+     - Company initials box: var(--tm-surface-2) + var(--tm-accent) mono text
+
+  3. /tracker page — token pass
+     - STATUS_META same fg/bg/border pattern
+     - ScoreBar: accent/warning/danger based on score
+     - AITutor: purple rgba → accent-wash + accent; input → tm-input class
+     - GapSkillCard: danger/warning/accent semantics
+     - tm-page-enter + var(--tm-page-*) spacing
+
+  4. /market page — token pass
+     - All #00F5D4 → var(--tm-accent)
+     - All rgba(240,244,255,...) → var(--tm-text-muted/faint)
+     - IntelBar, skill drill panel, toggle buttons all token-reactive
+     - tm-page-enter + proper TM spacing
+
+  5. /jobs page — token pass
+     - scoreTone() Tailwind classes → scoreColor() CSS-var fn
+     - bg-emerald-500/bg-amber-500 → var(--tm-success/warning)
+     - Full inline style rewrite; tm-page-enter wrapper
+     - Badge replaced with inline accent pill
+
+  6. /onboarding page — dark bg + TM header
+     - main element: var(--tm-bg) explicit background
+     - Step dots: var(--tm-accent) active, var(--tm-border) inactive
+     - Error banner: var(--tm-danger-wash)
+
+  7. score-gauge.tsx — CSS-var colors
+     - #22c55e/#f59e0b/#ef4444 → var(--tm-success/warning/danger)
+     - SVG stroke via style prop (CSS vars can't be SVG attributes)
+
+  8. /mission page — TM layout wrapper
+     - tm-page-enter + var(--tm-page-*) spacing
+
+  9. auth-form.tsx — login redirect + logo fix
+     - Post-login redirect: /dashboard → /market (Intel page)
+     - TMLogo: hardcoded #00F5D4 → currentColor + var(--tm-accent)
+
+  10. .gitignore — cleaned up
+      - Added: .claude/, Brand/, Black_futuristist_frontend/,
+        archon-install.sh, taxonomy copies, *.png
+
+  11. Production push
+      - git merge Develop → main (--no-ff)
+      - git pull origin main --no-rebase (reconcile PR#1 scraper history)
+      - git push origin main → 76fac0e
+      - Vercel auto-deploy triggered
+
+  12. Verification
+      - tsc --noEmit → exit 0 ✓
+      - next lint → no warnings or errors ✓
+
+## CURRENT BRAND STATE (as of 2026-04-20 evening)
+
+ALL pages token-compliant. No hardcoded hex. No purple. No light-mode classes.
+
+Pages: /cv, /dashboard, /diary, /tracker, /market, /jobs, /mission, /onboarding
+Components: app-shell, particle-bg, skill-upgrade-card, job-tracker-card,
+            auth-form, score-gauge, all onboarding steps
+
+Accent system: fully wired on all surfaces (Signal/Forge toggle works everywhere)
+Login redirect: → /market (Intel page)
+
+## KNOWN FOLLOW-UPS
+
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode.
+      Current PNG has teal baked in — doesn't flip with accent toggle.
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal.
+  [ ] Smoke test production URL end-to-end (CV upload → scores → jobs).
+  [ ] .env.local: localhost:8000 line commented out — uncomment for local backend dev.
+```
+
+## PREVIOUS SESSION SUMMARY (2026-04-20 — PAGE REDESIGN + PARTICLE OVERHAUL)
 
 ```
 Date: 2026-04-20
