@@ -15,6 +15,18 @@ interface DrillEntity {
   type: "company" | "industry"
 }
 
+function TMLogo({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ color: "var(--tm-accent)" }}>
+      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
+        stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
+      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
+      <line x1="12" y1="2.5" x2="12" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
+    </svg>
+  )
+}
+
 function IntelBar({ label, count, max, active, onClick }: {
   label: string; count: number; max: number; active: boolean; onClick: () => void
 }) {
@@ -23,28 +35,31 @@ function IntelBar({ label, count, max, active, onClick }: {
     <div
       onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
         background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
         border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-        transition: "all 0.15s ease", marginBottom: 3,
+        transition: "all var(--tm-dur) var(--tm-ease)", marginBottom: 4,
       }}
       onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)" }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 11, fontWeight: 500, marginBottom: 4,
+          fontSize: 12, fontWeight: 500, marginBottom: 5,
           color: active ? "var(--tm-accent)" : "var(--tm-text)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {label}
         </div>
-        <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${pct}%`, background: "var(--tm-accent)", transition: "width 1s ease" }} />
+        <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, background: "var(--tm-accent)", transition: "width 1s var(--tm-ease)" }} />
         </div>
       </div>
-      <div style={{ fontSize: 10, color: "var(--tm-text-faint)", flexShrink: 0 }}>{count.toLocaleString()}</div>
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, minWidth: 40, textAlign: "right" }}>
+        {count.toLocaleString()}
+      </div>
+      <div style={{ fontSize: 11, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>›</div>
     </div>
   )
 }
@@ -66,12 +81,17 @@ function buildLists(analytics: MarketAnalytics | undefined) {
 export default function LoginPage() {
   const router = useRouter()
 
+  // Sidebar expand state (mirrors AppShell hover behaviour)
+  const [expanded, setExpanded] = useState(false)
+
+  // Login form state
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Market intel state
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
   const [skillFilter, setSkillFilter] = useState<string | null>(null)
@@ -110,293 +130,379 @@ export default function LoginPage() {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "8px 12px", borderRadius: 7,
+    width: "100%", padding: "8px 10px", borderRadius: 7,
     background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,245,212,0.15)",
     color: "var(--tm-text)", fontSize: 12, outline: "none", fontFamily: "inherit",
     transition: "border-color 0.2s", boxSizing: "border-box",
   }
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative", background: "var(--tm-bg)" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", background: "var(--tm-bg)", position: "relative" }}>
       <ParticleBg />
 
-      {/* Market Intelligence — main canvas (leaves 320px gap right for login card) */}
-      <div style={{
-        position: "relative", zIndex: 1,
-        padding: "32px 352px 48px 36px",
-        minHeight: "100vh",
-      }}>
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 10, color: "var(--tm-accent)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-            Market Intelligence
+      {/* ── Login sidebar — mirrors AppShell Sidebar exactly ── */}
+      <nav
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        style={{
+          width: expanded ? 220 : 64,
+          transition: "width 0.32s var(--tm-ease)",
+          height: "100vh",
+          flexShrink: 0,
+          background: "rgba(5,10,24,0.97)",
+          borderRight: "1px solid var(--tm-border-soft)",
+          display: "flex",
+          flexDirection: "column",
+          position: "relative",
+          zIndex: 20,
+          overflow: "hidden",
+        }}
+      >
+        {/* Logo row — pixel-identical to AppShell */}
+        <div style={{
+          padding: "22px 16px 20px",
+          display: "flex", alignItems: "center", gap: 12,
+          borderBottom: "1px solid var(--tm-border-soft)",
+          minHeight: 76,
+        }}>
+          <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}>
+            <TMLogo />
           </div>
-          <h1 style={{ fontSize: 36, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.03em", marginBottom: 4 }}>
-            Intel
-          </h1>
-          <p style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-            Live hiring signals · click any entity to reveal skill data
-          </p>
+          <div style={{ opacity: expanded ? 1 : 0, transition: "opacity var(--tm-dur)", whiteSpace: "nowrap", overflow: "hidden" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Truth Mirror</div>
+            <div style={{ fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>Career Intelligence</div>
+          </div>
         </div>
 
-        {/* Signal banner */}
-        {analytics && (
-          <div style={{
-            padding: "14px 18px", borderRadius: 10,
-            background: "var(--tm-accent-wash)",
-            border: "1px solid var(--tm-border-soft)",
-            marginBottom: 20, position: "relative", overflow: "hidden",
-          }}>
-            <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 40, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Market Signal</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
-              <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industries
-            </div>
-            {analytics.latest_batch && (
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 3 }}>Latest batch: {analytics.latest_batch}</div>
-            )}
-          </div>
-        )}
-
-        {/* Top skills */}
-        {topSkills.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
-              Most demanded skills{skillFilter && <span style={{ color: "var(--tm-accent)" }}> · filtering: {skillFilter}</span>}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {topSkills.map((s) => {
-                const active = skillFilter === s.skill
-                return (
-                  <button
-                    key={s.skill}
-                    onClick={() => setSkillFilter(active ? null : s.skill)}
-                    style={{
-                      fontSize: 10, padding: "4px 10px", borderRadius: 999, cursor: "pointer",
-                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                      color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                      fontFamily: "inherit", transition: "all 0.15s ease",
-                    }}
-                  >
-                    {s.skill}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Companies / Industries toggle */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          {(["companies", "industries"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => { setView(v); setSelected(null); setSkillFilter(null) }}
+        {/* Collapsed icon hints — @ lock → */}
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+          padding: "18px 0",
+          opacity: expanded ? 0 : 1,
+          transition: "opacity 0.15s",
+          pointerEvents: "none",
+          position: "absolute", top: 76, left: 0, width: 64,
+        }}>
+          {[
+            { glyph: "@", label: "email" },
+            { glyph: "⬡", label: "password" },
+            { glyph: "→", label: "sign in" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              aria-hidden="true"
+              title={item.label}
               style={{
-                padding: "6px 16px", borderRadius: 999, fontSize: 11, fontWeight: 500,
-                background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                cursor: "pointer", textTransform: "capitalize",
-                transition: "all 0.15s ease", fontFamily: "inherit",
+                width: 32, height: 32, borderRadius: 8,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid var(--tm-border-soft)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: "rgba(240,244,255,0.3)",
               }}
             >
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
+              {item.glyph}
+            </div>
           ))}
         </div>
 
-        {/* Intel grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: 14 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 10 }}>
-              {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
-            </div>
-            {list.length === 0 ? (
-              <div style={{ color: "var(--tm-text-faint)", fontSize: 12, padding: "24px 0", textAlign: "center" }}>Loading market data…</div>
-            ) : (
-              list.map((entity) => (
-                <IntelBar
-                  key={entity.name}
-                  label={entity.name}
-                  count={entity.roles}
-                  max={max}
-                  active={selected?.name === entity.name}
-                  onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
-                />
-              ))
-            )}
-          </div>
-
-          <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: 14 }}>
-            {selected ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{selected.name}</div>
-                <div style={{ fontSize: 11, color: "var(--tm-accent)", marginBottom: 14 }}>{selected.roles.toLocaleString()} open roles</div>
-                {selected.skills.length > 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    {selected.skills.slice(0, 10).map((s) => (
-                      <div key={s} style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "7px 10px", borderRadius: 7, background: "var(--tm-accent-wash)",
-                      }}>
-                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--tm-accent)", flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: "var(--tm-text)" }}>{s}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ color: "var(--tm-text-faint)", fontSize: 12, padding: "16px 0" }}>No skill breakdown available.</div>
-                )}
-              </>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 180, color: "var(--tm-text-faint)", fontSize: 12 }}>
-                <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.3, color: "var(--tm-accent)" }}>◉</div>
-                Select a {view === "companies" ? "company" : "industry"} to see skills
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Signup CTA */}
+        {/* Expanded login form */}
         <div style={{
-          marginTop: 28, padding: "18px 20px", borderRadius: 10,
-          background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+          flex: 1, padding: "16px 12px",
+          opacity: expanded ? 1 : 0,
+          transition: "opacity 0.18s",
+          pointerEvents: expanded ? "auto" : "none",
+          overflow: "hidden",
+          display: "flex", flexDirection: "column", gap: 14,
         }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", marginBottom: 3 }}>
-              See how your skills stack up against this market
-            </div>
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-              Upload your CV → get your Mirror Score in 60 seconds
-            </div>
-          </div>
-          <Link href="/signup" style={{
-            flexShrink: 0, padding: "8px 18px", borderRadius: 999,
-            background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-            color: "var(--tm-accent)", fontSize: 11, fontWeight: 600,
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}>
-            Get Mirror Score →
-          </Link>
-        </div>
-      </div>
-
-      {/* Compact login card — fixed top right */}
-      <div style={{
-        position: "fixed", top: 24, right: 24, zIndex: 100,
-        width: 296,
-        background: "rgba(8,10,18,0.94)",
-        border: "1px solid rgba(0,245,212,0.2)",
-        borderRadius: 14, padding: 22,
-        backdropFilter: "blur(28px)",
-        boxShadow: "0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,245,212,0.05)",
-      }}>
-        {/* Logo row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" style={{ color: "var(--tm-accent)", flexShrink: 0 }}>
-            <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
-              stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-            <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
-            <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
-          </svg>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em" }}>Truth Mirror</div>
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Welcome back</div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 10, color: "rgba(240,244,255,0.45)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              Email
-            </label>
-            <input
-              type="email" required value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.4)")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.15)")}
-            />
+          {/* Welcome heading */}
+          <div style={{ whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Welcome back</div>
+            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>Sign in to continue</div>
           </div>
 
-          <div>
-            <label style={{ fontSize: 10, color: "rgba(240,244,255,0.45)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              Password
-            </label>
-            <div style={{ position: "relative" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Email */}
+            <div>
+              <label style={{ fontSize: 10, color: "rgba(240,244,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+                Email
+              </label>
               <input
-                type={showPassword ? "text" : "password"} required minLength={8} value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{ ...inputStyle, paddingRight: 36 }}
+                type="email" required value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={inputStyle}
                 onFocus={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.4)")}
                 onBlur={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.15)")}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                style={{
-                  position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "rgba(240,244,255,0.35)", padding: 3, display: "flex", alignItems: "center",
-                  transition: "color 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0,245,212,0.7)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(240,244,255,0.35)")}
-              >
-                {showPassword ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label style={{ fontSize: 10, color: "rgba(240,244,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+                Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"} required minLength={8} value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ ...inputStyle, paddingRight: 34 }}
+                  onFocus={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.4)")}
+                  onBlur={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.15)")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "rgba(240,244,255,0.3)", padding: 2, display: "flex", alignItems: "center",
+                    transition: "color 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0,245,212,0.7)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(240,244,255,0.3)")}
+                >
+                  {showPassword ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p style={{
+                fontSize: 11, color: "var(--tm-danger, #ff6b6b)", padding: "6px 9px", borderRadius: 6,
+                background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", margin: 0,
+                whiteSpace: "normal", lineHeight: 1.4,
+              }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: "9px", borderRadius: 8,
+                background: loading ? "rgba(0,245,212,0.06)" : "rgba(0,245,212,0.12)",
+                border: "1px solid rgba(0,245,212,0.35)",
+                color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+                fontFamily: "inherit", transition: "all 0.2s", opacity: loading ? 0.6 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {loading ? "Signing in…" : "Sign in →"}
+            </button>
+          </form>
+        </div>
+
+        {/* Bottom — mirrors UserFooter avatar row */}
+        <div style={{ borderTop: "1px solid var(--tm-border-soft)" }}>
+          <div style={{ padding: "10px 8px", display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Avatar-style circle */}
+            <div style={{
+              width: 32, height: 32, minWidth: 32, borderRadius: "50%",
+              background: "linear-gradient(135deg, var(--tm-border), var(--tm-accent-wash))",
+              border: "1px solid var(--tm-border)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 10, fontWeight: 700, color: "var(--tm-text-faint)",
+            }}>
+              ?
+            </div>
+            <div style={{ opacity: expanded ? 1 : 0, transition: "opacity var(--tm-dur)", whiteSpace: "nowrap", overflow: "hidden" }}>
+              <div style={{ fontSize: 11, color: "var(--tm-text-muted)" }}>No account?</div>
+              <Link href="/signup" style={{ fontSize: 10, color: "var(--tm-accent)", textDecoration: "none" }}>
+                Sign up free →
+              </Link>
             </div>
           </div>
+        </div>
+      </nav>
 
-          {error && (
-            <p style={{
-              fontSize: 11, color: "var(--tm-danger, #ff6b6b)", padding: "7px 10px", borderRadius: 7,
-              background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", margin: 0,
-            }}>
-              {error}
+      {/* ── Market Intelligence — same as /market page, no AppShell wrapper ── */}
+      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
+        <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+
+          {/* Header */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+              Market Intelligence
+            </div>
+            <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
+              Intel
+            </h1>
+            <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+              Live hiring signals · click any entity to reveal skill data
             </p>
+          </div>
+
+          {/* Signal banner */}
+          {analytics && (
+            <div style={{
+              padding: "16px 20px", borderRadius: "var(--tm-radius)",
+              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)",
+              marginBottom: 24, position: "relative", overflow: "hidden",
+            }}>
+              <div style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", fontSize: 48, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
+              <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6 }}>Market Signal</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", marginBottom: 4 }}>
+                <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
+                <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
+                <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industries
+              </div>
+              {analytics.latest_batch && (
+                <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Latest batch: {analytics.latest_batch}</div>
+              )}
+            </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: 2, padding: "9px", borderRadius: 8,
-              background: loading ? "rgba(0,245,212,0.06)" : "rgba(0,245,212,0.12)",
-              border: "1px solid rgba(0,245,212,0.35)",
-              color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              fontFamily: "inherit", transition: "all 0.2s", opacity: loading ? 0.6 : 1,
-            }}
-          >
-            {loading ? "Signing in…" : "Sign in →"}
-          </button>
-        </form>
+          {/* Top skills */}
+          {topSkills.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                Most demanded skills{skillFilter && <span style={{ color: "var(--tm-accent)" }}> · filtering: {skillFilter}</span>}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {topSkills.map((s) => {
+                  const active = skillFilter === s.skill
+                  return (
+                    <button
+                      key={s.skill}
+                      onClick={() => setSkillFilter(active ? null : s.skill)}
+                      style={{
+                        fontSize: 11, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
+                        background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                        color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                        fontFamily: "inherit", transition: "all var(--tm-dur-fast) var(--tm-ease)",
+                        boxShadow: active ? "var(--tm-shadow-glow)" : "none",
+                      }}
+                    >
+                      {s.skill}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
-        <p style={{ marginTop: 14, textAlign: "center", fontSize: 11, color: "rgba(240,244,255,0.3)" }}>
-          No account?{" "}
-          <Link href="/signup" style={{ color: "var(--tm-accent)", textDecoration: "none" }}>Sign up free</Link>
-        </p>
-      </div>
+          {/* Toggle */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            {(["companies", "industries"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => { setView(v); setSelected(null); setSkillFilter(null) }}
+                style={{
+                  padding: "7px 18px", borderRadius: 999, fontSize: 12, fontWeight: 500,
+                  background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                  cursor: "pointer", textTransform: "capitalize",
+                  transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                }}
+              >
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Intel grid */}
+          {!analytics ? (
+            <div style={{ color: "var(--tm-text-faint)", fontSize: 13, padding: "32px 0", textAlign: "center" }}>Loading market data…</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 16 }}>
+                <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 12 }}>
+                  {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
+                </div>
+                {list.length === 0 ? (
+                  <div style={{ color: "var(--tm-text-faint)", fontSize: 13, padding: "32px 0", textAlign: "center" }}>No data yet</div>
+                ) : (
+                  list.map((entity) => (
+                    <IntelBar
+                      key={entity.name}
+                      label={entity.name}
+                      count={entity.roles}
+                      max={max}
+                      active={selected?.name === entity.name}
+                      onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
+                    />
+                  ))
+                )}
+              </div>
+
+              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 16 }}>
+                {selected ? (
+                  <>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{selected.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--tm-accent)", marginBottom: 16 }}>{selected.roles.toLocaleString()} open roles</div>
+                    {selected.skills.length > 0 ? (
+                      <>
+                        <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>Skills in demand</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {selected.skills.slice(0, 10).map((s) => (
+                            <div key={s} style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+                              background: "var(--tm-accent-wash)",
+                            }}>
+                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", flexShrink: 0 }} />
+                              <span style={{ flex: 1, fontSize: 12, color: "var(--tm-text)" }}>{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ color: "var(--tm-text-faint)", fontSize: 12, padding: "16px 0" }}>No skill breakdown available.</div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--tm-text-faint)", fontSize: 13 }}>
+                    <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3, color: "var(--tm-accent)" }}>◉</div>
+                    Select a {view === "companies" ? "company" : "industry"} to see skills
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Signup CTA */}
+          <div style={{
+            marginTop: 28, padding: "18px 20px", borderRadius: "var(--tm-radius)",
+            background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+          }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", marginBottom: 3 }}>
+                See how your skills stack up against this market
+              </div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                Upload your CV → get your Mirror Score in 60 seconds
+              </div>
+            </div>
+            <Link href="/signup" style={{
+              flexShrink: 0, padding: "8px 18px", borderRadius: 999,
+              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+              color: "var(--tm-accent)", fontSize: 11, fontWeight: 600,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}>
+              Get Mirror Score →
+            </Link>
+          </div>
+
+        </div>
+      </main>
     </div>
   )
 }
