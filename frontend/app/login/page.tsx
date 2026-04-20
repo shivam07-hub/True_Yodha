@@ -8,6 +8,21 @@ import { auth, jobs } from "@/lib/api"
 import type { MarketAnalytics } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 
+const SOFT_SKILLS = new Set([
+  "communication", "leadership", "teamwork", "collaboration", "problem solving",
+  "time management", "critical thinking", "adaptability", "creativity", "attention to detail",
+  "project management", "analytical thinking", "customer service", "presentation",
+  "negotiation", "writing", "organization", "decision making", "interpersonal skills",
+  "stakeholder management", "strategic planning", "mentoring", "coaching",
+  "conflict resolution", "public speaking", "emotional intelligence", "research",
+  "planning", "multitasking", "work ethic", "accountability", "flexibility",
+  "active listening", "self-motivation", "initiative",
+])
+
+function issoft(skill: string) {
+  return SOFT_SKILLS.has(skill.toLowerCase())
+}
+
 interface DrillEntity {
   name: string
   roles: number
@@ -327,35 +342,45 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Top skills */}
-          {topSkills.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                Most demanded skills{skillFilter && <span style={{ color: "var(--tm-accent)" }}> · filtering: {skillFilter}</span>}
+          {/* Top skills — split hard / soft */}
+          {topSkills.length > 0 && (() => {
+            const hard = topSkills.filter((s) => !issoft(s.skill))
+            const soft = topSkills.filter((s) => issoft(s.skill))
+            const pillStyle = (active: boolean): React.CSSProperties => ({
+              fontSize: 11, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
+              background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+              border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+              color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+              fontFamily: "inherit", transition: "all var(--tm-dur-fast) var(--tm-ease)",
+              boxShadow: active ? "var(--tm-shadow-glow)" : "none",
+            })
+            const SkillGroup = ({ label, items }: { label: string; items: typeof topSkills }) => (
+              items.length === 0 ? null : (
+                <div>
+                  <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>{label}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {items.map((s) => {
+                      const active = skillFilter === s.skill
+                      return (
+                        <button key={s.skill} onClick={() => setSkillFilter(active ? null : s.skill)} style={pillStyle(active)}>
+                          {s.skill}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            )
+            return (
+              <div style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+                <SkillGroup label="Hard Skills" items={hard} />
+                {hard.length > 0 && soft.length > 0 && (
+                  <div style={{ height: 1, background: "var(--tm-border-soft)" }} />
+                )}
+                <SkillGroup label="Soft Skills" items={soft} />
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {topSkills.map((s) => {
-                  const active = skillFilter === s.skill
-                  return (
-                    <button
-                      key={s.skill}
-                      onClick={() => setSkillFilter(active ? null : s.skill)}
-                      style={{
-                        fontSize: 11, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
-                        background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                        color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                        fontFamily: "inherit", transition: "all var(--tm-dur-fast) var(--tm-ease)",
-                        boxShadow: active ? "var(--tm-shadow-glow)" : "none",
-                      }}
-                    >
-                      {s.skill}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Toggle */}
           <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>

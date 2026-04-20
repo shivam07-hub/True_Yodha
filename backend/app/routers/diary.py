@@ -6,7 +6,6 @@ from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.schemas import DiaryEntryRequest, DiaryEntryResponse, DiaryHistoryResponse, SkillDeltaItem
 from app.services import scoring_engine
-from app.services.diary_processor import extract_skill_signals
 
 router = APIRouter(prefix="/diary", tags=["diary"])
 
@@ -24,12 +23,7 @@ async def create_or_update_entry(
     existing_score = db.table("mirror_scores").select("total_score").eq("user_id", user_id).maybe_single().execute()
     score_before = existing_score.data["total_score"] if existing_score.data else None
 
-    # Fetch market-relevant Lightcast skill names for diary signal extraction
-    from app.services.taxonomy_loader import get_market_skills
-    taxonomy_keys = get_market_skills(db)
-
-    # Extract skill signals from diary text
-    signals = extract_skill_signals(body.entry_text, taxonomy_keys)
+    signals: list[dict] = []
 
     # Update user_skills if any signals found
     if signals:
