@@ -21,7 +21,7 @@ async def get_my_score(current_user: dict = Depends(get_current_user)) -> Mirror
         .maybe_single()
         .execute()
     )
-    if not result.data:
+    if result is None or not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No score found. Upload your CV first.",

@@ -29,14 +29,14 @@ function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{job.title}</div>
-            <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{job.title}</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
               {[job.company, job.location].filter(Boolean).join(" · ")}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 12, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 13 }}>
           <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job ID</span>
           <span style={{ color: "var(--tm-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{job.job_id}</span>
           <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job Title</span>
@@ -44,12 +44,12 @@ function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }
         </div>
         {job.job_description && (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
-            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{job.job_description}</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{job.job_description}</div>
           </div>
         )}
         {!job.job_description && (
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
+          <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
         )}
       </div>
     </div>
@@ -64,12 +64,12 @@ function AppDetailModal({ app, onClose }: { app: ApplicationResponse; onClose: (
       <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", zIndex: 1, width: "min(560px, 92vw)", maxHeight: "80vh", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", borderRadius: "var(--tm-radius)", padding: "24px", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{app.title}</div>
-            <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{app.title}</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 12, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 13 }}>
           <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job ID</span>
           <span style={{ color: "var(--tm-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{app.job_id}</span>
           <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job Title</span>
@@ -77,11 +77,11 @@ function AppDetailModal({ app, onClose }: { app: ApplicationResponse; onClose: (
         </div>
         {app.job_description ? (
           <div>
-            <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
-            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{app.job_description}</div>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{app.job_description}</div>
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
+          <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
         )}
       </div>
     </div>
@@ -126,17 +126,17 @@ function MarketTrackedCard({ app, updating, onStatusChange, onDetailClick }: {
         <div style={{ minWidth: 0 }}>
           <div
             onClick={(e) => { e.stopPropagation(); onDetailClick() }}
-            style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3, cursor: "pointer", display: "inline-block", borderBottom: "1px solid transparent", transition: "color 0.15s, border-color 0.15s" }}
+            style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3, cursor: "pointer", display: "inline-block", borderBottom: "1px solid transparent", transition: "color 0.15s, border-color 0.15s" }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderBottomColor = "var(--tm-accent-ring)" }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.borderBottomColor = "transparent" }}
           >{app.title}</div>
-          <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)" }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)" }}>
             Tracked from Market
           </div>
-          <div style={{ fontSize: 10, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999, background: statusMeta.bg, border: `1px solid ${statusMeta.border}` }}>
+          <div style={{ fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999, background: statusMeta.bg, border: `1px solid ${statusMeta.border}` }}>
             {statusMeta.label}
           </div>
         </div>
@@ -151,7 +151,7 @@ function MarketTrackedCard({ app, updating, onStatusChange, onDetailClick }: {
             value={app.status}
             disabled={updating}
             onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-            style={{ flex: 1, width: "100%", padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}
+            style={{ flex: 1, width: "100%", padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)", color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
           >
             {STATUSES.map((s) => (
               <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
@@ -170,7 +170,7 @@ function ScoreBar({ score }: { score: number }) {
       <div style={{ flex: 1, height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${score}%`, borderRadius: 999, background: color, transition: "width 1s var(--tm-ease)" }} />
       </div>
-      <span style={{ fontSize: 13, fontWeight: 700, color, minWidth: 34, textAlign: "right" }}>{score}%</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color, minWidth: 34, textAlign: "right" }}>{score}%</span>
     </div>
   )
 }
@@ -210,7 +210,7 @@ function JobCard({
           <div
             onClick={(e) => { e.stopPropagation(); onDetailClick() }}
             style={{
-              fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3,
+              fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3,
               cursor: "pointer", display: "inline-block",
               borderBottom: "1px solid transparent",
               transition: "color 0.15s, border-color 0.15s",
@@ -220,11 +220,11 @@ function JobCard({
           >
             {job.title}
           </div>
-          <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
           {job.llm_explanation && (
-            <div style={{ fontSize: 11, color: "var(--tm-text-muted)", marginTop: 4, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4, lineHeight: 1.5 }}>
               {job.llm_explanation}
             </div>
           )}
@@ -233,21 +233,21 @@ function JobCard({
           {tracked ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
               <div style={{
-                fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase",
+                fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
                 color: "var(--tm-accent)", padding: "3px 8px", borderRadius: 999,
                 background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
               }}>
                 Tracking
               </div>
               <div style={{
-                fontSize: 10, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999,
+                fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999,
                 background: statusMeta.bg, border: `1px solid ${statusMeta.border}`,
               }}>
                 {statusMeta.label}
               </div>
             </div>
           ) : job.llm_rank ? (
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
               Rank #{job.llm_rank}
             </div>
           ) : null}
@@ -261,7 +261,7 @@ function JobCard({
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
           {job.matched_skills.slice(0, 5).map((t) => (
             <span key={t} style={{
-              fontSize: 10, padding: "3px 8px", borderRadius: 999,
+              fontSize: 11, padding: "3px 8px", borderRadius: 999,
               background: "var(--tm-accent-wash)",
               border: "1px solid var(--tm-border-soft)",
               color: "var(--tm-accent)",
@@ -276,7 +276,7 @@ function JobCard({
       {open && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }}>
           {job.llm_explanation && (
-            <p style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
               {job.llm_explanation}
             </p>
           )}
@@ -285,7 +285,7 @@ function JobCard({
               padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
               background: "var(--tm-accent-wash)",
               border: "1px solid var(--tm-border-soft)",
-              fontSize: 12, color: "var(--tm-accent)", marginBottom: 14,
+              fontSize: 13, color: "var(--tm-accent)", marginBottom: 14,
             }}>
               ⚡ Next: {firstPlan.focus}
             </div>
@@ -300,7 +300,7 @@ function JobCard({
                   flex: 1, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
                   background: "var(--tm-surface-2)",
                   border: "1px solid var(--tm-border)",
-                  color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit", cursor: "pointer",
+                  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: "pointer",
                 }}
               >
                 {STATUSES.map((s) => (
@@ -318,7 +318,7 @@ function JobCard({
                   padding: "8px 16px", borderRadius: "var(--tm-radius-sm)",
                   border: "1px solid var(--tm-border)",
                   background: "transparent",
-                  color: "var(--tm-text-muted)", fontSize: 12, textDecoration: "none",
+                  color: "var(--tm-text-muted)", fontSize: 13, textDecoration: "none",
                 }}
               >
                 Open JD ↗
@@ -357,7 +357,7 @@ function AITutor() {
       padding: 20,
       display: "flex", flexDirection: "column", gap: 12,
     }}>
-      <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
         AI Career Tutor
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 280, overflowY: "auto" }}>
@@ -368,11 +368,11 @@ function AITutor() {
               borderRadius: m.role === "user" ? "12px 12px 2px 12px" : "2px 12px 12px 12px",
               background: m.role === "user" ? "var(--tm-accent-wash)" : "var(--tm-surface-2)",
               border: `1px solid ${m.role === "user" ? "var(--tm-border-soft)" : "var(--tm-border-soft)"}`,
-              fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6,
+              fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6,
             }}>{m.text}</div>
           </div>
         ))}
-        {loading && <div style={{ fontSize: 12, color: "var(--tm-text-faint)", padding: "4px 0" }}>Thinking…</div>}
+        {loading && <div style={{ fontSize: 13, color: "var(--tm-text-faint)", padding: "4px 0" }}>Thinking…</div>}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <input
@@ -405,13 +405,13 @@ function GapSkillCard({ skill }: { skill: { skill: string; gap_score: number; jo
       border: "1px solid var(--tm-border-soft)",
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{skill.skill}</span>
-        <span style={{ fontSize: 10, color, fontWeight: 600 }}>Gap: {pct}</span>
+        <span style={{ fontSize: 14, color: "var(--tm-text)" }}>{skill.skill}</span>
+        <span style={{ fontSize: 11, color, fontWeight: 600 }}>Gap: {pct}</span>
       </div>
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
       </div>
-      <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 4 }}>
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
         {skill.job_count_30d.toLocaleString()} jobs/30d
       </div>
     </div>
@@ -492,7 +492,7 @@ export default function TrackerPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+          <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
             Matched Jobs + Tracker
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
@@ -522,7 +522,7 @@ export default function TrackerPage() {
             {/* Tracked from Market — top priority */}
             {marketTrackedJobs.length > 0 && (
               <>
-                <div style={{ marginBottom: 4, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+                <div style={{ marginBottom: 4, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
                   Tracked from Market · {marketTrackedJobs.length}
                 </div>
                 {marketTrackedJobs.map((app) => (
@@ -552,9 +552,9 @@ export default function TrackerPage() {
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid var(--tm-border-soft)",
               }}>
-                <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</div>
-                <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</div>
+                <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
                   Upload your CV then click Refresh.
                 </div>
               </div>
@@ -586,7 +586,7 @@ export default function TrackerPage() {
                 borderRadius: "var(--tm-radius)",
                 padding: 20,
               }}>
-                <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
+                <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
                   Skill Gaps
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

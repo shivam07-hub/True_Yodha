@@ -109,13 +109,13 @@ export default function DashboardPage() {
                   background: "var(--tm-accent-wash)",
                   border: "1px solid var(--tm-accent-ring)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 20,
+                  fontSize: 21,
                 }}>◈</div>
                 <div style={{ textAlign: "center" }}>
                   <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", marginBottom: 4 }}>
                     {recompute.isError ? "Computation failed — try again" : "Scores not yet computed"}
                   </p>
-                  <p style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                  <p style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
                     Your CV has been processed
                   </p>
                 </div>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                     background: "var(--tm-accent-wash)",
                     border: "1px solid var(--tm-accent-ring)",
                     color: "var(--tm-accent)",
-                    fontSize: 12, fontWeight: 500, cursor: "pointer",
+                    fontSize: 13, fontWeight: 500, cursor: "pointer",
                     transition: "all var(--tm-dur) var(--tm-ease)",
                   }}
                 >
@@ -136,7 +136,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <div style={{ fontSize: 28, opacity: 0.2 }}>▣</div>
+                <div style={{ fontSize: 29, opacity: 0.2 }}>▣</div>
                 <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
                   Upload a CV to see domain scores
                 </p>

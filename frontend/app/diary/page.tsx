@@ -167,7 +167,7 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
             }}>
               {done ? "✓" : `${mins}:${secs}`}
             </span>
-            <span className="tm-label-caps" style={{ fontSize: 8 }}>
+            <span className="tm-label-caps" style={{ fontSize: 9 }}>
               {done ? "Complete" : running ? "Deep Work" : "Ready"}
             </span>
           </div>
@@ -228,7 +228,7 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
             }} />
           ))}
         </div>
-        <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
           {sessions === 0 ? "No sessions yet — start your first" : `${sessions} session${sessions !== 1 ? "s" : ""} completed`}
         </div>
       </div>
@@ -270,15 +270,15 @@ function MilestoneRing({ done, icon, label }: { done: boolean; icon: string; lab
         <div style={{
           position: "absolute", inset: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 17,
+          fontSize: 18,
           color: done ? "var(--tm-accent)" : "var(--tm-text-faint)",
           filter: done ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
         }}>
           {done ? icon : "○"}
         </div>
       </div>
-      <div style={{ fontSize: 10, fontWeight: 500, color: done ? "var(--tm-text)" : "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.3 }}>{label}</div>
-      <div style={{ fontSize: 9, color: done ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>{done ? "✓" : "Locked"}</div>
+      <div style={{ fontSize: 11, fontWeight: 500, color: done ? "var(--tm-text)" : "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: 10, color: done ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>{done ? "✓" : "Locked"}</div>
     </div>
   )
 }
@@ -412,7 +412,7 @@ function DiaryPageInner() {
               }}>
                 <div style={{
                   fontFamily: "var(--tm-font-mono)",
-                  fontSize: 26, fontWeight: 700,
+                  fontSize: 27, fontWeight: 700,
                   color: "var(--tm-text)", lineHeight: 1,
                 }}>
                   {value}{unit}
@@ -470,7 +470,7 @@ function DiaryPageInner() {
                     }}>
                       {/* Day label */}
                       <div style={{
-                        width: 30, fontSize: 10, fontWeight: 700,
+                        width: 30, fontSize: 11, fontWeight: 700,
                         color: done ? "var(--tm-accent)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
                         letterSpacing: "0.06em", textTransform: "uppercase", flexShrink: 0,
                       }}>{day}</div>
@@ -481,7 +481,7 @@ function DiaryPageInner() {
                         border: `1.5px solid ${done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "var(--tm-border)"}`,
                         background: done ? "var(--tm-accent-wash)" : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 8,
+                        fontSize: 9,
                         color: done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "transparent",
                       }}>
                         {done ? "✓" : isToday ? "▸" : ""}
@@ -496,7 +496,7 @@ function DiaryPageInner() {
                           onBlur={() => saveDayEdit(i)}
                           onKeyDown={(e) => { if (e.key === "Enter") saveDayEdit(i); if (e.key === "Escape") setEditingDay(null) }}
                           style={{
-                            flex: 1, fontSize: 12, background: "var(--tm-surface-2)",
+                            flex: 1, fontSize: 13, background: "var(--tm-surface-2)",
                             border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
                             color: "var(--tm-text)", padding: "2px 6px",
                             fontFamily: "inherit", outline: "none",
@@ -504,14 +504,14 @@ function DiaryPageInner() {
                         />
                       ) : (
                         <span style={{
-                          flex: 1, fontSize: 12,
+                          flex: 1, fontSize: 13,
                           color: done ? "var(--tm-text-faint)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
                           textDecoration: done ? "line-through" : "none",
                         }}>{task}</span>
                       )}
 
                       {isToday && !done && !isEditing && (
-                        <span className="tm-label-caps" style={{ fontSize: 8, color: "var(--tm-accent)" }}>TODAY</span>
+                        <span className="tm-label-caps" style={{ fontSize: 9, color: "var(--tm-accent)" }}>TODAY</span>
                       )}
 
                       {/* Edit icon */}
@@ -522,7 +522,7 @@ function DiaryPageInner() {
                           style={{
                             background: "none", border: "none", cursor: "pointer",
                             color: "var(--tm-text-faint)", padding: "2px 4px",
-                            fontSize: 11, lineHeight: 1, flexShrink: 0,
+                            fontSize: 12, lineHeight: 1, flexShrink: 0,
                             opacity: 0.4, transition: "opacity 0.15s",
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
@@ -610,14 +610,14 @@ function DiaryPageInner() {
                 entries.map((item) => (
                   <div key={item.id} style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}>{item.log_date}</span>
+                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}>{item.log_date}</span>
                       {item.score_after != null && (
-                        <span style={{ fontSize: 10, color: "var(--tm-accent)", marginLeft: "auto" }}>
+                        <span style={{ fontSize: 11, color: "var(--tm-accent)", marginLeft: "auto" }}>
                           Score: {item.score_before ?? "new"} → {item.score_after}
                         </span>
                       )}
                     </div>
-                    <p style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{item.entry_text}</p>
+                    <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6 }}>{item.entry_text}</p>
                     {item.skills_delta.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
                         {item.skills_delta.map((sd) => (

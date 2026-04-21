@@ -53,7 +53,7 @@ export function StepRole({ onNext, loading }: Props) {
       <div style={{ textAlign: "center" }}>
         <div style={{
           display: "inline-block",
-          fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
+          fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
           color: "var(--tm-accent)", marginBottom: 12,
           padding: "3px 10px", borderRadius: 999,
           background: "var(--tm-accent-wash)",
@@ -81,7 +81,7 @@ export function StepRole({ onNext, loading }: Props) {
               Target role
             </label>
             <span style={{
-              fontSize: 10, color: atMax ? "var(--tm-warning)" : "var(--tm-text-faint)",
+              fontSize: 11, color: atMax ? "var(--tm-warning)" : "var(--tm-text-faint)",
               fontVariantNumeric: "tabular-nums",
             }}>
               {roles.length} / {MAX_ROLES}
@@ -128,7 +128,7 @@ export function StepRole({ onNext, loading }: Props) {
                 background: input.trim() && !atMax ? "var(--tm-accent)" : "transparent",
                 border: `1px solid ${input.trim() && !atMax ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
                 color: input.trim() && !atMax ? "var(--tm-bg)" : "var(--tm-text-faint)",
-                fontSize: 12, fontWeight: 700,
+                fontSize: 13, fontWeight: 700,
                 cursor: input.trim() && !atMax ? "pointer" : "default",
                 fontFamily: "inherit",
                 transition: "all var(--tm-dur) var(--tm-ease)",
@@ -149,7 +149,7 @@ export function StepRole({ onNext, loading }: Props) {
                   borderRadius: 999,
                   background: "var(--tm-accent-wash)",
                   border: "1px solid var(--tm-accent-ring)",
-                  fontSize: 12, color: "var(--tm-accent)",
+                  fontSize: 13, color: "var(--tm-accent)",
                   animation: "tagIn 180ms var(--tm-ease) both",
                 }}>
                   <span style={{ fontWeight: 500 }}>{role}</span>
@@ -163,7 +163,7 @@ export function StepRole({ onNext, loading }: Props) {
                       background: "rgba(0,245,212,0.15)",
                       border: "none", padding: 0,
                       cursor: "pointer", color: "var(--tm-accent)",
-                      fontSize: 11, lineHeight: 1,
+                      fontSize: 12, lineHeight: 1,
                       transition: "background var(--tm-dur)",
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,245,212,0.3)" }}
@@ -203,7 +203,7 @@ export function StepRole({ onNext, loading }: Props) {
 
         {/* Helper note */}
         {roles.length > 0 && (
-          <p style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.6, marginTop: -8 }}>
+          <p style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, marginTop: -8 }}>
             Gap analysis will use live job postings for{" "}
             <span style={{ color: "var(--tm-accent)" }}>{roles.join(", ")}</span>
             {" "}to find what skills you need to close.

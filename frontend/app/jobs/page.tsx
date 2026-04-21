@@ -31,16 +31,16 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {job.title}
           </div>
-          <div style={{ marginTop: 4, fontSize: 12, color: "var(--tm-text-faint)" }}>
+          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
         </div>
         {job.llm_rank && (
           <span style={{
-            flexShrink: 0, fontSize: 10, fontWeight: 600,
+            flexShrink: 0, fontSize: 11, fontWeight: 600,
             padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
             background: "var(--tm-accent-wash)",
             color: "var(--tm-accent)",
@@ -55,17 +55,17 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
         <div style={{ flex: 1, height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 999, width: `${score}%`, background: color, transition: "width 700ms var(--tm-ease)" }} />
         </div>
-        <span style={{ width: 40, textAlign: "right", fontSize: 12, fontWeight: 500, color }}>{score}%</span>
+        <span style={{ width: 40, textAlign: "right", fontSize: 13, fontWeight: 500, color }}>{score}%</span>
       </div>
 
       {job.llm_explanation && (
-        <p style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+        <p style={{ marginTop: 12, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
           {job.llm_explanation}
         </p>
       )}
 
       {firstPlan && (
-        <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", fontSize: 12, color: "var(--tm-text-muted)" }}>
+        <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", fontSize: 13, color: "var(--tm-text-muted)" }}>
           <span style={{ fontWeight: 600, color: "var(--tm-accent)" }}>Next: </span>
           {firstPlan.focus} · {firstPlan.tasks[0]}
         </div>
@@ -75,7 +75,7 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
         <button
           onClick={() => onTrack(job.job_id)}
           className="tm-btn tm-btn-ghost"
-          style={{ height: 30, padding: "0 12px", fontSize: 12 }}
+          style={{ height: 30, padding: "0 12px", fontSize: 13 }}
         >
           + Track
         </button>
@@ -84,7 +84,7 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
             href={job.source_url}
             target="_blank"
             rel="noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--tm-text-muted)", textDecoration: "none", transition: "color var(--tm-dur) var(--tm-ease)" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--tm-text-muted)", textDecoration: "none", transition: "color var(--tm-dur) var(--tm-ease)" }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)" }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
           >
@@ -138,7 +138,7 @@ export default function JobsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+                <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
                   Full Job List
                 </div>
                 <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
@@ -185,9 +185,9 @@ export default function JobsPage() {
             </div>
           ) : (
             <div style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</p>
-              <p style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+              <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
+              <p style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</p>
+              <p style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
                 Upload your CV, then refresh after market data import.
               </p>
             </div>
