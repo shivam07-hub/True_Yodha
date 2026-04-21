@@ -91,3 +91,20 @@ class MarketAnalyticsResponse(BaseModel):
     top_skills: list[SkillCountItem]
     company_skills: dict[str, list[str]] = {}
     industry_skills: dict[str, list[str]] = {}
+
+
+class SkillGapItem(BaseModel):
+    skill: str
+    is_primary: bool        # True = main_skill, False = side_skill
+    user_level: int | None  # None = user doesn't have this skill
+    missing: bool
+
+
+class SkillGapResponse(BaseModel):
+    job_id: str
+    job_title: str
+    company: str | None
+    skills: list[SkillGapItem]
+    gap_pct: int            # % of required skills the user is missing
+    total_required: int
+    missing_count: int

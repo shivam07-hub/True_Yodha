@@ -18,6 +18,8 @@ from app.schemas.jobs import (
     MarketAnalyticsResponse,
     NameCountItem,
     SkillCountItem,
+    SkillGapItem,
+    SkillGapResponse,
 )
 from app.schemas.scores import (
     ComputeScoreResponse,
@@ -42,7 +44,7 @@ __all__ = [
     "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ComputeJobMatchesResponse",
     "MarketAnalyticsResponse", "NameCountItem", "SkillCountItem",
-    "JobSearchItem", "JobSearchResponse",
+    "JobSearchItem", "JobSearchResponse", "SkillGapItem", "SkillGapResponse",
     "GapSkillResponse", "MirrorScoreResponse", "ComputeScoreResponse",
     "SkillResponse", "SkillsListResponse",
     "UpdateProfileRequest", "UserProfileResponse",

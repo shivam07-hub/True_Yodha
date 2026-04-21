@@ -23,43 +23,78 @@ function levelToStatus(level: number): keyof typeof STATUS_CONFIG {
   return "missing"
 }
 
+const LEVEL_TITLES: Record<number, string> = {
+  1: "Scout", 2: "Trailblazer", 3: "Excavator", 4: "Cartographer", 5: "Legend",
+}
+
+function howToLevelUp(skillName: string, currentLevel: number): string {
+  switch (currentLevel) {
+    case 1: return `Apply ${skillName} in a real project that produces tangible outcomes. Freelance, volunteer, or client work all count — the key is moving beyond tutorials into something shipped. Tie it to a result: users, revenue, or a live product.`
+    case 2: return `Deploy ${skillName} inside an organisation's operating lifecycle at scale. You need measurable business impact — process improved by X%, cost reduced by $Y, system serving Z users. The outcome must be quantifiable and repeatable, not just "used in a project".`
+    case 3: return `Reach architect-level breadth across your entire skill cluster — not just ${skillName} in isolation. Make the architectural decisions, set the standards, and mentor others in the full domain. Coverage of adjacent skills in the same cluster is required.`
+    case 4: return `Become industry-recognised. Publish, speak at conferences, or ship something notable enough that others adopt your approach to ${skillName}. You also need L4 mastery in at least two other skill clusters simultaneously.`
+    default: return `You are already at the top level for ${skillName}. Maintain thought leadership: open-source contributions, publications, or standards-body involvement.`
+  }
+}
+
+function cvExample(skillName: string, currentLevel: number): string {
+  switch (currentLevel) {
+    case 1: return `"Built a ${skillName}-powered [feature/tool] for [Project Name], which [attracted X users / generated £Y revenue / improved Z metric] within [timeframe]." — Replace the bracketed parts with your specifics. The key signal: something was shipped and someone used it.`
+    case 2: return `"Led end-to-end implementation of ${skillName} across [Company]'s [system/product], reducing [metric] by X% and enabling [business outcome] for [scale, e.g. 50k+ users or £Xm revenue]." — Show ownership, scale, and a number.`
+    case 3: return `"Architected the ${skillName} standards and practices adopted across [Team/Org] — defined the framework used by [N] engineers, reduced [metric] by X%, and eliminated [problem] at scale." — You own the map, not just a path through it.`
+    case 4: return `"Published [research / talk / framework] on ${skillName} adopted by [N] teams industry-wide. Recognised as [award / keynote speaker / standards contributor] at [event / organisation]." — Others follow your lead.`
+    default: return `You are already at the highest level. Consider contributing to open-source, publishing benchmarks, or advising standards bodies in the ${skillName} domain.`
+  }
+}
+
 function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; delay?: number; highlighted: boolean }) {
-  const [open, setOpen] = useState(false)
+  const [clickState, setClickState] = useState<0 | 1 | 2>(0)
   const statusKey = levelToStatus(skill.level)
   const cfg = STATUS_CONFIG[statusKey]
+  const isMaxLevel = skill.level >= 5
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    setClickState((s) => (s === 2 ? 0 : (s + 1) as 0 | 1 | 2))
+  }
+
+  const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
 
   return (
     <div
-      onClick={() => setOpen((o) => !o)}
       style={{
         borderRadius: "var(--tm-radius)",
         padding: "12px 14px",
-        background: highlighted ? "var(--tm-accent-wash)" : open ? cfg.bg : "rgba(255,255,255,0.02)",
+        background: highlighted ? "var(--tm-accent-wash)" : clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
         border: highlighted
           ? "1px solid var(--tm-accent-ring)"
-          : open
+          : clickState > 0
           ? `1px solid ${cfg.color}`
           : "1px solid var(--tm-border-soft)",
         borderLeft: highlighted ? "2px solid var(--tm-accent)" : undefined,
         transition: "all var(--tm-dur) var(--tm-ease)",
         cursor: "pointer",
       }}
+      onClick={handleClick}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{
           width: 8, height: 8, borderRadius: "50%",
-          background: cfg.color,
-          flexShrink: 0,
+          background: cfg.color, flexShrink: 0,
           boxShadow: `0 0 6px ${cfg.color}`,
         }} />
         <span style={{ flex: 1, fontSize: "var(--tm-fs-meta)", fontWeight: 500, color: "var(--tm-text)" }}>
           {skill.display_name}
         </span>
+        {clickState === 0 && !isMaxLevel && (
+          <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em" }}>
+            tap to level up ↑
+          </span>
+        )}
         <span style={{
           fontSize: 11, padding: "2px 8px", borderRadius: 999,
           background: cfg.bg, color: cfg.color,
-          border: `1px solid ${cfg.color}`,
-          opacity: 0.9,
+          border: `1px solid ${cfg.color}`, opacity: 0.9, flexShrink: 0,
         }}>
           L{skill.level} · {cfg.label}
         </span>
@@ -74,15 +109,50 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         }} />
       </div>
 
-      {open && skill.evidence_text && (
-        <div style={{
-          marginTop: 10, padding: "8px 12px",
-          borderRadius: "var(--tm-radius-sm)",
-          background: "var(--tm-accent-wash)",
-          border: "1px solid var(--tm-accent-ring)",
-          fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6,
-        }}>
-          {skill.evidence_text}
+      {/* State 1 — How to reach next level */}
+      {clickState === 1 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
+              {isMaxLevel ? "Max Level" : `How to reach ${nextLevelTitle} (L${skill.level + 1})`}
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again for CV example →</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${cfg.color}30`,
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+          }}>
+            {howToLevelUp(skill.display_name, skill.level)}
+          </div>
+        </div>
+      )}
+
+      {/* State 2 — CV example */}
+      {clickState === 2 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
+              CV bullet · L{skill.level + 1} signal
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to close ↺</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-accent-wash)",
+            border: "1px solid var(--tm-accent-ring)",
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+            fontStyle: "italic",
+          }}>
+            {cvExample(skill.display_name, skill.level)}
+          </div>
         </div>
       )}
     </div>

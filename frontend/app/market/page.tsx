@@ -112,6 +112,7 @@ export default function MarketPage() {
   const [drillSkill, setDrillSkill] = useState<DrillSkill | null>(null)
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null)
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
+  const [companySearch, setCompanySearch] = useState("")
 
   const addToTracker = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
@@ -131,26 +132,29 @@ export default function MarketPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const companies: DrillEntity[] = (analytics?.by_company ?? []).slice(0, 12).map((c) => ({
+  const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
     name: c.name, roles: c.count,
     skills: analytics?.company_skills?.[c.name] ?? [],
     type: "company" as const,
   }))
 
-  const industries: DrillEntity[] = (analytics?.by_industry ?? []).slice(0, 12).map((ind) => ({
+  const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
     name: ind.name, roles: ind.count,
     skills: analytics?.industry_skills?.[ind.name] ?? [],
     type: "industry" as const,
   }))
 
   const baseList = view === "companies" ? companies : industries
-  const list = skillFilters.size > 0
+  const skillFiltered = skillFilters.size > 0
     ? baseList.filter((e) =>
         Array.from(skillFilters).every((f) =>
           e.skills.some((s) => s.toLowerCase().includes(f.toLowerCase()))
         )
       )
     : baseList
+  const list = view === "companies" && companySearch.trim()
+    ? skillFiltered.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
+    : skillFiltered
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
   const topSkills = analytics?.top_skills?.slice(0, 14) ?? []
 
@@ -251,7 +255,7 @@ export default function MarketPage() {
           {(["companies", "industries"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setSelected(null); setSkillFilters(new Set()); setDrillSkill(null); setExpandedDesc(null) }}
+              onClick={() => { setView(v); setSelected(null); setSkillFilters(new Set()); setDrillSkill(null); setExpandedDesc(null); setCompanySearch("") }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
                 background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
@@ -278,26 +282,47 @@ export default function MarketPage() {
               border: "1px solid var(--tm-border-soft)",
               borderRadius: "var(--tm-radius)",
               padding: 16,
+              display: "flex", flexDirection: "column",
             }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 12 }}>
-                {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
-              </div>
-              {list.length === 0 ? (
-                <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
-                  {skillFilters.size > 0 ? "No companies hire for all selected skills" : "No data yet"}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6 }}>
+                  {view === "companies" ? `All Companies · ${list.length}` : "Industry Breakdown"}
                 </div>
-              ) : (
-                list.map((entity) => (
-                  <IntelBar
-                    key={entity.name}
-                    label={entity.name}
-                    count={entity.roles}
-                    max={max}
-                    active={selected?.name === entity.name}
-                    onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setExpandedDesc(null) }}
-                  />
-                ))
+                {view === "companies" && (
+                  <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    {analytics?.total_companies ?? 0} total
+                  </span>
+                )}
+              </div>
+
+              {view === "companies" && (
+                <input
+                  value={companySearch}
+                  onChange={(e) => { setCompanySearch(e.target.value); setSelected(null) }}
+                  placeholder="Search companies…"
+                  className="tm-input"
+                  style={{ marginBottom: 10, height: 34, fontSize: 12 }}
+                />
               )}
+
+              <div style={{ overflowY: "auto", maxHeight: 480 }}>
+                {list.length === 0 ? (
+                  <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
+                    {companySearch ? `No companies matching "${companySearch}"` : skillFilters.size > 0 ? "No companies hire for all selected skills" : "No data yet"}
+                  </div>
+                ) : (
+                  list.map((entity) => (
+                    <IntelBar
+                      key={entity.name}
+                      label={entity.name}
+                      count={entity.roles}
+                      max={max}
+                      active={selected?.name === entity.name}
+                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setExpandedDesc(null) }}
+                    />
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Right panel — skills or job drill */}
