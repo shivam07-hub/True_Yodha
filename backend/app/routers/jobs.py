@@ -222,8 +222,9 @@ async def compute_job_matches(
 
 @router.get("/applications", response_model=list[ApplicationResponse])
 async def get_applications(current_user: dict = Depends(get_current_user)) -> list[ApplicationResponse]:
+    # Admin client so the join to `jobs` table works regardless of its RLS policy.
     result = (
-        get_supabase_for_token(current_user["token"])
+        get_supabase_admin()
         .table("job_applications")
         .select("*, jobs(job_title, company_name)")
         .eq("user_id", current_user["user_id"])
@@ -252,13 +253,15 @@ async def update_application(
         from datetime import datetime, timezone
         updates["applied_at"] = datetime.now(timezone.utc).isoformat()
 
-    db = get_supabase_for_token(current_user["token"])
-    db.table("job_applications").upsert(
+    user_db = get_supabase_for_token(current_user["token"])
+    user_db.table("job_applications").upsert(
         {"user_id": current_user["user_id"], "job_id": job_id, **updates},
         on_conflict="user_id,job_id",
     ).execute()
+    # Admin client for the read-back so the jobs join isn't blocked by RLS.
     result = (
-        db.table("job_applications")
+        get_supabase_admin()
+        .table("job_applications")
         .select("*, jobs(job_title, company_name)")
         .eq("user_id", current_user["user_id"])
         .eq("job_id", job_id)
