@@ -65,7 +65,6 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         </span>
       </div>
 
-      {/* Level bar — uses accent (data viz, not status) */}
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: 999,
@@ -121,6 +120,7 @@ export default function CVPage() {
   const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [highlightedSkill] = useState<string | null>(null)
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
     queryKey: ["cv-profile", token],
@@ -155,6 +155,7 @@ export default function CVPage() {
       queryClient.invalidateQueries({ queryKey: ["user-skills", token] })
       setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
       setShowUpload(false)
+      setSelectedVersionId(null) // snap back to latest after new upload
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload CV")
     } finally {
@@ -215,6 +216,12 @@ export default function CVPage() {
     return acc
   }, { strong: 0, gap: 0, critical: 0 })
 
+  // Determine text to show in viewer
+  const selectedVersion = selectedVersionId !== null
+    ? cvProfile?.history?.find((v) => v.id === selectedVersionId) ?? null
+    : null
+  const displayText = selectedVersion?.cv_raw_text ?? cvProfile?.cv_raw_text ?? null
+
   return (
     <AppShell>
       <div className="tm-page-enter" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -231,9 +238,18 @@ export default function CVPage() {
               <button
                 onClick={() => setShowUpload((v) => !v)}
                 className="tm-btn tm-btn-ghost"
-                style={{ height: 36, fontSize: "var(--tm-fs-meta)" }}
+                style={{
+                  height: 36,
+                  fontSize: "var(--tm-fs-meta)",
+                  ...(showUpload ? {
+                    background: "var(--tm-accent-wash)",
+                    border: "1px solid var(--tm-accent-ring)",
+                    color: "var(--tm-accent)",
+                    boxShadow: "0 0 12px var(--tm-accent-glow)",
+                  } : {}),
+                }}
               >
-                ↑ {hasCv ? "Replace CV" : "Upload CV"}
+                {"↑"} {hasCv ? "Replace CV" : "Upload CV"}
               </button>
             </div>
           </div>
@@ -288,7 +304,7 @@ export default function CVPage() {
               <StepCV onNext={handleUpload} />
               {uploading && (
                 <p style={{ marginTop: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
-                  ⏳ Reading your CV and matching to market…
+                  Reading your CV and matching to market…
                 </p>
               )}
               {message && (
@@ -311,7 +327,6 @@ export default function CVPage() {
         }}>
           {/* LEFT — Skill mapping */}
           <div style={{ overflowY: "auto", padding: "16px 20px 24px 32px", borderRight: "1px solid var(--tm-border-soft)" }}>
-            {/* Category filter */}
             <div style={{ display: "flex", gap: 5, marginBottom: 14 }}>
               {(["all", "technical", "domain", "soft"] as const).map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)} style={{
@@ -348,23 +363,93 @@ export default function CVPage() {
             )}
           </div>
 
-          {/* RIGHT — CV text */}
+          {/* RIGHT — Version history + CV viewer */}
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+            {/* Version timeline */}
             <div style={{
-              padding: "14px 20px 10px",
+              padding: "14px 20px 12px",
               borderBottom: "1px solid var(--tm-border-soft)",
-              display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+              flexShrink: 0,
             }}>
-              <div className="tm-label-caps">Your CV</div>
-              {cvProfile?.cv_parsed_at && (
-                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginLeft: "auto" }}>
-                  Parsed: {new Date(cvProfile.cv_parsed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: cvProfile?.history?.length ? 10 : 0 }}>
+                <div className="tm-label-caps">CV Versions</div>
+                {!!cvProfile?.history?.length && (
+                  <span style={{
+                    fontSize: 10, color: "var(--tm-text-faint)",
+                    background: "rgba(255,255,255,0.04)", padding: "1px 7px",
+                    borderRadius: 999, border: "1px solid var(--tm-border-soft)",
+                  }}>
+                    {cvProfile.history.length}
+                  </span>
+                )}
+              </div>
+
+              {!!cvProfile?.history?.length && (
+                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                  {cvProfile.history.map((v, i) => {
+                    const isLatest = i === 0
+                    const isSelected = selectedVersionId === v.id || (selectedVersionId === null && isLatest)
+                    const prev = cvProfile.history[i + 1]
+                    const delta = prev ? Math.round(v.mirror_score - prev.mirror_score) : null
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => setSelectedVersionId(isLatest ? null : v.id)}
+                        style={{
+                          flexShrink: 0,
+                          padding: "6px 10px",
+                          borderRadius: "var(--tm-radius-sm)",
+                          background: isSelected ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${isSelected ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                          cursor: "pointer", fontFamily: "inherit",
+                          transition: "all var(--tm-dur) var(--tm-ease)",
+                          outline: "none", textAlign: "left",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          {isLatest && (
+                            <span style={{
+                              fontSize: 9, padding: "1px 5px", borderRadius: 999,
+                              background: "var(--tm-accent)", color: "var(--tm-bg)",
+                              fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                            }}>Active</span>
+                          )}
+                          <span style={{
+                            fontSize: 11, fontFamily: "var(--tm-font-mono)", fontWeight: 600,
+                            color: isSelected ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                          }}>
+                            v{cvProfile.history.length - i}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>
+                          {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}>
+                          <span style={{
+                            fontSize: 10, fontFamily: "var(--tm-font-mono)",
+                            color: isSelected ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                          }}>
+                            {Math.round(v.mirror_score)}
+                          </span>
+                          {delta !== null && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700,
+                              color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)",
+                            }}>
+                              {delta >= 0 ? `+${delta}` : delta}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
 
+            {/* CV text viewer */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 32px 20px", position: "relative" }}>
-              {/* Watermark */}
               <div style={{
                 position: "absolute", right: 24, top: 20,
                 fontSize: 81, color: "var(--tm-accent-wash)",
@@ -373,28 +458,27 @@ export default function CVPage() {
 
               {cvLoading ? (
                 <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>Loading…</p>
-              ) : hasCv ? (
+              ) : displayText ? (
                 <pre style={{
                   fontSize: 12.5, lineHeight: 1.8, color: "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-mono)", whiteSpace: "pre-wrap",
                   wordBreak: "break-word", position: "relative",
                 }}>
-                  {cvProfile.cv_raw_text!.split("\n").map((line, i) => {
-                    const isHighlighted = highlightedSkill && line.toLowerCase().includes(highlightedSkill.toLowerCase().split(" ")[0])
+                  {displayText.split("\n").map((line, i) => {
+                    const isHighlighted = !!highlightedSkill && line.toLowerCase().includes(highlightedSkill.toLowerCase().split(" ")[0])
                     return (
                       <span key={i} style={{
                         display: "block",
                         background: isHighlighted ? "var(--tm-accent-wash)" : "transparent",
                         borderLeft: isHighlighted ? "2px solid var(--tm-accent)" : "2px solid transparent",
-                        paddingLeft: 6,
-                        borderRadius: 2,
+                        paddingLeft: 6, borderRadius: 2,
                         transition: "all var(--tm-dur)",
                         color: line.startsWith("─") ? "var(--tm-accent-wash)"
                           : (line.match(/^[A-Z ]+$/) && line.length > 3) ? "var(--tm-text)"
                           : "var(--tm-text-muted)",
                         fontWeight: (line.match(/^[A-Z ]+$/) && line.length > 3) ? 600 : 400,
                       }}>
-                        {line || "\u00A0"}
+                        {line || " "}
                       </span>
                     )
                   })}

@@ -21,6 +21,7 @@ class CVHistoryItem(BaseModel):
     skills_count: int
     mirror_score: float
     uploaded_at: datetime
+    cv_raw_text: str | None = None
 
 
 class CVProfileResponse(BaseModel):
@@ -41,7 +42,7 @@ async def get_cv_profile(current_user: dict = Depends(get_current_user)) -> CVPr
     )
     history_result = (
         db.table("cv_history")
-        .select("id, skills_count, mirror_score, uploaded_at")
+        .select("id, skills_count, mirror_score, uploaded_at, cv_raw_text")
         .eq("user_id", current_user["user_id"])
         .order("uploaded_at", desc=True)
         .limit(20)
@@ -107,6 +108,7 @@ async def upload_cv(
         "skills_count": len(skills_detected),
         "mirror_score": score_row["total_score"],
         "uploaded_at": now,
+        "cv_raw_text": raw_text,
     }).execute()
 
     return CVUploadResponse(
@@ -164,6 +166,7 @@ async def submit_cv_text(
         "skills_count": len(skills_detected),
         "mirror_score": score_row["total_score"],
         "uploaded_at": now,
+        "cv_raw_text": raw_text,
     }).execute()
 
     return CVUploadResponse(

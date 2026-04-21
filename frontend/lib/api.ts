@@ -159,6 +159,7 @@ export interface CVHistoryItem {
   skills_count: number
   mirror_score: number
   uploaded_at: string
+  cv_raw_text: string | null
 }
 
 export interface CVProfile {
@@ -353,6 +354,23 @@ export interface MarketAnalytics {
   top_skills: SkillCountItem[]
   company_skills: Record<string, string[]>
   industry_skills: Record<string, string[]>
+}
+
+export interface SkillGapItem {
+  skill: string
+  is_primary: boolean
+  user_level: number | null
+  missing: boolean
+}
+
+export interface SkillGapResponse {
+  job_id: string
+  job_title: string
+  company: string | null
+  skills: SkillGapItem[]
+  gap_pct: number
+  total_required: number
+  missing_count: number
 }
 
 export const jobs = {
