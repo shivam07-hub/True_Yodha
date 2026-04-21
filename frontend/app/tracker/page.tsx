@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch } from "@/lib/api"
+import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch, type SkillGapItem } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
@@ -177,10 +177,11 @@ function ScoreBar({ score }: { score: number }) {
 
 function JobCard({
   job, status, tracked, updating,
-  onStatusChange, onDetailClick,
+  onStatusChange, onDetailClick, onSelect,
 }: {
   job: JobMatch; status: ApplicationStatus; tracked: boolean; updating: boolean
   onStatusChange: (s: ApplicationStatus) => void; onDetailClick: () => void
+  onSelect: (jobId: string | null) => void
 }) {
   const [open, setOpen] = useState(false)
   const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
@@ -189,7 +190,11 @@ function JobCard({
 
   return (
     <div
-      onClick={() => setOpen((o) => !o)}
+      onClick={() => {
+        const next = !open
+        setOpen(next)
+        onSelect(next ? job.job_id : null)
+      }}
       style={{
         borderRadius: "var(--tm-radius)",
         padding: "18px 20px",
@@ -453,6 +458,13 @@ export default function TrackerPage() {
 
   const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
   const [appDetailJob, setAppDetailJob] = useState<ApplicationResponse | null>(null)
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+
+  const skillGapQuery = useQuery({
+    queryKey: ["skill-gap", selectedJobId, token],
+    queryFn: () => jobs.skillGap(token!, selectedJobId!),
+    enabled: !!token && !!selectedJobId,
+  })
 
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
@@ -570,6 +582,7 @@ export default function TrackerPage() {
                     updating={updateStatus.isPending}
                     onStatusChange={(status) => updateStatus.mutate({ jobId: job.job_id, status })}
                     onDetailClick={() => setDetailJob(job)}
+                    onSelect={setSelectedJobId}
                   />
                 )
               })
@@ -579,15 +592,45 @@ export default function TrackerPage() {
           {/* Sidebar */}
           <div style={{ position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 12 }}>
             <AITutor />
-            {topGapSkills.length > 0 && (
-              <div style={{
-                background: "var(--tm-surface)",
-                border: "1px solid var(--tm-border-soft)",
-                borderRadius: "var(--tm-radius)",
-                padding: 20,
-              }}>
+
+            {/* Job-specific skill gap (when a card is expanded) */}
+            {selectedJobId ? (
+              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+                    Skill Gap · This Job
+                  </div>
+                  {skillGapQuery.data && (
+                    <div style={{
+                      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                      color: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning)" : "var(--tm-success)",
+                      background: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger-wash)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning-wash)" : "var(--tm-success-wash)",
+                    }}>
+                      {skillGapQuery.data.missing_count}/{skillGapQuery.data.total_required} missing
+                    </div>
+                  )}
+                </div>
+
+                {skillGapQuery.isLoading && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} style={{ height: 48, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)", animation: "pulse 2s infinite" }} />
+                    ))}
+                  </div>
+                )}
+
+                {skillGapQuery.data && (
+                  <JobSkillGapPanel skills={skillGapQuery.data.skills} />
+                )}
+
+                {skillGapQuery.isError && (
+                  <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.7 }}>Failed to load skill gap.</div>
+                )}
+              </div>
+            ) : topGapSkills.length > 0 ? (
+              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
                 <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
-                  Skill Gaps
+                  Skill Gaps · Overall
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {topGapSkills.map((s) => (
@@ -595,7 +638,7 @@ export default function TrackerPage() {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

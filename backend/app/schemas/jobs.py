@@ -8,6 +8,23 @@ class ActionPlanDay(BaseModel):
     tasks: list[str]        # 1–3 concrete tasks for that day
 
 
+class SkillGapItem(BaseModel):
+    skill: str
+    is_primary: bool        # True = main_skill, False = side_skill
+    user_level: int | None  # None = user doesn't have this skill
+    missing: bool
+
+
+class SkillGapResponse(BaseModel):
+    job_id: str
+    job_title: str
+    company: str | None
+    skills: list[SkillGapItem]
+    gap_pct: int            # % of required skills the user is missing
+    total_required: int
+    missing_count: int
+
+
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
     job_id: str

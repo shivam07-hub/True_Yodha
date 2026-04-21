@@ -16,6 +16,8 @@ from app.schemas import (
     MarketAnalyticsResponse,
     NameCountItem,
     SkillCountItem,
+    SkillGapItem,
+    SkillGapResponse,
 )
 from app.services import job_matcher, llm_ranker
 from app.services.rate_limit import assert_not_rate_limited
@@ -271,6 +273,58 @@ async def update_application(
     if not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     return _to_application(result.data)
+
+
+@router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)
+async def get_skill_gap(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> SkillGapResponse:
+    """Return per-job skill gap: which skills the job requires and whether the user has them."""
+    db = get_supabase_admin()
+    user_id = current_user["user_id"]
+
+    job_result = db.table("jobs").select(
+        "job_id, job_title, company_name, main_skills, side_skills"
+    ).eq("job_id", job_id).single().execute()
+    if not job_result.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    job = job_result.data
+    main_skills = [s.strip() for s in (job.get("main_skills") or []) if s and s.strip()]
+    side_skills = [s.strip() for s in (job.get("side_skills") or []) if s and s.strip()]
+
+    skills_result = db.table("user_skills").select(
+        "matched_level, skills(taxonomy_key)"
+    ).eq("user_id", user_id).execute()
+
+    user_skill_map: dict[str, int] = {}
+    for row in (skills_result.data or []):
+        if row.get("skills"):
+            key = row["skills"]["taxonomy_key"].lower()
+            user_skill_map[key] = row["matched_level"]
+
+    gap_items: list[SkillGapItem] = []
+    for skill in main_skills:
+        level = user_skill_map.get(skill.lower())
+        gap_items.append(SkillGapItem(skill=skill, is_primary=True, user_level=level, missing=level is None))
+    for skill in side_skills:
+        level = user_skill_map.get(skill.lower())
+        gap_items.append(SkillGapItem(skill=skill, is_primary=False, user_level=level, missing=level is None))
+
+    total = len(gap_items)
+    missing_count = sum(1 for g in gap_items if g.missing)
+    gap_pct = round(missing_count / total * 100) if total else 0
+
+    return SkillGapResponse(
+        job_id=job_id,
+        job_title=job.get("job_title") or "",
+        company=job.get("company_name"),
+        skills=gap_items,
+        gap_pct=gap_pct,
+        total_required=total,
+        missing_count=missing_count,
+    )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

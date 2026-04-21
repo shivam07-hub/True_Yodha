@@ -400,6 +400,10 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
+  skillGap: (token: string, jobId: string) =>
+    request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 // ── Diary ────────────────────────────────────────────────────────────────────
