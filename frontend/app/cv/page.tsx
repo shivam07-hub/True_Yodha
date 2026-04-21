@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
@@ -48,14 +48,14 @@ function cvExample(skillName: string, currentLevel: number): string {
 }
 
 function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; delay?: number; highlighted: boolean }) {
-  const [clickState, setClickState] = useState<0 | 1 | 2>(0)
+  const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
   const statusKey = levelToStatus(skill.level)
   const cfg = STATUS_CONFIG[statusKey]
   const isMaxLevel = skill.level >= 5
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
-    setClickState((s) => (s === 2 ? 0 : (s + 1) as 0 | 1 | 2))
+    setClickState((s) => (s === 3 ? 0 : (s + 1) as 0 | 1 | 2 | 3))
   }
 
   const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
@@ -86,9 +86,9 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         <span style={{ flex: 1, fontSize: "var(--tm-fs-meta)", fontWeight: 500, color: "var(--tm-text)" }}>
           {skill.display_name}
         </span>
-        {clickState === 0 && !isMaxLevel && (
+        {clickState === 0 && (
           <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em" }}>
-            tap to level up ↑
+            tap to explore ↓
           </span>
         )}
         <span style={{
@@ -109,8 +109,34 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         }} />
       </div>
 
-      {/* State 1 — How to reach next level */}
+      {/* State 1 — CV source evidence */}
       {clickState === 1 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
+              Extracted from your CV
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to level up →</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${cfg.color}30`,
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+            fontStyle: "italic",
+          }}>
+            {skill.evidence_text
+              ? `"${skill.evidence_text}"`
+              : `No direct quote captured — ${skill.display_name} was inferred from the overall context of your CV.`}
+          </div>
+        </div>
+      )}
+
+      {/* State 2 — How to reach next level */}
+      {clickState === 2 && (
         <div style={{ marginTop: 10 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -132,8 +158,8 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         </div>
       )}
 
-      {/* State 2 — CV example */}
-      {clickState === 2 && (
+      {/* State 3 — CV example bullet */}
+      {clickState === 3 && (
         <div style={{ marginTop: 10 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -236,6 +262,11 @@ export default function CVPage() {
   if (!ready) return null
 
   const hasCv = !!cvProfile?.cv_raw_text
+
+  // Auto-open upload panel when data has loaded and no CV found
+  useEffect(() => {
+    if (!cvLoading && !hasCv) setShowUpload(true)
+  }, [cvLoading, hasCv])
 
   const domainKeywords: Record<string, string[]> = {
     technical: ["engineering", "programming", "software", "data", "cloud", "devops", "infrastructure", "database", "api", "security", "systems", "network", "code"],
@@ -364,25 +395,25 @@ export default function CVPage() {
           </div>
 
           {/* Upload panel */}
-          {(showUpload || !hasCv) && (
+          {showUpload && (
             <div style={{
               marginTop: 14, padding: 20,
               borderRadius: "var(--tm-radius)",
               background: "var(--tm-accent-wash)",
               border: "1px solid var(--tm-accent-ring)",
             }}>
-              <StepCV onNext={handleUpload} />
               {uploading && (
-                <p style={{ marginTop: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
+                <p style={{ marginBottom: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
                   Reading your CV and matching to market…
                 </p>
               )}
               {message && (
-                <p style={{ marginTop: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
+                <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
               )}
               {error && (
-                <p style={{ marginTop: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
+                <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
               )}
+              <StepCV onNext={handleUpload} />
             </div>
           )}
         </div>
