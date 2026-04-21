@@ -16,6 +16,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...rest,
   })
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("mirror_token")
+      window.location.href = "/login"
+      throw new Error("Session expired. Please sign in again.")
+    }
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     const detail = body?.detail
     const message =

@@ -18,6 +18,8 @@ _bearer = HTTPBearer()
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
+    import logging
+    logger = logging.getLogger(__name__)
     token = credentials.credentials
     try:
         response = get_supabase().auth.get_user(token)
@@ -30,5 +32,6 @@ async def get_current_user(
         }
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
+        logger.warning("Token validation failed: %s: %s", type(exc).__name__, exc)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
