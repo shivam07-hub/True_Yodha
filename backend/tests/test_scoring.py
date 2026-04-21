@@ -52,21 +52,23 @@ CLUSTER_TO_DOMAIN = {
 
 class TestClusterScores:
     def test_single_skill_p3(self) -> None:
-        # coverage=1/3, proficiency=3/5 → score=0.2
+        # log_coverage=log(2)/log(4)=0.5, proficiency=3/5=0.6 → 0.6*(0.3+0.7*0.5)=0.39
         scores = compute_cluster_scores({"Django": 3}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
-        assert scores["Web Frameworks"] == pytest.approx(1/3 * 3/5, rel=1e-3)
+        assert scores["Web Frameworks"] == pytest.approx(0.6 * (0.3 + 0.7 * 0.5), rel=1e-3)
 
     def test_full_cluster_p4(self) -> None:
-        # coverage=3/3=1.0, proficiency=4/5=0.8 → score=0.8
+        # full coverage: log_coverage=1.0, proficiency=4/5=0.8 → 0.8*(0.3+0.7*1.0)=0.8
         level_map = {"Django": 4, "Flask": 4, "FastAPI": 4}
         scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
         assert scores["Web Frameworks"] == pytest.approx(0.8)
 
     def test_partial_cluster_uses_max_proficiency(self) -> None:
-        # Django P2, Flask P4 → max_proficiency=4/5=0.8, coverage=2/3
+        # Django P2, Flask P4 → max_proficiency=4/5=0.8, log_coverage=log(3)/log(4)=0.7925
+        import math
+        log_cov = math.log1p(2) / math.log1p(3)
         level_map = {"Django": 2, "Flask": 4}
         scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
-        assert scores["Web Frameworks"] == pytest.approx(2/3 * 4/5, rel=1e-3)
+        assert scores["Web Frameworks"] == pytest.approx(0.8 * (0.3 + 0.7 * log_cov), rel=1e-3)
 
     def test_empty_skill_map_returns_empty(self) -> None:
         assert compute_cluster_scores({}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER) == {}
@@ -133,14 +135,13 @@ class TestMirrorScore:
 
     def test_full_pipeline_cluster_to_mirror(self) -> None:
         # Django P3 in Web Frameworks (IT domain)
-        # cluster_score = 1/3 × 3/5 = 0.2
-        # domain_score IT = 0.2 × 100 = 20.0
-        # mirror = 20.0
+        # log_coverage=0.5, cluster_score=0.6*(0.3+0.7*0.5)=0.39
+        # domain_score IT = 0.39 × 100 = 39.0, mirror = 39.0
         level_map = {"Django": 3}
         cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
         domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
         mirror = compute_mirror_score(domain_scores)
-        assert mirror == pytest.approx(20.0, rel=1e-2)
+        assert mirror == pytest.approx(39.0, rel=1e-2)
 
     def test_zero_level_skills_score_zero(self) -> None:
         level_map = {"Django": 0, "SQL": 0}

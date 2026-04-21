@@ -72,17 +72,21 @@ cluster_proficiency(C) = max(proficiency_level of each matched skill in C) / 5
 ### Step 3 — Cluster Score (per Tax-L2 cluster)
 
 ```
-cluster_score(C) = cluster_coverage(C) × cluster_proficiency(C)
+log_coverage(C)  = log1p(|user skills in C|) / log1p(|total skills in C|)
+cluster_score(C) = cluster_proficiency(C) × (0.3 + 0.7 × log_coverage(C))
 ```
 
-This is the primary unit. It rewards users who are **deep and broad** within a cluster,
-not just users who mentioned many skill names.
+Log-scaling fixes a critical flaw: Lightcast clusters have 50–362 skills. Linear coverage
+would give 1/362 = 0.003 for a single AI/ML skill — making any real CV score near-zero.
+Log-scaling gives 1-skill-in-362 a coverage of ~0.14 instead. The 0.3 floor means having
+any evidence in a domain contributes to the score even without breadth.
 
-| Scenario | Coverage | Proficiency | Cluster Score |
+| Scenario | Log Coverage | Proficiency | Cluster Score |
 |----------|----------|-------------|---------------|
-| 1 skill, Excavator (P3) evidence | 0.02 | 0.60 | 0.012 |
-| 5 skills, Trailblazer (P2) evidence | 0.10 | 0.40 | 0.040 |
-| All skills, Cartographer (P4) evidence | 1.00 | 0.80 | 0.800 |
+| 1 skill in 362-cluster, P3 | 0.14 | 0.60 | 0.23 |
+| 2 skills in 237-cluster, P4 | 0.20 | 0.80 | 0.35 |
+| 5 skills in 50-cluster, P2 | 0.47 | 0.40 | 0.25 |
+| All skills, P4 | 1.00 | 0.80 | 0.80 |
 
 ---
 

@@ -14,6 +14,7 @@ rank_tier: INTERNAL ONLY — never exposed via API.
 100% test coverage: backend/tests/test_scoring.py + backend/tests/test_scoring_io.py
 """
 
+import math
 from datetime import datetime, timezone
 from functools import lru_cache
 
@@ -134,9 +135,11 @@ def compute_cluster_scores(
         total = len(cluster_children.get(cluster, []))
         if total == 0:
             continue
-        coverage = len(levels) / total
+        # log1p scaling: 1 skill in a 362-skill cluster → 0.14 credit, not 0.003.
+        # Proficiency floor (0.3) ensures having any skill in a domain counts.
+        coverage_score = math.log1p(len(levels)) / math.log1p(total)
         max_prof = max(levels) / 5
-        result[cluster] = round(coverage * max_prof, 4)
+        result[cluster] = round(max_prof * (0.3 + 0.7 * coverage_score), 4)
     return result
 
 
