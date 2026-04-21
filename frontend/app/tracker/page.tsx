@@ -83,11 +83,14 @@ function MarketTrackedCard({ app, updating, onStatusChange }: {
         border: open ? "1px solid var(--tm-accent-ring)" : "1px solid var(--tm-border-soft)",
         backdropFilter: "blur(20px)", cursor: "pointer",
         transition: "all var(--tm-dur) var(--tm-ease)",
+        transform: open ? "translateY(-2px)" : "none",
+        boxShadow: open ? "var(--tm-shadow-2)" : "none",
       }}
       onMouseEnter={(e) => { if (!open) e.currentTarget.style.borderColor = "var(--tm-border)" }}
       onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+      {/* Header row — matches JobCard layout exactly */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{app.title}</div>
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
@@ -101,13 +104,17 @@ function MarketTrackedCard({ app, updating, onStatusChange }: {
           </div>
         </div>
       </div>
+
+      {/* Faint bar placeholder — visual parity with ScoreBar */}
+      <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)" }} />
+
       {open && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }} onClick={(e) => e.stopPropagation()}>
           <select
             value={app.status}
             disabled={updating}
             onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-            style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}
+            style={{ flex: 1, width: "100%", padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}
           >
             {STATUSES.map((s) => (
               <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
