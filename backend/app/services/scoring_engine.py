@@ -269,7 +269,7 @@ def fetch_aspiration_skills(db: Client, target_roles: list[str]) -> dict[str, in
     all_rows: list[dict] = []
     for role in target_roles:
         pattern = f"%{role}%"
-        page1 = db.table("jobs").select("main_skills, side_skills").ilike("title", pattern).range(0, 999).execute().data
+        page1 = db.table("jobs").select("main_skills, side_skills").ilike("job_title", pattern).range(0, 999).execute().data
         all_rows.extend(page1 or [])
 
     if not all_rows:
