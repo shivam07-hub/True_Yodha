@@ -37,16 +37,11 @@ def main() -> None:
                 print(f"  [{i}] {user_id[:8]}… — no skills, skipping")
                 continue
 
-            signals = [
-                {
-                    "taxonomy_key": r["skills"]["taxonomy_key"],
-                    "xp_awarded": r["matched_level"] * 150,
-                    "signal_type": "project",
-                    "evidence": r.get("evidence_text", ""),
-                }
+            skill_level_map = {
+                r["skills"]["taxonomy_key"]: r["matched_level"]
                 for r in skill_rows
                 if r.get("skills")
-            ]
+            }
 
             profile = (
                 db.table("user_profiles")
@@ -59,7 +54,9 @@ def main() -> None:
             aspiration_skills = fetch_aspiration_skills(db, target_roles)
 
             result = scoring_engine.compute_and_persist_score(
-                db, user_id, signals, aspiration_skills or None
+                db, user_id,
+                aspiration_skills=aspiration_skills or None,
+                skill_level_map=skill_level_map,
             )
             print(f"  [{i}] {user_id[:8]}… — score: {result['total_score']}")
 

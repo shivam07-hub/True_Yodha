@@ -55,24 +55,20 @@ async def recompute_score(current_user: dict = Depends(get_current_user)) -> Com
             detail="No skills found. Upload your CV first.",
         )
 
-    # Reconstruct signals from stored user_skills
-    signals = [
-        {
-            "taxonomy_key": row["skills"]["taxonomy_key"],
-            "xp_awarded": row["matched_level"] * 150,
-            "signal_type": "project",
-            "evidence": row.get("evidence_text", ""),
-        }
+    skill_level_map = {
+        row["skills"]["taxonomy_key"]: row["matched_level"]
         for row in user_skills.data
         if row.get("skills")
-    ]
+    }
 
-    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).single().execute()
-    target_roles: list[str] = (profile.data or {}).get("target_roles") or []
+    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).maybe_single().execute()
+    target_roles: list[str] = ((profile.data or {}).get("target_roles") or [])
     aspiration_skills = fetch_aspiration_skills(db, target_roles)
 
     score_row = scoring_engine.compute_and_persist_score(
-        db, current_user["user_id"], signals, aspiration_skills or None
+        db, current_user["user_id"],
+        aspiration_skills=aspiration_skills or None,
+        skill_level_map=skill_level_map,
     )
 
     score_response = MirrorScoreResponse(

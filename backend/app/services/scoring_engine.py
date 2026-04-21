@@ -401,17 +401,20 @@ def persist_score(
 def compute_and_persist_score(
     db: Client,
     user_id: str,
-    skills_detected: list[dict],
+    skills_detected: list[dict] | None = None,
     aspiration_skills: dict[str, int] | None = None,
+    skill_level_map: dict[str, int] | None = None,
 ) -> dict:
     """
-    Full scoring pipeline. Called after CV upload or diary entry.
-    Returns the mirror_scores row (rank_tier stripped before API response).
-
-    aspiration_skills: {skill_name: target_proficiency} from user's target role/company.
-    Pass None to fall back to market-demand ordering for gap analysis.
+    Full scoring pipeline. Two calling modes:
+      - CV upload: pass skills_detected (raw signals). Infers levels, writes user_skills.
+      - Recompute: pass skill_level_map (stored matched_level values). Skips signal
+        inference and does NOT overwrite user_skills — preserves original proficiency
+        levels and evidence text.
     """
-    skill_level_map = build_skill_level_map(skills_detected)
+    if skill_level_map is None:
+        skill_level_map = build_skill_level_map(skills_detected or [])
+
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
     skill_demand = fetch_skill_demand(db)
 
@@ -430,7 +433,11 @@ def compute_and_persist_score(
     )
     rank_tier = compute_rank_tier(total_score)
 
-    skills_count = persist_user_skills(db, user_id, skill_level_map, skills_detected)
+    if skills_detected is not None:
+        skills_count = persist_user_skills(db, user_id, skill_level_map, skills_detected)
+    else:
+        skills_count = len(skill_level_map)
+
     return persist_score(
         db, user_id, total_score, domain_scores, gap_skills, skills_count, rank_tier
     )
