@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type ApplicationStatus, type JobMatch } from "@/lib/api"
+import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
@@ -67,6 +67,56 @@ const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: st
   interviewing: { label: "Interviewing", fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.2)" },
   rejected:     { label: "Rejected",     fg: "var(--tm-danger)",   bg: "var(--tm-danger-wash)",   border: "rgba(251,113,133,0.2)" },
   offer:        { label: "Offer 🎉",     fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.3)" },
+}
+
+function MarketTrackedCard({ app, updating, onStatusChange }: {
+  app: ApplicationResponse; updating: boolean; onStatusChange: (s: ApplicationStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const statusMeta = STATUS_META[app.status]
+  return (
+    <div
+      onClick={() => setOpen((o) => !o)}
+      style={{
+        borderRadius: "var(--tm-radius)", padding: "18px 20px",
+        background: open ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+        border: open ? "1px solid var(--tm-accent-ring)" : "1px solid var(--tm-border-soft)",
+        backdropFilter: "blur(20px)", cursor: "pointer",
+        transition: "all var(--tm-dur) var(--tm-ease)",
+      }}
+      onMouseEnter={(e) => { if (!open) e.currentTarget.style.borderColor = "var(--tm-border)" }}
+      onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{app.title}</div>
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", flexShrink: 0 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)" }}>
+            Tracked from Market
+          </div>
+          <div style={{ fontSize: 10, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999, background: statusMeta.bg, border: `1px solid ${statusMeta.border}` }}>
+            {statusMeta.label}
+          </div>
+        </div>
+      </div>
+      {open && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }} onClick={(e) => e.stopPropagation()}>
+          <select
+            value={app.status}
+            disabled={updating}
+            onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+            style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-surface-2)", border: "1px solid var(--tm-border)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ScoreBar({ score }: { score: number }) {
@@ -377,6 +427,13 @@ export default function TrackerPage() {
     })
   }, [matchesQuery.data, appsByJobId])
 
+  const matchedJobIds = useMemo(() => new Set((matchesQuery.data?.jobs ?? []).map((j) => j.job_id)), [matchesQuery.data])
+
+  const marketTrackedJobs = useMemo(
+    () => (appsQuery.data ?? []).filter((a) => !matchedJobIds.has(a.job_id)),
+    [appsQuery.data, matchedJobIds],
+  )
+
   const topGapSkills = useMemo(() => (scoresQuery.data?.gap_skills ?? []).slice(0, 4), [scoresQuery.data])
 
   if (!ready) return null
@@ -447,6 +504,23 @@ export default function TrackerPage() {
                   />
                 )
               })
+            )}
+
+            {/* Tracked from Market section */}
+            {marketTrackedJobs.length > 0 && (
+              <>
+                <div style={{ marginTop: 8, marginBottom: 4, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+                  Tracked from Market · {marketTrackedJobs.length}
+                </div>
+                {marketTrackedJobs.map((app) => (
+                  <MarketTrackedCard
+                    key={app.job_id}
+                    app={app}
+                    updating={updateStatus.isPending}
+                    onStatusChange={(status) => updateStatus.mutate({ jobId: app.job_id, status })}
+                  />
+                ))}
+              </>
             )}
           </div>
 
