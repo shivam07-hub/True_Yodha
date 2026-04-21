@@ -127,8 +127,13 @@ async def _llm_extract(cv_text: str) -> list[dict]:
             AsyncOpenAI(api_key="lm-studio", base_url=settings.lm_studio_base_url),
             settings.lm_studio_extractor_model,
         ))
+    _or_headers = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
     if settings.openrouter_api_key:
-        or_client = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
+        or_client = AsyncOpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=_OPENROUTER_BASE,
+            default_headers=_or_headers,
+        )
         providers.append((or_client, "openai/gpt-4o-mini"))
     if settings.groq_api_key:
         providers.append((
@@ -141,7 +146,11 @@ async def _llm_extract(cv_text: str) -> list[dict]:
             "gemini-2.0-flash-lite",
         ))
     if settings.openrouter_api_key:
-        or_free = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
+        or_free = AsyncOpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=_OPENROUTER_BASE,
+            default_headers=_or_headers,
+        )
         providers.append((or_free, "meta-llama/llama-3.3-70b-instruct:free"))
 
     if not providers:

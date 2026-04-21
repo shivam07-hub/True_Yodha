@@ -43,7 +43,11 @@ def _get_client_and_model() -> tuple[OpenAI | None, str | None, bool]:
         )
     if settings.openrouter_api_key:
         return (
-            OpenAI(api_key=settings.openrouter_api_key, base_url="https://openrouter.ai/api/v1"),
+            OpenAI(
+                api_key=settings.openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1",
+                default_headers={"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"},
+            ),
             "meta-llama/llama-3.3-70b-instruct:free",
             False,
         )
