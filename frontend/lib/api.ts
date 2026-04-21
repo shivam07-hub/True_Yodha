@@ -134,6 +134,14 @@ export const cv = {
     }),
 }
 
+export async function uploadCVText(token: string, text: string): Promise<CVUploadResponse> {
+  return request<CVUploadResponse>("/cv/text", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text }),
+  })
+}
+
 export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {
   const form = new FormData()
   form.append("file", file)

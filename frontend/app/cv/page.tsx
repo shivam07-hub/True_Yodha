@@ -56,7 +56,7 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
           {skill.display_name}
         </span>
         <span style={{
-          fontSize: 10, padding: "2px 8px", borderRadius: 999,
+          fontSize: 11, padding: "2px 8px", borderRadius: 999,
           background: cfg.bg, color: cfg.color,
           border: `1px solid ${cfg.color}`,
           opacity: 0.9,
@@ -81,7 +81,7 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
           borderRadius: "var(--tm-radius-sm)",
           background: "var(--tm-accent-wash)",
           border: "1px solid var(--tm-accent-ring)",
-          fontSize: 11, color: "var(--tm-text-muted)", lineHeight: 1.6,
+          fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6,
         }}>
           {skill.evidence_text}
         </div>
@@ -95,7 +95,7 @@ function ClusterSection({ cluster, skills, highlighted }: { cluster: string; ski
     <div style={{ marginBottom: 20 }}>
       <div className="tm-label-caps" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
         <span>{cluster}</span>
-        <span style={{ fontSize: 9, color: "var(--tm-text-faint)" }}>{skills.length} skills</span>
+        <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>{skills.length} skills</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {skills.map((s, i) => (
@@ -224,8 +224,8 @@ export default function CVPage() {
           <div className="tm-label-caps" style={{ marginBottom: 6 }}>CV Skill Mapping</div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
             <div>
-              <h1 className="tm-title" style={{ marginBottom: 3 }}>Your Skill Profile</h1>
-              <p className="tm-meta">Extracted from CV · mapped against market</p>
+              <h1 className="tm-title" style={{ marginBottom: 3, fontSize: "var(--tm-fs-heading)" }}>Your Skill Profile</h1>
+              <p className="tm-meta" style={{ fontSize: 12 }}>Extracted from CV · mapped against market</p>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button
@@ -261,18 +261,18 @@ export default function CVPage() {
                     outline: "none",
                   }}
                 >
-                  <span style={{ fontSize: 18, fontWeight: 700, color: active ? "var(--tm-bg)" : color, lineHeight: 1 }}>{count}</span>
-                  <span className="tm-meta" style={{ color: active ? "var(--tm-bg)" : "inherit" }}>{label}</span>
+                  <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 700, color: active ? "var(--tm-bg)" : color, lineHeight: 1 }}>{count}</span>
+                  <span style={{ fontSize: 12, color: active ? "var(--tm-bg)" : "inherit" }}>{label}</span>
                 </button>
               )
             })}
             {scoreData && (
               <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="tm-meta">Truth Score:</span>
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)" }}>
+                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Truth Score:</span>
+                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
                   {Math.round(scoreData.total_score)}
                 </span>
-                <span className="tm-meta">/100 · {totalSkills} skills</span>
+                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>/100 · {totalSkills} skills</span>
               </div>
             )}
           </div>
@@ -333,7 +333,7 @@ export default function CVPage() {
               </div>
             ) : filteredClusterEntries.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>
-                <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◈</div>
+                <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.3 }}>◈</div>
                 {clusterEntries.length === 0 ? "Upload a CV to see extracted skills" : `No ${statusFilter} skills in this view`}
               </div>
             ) : (
@@ -357,7 +357,7 @@ export default function CVPage() {
             }}>
               <div className="tm-label-caps">Your CV</div>
               {cvProfile?.cv_parsed_at && (
-                <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginLeft: "auto" }}>
+                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginLeft: "auto" }}>
                   Parsed: {new Date(cvProfile.cv_parsed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </div>
               )}
@@ -367,7 +367,7 @@ export default function CVPage() {
               {/* Watermark */}
               <div style={{
                 position: "absolute", right: 24, top: 20,
-                fontSize: 80, color: "var(--tm-accent-wash)",
+                fontSize: 81, color: "var(--tm-accent-wash)",
                 pointerEvents: "none", userSelect: "none", lineHeight: 1,
               }}>◈</div>
 
@@ -375,7 +375,7 @@ export default function CVPage() {
                 <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>Loading…</p>
               ) : hasCv ? (
                 <pre style={{
-                  fontSize: 11.5, lineHeight: 1.8, color: "var(--tm-text-muted)",
+                  fontSize: 12.5, lineHeight: 1.8, color: "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-mono)", whiteSpace: "pre-wrap",
                   wordBreak: "break-word", position: "relative",
                 }}>
@@ -401,9 +401,9 @@ export default function CVPage() {
                 </pre>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--tm-text-faint)", textAlign: "center", gap: 12 }}>
-                  <div style={{ fontSize: 48, opacity: 0.2 }}>◈</div>
+                  <div style={{ fontSize: 49, opacity: 0.2 }}>◈</div>
                   <p style={{ fontSize: "var(--tm-fs-meta)" }}>No CV uploaded yet.</p>
-                  <p style={{ fontSize: 11 }}>Use the button above to upload.</p>
+                  <p style={{ fontSize: 12 }}>Use the button above to upload.</p>
                 </div>
               )}
             </div>

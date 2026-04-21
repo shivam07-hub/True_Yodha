@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
 import { StepScore } from "@/components/onboarding/step-score"
-import { uploadCV, jobs, scores, users } from "@/lib/api"
+import { uploadCV, uploadCVText, jobs, scores, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -16,12 +16,20 @@ export default function OnboardingPage() {
   const { token, ready } = useAuth()
   const [step, setStep] = useState<Step>("cv")
   const [cvFile, setCvFile] = useState<File | null>(null)
+  const [cvText, setCvText] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scoreData, setScoreData] = useState<ScoreResponse | null>(null)
 
   function handleCVNext(file: File) {
     setCvFile(file)
+    setCvText(null)
+    setStep("role")
+  }
+
+  function handleCVTextNext(text: string) {
+    setCvText(text)
+    setCvFile(null)
     setStep("role")
   }
 
@@ -43,9 +51,11 @@ export default function OnboardingPage() {
         target_location: location,
       })
 
-      // 2. Upload CV if we have one
+      // 2. Upload CV or text description
       if (cvFile) {
         await uploadCV(token, cvFile)
+      } else if (cvText) {
+        await uploadCVText(token, cvText)
       }
 
       // 3. CV upload already persisted the score — just fetch it
@@ -69,7 +79,7 @@ export default function OnboardingPage() {
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-        <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
+        <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
           Truth Mirror
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -90,11 +100,11 @@ export default function OnboardingPage() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 24px" }}>
         {error && (
           <div style={{ marginBottom: 24, width: "100%", maxWidth: 448, background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.3)", borderRadius: "var(--tm-radius)", padding: "12px 16px" }}>
-            <p style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</p>
+            <p style={{ fontSize: 13, color: "var(--tm-danger)" }}>{error}</p>
           </div>
         )}
 
-        {step === "cv" && <StepCV onNext={handleCVNext} />}
+        {step === "cv" && <StepCV onNext={handleCVNext} onNextText={handleCVTextNext} />}
         {step === "role" && <StepRole onNext={handleRoleNext} loading={loading} />}
         {step === "score" && scoreData && <StepScore score={scoreData} />}
       </div>

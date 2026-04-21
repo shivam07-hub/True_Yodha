@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.database import get_supabase_admin
@@ -87,6 +87,63 @@ async def upload_cv(
         )
 
     # Read target roles so gap skills are role-specific, not generic market demand
+    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).single().execute()
+    target_roles: list[str] = (profile.data or {}).get("target_roles") or []
+    aspiration_skills = fetch_aspiration_skills(db, target_roles)
+
+    score_row = scoring_engine.compute_and_persist_score(
+        db, current_user["user_id"], skills_detected, aspiration_skills or None
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    db.table("user_profiles").update({
+        "cv_raw_text": raw_text,
+        "cv_parsed_at": now,
+        "onboarding_complete": True,
+    }).eq("id", current_user["user_id"]).execute()
+
+    db.table("cv_history").insert({
+        "user_id": current_user["user_id"],
+        "skills_count": len(skills_detected),
+        "mirror_score": score_row["total_score"],
+        "uploaded_at": now,
+    }).execute()
+
+    return CVUploadResponse(
+        skills_detected=len(skills_detected),
+        score=score_row["total_score"],
+        redirect_to="/onboarding/score",
+    )
+
+
+class CVTextRequest(BaseModel):
+    text: str
+
+
+@router.post("/text", response_model=CVUploadResponse, status_code=status.HTTP_201_CREATED)
+async def submit_cv_text(
+    body: CVTextRequest,
+    current_user: dict = Depends(get_current_user),
+) -> CVUploadResponse:
+    db = get_supabase_admin()
+    assert_not_rate_limited(db, current_user["user_id"], "cv_history", "uploaded_at")
+
+    raw_text = body.text.strip()
+    if len(raw_text) < 80:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Please write at least a few sentences about yourself.",
+        )
+
+    parsed = await cv_parser.parse_cv_text(raw_text)
+    skills_detected = parsed.get("skills_detected", [])
+
+    if not skills_detected:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No skills could be identified from your description. Try adding more detail about your work and projects.",
+        )
+
     profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).single().execute()
     target_roles: list[str] = (profile.data or {}).get("target_roles") or []
     aspiration_skills = fetch_aspiration_skills(db, target_roles)

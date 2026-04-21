@@ -120,7 +120,7 @@ Return JSON only — no prose, no markdown fences. Shape:
 
 
 async def _llm_extract(cv_text: str) -> list[dict]:
-    """Try LM Studio → OpenRouter (free) → Groq → Gemini → OpenRouter (paid). Returns [] if all fail."""
+    """Try LM Studio → OpenRouter paid → Groq → Gemini → OpenRouter free. Returns [] if all fail."""
     providers: list[tuple[AsyncOpenAI, str]] = []
     if settings.lm_studio_extractor_model:
         providers.append((
@@ -129,11 +129,11 @@ async def _llm_extract(cv_text: str) -> list[dict]:
         ))
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
-        providers.append((or_client, "meta-llama/llama-3.3-70b-instruct:free"))
+        providers.append((or_client, "openai/gpt-4o-mini"))
     if settings.groq_api_key:
         providers.append((
             AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
-            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
         ))
     if settings.google_api_key:
         providers.append((
@@ -141,10 +141,8 @@ async def _llm_extract(cv_text: str) -> list[dict]:
             "gemini-2.0-flash-lite",
         ))
     if settings.openrouter_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE),
-            "google/gemini-flash-1.5",
-        ))
+        or_free = AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OPENROUTER_BASE)
+        providers.append((or_free, "meta-llama/llama-3.3-70b-instruct:free"))
 
     if not providers:
         logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY, GROQ_API_KEY, or GOOGLE_API_KEY")
@@ -277,6 +275,19 @@ def _validate_and_normalize(raw_skills: list[dict]) -> list[dict]:
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
+
+async def parse_cv_text(raw_text: str) -> dict:
+    """Parse free-form self-description text and return detected skill signals."""
+    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+        return {"skills_detected": [], "raw_text": raw_text}
+    raw_skills = await _llm_extract(raw_text)
+    skills = _validate_and_normalize(raw_skills)
+    logger.info(
+        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills",
+        len(raw_text), len(raw_skills), len(skills),
+    )
+    return {"skills_detected": skills, "raw_text": raw_text}
+
 
 async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
     """
