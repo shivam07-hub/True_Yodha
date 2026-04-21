@@ -131,9 +131,9 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
 
   return (
     <>
-      <div className="w-full h-72">
+      <div className="w-full" style={{ height: 432 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data} outerRadius="58%" margin={{ top: 18, right: 52, bottom: 18, left: 52 }}>
+          <RadarChart data={data} outerRadius="68%" margin={{ top: 24, right: 64, bottom: 24, left: 64 }}>
             <PolarGrid stroke="rgba(0,245,212,0.1)" />
             <PolarAngleAxis
               dataKey="domain"
