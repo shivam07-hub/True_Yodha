@@ -99,10 +99,23 @@ class TestDomainScores:
         assert domain_scores["Engineering"] == pytest.approx(60.0)
 
     def test_two_clusters_same_domain(self) -> None:
-        # Web Frameworks=0.2, Databases=0.4 both in IT → IT domain=(0.2+0.4)/2×100=30.0
+        # Web Frameworks=0.2, Databases=0.4 both in IT, 1 skill each (default)
+        # weighted_mean=0.3, breadth=log1p(1)/log1p(19)=0.231 → 0.3×1.116×100=33.5
+        import math
         cluster_scores = {"Web Frameworks": 0.2, "Databases": 0.4}
         domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
-        assert domain_scores["IT"] == pytest.approx(30.0)
+        breadth = math.log1p(1) / math.log1p(19)
+        expected = round(0.3 * (1.0 + 0.5 * breadth) * 100, 1)
+        assert domain_scores["IT"] == pytest.approx(expected, rel=1e-2)
+
+    def test_more_skills_in_domain_scores_higher(self) -> None:
+        # Same cluster scores, but more skills → higher domain score
+        cluster_scores = {"Web Frameworks": 0.2, "Databases": 0.2}
+        few_counts = {"Web Frameworks": 1, "Databases": 1}
+        many_counts = {"Web Frameworks": 5, "Databases": 5}
+        few_score = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, few_counts)
+        many_score = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, many_counts)
+        assert many_score["IT"] > few_score["IT"]
 
     def test_absent_domain_not_included(self) -> None:
         cluster_scores = {"Cloud": 0.5}

@@ -146,21 +146,31 @@ def compute_cluster_scores(
 def compute_domain_scores(
     cluster_scores: dict[str, float],
     cluster_to_domain: dict[str, str],
+    cluster_skill_counts: dict[str, int] | None = None,
 ) -> dict[str, float]:
     """
-    Domain score = mean(cluster_scores under domain) × 100.
-    Only Tax-L1 domains where the user has ≥1 skill contribute. No penalty for
-    domains the user has no evidence in (a Data Engineer isn't penalised for
-    missing Hospitality skills).
+    Domain score = skill-count-weighted mean(cluster_scores) × breadth_bonus × 100.
+
+    cluster_skill_counts: {cluster: n_user_skills} — when provided, clusters with more
+    skills get higher weight AND the total skill count drives a log breadth bonus.
+    A domain with 7 skills at P2 scores higher than a domain with 2 skills at P2.
     """
-    by_domain: dict[str, list[float]] = {}
+    counts = cluster_skill_counts or {}
+    by_domain: dict[str, list[tuple[float, int]]] = {}
     for cluster, score in cluster_scores.items():
         domain = cluster_to_domain.get(cluster, "General")
-        by_domain.setdefault(domain, []).append(score)
-    return {
-        domain: round(sum(scores) / len(scores) * 100, 1)
-        for domain, scores in by_domain.items()
-    }
+        n = counts.get(cluster, 1)
+        by_domain.setdefault(domain, []).append((score, n))
+
+    result: dict[str, float] = {}
+    for domain, pairs in by_domain.items():
+        total_n = sum(c for _, c in pairs)
+        weighted_score = sum(s * c for s, c in pairs) / total_n
+        # log1p(total_n - 1): 0 for 1 skill, scales to 1.0 at 20 skills
+        breadth = math.log1p(total_n - 1) / math.log1p(19)
+        domain_score = weighted_score * (1.0 + 0.5 * min(breadth, 1.0))
+        result[domain] = round(domain_score * 100, 1)
+    return result
 
 
 def compute_mirror_score(domain_scores: dict[str, float]) -> float:
@@ -406,7 +416,11 @@ def compute_and_persist_score(
     skill_demand = fetch_skill_demand(db)
 
     cluster_scores = compute_cluster_scores(skill_level_map, cluster_children, skill_to_cluster)
-    domain_scores = compute_domain_scores(cluster_scores, cluster_to_domain)
+    cluster_skill_counts = {
+        cluster: sum(1 for s in skill_level_map if skill_to_cluster.get(s) == cluster)
+        for cluster in cluster_scores
+    }
+    domain_scores = compute_domain_scores(cluster_scores, cluster_to_domain, cluster_skill_counts)
     total_score = compute_mirror_score(domain_scores)
 
     gap_skills = compute_gap_skills(
