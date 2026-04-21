@@ -50,6 +50,7 @@ class ApplicationResponse(BaseModel):
     job_id: str
     title: str
     company: str | None
+    job_description: str | None = None
     status: str
     applied_at: datetime | None
     response_at: datetime | None

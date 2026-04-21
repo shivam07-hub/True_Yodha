@@ -57,6 +57,37 @@ function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }
 }
 
 
+function AppDetailModal({ app, onClose }: { app: ApplicationResponse; onClose: () => void }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", zIndex: 1, width: "min(560px, 92vw)", maxHeight: "80vh", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", borderRadius: "var(--tm-radius)", padding: "24px", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{app.title}</div>
+            <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", fontSize: 12 }}>
+          <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job ID</span>
+          <span style={{ color: "var(--tm-text-muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{app.job_id}</span>
+          <span style={{ color: "var(--tm-text-faint)", fontFamily: "monospace" }}>Job Title</span>
+          <span style={{ color: "var(--tm-text)" }}>{app.title}</span>
+        </div>
+        {app.job_description ? (
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Job Description</div>
+            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{app.job_description}</div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No description available for this role.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const STATUSES: ApplicationStatus[] = ["pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer"]
 
 const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: string; border: string }> = {
@@ -69,8 +100,9 @@ const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: st
   offer:        { label: "Offer 🎉",     fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.3)" },
 }
 
-function MarketTrackedCard({ app, updating, onStatusChange }: {
-  app: ApplicationResponse; updating: boolean; onStatusChange: (s: ApplicationStatus) => void
+function MarketTrackedCard({ app, updating, onStatusChange, onDetailClick }: {
+  app: ApplicationResponse; updating: boolean
+  onStatusChange: (s: ApplicationStatus) => void; onDetailClick: () => void
 }) {
   const [open, setOpen] = useState(false)
   const statusMeta = STATUS_META[app.status]
@@ -92,7 +124,12 @@ function MarketTrackedCard({ app, updating, onStatusChange }: {
       {/* Header row — matches JobCard layout exactly */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{app.title}</div>
+          <div
+            onClick={(e) => { e.stopPropagation(); onDetailClick() }}
+            style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3, cursor: "pointer", display: "inline-block", borderBottom: "1px solid transparent", transition: "color 0.15s, border-color 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderBottomColor = "var(--tm-accent-ring)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.borderBottomColor = "transparent" }}
+          >{app.title}</div>
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", flexShrink: 0 }}>
@@ -415,6 +452,7 @@ export default function TrackerPage() {
   })
 
   const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
+  const [appDetailJob, setAppDetailJob] = useState<ApplicationResponse | null>(null)
 
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
@@ -448,6 +486,7 @@ export default function TrackerPage() {
   return (
     <>
     {detailJob && <JobDetailModal job={detailJob} onClose={() => setDetailJob(null)} />}
+    {appDetailJob && <AppDetailModal app={appDetailJob} onClose={() => setAppDetailJob(null)} />}
     <AppShell>
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
@@ -479,11 +518,34 @@ export default function TrackerPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, alignItems: "start" }}>
           {/* Job cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+            {/* Tracked from Market — top priority */}
+            {marketTrackedJobs.length > 0 && (
+              <>
+                <div style={{ marginBottom: 4, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+                  Tracked from Market · {marketTrackedJobs.length}
+                </div>
+                {marketTrackedJobs.map((app) => (
+                  <MarketTrackedCard
+                    key={app.job_id}
+                    app={app}
+                    updating={updateStatus.isPending}
+                    onStatusChange={(status) => updateStatus.mutate({ jobId: app.job_id, status })}
+                    onDetailClick={() => setAppDetailJob(app)}
+                  />
+                ))}
+                {topJobs.length > 0 && (
+                  <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "4px 0" }} />
+                )}
+              </>
+            )}
+
+            {/* AI matched jobs */}
             {matchesQuery.isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} style={{ height: 100, borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", animation: "pulse 2s infinite" }} />
               ))
-            ) : topJobs.length === 0 ? (
+            ) : topJobs.length === 0 && marketTrackedJobs.length === 0 ? (
               <div style={{
                 padding: 48, textAlign: "center",
                 borderRadius: "var(--tm-radius)",
@@ -511,23 +573,6 @@ export default function TrackerPage() {
                   />
                 )
               })
-            )}
-
-            {/* Tracked from Market section */}
-            {marketTrackedJobs.length > 0 && (
-              <>
-                <div style={{ marginTop: 8, marginBottom: 4, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-                  Tracked from Market · {marketTrackedJobs.length}
-                </div>
-                {marketTrackedJobs.map((app) => (
-                  <MarketTrackedCard
-                    key={app.job_id}
-                    app={app}
-                    updating={updateStatus.isPending}
-                    onStatusChange={(status) => updateStatus.mutate({ jobId: app.job_id, status })}
-                  />
-                ))}
-              </>
             )}
           </div>
 

@@ -226,7 +226,7 @@ async def get_applications(current_user: dict = Depends(get_current_user)) -> li
     result = (
         get_supabase_admin()
         .table("job_applications")
-        .select("*, jobs(job_title, company_name)")
+        .select("*, jobs(job_title, company_name, job_description)")
         .eq("user_id", current_user["user_id"])
         .order("created_at", desc=True)
         .execute()
@@ -262,7 +262,7 @@ async def update_application(
     result = (
         get_supabase_admin()
         .table("job_applications")
-        .select("*, jobs(job_title, company_name)")
+        .select("*, jobs(job_title, company_name, job_description)")
         .eq("user_id", current_user["user_id"])
         .eq("job_id", job_id)
         .single()
@@ -304,6 +304,7 @@ def _to_application(row: dict) -> ApplicationResponse:
         job_id=row["job_id"],
         title=job.get("job_title") or "",
         company=job.get("company_name"),
+        job_description=job.get("job_description"),
         status=row["status"],
         applied_at=row.get("applied_at"),
         response_at=row.get("response_at"),

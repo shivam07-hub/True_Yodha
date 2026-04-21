@@ -256,6 +256,7 @@ export interface ApplicationResponse {
   job_id: string
   title: string
   company: string | null
+  job_description?: string | null
   status: ApplicationStatus
   applied_at: string | null
   response_at: string | null
