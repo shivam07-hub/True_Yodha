@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch, type SkillGapItem } from "@/lib/api"
+import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
@@ -620,7 +620,22 @@ export default function TrackerPage() {
                 )}
 
                 {skillGapQuery.data && (
-                  <JobSkillGapPanel skills={skillGapQuery.data.skills} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {skillGapQuery.data.skills.map((s) => (
+                      <div key={s.skill} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+                        background: s.missing ? "var(--tm-danger-wash)" : "var(--tm-success-wash)",
+                        border: `1px solid ${s.missing ? "var(--tm-danger)" : "var(--tm-success)"}`,
+                        fontSize: 12,
+                      }}>
+                        <span style={{ color: "var(--tm-text)", fontWeight: 500 }}>{s.skill}</span>
+                        <span style={{ color: s.missing ? "var(--tm-danger)" : "var(--tm-success)", fontFamily: "var(--tm-font-mono)", fontSize: 11 }}>
+                          {s.missing ? "Missing" : `L${s.user_level ?? 0}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
 
                 {skillGapQuery.isError && (
