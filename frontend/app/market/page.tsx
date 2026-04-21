@@ -185,7 +185,7 @@ export default function MarketPage() {
           function toggleSkill(skill: string) {
             setSkillFilters((prev) => {
               const next = new Set(prev)
-              next.has(skill) ? next.delete(skill) : next.add(skill)
+              if (next.has(skill)) { next.delete(skill) } else { next.add(skill) }
               return next
             })
             setSelected(null)
