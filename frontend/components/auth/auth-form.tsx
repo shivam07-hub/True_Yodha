@@ -48,6 +48,7 @@ export function AuthForm({ mode }: Props) {
       }
 
       localStorage.setItem("mirror_token", res.access_token)
+      if (res.refresh_token) localStorage.setItem("mirror_refresh_token", res.refresh_token)
       router.push(mode === "login" ? "/market" : "/onboarding")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")

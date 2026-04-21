@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.database import get_supabase, get_supabase_admin
-from app.schemas import AuthResponse, LoginRequest, SignupRequest
+from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -53,6 +53,7 @@ async def signup(body: SignupRequest) -> AuthResponse:
 
     return AuthResponse(
         access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
         user_id=response.user.id,
         email=response.user.email,
     )
@@ -81,6 +82,23 @@ async def login(body: LoginRequest) -> AuthResponse:
     )
     return AuthResponse(
         access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
         user_id=response.user.id,
         email=response.user.email,
+    )
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(body: RefreshRequest) -> RefreshResponse:
+    try:
+        response = get_supabase().auth.refresh_session(body.refresh_token)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+    if not response.session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token refresh failed")
+
+    return RefreshResponse(
+        access_token=response.session.access_token,
+        refresh_token=response.session.refresh_token,
     )

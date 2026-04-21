@@ -9,7 +9,42 @@ const BASE =
   process.env.NEXT_PUBLIC_API_URL ??
   ""
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+function extractError(body: unknown, status: number): string {
+  if (typeof body !== "object" || body === null) return `HTTP ${status}`
+  const detail = (body as Record<string, unknown>).detail
+  if (typeof detail === "string") return detail
+  if (Array.isArray(detail)) return detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+  return `HTTP ${status}`
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null
+  const refreshToken = localStorage.getItem("mirror_refresh_token")
+  if (!refreshToken) return null
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { access_token: string; refresh_token: string }
+    localStorage.setItem("mirror_token", data.access_token)
+    localStorage.setItem("mirror_refresh_token", data.refresh_token)
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
+function forceLogout(): never {
+  localStorage.removeItem("mirror_token")
+  localStorage.removeItem("mirror_refresh_token")
+  window.location.href = "/login"
+  throw new Error("Session expired. Please sign in again.")
+}
+
+async function request<T>(path: string, init?: RequestInit, _isRetry = false): Promise<T> {
   const { headers: extraHeaders, ...rest } = init ?? {}
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...extraHeaders },
@@ -17,19 +52,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("mirror_token")
-      window.location.href = "/login"
-      throw new Error("Session expired. Please sign in again.")
+      if (!_isRetry) {
+        const newToken = await tryRefreshToken()
+        if (newToken) {
+          // Patch Authorization header with new token and retry once
+          const newHeaders = { ...(extraHeaders as Record<string, string> ?? {}), Authorization: `Bearer ${newToken}` }
+          return request<T>(path, { ...rest, headers: newHeaders }, true)
+        }
+      }
+      forceLogout()
     }
     const body = await res.json().catch(() => ({ detail: res.statusText }))
-    const detail = body?.detail
-    const message =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
-          : `HTTP ${res.status}`
-    throw new Error(message)
+    throw new Error(extractError(body, res.status))
   }
   return res.json() as Promise<T>
 }
@@ -38,6 +72,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export interface AuthResponse {
   access_token: string | null
+  refresh_token: string | null
   token_type: string
   user_id: string
   email: string | null
@@ -168,19 +203,22 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadRespo
   }
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("mirror_token")
-      window.location.href = "/login"
-      throw new Error("Session expired. Please sign in again.")
+      const newToken = await tryRefreshToken()
+      if (newToken) {
+        // Retry upload once with new token
+        const retryForm = new FormData()
+        retryForm.append("file", file)
+        const retryRes = await fetch(`${BASE}/cv/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${newToken}` },
+          body: retryForm,
+        })
+        if (retryRes.ok) return retryRes.json()
+      }
+      forceLogout()
     }
     const body = await res.json().catch(() => ({ detail: res.statusText }))
-    const detail = body?.detail
-    const message =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
-          : `HTTP ${res.status}`
-    throw new Error(message)
+    throw new Error(extractError(body, res.status))
   }
   return res.json()
 }

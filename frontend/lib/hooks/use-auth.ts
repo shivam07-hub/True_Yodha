@@ -20,6 +20,7 @@ export function useAuth() {
 
   function signOut() {
     localStorage.removeItem("mirror_token")
+    localStorage.removeItem("mirror_refresh_token")
     router.push("/login")
   }
 
