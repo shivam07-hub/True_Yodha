@@ -278,7 +278,7 @@ async def get_skill_gap(
     job_id: str,
     current_user: dict = Depends(get_current_user),
 ) -> SkillGapResponse:
-    """Per-job skill gap: which required skills the user has vs. is missing."""
+    """Return per-job skill gap: which skills the job requires and whether the user has them."""
     db = get_supabase_admin()
     user_id = current_user["user_id"]
 
@@ -299,7 +299,8 @@ async def get_skill_gap(
     user_skill_map: dict[str, int] = {}
     for row in (skills_result.data or []):
         if row.get("skills"):
-            user_skill_map[row["skills"]["taxonomy_key"].lower()] = row["matched_level"]
+            key = row["skills"]["taxonomy_key"].lower()
+            user_skill_map[key] = row["matched_level"]
 
     gap_items: list[SkillGapItem] = []
     for skill in main_skills:
