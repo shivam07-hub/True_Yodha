@@ -60,7 +60,8 @@ export default function OnboardingPage() {
 
       // 3. CV upload already persisted the score — just fetch it
       const result = await scores.me(token)
-      await jobs.compute(token).catch(() => null)
+      void scores.compute(token).then((computed) => setScoreData(computed)).catch(() => null)
+      void jobs.compute(token).catch(() => null)
       setScoreData(result)
       setStep("score")
     } catch (err) {

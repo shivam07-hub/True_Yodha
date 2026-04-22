@@ -15,10 +15,13 @@ rank_tier: INTERNAL ONLY — never exposed via API.
 """
 
 import math
+import logging
 from datetime import datetime, timezone
 from functools import lru_cache
 
 from supabase import Client
+
+logger = logging.getLogger(__name__)
 
 _SIGNAL_LEVEL_MAP = {
     "mention":       1,   # P1 Scout       — named in skills section only
@@ -279,7 +282,11 @@ def fetch_aspiration_skills(db: Client, target_roles: list[str]) -> dict[str, in
     all_rows: list[dict] = []
     for role in target_roles:
         pattern = f"%{role}%"
-        page1 = db.table("jobs").select("main_skills, side_skills").ilike("job_title", pattern).limit(100).execute().data
+        try:
+            page1 = db.table("jobs").select("main_skills, side_skills").ilike("job_title", pattern).limit(100).execute().data
+        except Exception as exc:
+            logger.warning("Aspiration skill lookup failed for role %r: %s", role, exc)
+            continue
         all_rows.extend(page1 or [])
 
     if not all_rows:
@@ -314,10 +321,14 @@ def fetch_skill_demand(db: Client) -> dict[str, int]:
     jobs.main_skills and jobs.side_skills. Source of truth: public.jobs table.
     main_skills weighted ×2 to reflect must-have vs nice-to-have distinction.
     """
-    page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-    page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+    try:
+        page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
+        page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+    except Exception as exc:
+        logger.warning("Market skill demand lookup failed: %s", exc)
+        return {}
     counts: dict[str, int] = {}
-    for row in page1 + page2:
+    for row in (page1 or []) + (page2 or []):
         for s in (row.get("main_skills") or []):
             if s and s.strip():
                 counts[s.strip()] = counts.get(s.strip(), 0) + 2
@@ -404,6 +415,7 @@ def compute_and_persist_score(
     skills_detected: list[dict] | None = None,
     aspiration_skills: dict[str, int] | None = None,
     skill_level_map: dict[str, int] | None = None,
+    include_market_signals: bool = True,
 ) -> dict:
     """
     Full scoring pipeline. Two calling modes:
@@ -416,7 +428,7 @@ def compute_and_persist_score(
         skill_level_map = build_skill_level_map(skills_detected or [])
 
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
-    skill_demand = fetch_skill_demand(db)
+    skill_demand = fetch_skill_demand(db) if include_market_signals else {}
 
     cluster_scores = compute_cluster_scores(skill_level_map, cluster_children, skill_to_cluster)
     cluster_skill_counts = {
