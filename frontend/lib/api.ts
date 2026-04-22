@@ -160,6 +160,10 @@ export interface CVHistoryItem {
   mirror_score: number
   uploaded_at: string
   cv_raw_text: string | null
+  version_number: number
+  version_type: "baseline_upload" | "generated_draft"
+  title: string | null
+  evidence_count: number
 }
 
 export interface CVProfile {
@@ -168,9 +172,49 @@ export interface CVProfile {
   history: CVHistoryItem[]
 }
 
+export interface CVEvidenceItem {
+  skill: string
+  task: string
+  proof: string
+  impact: string
+  date: string
+  confidence: number
+}
+
+export interface CVEvidenceSummary {
+  eligible: boolean
+  required_count: number
+  evidence_count: number
+  diary_entries_count: number
+  skill_upgrades_count: number
+  score_delta: number | null
+  current_score: number | null
+  last_cv_score: number | null
+  next_version_number: number
+  evidence: CVEvidenceItem[]
+  missing_detail_prompts: string[]
+}
+
+export interface CVGenerateDraftResponse {
+  version_id: number
+  version_number: number
+  cv_text: string
+  evidence_count: number
+  score_delta: number | null
+}
+
 export const cv = {
   me: (token: string) =>
     request<CVProfile>("/cv/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  evidence: (token: string) =>
+    request<CVEvidenceSummary>("/cv/evidence", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  generateDraft: (token: string) =>
+    request<CVGenerateDraftResponse>("/cv/generate-draft", {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
 }
@@ -430,6 +474,34 @@ export interface DiaryHistoryResponse {
   total: number
 }
 
+export interface Milestone {
+  id: string
+  milestone_date: string
+  skill: string | null
+  task: string
+  proof: string | null
+  impact: string | null
+  confidence: number
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MilestoneListResponse {
+  milestones: Milestone[]
+  total: number
+}
+
+export interface MilestonePayload {
+  milestone_date: string
+  skill?: string | null
+  task: string
+  proof?: string | null
+  impact?: string | null
+  confidence?: number
+  completed?: boolean
+}
+
 export const diary = {
   createEntry: (token: string, entryText: string, logDate?: string) =>
     request<DiaryEntry>("/diary/entry", {
@@ -440,6 +512,16 @@ export const diary = {
   history: (token: string, limit = 30) =>
     request<DiaryHistoryResponse>(`/diary/history?limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  milestones: (token: string, limit = 30) =>
+    request<MilestoneListResponse>(`/diary/milestones?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  saveMilestone: (token: string, data: MilestonePayload) =>
+    request<Milestone>("/diary/milestones", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
     }),
 }
 

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { diary, scores } from "@/lib/api"
+import type { Milestone, MilestonePayload } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -56,6 +57,23 @@ function computeStreak(entries: DiaryEntry[]): number {
 
 function computeTotalXP(entries: DiaryEntry[]): number {
   return entries.reduce((sum, e) => sum + e.skills_delta.reduce((s, d) => s + d.xp_added, 0), 0)
+}
+
+function toDateKey(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function getWeekDates(): Date[] {
+  const today = new Date()
+  const day = today.getDay() === 0 ? 6 : today.getDay() - 1
+  const monday = new Date(today)
+  monday.setHours(12, 0, 0, 0)
+  monday.setDate(today.getDate() - day)
+  return Array.from({ length: 7 }, (_, i) => {
+    const next = new Date(monday)
+    next.setDate(monday.getDate() + i)
+    return next
+  })
 }
 
 // ── Deep Focus Timer ──────────────────────────────────────────
@@ -292,11 +310,12 @@ function DiaryPageInner() {
   const [entryText, setEntryText] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [promptSkills, setPromptSkills] = useState<string[]>([])
-  const [customPlan, setCustomPlan] = useState<Record<number, string>>(() => {
-    try { return JSON.parse(localStorage.getItem("tm_week_plan") ?? "{}") } catch { return {} }
-  })
   const [editingDay, setEditingDay] = useState<number | null>(null)
   const [editText, setEditText] = useState("")
+  const [completionDay, setCompletionDay] = useState<number | null>(null)
+  const [completionProof, setCompletionProof] = useState("")
+  const [completionImpact, setCompletionImpact] = useState("")
+  const [completionConfidence, setCompletionConfidence] = useState(0.7)
 
   useEffect(() => {
     // Single skill with level: ?skill=NAME&level=N
@@ -329,6 +348,12 @@ function DiaryPageInner() {
     enabled: !!token,
   })
 
+  const milestonesQuery = useQuery({
+    queryKey: ["milestones", token],
+    queryFn: () => diary.milestones(token!, 30),
+    enabled: !!token,
+  })
+
   const saveEntry = useMutation({
     mutationFn: () => diary.createEntry(token!, entryText),
     onMutate: () => setError(null),
@@ -341,6 +366,20 @@ function DiaryPageInner() {
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save entry"),
   })
 
+  const saveMilestone = useMutation({
+    mutationFn: (payload: MilestonePayload) => diary.saveMilestone(token!, payload),
+    onMutate: () => setError(null),
+    onSuccess: () => {
+      setEditingDay(null)
+      setCompletionDay(null)
+      setCompletionProof("")
+      setCompletionImpact("")
+      queryClient.invalidateQueries({ queryKey: ["milestones", token] })
+      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not save milestone"),
+  })
+
   if (!ready) return null
 
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
@@ -348,33 +387,80 @@ function DiaryPageInner() {
   const totalXP = computeTotalXP(entries)
   const truthScore = scoresQuery.data?.total_score ?? 0
   const gapSkills = scoresQuery.data?.gap_skills ?? []
+  const persistedMilestones = milestonesQuery.data?.milestones ?? []
 
   const ACHIEVEMENTS = [
     { label: "CV Analysed",    done: entries.length > 0 || !!scoresQuery.data, icon: "◈" },
     { label: "Score Computed", done: !!scoresQuery.data,                        icon: "◉" },
     { label: "First Entry",    done: entries.length >= 1,                       icon: "▣" },
     { label: "5-Day Streak",   done: streak >= 5,                               icon: "◆" },
-    { label: "Gap Closed",     done: false,                                     icon: "◑" },
+    { label: "Gap Closed",     done: persistedMilestones.some((m) => !!m.completed_at), icon: "◑" },
     { label: "Score 80+",      done: truthScore >= 80,                          icon: "▲" },
   ]
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  const weekPlan = weekDays.map((day, i) => ({
-    day,
-    task: customPlan[i] ?? (gapSkills[i]?.skill
+  const weekDates = getWeekDates()
+  const milestonesByDate = new Map<string, Milestone>(persistedMilestones.map((m) => [m.milestone_date, m]))
+  const weekPlan = weekDays.map((day, i) => {
+    const dateKey = toDateKey(weekDates[i])
+    const saved = milestonesByDate.get(dateKey)
+    const defaultSkill = gapSkills[i]?.skill ?? null
+    return {
+      day,
+      dateKey,
+      skill: saved?.skill ?? defaultSkill,
+      task: saved?.task ?? (defaultSkill
       ? `Practice ${gapSkills[i].skill}`
       : i === 6 ? "Rest & reflect" : "Log your progress"),
-    done: i < streak,
-  }))
+      proof: saved?.proof ?? "",
+      impact: saved?.impact ?? "",
+      confidence: saved?.confidence ?? 0.7,
+      done: !!saved?.completed_at,
+    }
+  })
 
   function saveDayEdit(i: number) {
     const trimmed = editText.trim()
-    const next = { ...customPlan }
-    if (trimmed) next[i] = trimmed
-    else delete next[i]
-    setCustomPlan(next)
-    localStorage.setItem("tm_week_plan", JSON.stringify(next))
-    setEditingDay(null)
+    if (!trimmed) {
+      setEditingDay(null)
+      return
+    }
+    const item = weekPlan[i]
+    saveMilestone.mutate({
+      milestone_date: item.dateKey,
+      skill: item.skill,
+      task: trimmed,
+      proof: item.proof || null,
+      impact: item.impact || null,
+      confidence: item.confidence,
+      completed: false,
+    })
+  }
+
+  function openCompletion(i: number) {
+    const item = weekPlan[i]
+    setCompletionDay(i)
+    setCompletionProof(item.proof)
+    setCompletionImpact(item.impact)
+    setCompletionConfidence(item.confidence)
+  }
+
+  function completeMilestone(i: number) {
+    const proof = completionProof.trim()
+    if (!proof) {
+      setError("Add one proof point before completing this milestone.")
+      return
+    }
+    const item = weekPlan[i]
+    saveMilestone.mutate({
+      milestone_date: item.dateKey,
+      skill: item.skill,
+      task: item.task,
+      proof,
+      impact: completionImpact.trim() || null,
+      confidence: completionConfidence,
+      completed: true,
+    })
   }
 
   // Today index (0=Mon … 6=Sun)
@@ -454,87 +540,136 @@ function DiaryPageInner() {
 
               {/* Week plan rows */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                {weekPlan.map(({ day, task, done }, i) => {
+                {weekPlan.map((item, i) => {
                   const isToday = i === todayIdx
                   const isEditing = editingDay === i
+                  const isCompleting = completionDay === i
                   return (
-                    <div key={day} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                      background: done
-                        ? "var(--tm-accent-wash)"
-                        : isToday ? "var(--tm-surface-2)" : "rgba(255,255,255,0.02)",
-                      border: done
-                        ? "1px solid var(--tm-accent-ring)"
-                        : isToday ? "1px solid var(--tm-border)" : "1px solid var(--tm-border-soft)",
-                    }}>
-                      {/* Day label */}
+                    <div key={item.dateKey}>
                       <div style={{
-                        width: 30, fontSize: 11, fontWeight: 700,
-                        color: done ? "var(--tm-accent)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
-                        letterSpacing: "0.06em", textTransform: "uppercase", flexShrink: 0,
-                      }}>{day}</div>
-
-                      {/* Status dot */}
-                      <div style={{
-                        width: 14, height: 14, borderRadius: "50%", flexShrink: 0,
-                        border: `1.5px solid ${done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "var(--tm-border)"}`,
-                        background: done ? "var(--tm-accent-wash)" : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 9,
-                        color: done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "transparent",
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+                        background: item.done
+                          ? "var(--tm-accent-wash)"
+                          : isToday ? "var(--tm-surface-2)" : "rgba(255,255,255,0.02)",
+                        border: item.done
+                          ? "1px solid var(--tm-accent-ring)"
+                          : isToday ? "1px solid var(--tm-border)" : "1px solid var(--tm-border-soft)",
                       }}>
-                        {done ? "✓" : isToday ? "▸" : ""}
+                        <div style={{
+                          width: 30, fontSize: 11, fontWeight: 700,
+                          color: item.done ? "var(--tm-accent)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
+                          letterSpacing: "0.06em", textTransform: "uppercase", flexShrink: 0,
+                        }}>{item.day}</div>
+
+                        <div style={{
+                          width: 14, height: 14, borderRadius: "50%", flexShrink: 0,
+                          border: `1.5px solid ${item.done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "var(--tm-border)"}`,
+                          background: item.done ? "var(--tm-accent-wash)" : "transparent",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 9,
+                          color: item.done ? "var(--tm-accent)" : isToday ? "var(--tm-text-muted)" : "transparent",
+                        }}>
+                          {item.done ? "✓" : isToday ? "▸" : ""}
+                        </div>
+
+                        {isEditing ? (
+                          <input
+                            aria-label={`Edit ${item.day} milestone`}
+                            autoFocus
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onBlur={() => saveDayEdit(i)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveDayEdit(i); if (e.key === "Escape") setEditingDay(null) }}
+                            style={{
+                              flex: 1, fontSize: 13, background: "var(--tm-surface-2)",
+                              border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
+                              color: "var(--tm-text)", padding: "2px 6px",
+                              fontFamily: "inherit", outline: "none",
+                            }}
+                          />
+                        ) : (
+                          <span style={{
+                            flex: 1, fontSize: 13,
+                            color: item.done ? "var(--tm-text-faint)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
+                            textDecoration: item.done ? "line-through" : "none",
+                          }}>{item.task}</span>
+                        )}
+
+                        {isToday && !item.done && !isEditing && (
+                          <span className="tm-label-caps" style={{ fontSize: 9, color: "var(--tm-accent)" }}>TODAY</span>
+                        )}
+
+                        {!isEditing && !item.done && (
+                          <button
+                            type="button"
+                            onClick={() => openCompletion(i)}
+                            className="tm-btn tm-btn-ghost"
+                            style={{ height: 26, padding: "0 8px", fontSize: 11 }}
+                          >
+                            Complete
+                          </button>
+                        )}
+
+                        {!isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => { setEditingDay(i); setEditText(item.task) }}
+                            aria-label={`Edit ${item.day} milestone`}
+                            title="Edit this day's plan"
+                            style={{
+                              background: "none", border: "none", cursor: "pointer",
+                              color: "var(--tm-text-faint)", padding: "2px 4px",
+                              fontSize: 12, lineHeight: 1, flexShrink: 0,
+                              opacity: 0.4, transition: "opacity 0.15s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
+                          >
+                            ✎
+                          </button>
+                        )}
                       </div>
 
-                      {/* Task or inline edit */}
-                      {isEditing ? (
-                        <input
-                          autoFocus
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          onBlur={() => saveDayEdit(i)}
-                          onKeyDown={(e) => { if (e.key === "Enter") saveDayEdit(i); if (e.key === "Escape") setEditingDay(null) }}
-                          style={{
-                            flex: 1, fontSize: 13, background: "var(--tm-surface-2)",
-                            border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
-                            color: "var(--tm-text)", padding: "2px 6px",
-                            fontFamily: "inherit", outline: "none",
-                          }}
-                        />
-                      ) : (
-                        <span style={{
-                          flex: 1, fontSize: 13,
-                          color: done ? "var(--tm-text-faint)" : isToday ? "var(--tm-text)" : "var(--tm-text-faint)",
-                          textDecoration: done ? "line-through" : "none",
-                        }}>{task}</span>
-                      )}
-
-                      {isToday && !done && !isEditing && (
-                        <span className="tm-label-caps" style={{ fontSize: 9, color: "var(--tm-accent)" }}>TODAY</span>
-                      )}
-
-                      {/* Edit icon */}
-                      {!isEditing && (
-                        <button
-                          onClick={() => { setEditingDay(i); setEditText(task) }}
-                          title="Edit this day's plan"
-                          style={{
-                            background: "none", border: "none", cursor: "pointer",
-                            color: "var(--tm-text-faint)", padding: "2px 4px",
-                            fontSize: 12, lineHeight: 1, flexShrink: 0,
-                            opacity: 0.4, transition: "opacity 0.15s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-                          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
-                        >
-                          ✎
-                        </button>
+                      {isCompleting && (
+                        <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)", display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "var(--tm-text-muted)" }}>
+                            Proof
+                            <input
+                              value={completionProof}
+                              onChange={(e) => setCompletionProof(e.target.value)}
+                              placeholder={`What proves ${item.skill ?? "this"} happened?`}
+                              aria-invalid={!completionProof.trim() && !!error}
+                              style={{ padding: "7px 9px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit" }}
+                            />
+                          </label>
+                          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "var(--tm-text-muted)" }}>
+                            Impact
+                            <input
+                              value={completionImpact}
+                              onChange={(e) => setCompletionImpact(e.target.value)}
+                              placeholder="What changed because of it?"
+                              style={{ padding: "7px 9px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", fontSize: 12, fontFamily: "inherit" }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => completeMilestone(i)}
+                            disabled={saveMilestone.isPending}
+                            className="tm-btn tm-btn-primary"
+                            style={{ height: 34, fontSize: 12, whiteSpace: "nowrap" }}
+                          >
+                            Save evidence
+                          </button>
+                        </div>
                       )}
                     </div>
                   )
                 })}
               </div>
+              {error && completionDay !== null && (
+                <div role="alert" style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>
+              )}
 
               {/* Divider */}
               <div style={{ height: 1, background: "var(--tm-border-soft)" }} />

@@ -4,7 +4,15 @@ from fastapi import APIRouter, Depends, status
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
-from app.schemas import DiaryEntryRequest, DiaryEntryResponse, DiaryHistoryResponse, SkillDeltaItem
+from app.schemas import (
+    DiaryEntryRequest,
+    DiaryEntryResponse,
+    DiaryHistoryResponse,
+    MilestoneListResponse,
+    MilestoneRequest,
+    MilestoneResponse,
+    SkillDeltaItem,
+)
 from app.services import scoring_engine
 
 router = APIRouter(prefix="/diary", tags=["diary"])
@@ -92,6 +100,56 @@ async def get_diary_history(
     return DiaryHistoryResponse(entries=entries, total=len(entries))
 
 
+@router.get("/milestones", response_model=MilestoneListResponse)
+async def get_milestones(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 30,
+) -> MilestoneListResponse:
+    result = (
+        get_supabase_admin()
+        .table("user_milestones")
+        .select("*")
+        .eq("user_id", current_user["user_id"])
+        .order("milestone_date", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    milestones = [_to_milestone_response(row) for row in result.data]
+    return MilestoneListResponse(milestones=milestones, total=len(milestones))
+
+
+@router.put("/milestones", response_model=MilestoneResponse)
+async def upsert_milestone(
+    body: MilestoneRequest,
+    current_user: dict = Depends(get_current_user),
+) -> MilestoneResponse:
+    db = get_supabase_admin()
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "user_id": current_user["user_id"],
+        "milestone_date": str(body.milestone_date),
+        "skill": body.skill.strip() if body.skill else None,
+        "task": body.task,
+        "proof": body.proof.strip() if body.proof else None,
+        "impact": body.impact.strip() if body.impact else None,
+        "confidence": body.confidence,
+        "updated_at": now,
+    }
+    if body.completed:
+        payload["completed_at"] = now
+
+    db.table("user_milestones").upsert(payload, on_conflict="user_id,milestone_date").execute()
+    result = (
+        db.table("user_milestones")
+        .select("*")
+        .eq("user_id", current_user["user_id"])
+        .eq("milestone_date", str(body.milestone_date))
+        .single()
+        .execute()
+    )
+    return _to_milestone_response(result.data)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _merge_signals_into_user_skills(db, user_id: str, signals: list[dict]) -> None:
@@ -142,6 +200,21 @@ def _to_diary_response(
         skills_delta=deltas,
         score_before=score_before,
         score_after=score_after,
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def _to_milestone_response(row: dict) -> MilestoneResponse:
+    return MilestoneResponse(
+        id=row["id"],
+        milestone_date=row["milestone_date"],
+        skill=row.get("skill"),
+        task=row["task"],
+        proof=row.get("proof"),
+        impact=row.get("impact"),
+        confidence=row.get("confidence") or 0.6,
+        completed_at=row.get("completed_at"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

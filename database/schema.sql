@@ -55,11 +55,19 @@ CREATE TABLE user_profiles (
 -- One row per CV upload. Tracks score trajectory over time.
 
 CREATE TABLE cv_history (
-  id           SERIAL       PRIMARY KEY,
-  user_id      UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  skills_count INTEGER      NOT NULL DEFAULT 0,
-  mirror_score DECIMAL(5,2) NOT NULL DEFAULT 0,
-  uploaded_at  TIMESTAMPTZ  DEFAULT NOW()
+  id                SERIAL       PRIMARY KEY,
+  user_id           UUID         NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  skills_count      INTEGER      NOT NULL DEFAULT 0,
+  mirror_score      DECIMAL(5,2) NOT NULL DEFAULT 0,
+  uploaded_at       TIMESTAMPTZ  DEFAULT NOW(),
+  cv_raw_text       TEXT,
+  version_number    INTEGER      NOT NULL DEFAULT 1,
+  version_type      VARCHAR(30)  NOT NULL DEFAULT 'baseline_upload'
+                   CHECK (version_type IN ('baseline_upload','generated_draft')),
+  title             VARCHAR(200),
+  evidence_snapshot JSONB        NOT NULL DEFAULT '[]',
+  evidence_count    INTEGER      NOT NULL DEFAULT 0,
+  UNIQUE(user_id, version_number)
 );
 
 -- ─── USER SKILLS ────────────────────────────────────────────
@@ -178,6 +186,25 @@ CREATE TABLE daily_logs (
   UNIQUE(user_id, log_date)
 );
 
+-- ─── USER MILESTONES ────────────────────────────────────────
+-- Structured evidence collected from the 7-day progress plan.
+-- Completed milestones become inputs for generated CV versions.
+
+CREATE TABLE user_milestones (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  milestone_date DATE        NOT NULL,
+  skill          VARCHAR(200),
+  task           TEXT        NOT NULL,
+  proof          TEXT,
+  impact         TEXT,
+  confidence     DECIMAL(3,2) NOT NULL DEFAULT 0.60 CHECK (confidence BETWEEN 0 AND 1),
+  completed_at   TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, milestone_date)
+);
+
 -- ─── USER FEEDBACK ──────────────────────────────────────────
 -- Collects in-app feedback, company suggestions, and bug reports.
 -- user_id nullable — feedback can be submitted without being logged in.
@@ -201,6 +228,7 @@ CREATE INDEX idx_user_skills_skill    ON user_skills(skill_id);
 CREATE INDEX idx_scores_user          ON mirror_scores(user_id);
 CREATE INDEX idx_score_history_user   ON mirror_score_history(user_id, recorded_at DESC);
 CREATE INDEX idx_cv_history_user      ON cv_history(user_id, uploaded_at DESC);
+CREATE INDEX idx_cv_history_version   ON cv_history(user_id, version_number DESC);
 CREATE INDEX idx_jobs_main_skills     ON jobs USING GIN(main_skills);
 CREATE INDEX idx_jobs_side_skills     ON jobs USING GIN(side_skills);
 CREATE INDEX idx_jobs_batch_date      ON jobs(batch_date DESC);
@@ -210,6 +238,8 @@ CREATE INDEX idx_matches_recommended  ON user_job_matches(user_id) WHERE is_reco
 CREATE INDEX idx_applications_user    ON job_applications(user_id);
 CREATE INDEX idx_daily_logs_user      ON daily_logs(user_id);
 CREATE INDEX idx_daily_logs_date      ON daily_logs(user_id, log_date DESC);
+CREATE INDEX idx_milestones_user      ON user_milestones(user_id, milestone_date DESC);
+CREATE INDEX idx_milestones_completed ON user_milestones(user_id, completed_at DESC) WHERE completed_at IS NOT NULL;
 CREATE INDEX idx_feedback_user        ON user_feedback(user_id);
 CREATE INDEX idx_feedback_type        ON user_feedback(type);
 CREATE INDEX idx_feedback_created     ON user_feedback(created_at DESC);
@@ -222,6 +252,7 @@ ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_milestones    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cv_history         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_feedback      ENABLE ROW LEVEL SECURITY;
 
@@ -231,6 +262,7 @@ CREATE POLICY "own scores"         ON mirror_scores     FOR SELECT  USING (auth.
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.uid() = user_id);
+CREATE POLICY "own milestones"     ON user_milestones   FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own cv history"     ON cv_history        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "skills public read" ON skills            FOR SELECT  USING (true);
 CREATE POLICY "jobs public read"   ON jobs              FOR SELECT  USING (true);
