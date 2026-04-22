@@ -21,7 +21,7 @@ async def create_or_update_entry(
 
     # Score before
     existing_score = db.table("mirror_scores").select("total_score").eq("user_id", user_id).maybe_single().execute()
-    score_before = existing_score.data["total_score"] if existing_score.data else None
+    score_before = existing_score.data["total_score"] if (existing_score is not None and existing_score.data) else None
 
     signals: list[dict] = []
 
@@ -42,7 +42,7 @@ async def create_or_update_entry(
         .maybe_single()
         .execute()
     )
-    if existing_entry.data:
+    if existing_entry is not None and existing_entry.data:
         prior_text = existing_entry.data.get("entry_text") or ""
         combined_text = prior_text + "\n\n---\n\n" + body.entry_text if prior_text else body.entry_text
         prior_delta = existing_entry.data.get("skills_delta") or []

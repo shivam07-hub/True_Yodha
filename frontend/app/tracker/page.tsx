@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch } from "@/lib/api"
+import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch, type SkillGapItem } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
@@ -228,11 +228,6 @@ function JobCard({
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
-          {job.llm_explanation && (
-            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4, lineHeight: 1.5 }}>
-              {job.llm_explanation}
-            </div>
-          )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {tracked ? (
@@ -280,11 +275,21 @@ function JobCard({
       {/* Expanded */}
       {open && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }}>
-          {job.llm_explanation && (
-            <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
-              {job.llm_explanation}
-            </p>
-          )}
+          {job.llm_explanation ? (
+            <div style={{
+              padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
+              background: "var(--tm-accent-wash)",
+              border: "1px solid var(--tm-accent-ring)",
+              marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600, marginBottom: 6 }}>
+                Why this is a good fit
+              </div>
+              <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65, margin: 0 }}>
+                {job.llm_explanation}
+              </p>
+            </div>
+          ) : null}
           {firstPlan && (
             <div style={{
               padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
@@ -419,6 +424,43 @@ function GapSkillCard({ skill }: { skill: { skill: string; gap_score: number; jo
       <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
         {skill.job_count_30d.toLocaleString()} jobs/30d
       </div>
+    </div>
+  )
+}
+
+function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
+  const missing = skills.filter((s) => s.missing)
+  const matched = skills.filter((s) => !s.missing)
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {missing.length > 0 && (
+        <>
+          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-danger)", marginBottom: 2 }}>
+            Missing · {missing.length}
+          </div>
+          {missing.map((s) => (
+            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
+              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em" }}>
+                {s.is_primary ? "REQUIRED" : "NICE TO HAVE"}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+      {matched.length > 0 && (
+        <>
+          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-success)", marginTop: missing.length > 0 ? 8 : 0, marginBottom: 2 }}>
+            You Have · {matched.length}
+          </div>
+          {matched.map((s) => (
+            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{s.skill}</span>
+              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600 }}>L{s.user_level}</span>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
@@ -593,67 +635,52 @@ export default function TrackerPage() {
           <div style={{ position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 12 }}>
             <AITutor />
 
-            {/* Job-specific skill gap (when a card is expanded) */}
-            {selectedJobId ? (
-              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
-                    Skill Gap · This Job
+            <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
+              {selectedJobId ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+                      Skill Gap · This Job
+                    </div>
+                    {skillGapQuery.data && (
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                        color: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning)" : "var(--tm-success)",
+                        background: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger-wash)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning-wash)" : "var(--tm-success-wash)",
+                      }}>
+                        {skillGapQuery.data.missing_count}/{skillGapQuery.data.total_required} missing
+                      </div>
+                    )}
                   </div>
-                  {skillGapQuery.data && (
-                    <div style={{
-                      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
-                      color: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning)" : "var(--tm-success)",
-                      background: skillGapQuery.data.gap_pct >= 60 ? "var(--tm-danger-wash)" : skillGapQuery.data.gap_pct >= 30 ? "var(--tm-warning-wash)" : "var(--tm-success-wash)",
-                    }}>
-                      {skillGapQuery.data.missing_count}/{skillGapQuery.data.total_required} missing
+                  {skillGapQuery.isLoading && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} style={{ height: 44, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)", animation: "pulse 2s infinite" }} />
+                      ))}
                     </div>
                   )}
-                </div>
-
-                {skillGapQuery.isLoading && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} style={{ height: 48, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)", animation: "pulse 2s infinite" }} />
-                    ))}
+                  {skillGapQuery.data && <JobSkillGapPanel skills={skillGapQuery.data.skills} />}
+                  {skillGapQuery.isError && (
+                    <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>Failed to load skill gap.</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
+                    Skill Gaps · Overall
                   </div>
-                )}
-
-                {skillGapQuery.data && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {skillGapQuery.data.skills.map((s) => (
-                      <div key={s.skill} style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                        background: s.missing ? "var(--tm-danger-wash)" : "var(--tm-success-wash)",
-                        border: `1px solid ${s.missing ? "var(--tm-danger)" : "var(--tm-success)"}`,
-                        fontSize: 12,
-                      }}>
-                        <span style={{ color: "var(--tm-text)", fontWeight: 500 }}>{s.skill}</span>
-                        <span style={{ color: s.missing ? "var(--tm-danger)" : "var(--tm-success)", fontFamily: "var(--tm-font-mono)", fontSize: 11 }}>
-                          {s.missing ? "Missing" : `L${s.user_level ?? 0}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {skillGapQuery.isError && (
-                  <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.7 }}>Failed to load skill gap.</div>
-                )}
-              </div>
-            ) : topGapSkills.length > 0 ? (
-              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
-                <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
-                  Skill Gaps · Overall
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {topGapSkills.map((s) => (
-                    <GapSkillCard key={s.skill} skill={s} />
-                  ))}
-                </div>
-              </div>
-            ) : null}
+                  {topGapSkills.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {topGapSkills.map((s) => (
+                        <GapSkillCard key={s.skill} skill={s} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>Click a job to see its skill gap.</div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

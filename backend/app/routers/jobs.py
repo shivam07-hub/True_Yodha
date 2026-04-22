@@ -67,11 +67,9 @@ async def get_market_analytics() -> MarketAnalyticsResponse:
         for skill in skills:
             skill_counts[skill] += 1
 
-    top_company_names = {k for k, _ in company_counts.most_common(15)}
     company_skills = {
         c: [s for s, _ in ctr.most_common(12)]
         for c, ctr in company_skill_counters.items()
-        if c in top_company_names
     }
     industry_skills = {
         i: [s for s, _ in ctr.most_common(12)]
@@ -83,7 +81,7 @@ async def get_market_analytics() -> MarketAnalyticsResponse:
         total_companies=len(company_counts),
         total_industries=len(industry_counts),
         latest_batch=str(max(batch_dates)) if batch_dates else None,
-        by_company=[NameCountItem(name=k, count=v) for k, v in company_counts.most_common(15)],
+        by_company=[NameCountItem(name=k, count=v) for k, v in company_counts.most_common()],
         by_industry=[NameCountItem(name=k, count=v) for k, v in industry_counts.most_common()],
         top_skills=[SkillCountItem(skill=k, count=v) for k, v in skill_counts.most_common(20)],
         company_skills=company_skills,

@@ -103,37 +103,64 @@ export default function DashboardPage() {
                 </span>
               </div>
             ) : scoreError || (scoreData && Object.keys(scoreData.domain_scores).length === 0) ? (
-              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: "var(--tm-radius)",
-                  background: "var(--tm-accent-wash)",
-                  border: "1px solid var(--tm-accent-ring)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 21,
-                }}>◈</div>
-                <div style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", marginBottom: 4 }}>
-                    {recompute.isError ? "Computation failed — try again" : "Scores not yet computed"}
-                  </p>
-                  <p style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                    Your CV has been processed
-                  </p>
-                </div>
-                <button
-                  onClick={() => recompute.mutate()}
-                  style={{
-                    padding: "7px 18px",
-                    borderRadius: "var(--tm-radius-sm)",
-                    background: "var(--tm-accent-wash)",
-                    border: "1px solid var(--tm-accent-ring)",
-                    color: "var(--tm-accent)",
-                    fontSize: 13, fontWeight: 500, cursor: "pointer",
-                    transition: "all var(--tm-dur) var(--tm-ease)",
-                  }}
-                >
-                  Compute Scores
-                </button>
-              </div>
+              (() => {
+                const hasCV = Object.keys(skillsData?.by_domain ?? {}).length > 0
+                return (
+                  <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: "var(--tm-radius)",
+                      background: "var(--tm-accent-wash)",
+                      border: "1px solid var(--tm-accent-ring)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 21,
+                    }}>{hasCV ? "◈" : "⬆"}</div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", marginBottom: 4 }}>
+                        {hasCV
+                          ? (recompute.isError ? "Computation failed — try again" : "Scores not yet computed")
+                          : "No CV uploaded yet"}
+                      </p>
+                      {hasCV && (
+                        <p style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+                          Your CV has been processed
+                        </p>
+                      )}
+                    </div>
+                    {hasCV ? (
+                      <button
+                        onClick={() => recompute.mutate()}
+                        style={{
+                          padding: "7px 18px",
+                          borderRadius: "var(--tm-radius-sm)",
+                          background: "var(--tm-accent-wash)",
+                          border: "1px solid var(--tm-accent-ring)",
+                          color: "var(--tm-accent)",
+                          fontSize: 13, fontWeight: 500, cursor: "pointer",
+                          transition: "all var(--tm-dur) var(--tm-ease)",
+                        }}
+                      >
+                        Compute Scores
+                      </button>
+                    ) : (
+                      <a
+                        href="/cv"
+                        style={{
+                          padding: "7px 18px",
+                          borderRadius: "var(--tm-radius-sm)",
+                          background: "var(--tm-accent-wash)",
+                          border: "1px solid var(--tm-accent-ring)",
+                          color: "var(--tm-accent)",
+                          fontSize: 13, fontWeight: 500, cursor: "pointer",
+                          textDecoration: "none",
+                          transition: "all var(--tm-dur) var(--tm-ease)",
+                        }}
+                      >
+                        Upload CV →
+                      </a>
+                    )}
+                  </div>
+                )
+              })()
             ) : (
               <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
                 <div style={{ fontSize: 29, opacity: 0.2 }}>▣</div>

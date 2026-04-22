@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
@@ -23,43 +23,78 @@ function levelToStatus(level: number): keyof typeof STATUS_CONFIG {
   return "missing"
 }
 
+const LEVEL_TITLES: Record<number, string> = {
+  1: "Scout", 2: "Trailblazer", 3: "Excavator", 4: "Cartographer", 5: "Legend",
+}
+
+function howToLevelUp(skillName: string, currentLevel: number): string {
+  switch (currentLevel) {
+    case 1: return `Apply ${skillName} in a real project that produces tangible outcomes. Freelance, volunteer, or client work all count — the key is moving beyond tutorials into something shipped. Tie it to a result: users, revenue, or a live product.`
+    case 2: return `Deploy ${skillName} inside an organisation's operating lifecycle at scale. You need measurable business impact — process improved by X%, cost reduced by $Y, system serving Z users. The outcome must be quantifiable and repeatable, not just "used in a project".`
+    case 3: return `Reach architect-level breadth across your entire skill cluster — not just ${skillName} in isolation. Make the architectural decisions, set the standards, and mentor others in the full domain. Coverage of adjacent skills in the same cluster is required.`
+    case 4: return `Become industry-recognised. Publish, speak at conferences, or ship something notable enough that others adopt your approach to ${skillName}. You also need L4 mastery in at least two other skill clusters simultaneously.`
+    default: return `You are already at the top level for ${skillName}. Maintain thought leadership: open-source contributions, publications, or standards-body involvement.`
+  }
+}
+
+function cvExample(skillName: string, currentLevel: number): string {
+  switch (currentLevel) {
+    case 1: return `"Built a ${skillName}-powered [feature/tool] for [Project Name], which [attracted X users / generated £Y revenue / improved Z metric] within [timeframe]." — Replace the bracketed parts with your specifics. The key signal: something was shipped and someone used it.`
+    case 2: return `"Led end-to-end implementation of ${skillName} across [Company]'s [system/product], reducing [metric] by X% and enabling [business outcome] for [scale, e.g. 50k+ users or £Xm revenue]." — Show ownership, scale, and a number.`
+    case 3: return `"Architected the ${skillName} standards and practices adopted across [Team/Org] — defined the framework used by [N] engineers, reduced [metric] by X%, and eliminated [problem] at scale." — You own the map, not just a path through it.`
+    case 4: return `"Published [research / talk / framework] on ${skillName} adopted by [N] teams industry-wide. Recognised as [award / keynote speaker / standards contributor] at [event / organisation]." — Others follow your lead.`
+    default: return `You are already at the highest level. Consider contributing to open-source, publishing benchmarks, or advising standards bodies in the ${skillName} domain.`
+  }
+}
+
 function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; delay?: number; highlighted: boolean }) {
-  const [open, setOpen] = useState(false)
+  const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
   const statusKey = levelToStatus(skill.level)
   const cfg = STATUS_CONFIG[statusKey]
+  const isMaxLevel = skill.level >= 5
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation()
+    setClickState((s) => (s === 3 ? 0 : (s + 1) as 0 | 1 | 2 | 3))
+  }
+
+  const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
 
   return (
     <div
-      onClick={() => setOpen((o) => !o)}
       style={{
         borderRadius: "var(--tm-radius)",
         padding: "12px 14px",
-        background: highlighted ? "var(--tm-accent-wash)" : open ? cfg.bg : "rgba(255,255,255,0.02)",
+        background: highlighted ? "var(--tm-accent-wash)" : clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
         border: highlighted
           ? "1px solid var(--tm-accent-ring)"
-          : open
+          : clickState > 0
           ? `1px solid ${cfg.color}`
           : "1px solid var(--tm-border-soft)",
         borderLeft: highlighted ? "2px solid var(--tm-accent)" : undefined,
         transition: "all var(--tm-dur) var(--tm-ease)",
         cursor: "pointer",
       }}
+      onClick={handleClick}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{
           width: 8, height: 8, borderRadius: "50%",
-          background: cfg.color,
-          flexShrink: 0,
+          background: cfg.color, flexShrink: 0,
           boxShadow: `0 0 6px ${cfg.color}`,
         }} />
         <span style={{ flex: 1, fontSize: "var(--tm-fs-meta)", fontWeight: 500, color: "var(--tm-text)" }}>
           {skill.display_name}
         </span>
+        {clickState === 0 && (
+          <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em" }}>
+            tap to explore ↓
+          </span>
+        )}
         <span style={{
           fontSize: 11, padding: "2px 8px", borderRadius: 999,
           background: cfg.bg, color: cfg.color,
-          border: `1px solid ${cfg.color}`,
-          opacity: 0.9,
+          border: `1px solid ${cfg.color}`, opacity: 0.9, flexShrink: 0,
         }}>
           L{skill.level} · {cfg.label}
         </span>
@@ -74,15 +109,76 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         }} />
       </div>
 
-      {open && skill.evidence_text && (
-        <div style={{
-          marginTop: 10, padding: "8px 12px",
-          borderRadius: "var(--tm-radius-sm)",
-          background: "var(--tm-accent-wash)",
-          border: "1px solid var(--tm-accent-ring)",
-          fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.6,
-        }}>
-          {skill.evidence_text}
+      {/* State 1 — CV source evidence */}
+      {clickState === 1 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
+              Extracted from your CV
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to level up →</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${cfg.color}30`,
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+            fontStyle: "italic",
+          }}>
+            {skill.evidence_text
+              ? `"${skill.evidence_text}"`
+              : `No direct quote captured — ${skill.display_name} was inferred from the overall context of your CV.`}
+          </div>
+        </div>
+      )}
+
+      {/* State 2 — How to reach next level */}
+      {clickState === 2 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
+              {isMaxLevel ? "Max Level" : `How to reach ${nextLevelTitle} (L${skill.level + 1})`}
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again for CV example →</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${cfg.color}30`,
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+          }}>
+            {howToLevelUp(skill.display_name, skill.level)}
+          </div>
+        </div>
+      )}
+
+      {/* State 3 — CV example bullet */}
+      {clickState === 3 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 6,
+          }}>
+            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
+              CV bullet · L{skill.level + 1} signal
+            </span>
+            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to close ↺</span>
+          </div>
+          <div style={{
+            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-accent-wash)",
+            border: "1px solid var(--tm-accent-ring)",
+            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+            fontStyle: "italic",
+          }}>
+            {cvExample(skill.display_name, skill.level)}
+          </div>
         </div>
       )}
     </div>
@@ -163,9 +259,18 @@ export default function CVPage() {
     }
   }
 
-  if (!ready) return null
+  const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
-  const hasCv = !!cvProfile?.cv_raw_text
+  // Auto-open upload panel once per mount when no CV exists at all
+  const autoOpenFiredRef = useRef(false)
+  useEffect(() => {
+    if (!cvLoading && !hasCv && !autoOpenFiredRef.current) {
+      autoOpenFiredRef.current = true
+      setShowUpload(true)
+    }
+  }, [cvLoading, hasCv])
+
+  if (!ready) return null
 
   const domainKeywords: Record<string, string[]> = {
     technical: ["engineering", "programming", "software", "data", "cloud", "devops", "infrastructure", "database", "api", "security", "systems", "network", "code"],
@@ -293,28 +398,6 @@ export default function CVPage() {
             )}
           </div>
 
-          {/* Upload panel */}
-          {(showUpload || !hasCv) && (
-            <div style={{
-              marginTop: 14, padding: 20,
-              borderRadius: "var(--tm-radius)",
-              background: "var(--tm-accent-wash)",
-              border: "1px solid var(--tm-accent-ring)",
-            }}>
-              <StepCV onNext={handleUpload} />
-              {uploading && (
-                <p style={{ marginTop: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
-                  Reading your CV and matching to market…
-                </p>
-              )}
-              {message && (
-                <p style={{ marginTop: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
-              )}
-              {error && (
-                <p style={{ marginTop: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Split body */}
@@ -494,6 +577,81 @@ export default function CVPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload modal overlay */}
+      {showUpload && (
+        <div
+          onClick={() => setShowUpload(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 560,
+              borderRadius: "var(--tm-radius)",
+              background: "var(--tm-surface)",
+              border: "1px solid var(--tm-accent-ring)",
+              boxShadow: "0 0 48px var(--tm-accent-glow), 0 24px 64px rgba(0,0,0,0.6)",
+              position: "relative",
+              padding: 28,
+            }}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setShowUpload(false)}
+              style={{
+                position: "absolute", top: 12, right: 12,
+                width: 28, height: 28, borderRadius: "50%",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid var(--tm-border-soft)",
+                color: "var(--tm-text-faint)",
+                fontSize: 14, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "var(--tm-danger-wash)"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-danger)"
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-danger)"
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-text-faint)"
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-border-soft)"
+              }}
+              aria-label="Close upload panel"
+            >
+              ✕
+            </button>
+
+            <div className="tm-label-caps" style={{ marginBottom: 6 }}>
+              {hasCv ? "Replace CV" : "Upload CV"}
+            </div>
+            <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 20 }}>
+              {hasCv ? "Upload a new version" : "Upload your CV"}
+            </h2>
+
+            {uploading && (
+              <p style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
+                Reading your CV and matching to market…
+              </p>
+            )}
+            {message && (
+              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
+            )}
+            {error && (
+              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
+            )}
+            <StepCV onNext={handleUpload} />
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }

@@ -29,36 +29,30 @@ logger = logging.getLogger(__name__)
 _MAX_TOKENS = 4096
 
 
-def _get_client_and_model() -> tuple[OpenAI | None, str | None, bool]:
-    """
-    Returns (client, model_name, supports_json_mode).
-    Priority: LM Studio → OpenRouter → GPT-4o mini.
-    json_object response_format disabled for non-OpenAI providers.
-    """
-    if settings.lm_studio_ranker_model:
-        return (
-            OpenAI(api_key="lm-studio", base_url=settings.lm_studio_base_url),
-            settings.lm_studio_ranker_model,
-            False,
-        )
+_OR_HEADERS = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
+_OR_BASE    = "https://openrouter.ai/api/v1"
+_GROQ_BASE  = "https://api.groq.com/openai/v1"
+_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+
+def _get_providers() -> list[tuple[OpenAI, str]]:
+    """Returns ordered provider list: OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free."""
+    providers: list[tuple[OpenAI, str]] = []
     if settings.openrouter_api_key:
-        return (
-            OpenAI(
-                api_key=settings.openrouter_api_key,
-                base_url="https://openrouter.ai/api/v1",
-                default_headers={"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"},
-            ),
-            "meta-llama/llama-3.3-70b-instruct:free",
-            False,
-        )
-    if settings.openai_api_key:
-        return OpenAI(), "gpt-4o-mini", True
-    return None, None, False
+        or_client = OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS)
+        providers.append((or_client, "openai/gpt-4o-mini"))
+    if settings.groq_api_key:
+        providers.append((OpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE), "llama-3.3-70b-versatile"))
+    if settings.google_api_key:
+        providers.append((OpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE), "gemini-2.0-flash-lite"))
+    if settings.openrouter_api_key:
+        or_free = OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS)
+        providers.append((or_free, "meta-llama/llama-3.3-70b-instruct:free"))
+    return providers
 
 SYSTEM_PROMPT = (
-    "You are a senior career strategist. Given a candidate's skill profile and a list of job postings, "
-    "rank the jobs by true fit — not just keyword overlap — and explain each briefly. "
-    "For the top 3 jobs also provide a 7-day action plan to close the skill gap."
+    "You are a senior HR career strategist. Given a candidate's extracted skill profile and a list of job postings, "
+    "rank the jobs by true fit — not just keyword overlap — and explain why it is a good fit briefly for each."
 )
 
 
@@ -105,15 +99,13 @@ Return a JSON array of {len(top_jobs)} objects, best fit first:
     "job_id": "<string>",
     "rank": <1–{len(top_jobs)}>,
     "explanation": "<2 sentences: why this job fits this candidate>",
-    "action_plan": <7-day plan array OR null>
+    "action_plan": null
   }}
 ]
 
 Rules:
-- explanation: 2 sentences max, specific to this candidate's skill gaps
-- action_plan: include only for rank 1, 2, and 3; set null for all others
-- action_plan format: [{{"day": 1, "focus": "<skill name>", "tasks": ["task 1", "task 2"]}}, ...]
-  - 7 items (one per day), each with 1–2 concrete tasks
+- explanation: 2 sentences max, specific to this candidate's actual skill profile
+- action_plan: always null
 - Return valid JSON only — no text outside the array"""
 
 
@@ -142,45 +134,36 @@ def parse_llm_response(text: str) -> list[dict] | None:
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
 def call_llm(user_skill_map: dict[str, int], top_jobs: list[dict]) -> list[dict] | None:
-    """Call LLM (LM Studio → OpenRouter → GPT-4o mini). Returns parsed list or None on failure."""
-    client, model, supports_json_mode = _get_client_and_model()
-    if client is None:
-        logger.error("No LLM configured for job ranking — set OPENROUTER_API_KEY or OPENAI_API_KEY")
+    """Try OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free. Returns parsed list or None."""
+    providers = _get_providers()
+    if not providers:
+        logger.error("No LLM configured for job ranking — set OPENROUTER_API_KEY, GROQ_API_KEY, or GOOGLE_API_KEY")
         return None
     prompt = build_prompt(user_skill_map, top_jobs)
-    logger.info("LLM ranker using model: %s", model)
 
-    kwargs: dict = dict(
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": prompt},
-        ],
-    )
-    if supports_json_mode:
-        kwargs["response_format"] = {"type": "json_object"}
+    for client, model in providers:
+        logger.info("LLM ranker using model: %s", model)
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=_MAX_TOKENS,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": prompt},
+                ],
+            )
+            content = response.choices[0].message.content or ""
+        except Exception as exc:
+            logger.warning("LLM ranking failed with %s: %s — trying next provider", model, exc)
+            continue
 
-    try:
-        response = client.chat.completions.create(**kwargs)
-        content = response.choices[0].message.content or ""
-    except Exception as exc:
-        logger.error("LLM ranking call failed: %s", exc)
-        return None
+        result = parse_llm_response(content)
+        if result:
+            return result
+        logger.warning("LLM ranker: %s returned unparseable response — trying next provider", model)
 
-    # json_object mode wraps array — unwrap if needed
-    try:
-        parsed = json.loads(content)
-        if isinstance(parsed, list):
-            return parsed
-        # GPT wraps array in {"rankings": [...]} or similar
-        for v in parsed.values():
-            if isinstance(v, list):
-                return v
-    except json.JSONDecodeError:
-        pass
-
-    return parse_llm_response(content)
+    logger.error("All job ranking providers failed")
+    return None
 
 
 # ── Persist ───────────────────────────────────────────────────────────────────

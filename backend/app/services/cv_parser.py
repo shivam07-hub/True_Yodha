@@ -97,9 +97,9 @@ def _extract_text_docx(file_bytes: bytes) -> str:
 
 # ── LLM extraction ────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, extract a comprehensive list of their professional skills using Lightcast/EMSI Open Skills standardized skill names.
+_SYSTEM_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, extract a comprehensive list of their professional skills using Lightcast Open Skills standardised skill names.
 
-For each skill include:
+For each skill, include:
   - "taxonomy_key": the Lightcast skill name. Prefer canonical forms — e.g. "Python (Programming Language)" not just "Python", "SQL (Programming Language)" not "SQL", "Data Warehousing", "Stakeholder Management".
   - "signal_type": one of: "mention", "project", "impact", "leadership"
       mention    — named in a skills list only, no evidence of use
@@ -109,7 +109,7 @@ For each skill include:
   - "evidence": a short phrase or sentence from the CV that justifies the signal (≤200 chars)
 
 Rules:
-  - Include hard skills, tools, methodologies, AND human/soft skills when evidenced
+  - Include hard skills, tools, methodologies, AND human skills when evidenced
   - Skip generic filler ("Innovation", "Collaboration" alone) unless there is concrete evidence tied to a project/outcome
   - If the CV mentions a skill in multiple contexts, use the HIGHEST signal_type
   - Return 20–50 skills. Extract only what is evidenced — do not invent skills
@@ -120,13 +120,8 @@ Return JSON only — no prose, no markdown fences. Shape:
 
 
 async def _llm_extract(cv_text: str) -> list[dict]:
-    """Try LM Studio → OpenRouter paid → Groq → Gemini → OpenRouter free. Returns [] if all fail."""
+    """Try OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free. Returns [] if all fail."""
     providers: list[tuple[AsyncOpenAI, str]] = []
-    if settings.lm_studio_extractor_model:
-        providers.append((
-            AsyncOpenAI(api_key="lm-studio", base_url=settings.lm_studio_base_url),
-            settings.lm_studio_extractor_model,
-        ))
     _or_headers = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(
