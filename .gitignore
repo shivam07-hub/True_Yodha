@@ -60,6 +60,7 @@ career-ops-web/frontend/agency-agents/
 
 # External tool repos — not part of this project
 agency-agents/
+graphify-out/
 Screenshot*.png
 *.png
 

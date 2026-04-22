@@ -15,6 +15,7 @@ import pytest
 
 from app.services.scoring_engine import (
     compute_and_persist_score,
+    fetch_aspiration_skills,
     fetch_skill_demand,
     persist_score,
     persist_user_skills,
@@ -32,7 +33,7 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
     .maybe_single().execute() → result.data = data[0] if list else data
     """
     q = MagicMock()
-    for method in ("select", "eq", "order", "limit", "range", "upsert", "insert", "update"):
+    for method in ("select", "eq", "ilike", "order", "limit", "range", "upsert", "insert", "update"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -75,6 +76,24 @@ class TestFetchSkillDemand:
         db = MagicMock()
         db.table.return_value = _q([])
         assert fetch_skill_demand(db) == {}
+
+    def test_query_failure_returns_empty(self) -> None:
+        q = _q([])
+        q.execute.side_effect = RuntimeError("upstream returned html")
+        db = MagicMock()
+        db.table.return_value = q
+        assert fetch_skill_demand(db) == {}
+
+
+# ── fetch_aspiration_skills ───────────────────────────────────────────────────
+
+class TestFetchAspirationSkills:
+    def test_query_failure_returns_empty(self) -> None:
+        q = _q([])
+        q.execute.side_effect = RuntimeError("upstream returned html")
+        db = MagicMock()
+        db.table.return_value = q
+        assert fetch_aspiration_skills(db, ["Data Analyst"]) == {}
 
 
 # ── persist_user_skills ───────────────────────────────────────────────────────
@@ -187,5 +206,29 @@ class TestComputeAndPersistScore:
         with cp, sp:
             result = compute_and_persist_score(
                 self._make_db(), "u1", [], aspiration_skills={"Flask": 3}
+            )
+            assert result is not None
+
+    def test_can_skip_market_lookup(self) -> None:
+        cp, sp = self._patch_all()
+        scores_q = _q({"user_id": "u1", "total_score": 20.0})
+        history_q = _q([])
+        db = MagicMock()
+
+        def _table(name: str) -> MagicMock:
+            if name == "jobs":
+                raise AssertionError("jobs table should not be queried during CV upload scoring")
+            return {
+                "mirror_scores":        scores_q,
+                "mirror_score_history": history_q,
+            }.get(name, _q([]))
+
+        db.table.side_effect = _table
+        with cp, sp:
+            result = compute_and_persist_score(
+                db,
+                "u1",
+                [],
+                include_market_signals=False,
             )
             assert result is not None

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
+import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { jobs, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -14,9 +14,11 @@ function scoreColor(score: number): string {
 }
 
 function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => void }) {
+  const [showExplanation, setShowExplanation] = useState(false)
   const firstPlan = job.action_plan[0]
   const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
   const color = scoreColor(score)
+  const explanationId = `job-explanation-${job.id}`
 
   return (
     <article style={{
@@ -59,9 +61,24 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
       </div>
 
       {job.llm_explanation && (
-        <p style={{ marginTop: 12, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
-          {job.llm_explanation}
-        </p>
+        <div style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={() => setShowExplanation((value) => !value)}
+            aria-expanded={showExplanation}
+            aria-controls={explanationId}
+            className="tm-btn tm-btn-ghost"
+            style={{ height: 30, padding: "0 10px", fontSize: 12 }}
+          >
+            {showExplanation ? <ChevronUp style={{ width: 13, height: 13 }} /> : <ChevronDown style={{ width: 13, height: 13 }} />}
+            {showExplanation ? "Hide explanation" : "Show explanation"}
+          </button>
+          {showExplanation && (
+            <p id={explanationId} style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+              {job.llm_explanation}
+            </p>
+          )}
+        </div>
       )}
 
       {firstPlan && (
