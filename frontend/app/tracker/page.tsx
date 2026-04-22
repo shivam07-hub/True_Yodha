@@ -190,7 +190,11 @@ function JobCard({
 
   return (
     <div
-      onClick={() => { const next = !open; setOpen(next); onSelect(next ? job.job_id : null) }}
+      onClick={() => {
+        const next = !open
+        setOpen(next)
+        onSelect(next ? job.job_id : null)
+      }}
       style={{
         borderRadius: "var(--tm-radius)",
         padding: "18px 20px",

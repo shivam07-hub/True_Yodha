@@ -50,9 +50,9 @@ function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }
   const nx = typeof x === "string" ? parseFloat(x) : x
   const ny = typeof y === "string" ? parseFloat(y) : y
 
-  const fontSize = 8
-  const charW  = 4.6          // px per char at fontSize 8 sans-serif
-  const lineH  = 11           // px between baselines
+  const fontSize = 10
+  const charW  = 5.75         // px per char at fontSize 10 sans-serif
+  const lineH  = 13           // px between baselines
   const padX   = 6            // horizontal inner padding
   const padY   = 4            // vertical inner padding
 
