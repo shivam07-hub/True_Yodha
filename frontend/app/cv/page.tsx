@@ -398,28 +398,6 @@ export default function CVPage() {
             )}
           </div>
 
-          {/* Upload panel */}
-          {showUpload && (
-            <div style={{
-              marginTop: 14, padding: 20,
-              borderRadius: "var(--tm-radius)",
-              background: "var(--tm-accent-wash)",
-              border: "1px solid var(--tm-accent-ring)",
-            }}>
-              {uploading && (
-                <p style={{ marginBottom: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
-                  Reading your CV and matching to market…
-                </p>
-              )}
-              {message && (
-                <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
-              )}
-              {error && (
-                <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
-              )}
-              <StepCV onNext={handleUpload} />
-            </div>
-          )}
         </div>
 
         {/* Split body */}
@@ -599,6 +577,81 @@ export default function CVPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload modal overlay */}
+      {showUpload && (
+        <div
+          onClick={() => setShowUpload(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 560,
+              borderRadius: "var(--tm-radius)",
+              background: "var(--tm-surface)",
+              border: "1px solid var(--tm-accent-ring)",
+              boxShadow: "0 0 48px var(--tm-accent-glow), 0 24px 64px rgba(0,0,0,0.6)",
+              position: "relative",
+              padding: 28,
+            }}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setShowUpload(false)}
+              style={{
+                position: "absolute", top: 12, right: 12,
+                width: 28, height: 28, borderRadius: "50%",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid var(--tm-border-soft)",
+                color: "var(--tm-text-faint)",
+                fontSize: 14, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "var(--tm-danger-wash)"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-danger)"
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-danger)"
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-text-faint)"
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-border-soft)"
+              }}
+              aria-label="Close upload panel"
+            >
+              ✕
+            </button>
+
+            <div className="tm-label-caps" style={{ marginBottom: 6 }}>
+              {hasCv ? "Replace CV" : "Upload CV"}
+            </div>
+            <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 20 }}>
+              {hasCv ? "Upload a new version" : "Upload your CV"}
+            </h2>
+
+            {uploading && (
+              <p style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
+                Reading your CV and matching to market…
+              </p>
+            )}
+            {message && (
+              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
+            )}
+            {error && (
+              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
+            )}
+            <StepCV onNext={handleUpload} />
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }
