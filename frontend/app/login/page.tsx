@@ -523,7 +523,7 @@ export default function LoginPage() {
               color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
               textDecoration: "none", whiteSpace: "nowrap",
             }}>
-              Get Mirror Score →
+              Sign up now to see Mirror Scores →
             </Link>
           </div>
 

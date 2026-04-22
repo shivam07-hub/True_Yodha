@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
@@ -259,11 +259,15 @@ export default function CVPage() {
     }
   }
 
-  const hasCv = !!cvProfile?.cv_raw_text
+  const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
-  // Auto-open upload panel when data has loaded and no CV found
+  // Auto-open upload panel once per mount when no CV exists at all
+  const autoOpenFiredRef = useRef(false)
   useEffect(() => {
-    if (!cvLoading && !hasCv) setShowUpload(true)
+    if (!cvLoading && !hasCv && !autoOpenFiredRef.current) {
+      autoOpenFiredRef.current = true
+      setShowUpload(true)
+    }
   }, [cvLoading, hasCv])
 
   if (!ready) return null
