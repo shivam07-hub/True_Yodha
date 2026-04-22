@@ -259,14 +259,14 @@ export default function CVPage() {
     }
   }
 
-  if (!ready) return null
-
   const hasCv = !!cvProfile?.cv_raw_text
 
   // Auto-open upload panel when data has loaded and no CV found
   useEffect(() => {
     if (!cvLoading && !hasCv) setShowUpload(true)
   }, [cvLoading, hasCv])
+
+  if (!ready) return null
 
   const domainKeywords: Record<string, string[]> = {
     technical: ["engineering", "programming", "software", "data", "cloud", "devops", "infrastructure", "database", "api", "security", "systems", "network", "code"],

@@ -224,11 +224,6 @@ function JobCard({
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
-          {job.llm_explanation && (
-            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4, lineHeight: 1.5 }}>
-              {job.llm_explanation}
-            </div>
-          )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {tracked ? (
@@ -276,11 +271,21 @@ function JobCard({
       {/* Expanded */}
       {open && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }}>
-          {job.llm_explanation && (
-            <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
-              {job.llm_explanation}
-            </p>
-          )}
+          {job.llm_explanation ? (
+            <div style={{
+              padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
+              background: "var(--tm-accent-wash)",
+              border: "1px solid var(--tm-accent-ring)",
+              marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600, marginBottom: 6 }}>
+                Why this is a good fit
+              </div>
+              <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65, margin: 0 }}>
+                {job.llm_explanation}
+              </p>
+            </div>
+          ) : null}
           {firstPlan && (
             <div style={{
               padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
