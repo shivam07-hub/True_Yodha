@@ -34,3 +34,45 @@ class DiaryEntryResponse(BaseModel):
 class DiaryHistoryResponse(BaseModel):
     entries: list[DiaryEntryResponse]
     total: int
+
+
+class MilestoneRequest(BaseModel):
+    milestone_date: date
+    skill: str | None = None
+    task: str
+    proof: str | None = None
+    impact: str | None = None
+    confidence: float = 0.6
+    completed: bool = False
+
+    @field_validator("task")
+    @classmethod
+    def task_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Milestone task cannot be empty")
+        return v.strip()
+
+    @field_validator("confidence")
+    @classmethod
+    def confidence_in_range(cls, v: float) -> float:
+        if v < 0 or v > 1:
+            raise ValueError("Confidence must be between 0 and 1")
+        return v
+
+
+class MilestoneResponse(BaseModel):
+    id: str
+    milestone_date: date
+    skill: str | None
+    task: str
+    proof: str | None
+    impact: str | None
+    confidence: float
+    completed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class MilestoneListResponse(BaseModel):
+    milestones: list[MilestoneResponse]
+    total: int

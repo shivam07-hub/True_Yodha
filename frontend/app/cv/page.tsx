@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { jobs, scores, uploadCV, cv, users } from "@/lib/api"
@@ -236,6 +236,29 @@ export default function CVPage() {
     enabled: !!token,
   })
 
+  const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
+
+  const { data: evidenceData, isLoading: evidenceLoading } = useQuery({
+    queryKey: ["cv-evidence", token],
+    queryFn: () => cv.evidence(token!),
+    enabled: !!token && hasCv,
+  })
+
+  const generateDraft = useMutation({
+    mutationFn: () => cv.generateDraft(token!),
+    onMutate: () => {
+      setError(null)
+      setMessage(null)
+    },
+    onSuccess: (draft) => {
+      queryClient.invalidateQueries({ queryKey: ["cv-profile", token] })
+      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
+      setMessage(`Generated CV draft v${draft.version_number} from ${draft.evidence_count} milestone days.`)
+      setSelectedVersionId(draft.version_id)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate CV draft"),
+  })
+
   async function handleUpload(file: File) {
     if (!token) return
     setUploading(true)
@@ -252,6 +275,7 @@ export default function CVPage() {
       queryClient.invalidateQueries({ queryKey: ["scores", token] })
       queryClient.invalidateQueries({ queryKey: ["jobs", token] })
       queryClient.invalidateQueries({ queryKey: ["cv-profile", token] })
+      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
       queryClient.invalidateQueries({ queryKey: ["user-skills", token] })
       setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
       setShowUpload(false)
@@ -262,8 +286,6 @@ export default function CVPage() {
       setUploading(false)
     }
   }
-
-  const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
   // Auto-open upload panel once per mount when no CV exists at all
   const autoOpenFiredRef = useRef(false)
@@ -337,31 +359,59 @@ export default function CVPage() {
 
         {/* Header */}
         <div style={{ padding: "24px 32px 16px", flexShrink: 0 }}>
-          <div className="tm-label-caps" style={{ marginBottom: 6 }}>CV Skill Mapping</div>
+          <div className="tm-label-caps" style={{ marginBottom: 6 }}>CV Builder</div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
             <div>
-              <h1 className="tm-title" style={{ marginBottom: 3, fontSize: "var(--tm-fs-heading)" }}>Your Skill Profile</h1>
-              <p className="tm-meta" style={{ fontSize: 12 }}>Extracted from CV · mapped against market</p>
+              <h1 className="tm-title" style={{ marginBottom: 3, fontSize: "var(--tm-fs-heading)" }}>Build your next CV from proof</h1>
+              <p className="tm-meta" style={{ fontSize: 12 }}>
+                {hasCv ? "Baseline saved · progress evidence becomes the next draft" : "Upload your baseline once to start"}
+              </p>
             </div>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button
-                onClick={() => setShowUpload((v) => !v)}
-                className="tm-btn tm-btn-ghost"
-                style={{
-                  height: 36,
-                  fontSize: "var(--tm-fs-meta)",
-                  ...(showUpload ? {
-                    background: "var(--tm-accent-wash)",
-                    border: "1px solid var(--tm-accent-ring)",
-                    color: "var(--tm-accent)",
-                    boxShadow: "0 0 12px var(--tm-accent-glow)",
-                  } : {}),
-                }}
-              >
-                {"↑"} {hasCv ? "Replace CV" : "Upload CV"}
-              </button>
+              {hasCv ? (
+                <>
+                  <button
+                    onClick={() => generateDraft.mutate()}
+                    disabled={!evidenceData?.eligible || generateDraft.isPending}
+                    className="tm-btn tm-btn-primary"
+                    aria-describedby="cv-generate-status"
+                    style={{ height: 36, fontSize: "var(--tm-fs-meta)", opacity: evidenceData?.eligible ? 1 : 0.5 }}
+                  >
+                    {generateDraft.isPending ? "Generating..." : `Generate Next CV Draft`}
+                  </button>
+                  <button
+                    onClick={() => setShowUpload((v) => !v)}
+                    className="tm-btn tm-btn-ghost"
+                    style={{ height: 36, fontSize: 12 }}
+                  >
+                    Rework CV Baseline
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowUpload((v) => !v)}
+                  className="tm-btn tm-btn-primary"
+                  style={{ height: 36, fontSize: "var(--tm-fs-meta)" }}
+                >
+                  Upload baseline CV
+                </button>
+              )}
             </div>
           </div>
+          {hasCv && (
+            <div id="cv-generate-status" style={{ marginTop: 8, fontSize: 12, color: evidenceData?.eligible ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
+              {evidenceLoading
+                ? "Checking milestone evidence..."
+                : evidenceData?.eligible
+                ? `Ready for v${evidenceData.next_version_number}: ${evidenceData.evidence_count} milestone days recorded.`
+                : `${evidenceData?.evidence_count ?? 0}/${evidenceData?.required_count ?? 7} milestone days recorded before the next draft unlocks.`}
+            </div>
+          )}
+          {(message || error) && (
+            <div role={error ? "alert" : "status"} style={{ marginTop: 8, fontSize: 12, color: error ? "var(--tm-danger)" : "var(--tm-accent)" }}>
+              {error ?? message}
+            </div>
+          )}
 
           {/* Summary stats */}
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -453,6 +503,66 @@ export default function CVPage() {
           {/* RIGHT — Version history + CV viewer */}
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
+            {hasCv && (
+              <section style={{
+                padding: "14px 20px 12px",
+                borderBottom: "1px solid var(--tm-border-soft)",
+                flexShrink: 0,
+                background: "rgba(255,255,255,0.02)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                  <div className="tm-label-caps">Evidence Since Last CV</div>
+                  <span style={{
+                    fontSize: 10, color: evidenceData?.eligible ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                    background: evidenceData?.eligible ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
+                    padding: "2px 8px", borderRadius: 999,
+                    border: `1px solid ${evidenceData?.eligible ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  }}>
+                    {evidenceData?.evidence_count ?? 0}/{evidenceData?.required_count ?? 7} days
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6, marginBottom: 10 }}>
+                  {[
+                    { label: "Milestone days", value: evidenceData?.evidence_count ?? 0 },
+                    { label: "Diary entries", value: evidenceData?.diary_entries_count ?? 0 },
+                    { label: "Skill upgrades", value: evidenceData?.skill_upgrades_count ?? 0 },
+                    { label: "Score move", value: evidenceData?.score_delta == null ? "0" : `${evidenceData.score_delta >= 0 ? "+" : ""}${Math.round(evidenceData.score_delta)}` },
+                  ].map((item) => (
+                    <div key={item.label} style={{ padding: "8px 10px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
+                      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 16, color: "var(--tm-text)", fontWeight: 700 }}>{item.value}</div>
+                      <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {evidenceLoading ? (
+                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Loading evidence...</div>
+                ) : evidenceData?.evidence.length ? (
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                    {evidenceData.evidence.slice(-7).map((item) => (
+                      <div key={`${item.date}-${item.skill}-${item.task}`} style={{
+                        flexShrink: 0, width: 180,
+                        padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
+                        border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)",
+                      }}>
+                        <div style={{ fontSize: 11, color: "var(--tm-accent)", fontWeight: 600, marginBottom: 3 }}>{item.skill}</div>
+                        <div style={{ fontSize: 11, color: "var(--tm-text-muted)", lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.task}</div>
+                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 4 }}>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+                    Complete milestone days in Progress to unlock the next draft.
+                  </div>
+                )}
+                {!!evidenceData?.missing_detail_prompts.length && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-warning)" }}>
+                    {evidenceData.missing_detail_prompts[0]}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* Version timeline */}
             <div style={{
               padding: "14px 20px 12px",
@@ -506,8 +616,11 @@ export default function CVPage() {
                             fontSize: 11, fontFamily: "var(--tm-font-mono)", fontWeight: 600,
                             color: isSelected ? "var(--tm-accent)" : "var(--tm-text-muted)",
                           }}>
-                            v{cvProfile.history.length - i}
+                            v{v.version_number}
                           </span>
+                        </div>
+                        <div style={{ fontSize: 10, color: isSelected ? "var(--tm-text-muted)" : "var(--tm-text-faint)", marginTop: 2 }}>
+                          {v.version_type === "generated_draft" ? "Generated draft" : "Baseline"}
                         </div>
                         <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>
                           {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
@@ -635,15 +748,15 @@ export default function CVPage() {
             </button>
 
             <div className="tm-label-caps" style={{ marginBottom: 6 }}>
-              {hasCv ? "Replace CV" : "Upload CV"}
+              {hasCv ? "Rework CV Baseline" : "Upload Baseline CV"}
             </div>
             <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 20 }}>
-              {hasCv ? "Upload a new version" : "Upload your CV"}
+              {hasCv ? "Replace the baseline only if the original CV was wrong" : "Upload your baseline CV"}
             </h2>
 
             {uploading && (
               <p style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
-                Reading your CV and matching to market…
+                Reading your baseline and mapping skills...
               </p>
             )}
             {message && (
