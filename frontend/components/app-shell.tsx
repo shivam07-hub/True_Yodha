@@ -625,7 +625,15 @@ function SettingsModal({
   )
 }
 
-function UserFooter({ expanded, profile }: { expanded: boolean; profile: SidebarProfile | null }) {
+function UserFooter({
+  expanded,
+  profile,
+  onMenuOpenChange,
+}: {
+  expanded: boolean
+  profile: SidebarProfile | null
+  onMenuOpenChange?: (open: boolean) => void
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showAbout, setShowAbout] = useState(false)
@@ -633,6 +641,10 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const { signOut } = useAuth()
   const fullName = profile?.full_name ?? null
+
+  useEffect(() => {
+    onMenuOpenChange?.(menuOpen)
+  }, [menuOpen, onMenuOpenChange])
 
   const extraActions = [
     { id: "about",    icon: "◎", label: "About Truth Mirror", color: "var(--tm-accent)",       hoverBg: "var(--tm-accent-wash)" },
@@ -642,6 +654,7 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
 
   const handleExtra = (id: string) => {
     setMenuOpen(false)
+    onMenuOpenChange?.(false)
     if (id === "settings") setShowSettings(true)
     if (id === "about") setShowAbout(true)
     if (id === "signout") setSignOutConfirm(true)
@@ -767,6 +780,7 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
 function Sidebar({ score, profile, onLogoClick }: { score: number | null; profile: SidebarProfile | null; onLogoClick: () => void }) {
   const expanded = true
   const pathname = usePathname()
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
 
   return (
     <nav
@@ -889,21 +903,30 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
         })}
       </div>
 
-      {/* Accent toggle */}
+      {/* Background + Accent utilities collapse when user menu opens */}
       {expanded && (
         <div style={{
-          padding: "10px 12px 12px",
-          borderTop: "1px solid var(--tm-border-soft)",
-          display: "flex", flexDirection: "column", gap: 6,
+          maxHeight: isUserMenuOpen ? 0 : 220,
+          opacity: isUserMenuOpen ? 0 : 1,
+          transform: isUserMenuOpen ? "translateY(-6px)" : "translateY(0)",
+          pointerEvents: isUserMenuOpen ? "none" : "auto",
+          overflow: "hidden",
+          transition: "max-height 150ms var(--tm-ease), opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
         }}>
-          <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
-          <SurfaceToggle />
-          <div className="tm-label-caps" style={{ fontSize: 10 }}>Accent</div>
-          <AccentToggle />
+          <div style={{
+            padding: "10px 12px 12px",
+            borderTop: "1px solid var(--tm-border-soft)",
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
+            <SurfaceToggle />
+            <div className="tm-label-caps" style={{ fontSize: 10 }}>Accent</div>
+            <AccentToggle />
+          </div>
         </div>
       )}
 
-      <UserFooter expanded={expanded} profile={profile} />
+      <UserFooter expanded={expanded} profile={profile} onMenuOpenChange={setIsUserMenuOpen} />
     </nav>
   )
 }
