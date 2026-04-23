@@ -375,6 +375,23 @@ async def update_application(
     return _to_application(result.data)
 
 
+@router.delete("/tracker/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_tracker_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> None:
+    user_db = get_supabase_for_token(current_user["token"])
+    for table_name in ("job_applications", "user_job_matches"):
+        (
+            user_db
+            .table(table_name)
+            .delete()
+            .eq("user_id", current_user["user_id"])
+            .eq("job_id", job_id)
+            .execute()
+        )
+
+
 @router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)
 async def get_skill_gap(
     job_id: str,

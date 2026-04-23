@@ -125,9 +125,57 @@ const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: st
   offer:        { label: "Offer 🎉",     fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.3)" },
 }
 
-function MarketTrackedCard({ app, updating, onStatusChange, onDetailClick }: {
+function RemoveJobButton({ label, removing, onRemove }: {
+  label: string
+  removing: boolean
+  onRemove: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={removing}
+      onClick={(e) => {
+        e.stopPropagation()
+        onRemove()
+      }}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        border: "1px solid var(--tm-border-soft)",
+        background: "rgba(255,255,255,0.03)",
+        color: "var(--tm-text-faint)",
+        cursor: removing ? "not-allowed" : "pointer",
+        fontSize: 14,
+        lineHeight: 1,
+        fontFamily: "inherit",
+        opacity: removing ? 0.45 : 1,
+        transition: "color 0.15s, border-color 0.15s, background 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        if (removing) return
+        e.currentTarget.style.color = "var(--tm-danger)"
+        e.currentTarget.style.borderColor = "rgba(251,113,133,0.35)"
+        e.currentTarget.style.background = "var(--tm-danger-wash)"
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = "var(--tm-text-faint)"
+        e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+        e.currentTarget.style.background = "rgba(255,255,255,0.03)"
+      }}
+    >
+      ×
+    </button>
+  )
+}
+
+function MarketTrackedCard({ app, updating, removing, onStatusChange, onDetailClick, onRemove }: {
   app: ApplicationResponse; updating: boolean
+  removing: boolean
   onStatusChange: (s: ApplicationStatus) => void; onDetailClick: () => void
+  onRemove: () => void
 }) {
   const [open, setOpen] = useState(false)
   const statusMeta = STATUS_META[app.status]
@@ -157,13 +205,16 @@ function MarketTrackedCard({ app, updating, onStatusChange, onDetailClick }: {
           >{app.title}</div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{app.company ?? ""}</div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", flexShrink: 0 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)" }}>
-            Tracked from Market
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-muted)", padding: "3px 8px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)" }}>
+              Tracked from Market
+            </div>
+            <div style={{ fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999, background: statusMeta.bg, border: `1px solid ${statusMeta.border}` }}>
+              {statusMeta.label}
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999, background: statusMeta.bg, border: `1px solid ${statusMeta.border}` }}>
-            {statusMeta.label}
-          </div>
+          <RemoveJobButton label={`Remove ${app.title} from tracker`} removing={removing} onRemove={onRemove} />
         </div>
       </div>
 
@@ -202,11 +253,13 @@ function ScoreBar({ score }: { score: number }) {
 
 function JobCard({
   job, status, tracked, updating,
-  onStatusChange, onDetailClick, onSelect,
+  removing, onStatusChange, onDetailClick, onSelect, onRemove,
 }: {
   job: JobMatch; status: ApplicationStatus; tracked: boolean; updating: boolean
+  removing: boolean
   onStatusChange: (s: ApplicationStatus) => void; onDetailClick: () => void
   onSelect: (jobId: string | null) => void
+  onRemove: () => void
 }) {
   const [open, setOpen] = useState(false)
   const score = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
@@ -254,28 +307,31 @@ function JobCard({
             {[job.company, job.location, job.remote ? "Remote" : null].filter(Boolean).join(" · ")}
           </div>
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          {tracked ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-              <div style={{
-                fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
-                color: "var(--tm-accent)", padding: "3px 8px", borderRadius: 999,
-                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-              }}>
-                Tracking
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flexShrink: 0 }}>
+          <div style={{ textAlign: "right" }}>
+            {tracked ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                <div style={{
+                  fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: "var(--tm-accent)", padding: "3px 8px", borderRadius: 999,
+                  background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+                }}>
+                  Tracking
+                </div>
+                <div style={{
+                  fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999,
+                  background: statusMeta.bg, border: `1px solid ${statusMeta.border}`,
+                }}>
+                  {statusMeta.label}
+                </div>
               </div>
-              <div style={{
-                fontSize: 11, color: statusMeta.fg, padding: "2px 7px", borderRadius: 999,
-                background: statusMeta.bg, border: `1px solid ${statusMeta.border}`,
-              }}>
-                {statusMeta.label}
+            ) : job.llm_rank ? (
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Rank #{job.llm_rank}
               </div>
-            </div>
-          ) : job.llm_rank ? (
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              Rank #{job.llm_rank}
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+          <RemoveJobButton label={`Remove ${job.title} from tracker`} removing={removing} onRemove={onRemove} />
         </div>
       </div>
 
@@ -325,43 +381,42 @@ function JobCard({
               ⚡ Next: {firstPlan.focus}
             </div>
           )}
-          <div style={{ display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
-            {tracked && (
-              <select
-                value={status}
-                disabled={updating}
-                onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-                style={{
-                  flex: 1, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                  background: "var(--tm-surface-2)",
-                  border: "1px solid var(--tm-border)",
-                  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: "pointer",
-                }}
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
-                ))}
-              </select>
-            )}
-            {job.source_url && (
-              <a
-                href={job.source_url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  padding: "8px 16px", borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-border)",
-                  background: "transparent",
-                  color: "var(--tm-text-muted)", fontSize: 13, textDecoration: "none",
-                }}
-              >
-                Open JD ↗
-              </a>
-            )}
-          </div>
         </div>
       )}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }} onClick={(e) => e.stopPropagation()}>
+        <select
+          aria-label={`Application status for ${job.title}`}
+          value={status}
+          disabled={updating}
+          onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+          style={{
+            flex: "1 1 220px", maxWidth: 320, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-surface-2)",
+            border: "1px solid var(--tm-border)",
+            color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: updating ? "not-allowed" : "pointer",
+          }}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
+          ))}
+        </select>
+        {job.source_url && (
+          <a
+            href={job.source_url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              padding: "8px 16px", borderRadius: "var(--tm-radius-sm)",
+              border: "1px solid var(--tm-border)",
+              background: "transparent",
+              color: "var(--tm-text-muted)", fontSize: 13, textDecoration: "none", flexShrink: 0, marginLeft: "auto",
+            }}
+          >
+            Open JD ↗
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -553,6 +608,8 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
     skill.job_count_30d >= 250 ? "var(--tm-accent)" :
     skill.job_count_30d >= 100 ? "var(--tm-warning)" :
     "var(--tm-text-faint)"
+  const diaryHref = buildDiarySkillHref(skill.display_name, skill.current_level)
+
   return (
     <div style={{
       padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
@@ -563,25 +620,16 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
         <div>
           <div style={{ fontSize: 14, color: "var(--tm-text)", marginBottom: 2 }}>{skill.display_name}</div>
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-            Current level: L{skill.current_level} · {skill.proficiency_title}
+            L{skill.current_level} · {skill.proficiency_title}
           </div>
         </div>
-        {skill.needs_upgrade && skill.target_level != null ? (
-          <span style={{ fontSize: 10, color: "var(--tm-warning)", fontWeight: 700, letterSpacing: "0.04em" }}>
-            Target L{skill.target_level}
-          </span>
-        ) : (
-          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 700, letterSpacing: "0.04em" }}>
-            MARKET READY
-          </span>
-        )}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontSize: 11, color: demandColor }}>
-          {skill.job_count_30d.toLocaleString()} jobs looking for this skill
+          {skill.job_count_30d.toLocaleString()} jobs for this skill
         </div>
         <a
-          href={`/diary?skill=${encodeURIComponent(skill.display_name)}&level=${skill.current_level}`}
+          href={diaryHref}
           style={{
             fontSize: 11,
             color: "var(--tm-accent)",
@@ -593,11 +641,17 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
             whiteSpace: "nowrap",
           }}
         >
-          Add to diary
+          Add to diary and upskill
         </a>
       </div>
     </div>
   )
+}
+
+function buildDiarySkillHref(skill: string, level?: number | null) {
+  const params = new URLSearchParams({ skill })
+  if (typeof level === "number") params.set("level", String(level))
+  return `/diary?${params.toString()}`
 }
 
 function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
@@ -611,12 +665,12 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
             Missing · {missing.length}
           </div>
           {missing.map((s) => (
-            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <a key={s.skill} href={buildDiarySkillHref(s.skill)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
               <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em" }}>
-                {s.is_primary ? "REQUIRED" : "NICE TO HAVE"}
+              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                {s.is_primary ? "Required" : "Nice to have"} · Add
               </span>
-            </div>
+            </a>
           ))}
         </>
       )}
@@ -626,10 +680,10 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
             You Have · {matched.length}
           </div>
           {matched.map((s) => (
-            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <a key={s.skill} href={buildDiarySkillHref(s.skill, s.user_level)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
               <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600 }}>L{s.user_level}</span>
-            </div>
+              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600, whiteSpace: "nowrap" }}>L{s.user_level} · Log</span>
+            </a>
           ))}
         </>
       )}
@@ -680,6 +734,17 @@ export default function TrackerPage() {
   const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
   const [appDetailJob, setAppDetailJob] = useState<ApplicationResponse | null>(null)
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+
+  const removeTrackerJob = useMutation({
+    mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId),
+    onSuccess: (_data, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", token] })
+      queryClient.invalidateQueries({ queryKey: ["applications", token] })
+      setSelectedJobId((current) => (current === jobId ? null : current))
+      setDetailJob((current) => (current?.job_id === jobId ? null : current))
+      setAppDetailJob((current) => (current?.job_id === jobId ? null : current))
+    },
+  })
 
   const skillGapQuery = useQuery({
     queryKey: ["skill-gap", selectedJobId, token],
@@ -769,8 +834,10 @@ export default function TrackerPage() {
                     key={app.job_id}
                     app={app}
                     updating={updateStatus.isPending}
+                    removing={removeTrackerJob.isPending && removeTrackerJob.variables === app.job_id}
                     onStatusChange={(status) => updateStatus.mutate({ jobId: app.job_id, status })}
                     onDetailClick={() => setAppDetailJob(app)}
+                    onRemove={() => removeTrackerJob.mutate(app.job_id)}
                   />
                 ))}
                 {topJobs.length > 0 && (
@@ -807,9 +874,11 @@ export default function TrackerPage() {
                     status={app?.status ?? "pending"}
                     tracked={!!app}
                     updating={updateStatus.isPending}
+                    removing={removeTrackerJob.isPending && removeTrackerJob.variables === job.job_id}
                     onStatusChange={(status) => updateStatus.mutate({ jobId: job.job_id, status })}
                     onDetailClick={() => setDetailJob(job)}
                     onSelect={setSelectedJobId}
+                    onRemove={() => removeTrackerJob.mutate(job.job_id)}
                   />
                 )
               })

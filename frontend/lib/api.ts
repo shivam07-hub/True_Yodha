@@ -65,6 +65,7 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(extractError(body, res.status))
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -469,6 +470,11 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
+    }),
+  removeTrackerJob: (token: string, jobId: string) =>
+    request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
     }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {

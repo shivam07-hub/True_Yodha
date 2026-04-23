@@ -134,6 +134,9 @@ export default function LoginPage() {
     : baseList
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
   const topSkills = analytics?.top_skills?.slice(0, 14) ?? []
+  const marketSummary = analytics
+    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} domains`
+    : "Loading market coverage"
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -385,7 +388,7 @@ export default function LoginPage() {
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-              app/intel
+              {marketSummary}
             </div>
             <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
               Intel
