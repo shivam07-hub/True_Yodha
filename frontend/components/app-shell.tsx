@@ -1,15 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { AccentToggle } from "@/components/accent-toggle"
+import { SurfaceToggle } from "@/components/surface-toggle"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Linkedin } from "lucide-react"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
@@ -209,7 +211,7 @@ function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]
       style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "flex-start", padding: "0 0 80px 72px" }}
       onClick={onClose}
     >
-      <div style={{ position: "absolute", inset: 0, background: "rgba(5,10,24,0.5)", backdropFilter: "blur(6px)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "var(--tm-overlay-soft)", backdropFilter: "blur(6px)" }} />
       <div
         style={{
           position: "relative",
@@ -279,10 +281,91 @@ function SettingsModal({
   onClose: () => void
   profile: SidebarProfile | null
 }) {
-  const fullName = profile?.full_name?.trim() || "Not set"
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const [editingField, setEditingField] = useState<"full_name" | "target_location" | "linkedin_url" | null>(null)
+  const [draftName, setDraftName] = useState("")
+  const [draftLocation, setDraftLocation] = useState("")
+  const [draftLinkedIn, setDraftLinkedIn] = useState("")
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setDraftName(profile?.full_name ?? "")
+    setDraftLocation(profile?.target_location ?? "")
+    setDraftLinkedIn(profile?.linkedin_url ?? "")
+    setEditingField(null)
+    setSaveError(null)
+    setSaveSuccess(null)
+  }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url])
+
+  const updateProfile = useMutation({
+    mutationFn: (payload: Partial<SidebarProfile>) => {
+      if (!token) throw new Error("Session not ready. Please refresh and try again.")
+      return users.updateProfile(token, payload)
+    },
+    onSuccess: (updated) => {
+      if (token) queryClient.invalidateQueries({ queryKey: ["profile", token] })
+      setDraftName(updated.full_name ?? "")
+      setDraftLocation(updated.target_location ?? "")
+      setDraftLinkedIn(updated.linkedin_url ?? "")
+      setSaveError(null)
+      setSaveSuccess("Saved")
+    },
+    onError: (err) => {
+      setSaveSuccess(null)
+      setSaveError(err instanceof Error ? err.message : "Could not save settings")
+    },
+  })
+
+  const normalize = (value: string): string | null => {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  const normalizeLinkedIn = (value: string): string | null => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    return `https://${trimmed}`
+  }
+
+  async function commitField(field: "full_name" | "target_location" | "linkedin_url") {
+    const currentValue =
+      field === "full_name"
+        ? (profile?.full_name ?? null)
+        : field === "target_location"
+          ? (profile?.target_location ?? null)
+          : (profile?.linkedin_url ?? null)
+    const nextValue =
+      field === "full_name"
+        ? normalize(draftName)
+        : field === "target_location"
+          ? normalize(draftLocation)
+          : normalizeLinkedIn(draftLinkedIn)
+
+    if ((currentValue ?? null) === (nextValue ?? null)) {
+      setEditingField(null)
+      return
+    }
+
+    setSaveSuccess(null)
+    await updateProfile.mutateAsync({ [field]: nextValue } as Partial<SidebarProfile>)
+    setEditingField(null)
+  }
+
+  const cancelFieldEdit = (field: "full_name" | "target_location" | "linkedin_url") => {
+    if (field === "full_name") setDraftName(profile?.full_name ?? "")
+    if (field === "target_location") setDraftLocation(profile?.target_location ?? "")
+    if (field === "linkedin_url") setDraftLinkedIn(profile?.linkedin_url ?? "")
+    setEditingField(null)
+  }
+
+  const fullName = draftName.trim() || "Not set"
   const roles = profile?.target_roles?.filter((role) => role.trim().length > 0) ?? []
-  const location = profile?.target_location?.trim() || "Not set"
-  const linkedIn = profile?.linkedin_url?.trim() || null
+  const location = draftLocation.trim() || "Not set"
+  const linkedIn = draftLinkedIn.trim() || null
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
@@ -331,10 +414,59 @@ function SettingsModal({
             </button>
           </div>
 
-          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
-              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Name</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{fullName}</div>
+          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+            {saveError && <div role="alert" style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</div>}
+            {!saveError && saveSuccess && <div style={{ fontSize: 12, color: "var(--tm-success)" }}>{saveSuccess}</div>}
+
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid var(--tm-border-soft)",
+            }}>
+              <div style={{ flex: 1 }}>
+                <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 6 }}>Ninja Name</div>
+                {editingField === "full_name" ? (
+                  <input
+                    aria-label="Edit ninja name"
+                    autoFocus
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onBlur={() => void commitField("full_name")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void commitField("full_name")
+                      if (e.key === "Escape") cancelFieldEdit("full_name")
+                    }}
+                    style={{
+                      width: "100%", fontSize: 13, background: "var(--tm-surface-2)",
+                      border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
+                      color: "var(--tm-text)", padding: "2px 6px",
+                      fontFamily: "inherit", outline: "none",
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 16, fontWeight: 600, color: fullName === "Not set" ? "var(--tm-text-faint)" : "var(--tm-text)" }}>
+                    {fullName}
+                  </div>
+                )}
+              </div>
+              {editingField !== "full_name" && (
+                <button
+                  type="button"
+                  onClick={() => setEditingField("full_name")}
+                  aria-label="Edit ninja name"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--tm-text-faint)", padding: "2px 4px",
+                    fontSize: 12, lineHeight: 1, flexShrink: 0,
+                    opacity: 0.4, transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "1" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.4" }}
+                >
+                  ✎
+                </button>
+              )}
             </div>
 
             <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
@@ -362,25 +494,116 @@ function SettingsModal({
               )}
             </div>
 
-            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
-              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Target Location</div>
-              <div style={{ fontSize: 14, color: location === "Not set" ? "var(--tm-text-faint)" : "var(--tm-text)" }}>{location}</div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid var(--tm-border-soft)",
+            }}>
+              <div style={{ flex: 1 }}>
+                <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 6 }}>Target Location</div>
+                {editingField === "target_location" ? (
+                  <input
+                    aria-label="Edit target location"
+                    autoFocus
+                    value={draftLocation}
+                    onChange={(e) => setDraftLocation(e.target.value)}
+                    onBlur={() => void commitField("target_location")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void commitField("target_location")
+                      if (e.key === "Escape") cancelFieldEdit("target_location")
+                    }}
+                    style={{
+                      width: "100%", fontSize: 13, background: "var(--tm-surface-2)",
+                      border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
+                      color: "var(--tm-text)", padding: "2px 6px",
+                      fontFamily: "inherit", outline: "none",
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 14, color: location === "Not set" ? "var(--tm-text-faint)" : "var(--tm-text)" }}>{location}</div>
+                )}
+              </div>
+              {editingField !== "target_location" && (
+                <button
+                  type="button"
+                  onClick={() => setEditingField("target_location")}
+                  aria-label="Edit target location"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--tm-text-faint)", padding: "2px 4px",
+                    fontSize: 12, lineHeight: 1, flexShrink: 0,
+                    opacity: 0.4, transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "1" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.4" }}
+                >
+                  ✎
+                </button>
+              )}
             </div>
 
-            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
-              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>LinkedIn</div>
-              {linkedIn ? (
-                <a
-                  href={linkedIn}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="tm-link"
-                  style={{ fontSize: 14, overflowWrap: "anywhere" }}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid var(--tm-border-soft)",
+            }}>
+              <div style={{ flex: 1 }}>
+                <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Linkedin size={13} aria-hidden="true" />
+                  LinkedIn
+                </div>
+                {editingField === "linkedin_url" ? (
+                  <input
+                    aria-label="Edit LinkedIn URL"
+                    autoFocus
+                    value={draftLinkedIn}
+                    onChange={(e) => setDraftLinkedIn(e.target.value)}
+                    onBlur={() => void commitField("linkedin_url")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void commitField("linkedin_url")
+                      if (e.key === "Escape") cancelFieldEdit("linkedin_url")
+                    }}
+                    placeholder="linkedin.com/in/your-profile"
+                    style={{
+                      width: "100%", fontSize: 13, background: "var(--tm-surface-2)",
+                      border: "1px solid var(--tm-accent-ring)", borderRadius: 4,
+                      color: "var(--tm-text)", padding: "2px 6px",
+                      fontFamily: "inherit", outline: "none",
+                    }}
+                  />
+                ) : linkedIn ? (
+                  <a
+                    href={/^https?:\/\//i.test(linkedIn) ? linkedIn : `https://${linkedIn}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tm-link"
+                    style={{ fontSize: 14, overflowWrap: "anywhere", display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    <Linkedin size={14} aria-hidden="true" />
+                    {linkedIn}
+                  </a>
+                ) : (
+                  <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Not set</div>
+                )}
+              </div>
+              {editingField !== "linkedin_url" && (
+                <button
+                  type="button"
+                  onClick={() => setEditingField("linkedin_url")}
+                  aria-label="Edit LinkedIn URL"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--tm-text-faint)", padding: "2px 4px",
+                    fontSize: 12, lineHeight: 1, flexShrink: 0,
+                    opacity: 0.4, transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "1" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.4" }}
                 >
-                  {linkedIn}
-                </a>
-              ) : (
-                <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Not set</div>
+                  ✎
+                </button>
               )}
             </div>
 
@@ -390,6 +613,7 @@ function SettingsModal({
                 onClick={onClose}
                 className="tm-btn tm-btn-ghost"
                 style={{ height: 34, padding: "0 14px", fontSize: 13 }}
+                disabled={updateProfile.isPending}
               >
                 Close
               </button>
@@ -411,9 +635,9 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
   const fullName = profile?.full_name ?? null
 
   const extraActions = [
-    { id: "settings", icon: "⚙", label: "Settings",          color: "var(--tm-text-muted)", hoverBg: "rgba(255,255,255,0.04)" },
-    { id: "about",   icon: "◎", label: "About Truth Mirror", color: "var(--tm-accent)",     hoverBg: "var(--tm-accent-wash)" },
-    { id: "signout", icon: "→", label: "Sign out",           color: "rgba(255,120,120,0.7)", hoverBg: "rgba(255,80,80,0.06)" },
+    { id: "about",    icon: "◎", label: "About Truth Mirror", color: "var(--tm-accent)",       hoverBg: "var(--tm-accent-wash)" },
+    { id: "settings", icon: "⚙", label: "Settings",           color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
+    { id: "signout",  icon: "→", label: "Sign out",           color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)" },
   ]
 
   const handleExtra = (id: string) => {
@@ -435,12 +659,12 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
                 style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
                   borderRadius: "var(--tm-radius-sm)",
-                  background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+                  background: "var(--tm-hover-soft)", border: "1px solid var(--tm-border-soft)",
                   cursor: "pointer", fontFamily: "inherit", textAlign: "left",
                   transition: "all var(--tm-dur-fast) var(--tm-ease)", width: "100%",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-hover-soft)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
               >
                 <span style={{ fontSize: 14, color: a.color, minWidth: 18, textAlign: "center", filter: `drop-shadow(0 0 3px ${a.color})` }}>{a.icon}</span>
                 <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
@@ -473,7 +697,7 @@ function UserFooter({ expanded, profile }: { expanded: boolean; profile: Sidebar
         <div
           onClick={() => expanded && setMenuOpen((o) => !o)}
           style={{ padding: "10px 8px", display: "flex", alignItems: "center", gap: 10, cursor: expanded ? "pointer" : "default" }}
-          onMouseEnter={(e) => { if (expanded) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
+          onMouseEnter={(e) => { if (expanded) e.currentTarget.style.background = "var(--tm-hover-soft)" }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
         >
           <div style={{
@@ -550,7 +774,7 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
         width: 220,
         height: "100vh",
         flexShrink: 0,
-        background: "rgba(5,10,24,0.97)",
+        background: "var(--tm-surface)",
         borderRight: "1px solid var(--tm-border-soft)",
         display: "flex",
         flexDirection: "column",
@@ -621,14 +845,14 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
                 textDecoration: "none",
                 position: "relative",
               }}
-              onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
+              onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
               onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
             >
               {/* Icon + nudge dot container */}
               <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{
                   fontSize: 18,
-                  color: active ? "var(--tm-accent)" : "rgba(240,244,255,0.38)",
+                  color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
                   filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
                   transition: "all var(--tm-dur) var(--tm-ease)",
                 }}>
@@ -672,6 +896,8 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
           borderTop: "1px solid var(--tm-border-soft)",
           display: "flex", flexDirection: "column", gap: 6,
         }}>
+          <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
+          <SurfaceToggle />
           <div className="tm-label-caps" style={{ fontSize: 10 }}>Accent</div>
           <AccentToggle />
         </div>

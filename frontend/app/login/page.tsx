@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query"
 import { auth, jobs } from "@/lib/api"
 import type { MarketAnalytics } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
+import { AccentToggle } from "@/components/accent-toggle"
+import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 
 const SOFT_SKILLS = new Set([
@@ -61,7 +63,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         marginBottom: 4, fontFamily: "inherit",
         outline: "none",
       }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
       onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
       onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
@@ -169,7 +171,7 @@ export default function LoginPage() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 10px", borderRadius: 7,
-    background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)",
+    background: "var(--tm-hover)", border: "1px solid var(--tm-border)",
     color: "var(--tm-text)", fontSize: 13, outline: "none", fontFamily: "inherit",
     boxSizing: "border-box",
   }
@@ -184,7 +186,7 @@ export default function LoginPage() {
           width: 220,
           height: "100dvh",
           flexShrink: 0,
-          background: "rgba(5,10,24,0.97)",
+          background: "var(--tm-surface)",
           borderRight: "1px solid var(--tm-border-soft)",
           display: "flex",
           flexDirection: "column",
@@ -224,7 +226,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Email */}
             <div>
-              <label style={{ fontSize: 11, color: "rgba(240,244,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+              <label style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
                 Email
               </label>
               <input
@@ -239,7 +241,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label style={{ fontSize: 11, color: "rgba(240,244,255,0.4)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+              <label style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
                 Password
               </label>
               <div style={{ position: "relative" }}>
@@ -248,8 +250,8 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   style={{ ...inputStyle, paddingRight: 34 }}
-                  onFocus={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.4)")}
-                  onBlur={(e) => (e.target.style.borderColor = "rgba(0,245,212,0.15)")}
+                  onFocus={(e) => (e.target.style.borderColor = "var(--tm-accent-ring)")}
+                  onBlur={(e) => (e.target.style.borderColor = "var(--tm-border)")}
                 />
                 <button
                   type="button"
@@ -258,11 +260,11 @@ export default function LoginPage() {
                   style={{
                     position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)",
                     background: "none", border: "none", cursor: "pointer",
-                    color: "rgba(240,244,255,0.3)", padding: 2, display: "flex", alignItems: "center",
+                    color: "var(--tm-text-faint)", padding: 2, display: "flex", alignItems: "center",
                     transition: "color 0.2s",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0,245,212,0.7)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(240,244,255,0.3)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--tm-accent)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--tm-text-faint)")}
                 >
                   {showPassword ? (
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -295,8 +297,8 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 padding: "9px", borderRadius: 8,
-                background: loading ? "rgba(0,245,212,0.06)" : "rgba(0,245,212,0.12)",
-                border: "1px solid rgba(0,245,212,0.35)",
+                background: loading ? "var(--tm-accent-wash)" : "var(--tm-accent-wash)",
+                border: "1px solid var(--tm-accent-ring)",
                 color: "var(--tm-accent)", fontSize: 13, fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit", transition: "all 0.2s", opacity: loading ? 0.6 : 1,
@@ -320,7 +322,7 @@ export default function LoginPage() {
               disabled={loading}
               style={{
                 padding: "8px 10px", borderRadius: 8, width: "100%",
-                background: "rgba(255,255,255,0.04)",
+                background: "var(--tm-hover)",
                 border: "1px solid var(--tm-border)",
                 color: "var(--tm-text)", fontSize: 12, fontWeight: 500,
                 cursor: loading ? "not-allowed" : "pointer",
@@ -331,11 +333,11 @@ export default function LoginPage() {
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-                e.currentTarget.style.background = "rgba(0,245,212,0.04)"
+                e.currentTarget.style.background = "var(--tm-accent-wash)"
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "var(--tm-border)"
-                e.currentTarget.style.background = "rgba(255,255,255,0.04)"
+                e.currentTarget.style.background = "var(--tm-hover)"
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
@@ -347,6 +349,13 @@ export default function LoginPage() {
               Continue with Google
             </button>
           </form>
+        </div>
+
+        <div style={{ padding: "10px 12px 12px", borderTop: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Background</div>
+          <SurfaceToggle />
+          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Accent</div>
+          <AccentToggle />
         </div>
 
         {/* Bottom — mirrors UserFooter avatar row */}

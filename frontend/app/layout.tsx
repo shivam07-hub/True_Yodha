@@ -29,16 +29,16 @@ export const viewport: Viewport = {
 }
 
 /**
- * Accent bootstrap — runs before paint to set data-accent on <html>.
- * Prevents a flash of the default (signal) accent for users on "forge".
+ * Theme bootstrap — runs before paint to set accent + surface on <html>.
+ * Prevents flashes of default mode on refresh.
  */
-const ACCENT_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent')||'signal';document.documentElement.setAttribute('data-accent',a);}catch(e){document.documentElement.setAttribute('data-accent','signal');}})();`
+const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent');var s=localStorage.getItem('tm.surface');var accent=(a==='forge'||a==='signal')?a:'signal';var surface=(s==='light'||s==='dark')?s:'dark';document.documentElement.setAttribute('data-accent',accent);document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','signal');document.documentElement.setAttribute('data-surface','dark');}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={spaceGrotesk.variable} data-accent="signal" suppressHydrationWarning>
+    <html lang="en" className={spaceGrotesk.variable} data-accent="signal" data-surface="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: ACCENT_BOOTSTRAP }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
