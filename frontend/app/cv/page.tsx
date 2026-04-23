@@ -1,9 +1,16 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { jobs, scores, uploadCV, cv, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -213,6 +220,7 @@ export default function CVPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
+  const [showDraftGuide, setShowDraftGuide] = useState(false)
   const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [highlightedSkill] = useState<string | null>(null)
@@ -249,6 +257,7 @@ export default function CVPage() {
     onMutate: () => {
       setError(null)
       setMessage(null)
+      setShowDraftGuide(false)
     },
     onSuccess: (draft) => {
       queryClient.invalidateQueries({ queryKey: ["cv-profile", token] })
@@ -286,15 +295,6 @@ export default function CVPage() {
       setUploading(false)
     }
   }
-
-  // Auto-open upload panel once per mount when no CV exists at all
-  const autoOpenFiredRef = useRef(false)
-  useEffect(() => {
-    if (!cvLoading && !hasCv && !autoOpenFiredRef.current) {
-      autoOpenFiredRef.current = true
-      setShowUpload(true)
-    }
-  }, [cvLoading, hasCv])
 
   if (!ready) return null
 
@@ -371,11 +371,10 @@ export default function CVPage() {
               {hasCv ? (
                 <>
                   <button
-                    onClick={() => generateDraft.mutate()}
-                    disabled={!evidenceData?.eligible || generateDraft.isPending}
+                    onClick={() => setShowDraftGuide(true)}
+                    disabled={generateDraft.isPending}
                     className="tm-btn tm-btn-primary"
-                    aria-describedby="cv-generate-status"
-                    style={{ height: 36, fontSize: "var(--tm-fs-meta)", opacity: evidenceData?.eligible ? 1 : 0.5 }}
+                    style={{ height: 36, fontSize: "var(--tm-fs-meta)", opacity: generateDraft.isPending ? 0.7 : 1 }}
                   >
                     {generateDraft.isPending ? "Generating..." : `Generate Next CV Draft`}
                   </button>
@@ -398,15 +397,6 @@ export default function CVPage() {
               )}
             </div>
           </div>
-          {hasCv && (
-            <div id="cv-generate-status" style={{ marginTop: 8, fontSize: 12, color: evidenceData?.eligible ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
-              {evidenceLoading
-                ? "Checking milestone evidence..."
-                : evidenceData?.eligible
-                ? `Ready for v${evidenceData.next_version_number}: ${evidenceData.evidence_count} milestone days recorded.`
-                : `${evidenceData?.evidence_count ?? 0}/${evidenceData?.required_count ?? 7} milestone days recorded before the next draft unlocks.`}
-            </div>
-          )}
           {(message || error) && (
             <div role={error ? "alert" : "status"} style={{ marginTop: 8, fontSize: 12, color: error ? "var(--tm-danger)" : "var(--tm-accent)" }}>
               {error ?? message}
@@ -694,6 +684,72 @@ export default function CVPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showDraftGuide} onOpenChange={setShowDraftGuide}>
+        <DialogContent className="max-w-lg p-0" showCloseButton={false}>
+          <div style={{ padding: 24 }}>
+            <DialogHeader>
+              <div className="tm-label-caps" style={{ marginBottom: 6 }}>Next CV Draft</div>
+              <DialogTitle style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)" }}>
+                How to generate the next draft
+              </DialogTitle>
+              <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
+                {evidenceLoading
+                  ? "We are checking your progress evidence now."
+                  : evidenceData?.eligible
+                  ? `Ready for v${evidenceData.next_version_number}: ${evidenceData.evidence_count} milestone days recorded.`
+                  : `${evidenceData?.evidence_count ?? 0}/${evidenceData?.required_count ?? 7} milestone days recorded before the next draft unlocks.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: "10px 12px",
+                borderRadius: "var(--tm-radius-sm)",
+                border: `1px solid ${evidenceData?.eligible ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                background: evidenceData?.eligible ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                color: "var(--tm-text)",
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
+              {evidenceData?.eligible
+                ? `Generating now will build v${evidenceData.next_version_number} from your latest baseline CV plus the progress evidence you logged since the last version.`
+                : "Complete milestone days in Progress with proof and impact, then come back here to unlock the next generated draft."}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              padding: 16,
+              borderTop: "1px solid var(--tm-border-soft)",
+              background: "rgba(255,255,255,0.02)",
+            }}
+          >
+            <button
+              onClick={() => setShowDraftGuide(false)}
+              className="tm-btn tm-btn-ghost"
+              style={{ height: 36, fontSize: 12 }}
+            >
+              {evidenceData?.eligible ? "Not now" : "Close"}
+            </button>
+            {evidenceData?.eligible && (
+              <button
+                onClick={() => generateDraft.mutate()}
+                disabled={generateDraft.isPending}
+                className="tm-btn tm-btn-primary"
+                style={{ height: 36, fontSize: "var(--tm-fs-meta)", opacity: generateDraft.isPending ? 0.7 : 1 }}
+              >
+                {generateDraft.isPending ? "Generating..." : "Generate draft now"}
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Upload modal overlay */}
       {showUpload && (
