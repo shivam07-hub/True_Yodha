@@ -2,52 +2,66 @@
 
 import { useEffect, useState } from "react"
 
-type Surface = "dark" | "light"
+type Variation = "signal" | "forge"
 
-const STORAGE_KEY = "tm.surface"
-const DEFAULT_SURFACE: Surface = "dark"
+const ACCENT_STORAGE_KEY = "tm.accent"
+const SURFACE_STORAGE_KEY = "tm.surface"
+const DEFAULT_VARIATION: Variation = "signal"
 
 export function SurfaceToggle() {
-  const [surface, setSurface] = useState<Surface>(DEFAULT_SURFACE)
+  const [variation, setVariation] = useState<Variation>(DEFAULT_VARIATION)
 
   useEffect(() => {
-    const stored = (typeof window !== "undefined"
-      ? (localStorage.getItem(STORAGE_KEY) as Surface | null)
+    const storedAccent = (typeof window !== "undefined"
+      ? (localStorage.getItem(ACCENT_STORAGE_KEY) as Variation | null)
       : null)
-    const next = stored === "light" || stored === "dark" ? stored : DEFAULT_SURFACE
-    applySurface(next)
-    setSurface(next)
+    const storedSurface = (typeof window !== "undefined"
+      ? localStorage.getItem(SURFACE_STORAGE_KEY)
+      : null)
+
+    const next: Variation =
+      storedAccent === "signal" || storedAccent === "forge"
+        ? storedAccent
+        : storedSurface === "light"
+          ? "forge"
+          : DEFAULT_VARIATION
+
+    applyVariation(next)
+    setVariation(next)
   }, [])
 
-  function applySurface(next: Surface) {
-    document.documentElement.setAttribute("data-surface", next)
-    localStorage.setItem(STORAGE_KEY, next)
+  function applyVariation(next: Variation) {
+    const nextSurface = next === "forge" ? "light" : "dark"
+    document.documentElement.setAttribute("data-accent", next)
+    document.documentElement.setAttribute("data-surface", nextSurface)
+    localStorage.setItem(ACCENT_STORAGE_KEY, next)
+    localStorage.setItem(SURFACE_STORAGE_KEY, nextSurface)
   }
 
-  function choose(next: Surface) {
-    setSurface(next)
-    applySurface(next)
+  function choose(next: Variation) {
+    setVariation(next)
+    applyVariation(next)
   }
 
   return (
     <div
       className="tm-segment-toggle"
       role="group"
-      aria-label="Background theme"
+      aria-label="Background variation"
     >
       <button
         type="button"
-        aria-pressed={surface === "dark"}
-        onClick={() => choose("dark")}
+        aria-pressed={variation === "signal"}
+        onClick={() => choose("signal")}
       >
-        Dark
+        Signal
       </button>
       <button
         type="button"
-        aria-pressed={surface === "light"}
-        onClick={() => choose("light")}
+        aria-pressed={variation === "forge"}
+        onClick={() => choose("forge")}
       >
-        White
+        Forge
       </button>
     </div>
   )

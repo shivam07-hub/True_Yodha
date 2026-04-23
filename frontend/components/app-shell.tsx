@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
-import { AccentToggle } from "@/components/accent-toggle"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -1113,8 +1112,6 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
           }}>
             <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
             <SurfaceToggle />
-            <div className="tm-label-caps" style={{ fontSize: 10 }}>Accent</div>
-            <AccentToggle />
           </div>
         </div>
       )}

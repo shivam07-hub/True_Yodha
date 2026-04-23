@@ -7,7 +7,6 @@ import { useQuery } from "@tanstack/react-query"
 import { auth, jobs } from "@/lib/api"
 import type { MarketAnalytics } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
-import { AccentToggle } from "@/components/accent-toggle"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 
@@ -354,8 +353,6 @@ export default function LoginPage() {
         <div style={{ padding: "10px 12px 12px", borderTop: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Background</div>
           <SurfaceToggle />
-          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Accent</div>
-          <AccentToggle />
         </div>
 
         {/* Bottom — mirrors UserFooter avatar row */}

@@ -32,7 +32,7 @@ export const viewport: Viewport = {
  * Theme bootstrap — runs before paint to set accent + surface on <html>.
  * Prevents flashes of default mode on refresh.
  */
-const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent');var s=localStorage.getItem('tm.surface');var accent=(a==='forge'||a==='signal')?a:'signal';var surface=(s==='light'||s==='dark')?s:'dark';document.documentElement.setAttribute('data-accent',accent);document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','signal');document.documentElement.setAttribute('data-surface','dark');}})();`
+const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent');var s=localStorage.getItem('tm.surface');var accent=(a==='forge'||a==='signal')?a:(s==='light'?'forge':'signal');var surface=accent==='forge'?'light':'dark';localStorage.setItem('tm.accent',accent);localStorage.setItem('tm.surface',surface);document.documentElement.setAttribute('data-accent',accent);document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','signal');document.documentElement.setAttribute('data-surface','dark');}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
