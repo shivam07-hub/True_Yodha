@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -12,6 +12,7 @@ import { AccentToggle } from "@/components/accent-toggle"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
@@ -287,18 +288,28 @@ function SettingsModal({
   const [draftName, setDraftName] = useState("")
   const [draftLocation, setDraftLocation] = useState("")
   const [draftLinkedIn, setDraftLinkedIn] = useState("")
+  const [draftRoles, setDraftRoles] = useState<string[]>([])
+  const [roleInput, setRoleInput] = useState("")
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false)
+  const [roleInputFocused, setRoleInputFocused] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const roleInputRef = useRef<HTMLInputElement>(null)
+  const roleCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!open) return
     setDraftName(profile?.full_name ?? "")
     setDraftLocation(profile?.target_location ?? "")
     setDraftLinkedIn(profile?.linkedin_url ?? "")
+    setDraftRoles(profile?.target_roles?.filter((role) => role.trim().length > 0) ?? [])
+    setRoleInput("")
+    setShowRoleDropdown(false)
+    setRoleInputFocused(false)
     setEditingField(null)
     setSaveError(null)
     setSaveSuccess(null)
-  }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url])
+  }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
 
   const updateProfile = useMutation({
     mutationFn: (payload: Partial<SidebarProfile>) => {
@@ -310,6 +321,7 @@ function SettingsModal({
       setDraftName(updated.full_name ?? "")
       setDraftLocation(updated.target_location ?? "")
       setDraftLinkedIn(updated.linkedin_url ?? "")
+      setDraftRoles(updated.target_roles?.filter((role) => role.trim().length > 0) ?? [])
       setSaveError(null)
       setSaveSuccess("Saved")
     },
@@ -329,6 +341,21 @@ function SettingsModal({
     if (!trimmed) return null
     if (/^https?:\/\//i.test(trimmed)) return trimmed
     return `https://${trimmed}`
+  }
+
+  const normalizeRoleList = (roles: string[]): string[] => {
+    const seen = new Set<string>()
+    const normalized: string[] = []
+    for (const role of roles) {
+      const trimmed = role.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      normalized.push(trimmed)
+      if (normalized.length >= MAX_TARGET_ROLES) break
+    }
+    return normalized
   }
 
   async function commitField(field: "full_name" | "target_location" | "linkedin_url") {
@@ -355,6 +382,14 @@ function SettingsModal({
     setEditingField(null)
   }
 
+  async function commitRoles() {
+    const currentRoles = normalizeRoleList(profile?.target_roles ?? [])
+    const nextRoles = normalizeRoleList(draftRoles)
+    if (JSON.stringify(currentRoles) === JSON.stringify(nextRoles)) return
+    setSaveSuccess(null)
+    await updateProfile.mutateAsync({ target_roles: nextRoles })
+  }
+
   const cancelFieldEdit = (field: "full_name" | "target_location" | "linkedin_url") => {
     if (field === "full_name") setDraftName(profile?.full_name ?? "")
     if (field === "target_location") setDraftLocation(profile?.target_location ?? "")
@@ -362,10 +397,51 @@ function SettingsModal({
     setEditingField(null)
   }
 
+  const atRolesMax = draftRoles.length >= MAX_TARGET_ROLES
+  const roleSuggestions = roleInput.trim().length === 0
+    ? []
+    : L2_CLUSTERS.filter(
+      (cluster) =>
+        cluster.toLowerCase().includes(roleInput.toLowerCase()) &&
+        !draftRoles.some((role) => role.toLowerCase() === cluster.toLowerCase())
+    ).slice(0, 8)
+
+  function selectRole(role: string) {
+    if (atRolesMax) return
+    setDraftRoles((existing) => [...existing, role])
+    setRoleInput("")
+    setShowRoleDropdown(false)
+    roleInputRef.current?.focus()
+  }
+
+  function removeRole(index: number) {
+    setDraftRoles((existing) => existing.filter((_, idx) => idx !== index))
+  }
+
+  function handleRoleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      if (roleSuggestions.length > 0) selectRole(roleSuggestions[0])
+    }
+    if (e.key === "Escape") setShowRoleDropdown(false)
+  }
+
+  function handleRoleInputBlur() {
+    roleCloseTimer.current = setTimeout(() => setShowRoleDropdown(false), 150)
+    setRoleInputFocused(false)
+  }
+
+  function handleRoleDropdownMouseDown() {
+    if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current)
+  }
+
   const fullName = draftName.trim() || "Not set"
-  const roles = profile?.target_roles?.filter((role) => role.trim().length > 0) ?? []
+  const roles = draftRoles
   const location = draftLocation.trim() || "Not set"
   const linkedIn = draftLinkedIn.trim() || null
+  const hasRoleChanges =
+    JSON.stringify(normalizeRoleList(profile?.target_roles ?? [])) !==
+    JSON.stringify(normalizeRoleList(draftRoles))
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
@@ -470,28 +546,145 @@ function SettingsModal({
             </div>
 
             <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
-              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Target Roles</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="tm-label-caps" style={{ fontSize: 11 }}>Target Roles</div>
+                <span style={{
+                  fontSize: 11,
+                  color: atRolesMax ? "var(--tm-warning)" : "var(--tm-text-faint)",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {roles.length} / {MAX_TARGET_ROLES}
+                </span>
+              </div>
+
+              <div style={{ position: "relative", marginBottom: 10 }}>
+                <input
+                  ref={roleInputRef}
+                  type="text"
+                  value={roleInput}
+                  onChange={(e) => { setRoleInput(e.target.value); setShowRoleDropdown(true) }}
+                  onKeyDown={handleRoleInputKeyDown}
+                  onFocus={() => { setRoleInputFocused(true); setShowRoleDropdown(true) }}
+                  onBlur={handleRoleInputBlur}
+                  placeholder={atRolesMax ? `Max ${MAX_TARGET_ROLES} selected` : "Search L2 target roles…"}
+                  disabled={atRolesMax}
+                  autoComplete="off"
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    borderRadius: "var(--tm-radius-sm)",
+                    background: "rgba(255,255,255,0.03)",
+                    border: `1px solid ${roleInputFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                    color: "var(--tm-text)",
+                    fontSize: 13,
+                    fontFamily: "inherit",
+                    outline: "none",
+                    opacity: atRolesMax ? 0.45 : 1,
+                    transition: "border-color var(--tm-dur) var(--tm-ease)",
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                {showRoleDropdown && roleSuggestions.length > 0 && (
+                  <div
+                    onMouseDown={handleRoleDropdownMouseDown}
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 4px)",
+                      left: 0,
+                      right: 0,
+                      background: "var(--tm-surface)",
+                      border: "1px solid var(--tm-accent-ring)",
+                      borderRadius: "var(--tm-radius-sm)",
+                      overflow: "hidden",
+                      zIndex: 50,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                      maxHeight: 260,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {roleSuggestions.map((cluster) => (
+                      <button
+                        key={cluster}
+                        type="button"
+                        onClick={() => selectRole(cluster)}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          background: "transparent",
+                          border: "none",
+                          borderBottom: "1px solid var(--tm-border-soft)",
+                          color: "var(--tm-text-muted)",
+                          fontSize: 13,
+                          fontFamily: "inherit",
+                          cursor: "pointer",
+                          transition: "background var(--tm-dur)",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                      >
+                        {cluster}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {roles.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {roles.map((role) => (
-                    <span
-                      key={role}
-                      style={{
-                        borderRadius: "var(--tm-radius-pill)",
-                        padding: "5px 10px",
-                        fontSize: 12,
-                        background: "var(--tm-accent-wash)",
-                        border: "1px solid var(--tm-accent-ring)",
-                        color: "var(--tm-accent)",
-                      }}
-                    >
-                      {role}
-                    </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                  {roles.map((role, index) => (
+                    <div key={`${role}-${index}`} style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "5px 8px 5px 12px",
+                      borderRadius: "var(--tm-radius-pill)",
+                      background: "var(--tm-accent-wash)",
+                      border: "1px solid var(--tm-accent-ring)",
+                      fontSize: 12,
+                      color: "var(--tm-accent)",
+                    }}>
+                      <span style={{ fontWeight: 500 }}>{role}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeRole(index)}
+                        aria-label={`Remove ${role}`}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(0,245,212,0.15)",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          color: "var(--tm-accent)",
+                          fontSize: 12,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Not set</div>
+                <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 10 }}>No target roles selected yet.</div>
               )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => void commitRoles()}
+                  className="tm-btn tm-btn-primary"
+                  style={{ height: 30, padding: "0 10px", fontSize: 12 }}
+                  disabled={!hasRoleChanges || updateProfile.isPending}
+                >
+                  Save roles
+                </button>
+              </div>
             </div>
 
             <div style={{
