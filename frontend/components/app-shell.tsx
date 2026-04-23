@@ -6,8 +6,10 @@ import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
+import type { UserProfile } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { AccentToggle } from "@/components/accent-toggle"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
@@ -22,6 +24,8 @@ const FEEDBACK_ACTIONS = [
   { id: "companies", icon: "＋", label: "Add more companies", color: "var(--tm-accent)",  bg: "var(--tm-accent-wash)",  placeholder: "Which companies should we track?"    },
   { id: "feedback",  icon: "◎",  label: "Leave feedback",     color: "var(--tm-success)", bg: "var(--tm-success-wash)", placeholder: "What can we improve?"                },
 ]
+
+type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url">
 
 function TMLogo({ size = 28 }: { size?: number }) {
   return (
@@ -266,20 +270,155 @@ function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]
   )
 }
 
-function UserFooter({ expanded, fullName }: { expanded: boolean; fullName: string | null }) {
+function SettingsModal({
+  open,
+  onClose,
+  profile,
+}: {
+  open: boolean
+  onClose: () => void
+  profile: SidebarProfile | null
+}) {
+  const fullName = profile?.full_name?.trim() || "Not set"
+  const roles = profile?.target_roles?.filter((role) => role.trim().length > 0) ?? []
+  const location = profile?.target_location?.trim() || "Not set"
+  const linkedIn = profile?.linkedin_url?.trim() || null
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
+      <DialogContent showCloseButton={false} className="sm:max-w-[620px] max-w-[calc(100%-2rem)] p-0 bg-transparent ring-0">
+        <div
+          style={{
+            background: "var(--tm-surface)",
+            border: "1px solid var(--tm-accent-ring)",
+            borderRadius: "var(--tm-radius-xl)",
+            boxShadow: "0 0 50px rgba(0,0,0,0.6)",
+            maxHeight: "82vh",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              padding: "24px 24px 18px",
+              borderBottom: "1px solid var(--tm-border-soft)",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 16,
+            }}
+          >
+            <div>
+              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 6 }}>Settings</div>
+              <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>User Information</h2>
+              <p style={{ fontSize: 13, color: "var(--tm-text-muted)", margin: "8px 0 0" }}>
+                Profile fields synced from your account record.
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Close settings"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--tm-text-faint)",
+                fontSize: 22,
+                cursor: "pointer",
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
+              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Name</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{fullName}</div>
+            </div>
+
+            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
+              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Target Roles</div>
+              {roles.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {roles.map((role) => (
+                    <span
+                      key={role}
+                      style={{
+                        borderRadius: "var(--tm-radius-pill)",
+                        padding: "5px 10px",
+                        fontSize: 12,
+                        background: "var(--tm-accent-wash)",
+                        border: "1px solid var(--tm-accent-ring)",
+                        color: "var(--tm-accent)",
+                      }}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Not set</div>
+              )}
+            </div>
+
+            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
+              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>Target Location</div>
+              <div style={{ fontSize: 14, color: location === "Not set" ? "var(--tm-text-faint)" : "var(--tm-text)" }}>{location}</div>
+            </div>
+
+            <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px" }}>
+              <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 8 }}>LinkedIn</div>
+              {linkedIn ? (
+                <a
+                  href={linkedIn}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="tm-link"
+                  style={{ fontSize: 14, overflowWrap: "anywhere" }}
+                >
+                  {linkedIn}
+                </a>
+              ) : (
+                <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Not set</div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={onClose}
+                className="tm-btn tm-btn-ghost"
+                style={{ height: 34, padding: "0 14px", fontSize: 13 }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function UserFooter({ expanded, profile }: { expanded: boolean; profile: SidebarProfile | null }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const { signOut } = useAuth()
+  const fullName = profile?.full_name ?? null
 
   const extraActions = [
+    { id: "settings", icon: "⚙", label: "Settings",          color: "var(--tm-text-muted)", hoverBg: "rgba(255,255,255,0.04)" },
     { id: "about",   icon: "◎", label: "About Truth Mirror", color: "var(--tm-accent)",     hoverBg: "var(--tm-accent-wash)" },
     { id: "signout", icon: "→", label: "Sign out",           color: "rgba(255,120,120,0.7)", hoverBg: "rgba(255,80,80,0.06)" },
   ]
 
   const handleExtra = (id: string) => {
     setMenuOpen(false)
+    if (id === "settings") setShowSettings(true)
     if (id === "about") setShowAbout(true)
     if (id === "signout") setSignOutConfirm(true)
   }
@@ -359,6 +498,7 @@ function UserFooter({ expanded, fullName }: { expanded: boolean; fullName: strin
 
       {activeModal && <FeedbackModal action={activeModal} onClose={() => setActiveModal(null)} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
 
       {signOutConfirm && (
         <div
@@ -400,7 +540,7 @@ function UserFooter({ expanded, fullName }: { expanded: boolean; fullName: strin
   )
 }
 
-function Sidebar({ score, fullName, onLogoClick }: { score: number | null; fullName: string | null; onLogoClick: () => void }) {
+function Sidebar({ score, profile, onLogoClick }: { score: number | null; profile: SidebarProfile | null; onLogoClick: () => void }) {
   const expanded = true
   const pathname = usePathname()
 
@@ -537,7 +677,7 @@ function Sidebar({ score, fullName, onLogoClick }: { score: number | null; fullN
         </div>
       )}
 
-      <UserFooter expanded={expanded} fullName={fullName} />
+      <UserFooter expanded={expanded} profile={profile} />
     </nav>
   )
 }
@@ -565,7 +705,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <ParticleBg />
-      <Sidebar score={scoreData?.total_score ?? null} fullName={profileData?.full_name ?? null} onLogoClick={() => setShowAbout(true)} />
+      <Sidebar
+        score={scoreData?.total_score ?? null}
+        profile={{
+          full_name: profileData?.full_name ?? null,
+          target_roles: profileData?.target_roles ?? [],
+          target_location: profileData?.target_location ?? null,
+          linkedin_url: profileData?.linkedin_url ?? null,
+        }}
+        onLogoClick={() => setShowAbout(true)}
+      />
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
         <div className="tm-page-enter" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {children}

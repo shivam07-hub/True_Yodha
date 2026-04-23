@@ -423,10 +423,30 @@ export interface SkillGapResponse {
   missing_count: number
 }
 
+export interface UserSkillDemandItem {
+  skill: string
+  display_name: string
+  current_level: number
+  proficiency_title: string
+  target_level: number | null
+  needs_upgrade: boolean
+  job_count_30d: number
+  weighted_demand: number
+}
+
+export interface UserSkillDemandResponse {
+  skills: UserSkillDemandItem[]
+  total: number
+}
+
 export const jobs = {
   analytics: () => request<MarketAnalytics>("/jobs/analytics"),
   search: (company: string) =>
     request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}`),
+  mySkillDemand: (token: string) =>
+    request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },

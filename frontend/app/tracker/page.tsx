@@ -19,6 +19,7 @@ import {
   type GapSkill,
   type JobMatch,
   type SkillGapItem,
+  type UserSkillDemandItem,
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import {
@@ -547,24 +548,53 @@ function AITutor({
   )
 }
 
-function GapSkillCard({ skill }: { skill: { skill: string; gap_score: number; job_count_30d: number } }) {
-  const pct = Math.round(skill.gap_score)
-  const color = pct >= 70 ? "var(--tm-danger)" : pct >= 40 ? "var(--tm-warning)" : "var(--tm-accent)"
+function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
+  const demandColor =
+    skill.job_count_30d >= 250 ? "var(--tm-accent)" :
+    skill.job_count_30d >= 100 ? "var(--tm-warning)" :
+    "var(--tm-text-faint)"
   return (
     <div style={{
       padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
       background: "rgba(255,255,255,0.02)",
       border: "1px solid var(--tm-border-soft)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{ fontSize: 14, color: "var(--tm-text)" }}>{skill.skill}</span>
-        <span style={{ fontSize: 11, color, fontWeight: 600 }}>Gap: {pct}</span>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+        <div>
+          <div style={{ fontSize: 14, color: "var(--tm-text)", marginBottom: 2 }}>{skill.display_name}</div>
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+            Current level: L{skill.current_level} · {skill.proficiency_title}
+          </div>
+        </div>
+        {skill.needs_upgrade && skill.target_level != null ? (
+          <span style={{ fontSize: 10, color: "var(--tm-warning)", fontWeight: 700, letterSpacing: "0.04em" }}>
+            Target L{skill.target_level}
+          </span>
+        ) : (
+          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 700, letterSpacing: "0.04em" }}>
+            MARKET READY
+          </span>
+        )}
       </div>
-      <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
-      </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
-        {skill.job_count_30d.toLocaleString()} jobs/30d
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ fontSize: 11, color: demandColor }}>
+          {skill.job_count_30d.toLocaleString()} jobs looking for this skill
+        </div>
+        <a
+          href={`/diary?skill=${encodeURIComponent(skill.display_name)}&level=${skill.current_level}`}
+          style={{
+            fontSize: 11,
+            color: "var(--tm-accent)",
+            textDecoration: "none",
+            border: "1px solid var(--tm-accent-ring)",
+            borderRadius: 999,
+            padding: "4px 10px",
+            background: "var(--tm-accent-wash)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Add to diary
+        </a>
       </div>
     </div>
   )
@@ -630,6 +660,12 @@ export default function TrackerPage() {
     enabled: !!token,
   })
 
+  const skillDemandQuery = useQuery({
+    queryKey: ["user-skill-demand", token],
+    queryFn: () => jobs.mySkillDemand(token!),
+    enabled: !!token,
+  })
+
   const refreshMatches = useMutation({
     mutationFn: () => jobs.compute(token!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs", token] }),
@@ -677,6 +713,7 @@ export default function TrackerPage() {
   )
 
   const topGapSkills = useMemo(() => (scoresQuery.data?.gap_skills ?? []).slice(0, 4), [scoresQuery.data])
+  const topDemandSkills = useMemo(() => (skillDemandQuery.data?.skills ?? []).slice(0, 6), [skillDemandQuery.data])
 
   if (!ready) return null
 
@@ -817,14 +854,29 @@ export default function TrackerPage() {
                   <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
                     Skill Gaps · Overall
                   </div>
-                  {topGapSkills.length > 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                    Skills from your CV ranked by number of jobs asking for them.
+                  </div>
+                  {skillDemandQuery.isLoading ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {topGapSkills.map((s) => (
-                        <GapSkillCard key={s.skill} skill={s} />
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} style={{ height: 74, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)", animation: "pulse 2s infinite" }} />
                       ))}
                     </div>
+                  ) : topDemandSkills.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {topDemandSkills.map((s) => (
+                        <CVSkillDemandCard key={s.skill} skill={s} />
+                      ))}
+                    </div>
+                  ) : skillDemandQuery.isError ? (
+                    <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>
+                      Could not load skill demand right now.
+                    </div>
                   ) : (
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>Click a job to see its skill gap.</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+                      Upload your CV to unlock demand-ranked skills.
+                    </div>
                   )}
                 </>
               )}

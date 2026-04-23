@@ -25,6 +25,22 @@ class SkillGapResponse(BaseModel):
     missing_count: int
 
 
+class UserSkillDemandItem(BaseModel):
+    skill: str
+    display_name: str
+    current_level: int
+    proficiency_title: str
+    target_level: int | None = None
+    needs_upgrade: bool
+    job_count_30d: int
+    weighted_demand: int
+
+
+class UserSkillDemandResponse(BaseModel):
+    skills: list[UserSkillDemandItem]
+    total: int
+
+
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
     job_id: str
