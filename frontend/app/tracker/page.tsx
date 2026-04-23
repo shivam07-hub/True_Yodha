@@ -30,6 +30,11 @@ import {
   isPuterSignedIn,
   markPuterIntroSeen,
 } from "@/lib/puter-ai"
+import {
+  buildDiarySelectionsHref,
+  toggleDiarySelection,
+  type DiarySkillSelection,
+} from "@/lib/diary-skill-cart"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
   return (
@@ -603,18 +608,170 @@ function AITutor({
   )
 }
 
-function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
+function skillSelectionKey(skill: string): string {
+  return skill.trim().toLowerCase()
+}
+
+function buildGapSkillSelection(skill: SkillGapItem): DiarySkillSelection {
+  return {
+    skill: skill.skill,
+    intent: skill.missing ? "add" : "upgrade",
+    ...(typeof skill.user_level === "number" ? { level: skill.user_level } : {}),
+    source: "job-gap",
+  }
+}
+
+function buildDemandSkillSelection(skill: UserSkillDemandItem): DiarySkillSelection {
+  return {
+    skill: skill.display_name,
+    intent: "upgrade",
+    ...(typeof skill.current_level === "number" ? { level: skill.current_level } : {}),
+    source: "skill-demand",
+  }
+}
+
+function SkillActionButton({
+  label,
+  queued,
+  onClick,
+  ariaLabel,
+}: {
+  label: string
+  queued: boolean
+  onClick: () => void
+  ariaLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      aria-pressed={queued}
+      onClick={onClick}
+      className={`tm-btn ${queued ? "tm-btn-primary" : "tm-btn-ghost"}`}
+      style={{ height: 32, padding: "0 12px", fontSize: 11, whiteSpace: "nowrap", justifyContent: "center" }}
+    >
+      {queued ? "Queued" : label}
+    </button>
+  )
+}
+
+function DiaryCartPanel({
+  selections,
+  onRemove,
+  onClear,
+}: {
+  selections: DiarySkillSelection[]
+  onRemove: (selection: DiarySkillSelection) => void
+  onClear: () => void
+}) {
+  const href = buildDiarySelectionsHref(selections)
+
+  return (
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+          Diary Cart
+        </div>
+        <div style={{
+          fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+          color: selections.length > 0 ? "var(--tm-accent)" : "var(--tm-text-faint)",
+          background: selections.length > 0 ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${selections.length > 0 ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+        }}>
+          {selections.length} queued
+        </div>
+      </div>
+
+      {selections.length === 0 ? (
+        <div style={{
+          padding: "14px 16px", borderRadius: "var(--tm-radius-sm)",
+          background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+          fontSize: 12, lineHeight: 1.6, color: "var(--tm-text-faint)",
+        }}>
+          Tap <span style={{ color: "var(--tm-text)" }}>Add</span> or <span style={{ color: "var(--tm-text)" }}>Upgrade</span> on any skill below to queue it here, then send everything to the diary together.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {selections.map((selection) => (
+              <div
+                key={skillSelectionKey(selection.skill)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                  padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+                  background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: "var(--tm-text)" }}>{selection.skill}</div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    {selection.intent === "add"
+                      ? "New skill"
+                      : selection.level
+                        ? `Upgrade from L${selection.level}`
+                        : "Upgrade"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemove(selection)}
+                  className="tm-btn tm-btn-ghost"
+                  style={{ height: 30, padding: "0 10px", fontSize: 11, flexShrink: 0 }}
+                  aria-label={`Remove ${selection.skill} from diary cart`}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <a
+              href={href}
+              className="tm-btn tm-btn-primary"
+              style={{ flex: 1, justifyContent: "center", textDecoration: "none" }}
+            >
+              Send {selections.length === 1 ? "1 skill" : `${selections.length} skills`} to diary
+            </a>
+            <button
+              type="button"
+              onClick={onClear}
+              className="tm-btn tm-btn-ghost"
+              style={{ height: 36, fontSize: 12 }}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 8 }}>
+            Keep adding skills until the cart feels complete, then send them in one note.
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function CVSkillDemandCard({
+  skill,
+  queued,
+  onToggle,
+}: {
+  skill: UserSkillDemandItem
+  queued: boolean
+  onToggle: (selection: DiarySkillSelection) => void
+}) {
   const demandColor =
     skill.job_count_30d >= 250 ? "var(--tm-accent)" :
     skill.job_count_30d >= 100 ? "var(--tm-warning)" :
     "var(--tm-text-faint)"
-  const diaryHref = buildDiarySkillHref(skill.display_name, skill.current_level)
+  const selection = buildDemandSkillSelection(skill)
 
   return (
     <div style={{
       padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
-      background: "rgba(255,255,255,0.02)",
-      border: "1px solid var(--tm-border-soft)",
+      background: queued ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+      border: queued ? "1px solid var(--tm-accent-ring)" : "1px solid var(--tm-border-soft)",
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
         <div>
@@ -628,33 +785,26 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
         <div style={{ fontSize: 11, color: demandColor }}>
           {skill.job_count_30d.toLocaleString()} jobs for this skill
         </div>
-        <a
-          href={diaryHref}
-          style={{
-            fontSize: 11,
-            color: "var(--tm-accent)",
-            textDecoration: "none",
-            border: "1px solid var(--tm-accent-ring)",
-            borderRadius: 999,
-            padding: "4px 10px",
-            background: "var(--tm-accent-wash)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Add to diary and upskill
-        </a>
+        <SkillActionButton
+          label="Upgrade"
+          queued={queued}
+          onClick={() => onToggle(selection)}
+          ariaLabel={`${queued ? "Remove" : "Upgrade"} ${skill.display_name} in diary cart`}
+        />
       </div>
     </div>
   )
 }
 
-function buildDiarySkillHref(skill: string, level?: number | null) {
-  const params = new URLSearchParams({ skill })
-  if (typeof level === "number") params.set("level", String(level))
-  return `/diary?${params.toString()}`
-}
-
-function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
+function JobSkillGapPanel({
+  skills,
+  queuedSkillKeys,
+  onToggle,
+}: {
+  skills: SkillGapItem[]
+  queuedSkillKeys: Set<string>
+  onToggle: (selection: DiarySkillSelection) => void
+}) {
   const missing = skills.filter((s) => s.missing)
   const matched = skills.filter((s) => !s.missing)
   return (
@@ -664,14 +814,35 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
           <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-danger)", marginBottom: 2 }}>
             Missing · {missing.length}
           </div>
-          {missing.map((s) => (
-            <a key={s.skill} href={buildDiarySkillHref(s.skill)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
-              <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-                {s.is_primary ? "Required" : "Nice to have"} · Add
-              </span>
-            </a>
-          ))}
+          {missing.map((s) => {
+            const selection = buildGapSkillSelection(s)
+            const queued = queuedSkillKeys.has(skillSelectionKey(s.skill))
+
+            return (
+              <div
+                key={s.skill}
+                style={{
+                  padding: "9px 12px", borderRadius: "var(--tm-radius-sm)",
+                  background: queued ? "rgba(0,245,212,0.08)" : "var(--tm-danger-wash)",
+                  border: queued ? "1px solid var(--tm-accent-ring)" : "1px solid rgba(251,113,133,0.15)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    {s.is_primary ? "Required for this role" : "Nice to have"}
+                  </div>
+                </div>
+                <SkillActionButton
+                  label="Add"
+                  queued={queued}
+                  onClick={() => onToggle(selection)}
+                  ariaLabel={`${queued ? "Remove" : "Add"} ${s.skill} in diary cart`}
+                />
+              </div>
+            )
+          })}
         </>
       )}
       {matched.length > 0 && (
@@ -679,12 +850,35 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
           <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-success)", marginTop: missing.length > 0 ? 8 : 0, marginBottom: 2 }}>
             You Have · {matched.length}
           </div>
-          {matched.map((s) => (
-            <a key={s.skill} href={buildDiarySkillHref(s.skill, s.user_level)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
-              <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600, whiteSpace: "nowrap" }}>L{s.user_level} · Log</span>
-            </a>
-          ))}
+          {matched.map((s) => {
+            const selection = buildGapSkillSelection(s)
+            const queued = queuedSkillKeys.has(skillSelectionKey(s.skill))
+
+            return (
+              <div
+                key={s.skill}
+                style={{
+                  padding: "9px 12px", borderRadius: "var(--tm-radius-sm)",
+                  background: queued ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+                  border: queued ? "1px solid var(--tm-accent-ring)" : "1px solid var(--tm-border-soft)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{s.skill}</div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    {typeof s.user_level === "number" ? `Current level · L${s.user_level}` : "Current skill"}
+                  </div>
+                </div>
+                <SkillActionButton
+                  label="Upgrade"
+                  queued={queued}
+                  onClick={() => onToggle(selection)}
+                  ariaLabel={`${queued ? "Remove" : "Upgrade"} ${s.skill} in diary cart`}
+                />
+              </div>
+            )
+          })}
         </>
       )}
     </div>
@@ -695,6 +889,7 @@ export default function TrackerPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const [puterReady, setPuterReady] = useState(false)
+  const [diarySelections, setDiarySelections] = useState<DiarySkillSelection[]>([])
 
   const matchesQuery = useQuery({
     queryKey: ["jobs", token],
@@ -779,6 +974,18 @@ export default function TrackerPage() {
 
   const topGapSkills = useMemo(() => (scoresQuery.data?.gap_skills ?? []).slice(0, 4), [scoresQuery.data])
   const topDemandSkills = useMemo(() => (skillDemandQuery.data?.skills ?? []).slice(0, 6), [skillDemandQuery.data])
+  const queuedSkillKeys = useMemo(
+    () => new Set(diarySelections.map((selection) => skillSelectionKey(selection.skill))),
+    [diarySelections],
+  )
+  const selectedJobTitle = useMemo(
+    () => topJobs.find((job) => job.job_id === selectedJobId)?.title ?? skillGapQuery.data?.job_title ?? null,
+    [selectedJobId, skillGapQuery.data, topJobs],
+  )
+
+  function handleDiaryToggle(selection: DiarySkillSelection) {
+    setDiarySelections((current) => toggleDiarySelection(current, selection))
+  }
 
   if (!ready) return null
 
@@ -888,13 +1095,18 @@ export default function TrackerPage() {
           {/* Sidebar */}
           <div style={{ position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 12 }}>
             <AITutor topJobs={topJobs} topGapSkills={topGapSkills} puterReady={puterReady} />
+            <DiaryCartPanel
+              selections={diarySelections}
+              onRemove={handleDiaryToggle}
+              onClear={() => setDiarySelections([])}
+            />
 
             <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
               {selectedJobId ? (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
-                      Skill Gap · This Job
+                    <div style={{ fontSize: 12, color: "var(--tm-text)", fontWeight: 600, lineHeight: 1.4, paddingRight: 12 }}>
+                      {`Skill gap - ${selectedJobTitle ?? "Selected job"}`}
                     </div>
                     {skillGapQuery.data && (
                       <div style={{
@@ -913,7 +1125,13 @@ export default function TrackerPage() {
                       ))}
                     </div>
                   )}
-                  {skillGapQuery.data && <JobSkillGapPanel skills={skillGapQuery.data.skills} />}
+                  {skillGapQuery.data && (
+                    <JobSkillGapPanel
+                      skills={skillGapQuery.data.skills}
+                      queuedSkillKeys={queuedSkillKeys}
+                      onToggle={handleDiaryToggle}
+                    />
+                  )}
                   {skillGapQuery.isError && (
                     <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>Failed to load skill gap.</div>
                   )}
@@ -935,7 +1153,12 @@ export default function TrackerPage() {
                   ) : topDemandSkills.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {topDemandSkills.map((s) => (
-                        <CVSkillDemandCard key={s.skill} skill={s} />
+                        <CVSkillDemandCard
+                          key={s.skill}
+                          skill={s}
+                          queued={queuedSkillKeys.has(skillSelectionKey(s.display_name))}
+                          onToggle={handleDiaryToggle}
+                        />
                       ))}
                     </div>
                   ) : skillDemandQuery.isError ? (

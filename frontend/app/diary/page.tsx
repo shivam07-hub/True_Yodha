@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { diary, scores } from "@/lib/api"
+import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
 import type { Milestone, MilestonePayload } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -18,29 +19,6 @@ interface DiaryEntry {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
-
-const LEVEL_LABELS: Record<number, string> = {
-  0: "None", 1: "Scout", 2: "Trailblazer", 3: "Excavator", 4: "Cartographer", 5: "Legend",
-}
-
-function buildSkillEntry(skillName: string, level?: number): string {
-  if (level != null && level >= 1 && level <= 5) {
-    const label = LEVEL_LABELS[level] ?? "Scout"
-    const nextLevel = Math.min(level + 1, 5)
-    const nextLabel = LEVEL_LABELS[nextLevel] ?? "Legend"
-    return (
-      `Skill Focus — ${skillName} (${label}, Level ${level})\n` +
-      `I want to build further on ${skillName} this week. Currently at ${label} (L${level}). ` +
-      `Goal: push to ${nextLabel} (Level ${nextLevel}) through deliberate practice and real application.`
-    )
-  }
-  return `Skill Focus — ${skillName}\nI want to develop ${skillName} this week through deliberate practice and real application.`
-}
-
-function buildSkillPrompt(skills: string[]): string {
-  if (skills.length === 0) return ""
-  return `I want to focus on developing these skills: ${skills.join(", ")}.\n\n`
-}
 
 function computeStreak(entries: DiaryEntry[]): number {
   const dates = new Set(entries.map((e) => e.log_date))
@@ -318,22 +296,11 @@ function DiaryPageInner() {
   const [completionConfidence, setCompletionConfidence] = useState(0.7)
 
   useEffect(() => {
-    // Single skill with level: ?skill=NAME&level=N
-    const singleSkill = searchParams.get("skill")
-    if (singleSkill) {
-      const level = parseInt(searchParams.get("level") ?? "", 10)
-      const lvl = isNaN(level) ? undefined : level
-      setPromptSkills([singleSkill])
-      setEntryText(buildSkillEntry(singleSkill, lvl))
-      return
-    }
-    // Multi-skill, no level: ?skills=a,b,c
-    const raw = searchParams.get("skills")
-    if (!raw) return
-    const skills = raw.split(",").map((s) => s.trim()).filter(Boolean)
-    if (skills.length === 0) return
-    setPromptSkills(skills)
-    setEntryText(buildSkillPrompt(skills))
+    const selections = parseDiarySelections(new URLSearchParams(searchParams.toString()))
+    const prefill = buildDiaryPrefill(selections)
+    if (prefill.skills.length === 0 || !prefill.entryText) return
+    setPromptSkills(prefill.skills)
+    setEntryText(prefill.entryText)
   }, [searchParams])
 
   const historyQuery = useQuery({
