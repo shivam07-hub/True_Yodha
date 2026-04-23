@@ -381,43 +381,42 @@ function JobCard({
               ⚡ Next: {firstPlan.focus}
             </div>
           )}
-          <div style={{ display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
-            {tracked && (
-              <select
-                value={status}
-                disabled={updating}
-                onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-                style={{
-                  flex: 1, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                  background: "var(--tm-surface-2)",
-                  border: "1px solid var(--tm-border)",
-                  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: "pointer",
-                }}
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
-                ))}
-              </select>
-            )}
-            {job.source_url && (
-              <a
-                href={job.source_url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  padding: "8px 16px", borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-border)",
-                  background: "transparent",
-                  color: "var(--tm-text-muted)", fontSize: 13, textDecoration: "none",
-                }}
-              >
-                Open JD ↗
-              </a>
-            )}
-          </div>
         </div>
       )}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--tm-border-soft)" }} onClick={(e) => e.stopPropagation()}>
+        <select
+          aria-label={`Application status for ${job.title}`}
+          value={status}
+          disabled={updating}
+          onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+          style={{
+            flex: "1 1 220px", maxWidth: 320, padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-surface-2)",
+            border: "1px solid var(--tm-border)",
+            color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", cursor: updating ? "not-allowed" : "pointer",
+          }}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s} style={{ background: "var(--tm-surface)" }}>{STATUS_META[s].label}</option>
+          ))}
+        </select>
+        {job.source_url && (
+          <a
+            href={job.source_url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              padding: "8px 16px", borderRadius: "var(--tm-radius-sm)",
+              border: "1px solid var(--tm-border)",
+              background: "transparent",
+              color: "var(--tm-text-muted)", fontSize: 13, textDecoration: "none", flexShrink: 0, marginLeft: "auto",
+            }}
+          >
+            Open JD ↗
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -609,6 +608,8 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
     skill.job_count_30d >= 250 ? "var(--tm-accent)" :
     skill.job_count_30d >= 100 ? "var(--tm-warning)" :
     "var(--tm-text-faint)"
+  const diaryHref = buildDiarySkillHref(skill.display_name, skill.current_level)
+
   return (
     <div style={{
       padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
@@ -619,25 +620,16 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
         <div>
           <div style={{ fontSize: 14, color: "var(--tm-text)", marginBottom: 2 }}>{skill.display_name}</div>
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-            Current level: L{skill.current_level} · {skill.proficiency_title}
+            L{skill.current_level} · {skill.proficiency_title}
           </div>
         </div>
-        {skill.needs_upgrade && skill.target_level != null ? (
-          <span style={{ fontSize: 10, color: "var(--tm-warning)", fontWeight: 700, letterSpacing: "0.04em" }}>
-            Target L{skill.target_level}
-          </span>
-        ) : (
-          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 700, letterSpacing: "0.04em" }}>
-            MARKET READY
-          </span>
-        )}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontSize: 11, color: demandColor }}>
-          {skill.job_count_30d.toLocaleString()} jobs looking for this skill
+          {skill.job_count_30d.toLocaleString()} jobs for this skill
         </div>
         <a
-          href={`/diary?skill=${encodeURIComponent(skill.display_name)}&level=${skill.current_level}`}
+          href={diaryHref}
           style={{
             fontSize: 11,
             color: "var(--tm-accent)",
@@ -649,11 +641,17 @@ function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
             whiteSpace: "nowrap",
           }}
         >
-          Add to diary
+          Add to diary and upskill
         </a>
       </div>
     </div>
   )
+}
+
+function buildDiarySkillHref(skill: string, level?: number | null) {
+  const params = new URLSearchParams({ skill })
+  if (typeof level === "number") params.set("level", String(level))
+  return `/diary?${params.toString()}`
 }
 
 function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
@@ -667,12 +665,12 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
             Missing · {missing.length}
           </div>
           {missing.map((s) => (
-            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <a key={s.skill} href={buildDiarySkillHref(s.skill)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)", border: "1px solid rgba(251,113,133,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
               <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em" }}>
-                {s.is_primary ? "REQUIRED" : "NICE TO HAVE"}
+              <span style={{ fontSize: 10, color: "var(--tm-danger)", fontWeight: 600, letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                {s.is_primary ? "Required" : "Nice to have"} · Add
               </span>
-            </div>
+            </a>
           ))}
         </>
       )}
@@ -682,10 +680,10 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
             You Have · {matched.length}
           </div>
           {matched.map((s) => (
-            <div key={s.skill} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <a key={s.skill} href={buildDiarySkillHref(s.skill, s.user_level)} style={{ padding: "9px 12px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, textDecoration: "none" }}>
               <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{s.skill}</span>
-              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600 }}>L{s.user_level}</span>
-            </div>
+              <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600, whiteSpace: "nowrap" }}>L{s.user_level} · Log</span>
+            </a>
           ))}
         </>
       )}
