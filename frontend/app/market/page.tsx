@@ -172,11 +172,9 @@ export default function MarketPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          {analytics && (
-            <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-              Market Intelligence · {analytics.total_jobs.toLocaleString()} jobs across {analytics.total_companies.toLocaleString()} companies in {analytics.total_industries} industries
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+            app/intel
+          </div>
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
             Intel
           </h1>
@@ -223,9 +221,9 @@ export default function MarketPage() {
             <div style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-                  {skillFilters.size === 0
-                    ? "Select skills to find companies hiring for all of them"
-                    : <><span style={{ color: "var(--tm-accent)", fontWeight: 600 }}>{skillFilters.size}</span> skill{skillFilters.size > 1 ? "s" : ""} selected — showing intersection</>}
+                  {skillFilters.size > 0 && (
+                    <><span style={{ color: "var(--tm-accent)", fontWeight: 600 }}>{skillFilters.size}</span> skill{skillFilters.size > 1 ? "s" : ""} selected — showing intersection</>
+                  )}
                 </div>
                 {skillFilters.size > 0 && (
                   <button

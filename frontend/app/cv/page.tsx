@@ -495,7 +495,7 @@ export default function CVPage() {
 
         {/* Header */}
         <div style={{ padding: "24px 32px 16px", flexShrink: 0 }}>
-          <div className="tm-label-caps" style={{ marginBottom: 6 }}>CV Builder</div>
+          <div className="tm-label-caps" style={{ marginBottom: 6 }}>app/CV_Builder</div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
             <div>
               <h1 className="tm-title" style={{ marginBottom: 3, fontSize: "var(--tm-fs-heading)" }}>Build your next CV from proof</h1>

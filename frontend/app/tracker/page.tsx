@@ -695,12 +695,12 @@ export default function TrackerPage() {
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-            Matched Jobs + Tracker
+            app/job_tracker
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
             <div>
               <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
-                Opportunities
+                Tracking Matched Jobs
               </h1>
               <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
                 Top matches · sorted by skill alignment
