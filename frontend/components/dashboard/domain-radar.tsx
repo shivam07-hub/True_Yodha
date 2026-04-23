@@ -105,8 +105,8 @@ function ClickableTick({ x = 0, y = 0, textAnchor = "middle", payload, onClick }
           textAnchor={textAnchor}
           fontSize={fontSize}
           style={{
-            fill: hovered ? "var(--tm-accent)" : "rgba(240,244,255,0.72)",
-            fontFamily: "var(--font-sans), sans-serif",
+            fill: hovered ? "var(--tm-accent)" : "var(--tm-text-muted)",
+            fontFamily: "var(--tm-font-sans)",
             transition: "fill 120ms ease",
           }}
         >
@@ -134,7 +134,7 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
       <div className="w-full" style={{ height: 432 }}>
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="68%" margin={{ top: 24, right: 64, bottom: 24, left: 64 }}>
-            <PolarGrid stroke="rgba(0,245,212,0.1)" />
+            <PolarGrid stroke="var(--tm-border-soft)" />
             <PolarAngleAxis
               dataKey="domain"
               tick={(props: Omit<TickProps, "onClick">) => (
@@ -143,8 +143,8 @@ export function DomainRadar({ domainScores, skillsByDomain = {} }: Props) {
             />
             <Radar
               dataKey="score"
-              stroke="#00F5D4"
-              fill="#00F5D4"
+              stroke="var(--tm-accent)"
+              fill="var(--tm-accent)"
               fillOpacity={0.12}
               strokeWidth={1.5}
             />

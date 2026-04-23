@@ -25,9 +25,10 @@ export function AccentToggle() {
   useEffect(() => {
     const stored = (typeof window !== "undefined"
       ? (localStorage.getItem(STORAGE_KEY) as Accent | null)
-      : null) ?? DEFAULT_ACCENT
-    applyAccent(stored)
-    setAccent(stored)
+      : null)
+    const next = stored === "signal" || stored === "forge" ? stored : DEFAULT_ACCENT
+    applyAccent(next)
+    setAccent(next)
   }, [])
 
   function applyAccent(next: Accent) {
@@ -42,7 +43,7 @@ export function AccentToggle() {
 
   return (
     <div
-      className="tm-accent-toggle"
+      className="tm-segment-toggle"
       role="group"
       aria-label="Accent color"
     >

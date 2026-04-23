@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
+import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 
 interface Props {
@@ -282,6 +283,11 @@ export function AuthForm({ mode }: Props) {
             </>
           )}
         </p>
+
+        <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Background</div>
+          <SurfaceToggle />
+        </div>
       </div>
     </main>
   )

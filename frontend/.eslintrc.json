@@ -1,3 +1,17 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "lucide-react",
+            "importNames": ["Linkedin"],
+            "message": "Use LinkedInIcon from @/components/icons/social-icons for brand/social icons."
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -9,6 +9,10 @@
    Accent switching:
      <html data-accent="signal">   → teal/mint   (default)
      <html data-accent="forge">    → amber/gold
+
+   Surface switching:
+     <html data-surface="dark">    → deep dark (default)
+     <html data-surface="light">   → antigravity-style white
    ───────────────────────────────────────────────────────────── */
 
 :root {
@@ -19,6 +23,10 @@
   --tm-border:        #1B2540;
   --tm-border-soft:   rgba(255, 255, 255, 0.06);
   --tm-scrim:         rgba(5, 10, 24, 0.72);
+  --tm-overlay-soft:  rgba(5, 10, 24, 0.50);
+  --tm-hover-soft:    rgba(255, 255, 255, 0.02);
+  --tm-hover:         rgba(255, 255, 255, 0.04);
+  --tm-icon-muted:    rgba(240, 244, 255, 0.38);
 
   /* ── Text (constant across accent modes) ─────────────────── */
   --tm-text:          #F0F4FF;
@@ -91,6 +99,27 @@
   --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
 }
 
+/* ── Surface: LIGHT (antigravity-style white) ──────────────── */
+:root[data-surface="light"] {
+  --tm-bg:            #F8F9FC;
+  --tm-surface:       #FFFFFF;
+  --tm-surface-2:     #EFF2F7;
+  --tm-border:        #E1E6EC;
+  --tm-border-soft:   rgba(32, 33, 36, 0.14);
+  --tm-scrim:         rgba(15, 23, 42, 0.32);
+  --tm-overlay-soft:  rgba(15, 23, 42, 0.16);
+  --tm-hover-soft:    rgba(32, 33, 36, 0.03);
+  --tm-hover:         rgba(32, 33, 36, 0.06);
+  --tm-icon-muted:    rgba(32, 33, 36, 0.48);
+
+  --tm-text:          #121317;
+  --tm-text-muted:    #45474D;
+  --tm-text-faint:    #6A6A71;
+
+  --tm-shadow-1:      0 1px 2px rgba(15, 23, 42, 0.10);
+  --tm-shadow-2:      0 14px 36px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
 /* ── Accent: SIGNAL (teal/electric mint) ───────────────────── */
 :root[data-accent="signal"] {
   --tm-accent:          #00F5D4;
@@ -140,6 +169,21 @@
   --input:               220 25% 18%;
   --ring:                172 100% 48%;
   --radius:              0.75rem;
+}
+:root[data-surface="light"] {
+  --background:          0 0% 98%;
+  --foreground:          220 7% 14%;
+  --card:                0 0% 100%;
+  --card-foreground:     220 7% 14%;
+  --popover:             0 0% 100%;
+  --popover-foreground:  220 7% 14%;
+  --secondary:           216 8% 38%;
+  --secondary-foreground: 220 7% 14%;
+  --muted:               210 14% 95%;
+  --muted-foreground:    216 7% 42%;
+  --destructive-foreground: 0 0% 100%;
+  --border:              220 11% 88%;
+  --input:               220 11% 88%;
 }
 :root[data-accent="forge"] {
   --primary:             35 100% 64%;
@@ -193,6 +237,10 @@ body::before {
   background-size: 44px 44px;
 }
 
+:root[data-surface="light"] body::before {
+  opacity: 0.65;
+}
+
 /* Radial vignette */
 body::after {
   content: '';
@@ -201,6 +249,10 @@ body::after {
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(ellipse at 50% 50%, transparent 40%, var(--tm-scrim) 100%);
+}
+
+:root[data-surface="light"] body::after {
+  background: radial-gradient(ellipse at 50% 50%, transparent 48%, rgba(15, 23, 42, 0.12) 100%);
 }
 
 /* ── Selection + scrollbar (accent-reactive) ──────────────── */
@@ -362,7 +414,8 @@ body::after {
   box-shadow: 0 0 0 3px var(--tm-accent-wash);
 }
 
-/* ── Accent toggle pill (sidebar footer) ──────────────────── */
+/* ── Segmented toggles (sidebar footer) ───────────────────── */
+.tm-segment-toggle,
 .tm-accent-toggle {
   display: inline-flex;
   padding: 2px;
@@ -371,6 +424,7 @@ body::after {
   border-radius: var(--tm-radius-pill);
   gap: 2px;
 }
+.tm-segment-toggle button,
 .tm-accent-toggle button {
   padding: 0.375rem 0.875rem;
   border-radius: var(--tm-radius-pill);
@@ -381,6 +435,7 @@ body::after {
   cursor: pointer;
   transition: all var(--tm-dur) var(--tm-ease);
 }
+.tm-segment-toggle button[aria-pressed="true"],
 .tm-accent-toggle button[aria-pressed="true"] {
   background: var(--tm-accent-wash);
   color: var(--tm-accent);

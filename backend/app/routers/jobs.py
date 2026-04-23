@@ -18,9 +18,12 @@ from app.schemas import (
     SkillCountItem,
     SkillGapItem,
     SkillGapResponse,
+    UserSkillDemandItem,
+    UserSkillDemandResponse,
 )
 from app.services import job_matcher, llm_ranker
 from app.services.rate_limit import assert_not_rate_limited
+from app.services.scoring_engine import fetch_aspiration_skills
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -114,6 +117,105 @@ async def search_jobs(company: str | None = None, skill: str | None = None) -> J
         for r in rows[:50]
     ]
     return JobSearchResponse(jobs=items, total=len(items))
+
+
+@router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
+async def get_my_skill_demand(current_user: dict = Depends(get_current_user)) -> UserSkillDemandResponse:
+    """
+    Return market demand for skills already present in the user's CV.
+    Sorted by weighted demand (main_skill×2 + side_skill×1), then raw job count.
+    """
+    db = get_supabase_admin()
+    user_id = current_user["user_id"]
+
+    user_skills_result = (
+        db.table("user_skills")
+        .select("matched_level, proficiency_title, skills(taxonomy_key, display_name)")
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    user_skills: dict[str, dict] = {}
+    for row in user_skills_result.data or []:
+        skill = row.get("skills")
+        if not skill:
+            continue
+        key = (skill.get("taxonomy_key") or "").strip()
+        if not key:
+            continue
+        user_skills[key.lower()] = {
+            "skill": key,
+            "display_name": (skill.get("display_name") or key).strip() or key,
+            "current_level": int(row.get("matched_level") or 0),
+            "proficiency_title": row.get("proficiency_title") or "Scout",
+        }
+
+    if not user_skills:
+        return UserSkillDemandResponse(skills=[], total=0)
+
+    jobs_page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
+    jobs_page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+    jobs_rows = (jobs_page1 or []) + (jobs_page2 or [])
+
+    weighted_demand: Counter[str] = Counter()
+    job_count: Counter[str] = Counter()
+    for row in jobs_rows:
+        seen_in_job: set[str] = set()
+
+        for raw_skill in row.get("main_skills") or []:
+            skill_key = (raw_skill or "").strip().lower()
+            if skill_key and skill_key in user_skills:
+                weighted_demand[skill_key] += 2
+                seen_in_job.add(skill_key)
+
+        for raw_skill in row.get("side_skills") or []:
+            skill_key = (raw_skill or "").strip().lower()
+            if skill_key and skill_key in user_skills:
+                weighted_demand[skill_key] += 1
+                seen_in_job.add(skill_key)
+
+        for skill_key in seen_in_job:
+            job_count[skill_key] += 1
+
+    profile_result = (
+        db.table("user_profiles")
+        .select("target_roles")
+        .eq("id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    target_roles: list[str] = ((profile_result.data or {}).get("target_roles") or [])
+    aspiration = fetch_aspiration_skills(db, target_roles)
+    aspiration_by_key = {key.lower(): level for key, level in aspiration.items()}
+
+    items: list[UserSkillDemandItem] = []
+    for skill_key, skill_meta in user_skills.items():
+        current_level = skill_meta["current_level"]
+        target_level = aspiration_by_key.get(skill_key)
+        needs_upgrade = target_level is not None and current_level < target_level
+        items.append(
+            UserSkillDemandItem(
+                skill=skill_meta["skill"],
+                display_name=skill_meta["display_name"],
+                current_level=current_level,
+                proficiency_title=skill_meta["proficiency_title"],
+                target_level=target_level,
+                needs_upgrade=needs_upgrade,
+                job_count_30d=job_count.get(skill_key, 0),
+                weighted_demand=weighted_demand.get(skill_key, 0),
+            )
+        )
+
+    items.sort(
+        key=lambda item: (
+            -item.weighted_demand,
+            -item.job_count_30d,
+            -item.current_level,
+            item.display_name.lower(),
+        ),
+    )
+
+    return UserSkillDemandResponse(skills=items, total=len(items))
 
 
 @router.get("/matches", response_model=JobMatchesResponse)

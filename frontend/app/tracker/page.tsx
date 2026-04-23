@@ -1,10 +1,35 @@
 "use client"
 
+import Script from "next/script"
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type ApplicationResponse, type ApplicationStatus, type JobMatch, type SkillGapItem } from "@/lib/api"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  jobs,
+  scores,
+  type ApplicationResponse,
+  type ApplicationStatus,
+  type GapSkill,
+  type JobMatch,
+  type SkillGapItem,
+  type UserSkillDemandItem,
+} from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
+import {
+  askPuter,
+  buildChatPrompt,
+  ensurePuterSignedIn,
+  hasSeenPuterIntro,
+  isPuterSignedIn,
+  markPuterIntroSeen,
+} from "@/lib/puter-ai"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
   return (
@@ -341,88 +366,235 @@ function JobCard({
   )
 }
 
-function AITutor() {
+type TutorMessage = {
+  role: "ai" | "user"
+  text: string
+}
+
+function buildTutorContext(topJobs: JobMatch[], topGapSkills: GapSkill[]): string {
+  const jobsSummary = topJobs
+    .slice(0, 5)
+    .map((job, index) => `${index + 1}. ${job.title} at ${job.company ?? "Unknown company"} (fit ${Math.round(job.overlap_score)}%)`)
+    .join("\n")
+  const gapSummary = topGapSkills
+    .slice(0, 5)
+    .map((skill, index) => `${index + 1}. ${skill.skill} (gap ${Math.round(skill.gap_score)})`)
+    .join("\n")
+
+  return `You are Truth Mirror's AI Career Tutor.
+Give practical and concise guidance in plain text.
+You can help with CV bullet improvements, interview prep, skill gap action plans, and job-specific preparation.
+Do not claim to have written to the database, applied for jobs, or changed tracker state.
+If user asks to persist anything, tell them to use product actions in the UI.
+
+Top matched jobs:
+${jobsSummary || "No matched jobs yet"}
+
+Top gap skills:
+${gapSummary || "No gap skill data yet"}`
+}
+
+function AITutor({
+  topJobs,
+  topGapSkills,
+  puterReady,
+}: {
+  topJobs: JobMatch[]
+  topGapSkills: GapSkill[]
+  puterReady: boolean
+}) {
   const [msg, setMsg] = useState("")
-  const [chat, setChat] = useState([
-    { role: "ai", text: "I've analysed your skill gaps and the current market. Your fastest path is closing the highest-gap skills first. Upload your CV if you haven't — then I can give you a personalised 7-day plan. What would you like to work on?" },
+  const [chat, setChat] = useState<TutorMessage[]>([
+    { role: "ai", text: "I can coach you on job-fit strategy, CV bullet upgrades, and interview prep. Ask me what role you want to target next." },
   ])
   const [loading, setLoading] = useState(false)
+  const [showIntro, setShowIntro] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
 
-  async function send() {
-    const userMsg = msg.trim()
-    if (!userMsg) return
+  const signedIn = puterReady ? isPuterSignedIn() : false
+
+  async function sendToPuter(userMsg: string) {
     setMsg("")
-    setChat((c) => [...c, { role: "user", text: userMsg }])
+    const nextChat = [...chat, { role: "user" as const, text: userMsg }]
+    setChat(nextChat)
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 800))
-    setChat((c) => [...c, { role: "ai", text: "Great question. Focus on the skills appearing most in your top matched job descriptions — those are your highest ROI targets. Check the skill gaps in the sidebar for specifics." }])
-    setLoading(false)
+
+    try {
+      await ensurePuterSignedIn()
+      const prompt = buildChatPrompt(
+        nextChat.map((item) => ({
+          role: item.role === "ai" ? "assistant" : "user",
+          content: item.text,
+        })),
+        buildTutorContext(topJobs, topGapSkills),
+      )
+      const answer = await askPuter(prompt)
+      setChat((current) => [...current, { role: "ai", text: answer }])
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error"
+      setChat((current) => [
+        ...current,
+        { role: "ai", text: `I could not reach Puter right now. ${reason}` },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSend() {
+    const userMsg = msg.trim()
+    if (!userMsg || loading) return
+    if (!puterReady) {
+      setChat((current) => [
+        ...current,
+        { role: "ai", text: "Puter is still loading. Try again in a moment." },
+      ])
+      return
+    }
+    if (!hasSeenPuterIntro()) {
+      setPendingMessage(userMsg)
+      setShowIntro(true)
+      return
+    }
+    await sendToPuter(userMsg)
+  }
+
+  async function continueAfterIntro() {
+    markPuterIntroSeen()
+    setShowIntro(false)
+    const queued = pendingMessage
+    setPendingMessage(null)
+    if (queued) {
+      await sendToPuter(queued)
+    }
   }
 
   return (
-    <div style={{
-      background: "var(--tm-surface)",
-      border: "1px solid var(--tm-border)",
-      borderRadius: "var(--tm-radius)",
-      padding: 20,
-      display: "flex", flexDirection: "column", gap: 12,
-    }}>
-      <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
-        AI Career Tutor
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 280, overflowY: "auto" }}>
-        {chat.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{
-              maxWidth: "85%", padding: "10px 14px",
-              borderRadius: m.role === "user" ? "12px 12px 2px 12px" : "2px 12px 12px 12px",
-              background: m.role === "user" ? "var(--tm-accent-wash)" : "var(--tm-surface-2)",
-              border: `1px solid ${m.role === "user" ? "var(--tm-border-soft)" : "var(--tm-border-soft)"}`,
-              fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6,
-            }}>{m.text}</div>
+    <>
+      <Dialog open={showIntro} onOpenChange={setShowIntro}>
+        <DialogContent className="max-w-md p-0" showCloseButton={false}>
+          <div style={{ padding: 20 }}>
+            <DialogHeader>
+              <DialogTitle style={{ fontSize: 16, color: "var(--tm-text)" }}>Call Puter</DialogTitle>
+              <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
+                This chat uses Puter in the browser for AI guidance. It does not auto-apply jobs or write to your tracker data.
+              </DialogDescription>
+            </DialogHeader>
           </div>
-        ))}
-        {loading && <div style={{ fontSize: 13, color: "var(--tm-text-faint)", padding: "4px 0" }}>Thinking…</div>}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 16, borderTop: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
+            <button onClick={() => setShowIntro(false)} className="tm-btn tm-btn-ghost" style={{ height: 36, fontSize: 12 }}>
+              Cancel
+            </button>
+            <button onClick={continueAfterIntro} className="tm-btn tm-btn-primary" style={{ height: 36, fontSize: 12 }}>
+              Continue
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div style={{
+        background: "var(--tm-surface)",
+        border: "1px solid var(--tm-border)",
+        borderRadius: "var(--tm-radius)",
+        padding: 20,
+        display: "flex", flexDirection: "column", gap: 12,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+            AI Career Tutor
+          </div>
+          <div style={{
+            fontSize: 10, color: puterReady ? (signedIn ? "var(--tm-success)" : "var(--tm-warning)") : "var(--tm-text-faint)",
+            border: "1px solid var(--tm-border-soft)", borderRadius: 999, padding: "2px 8px",
+            background: "rgba(255,255,255,0.03)",
+          }}>
+            {puterReady ? (signedIn ? "Puter connected" : "Puter ready") : "Loading Puter..."}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 280, overflowY: "auto" }}>
+          {chat.map((m, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+              <div style={{
+                maxWidth: "85%", padding: "10px 14px",
+                borderRadius: m.role === "user" ? "12px 12px 2px 12px" : "2px 12px 12px 12px",
+                background: m.role === "user" ? "var(--tm-accent-wash)" : "var(--tm-surface-2)",
+                border: "1px solid var(--tm-border-soft)",
+                fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6,
+              }}>{m.text}</div>
+            </div>
+          ))}
+          {loading && <div style={{ fontSize: 13, color: "var(--tm-text-faint)", padding: "4px 0" }}>Thinking...</div>}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void handleSend()}
+            placeholder="Ask your AI tutor anything..."
+            className="tm-input"
+            style={{ flex: 1, height: 40 }}
+          />
+          <button
+            onClick={() => void handleSend()}
+            disabled={loading}
+            className="tm-btn tm-btn-ghost"
+            style={{ flexShrink: 0, opacity: loading ? 0.6 : 1 }}
+          >
+            Send
+          </button>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask your AI tutor anything…"
-          className="tm-input"
-          style={{ flex: 1, height: 40 }}
-        />
-        <button
-          onClick={send}
-          className="tm-btn tm-btn-ghost"
-          style={{ flexShrink: 0 }}
-        >
-          Send
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 
-function GapSkillCard({ skill }: { skill: { skill: string; gap_score: number; job_count_30d: number } }) {
-  const pct = Math.round(skill.gap_score)
-  const color = pct >= 70 ? "var(--tm-danger)" : pct >= 40 ? "var(--tm-warning)" : "var(--tm-accent)"
+function CVSkillDemandCard({ skill }: { skill: UserSkillDemandItem }) {
+  const demandColor =
+    skill.job_count_30d >= 250 ? "var(--tm-accent)" :
+    skill.job_count_30d >= 100 ? "var(--tm-warning)" :
+    "var(--tm-text-faint)"
   return (
     <div style={{
       padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
       background: "rgba(255,255,255,0.02)",
       border: "1px solid var(--tm-border-soft)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{ fontSize: 14, color: "var(--tm-text)" }}>{skill.skill}</span>
-        <span style={{ fontSize: 11, color, fontWeight: 600 }}>Gap: {pct}</span>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+        <div>
+          <div style={{ fontSize: 14, color: "var(--tm-text)", marginBottom: 2 }}>{skill.display_name}</div>
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+            Current level: L{skill.current_level} · {skill.proficiency_title}
+          </div>
+        </div>
+        {skill.needs_upgrade && skill.target_level != null ? (
+          <span style={{ fontSize: 10, color: "var(--tm-warning)", fontWeight: 700, letterSpacing: "0.04em" }}>
+            Target L{skill.target_level}
+          </span>
+        ) : (
+          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 700, letterSpacing: "0.04em" }}>
+            MARKET READY
+          </span>
+        )}
       </div>
-      <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 999 }} />
-      </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
-        {skill.job_count_30d.toLocaleString()} jobs/30d
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ fontSize: 11, color: demandColor }}>
+          {skill.job_count_30d.toLocaleString()} jobs looking for this skill
+        </div>
+        <a
+          href={`/diary?skill=${encodeURIComponent(skill.display_name)}&level=${skill.current_level}`}
+          style={{
+            fontSize: 11,
+            color: "var(--tm-accent)",
+            textDecoration: "none",
+            border: "1px solid var(--tm-accent-ring)",
+            borderRadius: 999,
+            padding: "4px 10px",
+            background: "var(--tm-accent-wash)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Add to diary
+        </a>
       </div>
     </div>
   )
@@ -468,6 +640,7 @@ function JobSkillGapPanel({ skills }: { skills: SkillGapItem[] }) {
 export default function TrackerPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
+  const [puterReady, setPuterReady] = useState(false)
 
   const matchesQuery = useQuery({
     queryKey: ["jobs", token],
@@ -484,6 +657,12 @@ export default function TrackerPage() {
   const scoresQuery = useQuery({
     queryKey: ["scores", token],
     queryFn: () => scores.me(token!),
+    enabled: !!token,
+  })
+
+  const skillDemandQuery = useQuery({
+    queryKey: ["user-skill-demand", token],
+    queryFn: () => jobs.mySkillDemand(token!),
     enabled: !!token,
   })
 
@@ -534,6 +713,7 @@ export default function TrackerPage() {
   )
 
   const topGapSkills = useMemo(() => (scoresQuery.data?.gap_skills ?? []).slice(0, 4), [scoresQuery.data])
+  const topDemandSkills = useMemo(() => (skillDemandQuery.data?.skills ?? []).slice(0, 6), [skillDemandQuery.data])
 
   if (!ready) return null
 
@@ -542,17 +722,22 @@ export default function TrackerPage() {
     {detailJob && <JobDetailModal job={detailJob} onClose={() => setDetailJob(null)} />}
     {appDetailJob && <AppDetailModal app={appDetailJob} onClose={() => setAppDetailJob(null)} />}
     <AppShell>
+      <Script
+        src="https://js.puter.com/v2/"
+        strategy="afterInteractive"
+        onLoad={() => setPuterReady(true)}
+      />
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-            Matched Jobs + Tracker
+            app/job_tracker
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
             <div>
               <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
-                Opportunities
+                Tracking Matched Jobs
               </h1>
               <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
                 Top matches · sorted by skill alignment
@@ -633,7 +818,7 @@ export default function TrackerPage() {
 
           {/* Sidebar */}
           <div style={{ position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-            <AITutor />
+            <AITutor topJobs={topJobs} topGapSkills={topGapSkills} puterReady={puterReady} />
 
             <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
               {selectedJobId ? (
@@ -669,14 +854,29 @@ export default function TrackerPage() {
                   <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 14 }}>
                     Skill Gaps · Overall
                   </div>
-                  {topGapSkills.length > 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                    Skills from your CV ranked by number of jobs asking for them.
+                  </div>
+                  {skillDemandQuery.isLoading ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {topGapSkills.map((s) => (
-                        <GapSkillCard key={s.skill} skill={s} />
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} style={{ height: 74, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)", animation: "pulse 2s infinite" }} />
                       ))}
                     </div>
+                  ) : topDemandSkills.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {topDemandSkills.map((s) => (
+                        <CVSkillDemandCard key={s.skill} skill={s} />
+                      ))}
+                    </div>
+                  ) : skillDemandQuery.isError ? (
+                    <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>
+                      Could not load skill demand right now.
+                    </div>
                   ) : (
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>Click a job to see its skill gap.</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+                      Upload your CV to unlock demand-ranked skills.
+                    </div>
                   )}
                 </>
               )}
