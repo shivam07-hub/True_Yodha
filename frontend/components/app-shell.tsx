@@ -10,8 +10,8 @@ import type { UserProfile } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { AccentToggle } from "@/components/accent-toggle"
 import { SurfaceToggle } from "@/components/surface-toggle"
+import { LinkedInIcon } from "@/components/icons/social-icons"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Linkedin } from "lucide-react"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
@@ -551,7 +551,7 @@ function SettingsModal({
             }}>
               <div style={{ flex: 1 }}>
                 <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Linkedin size={13} aria-hidden="true" />
+                  <LinkedInIcon size={13} />
                   LinkedIn
                 </div>
                 {editingField === "linkedin_url" ? (
@@ -581,7 +581,7 @@ function SettingsModal({
                     className="tm-link"
                     style={{ fontSize: 14, overflowWrap: "anywhere", display: "inline-flex", alignItems: "center", gap: 6 }}
                   >
-                    <Linkedin size={14} aria-hidden="true" />
+                    <LinkedInIcon size={14} />
                     {linkedIn}
                   </a>
                 ) : (
