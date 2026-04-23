@@ -1,5 +1,11 @@
 from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
-from app.schemas.cv import CVEvidenceItem, CVEvidenceSummaryResponse, CVGenerateDraftResponse, CVUploadResponse
+from app.schemas.cv import (
+    CVEvidenceItem,
+    CVEvidenceSummaryResponse,
+    CVGenerateDraftResponse,
+    CVSaveDraftRequest,
+    CVUploadResponse,
+)
 from app.schemas.diary import (
     DiaryEntryRequest,
     DiaryEntryResponse,
@@ -42,7 +48,7 @@ from app.schemas.users import (
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
-    "CVUploadResponse", "CVEvidenceItem", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse",
+    "CVUploadResponse", "CVEvidenceItem", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse", "CVSaveDraftRequest",
     "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
     "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",

@@ -5,7 +5,13 @@ from pydantic import BaseModel
 
 from app.database import get_supabase_admin
 from app.deps import get_current_user
-from app.schemas import CVEvidenceItem, CVEvidenceSummaryResponse, CVGenerateDraftResponse, CVUploadResponse
+from app.schemas import (
+    CVEvidenceItem,
+    CVEvidenceSummaryResponse,
+    CVGenerateDraftResponse,
+    CVSaveDraftRequest,
+    CVUploadResponse,
+)
 from app.services import cv_builder, cv_parser, scoring_engine
 from app.services.rate_limit import assert_not_rate_limited
 
@@ -232,6 +238,61 @@ async def generate_next_cv_draft(current_user: dict = Depends(get_current_user))
     row = insert_result.data[0] if insert_result.data else _latest_cv_version(db, user_id)
     if not row:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="CV draft was generated but could not be stored.")
+    return CVGenerateDraftResponse(
+        version_id=row["id"],
+        version_number=row.get("version_number") or summary.next_version_number,
+        cv_text=cv_text,
+        evidence_count=summary.evidence_count,
+        score_delta=summary.score_delta,
+    )
+
+
+@router.post("/save-draft", response_model=CVGenerateDraftResponse, status_code=status.HTTP_201_CREATED)
+async def save_generated_cv_draft(
+    body: CVSaveDraftRequest,
+    current_user: dict = Depends(get_current_user),
+) -> CVGenerateDraftResponse:
+    db = get_supabase_admin()
+    user_id = current_user["user_id"]
+    cv_text = body.cv_text.strip()
+    if len(cv_text) < 120:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Draft is too short to save. Generate and review a fuller CV draft.",
+        )
+
+    profile = db.table("user_profiles").select("cv_raw_text").eq("id", user_id).single().execute()
+    latest = _latest_cv_version(db, user_id)
+    baseline_text = (latest or {}).get("cv_raw_text") or (profile.data or {}).get("cv_raw_text")
+    if not baseline_text:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload a baseline CV first.")
+
+    summary = _build_evidence_summary(db, user_id)
+    if not summary.eligible:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Complete {summary.required_count} milestone days before saving the next CV draft.",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_skills = db.table("user_skills").select("id").eq("user_id", user_id).execute()
+    draft_score = summary.current_score if summary.current_score is not None else summary.last_cv_score
+    payload = {
+        "user_id": user_id,
+        "skills_count": len(user_skills.data or []),
+        "mirror_score": draft_score if draft_score is not None else 0,
+        "uploaded_at": now,
+        "cv_raw_text": cv_text,
+        "version_number": summary.next_version_number,
+        "version_type": "generated_draft",
+        "title": f"Generated CV draft v{summary.next_version_number}",
+        "evidence_snapshot": [item.model_dump() for item in summary.evidence],
+        "evidence_count": summary.evidence_count,
+    }
+    insert_result = db.table("cv_history").insert(payload).execute()
+    row = insert_result.data[0] if insert_result.data else _latest_cv_version(db, user_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Draft was reviewed but could not be stored.")
     return CVGenerateDraftResponse(
         version_id=row["id"],
         version_number=row.get("version_number") or summary.next_version_number,

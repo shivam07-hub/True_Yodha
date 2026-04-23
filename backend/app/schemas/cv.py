@@ -36,3 +36,7 @@ class CVGenerateDraftResponse(BaseModel):
     cv_text: str
     evidence_count: int
     score_delta: float | None
+
+
+class CVSaveDraftRequest(BaseModel):
+    cv_text: str

@@ -217,6 +217,12 @@ export const cv = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  saveDraft: (token: string, cvText: string) =>
+    request<CVGenerateDraftResponse>("/cv/save-draft", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ cv_text: cvText }),
+    }),
 }
 
 export async function uploadCVText(token: string, text: string): Promise<CVUploadResponse> {
