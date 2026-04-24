@@ -10,6 +10,9 @@ from app.schemas import (
     ApplicationResponse,
     ApplicationStatusUpdate,
     ComputeJobMatchesResponse,
+    JobImportPreviewRequest,
+    JobImportPreviewResponse,
+    JobImportRequest,
     JobMatchResponse,
     JobMatchesResponse,
     JobSearchResponse,
@@ -21,7 +24,7 @@ from app.schemas import (
     UserSkillDemandItem,
     UserSkillDemandResponse,
 )
-from app.services import job_matcher, llm_ranker
+from app.services import job_importer, job_matcher, llm_ranker
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring_engine import fetch_aspiration_skills
 
@@ -334,6 +337,36 @@ async def get_applications(current_user: dict = Depends(get_current_user)) -> li
         .execute()
     )
     return [_to_application(row) for row in result.data]
+
+
+@router.post("/import/preview", response_model=JobImportPreviewResponse)
+async def preview_job_import(
+    body: JobImportPreviewRequest,
+    current_user: dict = Depends(get_current_user),
+) -> JobImportPreviewResponse:
+    if not body.job_description.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Job description is required.",
+        )
+    db = get_supabase_admin()
+    return JobImportPreviewResponse(**job_importer.preview_imported_job(db, body))
+
+
+@router.post("/import", response_model=ApplicationResponse)
+async def import_job(
+    body: JobImportRequest,
+    current_user: dict = Depends(get_current_user),
+) -> ApplicationResponse:
+    if not body.role_name.strip() or not body.job_description.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Role name and job description are required.",
+        )
+    db = get_supabase_admin()
+    return ApplicationResponse(
+        **job_importer.save_imported_job(db, current_user["user_id"], body)
+    )
 
 
 @router.put("/applications/{job_id}", response_model=ApplicationResponse)

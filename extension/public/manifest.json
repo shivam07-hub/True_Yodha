@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Mirko Job Tracker",
+  "description": "Capture any job page and save it to your Mirko tracker.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Track this job",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"]
+}

@@ -92,6 +92,55 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
 
 
+class SkillSuggestion(BaseModel):
+    label: str
+    taxonomy_key: str | None = None
+    normalized_label: str | None = None
+    skill_type: str | None = None
+    confidence: float = 0.0
+
+
+class EmergingSkillInput(BaseModel):
+    label: str
+    skill_type: str
+    source: str = "user_added"
+
+
+class JobImportPreviewRequest(BaseModel):
+    source_url: str | None = None
+    source_platform: str | None = None
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    page_title: str | None = None
+    capture_method: str = "visible_page"
+
+
+class JobImportPreviewResponse(BaseModel):
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    primary_skills: list[SkillSuggestion]
+    secondary_skills: list[SkillSuggestion]
+    emerging_skills: list[SkillSuggestion]
+    warnings: list[str] = []
+
+
+class JobImportRequest(BaseModel):
+    source_url: str | None = None
+    source_platform: str | None = None
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    primary_skills: list[str] = []
+    secondary_skills: list[str] = []
+    emerging_skills: list[EmergingSkillInput] = []
+    capture_method: str = "visible_page"
+
+
 class NameCountItem(BaseModel):
     name: str
     count: int

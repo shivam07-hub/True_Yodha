@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-accent="signal">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mirko Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="options-body">
+    <main class="settings-shell">
+      <div class="eyebrow">Mirko</div>
+      <h1>Extension settings</h1>
+      <form id="settings-form" class="settings-form">
+        <label>
+          API URL
+          <input id="api-url" type="url" placeholder="http://localhost:8000" />
+        </label>
+        <label>
+          Access token
+          <textarea id="token" rows="5" placeholder="Paste your Mirko access token"></textarea>
+        </label>
+        <button type="submit" class="button primary">Save settings</button>
+      </form>
+      <p id="status-text" class="body-copy"></p>
+    </main>
+    <script type="module" src="src/options.js"></script>
+  </body>
+</html>
