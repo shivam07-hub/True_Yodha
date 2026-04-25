@@ -83,17 +83,37 @@ export default function OnboardingPage() {
         <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
           Myro
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {STEPS.map((s, i) => (
-            <div
-              key={s}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {STEPS.map((s, i) => (
+              <div
+                key={s}
+                style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: i <= stepIndex ? "var(--tm-accent)" : "var(--tm-border)",
+                  transition: "background var(--tm-dur) var(--tm-ease)",
+                }}
+              />
+            ))}
+          </div>
+          {step !== "score" && (
+            <button
+              type="button"
+              onClick={() => router.push("/market")}
+              aria-label="Skip onboarding"
               style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: i <= stepIndex ? "var(--tm-accent)" : "var(--tm-border)",
-                transition: "background var(--tm-dur) var(--tm-ease)",
+                width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: "var(--tm-font-sans)", fontSize: 22, lineHeight: 1, fontWeight: 300,
+                color: "var(--tm-text-muted)", borderRadius: "var(--tm-radius)",
+                transition: "color var(--tm-dur) var(--tm-ease)",
               }}
-            />
-          ))}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
 
