@@ -1014,7 +1014,6 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
           <div className="tm-label-caps" style={{ fontSize: 10 }}>Myro Score</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 2 }}>Market position</div>
         </div>
       </div>
 
