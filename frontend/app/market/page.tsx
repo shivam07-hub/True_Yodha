@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs } from "@/lib/api"
+import { jobs, scores } from "@/lib/api"
 import type { JobSearchItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -119,11 +120,20 @@ export default function MarketPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
   })
 
+  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+    queryKey: ["scores", token],
+    queryFn: () => scores.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: analytics, isLoading } = useQuery({
     queryKey: ["jobs-analytics"],
     queryFn: () => jobs.analytics(),
     staleTime: 5 * 60 * 1000,
   })
+
+  const hasCv = !scoreLoading && !!scoreData
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
     queryKey: ["jobs-search", drillSkill?.company],
@@ -182,6 +192,8 @@ export default function MarketPage() {
             Intel
           </h1>
         </div>
+
+        <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
 
         {/* Top skills — split hard / soft */}
         {topSkills.length > 0 && (() => {

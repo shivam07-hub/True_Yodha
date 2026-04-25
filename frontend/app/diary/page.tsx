@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
 import type { Milestone, MilestonePayload } from "@/lib/api"
@@ -321,6 +322,8 @@ function DiaryPageInner() {
     enabled: !!token,
   })
 
+  const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
+
   const milestonesQuery = useQuery({
     queryKey: ["milestones", token],
     queryFn: () => diary.milestones(token!, 30),
@@ -530,6 +533,8 @@ function DiaryPageInner() {
 
         {/* ── Body ─────────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 32px 32px" }}>
+
+          <CVRequiredNudge hasCv={hasCv} feature="personalised milestones" />
 
           {jobId && (
             <div className="tm-card" style={{ backdropFilter: "blur(20px)", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>

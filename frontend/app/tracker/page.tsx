@@ -4,6 +4,7 @@ import Script from "next/script"
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import {
   Dialog,
   DialogContent,
@@ -1133,6 +1134,8 @@ export default function TrackerPage() {
     enabled: !!token,
   })
 
+  const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
+
   const skillDemandQuery = useQuery({
     queryKey: ["user-skill-demand", token],
     queryFn: () => jobs.mySkillDemand(token!),
@@ -1333,6 +1336,8 @@ export default function TrackerPage() {
             </button>
           </div>
         </div>
+
+        <CVRequiredNudge hasCv={hasCv} feature="your job matches" />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, alignItems: "start" }}>
           {/* Job cards */}
