@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-accent="signal">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mirko</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">Mirko</div>
+          <h1>Track this job</h1>
+        </div>
+        <span id="status" class="status-pill">Ready</span>
+      </header>
+
+      <section id="auth-view" class="view" hidden>
+        <p class="body-copy">Connect your Mirko account before saving jobs into the tracker.</p>
+        <button type="button" class="button primary" data-open-settings>Connect Mirko</button>
+      </section>
+
+      <section id="ready-view" class="view">
+        <p class="body-copy">Capture the current job page, review the details, and save it to your tracker.</p>
+        <button id="track-button" type="button" class="button primary">Track this job</button>
+        <button type="button" class="button ghost" data-open-settings>Settings</button>
+      </section>
+
+      <section id="review-view" class="view review-grid" hidden>
+        <div class="capture-meta" id="capture-meta">generic · visible_page · 0%</div>
+        <label>
+          Role name
+          <input id="role-name" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Company
+          <input id="company-name" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Location
+          <input id="location" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Job description
+          <textarea id="job-description" rows="6"></textarea>
+        </label>
+
+        <div class="skill-section">
+          <div class="section-label">Primary skills</div>
+          <div id="primary-chips" class="chip-list"></div>
+          <div class="add-row">
+            <input id="primary-input" type="text" placeholder="Add primary skill" />
+            <button id="add-primary" type="button" class="icon-button">+</button>
+          </div>
+        </div>
+
+        <div class="skill-section">
+          <div class="section-label">Secondary skills</div>
+          <div id="secondary-chips" class="chip-list"></div>
+          <div class="add-row">
+            <input id="secondary-input" type="text" placeholder="Add secondary skill" />
+            <button id="add-secondary" type="button" class="icon-button">+</button>
+          </div>
+        </div>
+
+        <div class="skill-section">
+          <div class="section-label">Emerging skills</div>
+          <div id="emerging-chips" class="chip-list"></div>
+          <div class="add-row">
+            <input id="emerging-input" type="text" placeholder="Add emerging skill" />
+            <button id="add-emerging" type="button" class="icon-button">+</button>
+          </div>
+        </div>
+
+        <button id="save-button" type="button" class="button primary">Save to tracker</button>
+      </section>
+
+      <section id="saved-view" class="view" hidden>
+        <p class="body-copy"><span id="saved-title">Job</span> is now in your tracker.</p>
+        <a id="tracker-link" class="button primary" href="#" target="_blank" rel="noreferrer">Open tracker</a>
+      </section>
+
+      <section id="error-view" class="view" hidden>
+        <p id="error-text" class="body-copy"></p>
+        <button id="retry-button" type="button" class="button primary">Try again</button>
+        <button type="button" class="button ghost" data-open-settings>Settings</button>
+      </section>
+    </main>
+    <script type="module" src="src/popup.js"></script>
+  </body>
+</html>

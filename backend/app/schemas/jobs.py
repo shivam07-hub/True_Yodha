@@ -66,9 +66,10 @@ class JobMatchesResponse(BaseModel):
 
 
 class ApplicationStatusUpdate(BaseModel):
-    status: str     # pending | applied | no_response | responded | interviewing | rejected | offer
+    status: str     # pending | applied | no_response | responded | interviewing | rejected | offer | abandoned
     notes: str | None = None
     company_response: str | None = None
+    followed_up: bool | None = None
 
 
 class ComputeJobMatchesResponse(BaseModel):
@@ -88,8 +89,140 @@ class ApplicationResponse(BaseModel):
     applied_at: datetime | None
     response_at: datetime | None
     checkin_sent_at: datetime | None
+    followed_up_at: datetime | None = None
+    closed_at: datetime | None = None
+    offer_received_at: datetime | None = None
     notes: str | None
     created_at: datetime
+
+
+class JobPathTargetInput(BaseModel):
+    skill: str
+    is_primary: bool | None = None
+
+
+class JobPathTargetsRequest(BaseModel):
+    targets: list[JobPathTargetInput]
+
+
+class JobPathSkillTarget(BaseModel):
+    skill: str
+    is_primary: bool
+    selected_at: datetime | None = None
+    proof_count: int = 0
+
+
+class JobPathMilestoneUpdate(BaseModel):
+    proof: str | None = None
+    impact: str | None = None
+    confidence: float | None = None
+    completed: bool = True
+
+
+class JobPathMilestoneResponse(BaseModel):
+    id: str
+    milestone_date: date
+    skill: str
+    is_primary: bool
+    template_id: str | None = None
+    title: str
+    action: str
+    proof_prompt: str | None = None
+    impact_prompt: str | None = None
+    proof: str | None = None
+    impact: str | None = None
+    confidence: float | None = None
+    completed_at: datetime | None = None
+
+
+class JobPathCVSummary(BaseModel):
+    id: int | None = None
+    confidence: dict
+    snapshot_hash: str | None = None
+    ai_polished: bool = False
+    created_at: datetime | None = None
+
+
+class JobPathResponse(BaseModel):
+    job_id: str
+    job_title: str
+    company: str | None = None
+    readiness_pct: int
+    readiness_tier: dict
+    target_skills: list[JobPathSkillTarget]
+    milestones: list[JobPathMilestoneResponse]
+    today_milestone: JobPathMilestoneResponse | None = None
+    cv: JobPathCVSummary | None = None
+    follow_up: dict | None = None
+    status: str
+    applied_at: datetime | None = None
+
+
+class JobCVGenerateRequest(BaseModel):
+    ai_polish: bool = False
+
+
+class JobCVGenerateResponse(BaseModel):
+    id: int
+    job_id: str
+    cv_text: str
+    polished_text: str | None = None
+    confidence: dict
+    snapshot_hash: str
+    from_cache: bool
+    ai_polish_used: int
+    ai_polish_limit: int
+    limit_reached: bool = False
+    polish_unavailable: bool = False
+
+
+class SkillSuggestion(BaseModel):
+    label: str
+    taxonomy_key: str | None = None
+    normalized_label: str | None = None
+    skill_type: str | None = None
+    confidence: float = 0.0
+
+
+class EmergingSkillInput(BaseModel):
+    label: str
+    skill_type: str
+    source: str = "user_added"
+
+
+class JobImportPreviewRequest(BaseModel):
+    source_url: str | None = None
+    source_platform: str | None = None
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    page_title: str | None = None
+    capture_method: str = "visible_page"
+
+
+class JobImportPreviewResponse(BaseModel):
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    primary_skills: list[SkillSuggestion]
+    secondary_skills: list[SkillSuggestion]
+    emerging_skills: list[SkillSuggestion]
+    warnings: list[str] = []
+
+
+class JobImportRequest(BaseModel):
+    source_url: str | None = None
+    source_platform: str | None = None
+    role_name: str
+    company_name: str | None = None
+    location: str | None = None
+    job_description: str
+    primary_skills: list[str] = []
+    secondary_skills: list[str] = []
+    emerging_skills: list[EmergingSkillInput] = []
+    capture_method: str = "visible_page"
 
 
 class NameCountItem(BaseModel):

@@ -7,21 +7,10 @@ import { auth } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
+import { MyroLogo } from "@/components/myro-logo"
 
 interface Props {
   mode: "login" | "signup"
-}
-
-function TMLogo({ size = 32 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: "var(--tm-accent)" }}>
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
-        stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
-      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
-      <line x1="12" y1="2.5" x2="12" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
-    </svg>
-  )
 }
 
 export function AuthForm({ mode }: Props) {
@@ -92,9 +81,9 @@ export function AuthForm({ mode }: Props) {
         {/* Logo */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
           <div style={{ marginBottom: 12, filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }}>
-            <TMLogo size={44} />
+            <MyroLogo size={44} />
           </div>
-          <div style={{ fontSize: 21, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Truth Mirror</div>
+          <div style={{ fontSize: 21, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 4 }}>Career Intelligence</div>
         </div>
 
@@ -109,7 +98,7 @@ export function AuthForm({ mode }: Props) {
             {mode === "login" ? "Welcome back" : ""}
           </h1>
           <p style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24 }}>
-            {mode === "login" ? "Sign in to see your Mirror Score" : ""}
+            {mode === "login" ? "Sign in to see your Myro Score" : ""}
           </p>
 
           {/* aria-live region catches both error and notice for screen readers */}

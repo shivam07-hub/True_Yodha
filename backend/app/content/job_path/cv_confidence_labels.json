@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "notes": "Confidence label is derived from completed job-scoped proof count. Never blocks CV generation. Progression: Starter -> Proof-backed -> Strong evidence.",
+  "rules": {
+    "starter": "0 completed proofs for this job",
+    "proof_backed": "1-2 completed proofs for this job",
+    "strong_evidence": "3+ completed proofs for this job"
+  },
+  "labels": [
+    {
+      "id": "starter",
+      "label": "Starter CV",
+      "badge_text": "Starter",
+      "microcopy": "Baseline CV tuned to this job.",
+      "tooltip": "Generated from your existing CV plus the job's skill fit. No proof logged yet. Complete one milestone to upgrade to Proof-backed.",
+      "cta": "Start first milestone",
+      "confidence_weight": 0.4
+    },
+    {
+      "id": "proof_backed",
+      "label": "Proof-backed CV",
+      "badge_text": "Proof-backed",
+      "microcopy": "Includes bullets from your completed milestones.",
+      "tooltip": "Built from your baseline CV plus proof you logged for this job. Three or more proofs promote this to Strong evidence.",
+      "cta": "Log another proof",
+      "confidence_weight": 0.7
+    },
+    {
+      "id": "strong_evidence",
+      "label": "Strong evidence CV",
+      "badge_text": "Strong evidence",
+      "microcopy": "Multiple proofs tied to this job's core skills.",
+      "tooltip": "Three or more completed milestones back this CV. Recruiters can trace each claim to a real artifact you produced for this role.",
+      "cta": "Polish with AI (1 of 3 today)",
+      "confidence_weight": 1.0
+    }
+  ],
+  "polish_modifier": {
+    "id": "ai_polished",
+    "suffix": " · AI-polished",
+    "tooltip": "One AI pass reshaped wording. Facts, metrics, and employers are unchanged from your baseline CV and proofs.",
+    "daily_limit_copy": "AI polish used {used} of 3 today."
+  }
+}

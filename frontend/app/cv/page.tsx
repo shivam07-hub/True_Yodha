@@ -281,6 +281,14 @@ export default function CVPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [highlightedSkill] = useState<string | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [jobCvText, setJobCvText] = useState<string | null>(null)
+  const [jobCvNotice, setJobCvNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    setJobId(new URLSearchParams(window.location.search).get("jobId"))
+  }, [])
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
     queryKey: ["cv-profile", token],
@@ -298,6 +306,12 @@ export default function CVPage() {
     queryKey: ["scores", token],
     queryFn: () => scores.me(token!),
     enabled: !!token,
+  })
+
+  const jobPathQuery = useQuery({
+    queryKey: ["job-path", jobId, token],
+    queryFn: () => jobs.path(token!, jobId!),
+    enabled: !!token && !!jobId,
   })
 
   const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
@@ -325,6 +339,25 @@ export default function CVPage() {
       setDraftText("")
     },
     onError: (err) => setDraftFlowError(err instanceof Error ? err.message : "Could not save CV draft"),
+  })
+
+  const generateJobCv = useMutation({
+    mutationFn: ({ aiPolish }: { aiPolish: boolean }) => jobs.generateJobCv(token!, jobId!, aiPolish),
+    onSuccess: (result, variables) => {
+      setJobCvText(result.polished_text ?? result.cv_text)
+      if (variables.aiPolish && result.limit_reached) {
+        setJobCvNotice("AI polish limit reached. Showing the best cached job CV.")
+      } else if (variables.aiPolish && result.polish_unavailable) {
+        setJobCvNotice("Polish unavailable, using the proof-backed CV.")
+      } else if (variables.aiPolish && result.polished_text) {
+        const remaining = Math.max(0, result.ai_polish_limit - result.ai_polish_used)
+        setJobCvNotice(`Polished CV ready. ${remaining} polish calls left today.`)
+      } else {
+        setJobCvNotice("Job CV ready.")
+      }
+      queryClient.invalidateQueries({ queryKey: ["job-path", jobId, token] })
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate job CV"),
   })
 
   useEffect(() => {
@@ -576,7 +609,7 @@ export default function CVPage() {
             })}
             {scoreData && (
               <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Truth Score:</span>
+                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Myro Score:</span>
                 <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
                   {Math.round(scoreData.total_score)}
                 </span>
@@ -586,6 +619,79 @@ export default function CVPage() {
           </div>
 
         </div>
+
+        {jobId && (
+          <section style={{
+            margin: "0 32px 16px",
+            padding: "14px 16px",
+            borderRadius: "var(--tm-radius)",
+            border: "1px solid var(--tm-border-soft)",
+            background: "var(--tm-surface)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-accent)" }}>Job CV</div>
+                <div style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)", fontWeight: 600 }}>
+                  {jobPathQuery.data?.job_title ?? "Tracked job"}
+                </div>
+                <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                  {jobPathQuery.data?.company ?? ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => generateJobCv.mutate({ aiPolish: false })}
+                  disabled={generateJobCv.isPending}
+                  className="tm-btn tm-btn-primary"
+                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                >
+                  {generateJobCv.isPending ? "Generating..." : "Generate job CV"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateJobCv.mutate({ aiPolish: true })}
+                  disabled={generateJobCv.isPending}
+                  className="tm-btn tm-btn-ghost"
+                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                >
+                  AI polish
+                </button>
+              </div>
+            </div>
+            {jobPathQuery.data && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <span className="tm-pill">{jobPathQuery.data.readiness_pct}% ready</span>
+                <span className="tm-pill">{String(jobPathQuery.data.cv?.confidence?.badge_text ?? "Starter")}</span>
+              </div>
+            )}
+            {jobCvNotice && (
+              <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                {jobCvNotice}
+              </div>
+            )}
+            {jobCvText && (
+              <pre style={{
+                maxHeight: 220,
+                overflowY: "auto",
+                whiteSpace: "pre-wrap",
+                fontFamily: "var(--tm-font-mono)",
+                fontSize: "var(--tm-fs-meta)",
+                lineHeight: "var(--tm-lh-meta)",
+                color: "var(--tm-text-muted)",
+                border: "1px solid var(--tm-border-soft)",
+                borderRadius: "var(--tm-radius-sm)",
+                padding: 12,
+                background: "rgba(255,255,255,0.02)",
+              }}>
+                {jobCvText}
+              </pre>
+            )}
+          </section>
+        )}
 
         {/* Split body */}
         <div style={{

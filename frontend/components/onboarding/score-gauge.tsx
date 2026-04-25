@@ -52,7 +52,7 @@ export function ScoreGauge({ score }: Props) {
       <div className="text-5xl font-bold -mt-8" style={{ color }}>
         {Math.round(animated)}
       </div>
-      <div className="text-xs text-muted-foreground">Mirror Score / 100</div>
+      <div className="text-xs text-muted-foreground">Myro Score / 100</div>
     </div>
   )
 }

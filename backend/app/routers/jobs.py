@@ -10,6 +10,15 @@ from app.schemas import (
     ApplicationResponse,
     ApplicationStatusUpdate,
     ComputeJobMatchesResponse,
+    JobCVGenerateRequest,
+    JobCVGenerateResponse,
+    JobImportPreviewRequest,
+    JobImportPreviewResponse,
+    JobImportRequest,
+    JobPathMilestoneResponse,
+    JobPathMilestoneUpdate,
+    JobPathResponse,
+    JobPathTargetsRequest,
     JobMatchResponse,
     JobMatchesResponse,
     JobSearchResponse,
@@ -21,7 +30,7 @@ from app.schemas import (
     UserSkillDemandItem,
     UserSkillDemandResponse,
 )
-from app.services import job_matcher, llm_ranker
+from app.services import job_importer, job_matcher, job_path as job_path_service, llm_ranker
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring_engine import fetch_aspiration_skills
 
@@ -336,13 +345,96 @@ async def get_applications(current_user: dict = Depends(get_current_user)) -> li
     return [_to_application(row) for row in result.data]
 
 
+@router.post("/import/preview", response_model=JobImportPreviewResponse)
+async def preview_job_import(
+    body: JobImportPreviewRequest,
+    current_user: dict = Depends(get_current_user),
+) -> JobImportPreviewResponse:
+    if not body.job_description.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Job description is required.",
+        )
+    db = get_supabase_admin()
+    return JobImportPreviewResponse(**job_importer.preview_imported_job(db, body))
+
+
+@router.post("/import", response_model=ApplicationResponse)
+async def import_job(
+    body: JobImportRequest,
+    current_user: dict = Depends(get_current_user),
+) -> ApplicationResponse:
+    if not body.role_name.strip() or not body.job_description.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Role name and job description are required.",
+        )
+    db = get_supabase_admin()
+    return ApplicationResponse(
+        **job_importer.save_imported_job(db, current_user["user_id"], body)
+    )
+
+
+@router.get("/applications/{job_id}/path", response_model=JobPathResponse)
+async def get_application_path(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> JobPathResponse:
+    db = get_supabase_admin()
+    return JobPathResponse(
+        **job_path_service.get_application_path(db, current_user["user_id"], job_id)
+    )
+
+
+@router.put("/applications/{job_id}/targets", response_model=JobPathResponse)
+async def replace_application_targets(
+    job_id: str,
+    body: JobPathTargetsRequest,
+    current_user: dict = Depends(get_current_user),
+) -> JobPathResponse:
+    db = get_supabase_admin()
+    return JobPathResponse(
+        **job_path_service.replace_skill_targets(
+            db,
+            current_user["user_id"],
+            job_id,
+            [target.model_dump() for target in body.targets],
+        )
+    )
+
+
+@router.put("/applications/{job_id}/milestones/{milestone_id}", response_model=JobPathMilestoneResponse)
+async def update_application_milestone(
+    job_id: str,
+    milestone_id: str,
+    body: JobPathMilestoneUpdate,
+    current_user: dict = Depends(get_current_user),
+) -> JobPathMilestoneResponse:
+    db = get_supabase_admin()
+    return JobPathMilestoneResponse(
+        **job_path_service.update_milestone(db, current_user["user_id"], job_id, milestone_id, body)
+    )
+
+
+@router.post("/applications/{job_id}/cv", response_model=JobCVGenerateResponse, status_code=status.HTTP_201_CREATED)
+async def generate_application_cv(
+    job_id: str,
+    body: JobCVGenerateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> JobCVGenerateResponse:
+    db = get_supabase_admin()
+    return JobCVGenerateResponse(
+        **job_path_service.generate_job_cv(db, current_user["user_id"], job_id, ai_polish=body.ai_polish)
+    )
+
+
 @router.put("/applications/{job_id}", response_model=ApplicationResponse)
 async def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
     current_user: dict = Depends(get_current_user),
 ) -> ApplicationResponse:
-    valid_statuses = {"pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer"}
+    valid_statuses = {"pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer", "abandoned"}
     if body.status not in valid_statuses:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {body.status}")
 
@@ -354,6 +446,18 @@ async def update_application(
     if body.status == "applied":
         from datetime import datetime, timezone
         updates["applied_at"] = datetime.now(timezone.utc).isoformat()
+    if body.status in {"responded", "interviewing", "rejected", "offer"}:
+        from datetime import datetime, timezone
+        updates["response_at"] = datetime.now(timezone.utc).isoformat()
+    if body.status == "offer":
+        from datetime import datetime, timezone
+        updates["offer_received_at"] = datetime.now(timezone.utc).isoformat()
+    if body.status == "abandoned":
+        from datetime import datetime, timezone
+        updates["closed_at"] = datetime.now(timezone.utc).isoformat()
+    if body.followed_up:
+        from datetime import datetime, timezone
+        updates["followed_up_at"] = datetime.now(timezone.utc).isoformat()
 
     user_db = get_supabase_for_token(current_user["token"])
     user_db.table("job_applications").upsert(
@@ -480,6 +584,9 @@ def _to_application(row: dict) -> ApplicationResponse:
         applied_at=row.get("applied_at"),
         response_at=row.get("response_at"),
         checkin_sent_at=row.get("checkin_sent_at"),
+        followed_up_at=row.get("followed_up_at"),
+        closed_at=row.get("closed_at"),
+        offer_received_at=row.get("offer_received_at"),
         notes=row.get("notes"),
         created_at=row["created_at"],
     )

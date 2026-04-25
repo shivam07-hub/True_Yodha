@@ -54,6 +54,24 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
+## NEXT SESSION FOCUS (2026-04-25 — IA REORDER + FRICTIONLESS CV-OPTIONAL UX)
+
+**Spec:** `docs/superpowers/specs/2026-04-25-nav-reorder-and-cv-nudge.md`
+
+Headline changes (read the spec for exact JSX, copy, tokens, and acceptance checks):
+
+1. Sidebar order → **Intel → Jobs → Progress → CV Builder → Dashboard**.
+2. Score block: drop the `Market position` subtitle. Keep `MYRO SCORE` + number.
+3. Onboarding: gentle `×` close button, top-right of the header, font-consistent. Skips to `/market`.
+4. No first-run CV gate anywhere. Users without a CV browse freely.
+5. New reusable `<CVRequiredNudge />` component — banner or block variant — rendered consistently on `/market`, `/tracker`, `/jobs`, `/diary`, `/dashboard`. Replaces empty/blocked states.
+
+**Branch:** `develop`. Four commits per spec. Smoke on Vercel preview before any merge to `main`.
+
+**Out of scope this session:** the milestone / job_application_milestones / CV variant rewiring (Part 2 of the IA discussion). That gets its own spec.
+
+---
+
 ## LAST SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
 
 ```

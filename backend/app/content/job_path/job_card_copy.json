@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "notes": "UI labels for tracker job card. Terse. No new typography. Use existing Truth Mirror tokens.",
+  "card": {
+    "section_labels": {
+      "readiness": "Readiness",
+      "targets": "Target skills",
+      "today": "Today",
+      "cv": "CV",
+      "status": "Status"
+    },
+    "readiness_suffix": "% ready",
+    "proof_count_suffix": {
+      "zero": "No proof yet",
+      "one": "1 proof logged",
+      "many": "{count} proofs logged"
+    }
+  },
+  "empty_states": {
+    "no_targets": {
+      "title": "No target skills picked",
+      "body": "Pick one or many from the skill gap panel. Readiness updates live.",
+      "cta": "Open skill gap"
+    },
+    "no_milestone_today": {
+      "title": "No milestone for today",
+      "body": "Add a target skill and a rolling 7-day plan builds itself.",
+      "cta": "Add target skill"
+    },
+    "no_cv_yet": {
+      "title": "No job CV generated",
+      "body": "Starter CV is ready anytime. Proof makes it stronger.",
+      "cta": "Generate Starter CV"
+    },
+    "not_applied": {
+      "title": "Not applied yet",
+      "body": "Apply when the CV feels honest.",
+      "cta": "Mark as applied"
+    }
+  },
+  "milestone_prompts": {
+    "today_header": "Today's milestone",
+    "action_cta": "Log proof",
+    "skip_cta": "Skip",
+    "completed_badge": "Done",
+    "rotation_hint": "Rotates through your target skills. Primary gaps come up first.",
+    "proof_placeholder": "Paste link, file path, or short note.",
+    "impact_placeholder": "One line: why this matters for the role.",
+    "confidence_placeholder": "1-5: how confident you feel in this skill now.",
+    "save_cta": "Save proof"
+  },
+  "cv_cta": {
+    "generate_starter": "Generate Starter CV",
+    "regenerate": "Rebuild job CV",
+    "polish": "Polish with AI",
+    "polish_disabled_daily_cap": "AI polish limit hit. Resets tomorrow.",
+    "download": "Download CV",
+    "view": "View CV",
+    "cached_note": "Cached. Log new proof to refresh."
+  },
+  "apply_flow": {
+    "apply_cta": "Mark as applied",
+    "applied_badge": "Applied · {date}",
+    "responded_cta": "Mark response received",
+    "responded_badge": "Heard back",
+    "reject_cta": "Mark rejected",
+    "interview_cta": "Mark interview scheduled",
+    "offer_cta": "Mark offer received",
+    "abandoned_cta": "Close application"
+  },
+  "follow_up": {
+    "section_header": "Follow-up",
+    "no_state_yet": "Apply first. Follow-up kicks in after.",
+    "nudge_day_7": "Day 7. Time for one short nudge.",
+    "nudge_day_14": "Day 14. Pick a new target skill alongside this one.",
+    "nudge_day_21": "Day 21. Consider closing this application."
+  },
+  "toasts": {
+    "target_added": "Target skill added. Readiness updated.",
+    "target_removed": "Target skill removed.",
+    "milestone_saved": "Proof saved. CV strengthened.",
+    "cv_generated_starter": "Starter CV ready.",
+    "cv_generated_proof": "Proof-backed CV ready.",
+    "cv_generated_strong": "Strong evidence CV ready.",
+    "cv_polished": "AI polish applied. {remaining} polish left today.",
+    "applied": "Marked applied. Follow-up starts day 7."
+  }
+}

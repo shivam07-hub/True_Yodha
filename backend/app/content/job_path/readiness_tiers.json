@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "notes": "Readiness % is deterministic. Tiers never gate actions. Copy is terse UI-facing; CTA drives the next concrete step.",
+  "math": {
+    "existing_skill_credit": 1.0,
+    "target_no_proof_credit": 0.2,
+    "target_with_proof_credit": 0.6,
+    "primary_weight": 2,
+    "secondary_weight": 1,
+    "formula": "sum(credit * weight) / sum(max_credit * weight) * 100"
+  },
+  "tiers": [
+    {
+      "id": "cold",
+      "range": [0, 30],
+      "label": "Cold",
+      "microcopy": "Big gap. Pick one target skill and prove it.",
+      "cta": "Pick target skill",
+      "tone": "direct",
+      "cv_hint": "CV will be Starter. Proof will upgrade it."
+    },
+    {
+      "id": "warming",
+      "range": [31, 60],
+      "label": "Warming",
+      "microcopy": "Some overlap. Proof on primary skills moves the needle fastest.",
+      "cta": "Do today's milestone",
+      "tone": "direct",
+      "cv_hint": "One proof artifact flips CV to Proof-backed."
+    },
+    {
+      "id": "competitive",
+      "range": [61, 85],
+      "label": "Competitive",
+      "microcopy": "Close. Proof on missing primary skills closes it.",
+      "cta": "Generate proof-backed CV",
+      "tone": "warmer",
+      "cv_hint": "CV is Proof-backed. Three proofs unlock Strong evidence."
+    },
+    {
+      "id": "strong",
+      "range": [86, 100],
+      "label": "Strong",
+      "microcopy": "Ready. Apply, then start follow-up.",
+      "cta": "Mark as applied",
+      "tone": "warmer",
+      "cv_hint": "CV is Strong evidence. Ship it."
+    }
+  ]
+}

@@ -4,8 +4,9 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
-import { jobs, type JobMatch } from "@/lib/api"
+import { jobs, scores, type JobMatch } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 
 function scoreColor(score: number): string {
   if (score >= 75) return "var(--tm-success)"
@@ -124,6 +125,15 @@ export default function JobsPage() {
     enabled: !!token,
   })
 
+  const scoresQuery = useQuery({
+    queryKey: ["scores", token],
+    queryFn: () => scores.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
+
   const compute = useMutation({
     mutationFn: () => jobs.compute(token!),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs", token] }),
@@ -153,6 +163,7 @@ export default function JobsPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <CVRequiredNudge hasCv={hasCv} feature="your job matches" />
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>

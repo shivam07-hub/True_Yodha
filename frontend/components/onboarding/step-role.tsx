@@ -260,7 +260,7 @@ export function StepRole({ onNext, loading }: Props) {
             letterSpacing: "0.02em",
           }}
         >
-          {loading ? "Analysing your CV…" : "Get my Mirror Score →"}
+          {loading ? "Analysing your CV…" : "Get my Myro Score →"}
         </button>
       </form>
 

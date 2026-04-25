@@ -161,14 +161,67 @@ CREATE TABLE job_applications (
   job_id           TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
   match_id         INTEGER     REFERENCES user_job_matches(id),
   status           VARCHAR(30) NOT NULL DEFAULT 'pending'
-                   CHECK (status IN ('pending','applied','no_response','responded','interviewing','rejected','offer')),
+                   CHECK (status IN ('pending','applied','no_response','responded','interviewing','rejected','offer','abandoned')),
   applied_at       TIMESTAMPTZ,
   company_response TEXT,
   response_at      TIMESTAMPTZ,
   checkin_sent_at  TIMESTAMPTZ,
+  followed_up_at   TIMESTAMPTZ,
+  closed_at        TIMESTAMPTZ,
+  offer_received_at TIMESTAMPTZ,
   notes            TEXT,
   created_at       TIMESTAMPTZ  DEFAULT NOW(),
   UNIQUE(user_id, job_id)
+);
+
+-- ─── JOB PATH TARGETS ────────────────────────────────────────
+
+CREATE TABLE job_application_skill_targets (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  job_id      TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  skill       VARCHAR(200) NOT NULL,
+  is_primary  BOOLEAN     NOT NULL DEFAULT FALSE,
+  selected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, job_id, skill)
+);
+
+CREATE TABLE job_application_milestones (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  job_id         TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  milestone_date DATE        NOT NULL,
+  skill          VARCHAR(200) NOT NULL,
+  is_primary     BOOLEAN     NOT NULL DEFAULT FALSE,
+  template_id    VARCHAR(80),
+  title          TEXT        NOT NULL,
+  action         TEXT        NOT NULL,
+  proof_prompt   TEXT,
+  impact_prompt  TEXT,
+  proof          TEXT,
+  impact         TEXT,
+  confidence     DECIMAL(3,2) NOT NULL DEFAULT 0.60 CHECK (confidence BETWEEN 0 AND 1),
+  completed_at   TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, job_id, milestone_date)
+);
+
+CREATE TABLE job_cv_variants (
+  id                SERIAL      PRIMARY KEY,
+  user_id           UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  job_id            TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  cv_version_number INTEGER     NOT NULL DEFAULT 1,
+  confidence_label  VARCHAR(40) NOT NULL,
+  deterministic_text TEXT       NOT NULL,
+  polished_text     TEXT,
+  snapshot_hash     VARCHAR(64) NOT NULL,
+  proof_count       INTEGER     NOT NULL DEFAULT 0,
+  ai_polished       BOOLEAN     NOT NULL DEFAULT FALSE,
+  ai_polish_used_at TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, job_id, snapshot_hash)
 );
 
 -- ─── DAILY LOGS ─────────────────────────────────────────────
@@ -236,6 +289,9 @@ CREATE INDEX idx_matches_user         ON user_job_matches(user_id);
 CREATE INDEX idx_matches_batch_week   ON user_job_matches(user_id, batch_week DESC);
 CREATE INDEX idx_matches_recommended  ON user_job_matches(user_id) WHERE is_recommended = TRUE;
 CREATE INDEX idx_applications_user    ON job_applications(user_id);
+CREATE INDEX idx_job_path_targets_user_job ON job_application_skill_targets(user_id, job_id);
+CREATE INDEX idx_job_path_milestones_user_job_date ON job_application_milestones(user_id, job_id, milestone_date);
+CREATE INDEX idx_job_cv_variants_user_job ON job_cv_variants(user_id, job_id, created_at DESC);
 CREATE INDEX idx_daily_logs_user      ON daily_logs(user_id);
 CREATE INDEX idx_daily_logs_date      ON daily_logs(user_id, log_date DESC);
 CREATE INDEX idx_milestones_user      ON user_milestones(user_id, milestone_date DESC);
@@ -251,6 +307,9 @@ ALTER TABLE user_skills        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE job_application_skill_targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE job_application_milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE job_cv_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_milestones    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cv_history         ENABLE ROW LEVEL SECURITY;
@@ -261,6 +320,9 @@ CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.
 CREATE POLICY "own scores"         ON mirror_scores     FOR SELECT  USING (auth.uid() = user_id);
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
+CREATE POLICY "own job path targets" ON job_application_skill_targets FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "own job path milestones" ON job_application_milestones FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "own job cv variants" ON job_cv_variants FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own milestones"     ON user_milestones   FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own cv history"     ON cv_history        FOR ALL     USING (auth.uid() = user_id);

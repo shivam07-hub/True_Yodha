@@ -1,0 +1,88 @@
+{
+  "version": "1.0",
+  "notes": "Deterministic playbooks. No LLM by default. Triggered by application status + elapsed days. Each playbook has a short header, a checklist, and one next action.",
+  "triggers": {
+    "no_response": "status == 'applied' AND days_since_applied >= 7 AND responded == false",
+    "rejection": "status == 'rejected'",
+    "interview": "status IN ('interviewing', 'interview_scheduled')",
+    "offer": "status == 'offer'",
+    "abandoned": "status == 'applied' AND days_since_applied >= 21 AND responded == false"
+  },
+  "playbooks": {
+    "no_response": {
+      "header": "No reply yet. Normal at day 7+.",
+      "microcopy": "Most recruiters triage in batches. One short nudge beats silence.",
+      "checklist": [
+        "Find the hiring manager or recruiter on LinkedIn.",
+        "Send a 3-line note: role, one proof artifact you produced for this job, one question.",
+        "Do not reapply through the portal.",
+        "Log one more milestone so your CV strengthens if they do reply."
+      ],
+      "next_action": {
+        "label": "Log follow-up sent",
+        "updates": { "followed_up": true, "followed_up_at": "now" }
+      },
+      "tone": "warmer"
+    },
+    "rejection": {
+      "header": "Rejected. Use the signal.",
+      "microcopy": "Readiness and missing primary skills usually tell you what happened.",
+      "checklist": [
+        "Check which primary skills you had no proof for.",
+        "Pick one of them as a target skill on a similar tracked job.",
+        "Ask for 1-line feedback if a human replied. Keep it short.",
+        "Do not re-send the same CV to the same company within 90 days."
+      ],
+      "next_action": {
+        "label": "Pick next target skill",
+        "route": "skill_gap_panel"
+      },
+      "tone": "direct"
+    },
+    "interview": {
+      "header": "Interview scheduled. Prep is proof, not trivia.",
+      "microcopy": "Walk in with artifacts tied to this job's target skills.",
+      "checklist": [
+        "Re-read the job description. Mark the 3 skills they will test hardest.",
+        "Pull your completed milestone proofs for those skills. Be ready to screen-share one.",
+        "Prepare two questions that reveal how they measure success in the role.",
+        "Write a 60-second answer to: 'Why this job, why now?'"
+      ],
+      "next_action": {
+        "label": "Run prep milestone",
+        "generates_milestone": true,
+        "milestone_family_hint": "communication"
+      },
+      "tone": "warmer"
+    },
+    "offer": {
+      "header": "Offer. Slow down before you sign.",
+      "microcopy": "The next 48 hours decide comp, scope, and stress for the next year.",
+      "checklist": [
+        "Get the offer in writing. Ask for total comp breakdown: base, variable, equity, sign-on.",
+        "Ask: what does success look like in 90 days and who defines it?",
+        "Compare against two benchmarks you trust.",
+        "Ask for 48 hours to respond. Do not accept same-day."
+      ],
+      "next_action": {
+        "label": "Mark offer received",
+        "updates": { "offer_received_at": "now" }
+      },
+      "tone": "warmer"
+    },
+    "abandoned": {
+      "header": "3 weeks silent. Close it out.",
+      "microcopy": "Free the slot. Redirect the energy to a warmer lead.",
+      "checklist": [
+        "Mark this application as abandoned.",
+        "Move its target skills onto a tracked job that is still active.",
+        "Your readiness on that next job updates immediately."
+      ],
+      "next_action": {
+        "label": "Close and redirect",
+        "updates": { "status": "abandoned", "closed_at": "now" }
+      },
+      "tone": "direct"
+    }
+  }
+}

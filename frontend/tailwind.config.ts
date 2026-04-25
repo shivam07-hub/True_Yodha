@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss"
 
 /**
- * Truth Mirror Tailwind config
+ * Myro Tailwind config
  * ────────────────────────────────────────────────────────────
  * Tokens live in app/design-tokens.css. This config exposes
  * them as Tailwind utilities so components can opt into either
@@ -71,7 +71,7 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
 
-        /* ── Truth Mirror token palette (accent-reactive) */
+        /* ── Myro token palette (accent-reactive) */
         tm: {
           bg:              "var(--tm-bg)",
           surface:         "var(--tm-surface)",

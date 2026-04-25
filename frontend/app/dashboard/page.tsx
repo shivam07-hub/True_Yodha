@@ -6,13 +6,14 @@ import { scores, users } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { DomainRadar } from "@/components/dashboard/domain-radar"
 import { SkillGraphPreview } from "@/components/skill-graph-preview"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 
 
 export default function DashboardPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
 
-  const { data: scoreData, isLoading: scoreLoading, isError: scoreError } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: ["scores", token],
     queryFn: () => scores.me(token!),
     enabled: !!token,
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   if (!ready) return null
 
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
+  const hasCv = !scoreLoading && !!scoreData
 
   return (
     <AppShell>
@@ -53,11 +55,11 @@ export default function DashboardPage() {
             <p className="tm-meta">
               {scoreData
                 ? `${scoreData.skills_assessed} skills assessed · ${scoreData.gap_skills.length} gaps identified`
-                : "Upload your CV to see your Truth Score"}
+                : "Upload your CV to see your Myro Score"}
             </p>
           </div>
 
-          {/* Hero Truth Score */}
+          {/* Hero Myro Score */}
           {totalScore !== null && (
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{
@@ -75,108 +77,65 @@ export default function DashboardPage() {
                   fontFamily: "var(--tm-font-sans)",
                 }}> /100</span>
               </div>
-              <div className="tm-label-caps">Truth Score</div>
+              <div className="tm-label-caps">Myro Score</div>
             </div>
           )}
         </div>
 
-        {/* Top grid: Radar + Skill Graph */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16, position: "relative", zIndex: 1 }}>
+        {/* Top grid: Radar + Skill Graph — or nudge when no CV */}
+        {hasCv ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16, position: "relative", zIndex: 1 }}>
 
-          <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
-            <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
-            {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
-              <DomainRadar
-                domainScores={scoreData.domain_scores}
-                skillsByDomain={skillsData?.by_domain}
-              />
-            ) : scoreLoading || recompute.isPending ? (
-              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  border: "2px solid var(--tm-border-soft)",
-                  borderTopColor: "var(--tm-accent)",
-                  animation: "spin 0.9s linear infinite",
-                }} />
-                <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                  {recompute.isPending ? "Computing scores…" : "Loading…"}
-                </span>
-              </div>
-            ) : scoreError || (scoreData && Object.keys(scoreData.domain_scores).length === 0) ? (
-              (() => {
-                const hasCV = Object.keys(skillsData?.by_domain ?? {}).length > 0
-                return (
-                  <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: "var(--tm-radius)",
+            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+              <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
+              {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
+                <DomainRadar
+                  domainScores={scoreData.domain_scores}
+                  skillsByDomain={skillsData?.by_domain}
+                />
+              ) : scoreLoading || recompute.isPending ? (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    border: "2px solid var(--tm-border-soft)",
+                    borderTopColor: "var(--tm-accent)",
+                    animation: "spin 0.9s linear infinite",
+                  }} />
+                  <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                    {recompute.isPending ? "Computing scores…" : "Loading…"}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <button
+                    onClick={() => recompute.mutate()}
+                    style={{
+                      padding: "7px 18px",
+                      borderRadius: "var(--tm-radius-sm)",
                       background: "var(--tm-accent-wash)",
                       border: "1px solid var(--tm-accent-ring)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 21,
-                    }}>{hasCV ? "◈" : "⬆"}</div>
-                    <div style={{ textAlign: "center" }}>
-                      <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", marginBottom: 4 }}>
-                        {hasCV
-                          ? (recompute.isError ? "Computation failed — try again" : "Scores not yet computed")
-                          : "No CV uploaded yet"}
-                      </p>
-                      {hasCV && (
-                        <p style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                          Your CV has been processed
-                        </p>
-                      )}
-                    </div>
-                    {hasCV ? (
-                      <button
-                        onClick={() => recompute.mutate()}
-                        style={{
-                          padding: "7px 18px",
-                          borderRadius: "var(--tm-radius-sm)",
-                          background: "var(--tm-accent-wash)",
-                          border: "1px solid var(--tm-accent-ring)",
-                          color: "var(--tm-accent)",
-                          fontSize: 13, fontWeight: 500, cursor: "pointer",
-                          transition: "all var(--tm-dur) var(--tm-ease)",
-                        }}
-                      >
-                        Compute Scores
-                      </button>
-                    ) : (
-                      <a
-                        href="/cv"
-                        style={{
-                          padding: "7px 18px",
-                          borderRadius: "var(--tm-radius-sm)",
-                          background: "var(--tm-accent-wash)",
-                          border: "1px solid var(--tm-accent-ring)",
-                          color: "var(--tm-accent)",
-                          fontSize: 13, fontWeight: 500, cursor: "pointer",
-                          textDecoration: "none",
-                          transition: "all var(--tm-dur) var(--tm-ease)",
-                        }}
-                      >
-                        Upload CV →
-                      </a>
-                    )}
-                  </div>
-                )
-              })()
-            ) : (
-              <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                <div style={{ fontSize: 29, opacity: 0.2 }}>▣</div>
-                <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                  Upload a CV to see domain scores
-                </p>
-              </div>
-            )}
-          </div>
+                      color: "var(--tm-accent)",
+                      fontSize: 13, fontWeight: 500, cursor: "pointer",
+                      transition: "all var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    {recompute.isError ? "Retry" : "Compute Scores"}
+                  </button>
+                </div>
+              )}
+            </div>
 
-          <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
-            <div className="tm-label-caps" style={{ marginBottom: 4 }}>Skill Intelligence Graph</div>
-            <div className="tm-meta" style={{ marginBottom: 10 }}>Your skills vs market gaps</div>
-            <SkillGraphPreview />
+            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+              <div className="tm-label-caps" style={{ marginBottom: 4 }}>Skill Intelligence Graph</div>
+              <div className="tm-meta" style={{ marginBottom: 10 }}>Your skills vs market gaps</div>
+              <SkillGraphPreview />
+            </div>
           </div>
-        </div>
+        ) : !scoreLoading ? (
+          <div style={{ marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <CVRequiredNudge variant="block" hasCv={hasCv} feature="your Myro Score" />
+          </div>
+        ) : null}
 
       </div>
     </AppShell>

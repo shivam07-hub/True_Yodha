@@ -29,7 +29,7 @@ export function StepScore({ score }: Props) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32, width: "100%", maxWidth: 512 }}>
       <div style={{ textAlign: "center" }}>
         <h2 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", marginBottom: 6, letterSpacing: "var(--tm-tracking-tight)" }}>
-          Your Mirror Score
+          Your Myro Score
         </h2>
         <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
           Based on your CV vs live market demand
