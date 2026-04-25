@@ -15,11 +15,11 @@ import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 import { MyroLogo } from "@/components/myro-logo"
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
-  { href: "/cv",        label: "CV Builder", desc: "Your skill profile",      icon: "◈", nudge: false },
-  { href: "/market",    label: "Intel",     desc: "Market intelligence",     icon: "◉", nudge: false },
-  { href: "/tracker",   label: "Jobs",      desc: "Matched roles + tracker", icon: "◆", nudge: false },
-  { href: "/diary",     label: "Progress",  desc: "Diary & achievements",    icon: "◑", nudge: true  },
+  { href: "/market",    label: "Intel",      desc: "Market intelligence",      icon: "◉", nudge: false },
+  { href: "/tracker",   label: "Jobs",       desc: "Matched roles + tracker",  icon: "◆", nudge: false },
+  { href: "/diary",     label: "Progress",   desc: "Diary & achievements",     icon: "◑", nudge: true  },
+  { href: "/cv",        label: "CV Builder", desc: "Your skill profile",       icon: "◈", nudge: false },
+  { href: "/dashboard", label: "Dashboard",  desc: "Overview & analytics",     icon: "▣", nudge: false },
 ]
 
 const FEEDBACK_ACTIONS = [
