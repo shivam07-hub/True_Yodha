@@ -1,0 +1,219 @@
+{
+  "version": "1.0",
+  "slots": ["{skill}", "{job_title}", "{company}"],
+  "notes": "Milestones are deterministic. Rotation weights primary-gap skills 2x over secondary. Each template produces one concrete proof artifact. Keep actions under 45 min where possible.",
+  "families": {
+    "technical": {
+      "description": "Hard skills: languages, frameworks, tools, systems, data, infra.",
+      "templates": [
+        {
+          "id": "tech_build_artifact",
+          "title": "Build a small {skill} artifact",
+          "action": "Build one small working artifact in {skill} that a reviewer for {job_title} at {company} could scan in under two minutes. Paste link or file path as proof.",
+          "proof_prompt": "What did you build? What does it demonstrate about your {skill} level?",
+          "impact_prompt": "Why would a hiring manager at {company} care about this?",
+          "expected_minutes": 45
+        },
+        {
+          "id": "tech_read_and_reapply",
+          "title": "Read one real {skill} source, reapply it",
+          "action": "Pick one real engineering post, doc, or commit about {skill}. Summarise the core idea in your own words, then apply it to a problem similar to what {job_title} would face.",
+          "proof_prompt": "What source? What did you reapply?",
+          "impact_prompt": "How does this prove you can operate in {skill} at the {job_title} bar?",
+          "expected_minutes": 40
+        },
+        {
+          "id": "tech_debug_or_refactor",
+          "title": "Debug or refactor using {skill}",
+          "action": "Take broken or messy code relevant to {skill} and fix or refactor it. Note the before/after and the reasoning.",
+          "proof_prompt": "Paste a diff, screenshot, or short description of the change.",
+          "impact_prompt": "What risk or inefficiency did this remove?",
+          "expected_minutes": 40
+        },
+        {
+          "id": "tech_explain_tradeoff",
+          "title": "Write a {skill} tradeoff note",
+          "action": "Write a 150-word note comparing two real approaches in {skill} (libraries, patterns, designs). State which you would pick for {job_title} at {company} and why.",
+          "proof_prompt": "Paste the note.",
+          "impact_prompt": "Which part shows depth a generalist would miss?",
+          "expected_minutes": 25
+        },
+        {
+          "id": "tech_mini_benchmark",
+          "title": "Run one measurement in {skill}",
+          "action": "Measure something in {skill}: latency, correctness, coverage, token cost, query plan. Record numbers and what you would change.",
+          "proof_prompt": "What did you measure? What were the numbers?",
+          "impact_prompt": "What decision would this measurement drive at {company}?",
+          "expected_minutes": 35
+        }
+      ]
+    },
+    "product": {
+      "description": "Product sense: discovery, prioritisation, specs, metrics, user judgement.",
+      "templates": [
+        {
+          "id": "product_spec_one_feature",
+          "title": "Spec one feature for {company}",
+          "action": "Write a one-page spec for a feature {company} could ship next quarter. Include user, problem, solution, success metric, and one risk. Use {skill} as the lens.",
+          "proof_prompt": "Paste the spec.",
+          "impact_prompt": "Which tradeoff did you make that a weaker PM would miss?",
+          "expected_minutes": 45
+        },
+        {
+          "id": "product_teardown",
+          "title": "{company} product teardown through {skill}",
+          "action": "Pick one surface of {company}'s product. Critique it through {skill}. Give three concrete changes and the expected impact on each.",
+          "proof_prompt": "Paste the teardown.",
+          "impact_prompt": "Which change is non-obvious?",
+          "expected_minutes": 40
+        },
+        {
+          "id": "product_metric_tree",
+          "title": "Metric tree for {job_title}",
+          "action": "Draw the metric tree for a {job_title} at {company}. Mark the one metric you would own and why. Anchor it in {skill}.",
+          "proof_prompt": "Paste the tree and the chosen metric.",
+          "impact_prompt": "Why is this metric the highest leverage right now?",
+          "expected_minutes": 30
+        },
+        {
+          "id": "product_user_interview_plan",
+          "title": "User research plan using {skill}",
+          "action": "Write a 5-question user interview plan for a real {company} user segment. Each question must be non-leading and tied to a decision.",
+          "proof_prompt": "Paste the plan.",
+          "impact_prompt": "What decision does each question unblock?",
+          "expected_minutes": 30
+        }
+      ]
+    },
+    "communication": {
+      "description": "Writing, presenting, stakeholder alignment, clarity under pressure.",
+      "templates": [
+        {
+          "id": "comm_one_pager",
+          "title": "One-pager proving {skill}",
+          "action": "Write a one-page memo a {job_title} at {company} could send tomorrow. Must have: context, recommendation, rationale, and one risk. Keep it under 300 words.",
+          "proof_prompt": "Paste the memo.",
+          "impact_prompt": "Which sentence would convince a skeptical reader fastest?",
+          "expected_minutes": 30
+        },
+        {
+          "id": "comm_rewrite_dense",
+          "title": "Rewrite dense text using {skill}",
+          "action": "Take one dense paragraph from {company}'s docs, blog, or a real job description. Rewrite it so a new hire understands it in 20 seconds. Preserve meaning.",
+          "proof_prompt": "Paste before and after.",
+          "impact_prompt": "What clarity move did you apply?",
+          "expected_minutes": 20
+        },
+        {
+          "id": "comm_stakeholder_update",
+          "title": "Weekly stakeholder update in {skill}",
+          "action": "Draft the weekly update a {job_title} would send at {company}. Include: done, next, risks, asks. Keep each section under 3 bullets.",
+          "proof_prompt": "Paste the update.",
+          "impact_prompt": "Which risk would this flag early?",
+          "expected_minutes": 25
+        },
+        {
+          "id": "comm_hard_conversation",
+          "title": "Script a hard conversation",
+          "action": "Write the opening three lines of a hard conversation a {job_title} at {company} might need to hold. Use {skill} principles. No hedging.",
+          "proof_prompt": "Paste the lines.",
+          "impact_prompt": "Why do these lines earn trust instead of defensiveness?",
+          "expected_minutes": 20
+        }
+      ]
+    },
+    "leadership": {
+      "description": "Judgement, influence, ownership, decision-making, team craft.",
+      "templates": [
+        {
+          "id": "lead_decision_memo",
+          "title": "Decision memo using {skill}",
+          "action": "Pick a real tradeoff a {job_title} at {company} might face. Write a 200-word decision memo: options, criteria, decision, reversibility. Anchor it in {skill}.",
+          "proof_prompt": "Paste the memo.",
+          "impact_prompt": "Why this decision over the obvious one?",
+          "expected_minutes": 35
+        },
+        {
+          "id": "lead_prioritisation_grid",
+          "title": "Prioritisation grid for {job_title}",
+          "action": "List 6 real things a {job_title} at {company} could do next quarter. Score each on impact and effort. Pick the top 2 and defend the cut of one.",
+          "proof_prompt": "Paste the grid and cut rationale.",
+          "impact_prompt": "Which cut would be uncomfortable and why is it right?",
+          "expected_minutes": 30
+        },
+        {
+          "id": "lead_postmortem",
+          "title": "Postmortem using {skill}",
+          "action": "Write a blameless postmortem for a real or realistic failure {company} might have faced. Cover: what happened, detection, impact, root causes, actions.",
+          "proof_prompt": "Paste the postmortem.",
+          "impact_prompt": "Which action prevents recurrence instead of firefighting?",
+          "expected_minutes": 40
+        },
+        {
+          "id": "lead_first_30_days",
+          "title": "First-30-days plan for {job_title}",
+          "action": "Draft a 30-day plan for your first month as {job_title} at {company}. Three outcomes, five learning targets, two people you would meet weekly. Use {skill}.",
+          "proof_prompt": "Paste the plan.",
+          "impact_prompt": "Why are these outcomes achievable in 30 days?",
+          "expected_minutes": 35
+        }
+      ]
+    },
+    "analytics": {
+      "description": "Data analysis, metrics, SQL, experimentation, quantitative reasoning.",
+      "templates": [
+        {
+          "id": "analytics_sql_query",
+          "title": "Write one {skill} query for {company}",
+          "action": "Write a query in {skill} that answers a real question a {job_title} at {company} would ask. Include the question, the query, and the expected shape of the result.",
+          "proof_prompt": "Paste the question and the query.",
+          "impact_prompt": "What action does this answer unlock?",
+          "expected_minutes": 30
+        },
+        {
+          "id": "analytics_ab_test",
+          "title": "Design an A/B test using {skill}",
+          "action": "Design one A/B test a {job_title} at {company} could run. State hypothesis, metric, sample size logic, and stopping rule.",
+          "proof_prompt": "Paste the test design.",
+          "impact_prompt": "Which part prevents a false positive?",
+          "expected_minutes": 35
+        },
+        {
+          "id": "analytics_funnel_breakdown",
+          "title": "Funnel breakdown with {skill}",
+          "action": "Sketch a funnel for a {company} product flow. Mark the step you would investigate first and the {skill} method you would use.",
+          "proof_prompt": "Paste the funnel and the method.",
+          "impact_prompt": "Why that step first?",
+          "expected_minutes": 25
+        },
+        {
+          "id": "analytics_data_audit",
+          "title": "Data quality audit using {skill}",
+          "action": "Pick one dataset you can access. Run a quality audit using {skill}: completeness, freshness, duplicates, outliers. Report three concrete findings.",
+          "proof_prompt": "Paste the findings.",
+          "impact_prompt": "Which finding would a {job_title} at {company} act on first?",
+          "expected_minutes": 40
+        },
+        {
+          "id": "analytics_forecast",
+          "title": "Short forecast via {skill}",
+          "action": "Build a 4-week forecast for one metric relevant to {job_title} at {company}. State method, assumptions, and confidence range.",
+          "proof_prompt": "Paste the forecast and assumptions.",
+          "impact_prompt": "Which assumption is the riskiest?",
+          "expected_minutes": 35
+        }
+      ]
+    }
+  },
+  "rotation": {
+    "strategy": "weighted_primary",
+    "primary_weight": 2,
+    "secondary_weight": 1,
+    "rules": [
+      "Rotate so no skill repeats two days in a row unless only one target is selected.",
+      "When multiple targets exist, pick weighted-random from remaining-for-week pool.",
+      "If a skill has no matching family, fall back to 'technical' for hard skills or 'communication' for soft skills.",
+      "Cap one milestone per day; never stack."
+    ]
+  }
+}

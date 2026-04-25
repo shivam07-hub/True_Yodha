@@ -358,6 +358,7 @@ export type ApplicationStatus =
   | "interviewing"
   | "rejected"
   | "offer"
+  | "abandoned"
 
 export interface ApplicationResponse {
   id: number
@@ -369,8 +370,71 @@ export interface ApplicationResponse {
   applied_at: string | null
   response_at: string | null
   checkin_sent_at: string | null
+  followed_up_at?: string | null
+  closed_at?: string | null
+  offer_received_at?: string | null
   notes: string | null
   created_at: string
+}
+
+export interface JobPathTarget {
+  skill: string
+  is_primary: boolean
+  selected_at?: string | null
+  proof_count: number
+}
+
+export interface JobPathMilestone {
+  id: string
+  milestone_date: string
+  skill: string
+  is_primary: boolean
+  template_id?: string | null
+  title: string
+  action: string
+  proof_prompt?: string | null
+  impact_prompt?: string | null
+  proof?: string | null
+  impact?: string | null
+  confidence?: number | null
+  completed_at?: string | null
+}
+
+export interface JobPathCVSummary {
+  id?: number | null
+  confidence: Record<string, string | number | boolean>
+  snapshot_hash?: string | null
+  ai_polished: boolean
+  created_at?: string | null
+}
+
+export interface JobPathResponse {
+  job_id: string
+  job_title: string
+  company: string | null
+  readiness_pct: number
+  readiness_tier: Record<string, unknown>
+  target_skills: JobPathTarget[]
+  milestones: JobPathMilestone[]
+  today_milestone: JobPathMilestone | null
+  cv: JobPathCVSummary | null
+  follow_up: Record<string, unknown> | null
+  status: ApplicationStatus
+  applied_at: string | null
+}
+
+export interface JobCVGenerateResponse {
+  id: number
+  job_id: string
+  cv_text: string
+  polished_text: string | null
+  confidence: Record<string, string | number | boolean>
+  snapshot_hash: string
+  from_cache: boolean
+  ai_polish_used: number
+  ai_polish_limit: number
+  limit_reached: boolean
+  polish_unavailable: boolean
 }
 
 export interface NameCountItem {
@@ -464,7 +528,7 @@ export const jobs = {
   updateApplication: (
     token: string,
     jobId: string,
-    data: { status: ApplicationStatus; notes?: string | null; company_response?: string | null },
+    data: { status: ApplicationStatus; notes?: string | null; company_response?: string | null; followed_up?: boolean | null },
   ) =>
     request<ApplicationResponse>(`/jobs/applications/${jobId}`, {
       method: "PUT",
@@ -479,6 +543,33 @@ export const jobs = {
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  path: (token: string, jobId: string) =>
+    request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/path`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateTargets: (token: string, jobId: string, targets: Array<{ skill: string; is_primary?: boolean | null }>) =>
+    request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/targets`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ targets }),
+    }),
+  updateMilestone: (
+    token: string,
+    jobId: string,
+    milestoneId: string,
+    data: { proof?: string | null; impact?: string | null; confidence?: number | null; completed?: boolean },
+  ) =>
+    request<JobPathMilestone>(`/jobs/applications/${encodeURIComponent(jobId)}/milestones/${encodeURIComponent(milestoneId)}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    }),
+  generateJobCv: (token: string, jobId: string, aiPolish = false) =>
+    request<JobCVGenerateResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/cv`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ai_polish: aiPolish }),
     }),
 }
 

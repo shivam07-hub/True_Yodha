@@ -1,7 +1,7 @@
 "use client"
 
 import Script from "next/script"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import {
@@ -17,6 +17,8 @@ import {
   type ApplicationResponse,
   type ApplicationStatus,
   type GapSkill,
+  type JobPathMilestone,
+  type JobPathResponse,
   type JobMatch,
   type SkillGapItem,
   type UserSkillDemandItem,
@@ -118,7 +120,7 @@ function AppDetailModal({ app, onClose }: { app: ApplicationResponse; onClose: (
   )
 }
 
-const STATUSES: ApplicationStatus[] = ["pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer"]
+const STATUSES: ApplicationStatus[] = ["pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer", "abandoned"]
 
 const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: string; border: string }> = {
   pending:      { label: "Pending",      fg: "var(--tm-accent)",   bg: "var(--tm-accent-wash)",   border: "rgba(0,245,212,0.2)" },
@@ -128,6 +130,7 @@ const STATUS_META: Record<ApplicationStatus, { label: string; fg: string; bg: st
   interviewing: { label: "Interviewing", fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.2)" },
   rejected:     { label: "Rejected",     fg: "var(--tm-danger)",   bg: "var(--tm-danger-wash)",   border: "rgba(251,113,133,0.2)" },
   offer:        { label: "Offer 🎉",     fg: "var(--tm-success)",  bg: "var(--tm-success-wash)",  border: "rgba(74,222,128,0.3)" },
+  abandoned:    { label: "Abandoned",    fg: "var(--tm-text-faint)", bg: "rgba(255,255,255,0.03)", border: "var(--tm-border-soft)" },
 }
 
 function RemoveJobButton({ label, removing, onRemove }: {
@@ -176,17 +179,22 @@ function RemoveJobButton({ label, removing, onRemove }: {
   )
 }
 
-function MarketTrackedCard({ app, updating, removing, onStatusChange, onDetailClick, onRemove }: {
+function MarketTrackedCard({ app, updating, removing, onStatusChange, onDetailClick, onRemove, onSelect }: {
   app: ApplicationResponse; updating: boolean
   removing: boolean
   onStatusChange: (s: ApplicationStatus) => void; onDetailClick: () => void
   onRemove: () => void
+  onSelect: (jobId: string | null) => void
 }) {
   const [open, setOpen] = useState(false)
   const statusMeta = STATUS_META[app.status]
   return (
     <div
-      onClick={() => setOpen((o) => !o)}
+      onClick={() => {
+        const next = !open
+        setOpen(next)
+        onSelect(next ? app.job_id : null)
+      }}
       style={{
         borderRadius: "var(--tm-radius)", padding: "18px 20px",
         background: open ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
@@ -798,11 +806,11 @@ function CVSkillDemandCard({
 
 function JobSkillGapPanel({
   skills,
-  queuedSkillKeys,
+  targetSkillKeys,
   onToggle,
 }: {
   skills: SkillGapItem[]
-  queuedSkillKeys: Set<string>
+  targetSkillKeys: Set<string>
   onToggle: (selection: DiarySkillSelection) => void
 }) {
   const missing = skills.filter((s) => s.missing)
@@ -816,7 +824,7 @@ function JobSkillGapPanel({
           </div>
           {missing.map((s) => {
             const selection = buildGapSkillSelection(s)
-            const queued = queuedSkillKeys.has(skillSelectionKey(s.skill))
+            const queued = targetSkillKeys.has(skillSelectionKey(s.skill))
 
             return (
               <div
@@ -835,10 +843,10 @@ function JobSkillGapPanel({
                   </div>
                 </div>
                 <SkillActionButton
-                  label="Add"
+                  label="Target"
                   queued={queued}
                   onClick={() => onToggle(selection)}
-                  ariaLabel={`${queued ? "Remove" : "Add"} ${s.skill} in diary cart`}
+                  ariaLabel={`${queued ? "Remove" : "Target"} ${s.skill} for this job`}
                 />
               </div>
             )
@@ -852,7 +860,7 @@ function JobSkillGapPanel({
           </div>
           {matched.map((s) => {
             const selection = buildGapSkillSelection(s)
-            const queued = queuedSkillKeys.has(skillSelectionKey(s.skill))
+            const queued = targetSkillKeys.has(skillSelectionKey(s.skill))
 
             return (
               <div
@@ -871,14 +879,225 @@ function JobSkillGapPanel({
                   </div>
                 </div>
                 <SkillActionButton
-                  label="Upgrade"
+                  label="Target"
                   queued={queued}
                   onClick={() => onToggle(selection)}
-                  ariaLabel={`${queued ? "Remove" : "Upgrade"} ${s.skill} in diary cart`}
+                  ariaLabel={`${queued ? "Remove" : "Target"} ${s.skill} for this job`}
                 />
               </div>
             )
           })}
+        </>
+      )}
+    </div>
+  )
+}
+
+function proofCountCopy(count: number): string {
+  if (count <= 0) return "No proof yet"
+  if (count === 1) return "1 proof logged"
+  return `${count} proofs logged`
+}
+
+function JobPathPanel({
+  path,
+  proof,
+  impact,
+  confidence,
+  savingProof,
+  generatingCv,
+  generatedCvText,
+  onProofChange,
+  onImpactChange,
+  onConfidenceChange,
+  onSaveProof,
+  onGenerateCv,
+  onPolishCv,
+  cvNotice,
+}: {
+  path: JobPathResponse
+  proof: string
+  impact: string
+  confidence: number
+  savingProof: boolean
+  generatingCv: boolean
+  generatedCvText: string | null
+  onProofChange: (value: string) => void
+  onImpactChange: (value: string) => void
+  onConfidenceChange: (value: number) => void
+  onSaveProof: (milestone: JobPathMilestone) => void
+  onGenerateCv: () => void
+  onPolishCv: () => void
+  cvNotice: string | null
+}) {
+  const tierLabel = String(path.readiness_tier.label ?? "Readiness")
+  const tierCopy = String(path.readiness_tier.microcopy ?? "")
+  const today = path.today_milestone
+  const totalProofs = path.target_skills.reduce((sum, target) => sum + target.proof_count, 0)
+  const cvLabel = path.cv?.confidence?.badge_text ? String(path.cv.confidence.badge_text) : totalProofs >= 3 ? "Strong evidence" : totalProofs >= 1 ? "Proof-backed" : "Starter"
+
+  return (
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+        <div className="tm-label-caps" style={{ color: "var(--tm-accent)" }}>Job Path</div>
+        <div style={{ fontSize: "var(--tm-fs-meta)", fontWeight: 700, color: "var(--tm-accent)" }}>
+          {path.readiness_pct}% ready
+        </div>
+      </div>
+
+      <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ height: "100%", width: `${path.readiness_pct}%`, background: "var(--tm-accent)", borderRadius: 999 }} />
+      </div>
+      <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)", marginBottom: 4 }}>{tierLabel}</div>
+      <div style={{ fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-meta)", color: "var(--tm-text-faint)", marginBottom: 14 }}>{tierCopy}</div>
+
+      <div className="tm-label-caps" style={{ marginBottom: 8 }}>Target Skills</div>
+      {path.target_skills.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+          {path.target_skills.map((target) => (
+            <span key={target.skill} className="tm-pill" style={{ border: "1px solid var(--tm-border-soft)" }}>
+              {target.skill} · {proofCountCopy(target.proof_count)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)", marginBottom: 14 }}>
+          Pick one or many from the skill gap panel.
+        </div>
+      )}
+
+      <div className="tm-label-caps" style={{ marginBottom: 8 }}>Today&apos;s Milestone</div>
+      {today ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ padding: 12, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
+            <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)", fontWeight: 600, marginBottom: 4 }}>{today.title}</div>
+            <div style={{ fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-meta)", color: "var(--tm-text-muted)" }}>{today.action}</div>
+          </div>
+          {!today.completed_at ? (
+            <>
+              <textarea
+                value={proof}
+                onChange={(event) => onProofChange(event.target.value)}
+                placeholder={today.proof_prompt ?? "Paste link, file path, or short note."}
+                className="tm-input"
+                style={{ minHeight: 74, resize: "vertical", fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-meta)" }}
+              />
+              <input
+                value={impact}
+                onChange={(event) => onImpactChange(event.target.value)}
+                placeholder={today.impact_prompt ?? "One line: why this matters for the role."}
+                className="tm-input"
+                style={{ fontSize: "var(--tm-fs-meta)" }}
+              />
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                Confidence · {confidence}/5
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={confidence}
+                  onChange={(event) => onConfidenceChange(Number(event.target.value))}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => onSaveProof(today)}
+                disabled={!proof.trim() || savingProof}
+                className="tm-btn tm-btn-primary"
+                style={{ justifyContent: "center", opacity: !proof.trim() || savingProof ? 0.5 : 1 }}
+              >
+                {savingProof ? "Saving..." : "Save proof"}
+              </button>
+              <a
+                href={`/diary?jobId=${encodeURIComponent(path.job_id)}&milestoneId=${encodeURIComponent(today.id)}`}
+                className="tm-btn tm-btn-ghost"
+                style={{ justifyContent: "center", textDecoration: "none", fontSize: "var(--tm-fs-meta)" }}
+              >
+                Open in diary
+              </a>
+            </>
+          ) : (
+            <div className="tm-pill" style={{ color: "var(--tm-accent)", border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)", alignSelf: "flex-start" }}>
+              Done
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)", marginBottom: 14 }}>
+          Add a target skill and a rolling 7-day plan builds itself.
+        </div>
+      )}
+
+      <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "14px 0" }} />
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+        <div>
+          <div className="tm-label-caps" style={{ marginBottom: 4 }}>CV</div>
+          <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+            {path.cv ? cvLabel : "Starter CV is ready anytime."}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={onGenerateCv}
+            disabled={generatingCv}
+            className="tm-btn tm-btn-ghost"
+            style={{ height: 34, fontSize: "var(--tm-fs-meta)" }}
+          >
+            {generatingCv ? "..." : path.cv ? "Rebuild" : "Generate"}
+          </button>
+          <button
+            type="button"
+            onClick={onPolishCv}
+            disabled={generatingCv}
+            className="tm-btn tm-btn-ghost"
+            style={{ height: 34, fontSize: "var(--tm-fs-meta)" }}
+          >
+            Polish
+          </button>
+        </div>
+      </div>
+      <a
+        href={`/cv?jobId=${encodeURIComponent(path.job_id)}`}
+        className="tm-btn tm-btn-ghost"
+        style={{ justifyContent: "center", textDecoration: "none", fontSize: "var(--tm-fs-meta)", marginBottom: 10 }}
+      >
+        Open CV page
+      </a>
+      {generatedCvText && (
+        <pre style={{
+          maxHeight: 180,
+          overflowY: "auto",
+          whiteSpace: "pre-wrap",
+          fontFamily: "var(--tm-font-mono)",
+          fontSize: "var(--tm-fs-meta)",
+          lineHeight: "var(--tm-lh-meta)",
+          color: "var(--tm-text-muted)",
+          border: "1px solid var(--tm-border-soft)",
+          borderRadius: "var(--tm-radius-sm)",
+          padding: 12,
+          background: "rgba(255,255,255,0.02)",
+        }}>
+          {generatedCvText}
+        </pre>
+      )}
+      {cvNotice && (
+        <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)", marginTop: generatedCvText ? 8 : 0 }}>
+          {cvNotice}
+        </div>
+      )}
+
+      {path.follow_up && (
+        <>
+          <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "14px 0" }} />
+          <div className="tm-label-caps" style={{ marginBottom: 6 }}>Follow-up</div>
+          <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)", marginBottom: 4 }}>
+            {String(path.follow_up.header ?? "")}
+          </div>
+          <div style={{ fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-meta)", color: "var(--tm-text-faint)" }}>
+            {String(path.follow_up.microcopy ?? "")}
+          </div>
         </>
       )}
     </div>
@@ -890,6 +1109,11 @@ export default function TrackerPage() {
   const queryClient = useQueryClient()
   const [puterReady, setPuterReady] = useState(false)
   const [diarySelections, setDiarySelections] = useState<DiarySkillSelection[]>([])
+  const [proofText, setProofText] = useState("")
+  const [impactText, setImpactText] = useState("")
+  const [confidence, setConfidence] = useState(3)
+  const [generatedCvText, setGeneratedCvText] = useState<string | null>(null)
+  const [cvNotice, setCvNotice] = useState<string | null>(null)
 
   const matchesQuery = useQuery({
     queryKey: ["jobs", token],
@@ -923,7 +1147,10 @@ export default function TrackerPage() {
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) =>
       jobs.updateApplication(token!, jobId, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
+    onSuccess: (_app, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["applications", token] })
+      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+    },
   })
 
   const [detailJob, setDetailJob] = useState<JobMatch | null>(null)
@@ -946,6 +1173,67 @@ export default function TrackerPage() {
     queryFn: () => jobs.skillGap(token!, selectedJobId!),
     enabled: !!token && !!selectedJobId,
   })
+
+  const jobPathQuery = useQuery({
+    queryKey: ["job-path", selectedJobId, token],
+    queryFn: () => jobs.path(token!, selectedJobId!),
+    enabled: !!token && !!selectedJobId,
+  })
+
+  const updateTargets = useMutation({
+    mutationFn: ({ jobId, targets }: { jobId: string; targets: Array<{ skill: string; is_primary?: boolean | null }> }) =>
+      jobs.updateTargets(token!, jobId, targets),
+    onSuccess: (_path, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+      queryClient.invalidateQueries({ queryKey: ["applications", token] })
+    },
+  })
+
+  const saveMilestoneProof = useMutation({
+    mutationFn: ({ jobId, milestoneId, proof, impact, confidence }: {
+      jobId: string
+      milestoneId: string
+      proof: string
+      impact: string
+      confidence: number
+    }) => jobs.updateMilestone(token!, jobId, milestoneId, {
+      proof,
+      impact: impact || null,
+      confidence: confidence / 5,
+      completed: true,
+    }),
+    onSuccess: (_milestone, variables) => {
+      setProofText("")
+      setImpactText("")
+      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+    },
+  })
+
+  const generateJobCv = useMutation({
+    mutationFn: ({ jobId, aiPolish }: { jobId: string; aiPolish: boolean }) => jobs.generateJobCv(token!, jobId, aiPolish),
+    onSuccess: (cv, variables) => {
+      setGeneratedCvText(cv.polished_text ?? cv.cv_text)
+      if (variables.aiPolish && cv.limit_reached) {
+        setCvNotice("AI polish limit reached. Showing the best cached job CV.")
+      } else if (variables.aiPolish && cv.polish_unavailable) {
+        setCvNotice("Polish unavailable, using the proof-backed CV.")
+      } else if (variables.aiPolish && cv.polished_text) {
+        const remaining = Math.max(0, cv.ai_polish_limit - cv.ai_polish_used)
+        setCvNotice(`Polished CV ready. ${remaining} polish calls left today.`)
+      } else {
+        setCvNotice("Job CV ready.")
+      }
+      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+    },
+  })
+
+  useEffect(() => {
+    setGeneratedCvText(null)
+    setProofText("")
+    setImpactText("")
+    setConfidence(3)
+    setCvNotice(null)
+  }, [selectedJobId, jobPathQuery.data?.today_milestone?.id])
 
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
@@ -978,6 +1266,10 @@ export default function TrackerPage() {
     () => new Set(diarySelections.map((selection) => skillSelectionKey(selection.skill))),
     [diarySelections],
   )
+  const targetSkillKeys = useMemo(
+    () => new Set((jobPathQuery.data?.target_skills ?? []).map((selection) => skillSelectionKey(selection.skill))),
+    [jobPathQuery.data?.target_skills],
+  )
   const selectedJobTitle = useMemo(
     () => topJobs.find((job) => job.job_id === selectedJobId)?.title ?? skillGapQuery.data?.job_title ?? null,
     [selectedJobId, skillGapQuery.data, topJobs],
@@ -985,6 +1277,22 @@ export default function TrackerPage() {
 
   function handleDiaryToggle(selection: DiarySkillSelection) {
     setDiarySelections((current) => toggleDiarySelection(current, selection))
+  }
+
+  function handleTargetToggle(selection: DiarySkillSelection) {
+    if (!selectedJobId) return
+    const current = jobPathQuery.data?.target_skills ?? []
+    const key = skillSelectionKey(selection.skill)
+    const gapSkill = skillGapQuery.data?.skills.find((skill) => skillSelectionKey(skill.skill) === key)
+    const exists = current.some((target) => skillSelectionKey(target.skill) === key)
+    const next = exists
+      ? current.filter((target) => skillSelectionKey(target.skill) !== key)
+      : [...current, { skill: selection.skill, is_primary: gapSkill?.is_primary ?? selection.intent === "add", proof_count: 0 }]
+    updateTargets.mutate({
+      jobId: selectedJobId,
+      targets: next.map((target) => ({ skill: target.skill, is_primary: target.is_primary })),
+    })
+    setDiarySelections((currentSelections) => toggleDiarySelection(currentSelections, selection))
   }
 
   if (!ready) return null
@@ -1045,6 +1353,7 @@ export default function TrackerPage() {
                     onStatusChange={(status) => updateStatus.mutate({ jobId: app.job_id, status })}
                     onDetailClick={() => setAppDetailJob(app)}
                     onRemove={() => removeTrackerJob.mutate(app.job_id)}
+                    onSelect={setSelectedJobId}
                   />
                 ))}
                 {topJobs.length > 0 && (
@@ -1101,6 +1410,34 @@ export default function TrackerPage() {
               onClear={() => setDiarySelections([])}
             />
 
+            {selectedJobId && jobPathQuery.data && (
+              <JobPathPanel
+                path={jobPathQuery.data}
+                proof={proofText}
+                impact={impactText}
+                confidence={confidence}
+                savingProof={saveMilestoneProof.isPending}
+                generatingCv={generateJobCv.isPending}
+                generatedCvText={generatedCvText}
+                onProofChange={setProofText}
+                onImpactChange={setImpactText}
+                onConfidenceChange={setConfidence}
+                onSaveProof={(milestone) => {
+                  if (!selectedJobId) return
+                  saveMilestoneProof.mutate({
+                    jobId: selectedJobId,
+                    milestoneId: milestone.id,
+                    proof: proofText,
+                    impact: impactText,
+                    confidence,
+                  })
+                }}
+                onGenerateCv={() => selectedJobId && generateJobCv.mutate({ jobId: selectedJobId, aiPolish: false })}
+                onPolishCv={() => selectedJobId && generateJobCv.mutate({ jobId: selectedJobId, aiPolish: true })}
+                cvNotice={cvNotice}
+              />
+            )}
+
             <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
               {selectedJobId ? (
                 <>
@@ -1128,8 +1465,8 @@ export default function TrackerPage() {
                   {skillGapQuery.data && (
                     <JobSkillGapPanel
                       skills={skillGapQuery.data.skills}
-                      queuedSkillKeys={queuedSkillKeys}
-                      onToggle={handleDiaryToggle}
+                      targetSkillKeys={targetSkillKeys}
+                      onToggle={handleTargetToggle}
                     />
                   )}
                   {skillGapQuery.isError && (

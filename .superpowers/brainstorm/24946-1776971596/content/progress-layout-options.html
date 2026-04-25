@@ -1,0 +1,137 @@
+<h2>Progress Page Directions</h2>
+<p class="subtitle">Same product, three different priorities. I recommend <strong>Option A</strong> because it matches your desired flow: milestone first, focus second, notes visible without scrolling.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. Milestone Command Center</div>
+        <div class="mockup-body" style="display:grid;gap:10px;background:#fcfaf5;">
+          <div style="display:grid;grid-template-columns:1.35fr 0.9fr;gap:10px;">
+            <div style="border:2px solid #f2b24d;border-radius:14px;padding:12px;background:#fff8ea;">
+              <div class="label">Today</div>
+              <div style="font-size:20px;font-weight:700;margin:6px 0 8px;">Practice Innovation</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                <div class="mock-button" style="margin:0;background:#f5b54c;color:#1a1a1a;">Complete</div>
+                <div class="mock-button" style="margin:0;background:#fff;border:1px solid #ebd6aa;color:#654300;">Edit</div>
+                <div class="mock-button" style="margin:0;background:#fff;border:1px solid #ebd6aa;color:#654300;">Cancel</div>
+              </div>
+              <div style="border:1px dashed #e3cfaa;border-radius:10px;padding:10px;background:#fff;">
+                <div style="font-size:12px;color:#7b6d4d;">Completion proof uses the live edited task text, not the old one.</div>
+              </div>
+            </div>
+            <div style="border:1px solid #eadfcb;border-radius:14px;padding:12px;background:#fff;">
+              <div class="label">Focus</div>
+              <div style="width:110px;height:110px;border:6px solid #f2b24d;border-radius:999px;margin:8px auto 10px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;">25:00</div>
+              <div class="mock-button" style="margin:0 auto;background:#f5b54c;color:#1a1a1a;display:block;width:100%;text-align:center;">Start Session</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 0.9fr;gap:10px;">
+            <div style="border:1px solid #eadfcb;border-radius:14px;padding:12px;background:#fff;">
+              <div class="label">Quick note</div>
+              <div class="mock-input" style="margin-top:8px;height:42px;display:flex;align-items:center;">What moved forward today?</div>
+            </div>
+            <div style="border:1px solid #eadfcb;border-radius:14px;padding:12px;background:#fff;">
+              <div class="label">Next unlocks</div>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <div style="flex:1;border:1px solid #eadfcb;border-radius:10px;padding:8px;text-align:center;">7 days</div>
+                <div style="flex:1;border:1px solid #eadfcb;border-radius:10px;padding:8px;text-align:center;">10 entries</div>
+                <div style="flex:1;border:1px solid #eadfcb;border-radius:10px;padding:8px;text-align:center;">250 XP</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Milestone Command Center</h3>
+      <p>Opens with today’s commitment as the hero. Focus and notes support it. Best fit for decisive action and fixing the current milestone-completion friction.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. Dual-Action Split</div>
+        <div class="mockup-body" style="display:grid;gap:10px;background:#fcfaf5;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="border:2px solid #f2b24d;border-radius:14px;padding:12px;background:#fff8ea;min-height:150px;">
+              <div class="label">Milestone</div>
+              <div style="height:18px;background:#eadfcb;border-radius:999px;margin:10px 0 8px;width:82%;"></div>
+              <div style="height:18px;background:#eadfcb;border-radius:999px;width:58%;"></div>
+              <div style="display:flex;gap:8px;margin-top:14px;">
+                <div class="mock-button" style="margin:0;background:#f5b54c;color:#1a1a1a;">Complete</div>
+                <div class="mock-button" style="margin:0;background:#fff;border:1px solid #ebd6aa;color:#654300;">Edit</div>
+              </div>
+            </div>
+            <div style="border:2px solid #e8d8b6;border-radius:14px;padding:12px;background:#fff;min-height:150px;">
+              <div class="label">Focus</div>
+              <div style="width:96px;height:96px;border:5px solid #f2b24d;border-radius:999px;margin:10px auto;"></div>
+              <div class="mock-button" style="margin:0 auto;background:#f5b54c;color:#1a1a1a;display:block;width:100%;text-align:center;">Start</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div style="border:1px solid #eadfcb;border-radius:12px;padding:10px;background:#fff;">Note box</div>
+            <div style="border:1px solid #eadfcb;border-radius:12px;padding:10px;background:#fff;">Stats strip</div>
+            <div style="border:1px solid #eadfcb;border-radius:12px;padding:10px;background:#fff;">Achievements</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Dual-Action Split</h3>
+      <p>Milestone and focus share almost equal weight. Feels balanced and efficient, but slightly weaker than A at telling the user what to do first.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. Notes-Supported Flow</div>
+        <div class="mockup-body" style="display:grid;gap:10px;background:#fcfaf5;">
+          <div style="border:2px solid #f2b24d;border-radius:14px;padding:12px;background:#fff8ea;">
+            <div class="label">Today’s lane</div>
+            <div style="display:grid;grid-template-columns:1.1fr 0.9fr 0.9fr;gap:10px;margin-top:8px;">
+              <div style="border:1px solid #eadfcb;border-radius:10px;padding:10px;background:#fff;">Milestone card</div>
+              <div style="border:1px solid #eadfcb;border-radius:10px;padding:10px;background:#fff;">Focus card</div>
+              <div style="border:1px solid #eadfcb;border-radius:10px;padding:10px;background:#fff;">Compact note</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="border:1px solid #eadfcb;border-radius:14px;padding:12px;background:#fff;min-height:104px;">Recent entries</div>
+            <div style="border:1px solid #eadfcb;border-radius:14px;padding:12px;background:#fff;min-height:104px;">Achievement ladder</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Notes-Supported Flow</h3>
+      <p>All three actions appear immediately. It feels modern and compact, but risks making the hero area too busy if we are not strict about copy.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Trade-offs</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Recommendation</div>
+      <div class="mockup-body">
+        <p><strong>Pick A</strong> if the page should feel like a daily operating system: one clear commitment, then focus, then proof and notes.</p>
+        <p><strong>Pick B</strong> if you want the page to feel more neutral and less opinionated.</p>
+        <p><strong>Pick C</strong> if you want maximum density above the fold, but it needs stronger restraint to avoid clutter.</p>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">What changes in all options</div>
+      <div class="mockup-body">
+        <p>Rename <strong>Diary</strong> to <strong>Notes</strong>.</p>
+        <p>Compact copy and remove filler text like <strong>Keep going — every entry counts</strong>.</p>
+        <p>Add visible cancel controls for edit and complete states.</p>
+        <p>Completion proof should reference the edited milestone text.</p>
+        <p>Achievement ladder becomes smaller, more frequent unlocks.</p>
+        <p>Timer completion gets a short celebratory moment with motion designed for performance.</p>
+      </div>
+    </div>
+  </div>
+</div>
