@@ -1,5 +1,5 @@
 /**
- * Truth Mirror — Accent toggle component
+ * Myro — Accent toggle component
  * ──────────────────────────────────────────────────────────────────
  * Drop this anywhere (recommended: sidebar footer).
  * Writes data-accent="signal" | "forge" on <html> and persists to

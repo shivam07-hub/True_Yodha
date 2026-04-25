@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Truth Mirror — globals
+   Myro — globals
    Tokens live in ./design-tokens.css (single source of truth).
    ───────────────────────────────────────────────────────────── */
 @import "./design-tokens.css";

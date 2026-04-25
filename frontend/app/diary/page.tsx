@@ -492,7 +492,7 @@ function DiaryPageInner() {
               { label: "Streak",      value: streak,                unit: "d"    },
               { label: "Entries",     value: entries.length,        unit: ""     },
               { label: "Total XP",    value: totalXP,               unit: ""     },
-              { label: "Truth Score", value: Math.round(truthScore), unit: "/100" },
+              { label: "Myro Score", value: Math.round(truthScore), unit: "/100" },
             ].map(({ label, value, unit }, idx) => (
               <div key={label} style={{
                 flex: 1, padding: "6px 20px",

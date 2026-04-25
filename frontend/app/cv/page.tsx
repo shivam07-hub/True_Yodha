@@ -609,7 +609,7 @@ export default function CVPage() {
             })}
             {scoreData && (
               <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Truth Score:</span>
+                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Myro Score:</span>
                 <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
                   {Math.round(scoreData.total_score)}
                 </span>

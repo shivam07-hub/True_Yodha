@@ -9,6 +9,7 @@ import type { MarketAnalytics } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
+import { MyroLogo } from "@/components/myro-logo"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -30,18 +31,6 @@ interface DrillEntity {
   roles: number
   skills: string[]
   type: "company" | "industry"
-}
-
-function TMLogo({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ color: "var(--tm-accent)" }}>
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
-        stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
-      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
-      <line x1="12" y1="2.5" x2="12" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
-    </svg>
-  )
 }
 
 function IntelBar({ label, count, max, active, onClick }: {
@@ -205,10 +194,10 @@ export default function LoginPage() {
           minHeight: 76,
         }}>
           <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}>
-            <TMLogo />
+            <MyroLogo size={32} />
           </div>
           <div style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Truth Mirror</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
             <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>Career Intelligence</div>
           </div>
         </div>
@@ -579,7 +568,7 @@ export default function LoginPage() {
                 See how your skills stack up against this market
               </div>
               <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                Upload your CV → get your Mirror Score in 60 seconds
+                Upload your CV → get your Myro Score in 60 seconds
               </div>
             </div>
             <Link href="/signup" style={{
@@ -588,7 +577,7 @@ export default function LoginPage() {
               color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
               textDecoration: "none", whiteSpace: "nowrap",
             }}>
-              Sign up now to see Mirror Scores →
+              Sign up to see your Myro Score →
             </Link>
           </div>
 

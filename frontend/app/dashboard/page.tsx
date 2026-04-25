@@ -53,11 +53,11 @@ export default function DashboardPage() {
             <p className="tm-meta">
               {scoreData
                 ? `${scoreData.skills_assessed} skills assessed · ${scoreData.gap_skills.length} gaps identified`
-                : "Upload your CV to see your Truth Score"}
+                : "Upload your CV to see your Myro Score"}
             </p>
           </div>
 
-          {/* Hero Truth Score */}
+          {/* Hero Myro Score */}
           {totalScore !== null && (
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{
@@ -75,7 +75,7 @@ export default function DashboardPage() {
                   fontFamily: "var(--tm-font-sans)",
                 }}> /100</span>
               </div>
-              <div className="tm-label-caps">Truth Score</div>
+              <div className="tm-label-caps">Myro Score</div>
             </div>
           )}
         </div>

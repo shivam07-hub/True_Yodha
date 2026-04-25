@@ -449,7 +449,7 @@ function buildTutorContext(topJobs: JobMatch[], topGapSkills: GapSkill[]): strin
     .map((skill, index) => `${index + 1}. ${skill.skill} (gap ${Math.round(skill.gap_score)})`)
     .join("\n")
 
-  return `You are Truth Mirror's AI Career Tutor.
+  return `You are Myro, the career agent.
 Give practical and concise guidance in plain text.
 You can help with CV bullet improvements, interview prep, skill gap action plans, and job-specific preparation.
 Do not claim to have written to the database, applied for jobs, or changed tracker state.
@@ -473,7 +473,7 @@ function AITutor({
 }) {
   const [msg, setMsg] = useState("")
   const [chat, setChat] = useState<TutorMessage[]>([
-    { role: "ai", text: "I can coach you on job-fit strategy, CV bullet upgrades, and interview prep. Ask me what role you want to target next." },
+    { role: "ai", text: "Hi, I'm Myro. I can coach you on job-fit strategy, CV bullet upgrades, and interview prep. Ask me what role you want to target next." },
   ])
   const [loading, setLoading] = useState(false)
   const [showIntro, setShowIntro] = useState(false)
@@ -569,7 +569,7 @@ function AITutor({
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
-            AI Career Tutor
+            Myro
           </div>
           <div style={{
             fontSize: 10, color: puterReady ? (signedIn ? "var(--tm-success)" : "var(--tm-warning)") : "var(--tm-text-faint)",
@@ -598,7 +598,7 @@ function AITutor({
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void handleSend()}
-            placeholder="Ask your AI tutor anything..."
+            placeholder="Ask Myro anything..."
             className="tm-input"
             style={{ flex: 1, height: 40 }}
           />

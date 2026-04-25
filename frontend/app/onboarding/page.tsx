@@ -81,7 +81,7 @@ export default function OnboardingPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
-          Truth Mirror
+          Myro
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {STEPS.map((s, i) => (

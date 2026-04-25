@@ -1,4 +1,4 @@
-# Mirror — Frontend
+# Myro — Frontend
 
 Next.js 14 (App Router) · Tailwind CSS · shadcn/ui · TanStack Query · Zustand
 
@@ -13,13 +13,13 @@ Next.js 14 (App Router) · Tailwind CSS · shadcn/ui · TanStack Query · Zustan
 | `/tracker` | Jobs | Jobs Tracker — top 5 matched jobs with application status (pending → applied → interviewing → offer/rejected) |
 | `/market` | Intel | Market intelligence — skill demand, trending roles |
 | `/diary` | Diary | Daily skill diary — free-text entry → XP awarded per skill |
-| `/onboarding` | — | Step flow: CV upload → role selection → Mirror Score reveal |
+| `/onboarding` | — | Step flow: CV upload → role selection → Myro Score reveal |
 | `/mission` | — | About + mission statement |
 | `/jobs` | — | Full job list with search/filter (not in main nav) |
 
 Nav order: **CV → Dashboard → Jobs → Intel → Diary**
 
-Truth Score always visible in header (color-coded: red < 40, amber < 70, green ≥ 70).
+Myro Score always visible in header (color-coded: red < 40, amber < 70, green ≥ 70).
 
 ---
 
@@ -28,7 +28,7 @@ Truth Score always visible in header (color-coded: red < 40, amber < 70, green �
 ```
 components/
 ├── app-shell.tsx               Nav header + page wrapper
-├── truth-mirror-logo.tsx       Logo SVG
+├── myro-logo.tsx               Myro logo image
 ├── skill-graph-preview.tsx     Animated SVG skill graph (unlocked vs locked nodes)
 ├── feedback-widget.tsx         Floating feedback button
 ├── dashboard/

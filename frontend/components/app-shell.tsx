@@ -12,6 +12,7 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
+import { MyroLogo } from "@/components/myro-logo"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", desc: "Overview & analytics",   icon: "▣", nudge: false },
@@ -29,30 +30,13 @@ const FEEDBACK_ACTIONS = [
 
 type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url">
 
-function TMLogo({ size = 28 }: { size?: number }) {
-  return (
-    <svg
-      width={size} height={size} viewBox="0 0 24 24" fill="none"
-      style={{ color: "var(--tm-accent)" }}
-    >
-      <path
-        d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5C16.4 21 20 16.8 20 12V6L12 2.5Z"
-        stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"
-      />
-      <path d="M12 2.5L4 6v6c0 4.8 3.6 9 8 10.5V2.5Z" fill="currentColor" opacity="0.85" />
-      <path d="M12 2.5L20 6v6c0 4.8-3.6 9-8 10.5V2.5Z" fill="currentColor" opacity="0.2" />
-      <line x1="12" y1="2.5" x2="12" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.6" />
-    </svg>
-  )
-}
-
 function AboutModal({ onClose }: { onClose: () => void }) {
   const howItWorks = [
     { n: "01", title: "Upload your CV",        body: "We extract every skill you've built across your career." },
     { n: "02", title: "We scan the market",    body: "Thousands of live job postings, parsed daily for what companies actually need." },
     { n: "03", title: "See your skill map",    body: "Your skills vs market demand — ranked, scored, and honest." },
     { n: "04", title: "Log daily progress",    body: "The Career Diary captures what you learn each day and credits your skills." },
-    { n: "05", title: "Watch your score rise", body: "Your Truth Score grows as you close the gap. Every entry counts." },
+    { n: "05", title: "Watch your score rise", body: "Your Myro Score grows as you close the gap. Every entry counts." },
   ]
   const values = [
     { icon: "◈", title: "Signal, not noise",               body: "We show you what companies are actually hiring for — not what feels good to hear. Radical transparency is non-negotiable." },
@@ -91,13 +75,13 @@ function AboutModal({ onClose }: { onClose: () => void }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             filter: "drop-shadow(0 0 12px var(--tm-accent-glow))",
           }}>
-            <TMLogo size={22} />
+            <MyroLogo size={28} />
           </div>
           <h2 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 8 }}>
-            Truth Mirror
+            Myro
           </h2>
           <p style={{ fontSize: 16, color: "var(--tm-text-muted)", fontStyle: "italic" }}>
-            See yourself clearly. For the first time.
+            See your next move clearly.
           </p>
           <p style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 10, lineHeight: 1.6, maxWidth: 420, margin: "10px auto 0" }}>
             {"The intelligence platform that reads what companies are actually hiring for — and shows you exactly where you stand, what's missing, and what to do next."}
@@ -109,7 +93,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
           <div style={{ padding: "18px 20px", borderRadius: "var(--tm-radius)", background: "var(--tm-warning-wash)", border: "1px solid var(--tm-border)" }}>
             <div className="tm-label-caps" style={{ color: "var(--tm-warning)", marginBottom: 10 }}>{"The Problem We're Solving"}</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 12 }}>
-              {"The job market doesn't tell you the truth."}
+              {"The job market doesn't show you the full picture."}
             </div>
             {[
               "Companies know which exact skills they're hiring for. You're guessing.",
@@ -128,7 +112,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
             <div className="tm-label-caps" style={{ marginBottom: 10 }}>Our Mission</div>
             <blockquote style={{ borderLeft: "3px solid var(--tm-accent)", paddingLeft: 16, margin: 0 }}>
               <p style={{ fontSize: 15, fontWeight: 500, color: "var(--tm-text)", lineHeight: 1.7, marginBottom: 8 }}>
-                Truth Mirror is the intelligence bridge between your skills and what the market actually needs — built on real hiring data from thousands of companies, updated daily.
+                Myro is the intelligence bridge between your skills and what the market actually needs — built on real hiring data from thousands of companies, updated daily.
               </p>
               <p style={{ fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.6 }}>
                 Every feature — the skill match, the diary, the score — exists to close one gap: the distance between where you are and where the market needs you to be.
@@ -184,7 +168,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
 
           {/* CTA */}
           <div style={{ textAlign: "center", padding: "20px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)" }}>
-            <div style={{ fontSize: 19, fontWeight: 700, color: "var(--tm-text)", marginBottom: 6 }}>Look in the mirror.</div>
+            <div style={{ fontSize: 19, fontWeight: 700, color: "var(--tm-text)", marginBottom: 6 }}>See your next move.</div>
             <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 14 }}>See where you really stand. Then do something about it.</div>
             <button
               onClick={onClose}
@@ -839,7 +823,7 @@ function UserFooter({
   }, [menuOpen, onMenuOpenChange])
 
   const extraActions = [
-    { id: "about",    icon: "◎", label: "About Truth Mirror", color: "var(--tm-accent)",       hoverBg: "var(--tm-accent-wash)" },
+    { id: "about",    icon: "◎", label: "About Myro", color: "var(--tm-accent)",       hoverBg: "var(--tm-accent-wash)" },
     { id: "settings", icon: "⚙", label: "Settings",           color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
     { id: "signout",  icon: "→", label: "Sign out",           color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)" },
   ]
@@ -915,7 +899,7 @@ function UserFooter({
             fontSize: 12, fontWeight: 700, color: "var(--tm-text)",
             transition: "all var(--tm-dur) var(--tm-ease)",
             boxShadow: menuOpen ? "0 0 12px var(--tm-accent-glow)" : "none",
-          }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "TM"}</div>
+          }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}</div>
           <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
           </div>
@@ -1003,15 +987,15 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
       >
         <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}>
-          <TMLogo />
+          <MyroLogo size={32} />
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Truth Mirror</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
           <div className="tm-label-caps" style={{ marginTop: 2, fontSize: 10 }}>Career Intelligence</div>
         </div>
       </div>
 
-      {/* Truth Score pill */}
+      {/* Myro Score pill */}
       <div style={{
         margin: "10px 8px", padding: "10px 12px",
         borderRadius: "var(--tm-radius)",
@@ -1029,7 +1013,7 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
           {score !== null ? Math.round(score) : "—"}
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
-          <div className="tm-label-caps" style={{ fontSize: 10 }}>Truth Score</div>
+          <div className="tm-label-caps" style={{ fontSize: 10 }}>Myro Score</div>
           <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 2 }}>Market position</div>
         </div>
       </div>

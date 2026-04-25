@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, ChevronRight, Compass, Flame, Globe, ShieldCheck, Sparkles, Target } from "lucide-react"
-import { TruthMirrorLogo } from "@/components/truth-mirror-logo"
+import { MyroLogo } from "@/components/myro-logo"
 import { SkillGraphPreview } from "@/components/skill-graph-preview"
 
 interface MissionContentProps {
@@ -15,7 +15,7 @@ const HOW_IT_WORKS = [
   { icon: Globe,       step: "02", title: "We scan the market",   body: "Thousands of live job postings, parsed daily for what companies actually need." },
   { icon: Target,      step: "03", title: "See your skill map",   body: "Your skills vs market demand — ranked, scored, and honest." },
   { icon: Flame,       step: "04", title: "Log daily progress",   body: "The Career Diary captures what you learn each day and credits your skills." },
-  { icon: Sparkles,    step: "05", title: "Watch your score rise", body: "Your Truth Score grows as you close the gap. Every entry counts." },
+  { icon: Sparkles,    step: "05", title: "Watch your score rise", body: "Your Myro Score grows as you close the gap. Every entry counts." },
 ]
 
 const VALUES = [
@@ -42,12 +42,12 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <section className="flex flex-col items-center text-center">
-        <TruthMirrorLogo size="lg" className="text-primary mb-5" />
+        <MyroLogo size="lg" className="mb-5" />
         <h1 className={`font-bold tracking-tight ${compact ? "text-2xl" : "text-4xl sm:text-5xl"}`}>
-          Truth Mirror
+          Myro
         </h1>
         <p className={`mt-3 font-medium text-primary ${compact ? "text-base" : "text-lg sm:text-xl"}`}>
-          See yourself clearly. For the first time.
+          See your next move clearly.
         </p>
         <p className={`mt-3 text-muted-foreground max-w-lg mx-auto ${compact ? "text-sm" : "text-base"}`}>
           The intelligence platform that reads what companies are actually hiring for —
@@ -77,7 +77,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
           The problem we&apos;re solving
         </p>
         <h2 className={`font-bold leading-snug ${compact ? "text-lg" : "text-2xl"}`}>
-          The job market doesn&apos;t tell you the truth.
+          The job market doesn&apos;t show you the full picture.
         </h2>
         <div className="mt-4 space-y-2.5">
           {[
@@ -99,7 +99,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
           Our mission
         </p>
         <blockquote className={`font-semibold leading-relaxed border-l-2 border-primary pl-4 ${compact ? "text-base" : "text-xl"}`}>
-          Truth Mirror is the intelligence bridge between your skills and what the market
+          Myro is the intelligence bridge between your skills and what the market
           actually needs — built on real hiring data from thousands of companies, updated daily.
         </blockquote>
         <p className="mt-4 text-sm text-muted-foreground">
@@ -155,7 +155,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
             proof that you&apos;re building them.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            That&apos;s what Truth Mirror is building. The world&apos;s most accurate,
+            That&apos;s what Myro is building. The world&apos;s most accurate,
             daily-updated map of human skill demand — sourced directly from what the
             best companies on earth are actually hiring for.
           </p>
@@ -186,7 +186,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
       {showCta && (
         <section className="rounded-xl bg-primary p-6 text-center text-primary-foreground">
           <h2 className={`font-bold ${compact ? "text-lg" : "text-2xl"}`}>
-            Look in the mirror.
+            See your next move.
           </h2>
           <p className="mt-2 text-sm opacity-80">
             See where you really stand. Then do something about it.
