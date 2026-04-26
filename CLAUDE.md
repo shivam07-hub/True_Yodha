@@ -136,13 +136,13 @@ Eight modularity issues tackled across seven phases. Each phase = one session, o
 **Phase 1b — `job_path.py` split.** ✅ DONE (`0ccb804`)
   Split `services/job_path.py` (961L) into `services/job_path/{plan,milestones,cv_generator,quality_gate,llm_polish,_db,_helpers,_content}.py`. All files ≤ 300L.
 
-**Phase 2 — Repository layer.** ⏳ NEXT
+**Phase 2 — Repository layer.** ✅ DONE (`5f9a95c`)
   Owner: Codex (behavior-preserving seams with token-scoped constraint per OQ2).
   Create `backend/app/repositories/{scores,skills,users,diary,cv,jobs}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
   **Token-scoped client for all user-facing routes. Service-role for admin/internal only.**
   Removes the #1 god node `get_supabase_admin()` (degree 33) from user-facing paths.
 
-**Phase 3 — Unified LLM provider abstraction.**
+**Phase 3 — Unified LLM provider abstraction.** ⏳ NEXT
   Owner: Codex (after Claude defines the interface).
   Three files (`skill_tagger.py`, `llm_ranker.py`, `job_path/llm_polish.py`) each re-implement the same OpenRouter → Groq → Gemini fallback chain. Consolidate into `services/llm_provider.py` exposing `LLMProvider.complete(prompt, model_pref) -> str` with built-in fallback + rate-limit detection.
   Scope: Myro cloud stack only. Scraper stays local-only (LM Studio) — do not merge the stacks.
@@ -310,54 +310,53 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-26 — OQ2 POLICY ENFORCEMENT)
+## LAST SESSION SUMMARY (2026-04-27 — PHASE 2C JOBS REPOSITORY)
 
 ```
-Date: 2026-04-26
-Milestone: OQ2 policy enforced across all Phase 2A repos. All user-facing routes now token-scoped.
+Date: 2026-04-27
+Milestone: Phase 2C complete. JobsRepository seam created; all user-facing jobs routes now token-scoped.
 
 Commits this session:
-  9e21063  docs(claude): rename Mirror→Myro, lock all open questions, reset Phase 2 to NEXT
-  3c958bb  refactor(repos): enforce token-scoped client on all user-facing routes (OQ2 policy)
+  5f9a95c  refactor(repos): Phase 2C — JobsRepository seam, all jobs routes token-scoped
 
-OQ2 policy applied (commit 3c958bb):
-  scores:  GET /me, POST /compute → get_token_scores_repository
-           ⚠️  find_role_skill_rows / list_market_skill_rows read public.jobs.
-               Requires RLS to allow `authenticated` reads on jobs. Verify in Supabase
-               before promoting to production.
-  skills:  GET /, GET /domains → get_supabase() anon (global taxonomy, no user ownership)
-  users:   GET /me/skills → token-scoped (was admin; reads own user_skills)
-           GET /me, PUT /me/profile were already token-scoped ✓
-  diary:   POST /entry, GET /milestones, PUT /milestones → token-scoped
-           GET /history was already token-scoped ✓
+What landed:
+  backend/app/repositories/jobs.py (196L) — JobsRepository class with:
+    - fetch_analytics_rows(), search_jobs_by_filters()  ← public/global reads (admin client)
+    - get_user_skills_with_taxonomy(), get_all_jobs_skills(), get_user_target_roles()
+    - get_user_matches_for_week(), get_user_skill_rows(), get_user_profile_targeting()
+    - get_user_applications(), upsert_application(), get_application_with_job()
+    - delete_tracker_rows(), get_job_skills(), get_user_skill_map()
+    Factory functions: get_public_jobs_repository() (admin), get_token_jobs_repository() (token-scoped),
+                       get_admin_jobs_repository() (ops only)
 
-Admin factories kept in repo files for backfill/ops scripts. Removed from user-facing routers.
-Tests updated. 166 passed.
+  backend/app/routers/jobs.py — all 15 endpoints updated:
+    - Public endpoints (analytics, search) → get_public_jobs_repository (admin, no JWT)
+    - All user-facing endpoints → get_token_jobs_repository (token-scoped)
+    - Service calls (job_path_service, job_importer, job_matcher, llm_ranker) pass repo.client
+    - Removed inline get_supabase_admin() / get_supabase_for_token() calls from router
+    - Hoisted datetime/JobSearchItem imports to module level
+
+  Tests updated to use app.dependency_overrides[get_token_jobs_repository]:
+    - test_jobs_applications.py → _FakeJobsRepository with delete_tracker_rows()
+    - test_jobs_path_api.py → _FakeJobsRepository with .client property
+    - test_jobs_import.py → _FakeJobsRepository with .client property
+  All 166 tests pass. tsc --noEmit OK. next lint clean. All repos ≤ 300L.
+
+Phase 2 repository layer complete (2A scores/skills/users/diary + 2B cv + 2C jobs).
+get_supabase_admin() no longer appears in any user-facing router.
 
 Known follow-ups (carried):
   [ ] Smoke test production URL end-to-end
   [ ] Regenerate Signal Dot particle logo in amber for Forge mode
   [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal
   [ ] Rename Mirror → Myro in code (API strings, UI labels, env var comments)
-  [ ] Verify RLS on public.jobs allows `authenticated` reads (needed for scores endpoints)
+  [ ] Verify RLS on public.jobs allows `authenticated` reads (needed for scores, jobs, matches endpoints)
 
-Next for Codex — Phase 2B:
-  Create backend/app/repositories/cv.py and move routers/cv.py Supabase calls behind it.
-  CV only — no jobs.py yet.
-  Use token-scoped client (get_supabase_for_token) for all user-facing CV endpoints.
-  Use get_supabase_admin() only if a CV endpoint genuinely needs cross-user reads (explain why).
-  CV slice covers:
-    - Baseline CV profile read (user_profiles.cv_raw_text, cv_parsed_at)
-    - CV History reads/writes and next version number
-    - Upload/text-submit profile update + cv_history insert
-    - Evidence summary reads from job_application_milestones, daily_logs, user_skills, mirror_scores
-    - Generated-draft/save-draft insert and user skill count
-    - Rate-limit adapter access to cv_history.uploaded_at
-  Run: pytest backend/tests -q + tsc --noEmit + next lint before committing.
-
-Next for Claude:
-  1. Verify RLS policy on public.jobs in Supabase dashboard
-  2. Define LLM provider interface for Phase 3
+Next: Phase 3 — Unified LLM provider abstraction (Claude defines interface, Codex implements)
+  Three files (skill_tagger.py, llm_ranker.py, job_path/llm_polish.py) each re-implement
+  the same OpenRouter → Groq → Gemini fallback chain. Consolidate into services/llm_provider.py.
+  Interface: LLMProvider.complete(prompt, model_pref) -> str with built-in fallback + rate-limit detection.
+  Scope: Myro cloud stack only. Scraper (LM Studio) stays separate.
 ```
 
 ---
