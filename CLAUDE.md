@@ -142,11 +142,11 @@ Eight modularity issues tackled across seven phases. Each phase = one session, o
   **Token-scoped client for all user-facing routes. Service-role for admin/internal only.**
   Removes the #1 god node `get_supabase_admin()` (degree 33) from user-facing paths.
 
-**Phase 3 — Unified LLM provider abstraction.** ⏳ NEXT
-  Owner: Codex (after Claude defines the interface).
-  Three files (`skill_tagger.py`, `llm_ranker.py`, `job_path/llm_polish.py`) each re-implement the same OpenRouter → Groq → Gemini fallback chain. Consolidate into `services/llm_provider.py` exposing `LLMProvider.complete(prompt, model_pref) -> str` with built-in fallback + rate-limit detection.
-  Scope: Myro cloud stack only. Scraper stays local-only (LM Studio) — do not merge the stacks.
-  After Phase 3, `cv_parser.py` and the diary processor should also migrate to the same abstraction.
+**Phase 3 — Unified LLM provider abstraction.** ✅ DONE (`90f8639`)
+  Created `services/llm_provider.py`: `LLMProvider` class, `async complete(messages, max_tokens=4096) -> str`, `LLMProviderError`, `get_llm_provider()` Depends factory.
+  Migrated `llm_ranker.py` + `llm_polish.py` to LLMProvider. Made `call_llm`, `rank_and_persist`, `_call_ai_polish`, `generate_job_cv` async.
+  Scope: Myro cloud stack only. Scraper (`skill_tagger.py`) intentionally excluded.
+  Post-Phase-3 migration pending: `cv_parser.py` and diary processor.
 
 **Phase 4 — Cross-repo taxonomy + jobs schema contract.**
   Owner: Claude Code (cross-repo, needs careful coordination).
@@ -310,7 +310,54 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — PHASE 2C JOBS REPOSITORY)
+## LAST SESSION SUMMARY (2026-04-27 — PHASE 3 LLM PROVIDER ABSTRACTION)
+
+```
+Date: 2026-04-27
+Milestone: Phase 3 complete. Unified LLMProvider abstraction created; llm_ranker + llm_polish migrated.
+
+Commits this session:
+  90f8639  refactor(llm): Phase 3 — unified LLMProvider abstraction, async fallback chain
+
+Design decisions (grilled + locked before implementation):
+  - Interface: async complete(messages: list[dict], max_tokens: int = 4096) -> str
+  - No model_pref param — all callers use same provider order, Brooks: no premature generality
+  - Raises LLMProviderError on total failure — callers decide degradation (ranker: overlap-only, polish: None)
+  - Class-based LLMProvider injected via Depends(get_llm_provider)
+  - skill_tagger.py intentionally excluded (scraper / local LM Studio stack)
+
+What landed:
+  backend/app/services/llm_provider.py (92L) — LLMProvider, LLMProviderError, get_llm_provider()
+    Provider chain: OpenRouter gpt-4o-mini → Groq llama-3.3-70b → Gemini flash-lite → OR free llama
+
+  backend/app/services/llm_ranker.py — async call_llm + rank_and_persist; provider injected
+  backend/app/services/job_path/llm_polish.py — async _call_ai_polish; provider injected
+  backend/app/services/job_path/cv_generator.py (299L) — async generate_job_cv; provider param added
+  backend/app/routers/jobs.py — Depends(get_llm_provider) on /compute + /applications/{id}/cv
+
+  Tests:
+    test_job_path_service.py — 3 generate_job_cv tests made async (@pytest.mark.asyncio)
+    test_jobs_path_api.py — fake generate_job_cv updated to async with provider param
+    Also fixed pre-existing bug: _snapshot_hash referenced via job_path, now via _cv_generator_mod
+
+  All 166 tests pass. tsc --noEmit OK. next lint clean. All files ≤ 300L.
+
+Known follow-ups (carried):
+  [ ] cv_parser.py + diary processor migration to LLMProvider (post-Phase-3)
+  [ ] Smoke test production URL end-to-end
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal
+  [ ] Rename Mirror → Myro in code (API strings, UI labels, env var comments)
+  [ ] Verify RLS on public.jobs allows authenticated reads
+
+Next: Phase 4 — Cross-repo taxonomy + jobs schema contract (Claude Code)
+  Lightcast taxonomy lives in TWO places: backend/lightcast_skills_taxonomy.json AND
+  firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json. Promote to versioned shared artefact
+  + checksum check on boot. Add contract test asserting public.jobs table shape matches
+  what csv_importer.py writes.
+```
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — PHASE 2C JOBS REPOSITORY)
 
 ```
 Date: 2026-04-27
