@@ -35,7 +35,7 @@ app.include_router(diary.router)
 @app.on_event("startup")
 async def _verify_taxonomy_integrity() -> None:
     try:
-        version = verify_taxonomy_integrity(_TAXONOMY_PATH)
+        verify_taxonomy_integrity(_TAXONOMY_PATH)
     except JobFeedTaxonomyMismatchError as exc:
         raise RuntimeError(f"Taxonomy integrity check failed on boot: {exc}") from exc
 
