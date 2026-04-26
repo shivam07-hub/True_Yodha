@@ -76,6 +76,9 @@ frontend/Black_futuristist_frontend/
 frontend/Brand/
 archon-install.sh
 
+# Local reference workspace — codebases/images for design and agent context only
+reference/
+
 # Taxonomy root copies — canonical copy lives in backend/
 lightcast_skills_taxonomy.json
 backend/lightcast_skills_taxonomy copy.json

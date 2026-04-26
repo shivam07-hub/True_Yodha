@@ -1,4 +1,8 @@
 {
+  "_meta": {
+    "version": "1.0.0",
+    "sha256": "34f148c77c959a96ae32721ce15880c979509ed90ee0c5a6cc42ad55f602e635"
+  },
   "name": "Categories",
   "children": [
     {
@@ -73311,7 +73315,7 @@
               "id": "ESBF76AEBBF2135147C9"
             },
             {
-              "name": "ESG\u200b Acumen",
+              "name": "ESG​ Acumen",
               "id": "ESCD36DDCF5DDAF47C46"
             },
             {
@@ -91496,7 +91500,7 @@
               "id": "ESB45D777C8DD0B8FB72"
             },
             {
-              "name": "Canc\u00fan Agreements",
+              "name": "Cancún Agreements",
               "id": "ES309DE543DF3B4B5CA1"
             },
             {
@@ -92200,7 +92204,7 @@
               "id": "ESE3316D97F77A56ACF4"
             },
             {
-              "name": "CO\u2082 and Pressure Control Management",
+              "name": "CO₂ and Pressure Control Management",
               "id": "ESE25AE98DEB461AA74C"
             },
             {
@@ -111003,7 +111007,7 @@
               "id": "ESB02A55D2466B6750A9"
             },
             {
-              "name": "Clean-in-Place (CIP) Cycle \u2013 Sanitisation",
+              "name": "Clean-in-Place (CIP) Cycle – Sanitisation",
               "id": "ES73A89680D4B25BF323"
             },
             {
@@ -126363,7 +126367,7 @@
               "id": "ES8F109E0AC6C1A20311"
             },
             {
-              "name": "F\u00f6rster Resonance Energy Transfer",
+              "name": "Förster Resonance Energy Transfer",
               "id": "KS1244F6DN9DGNKJ6K5N"
             },
             {

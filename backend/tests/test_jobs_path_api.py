@@ -2,12 +2,20 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_current_user
 from app.main import app
+from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
 
 
+class _FakeJobsRepository:
+    @property
+    def client(self) -> object:
+        return object()
+
+
 def test_get_application_path_calls_service(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_path_service,
         "get_application_path",
@@ -38,8 +46,9 @@ def test_get_application_path_calls_service(monkeypatch) -> None:
 
 
 def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_path_service,
         "replace_skill_targets",
@@ -73,12 +82,11 @@ def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
 
 
 def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
-    monkeypatch.setattr(
-        jobs.job_path_service,
-        "generate_job_cv",
-        lambda db, user_id, job_id, ai_polish=False: {
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    async def _fake_generate_job_cv(db, user_id, job_id, ai_polish=False, provider=None):
+        return {
             "id": 1,
             "job_id": job_id,
             "cv_text": "Starter CV\n\nBaseline",
@@ -90,8 +98,9 @@ def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
             "ai_polish_limit": 3,
             "limit_reached": False,
             "polish_unavailable": False,
-        },
-    )
+        }
+
+    monkeypatch.setattr(jobs.job_path_service, "generate_job_cv", _fake_generate_job_cv)
 
     try:
         with TestClient(app) as client:

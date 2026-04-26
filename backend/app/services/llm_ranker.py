@@ -3,14 +3,11 @@ llm_ranker.py
 Re-ranks the top 10 job matches using an LLM.
 Generates per-job explanations and 7-day action plans for the top 3.
 
-Provider priority:
-  1. LM Studio (local)  — if LM_STUDIO_MODEL is set in .env (no cost, no rate limits)
-  2. GPT-4o mini        — fallback if LM Studio is not running
-
 Cost control:
   - One call per user per batch_week — cached in user_job_matches
   - Cache is invalidated when the user uploads a new CV (external — not handled here)
 
+Provider chain is managed by LLMProvider (services/llm_provider.py).
 Called from: POST /jobs/compute
 """
 
@@ -19,36 +16,13 @@ import logging
 import re
 from datetime import date, datetime, timezone
 
-from openai import OpenAI
 from supabase import Client
 
-from app.config import settings
+from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 4096
-
-
-_OR_HEADERS = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
-_OR_BASE    = "https://openrouter.ai/api/v1"
-_GROQ_BASE  = "https://api.groq.com/openai/v1"
-_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
-
-
-def _get_providers() -> list[tuple[OpenAI, str]]:
-    """Returns ordered provider list: OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free."""
-    providers: list[tuple[OpenAI, str]] = []
-    if settings.openrouter_api_key:
-        or_client = OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS)
-        providers.append((or_client, "openai/gpt-4o-mini"))
-    if settings.groq_api_key:
-        providers.append((OpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE), "llama-3.3-70b-versatile"))
-    if settings.google_api_key:
-        providers.append((OpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE), "gemini-2.0-flash-lite"))
-    if settings.openrouter_api_key:
-        or_free = OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS)
-        providers.append((or_free, "meta-llama/llama-3.3-70b-instruct:free"))
-    return providers
 
 SYSTEM_PROMPT = (
     "You are a senior HR career strategist. Given a candidate's extracted skill profile and a list of job postings, "
@@ -133,36 +107,27 @@ def parse_llm_response(text: str) -> list[dict] | None:
 
 # ── LLM call ─────────────────────────────────────────────────────────────────
 
-def call_llm(user_skill_map: dict[str, int], top_jobs: list[dict]) -> list[dict] | None:
-    """Try OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free. Returns parsed list or None."""
-    providers = _get_providers()
-    if not providers:
-        logger.error("No LLM configured for job ranking — set OPENROUTER_API_KEY, GROQ_API_KEY, or GOOGLE_API_KEY")
-        return None
+async def call_llm(
+    user_skill_map: dict[str, int],
+    top_jobs: list[dict],
+    provider: LLMProvider,
+) -> list[dict] | None:
+    """Call LLMProvider with ranking prompt. Returns parsed list or None on failure."""
     prompt = build_prompt(user_skill_map, top_jobs)
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": prompt},
+    ]
+    try:
+        content = await provider.complete(messages, max_tokens=_MAX_TOKENS)
+    except LLMProviderError:
+        logger.error("All job ranking providers failed")
+        return None
 
-    for client, model in providers:
-        logger.info("LLM ranker using model: %s", model)
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                max_tokens=_MAX_TOKENS,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": prompt},
-                ],
-            )
-            content = response.choices[0].message.content or ""
-        except Exception as exc:
-            logger.warning("LLM ranking failed with %s: %s — trying next provider", model, exc)
-            continue
-
-        result = parse_llm_response(content)
-        if result:
-            return result
-        logger.warning("LLM ranker: %s returned unparseable response — trying next provider", model)
-
-    logger.error("All job ranking providers failed")
+    result = parse_llm_response(content)
+    if result:
+        return result
+    logger.warning("LLM ranker: unparseable response from provider")
     return None
 
 
@@ -211,12 +176,13 @@ def persist_matches(
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-def rank_and_persist(
+async def rank_and_persist(
     db: Client,
     user_id: str,
     batch_week: date,
     user_skill_map: dict[str, int],
     top_jobs: list[dict],
+    provider: LLMProvider,
 ) -> int:
     """
     Full ranking pipeline: LLM call → persist.
@@ -230,10 +196,9 @@ def rank_and_persist(
         logger.info("Job match cache valid for user %s week %s — skipping LLM", user_id, batch_week)
         return 0
 
-    ranked = call_llm(user_skill_map, top_jobs)
+    ranked = await call_llm(user_skill_map, top_jobs, provider)
 
     if ranked is None:
-        # LLM failed — persist overlap-only results without LLM ranking
         logger.warning("LLM ranking failed for user %s — storing overlap scores only", user_id)
         ranked = [
             {"job_id": j["job_id"], "rank": i + 1, "explanation": None, "action_plan": None}

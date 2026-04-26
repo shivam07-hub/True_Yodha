@@ -1,10 +1,10 @@
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.repositories.jobs import JobsRepository, get_public_jobs_repository, get_token_jobs_repository
 from app.schemas import (
     ActionPlanDay,
     ApplicationResponse,
@@ -30,7 +30,9 @@ from app.schemas import (
     UserSkillDemandItem,
     UserSkillDemandResponse,
 )
+from app.schemas.jobs import JobSearchItem
 from app.services import job_importer, job_matcher, job_path as job_path_service, llm_ranker
+from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring_engine import fetch_aspiration_skills
 
@@ -43,14 +45,11 @@ def _last_monday() -> date:
 
 
 @router.get("/analytics", response_model=MarketAnalyticsResponse)
-async def get_market_analytics() -> MarketAnalyticsResponse:
+async def get_market_analytics(
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> MarketAnalyticsResponse:
     """Public endpoint — no auth. Aggregates stats from the raw jobs table."""
-    db = get_supabase_admin()
-    cols = "company_name, industry, main_skills, batch_date"
-    # Supabase caps at 1000 rows per request — paginate to get everything
-    page1 = db.table("jobs").select(cols).range(0, 999).execute().data
-    page2 = db.table("jobs").select(cols).range(1000, 9999).execute().data
-    rows = page1 + page2
+    rows = repo.fetch_analytics_rows()
 
     company_counts: Counter[str] = Counter()
     industry_counts: Counter[str] = Counter()
@@ -102,20 +101,13 @@ async def get_market_analytics() -> MarketAnalyticsResponse:
 
 
 @router.get("/search", response_model=JobSearchResponse)
-async def search_jobs(company: str | None = None, skill: str | None = None) -> JobSearchResponse:
+async def search_jobs(
+    company: str | None = None,
+    skill: str | None = None,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> JobSearchResponse:
     """Public endpoint. Filter jobs by company name and/or skill (substring match on main_skills)."""
-    from app.schemas.jobs import JobSearchItem
-    db = get_supabase_admin()
-    query = db.table("jobs").select("job_id, job_title, company_name, job_description")
-    if company:
-        query = query.eq("company_name", company)
-    rows = query.limit(200).execute().data
-    if skill:
-        skill_lower = skill.lower()
-        rows = [
-            r for r in rows
-            if any(skill_lower in (s or "").lower() for s in (r.get("main_skills") or []))
-        ]
+    rows = repo.search_jobs_by_filters(company, skill)
     items = [
         JobSearchItem(
             job_id=r["job_id"],
@@ -123,29 +115,24 @@ async def search_jobs(company: str | None = None, skill: str | None = None) -> J
             company_name=r.get("company_name"),
             job_description=r.get("job_description"),
         )
-        for r in rows[:50]
+        for r in rows
     ]
     return JobSearchResponse(jobs=items, total=len(items))
 
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
-async def get_my_skill_demand(current_user: dict = Depends(get_current_user)) -> UserSkillDemandResponse:
+async def get_my_skill_demand(
+    current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> UserSkillDemandResponse:
     """
     Return market demand for skills already present in the user's CV.
     Sorted by weighted demand (main_skill×2 + side_skill×1), then raw job count.
     """
-    db = get_supabase_admin()
     user_id = current_user["user_id"]
 
-    user_skills_result = (
-        db.table("user_skills")
-        .select("matched_level, proficiency_title, skills(taxonomy_key, display_name)")
-        .eq("user_id", user_id)
-        .execute()
-    )
-
     user_skills: dict[str, dict] = {}
-    for row in user_skills_result.data or []:
+    for row in repo.get_user_skills_with_taxonomy(user_id):
         skill = row.get("skills")
         if not skill:
             continue
@@ -162,13 +149,9 @@ async def get_my_skill_demand(current_user: dict = Depends(get_current_user)) ->
     if not user_skills:
         return UserSkillDemandResponse(skills=[], total=0)
 
-    jobs_page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-    jobs_page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
-    jobs_rows = (jobs_page1 or []) + (jobs_page2 or [])
-
     weighted_demand: Counter[str] = Counter()
     job_count: Counter[str] = Counter()
-    for row in jobs_rows:
+    for row in repo.get_all_jobs_skills():
         seen_in_job: set[str] = set()
 
         for raw_skill in row.get("main_skills") or []:
@@ -186,15 +169,8 @@ async def get_my_skill_demand(current_user: dict = Depends(get_current_user)) ->
         for skill_key in seen_in_job:
             job_count[skill_key] += 1
 
-    profile_result = (
-        db.table("user_profiles")
-        .select("target_roles")
-        .eq("id", user_id)
-        .maybe_single()
-        .execute()
-    )
-    target_roles: list[str] = ((profile_result.data or {}).get("target_roles") or [])
-    aspiration = fetch_aspiration_skills(db, target_roles)
+    target_roles = repo.get_user_target_roles(user_id)
+    aspiration = fetch_aspiration_skills(repo.client, target_roles)
     aspiration_by_key = {key.lower(): level for key, level in aspiration.items()}
 
     items: list[UserSkillDemandItem] = []
@@ -228,31 +204,21 @@ async def get_my_skill_demand(current_user: dict = Depends(get_current_user)) ->
 
 
 @router.get("/matches", response_model=JobMatchesResponse)
-async def get_job_matches(current_user: dict = Depends(get_current_user)) -> JobMatchesResponse:
+async def get_job_matches(
+    current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> JobMatchesResponse:
     batch_week = _last_monday()
-    # Admin client so the join to `jobs` table works regardless of its RLS policy.
-    # user_id filter below enforces row-level security manually.
-    db = get_supabase_admin()
-
-    result = (
-        db.table("user_job_matches")
-        .select(
-            "id, job_id, overlap_score, llm_rank, llm_explanation, is_recommended, action_plan, batch_week, computed_at, matched_skills,"
-            "jobs(job_title, company_name, industry, location, apply_url, job_description)"
-        )
-        .eq("user_id", current_user["user_id"])
-        .eq("batch_week", str(batch_week))
-        .order("llm_rank")
-        .execute()
-    )
-
-    jobs = [_to_job_match(row, batch_week) for row in result.data]
+    rows = repo.get_user_matches_for_week(current_user["user_id"], batch_week)
+    jobs = [_to_job_match(row, batch_week) for row in rows]
     return JobMatchesResponse(jobs=jobs, batch_week=batch_week, total=len(jobs))
 
 
 @router.post("/compute", response_model=ComputeJobMatchesResponse)
 async def compute_job_matches(
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> ComputeJobMatchesResponse:
     """
     Run the full job-matching pipeline for the current user:
@@ -263,13 +229,12 @@ async def compute_job_matches(
 
     Cached per batch_week — skips LLM if already computed this week.
     """
-    db = get_supabase_admin()
+    db = repo.client
     user_id = current_user["user_id"]
     batch_week = _last_monday()
 
     assert_not_rate_limited(db, user_id, "user_job_matches", "computed_at")
 
-    # Cache check
     if llm_ranker.is_cache_valid(db, user_id, batch_week):
         return ComputeJobMatchesResponse(
             matches_written=0,
@@ -277,14 +242,8 @@ async def compute_job_matches(
             batch_week=batch_week,
         )
 
-    # Build user skill map from user_skills table
-    skills_result = (
-        db.table("user_skills")
-        .select("matched_level, skills(taxonomy_key)")
-        .eq("user_id", user_id)
-        .execute()
-    )
-    if not skills_result.data:
+    skill_rows = repo.get_user_skill_rows(user_id)
+    if not skill_rows:
         return ComputeJobMatchesResponse(
             matches_written=0,
             from_cache=False,
@@ -294,20 +253,12 @@ async def compute_job_matches(
 
     user_skill_map: dict[str, int] = {
         row["skills"]["taxonomy_key"]: row["matched_level"]
-        for row in skills_result.data
+        for row in skill_rows
         if row.get("skills")
     }
 
-    profile_result = (
-        db.table("user_profiles")
-        .select("target_roles, target_location")
-        .eq("id", user_id)
-        .single()
-        .execute()
-    )
-    profile = profile_result.data or {}
+    profile = repo.get_user_profile_targeting(user_id)
 
-    # Get top 10 by overlap with aspiration rerank
     top_jobs = job_matcher.get_top_matches(
         db,
         user_skill_map,
@@ -321,8 +272,7 @@ async def compute_job_matches(
             detail="No tagged job postings found. Complete job tagging first.",
         )
 
-    # LLM re-rank + persist
-    written = llm_ranker.rank_and_persist(db, user_id, batch_week, user_skill_map, top_jobs)
+    written = await llm_ranker.rank_and_persist(db, user_id, batch_week, user_skill_map, top_jobs, llm_provider)
 
     return ComputeJobMatchesResponse(
         matches_written=written,
@@ -332,46 +282,41 @@ async def compute_job_matches(
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])
-async def get_applications(current_user: dict = Depends(get_current_user)) -> list[ApplicationResponse]:
-    # Admin client so the join to `jobs` table works regardless of its RLS policy.
-    result = (
-        get_supabase_admin()
-        .table("job_applications")
-        .select("*, jobs(job_title, company_name, job_description)")
-        .eq("user_id", current_user["user_id"])
-        .order("created_at", desc=True)
-        .execute()
-    )
-    return [_to_application(row) for row in result.data]
+async def get_applications(
+    current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> list[ApplicationResponse]:
+    rows = repo.get_user_applications(current_user["user_id"])
+    return [_to_application(row) for row in rows]
 
 
 @router.post("/import/preview", response_model=JobImportPreviewResponse)
 async def preview_job_import(
     body: JobImportPreviewRequest,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobImportPreviewResponse:
     if not body.job_description.strip():
         raise HTTPException(
             status_code=422,
             detail="Job description is required.",
         )
-    db = get_supabase_admin()
-    return JobImportPreviewResponse(**job_importer.preview_imported_job(db, body))
+    return JobImportPreviewResponse(**job_importer.preview_imported_job(repo.client, body))
 
 
 @router.post("/import", response_model=ApplicationResponse)
 async def import_job(
     body: JobImportRequest,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(
             status_code=422,
             detail="Role name and job description are required.",
         )
-    db = get_supabase_admin()
     return ApplicationResponse(
-        **job_importer.save_imported_job(db, current_user["user_id"], body)
+        **job_importer.save_imported_job(repo.client, current_user["user_id"], body)
     )
 
 
@@ -379,10 +324,10 @@ async def import_job(
 async def get_application_path(
     job_id: str,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathResponse:
-    db = get_supabase_admin()
     return JobPathResponse(
-        **job_path_service.get_application_path(db, current_user["user_id"], job_id)
+        **job_path_service.get_application_path(repo.client, current_user["user_id"], job_id)
     )
 
 
@@ -391,11 +336,11 @@ async def replace_application_targets(
     job_id: str,
     body: JobPathTargetsRequest,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathResponse:
-    db = get_supabase_admin()
     return JobPathResponse(
         **job_path_service.replace_skill_targets(
-            db,
+            repo.client,
             current_user["user_id"],
             job_id,
             [target.model_dump() for target in body.targets],
@@ -409,10 +354,10 @@ async def update_application_milestone(
     milestone_id: str,
     body: JobPathMilestoneUpdate,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathMilestoneResponse:
-    db = get_supabase_admin()
     return JobPathMilestoneResponse(
-        **job_path_service.update_milestone(db, current_user["user_id"], job_id, milestone_id, body)
+        **job_path_service.update_milestone(repo.client, current_user["user_id"], job_id, milestone_id, body)
     )
 
 
@@ -421,10 +366,11 @@ async def generate_application_cv(
     job_id: str,
     body: JobCVGenerateRequest,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> JobCVGenerateResponse:
-    db = get_supabase_admin()
     return JobCVGenerateResponse(
-        **job_path_service.generate_job_cv(db, current_user["user_id"], job_id, ai_polish=body.ai_polish)
+        **await job_path_service.generate_job_cv(repo.client, current_user["user_id"], job_id, ai_polish=body.ai_polish, provider=llm_provider)
     )
 
 
@@ -433,97 +379,60 @@ async def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     valid_statuses = {"pending", "applied", "no_response", "responded", "interviewing", "rejected", "offer", "abandoned"}
     if body.status not in valid_statuses:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {body.status}")
 
-    updates = {"status": body.status}
+    updates: dict = {"status": body.status}
     if body.notes is not None:
         updates["notes"] = body.notes
     if body.company_response is not None:
         updates["company_response"] = body.company_response
     if body.status == "applied":
-        from datetime import datetime, timezone
         updates["applied_at"] = datetime.now(timezone.utc).isoformat()
     if body.status in {"responded", "interviewing", "rejected", "offer"}:
-        from datetime import datetime, timezone
         updates["response_at"] = datetime.now(timezone.utc).isoformat()
     if body.status == "offer":
-        from datetime import datetime, timezone
         updates["offer_received_at"] = datetime.now(timezone.utc).isoformat()
     if body.status == "abandoned":
-        from datetime import datetime, timezone
         updates["closed_at"] = datetime.now(timezone.utc).isoformat()
     if body.followed_up:
-        from datetime import datetime, timezone
         updates["followed_up_at"] = datetime.now(timezone.utc).isoformat()
 
-    user_db = get_supabase_for_token(current_user["token"])
-    user_db.table("job_applications").upsert(
-        {"user_id": current_user["user_id"], "job_id": job_id, **updates},
-        on_conflict="user_id,job_id",
-    ).execute()
-    # Admin client for the read-back so the jobs join isn't blocked by RLS.
-    result = (
-        get_supabase_admin()
-        .table("job_applications")
-        .select("*, jobs(job_title, company_name, job_description)")
-        .eq("user_id", current_user["user_id"])
-        .eq("job_id", job_id)
-        .single()
-        .execute()
-    )
-    if not result.data:
+    user_id = current_user["user_id"]
+    repo.upsert_application(user_id, job_id, updates)
+    data = repo.get_application_with_job(user_id, job_id)
+    if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
-    return _to_application(result.data)
+    return _to_application(data)
 
 
 @router.delete("/tracker/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_tracker_job(
     job_id: str,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
-    user_db = get_supabase_for_token(current_user["token"])
-    for table_name in ("job_applications", "user_job_matches"):
-        (
-            user_db
-            .table(table_name)
-            .delete()
-            .eq("user_id", current_user["user_id"])
-            .eq("job_id", job_id)
-            .execute()
-        )
+    repo.delete_tracker_rows(current_user["user_id"], job_id)
 
 
 @router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)
 async def get_skill_gap(
     job_id: str,
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> SkillGapResponse:
     """Return per-job skill gap: which skills the job requires and whether the user has them."""
-    db = get_supabase_admin()
-    user_id = current_user["user_id"]
-
-    job_result = db.table("jobs").select(
-        "job_id, job_title, company_name, main_skills, side_skills"
-    ).eq("job_id", job_id).single().execute()
-    if not job_result.data:
+    job = repo.get_job_skills(job_id)
+    if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    job = job_result.data
     main_skills = [s.strip() for s in (job.get("main_skills") or []) if s and s.strip()]
     side_skills = [s.strip() for s in (job.get("side_skills") or []) if s and s.strip()]
 
-    skills_result = db.table("user_skills").select(
-        "matched_level, skills(taxonomy_key)"
-    ).eq("user_id", user_id).execute()
-
-    user_skill_map: dict[str, int] = {}
-    for row in (skills_result.data or []):
-        if row.get("skills"):
-            key = row["skills"]["taxonomy_key"].lower()
-            user_skill_map[key] = row["matched_level"]
+    user_skill_map = repo.get_user_skill_map(current_user["user_id"])
 
     gap_items: list[SkillGapItem] = []
     for skill in main_skills:

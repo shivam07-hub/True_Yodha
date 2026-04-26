@@ -1,5 +1,5 @@
-# MIRROR — CLAUDE.md (Cockpit)
-### Session Control File · v3.0 · April 2026
+# MYRO — CLAUDE.md (Cockpit)
+### Session Control File · v3.1 · April 2026
 
 ---
 
@@ -22,14 +22,15 @@
 
 ## PROJECT IN ONE PARAGRAPH
 
-Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV → skills are extracted and matched against a global skill taxonomy (L1–L5 levels determined by comparing CV evidence to taxonomy benchmark definitions) → top 5 job matches are found by skill overlap and LLM-ranked → top 3 are recommended to the user with explanations and a 7-day action plan to align their CV to each job → a Mirror Score (0–100) is computed across 10 domains → user sees their score, domain breakdown, top 3 recommended jobs, and top 5 skill upgrade priorities. Application tracking records whether the user applied, received a response, and status at the 1-week check-in. Rank, tier, and percentile are computed internally.
+Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV → skills are extracted and matched against a global skill taxonomy (L1–L5 levels determined by comparing CV evidence to taxonomy benchmark definitions) → top 5 job matches are found by skill overlap and LLM-ranked → top 3 are recommended to the user with explanations and a 7-day action plan to align their CV to each job → a Myro Score (0–100) is computed across 10 domains → user sees their score, domain breakdown, top 3 recommended jobs, and top 5 skill upgrade priorities. Application tracking records whether the user applied, received a response, and status at the 1-week check-in. Rank, tier, and percentile are computed internally.
 
-**Tech stack:** FastAPI (backend) · Railway (backend hosting) ~ Next.js 14 (frontend) , Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) ·  · Vercel (frontend hosting) · OpenRouter API (LLM ranking)
+**Tech stack:** FastAPI (backend) · Railway (backend hosting) · Next.js 14 (frontend), Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) · Vercel (frontend hosting) · OpenRouter API (LLM ranking) · Chrome Manifest V3 (browser extension at `/Chrome_extension/` — captures jobs from any URL into the user's Application list)
 
 **Reference docs:**
 - Full tech stack + architecture: `docs/TECH_STACK.md`
 - Scoring algorithm: `docs/SCORING_ALGORITHM.md`
 - Deployment guide (Git → GitHub → Vercel): `docs/DEPLOYMENT_GUIDE.md`
+- Chrome extension code: `/Chrome_extension/` (Manifest V3, captures `JobPosting` JSON-LD → backend)
 
 ---
 
@@ -54,304 +55,464 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## NEXT SESSION FOCUS (2026-04-25 — IA REORDER + FRICTIONLESS CV-OPTIONAL UX)
+## WORKING WITH CODEX (ChatGPT) — TWO-AGENT WORKFLOW
 
-**Spec:** `docs/superpowers/specs/2026-04-25-nav-reorder-and-cv-nudge.md`
+We have two coding agents on this codebase: **Claude Code** (this session) and **Codex / ChatGPT**. Treat Codex as a peer engineer on the same team.
 
-Headline changes (read the spec for exact JSX, copy, tokens, and acceptance checks):
+**Division of labour by strength**
 
-1. Sidebar order → **Intel → Jobs → Progress → CV Builder → Dashboard**.
-2. Score block: drop the `Market position` subtitle. Keep `MYRO SCORE` + number.
-3. Onboarding: gentle `×` close button, top-right of the header, font-consistent. Skips to `/market`.
-4. No first-run CV gate anywhere. Users without a CV browse freely.
-5. New reusable `<CVRequiredNudge />` component — banner or block variant — rendered consistently on `/market`, `/tracker`, `/jobs`, `/diary`, `/dashboard`. Replaces empty/blocked states.
+| Task type | Best fit | Why |
+|---|---|---|
+| Multi-file orchestration, cross-cutting refactors | Claude Code | Has `graphify-out/graph.json` context, subagents, persistent memory of architecture. |
+| Investigating uncertain code paths ("what does X do?", "where is Y called?") | Claude Code | Subagent + grep + graph queries. |
+| Mechanical splits / renames once interfaces are agreed | Codex | Faster on pure code transformation. |
+| Test scaffolding once new module boundaries are defined | Codex | Boilerplate-heavy, low-context. |
+| Coordinated commits, PR descriptions, smoke checks | Claude Code | Lives inside the git workflow. |
+| Single-file Python tweaks with clear instructions | Either | Pick whoever is free. |
 
-**Branch:** `develop`. Four commits per spec. Smoke on Vercel preview before any merge to `main`.
+**Handoff contract — Claude → Codex**
+When Claude writes a refactor plan for Codex it specifies:
+- target file(s) and exact line ranges (`file_path:line_number`)
+- new module names and public function signatures
+- which tests must pass after the move
+- any imports that need rewriting
 
-**Out of scope this session:** the milestone / job_application_milestones / CV variant rewiring (Part 2 of the IA discussion). That gets its own spec.
+**Handoff contract — Codex → Claude**
+When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SESSION SUMMARY** block in this file with what landed. Claude picks up from that summary on the next session.
+
+**Branch hygiene shared by both agents**
+- All work on `Develop`. Never push to `main` without explicit user approval.
+- One conventional-commits scope per commit.
+- Run `pytest backend/tests` + `tsc --noEmit` + `next lint` before marking a task complete.
+
+**Architecture audit artefact (refer to often)**
+- `graphify-out/GRAPH_REPORT.md` — knowledge-graph audit report (832 nodes, 1247 edges, 94 communities, generated 2026-04-26).
+- `graphify-out/graph.html` — interactive graph viewer.
+- Both agents should consult these before kicking off a refactor phase.
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
+## NEXT SESSION FOCUS (PHASE 2 — REPOSITORY LAYER)
+
+**Phase 1 shipped `fedb32e` (scoring engine split). Phase 1b shipped `0ccb804` (job_path split). Both committed and verified.**
+
+**Phase 2 work was lost in an accidental reset this session — needs full redo.**
+
+**Phase 2 — Repository layer (Codex pickup).**
+Create `backend/app/repositories/{scores,skills,users,diary,cv,jobs}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
+
+**Critical constraint from OQ2 decision (2026-04-26):** User-facing endpoints must use the **token-scoped Supabase client** (user's JWT), not `get_supabase_admin()`. Service-role is reserved for internal/admin-only operations. This is a behavior change from the previous version — enforce it in every repo adapter.
+
+Build order:
+1. **Phase 2A** — `repositories/{scores,skills,users,diary}.py` (four routers, previously done — redo with token-scoped constraint)
+2. **Phase 2B** — `repositories/cv.py`. Covers:
+   - Baseline CV profile read (`user_profiles.cv_raw_text`, `cv_parsed_at`)
+   - CV History reads/writes and next version number
+   - Upload/text-submit profile update + `cv_history` insert
+   - Evidence summary reads from `job_application_milestones`, `daily_logs`, `user_skills`, `mirror_scores`
+   - Generated-draft/save-draft insert and user skill count
+   - Rate-limit adapter access to `cv_history.uploaded_at`
+3. **Phase 2C** — `repositories/jobs.py` (largest slice — do not mix with CV in the same patch)
+
+Verification after each phase:
+```
+pytest backend/tests -q          → all pass
+tsc --noEmit                     → exit 0
+next lint                        → no errors
+wc -l backend/app/repositories/* → all ≤ 300L
+```
+
+After Phase 2C is green, commit to `Develop` and update LAST SESSION SUMMARY.
+
+---
+
+## REFACTOR ROADMAP (drafted 2026-04-26 from /graphify audit)
+
+Eight modularity issues tackled across seven phases. Each phase = one session, one commit, smoke-tested before any merge to `main`.
+
+**Phase 1 — Scoring engine split.** ✅ DONE (`fedb32e`)
+  Split `services/scoring_engine.py` (455L) → `services/scoring/{formulas,gap,persistence}.py`.
+
+**Phase 1b — `job_path.py` split.** ✅ DONE (`0ccb804`)
+  Split `services/job_path.py` (961L) into `services/job_path/{plan,milestones,cv_generator,quality_gate,llm_polish,_db,_helpers,_content}.py`. All files ≤ 300L.
+
+**Phase 2 — Repository layer.** ✅ DONE (`5f9a95c`)
+  Owner: Codex (behavior-preserving seams with token-scoped constraint per OQ2).
+  Create `backend/app/repositories/{scores,skills,users,diary,cv,jobs}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
+  **Token-scoped client for all user-facing routes. Service-role for admin/internal only.**
+  Removes the #1 god node `get_supabase_admin()` (degree 33) from user-facing paths.
+
+**Phase 3 — Unified LLM provider abstraction.** ✅ DONE (`90f8639`)
+  Created `services/llm_provider.py`: `LLMProvider` class, `async complete(messages, max_tokens=4096) -> str`, `LLMProviderError`, `get_llm_provider()` Depends factory.
+  Migrated `llm_ranker.py` + `llm_polish.py` to LLMProvider. Made `call_llm`, `rank_and_persist`, `_call_ai_polish`, `generate_job_cv` async.
+  Scope: Myro cloud stack only. Scraper (`skill_tagger.py`) intentionally excluded.
+  Post-Phase-3 migration pending: `cv_parser.py` and diary processor.
+
+**Phase 4 — Cross-repo taxonomy + jobs schema contract.**
+  Owner: Claude Code (cross-repo, needs careful coordination).
+  Lightcast taxonomy lives in TWO places: `backend/lightcast_skills_taxonomy.json` AND `firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json`. Promote to a versioned shared artefact + checksum check on boot. Add a contract test that asserts the `public.jobs` table shape matches what `csv_importer.py` writes.
+  Repos stay separate (independent deploy cadence). The contract test lives in Myro and runs in CI.
+
+**Phase 5 — Frontend prototype cleanup.**
+  Owner: Codex.
+  `frontend/Black_futuristist_frontend/` — confirm no live `BF_*` imports in production `.tsx`. Remove any that exist. Reference material stays out of the repo.
+
+**Phase 6 — Router file-size triage.**
+  Owner: Codex.
+  Split `routers/jobs.py` (592L) and `routers/cv.py` (446L) along feature-area lines: `routers/jobs/{list,detail,match,apply,milestone}.py`, `routers/cv/{upload,history,variants}.py`. Keep top-level `__init__.py` re-exports so `app.main` mounting stays unchanged.
+
+**Phase 7 — Dual scoring entry-point consolidation.**
+  Owner: Claude Code.
+  `compute_and_persist_score()` is the single canonical scoring entry point. `backfill_scores.py` and `restore_skills_from_cv_text.py` become thin CLI wrappers that call it. Every CV must have skills attached — enforce this in the upload flow. Document final flow in `docs/SCORING_ALGORITHM.md`.
+
+**Stretch (Phase 8) — Domain layer separation.**
+  Owner: Claude Code.
+  Pydantic schemas currently double as API contracts AND DB row shapes. Introduce DTO ↔ entity ↔ row mapping where the divergence is real. Only do this if Phases 1–7 surface concrete pain.
+
+---
+
+## DECISIONS LOCKED (2026-04-26)
+
+All open questions from the graphify audit and progress flow planning resolved. Do not reopen without explicit user instruction.
+
+### Refactor decisions
+
+| # | Question | Decision |
+|---|---|---|
+| OQ1 | Repo split vs monorepo | **Separate repos** — Mirror/Myro and firecrawl_Supabase stay independent for deploy cadence. Contract tests in Phase 4. |
+| OQ2 | `get_supabase_admin()` scope | **Token-scoped for user endpoints.** Service-role for admin/internal only. Enforced in Phase 2 repo adapters. |
+| OQ3 | Two LLM stacks | **Intentional separation.** Scraper = local-only (LM Studio). Myro = cloud (OpenRouter→Groq→Gemini). Phase 3 unifies Myro internals only. |
+| OQ4 | Dual scoring entry points | **Single canonical flow.** `compute_and_persist_score()` is the source of truth. Scripts become thin CLI wrappers. Every CV must have skills. |
+
+### Progress flow schema decisions (Tier 1 — all resolved)
+
+| # | Question | Decision |
+|---|---|---|
+| S1 | Two milestone tables | **Deprecate `user_milestones`.** One survivor: `job_application_milestones`, `job_id` nullable for personal milestones. |
+| S2 | `daily_logs` ↔ milestone binding | **Join table.** One diary entry can complete milestones across multiple job-paths simultaneously. |
+| S3 | Saved-job semantics | **Reuse `job_applications.status = 'pending'`** to mean saved/targeted. Every saved job is an intended application. |
+| S4 | Intel "pick target skill" | **Ephemeral.** Skill targets inferred from saved jobs only. Intel writes nothing to DB. |
+| S5 | Active job-path cap | **No cap.** Surface only "next due" milestone in diary regardless of how many active jobs. |
+
+---
+
+## ARCHITECTURE DECISIONS — PROGRESS FLOW UNIFICATION
+
+> **Read this before writing any spec or migration for the Job → Diary → Milestone → CV chain.**
+>
+> Target flow:
+>
+> ```
+> Intel    → pick target skill / company (ephemeral — no DB write)
+> Jobs     → save a target job (job_applications.status = 'pending')
+>            ↳ seeds job_application_milestones (7 rows) behind a CTA
+> Progress → "next due" milestone surfaced at top of /diary (no cap on active jobs)
+>            ↳ submitting an entry:
+>               • appends to daily_logs.entry_text
+>               • join table links entry → milestone(s) across job-paths
+>               • runs LLM signal extraction → fills skills_delta
+>               • upgrades user_skills.matched_level
+>               • explicit "Mark complete" button completes milestone
+>               • copies proof/impact onto that milestone row
+> CV       → when ≥3 milestones for a job have proof,
+>            deterministic CV variant auto-regenerates;
+>            AI polish is opt-in CTA (costs money)
+> Dashboard → trajectory view (score Δ, jobs in flight, milestones done, CV vN)
+> ```
+>
+> **Known structural bugs to fix as part of this work:**
+> 1. `user_milestones` table deprecated — migrate to `job_application_milestones` with nullable `job_id`. Diary writes to the survivor.
+> 2. `backend/app/routers/diary.py` has `signals: list[dict] = []` hardcoded — the LLM signal-extraction step is dead. `daily_logs.skills_delta` and `user_skills` upgrades from diary never fire.
+> 3. The skill-cart URL (`frontend/lib/diary-skill-cart.ts`) drops `job_id` and `milestone_date` between the Job page and the Diary page — binding context is lost.
+
+### Tier 2 — Surface-by-surface decisions (answer as each surface is built)
+
+**Jobs page — when user saves a job:**
+
+6. **Seed milestones automatically, or behind a "Build my 7-day plan" CTA?**
+   *Lean: CTA. Auto-seed risks spamming users who are still browsing.*
+
+7. **Milestone content source — LLM, template library, or user picks?**
+   `template_id` + `proof_prompt` + `impact_prompt` columns already exist on `job_application_milestones`.
+   *Lean: hybrid — template if `template_id` matches, else LLM-generated.*
+
+8. **Skill selection per path — all gap skills, top N, or user picks?**
+   *Lean: top 3 gap skills, user can swap.*
+
+9. **Plan start date — today, next Monday, or user-picked?**
+   *Lean: today, with a "shift to next Monday" toggle.*
+
+**Progress page — diary ↔ milestone binding:**
+
+10. **Binding mechanism — auto-bind today's entry to next-due milestone, or explicit dropdown?**
+    *Lean: auto-bind with a one-tap "this isn't about that milestone" override.*
+
+11. **Auto-complete the milestone on submit, or explicit "Mark complete" button?**
+    *Decision: explicit. Milestone completion is a meaningful event.*
+
+12. **Where do `proof` and `impact` come from?**
+    Options: (a) LLM-summarised from entry text; (b) two extra form fields; (c) entry text becomes proof, impact is a separate prompt using existing `proof_prompt` / `impact_prompt` columns.
+    *Lean: (c).*
+
+13. **Confidence score — user slider, LLM-rated, or derived from word-count/specificity?**
+    *Lean: LLM-rated with a user override.*
+
+**LLM extraction — diary signal pipeline:**
+
+14. **Provider chain.** Same as `cv_parser` (OpenRouter free Llama → Groq → Gemini → OpenRouter paid). Confirm or override after Phase 3.
+
+15. **Sync vs async.** Sync blocks submit (~2–4 s); async returns instantly and updates `skills_delta` in background.
+    *Lean: sync for v1, switch to async if latency hurts.*
+
+16. **Cost cap per submit.** Free Llama and Groq are free; Gemini and paid OpenRouter cost money. Cap at one paid call per submit?
+
+17. **Degradation policy when all providers fail.**
+    *Decision: save entry without `skills_delta`. Diary must not fail because the LLM is down.*
+
+18. **Skill-source attribution conflict.** When diary upgrades a skill originally `source='cv'`:
+    Options: (a) overwrite; (b) `source='cv+diary'`; (c) keep `cv`, stamp `last_diary_evidence_at`.
+    *Lean: (c).*
+
+**CV builder — variant regeneration:**
+
+19. **Threshold N — milestones-with-proof needed before regenerating `job_cv_variants`.**
+    *Decision: 3. Fast feedback loop.*
+
+20. **Auto-regenerate on threshold, or explicit CTA?**
+    *Decision: auto for deterministic version, CTA for AI polish (costs money).*
+
+21. **AI polish — always, opt-in per draft, or first-N-free?**
+    Existing `ai_polish_used_at` column suggests opt-in. Confirm before building.
+
+22. **`job_cv_variants` ↔ `cv_history` relationship.**
+    *Lean: polished variant becomes a `cv_history` row with `version_type='generated_draft'` — single source of truth.*
+
+23. **Where does the user view / edit / download a variant?**
+    *Lean: inline drawer on `/cv` — CV surface is canonical.*
+
+**Dashboard — trajectory view:**
+
+24. **Metric set.** Myro Score line + jobs in flight + milestones-completed-this-week + latest CV variant.
+    *Lean: those four for v1.*
+
+25. **Time range.**
+    *Lean: 30-day fixed, expand later.*
+
+### Tier 3 — defer to v2 / first user feedback
+
+- Pause / abandon / resume job-path flows
+- Daily reminder notifications
+- Per-job progress detail views
+- Multi-user comparisons / leaderboards
+- Sharing CV variants externally
+- Undoing a milestone completion
+- Source attribution UI ("this skill was credited from your diary entry on…")
+
+---
+
+## LAST SESSION SUMMARY (2026-04-27 — PHASE 3 LLM PROVIDER ABSTRACTION)
+
+```
+Date: 2026-04-27
+Milestone: Phase 3 complete. Unified LLMProvider abstraction created; llm_ranker + llm_polish migrated.
+
+Commits this session:
+  90f8639  refactor(llm): Phase 3 — unified LLMProvider abstraction, async fallback chain
+
+Design decisions (grilled + locked before implementation):
+  - Interface: async complete(messages: list[dict], max_tokens: int = 4096) -> str
+  - No model_pref param — all callers use same provider order, Brooks: no premature generality
+  - Raises LLMProviderError on total failure — callers decide degradation (ranker: overlap-only, polish: None)
+  - Class-based LLMProvider injected via Depends(get_llm_provider)
+  - skill_tagger.py intentionally excluded (scraper / local LM Studio stack)
+
+What landed:
+  backend/app/services/llm_provider.py (92L) — LLMProvider, LLMProviderError, get_llm_provider()
+    Provider chain: OpenRouter gpt-4o-mini → Groq llama-3.3-70b → Gemini flash-lite → OR free llama
+
+  backend/app/services/llm_ranker.py — async call_llm + rank_and_persist; provider injected
+  backend/app/services/job_path/llm_polish.py — async _call_ai_polish; provider injected
+  backend/app/services/job_path/cv_generator.py (299L) — async generate_job_cv; provider param added
+  backend/app/routers/jobs.py — Depends(get_llm_provider) on /compute + /applications/{id}/cv
+
+  Tests:
+    test_job_path_service.py — 3 generate_job_cv tests made async (@pytest.mark.asyncio)
+    test_jobs_path_api.py — fake generate_job_cv updated to async with provider param
+    Also fixed pre-existing bug: _snapshot_hash referenced via job_path, now via _cv_generator_mod
+
+  All 166 tests pass. tsc --noEmit OK. next lint clean. All files ≤ 300L.
+
+Known follow-ups (carried):
+  [ ] cv_parser.py + diary processor migration to LLMProvider (post-Phase-3)
+  [ ] Smoke test production URL end-to-end
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal
+  [ ] Rename Mirror → Myro in code (API strings, UI labels, env var comments)
+  [ ] Verify RLS on public.jobs allows authenticated reads
+
+Next: Phase 4 — Cross-repo taxonomy + jobs schema contract (Claude Code)
+  Lightcast taxonomy lives in TWO places: backend/lightcast_skills_taxonomy.json AND
+  firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json. Promote to versioned shared artefact
+  + checksum check on boot. Add contract test asserting public.jobs table shape matches
+  what csv_importer.py writes.
+```
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — PHASE 2C JOBS REPOSITORY)
+
+```
+Date: 2026-04-27
+Milestone: Phase 2C complete. JobsRepository seam created; all user-facing jobs routes now token-scoped.
+
+Commits this session:
+  5f9a95c  refactor(repos): Phase 2C — JobsRepository seam, all jobs routes token-scoped
+
+What landed:
+  backend/app/repositories/jobs.py (196L) — JobsRepository class with:
+    - fetch_analytics_rows(), search_jobs_by_filters()  ← public/global reads (admin client)
+    - get_user_skills_with_taxonomy(), get_all_jobs_skills(), get_user_target_roles()
+    - get_user_matches_for_week(), get_user_skill_rows(), get_user_profile_targeting()
+    - get_user_applications(), upsert_application(), get_application_with_job()
+    - delete_tracker_rows(), get_job_skills(), get_user_skill_map()
+    Factory functions: get_public_jobs_repository() (admin), get_token_jobs_repository() (token-scoped),
+                       get_admin_jobs_repository() (ops only)
+
+  backend/app/routers/jobs.py — all 15 endpoints updated:
+    - Public endpoints (analytics, search) → get_public_jobs_repository (admin, no JWT)
+    - All user-facing endpoints → get_token_jobs_repository (token-scoped)
+    - Service calls (job_path_service, job_importer, job_matcher, llm_ranker) pass repo.client
+    - Removed inline get_supabase_admin() / get_supabase_for_token() calls from router
+    - Hoisted datetime/JobSearchItem imports to module level
+
+  Tests updated to use app.dependency_overrides[get_token_jobs_repository]:
+    - test_jobs_applications.py → _FakeJobsRepository with delete_tracker_rows()
+    - test_jobs_path_api.py → _FakeJobsRepository with .client property
+    - test_jobs_import.py → _FakeJobsRepository with .client property
+  All 166 tests pass. tsc --noEmit OK. next lint clean. All repos ≤ 300L.
+
+Phase 2 repository layer complete (2A scores/skills/users/diary + 2B cv + 2C jobs).
+get_supabase_admin() no longer appears in any user-facing router.
+
+Known follow-ups (carried):
+  [ ] Smoke test production URL end-to-end
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal
+  [ ] Rename Mirror → Myro in code (API strings, UI labels, env var comments)
+  [ ] Verify RLS on public.jobs allows `authenticated` reads (needed for scores, jobs, matches endpoints)
+
+Next: Phase 3 — Unified LLM provider abstraction (Claude defines interface, Codex implements)
+  Three files (skill_tagger.py, llm_ranker.py, job_path/llm_polish.py) each re-implement
+  the same OpenRouter → Groq → Gemini fallback chain. Consolidate into services/llm_provider.py.
+  Interface: LLMProvider.complete(prompt, model_pref) -> str with built-in fallback + rate-limit detection.
+  Scope: Myro cloud stack only. Scraper (LM Studio) stays separate.
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-26 — MODULARITY REFACTOR PHASE 1B/2)
+
+```
+Date: 2026-04-26
+Milestone: Phase 1b cleanup completed; Phase 2 Repository layer started (later lost in reset).
+
+Commits:
+  fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence}
+  0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
+
+Work done:
+  Claude split services/job_path.py into:
+    services/job_path/plan.py          (283L)
+    services/job_path/milestones.py    (212L)
+    services/job_path/cv_generator.py
+    services/job_path/quality_gate.py  (63L)
+    services/job_path/_db.py           (49L)
+    services/job_path/_helpers.py      (44L)
+    services/job_path/_content.py      (33L)
+    services/job_path/__init__.py      (re-exports full public API)
+
+  Codex completed Phase 1b:
+    services/job_path/llm_polish.py    (AI Polish Provider Chain)
+    services/job_path/cv_generator.py  ≤ 297L after split
+    tests/test_job_path_service.py     patches cv_generator._call_ai_polish
+
+  Codex started Phase 2 (later lost):
+    repositories/{scores,skills,users,diary}.py
+    Corresponding router rewrites + tests
+    job_feed/{importer,taxonomy}.py
+    docs/adr/0001-job-feed-firecrawl-crawler-contract.md
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-25 / 2026-04-26 — IA REORDER + ARCHITECTURE AUDIT)
+
+```
+Date: 2026-04-25 (UI work) + 2026-04-26 (architecture audit)
+Milestone: Nav reorder shipped. Architecture audit produced graphify-out/GRAPH_REPORT.md.
+
+Commits (UI):
+  7ce0acd  Reordering-dashbaord
+  8e06969  feat(ui): cv-required nudge + remove first-run CV gates
+  46db81b  feat(onboarding): add gentle close button to escape onboarding
+  76753dc  feat(ui): drop Market position subtitle on score pill
+  a11f9aa  feat(ui): reorder sidebar (Intel→Jobs→Progress→CV→Dashboard)
+
+UI work shipped:
+  1. Sidebar order = Intel → Jobs → Progress → CV Builder → Dashboard
+  2. Score block: "Market position" subtitle dropped; MYRO SCORE + number only
+  3. Onboarding: × close button top-right; skips to /market
+  4. First-run CV gate removed; users without CV browse freely
+  5. <CVRequiredNudge /> component — banner + block variants on /market, /tracker, /jobs, /diary, /dashboard
+
+Architecture audit (2026-04-26):
+  - 832 nodes, 1247 edges, 94 communities.
+  - Eight modularity issues identified.
+  - Six open questions parked → all resolved this session.
+  - Outputs: graphify-out/{GRAPH_REPORT.md, graph.html, graph.json}
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
 
 ```
 Date: 2026-04-20
 Milestone: All pages token-compliant. First full production push to main (Vercel).
 
-Commits this session:
+Commits:
   ba679f6  feat(auth): redirect to /market after login; TMLogo CSS-var fix
   c28cb5f  feat(ui): tm-page-enter + TM spacing on /mission
   f516299  feat(ui): token pass — /jobs, /onboarding, score-gauge; .gitignore cleanup
   a36960a  feat(ui): token pass — skill-upgrade-card, job-tracker-card, /tracker, /market
   f34d16c  chore: remove csv_importer.py
 
-Work done:
+Infrastructure state:
+  Railway: True_Yodha → Develop branch → auto-deploys on push
+  Vercel: truemirror.vercel.app + preview URLs
+  Supabase: gipvxuugajkugntwkeiz (prod DB)
 
-  1. skill-upgrade-card.tsx — full dark token pass
-     - Light-mode Tailwind → inline styles with var(--tm-*) tokens
-     - ringColor() → gapColor() using danger/warning/accent semantics
-     - Rank number, skill name, job count, gap ring all token-reactive
+LLM fallback chain (production):
+  CV extraction:   OpenRouter free llama → Groq llama-3.1-8b → Gemini 2.0 flash-lite → OpenRouter gemini-flash-1.5
+  Job ranking:     OpenRouter free llama → (graceful degradation)
+  Diary:           LM Studio → Groq → Gemini → OpenRouter
 
-  2. job-tracker-card.tsx — full dark token pass
-     - STATUS_META refactored: single color string → {fg, bg, border} CSS-var fields
-     - Light bg-white/70 → var(--tm-surface); borders → var(--tm-border-soft)
-     - Score bar color: success/warning/danger based on overlap_score
-     - Company initials box: var(--tm-surface-2) + var(--tm-accent) mono text
-
-  3. /tracker page — token pass
-     - STATUS_META same fg/bg/border pattern
-     - ScoreBar: accent/warning/danger based on score
-     - AITutor: purple rgba → accent-wash + accent; input → tm-input class
-     - GapSkillCard: danger/warning/accent semantics
-     - tm-page-enter + var(--tm-page-*) spacing
-
-  4. /market page — token pass
-     - All #00F5D4 → var(--tm-accent)
-     - All rgba(240,244,255,...) → var(--tm-text-muted/faint)
-     - IntelBar, skill drill panel, toggle buttons all token-reactive
-     - tm-page-enter + proper TM spacing
-
-  5. /jobs page — token pass
-     - scoreTone() Tailwind classes → scoreColor() CSS-var fn
-     - bg-emerald-500/bg-amber-500 → var(--tm-success/warning)
-     - Full inline style rewrite; tm-page-enter wrapper
-     - Badge replaced with inline accent pill
-
-  6. /onboarding page — dark bg + TM header
-     - main element: var(--tm-bg) explicit background
-     - Step dots: var(--tm-accent) active, var(--tm-border) inactive
-     - Error banner: var(--tm-danger-wash)
-
-  7. score-gauge.tsx — CSS-var colors
-     - #22c55e/#f59e0b/#ef4444 → var(--tm-success/warning/danger)
-     - SVG stroke via style prop (CSS vars can't be SVG attributes)
-
-  8. /mission page — TM layout wrapper
-     - tm-page-enter + var(--tm-page-*) spacing
-
-  9. auth-form.tsx — login redirect + logo fix
-     - Post-login redirect: /dashboard → /market (Intel page)
-     - TMLogo: hardcoded #00F5D4 → currentColor + var(--tm-accent)
-
-  10. .gitignore — cleaned up
-      - Added: .claude/, Brand/, Black_futuristist_frontend/,
-        archon-install.sh, taxonomy copies, *.png
-
-  11. Production push
-      - git merge Develop → main (--no-ff)
-      - git pull origin main --no-rebase (reconcile PR#1 scraper history)
-      - git push origin main → 76fac0e
-      - Vercel auto-deploy triggered
-
-  12. Verification
-      - tsc --noEmit → exit 0 ✓
-      - next lint → no warnings or errors ✓
-
-## CURRENT BRAND STATE (as of 2026-04-20 evening)
-
-ALL pages token-compliant. No hardcoded hex. No purple. No light-mode classes.
-
-Pages: /cv, /dashboard, /diary, /tracker, /market, /jobs, /mission, /onboarding
-Components: app-shell, particle-bg, skill-upgrade-card, job-tracker-card,
-            auth-form, score-gauge, all onboarding steps
-
-Accent system: fully wired on all surfaces (Signal/Forge toggle works everywhere)
-Login redirect: → /market (Intel page)
-
-## KNOWN FOLLOW-UPS
-
-  [ ] Regenerate Signal Dot particle logo in amber for Forge mode.
-      Current PNG has teal baked in — doesn't flip with accent toggle.
-  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal.
-  [ ] Smoke test production URL end-to-end (CV upload → scores → jobs).
-  [ ] .env.local: localhost:8000 line commented out — uncomment for local backend dev.
-```
-
-## PREVIOUS SESSION SUMMARY (2026-04-20 — PAGE REDESIGN + PARTICLE OVERHAUL)
-
-```
-Date: 2026-04-20
-Milestone: Full brand token pass applied to /dashboard, /cv, /diary, app-shell,
-           particle background. All hardcoded hex/purple removed. Signal/Forge
-           toggle now works across every redesigned surface.
-
-Commit: febd504
-
-Work done this session:
-
-  1. particle-bg.tsx — complete rewrite
-     - CONN=145 (doubled base connections), CURSOR_R=360 (doubled cursor reach)
-     - Cursor lerp speed 0.082 (was 0.038)
-     - Idle sphere: particles spring to imperfect circle (2-layer radial
-       distribution) when cursor hidden or idle 2.5s+; idleFactor ramps over 900ms
-     - Click: 28 radial blast particles + immediate shockwave push on nearby
-       particles + glide attractor toward Progress nav (sidebar x=32, y=320);
-       glide decays via strength *= 0.994; no ripple rings
-     - Accent-reactive: reads --tm-accent via getComputedStyle + hexToRgb;
-       MutationObserver watches data-accent attribute for live toggle
-
-  2. app-shell.tsx — full token pass
-     - TMLogo SVG: stroke/fill="currentColor" + style={{ color: var(--tm-accent) }}
-     - FEEDBACK_ACTIONS: added bg wash property (fixes CSS-var opacity-hex hack)
-     - Diary nav item: pulsing accent dot + "Log today →" nudge text
-     - Truth Score metric: var(--tm-text) (non-clickable; not accent per brand rules)
-     - About modal: purple section → var(--tm-surface-2); warning → var(--tm-warning-wash)
-     - All hover handlers: CSS var strings instead of hardcoded hex
-
-  3. dashboard/page.tsx — full token pass
-     - All hardcoded hex → var(--tm-*) tokens
-     - Truth Score: large monospaced hero display top-right
-     - Ambient accent glow: radial-gradient ellipse at 60% 0%
-     - .tm-page-enter + .tm-card wrappers throughout
-
-  4. cv/page.tsx — full token pass
-     - STATUS_CONFIG: strong→tm-success, close/gap→tm-warning, missing→tm-danger
-     - Purple (#A97FFF) removed entirely
-     - Level bars: var(--tm-accent); status dots: status color (distinct semantics)
-     - Filter tabs: active uses accent-wash + accent-ring
-     - Summary pills: mapped to success/warning/danger tokens
-
-  5. diary/page.tsx — complete rewrite
-     - DeepFocusTimer component: SVG ring timer (25/40/60 min), session dot tracker,
-       tm-btn-primary/ghost controls, tokn-reactive throughout
-     - MilestoneRing: removed hardcoded color prop; all accent-reactive
-     - Layout: LEFT=DeepFocusTimer, RIGHT=7-Day Milestone Plan (merged week plan
-       + achievements grid)
-     - Today's task highlighted via todayIdx from new Date().getDay()
-     - todayTask prop passed to timer for contextual display
-     - Purple removed; streak pill uses var(--tm-warning)
-
-  6. Verification
-     - tsc --noEmit → exit 0 ✓
-     - next lint → no warnings or errors ✓
-
-## CURRENT BRAND STATE (as of 2026-04-20)
-
-Brand name: "Truth Mirror — The Career Intelligence Platform"
-
-Accent system: dual, user-toggleable (FULLY WIRED)
-  - Signal (teal #00F5D4) — default
-  - Forge  (amber #FFB347)
-  - All redesigned surfaces flip correctly with the toggle
-
-Pages fully token-compliant: /dashboard, /cv, /diary, app-shell sidebar
-
-Pages NOT yet redesigned (old inline styles):
-  /tracker (Jobs), /market (Intel), /jobs (full list), /onboarding, /mission
-
-Components NOT yet redesigned:
-  components/dashboard/skill-upgrade-card.tsx — light-mode Tailwind classes
-  components/tracker/job-tracker-card.tsx     — light-mode Tailwind classes
-
-## KNOWN FOLLOW-UPS (carry into next session)
-
-  [ ] Regenerate Signal Dot particle logo in amber for Forge mode.
-      Current PNG has teal baked in — doesn't flip with accent toggle.
-  [ ] Replace TMLogo SVG in sidebar + About modal with new Signal Dot mark.
-  [ ] Redesign /tracker, /market, /jobs, /onboarding, /mission pages.
-  [ ] Token pass on skill-upgrade-card.tsx and job-tracker-card.tsx.
-
-## NEXT SESSION FOCUS
-
-  Continue page redesign pass:
-    - /tracker (Jobs Tracker) — highest user-facing priority
-    - /market (Intel panel)
-    - skill-upgrade-card.tsx + job-tracker-card.tsx components
-    - Then /jobs, /onboarding, /mission
-
-  Same checklist:
-    - All hardcoded hex → var(--tm-*) tokens
-    - Type scale: display/title/heading/body/meta (no arbitrary sizes)
-    - 4-signal affordance rule on all interactive elements
-    - Status semantics: success/warning/danger only (never accent for status)
-    - Test under both Signal and Forge accents before marking done
+Brand state: all pages token-compliant. Signal/Forge accent toggle wired everywhere.
+Login redirect: → /market
 ```
 
 ---
 
-## PREVIOUS SESSION SUMMARY (2026-04-18 — FIRST PRODUCTION DEPLOYMENT 🚀)
+## PREVIOUS SESSION SUMMARY (2026-04-18 — FIRST PRODUCTION DEPLOYMENT)
 
 ```
 Date: 2026-04-18
-Milestone: First successful end-to-end deployment on Railway + Vercel (Develop branch)
+Milestone: First successful end-to-end deployment on Railway + Vercel.
 
-Work done this session:
+Key fixes:
+  1. LLM routing for production (cv_parser, llm_ranker, diary_processor)
+  2. lightcast_skills_taxonomy.json moved into backend/ (Docker path fix)
+  3. CORS: allow_origins=["*"], allow_credentials=False (Bearer JWT doesn't need credentials mode)
+  4. Railway env vars: OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY added
 
-  1. fix(llm): CV upload LLM routing for production
-     - cv_parser: LM Studio → OpenRouter free llama → Groq → Gemini → OpenRouter paid
-     - llm_ranker: LM Studio → OpenRouter → GPT-4o mini fallback chain
-     - diary_processor: continue to next provider on any exception (not just rate limits)
-     - Changed OpenRouter model from claude-3.5-sonnet ($15/MTok) to llama-3.3-70b-instruct:free
-
-  2. fix(taxonomy): moved lightcast_skills_taxonomy.json into backend/
-     - Was at project root — Docker COPY . . (from backend/) never included it
-     - taxonomy_loader.py: parents[3] → parents[2]
-     - database/backfill_skills.py: path updated to ROOT / "backend" / "lightcast_skills_taxonomy.json"
-
-  3. fix(cors): resolved CORS preflight 400 errors
-     - Root cause 1: pydantic-settings v2 JSON-decoded list[str] before validators — using str + property
-     - Root cause 2: allow_credentials=True + allow_origins=["*"] invalid per CORS spec
-     - Fix: allow_origins=["*"], allow_credentials=False (Bearer JWT auth doesn't need credentials mode)
-     - No Railway env var needed — works for all Vercel URLs automatically
-
-  4. Railway env vars added this session:
-     OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY
-     SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY (set earlier)
-     LM_STUDIO_* vars cleared (local only)
-
-  5. DEPLOYMENT RESULT (first ever):
-     - CV upload: 201 Created ✓ (free Llama 429d → Groq fallback succeeded)
-     - Scores compute: 200 ✓
-     - Jobs compute: 200 ✓ (LLM ranking degraded to overlap-only; Groq key fixes this)
-     - All GET endpoints: 200 ✓
-     - Login / signup: working ✓
-
-## CURRENT INFRASTRUCTURE STATE (as of 2026-04-18)
-
-Railway service: True_Yodha → Develop branch → auto-deploys on push
-Vercel: truemirror.vercel.app + preview URLs (develop branch)
-Supabase: gipvxuugajkugntwkeiz (prod DB — shared dev/prod for now)
-
-LLM fallback chain (production):
-  CV extraction:   OpenRouter free llama → Groq llama-3.1-8b → Gemini 2.0 flash-lite → OpenRouter gemini-flash-1.5
-  Job ranking:     OpenRouter free llama → (no further fallback yet — gracefully degrades)
-  Diary:           LM Studio → Groq → Gemini → OpenRouter
-
-## CURRENT DB STATE (as of 2026-04-18)
-
-skills table: id, taxonomy_key, display_name, lightcast_id, l1_domain, l2_cluster, is_active, created_at
-user_skills: user_id → skill_id (L3). Scoring groups by l2_cluster / l1_domain at query time.
-DROPPED: skill_domains, skill_clusters
-
-## CURRENT UI STATE (as of 2026-04-18)
-
-Nav order: CV → Dashboard → Jobs → Intel → Diary
-
-Page map:
-  /cv          Upload CV, view extracted skills by L2 cluster, CV history timeline
-  /dashboard   Truth Score (header) | Domain Breakdown radar ↔ Skill Intelligence (side-by-side)
-               Below: Top 5 Skills to Upgrade (SkillUpgradeCard list)
-  /tracker     Jobs Tracker — top 5 matches + application status
-               Nav label: "Jobs"
-  /jobs        Full job list with search
-  /market      Intel — market intelligence panel
-  /diary       Daily skill diary + XP log
-  /onboarding  CV upload → role selection → score reveal flow
-  /mission     About / mission statement
-
-## NEXT SESSION FOCUS
-
-  FRONTEND REDESIGN — Apple-inspired, modern, elegant, smooth
-  Goal: awe users on first load. Every screen should feel premium.
-
-  Design principles to apply:
-    - Apple HIG: clarity, deference, depth
-    - Generous whitespace, large typography, subtle motion
-    - Monochromatic base + single accent color
-    - Smooth transitions (Framer Motion)
-    - Cards with soft shadows, rounded corners, blur backdrops
-    - Data visualisations that feel like art, not spreadsheets
-
-  Start with: /cv and /dashboard pages (most user-facing)
-  Reference: FrontEND INSPIRATION/ folder in project root
+Deployment result:
+  CV upload: 201 ✓ · Scores: 200 ✓ · Jobs: 200 ✓ · All GETs: 200 ✓ · Auth: working ✓
 ```

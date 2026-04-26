@@ -1,7 +1,9 @@
+import pytest
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.services import job_path
+from app.services.job_path import cv_generator as _cv_generator_mod
 
 
 class _Result:
@@ -209,9 +211,10 @@ def test_polish_quality_gate_rejects_banned_phrases_and_excess_length() -> None:
     ).accepted
 
 
-def test_generate_job_cv_cache_hit_skips_ai_polish(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_generate_job_cv_cache_hit_skips_ai_polish(monkeypatch) -> None:
     db = _FakeDB()
-    snapshot_hash = job_path._snapshot_hash("u1", "job-1", 1, [])
+    snapshot_hash = _cv_generator_mod._snapshot_hash("u1", "job-1", 1, [])
     db.tables["job_cv_variants"].append(
         {
             "id": 10,
@@ -227,18 +230,19 @@ def test_generate_job_cv_cache_hit_skips_ai_polish(monkeypatch) -> None:
         }
     )
 
-    def fail_polish(*_args: Any, **_kwargs: Any) -> str:
+    async def fail_polish(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("cache hit should not call the LLM")
 
-    monkeypatch.setattr(job_path, "_call_ai_polish", fail_polish)
+    monkeypatch.setattr(_cv_generator_mod, "_call_ai_polish", fail_polish)
 
-    response = job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
+    response = await job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
 
     assert response["from_cache"] is True
     assert response["polished_text"] == "Cached polished CV"
 
 
-def test_generate_job_cv_blocks_fourth_cache_miss(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_generate_job_cv_blocks_fourth_cache_miss(monkeypatch) -> None:
     db = _FakeDB()
     now = datetime.now(timezone.utc).isoformat()
     for idx in range(3):
@@ -257,27 +261,28 @@ def test_generate_job_cv_blocks_fourth_cache_miss(monkeypatch) -> None:
             }
         )
 
-    def fail_polish(*_args: Any, **_kwargs: Any) -> str:
+    async def fail_polish(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("rate limit should block the LLM")
 
-    monkeypatch.setattr(job_path, "_call_ai_polish", fail_polish)
+    monkeypatch.setattr(_cv_generator_mod, "_call_ai_polish", fail_polish)
 
-    response = job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
+    response = await job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
 
     assert response["limit_reached"] is True
     assert response["from_cache"] is True
     assert response["polished_text"] is not None
 
 
-def test_generate_job_cv_rejects_bad_polish_and_falls_back(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_generate_job_cv_rejects_bad_polish_and_falls_back(monkeypatch) -> None:
     db = _FakeDB()
-    monkeypatch.setattr(
-        job_path,
-        "_call_ai_polish",
-        lambda *_args, **_kwargs: "World-class rockstar who grew revenue by 42%.",
-    )
 
-    response = job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
+    async def bad_polish(*_args: Any, **_kwargs: Any) -> str:
+        return "World-class rockstar who grew revenue by 42%."
+
+    monkeypatch.setattr(_cv_generator_mod, "_call_ai_polish", bad_polish)
+
+    response = await job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
 
     assert response["from_cache"] is False
     assert response["polished_text"] is None

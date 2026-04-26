@@ -7,7 +7,7 @@ import {
   parseDiarySelections,
   toggleDiarySelection,
   type DiarySkillSelection,
-} from "./diary-skill-cart.ts"
+} from "./diary-skill-cart"
 
 test("buildDiarySelectionsHref round-trips mixed add and upgrade selections", () => {
   const selections: DiarySkillSelection[] = [
