@@ -5,34 +5,16 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from openai import OpenAI
 from supabase import Client
 
-from app.config import settings
 from app.services.job_path._content import _load_text
 from app.services.job_path._helpers import _single_or_none
+from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
 AI_POLISH_LIMIT = 3
-_OR_HEADERS = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
-_OR_BASE = "https://openrouter.ai/api/v1"
-_GROQ_BASE = "https://api.groq.com/openai/v1"
-_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 _POLISH_MAX_TOKENS = 4096
-
-
-def _polish_providers() -> list[tuple[OpenAI, str]]:
-    providers: list[tuple[OpenAI, str]] = []
-    if settings.openrouter_api_key:
-        providers.append((OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS), "openai/gpt-4o-mini"))
-    if settings.groq_api_key:
-        providers.append((OpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE), "llama-3.3-70b-versatile"))
-    if settings.google_api_key:
-        providers.append((OpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE), "gemini-2.0-flash-lite"))
-    if settings.openrouter_api_key:
-        providers.append((OpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS), "meta-llama/llama-3.3-70b-instruct:free"))
-    return providers
 
 
 def _prompt_section(prompt_doc: str, start_heading: str, end_heading: str | None = None) -> str:
@@ -85,32 +67,21 @@ Return the polished CV text now. No preamble. No commentary."""
     ]
 
 
-def _call_ai_polish(
+async def _call_ai_polish(
     baseline_text: str,
     job: dict[str, Any],
     targets: list[dict[str, Any]],
     completed: list[dict[str, Any]],
+    provider: LLMProvider | None,
 ) -> str | None:
-    providers = _polish_providers()
-    if not providers:
-        logger.info("No LLM configured for CV polish.")
+    if provider is None:
         return None
     messages = _build_polish_messages(baseline_text, job, targets, completed)
-    for client, model in providers:
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                max_tokens=_POLISH_MAX_TOKENS,
-                messages=messages,
-            )
-            content = response.choices[0].message.content or ""
-        except Exception as exc:
-            logger.warning("CV polish failed with %s: %s", model, exc)
-            continue
-        cleaned = content.strip()
-        if cleaned:
-            return cleaned
-    return None
+    try:
+        return await provider.complete(messages, max_tokens=_POLISH_MAX_TOKENS)
+    except LLMProviderError:
+        logger.info("CV polish: all providers failed.")
+        return None
 
 
 def _ai_polish_count(db: Client, user_id: str) -> int:

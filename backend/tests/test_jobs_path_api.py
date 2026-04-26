@@ -85,10 +85,8 @@ def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
     repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    monkeypatch.setattr(
-        jobs.job_path_service,
-        "generate_job_cv",
-        lambda db, user_id, job_id, ai_polish=False: {
+    async def _fake_generate_job_cv(db, user_id, job_id, ai_polish=False, provider=None):
+        return {
             "id": 1,
             "job_id": job_id,
             "cv_text": "Starter CV\n\nBaseline",
@@ -100,8 +98,9 @@ def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
             "ai_polish_limit": 3,
             "limit_reached": False,
             "polish_unavailable": False,
-        },
-    )
+        }
+
+    monkeypatch.setattr(jobs.job_path_service, "generate_job_cv", _fake_generate_job_cv)
 
     try:
         with TestClient(app) as client:

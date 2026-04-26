@@ -31,6 +31,7 @@ from app.services.job_path.llm_polish import (
     _call_ai_polish,
     _latest_polished_cv,
 )
+from app.services.llm_provider import LLMProvider
 from app.services.job_path.milestones import cv_confidence_for_proof_count
 from app.services.job_path.quality_gate import (
     QualityGateResult,
@@ -146,11 +147,12 @@ def _ensure_application_minimal(db: Client, user_id: str, job_id: str) -> None:
     ).execute()
 
 
-def generate_job_cv(
+async def generate_job_cv(
     db: Client,
     user_id: str,
     job_id: str,
     ai_polish: bool = False,
+    provider: LLMProvider | None = None,
 ) -> dict[str, Any]:
     job = _get_job(db, job_id)
     _ensure_application_minimal(db, user_id, job_id)
@@ -229,7 +231,7 @@ def generate_job_cv(
             }
 
     if ai_polish and not limit_reached:
-        polished_text = _call_ai_polish(baseline_text, job, targets, completed)
+        polished_text = await _call_ai_polish(baseline_text, job, targets, completed, provider)
         gate = QualityGateResult(False, "empty_response")
         if polished_text:
             gate = polish_output_passes_quality_gates(

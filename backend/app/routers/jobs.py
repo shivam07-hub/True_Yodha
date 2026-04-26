@@ -32,6 +32,7 @@ from app.schemas import (
 )
 from app.schemas.jobs import JobSearchItem
 from app.services import job_importer, job_matcher, job_path as job_path_service, llm_ranker
+from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring_engine import fetch_aspiration_skills
 
@@ -217,6 +218,7 @@ async def get_job_matches(
 async def compute_job_matches(
     current_user: dict = Depends(get_current_user),
     repo: JobsRepository = Depends(get_token_jobs_repository),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> ComputeJobMatchesResponse:
     """
     Run the full job-matching pipeline for the current user:
@@ -270,7 +272,7 @@ async def compute_job_matches(
             detail="No tagged job postings found. Complete job tagging first.",
         )
 
-    written = llm_ranker.rank_and_persist(db, user_id, batch_week, user_skill_map, top_jobs)
+    written = await llm_ranker.rank_and_persist(db, user_id, batch_week, user_skill_map, top_jobs, llm_provider)
 
     return ComputeJobMatchesResponse(
         matches_written=written,
@@ -365,9 +367,10 @@ async def generate_application_cv(
     body: JobCVGenerateRequest,
     current_user: dict = Depends(get_current_user),
     repo: JobsRepository = Depends(get_token_jobs_repository),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> JobCVGenerateResponse:
     return JobCVGenerateResponse(
-        **job_path_service.generate_job_cv(repo.client, current_user["user_id"], job_id, ai_polish=body.ai_polish)
+        **await job_path_service.generate_job_cv(repo.client, current_user["user_id"], job_id, ai_polish=body.ai_polish, provider=llm_provider)
     )
 
 
