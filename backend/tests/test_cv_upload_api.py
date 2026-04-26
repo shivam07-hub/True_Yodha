@@ -24,7 +24,7 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
     repo = _FakeCVRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
     async def _fake_parse_cv(_file_bytes: bytes, _file_type: str) -> dict:
         return {
@@ -35,8 +35,8 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
     def _fail_scoring(*_args, **_kwargs) -> dict:
         raise ValueError("No valid skills could be persisted for this user.")
 
-    monkeypatch.setattr(cv_upload.cv_parser, "parse_cv", _fake_parse_cv)
-    monkeypatch.setattr(cv_upload.scoring_engine, "compute_and_persist_score", _fail_scoring)
+    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv", _fake_parse_cv)
+    monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _fail_scoring)
 
     try:
         with TestClient(app) as client:
@@ -55,7 +55,7 @@ def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch)
     repo = _FakeCVRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
     async def _fake_parse_cv_text(_raw_text: str) -> dict:
         return {
@@ -66,8 +66,8 @@ def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch)
     def _fail_scoring(*_args, **_kwargs) -> dict:
         raise ValueError("No valid skills could be persisted for this user.")
 
-    monkeypatch.setattr(cv_upload.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.scoring_engine, "compute_and_persist_score", _fail_scoring)
+    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
+    monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _fail_scoring)
 
     try:
         with TestClient(app) as client:

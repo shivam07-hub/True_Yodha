@@ -6,10 +6,12 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { auth, jobs } from "@/lib/api"
 import type { MarketAnalytics } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
+import { setSessionTokens } from "@/lib/session"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -107,7 +109,7 @@ export default function LoginPage() {
   const [skillFilters, setSkillFilters] = useState<Set<string>>(new Set())
 
   const { data: analytics } = useQuery({
-    queryKey: ["jobs-analytics-public"],
+    queryKey: dataKeys.jobsAnalyticsPublic(),
     queryFn: () => jobs.analytics(),
     staleTime: 5 * 60 * 1000,
   })
@@ -137,7 +139,7 @@ export default function LoginPage() {
         setError(res.message ?? "Login failed")
         return
       }
-      localStorage.setItem("mirror_token", res.access_token)
+      setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
       router.push("/market")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")

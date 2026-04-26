@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
+import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { Milestone, MilestonePayload } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -311,13 +312,13 @@ function DiaryPageInner() {
   }, [searchParams])
 
   const historyQuery = useQuery({
-    queryKey: ["diary", token],
+    queryKey: dataKeys.diary(token),
     queryFn: () => diary.history(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
@@ -325,13 +326,13 @@ function DiaryPageInner() {
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
 
   const milestonesQuery = useQuery({
-    queryKey: ["milestones", token],
+    queryKey: dataKeys.milestones(token),
     queryFn: () => diary.milestones(token!, 30),
     enabled: !!token,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: ["job-path", jobId, token],
+    queryKey: dataKeys.jobPath(jobId, token),
     queryFn: () => jobs.path(token!, jobId!),
     enabled: !!token && !!jobId,
   })
@@ -342,8 +343,8 @@ function DiaryPageInner() {
     onSuccess: () => {
       setEntryText("")
       setPromptSkills([])
-      queryClient.invalidateQueries({ queryKey: ["diary", token] })
-      queryClient.invalidateQueries({ queryKey: ["scores", token] })
+      queryClient.invalidateQueries({ queryKey: dataKeys.diary(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save entry"),
   })
@@ -356,8 +357,8 @@ function DiaryPageInner() {
       setCompletionDay(null)
       setCompletionProof("")
       setCompletionImpact("")
-      queryClient.invalidateQueries({ queryKey: ["milestones", token] })
-      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save milestone"),
   })
@@ -377,8 +378,8 @@ function DiaryPageInner() {
     onSuccess: () => {
       setJobProof("")
       setJobImpact("")
-      queryClient.invalidateQueries({ queryKey: ["job-path", jobId, token] })
-      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
+      invalidateJobPathData(queryClient, jobId, token)
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save job milestone"),
   })

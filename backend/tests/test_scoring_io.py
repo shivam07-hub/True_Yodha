@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.repositories.scores import ScoresRepository
 from app.services.scoring_engine import (
     compute_and_persist_score,
     fetch_aspiration_skills,
@@ -61,7 +62,7 @@ class TestFetchSkillDemand:
         rows = [{"main_skills": ["Python"], "side_skills": ["SQL"]}]
         db = MagicMock()
         db.table.return_value = _q(rows)
-        result = fetch_skill_demand(db)
+        result = fetch_skill_demand(ScoresRepository(db))
         # page1 + page2 both return rows → Python: 2×2=4, SQL: 1×2=2
         assert result["Python"] == 4
         assert result["SQL"] == 2
@@ -70,19 +71,19 @@ class TestFetchSkillDemand:
         rows = [{"main_skills": None, "side_skills": None}]
         db = MagicMock()
         db.table.return_value = _q(rows)
-        assert fetch_skill_demand(db) == {}
+        assert fetch_skill_demand(ScoresRepository(db)) == {}
 
     def test_empty_result_returns_empty(self) -> None:
         db = MagicMock()
         db.table.return_value = _q([])
-        assert fetch_skill_demand(db) == {}
+        assert fetch_skill_demand(ScoresRepository(db)) == {}
 
     def test_query_failure_returns_empty(self) -> None:
         q = _q([])
         q.execute.side_effect = RuntimeError("upstream returned html")
         db = MagicMock()
         db.table.return_value = q
-        assert fetch_skill_demand(db) == {}
+        assert fetch_skill_demand(ScoresRepository(db)) == {}
 
 
 # ── fetch_aspiration_skills ───────────────────────────────────────────────────
@@ -93,7 +94,7 @@ class TestFetchAspirationSkills:
         q.execute.side_effect = RuntimeError("upstream returned html")
         db = MagicMock()
         db.table.return_value = q
-        assert fetch_aspiration_skills(db, ["Data Analyst"]) == {}
+        assert fetch_aspiration_skills(ScoresRepository(db), ["Data Analyst"]) == {}
 
 
 # ── persist_user_skills ───────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ class TestPersistUserSkills:
             {"taxonomy_key": "sql",    "xp_awarded": 150, "signal_type": "project", "evidence": ""},
         ]
         with patch("app.services.taxonomy_loader.ensure_skill_in_db", side_effect=[1, 2]):
-            count = persist_user_skills(self._make_db(), "u1", {"python": 3, "sql": 2}, signals)
+            count = persist_user_skills(ScoresRepository(self._make_db()), "u1", {"python": 3, "sql": 2}, signals)
         assert count == 2
 
     def test_skill_not_in_db_skipped(self) -> None:
@@ -119,12 +120,12 @@ class TestPersistUserSkills:
             {"taxonomy_key": "docker", "xp_awarded": 150, "signal_type": "project", "evidence": ""},
         ]
         with patch("app.services.taxonomy_loader.ensure_skill_in_db", side_effect=[1, None]):
-            count = persist_user_skills(self._make_db(), "u1", {"python": 3, "docker": 2}, signals)
+            count = persist_user_skills(ScoresRepository(self._make_db()), "u1", {"python": 3, "docker": 2}, signals)
         assert count == 1
 
     def test_empty_level_map_returns_zero(self) -> None:
         with patch("app.services.taxonomy_loader.ensure_skill_in_db", return_value=None):
-            count = persist_user_skills(self._make_db(), "u1", {}, [])
+            count = persist_user_skills(ScoresRepository(self._make_db()), "u1", {}, [])
         assert count == 0
 
 
@@ -141,7 +142,7 @@ class TestPersistScore:
     def test_returns_score_row(self) -> None:
         expected = {"user_id": "u1", "total_score": 72.5}
         db = self._make_db(expected)
-        result = persist_score(db, "u1", 72.5, {}, [], 5, "Specialist")
+        result = persist_score(ScoresRepository(db), "u1", 72.5, {}, [], 5, "Specialist")
         assert result == expected
 
     def test_history_insert_called(self) -> None:
@@ -149,7 +150,7 @@ class TestPersistScore:
         scores_q = _q({"user_id": "u1", "total_score": 50.0})
         db = MagicMock()
         db.table.side_effect = lambda n: scores_q if n == "mirror_scores" else history_q
-        persist_score(db, "u1", 50.0, {}, [], 0, "Practitioner")
+        persist_score(ScoresRepository(db), "u1", 50.0, {}, [], 0, "Practitioner")
         history_q.insert.assert_called_once()
 
 
@@ -192,20 +193,20 @@ class TestComputeAndPersistScore:
         cp, sp = self._patch_all()
         with cp, sp:
             signals = [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}]
-            result = compute_and_persist_score(self._make_db(), "u1", signals)
+            result = compute_and_persist_score(ScoresRepository(self._make_db()), "u1", signals)
             assert "total_score" in result
 
     def test_pipeline_with_empty_signals(self) -> None:
         cp, sp = self._patch_all()
         with cp, sp:
-            result = compute_and_persist_score(self._make_db(), "u1", [])
+            result = compute_and_persist_score(ScoresRepository(self._make_db()), "u1", [])
             assert result is not None
 
     def test_aspiration_skills_passed_through(self) -> None:
         cp, sp = self._patch_all()
         with cp, sp:
             result = compute_and_persist_score(
-                self._make_db(), "u1", [], aspiration_skills={"Flask": 3}
+                ScoresRepository(self._make_db()), "u1", [], aspiration_skills={"Flask": 3}
             )
             assert result is not None
 
@@ -226,7 +227,7 @@ class TestComputeAndPersistScore:
         db.table.side_effect = _table
         with cp, sp:
             result = compute_and_persist_score(
-                db,
+                ScoresRepository(db),
                 "u1",
                 [],
                 include_market_signals=False,
@@ -242,7 +243,7 @@ class TestComputeAndPersistScore:
         with cluster_patch, skill_patch:
             with pytest.raises(ValueError, match="No valid skills could be persisted"):
                 compute_and_persist_score(
-                    self._make_db(),
+                    ScoresRepository(self._make_db()),
                     "u1",
                     [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}],
                     include_market_signals=False,

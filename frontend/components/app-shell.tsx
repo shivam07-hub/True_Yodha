@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { LinkedInIcon } from "@/components/icons/social-icons"
@@ -300,7 +301,7 @@ function SettingsModal({
       return users.updateProfile(token, payload)
     },
     onSuccess: (updated) => {
-      if (token) queryClient.invalidateQueries({ queryKey: ["profile", token] })
+      if (token) queryClient.invalidateQueries({ queryKey: dataKeys.profile(token) })
       setDraftName(updated.full_name ?? "")
       setDraftLocation(updated.target_location ?? "")
       setDraftLinkedIn(updated.linkedin_url ?? "")
@@ -1109,14 +1110,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [showAbout, setShowAbout] = useState(false)
 
   const { data: scoreData } = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: profileData } = useQuery({
-    queryKey: ["profile", token],
+    queryKey: dataKeys.profile(token),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,

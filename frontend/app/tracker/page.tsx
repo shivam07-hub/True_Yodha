@@ -38,6 +38,7 @@ import {
   toggleDiarySelection,
   type DiarySkillSelection,
 } from "@/lib/diary-skill-cart"
+import { dataKeys, invalidateJobData, invalidateJobPathData } from "@/lib/domain-data"
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
   return (
@@ -1117,19 +1118,19 @@ export default function TrackerPage() {
   const [cvNotice, setCvNotice] = useState<string | null>(null)
 
   const matchesQuery = useQuery({
-    queryKey: ["jobs", token],
+    queryKey: dataKeys.jobs(token),
     queryFn: () => jobs.matches(token!),
     enabled: !!token,
   })
 
   const appsQuery = useQuery({
-    queryKey: ["applications", token],
+    queryKey: dataKeys.applications(token),
     queryFn: () => jobs.applications(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
@@ -1137,22 +1138,22 @@ export default function TrackerPage() {
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
 
   const skillDemandQuery = useQuery({
-    queryKey: ["user-skill-demand", token],
+    queryKey: dataKeys.userSkillDemand(token),
     queryFn: () => jobs.mySkillDemand(token!),
     enabled: !!token,
   })
 
   const refreshMatches = useMutation({
     mutationFn: () => jobs.compute(token!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs", token] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }),
   })
 
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) =>
       jobs.updateApplication(token!, jobId, { status }),
     onSuccess: (_app, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["applications", token] })
-      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
+      invalidateJobPathData(queryClient, variables.jobId, token)
     },
   })
 
@@ -1163,8 +1164,7 @@ export default function TrackerPage() {
   const removeTrackerJob = useMutation({
     mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId),
     onSuccess: (_data, jobId) => {
-      queryClient.invalidateQueries({ queryKey: ["jobs", token] })
-      queryClient.invalidateQueries({ queryKey: ["applications", token] })
+      invalidateJobData(queryClient, token)
       setSelectedJobId((current) => (current === jobId ? null : current))
       setDetailJob((current) => (current?.job_id === jobId ? null : current))
       setAppDetailJob((current) => (current?.job_id === jobId ? null : current))
@@ -1172,13 +1172,13 @@ export default function TrackerPage() {
   })
 
   const skillGapQuery = useQuery({
-    queryKey: ["skill-gap", selectedJobId, token],
+    queryKey: dataKeys.skillGap(selectedJobId, token),
     queryFn: () => jobs.skillGap(token!, selectedJobId!),
     enabled: !!token && !!selectedJobId,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: ["job-path", selectedJobId, token],
+    queryKey: dataKeys.jobPath(selectedJobId, token),
     queryFn: () => jobs.path(token!, selectedJobId!),
     enabled: !!token && !!selectedJobId,
   })
@@ -1187,8 +1187,8 @@ export default function TrackerPage() {
     mutationFn: ({ jobId, targets }: { jobId: string; targets: Array<{ skill: string; is_primary?: boolean | null }> }) =>
       jobs.updateTargets(token!, jobId, targets),
     onSuccess: (_path, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
-      queryClient.invalidateQueries({ queryKey: ["applications", token] })
+      invalidateJobPathData(queryClient, variables.jobId, token)
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
     },
   })
 
@@ -1208,7 +1208,7 @@ export default function TrackerPage() {
     onSuccess: (_milestone, variables) => {
       setProofText("")
       setImpactText("")
-      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+      invalidateJobPathData(queryClient, variables.jobId, token)
     },
   })
 
@@ -1226,7 +1226,7 @@ export default function TrackerPage() {
       } else {
         setCvNotice("Job CV ready.")
       }
-      queryClient.invalidateQueries({ queryKey: ["job-path", variables.jobId, token] })
+      invalidateJobPathData(queryClient, variables.jobId, token)
     },
   })
 

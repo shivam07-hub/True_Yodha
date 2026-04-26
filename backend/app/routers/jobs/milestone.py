@@ -10,7 +10,7 @@ from app.schemas import (
     JobPathResponse,
     JobPathTargetsRequest,
 )
-from app.services import job_path as job_path_service
+from app.services import jobs_workflow
 from app.services.llm_provider import LLMProvider, get_llm_provider
 
 router = APIRouter()
@@ -23,7 +23,7 @@ async def get_application_path(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathResponse:
     return JobPathResponse(
-        **job_path_service.get_application_path(repo.client, current_user["user_id"], job_id)
+        **jobs_workflow.get_application_path(repo, current_user["user_id"], job_id)
     )
 
 
@@ -35,8 +35,8 @@ async def replace_application_targets(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathResponse:
     return JobPathResponse(
-        **job_path_service.replace_skill_targets(
-            repo.client,
+        **jobs_workflow.replace_skill_targets(
+            repo,
             current_user["user_id"],
             job_id,
             [target.model_dump() for target in body.targets],
@@ -53,7 +53,7 @@ async def update_application_milestone(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobPathMilestoneResponse:
     return JobPathMilestoneResponse(
-        **job_path_service.update_milestone(repo.client, current_user["user_id"], job_id, milestone_id, body)
+        **jobs_workflow.update_milestone(repo, current_user["user_id"], job_id, milestone_id, body)
     )
 
 
@@ -66,11 +66,11 @@ async def generate_application_cv(
     llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> JobCVGenerateResponse:
     return JobCVGenerateResponse(
-        **await job_path_service.generate_job_cv(
-            repo.client,
-            current_user["user_id"],
-            job_id,
+        **await jobs_workflow.generate_job_cv(
+            repo=repo,
+            user_id=current_user["user_id"],
+            job_id=job_id,
             ai_polish=body.ai_polish,
-            provider=llm_provider,
+            llm_provider=llm_provider,
         )
     )

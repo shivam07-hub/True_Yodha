@@ -11,7 +11,7 @@ from app.schemas import (
     JobImportPreviewResponse,
     JobImportRequest,
 )
-from app.services import job_importer
+from app.services import jobs_workflow
 
 from ._shared import to_application
 
@@ -35,7 +35,7 @@ async def preview_job_import(
 ) -> JobImportPreviewResponse:
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Job description is required.")
-    return JobImportPreviewResponse(**job_importer.preview_imported_job(repo.client, body))
+    return JobImportPreviewResponse(**jobs_workflow.preview_imported_job(repo, body))
 
 
 @router.post("/import", response_model=ApplicationResponse)
@@ -47,7 +47,7 @@ async def import_job(
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
     return ApplicationResponse(
-        **job_importer.save_imported_job(repo.client, current_user["user_id"], body)
+        **jobs_workflow.save_imported_job(repo, current_user["user_id"], body)
     )
 
 

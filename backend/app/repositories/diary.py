@@ -80,6 +80,17 @@ class DiaryRepository:
         )
         return result.data or []
 
+    def list_job_application_milestones(self, user_id: str, limit: int) -> list[dict[str, Any]]:
+        result = (
+            self._db.table("job_application_milestones")
+            .select("id, milestone_date, skill, title, action, proof, impact, confidence, completed_at, created_at, updated_at")
+            .eq("user_id", user_id)
+            .order("milestone_date", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
     def upsert_user_milestone(self, payload: dict[str, Any]) -> None:
         self._db.table("user_milestones").upsert(
             payload,
@@ -110,6 +121,41 @@ class DiaryRepository:
         )
         return {row["skill_id"]: row["matched_level"] for row in result.data or []}
 
+    def list_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:
+        result = (
+            self._db.table("user_skills")
+            .select("skill_id, matched_level, skills(taxonomy_key)")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return result.data or []
+
+    def list_user_skill_keys(self, user_id: str) -> list[str]:
+        return [
+            row["skills"]["taxonomy_key"]
+            for row in self.list_user_skill_rows(user_id)
+            if row.get("skills") and row["skills"].get("taxonomy_key")
+        ]
+
+    def get_user_skill_level_map(self, user_id: str) -> dict[str, int]:
+        rows = self.list_user_skill_rows(user_id)
+        return {
+            row["skills"]["taxonomy_key"]: int(row.get("matched_level") or 0)
+            for row in rows
+            if row.get("skills") and row["skills"].get("taxonomy_key")
+        }
+
+    def get_target_roles(self, user_id: str) -> list[str]:
+        result = (
+            self._db.table("user_profiles")
+            .select("target_roles")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        raw_roles = ((result.data if result else {}) or {}).get("target_roles") or []
+        return [str(role).strip() for role in raw_roles if str(role).strip()]
+
     def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
         if rows:
             self._db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
@@ -123,4 +169,3 @@ def get_token_diary_repository(
     current_user: dict = Depends(get_current_user),
 ) -> DiaryRepository:
     return DiaryRepository(get_supabase_for_token(current_user["token"]))
-
