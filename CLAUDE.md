@@ -319,7 +319,7 @@ Date: 2026-04-27
 Milestone: Post-Phase-7 hardening completed (staging dry-runs + script hardening).
 
 Commits this session:
-  (pending) no commit yet in this session
+  f485508  refactor(scoring): harden phase-7 dry-run workflows
 
 What landed:
   - Added canonical no-write mode to the scoring entry point:
