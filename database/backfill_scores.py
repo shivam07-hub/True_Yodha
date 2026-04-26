@@ -12,6 +12,7 @@ Run from project root:
 Optional:
     python database/backfill_scores.py --user-id <uuid>
     python database/backfill_scores.py --limit 25
+    python database/backfill_scores.py --limit 5 --dry-run
 """
 
 from __future__ import annotations
@@ -41,6 +42,11 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Recompute Mirror Scores from user_skills.")
     parser.add_argument("--user-id", help="Process one user only.")
     parser.add_argument("--limit", type=int, default=0, help="Max users to process (0 = no limit).")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run canonical score computation without writing user_skills/mirror_scores/history.",
+    )
     return parser.parse_args()
 
 
@@ -96,6 +102,7 @@ def main() -> None:
     args = _parse_args()
     db = _get_admin_client()
     repo = ScoresRepository(db)
+    mode = "dry-run" if args.dry_run else "write"
 
     profiles = _iter_profiles(db, args.user_id)
     if not profiles:
@@ -126,6 +133,7 @@ def main() -> None:
                 user_id,
                 aspiration_skills=aspiration_skills or None,
                 skill_level_map=skill_level_map,
+                persist=not args.dry_run,
             )
             processed += 1
             print(
@@ -138,6 +146,7 @@ def main() -> None:
 
     print(
         "\nDone. "
+        f"mode={mode} "
         f"processed={processed} skipped={skipped} failed={failed} "
         f"scanned={len(profiles)}"
     )

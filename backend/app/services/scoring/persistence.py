@@ -167,6 +167,7 @@ def compute_and_persist_score(
     skill_level_map: dict[str, int] | None = None,
     include_market_signals: bool = True,
     require_skills_assessed: bool = False,
+    persist: bool = True,
 ) -> dict:
     """
     Full scoring pipeline. Two calling modes:
@@ -177,6 +178,7 @@ def compute_and_persist_score(
 
     Set require_skills_assessed=True for CV ingestion paths that must reject
     payloads when zero skills can be persisted to user_skills.
+    Set persist=False to run a no-write dry-run that still executes canonical score math.
     """
     if skill_level_map is None:
         skill_level_map = build_skill_level_map(skills_detected or [])
@@ -200,11 +202,26 @@ def compute_and_persist_score(
     rank_tier = compute_rank_tier(total_score)
 
     if skills_detected is not None:
-        skills_count = persist_user_skills(scores_repo, user_id, skill_level_map, skills_detected)
+        skills_count = (
+            persist_user_skills(scores_repo, user_id, skill_level_map, skills_detected)
+            if persist
+            else len(skill_level_map)
+        )
         if require_skills_assessed and skills_count == 0:
             raise ValueError("No valid skills could be persisted for this user.")
     else:
         skills_count = len(skill_level_map)
+
+    if not persist:
+        return {
+            "user_id": user_id,
+            "total_score": total_score,
+            "domain_scores": domain_scores,
+            "skill_scores": {},
+            "gap_skills": gap_skills,
+            "rank_tier": rank_tier,
+            "skills_assessed": skills_count,
+        }
 
     return persist_score(
         scores_repo, user_id, total_score, domain_scores, gap_skills, skills_count, rank_tier

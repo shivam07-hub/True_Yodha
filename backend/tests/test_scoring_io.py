@@ -249,3 +249,35 @@ class TestComputeAndPersistScore:
                     include_market_signals=False,
                     require_skills_assessed=True,
                 )
+
+    def test_dry_run_skips_all_persistence_writes(self) -> None:
+        cp, sp = self._patch_all()
+        with cp, sp, patch("app.services.scoring.persistence.persist_user_skills") as user_skills_patch, patch(
+            "app.services.scoring.persistence.persist_score"
+        ) as score_patch:
+            result = compute_and_persist_score(
+                ScoresRepository(self._make_db()),
+                "u1",
+                [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}],
+                include_market_signals=False,
+                persist=False,
+            )
+
+        user_skills_patch.assert_not_called()
+        score_patch.assert_not_called()
+        assert result["user_id"] == "u1"
+        assert "total_score" in result
+        assert "skills_assessed" in result
+
+    def test_dry_run_respects_require_skills_assessed_guard(self) -> None:
+        cp, sp = self._patch_all()
+        with cp, sp:
+            with pytest.raises(ValueError, match="No valid skills could be persisted"):
+                compute_and_persist_score(
+                    ScoresRepository(self._make_db()),
+                    "u1",
+                    [],
+                    include_market_signals=False,
+                    require_skills_assessed=True,
+                    persist=False,
+                )

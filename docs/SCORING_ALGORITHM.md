@@ -19,6 +19,23 @@
 
 No route or script should call lower-level persistence helpers directly for full score recomputation.
 
+### Phase 7 hardening ops commands
+
+Run against staging with a small sample first:
+
+```bash
+source .venv/bin/activate
+python database/backfill_scores.py --limit 5 --dry-run
+python database/restore_skills_from_cv_text.py --limit 3 --dry-run
+```
+
+Then execute write mode on the approved sample:
+
+```bash
+python database/backfill_scores.py --limit 5
+python database/restore_skills_from_cv_text.py --limit 3
+```
+
 ### Input modes
 
 1. CV ingestion mode (`skills_detected`)

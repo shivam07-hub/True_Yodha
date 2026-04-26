@@ -12,6 +12,7 @@ Run from project root:
 Optional:
     python database/restore_skills_from_cv_text.py --user-id <uuid>
     python database/restore_skills_from_cv_text.py --limit 10
+    python database/restore_skills_from_cv_text.py --limit 3 --dry-run
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ BACKEND_DIR = ROOT / "backend"
 ENV_FILE = BACKEND_DIR / ".env"
 PAGE_SIZE = 200
 
+# Ensure app.config.Settings sees backend/.env before module import-time settings initialisation.
+load_dotenv(ENV_FILE)
+
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
@@ -43,6 +47,11 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Restore user skills from cv_raw_text and recompute score.")
     parser.add_argument("--user-id", help="Process one user only.")
     parser.add_argument("--limit", type=int, default=0, help="Max users to process (0 = no limit).")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run parser + canonical score computation without writing user_skills/mirror_scores/history.",
+    )
     return parser.parse_args()
 
 
@@ -94,7 +103,11 @@ def _normalise_roles(raw_roles: Any) -> list[str]:
     return [str(role).strip() for role in raw_roles if str(role).strip()]
 
 
-async def _process_profile(repo: ScoresRepository, profile: dict[str, Any]) -> tuple[str, str]:
+async def _process_profile(
+    repo: ScoresRepository,
+    profile: dict[str, Any],
+    dry_run: bool,
+) -> tuple[str, str]:
     user_id = profile["id"]
     cv_raw_text = (profile.get("cv_raw_text") or "").strip()
     if len(cv_raw_text) < 80:
@@ -115,6 +128,7 @@ async def _process_profile(repo: ScoresRepository, profile: dict[str, Any]) -> t
         aspiration_skills=aspiration_skills or None,
         include_market_signals=False,
         require_skills_assessed=True,
+        persist=not dry_run,
     )
     return (
         "ok",
@@ -127,6 +141,7 @@ async def _run() -> None:
     args = _parse_args()
     db = _get_admin_client()
     repo = ScoresRepository(db)
+    mode = "dry-run" if args.dry_run else "write"
     profiles = _iter_profiles(db, args.user_id)
     if not profiles:
         print("No matching users found.")
@@ -140,7 +155,7 @@ async def _run() -> None:
         if args.limit and processed >= args.limit:
             break
         try:
-            status, message = await _process_profile(repo, profile)
+            status, message = await _process_profile(repo, profile, args.dry_run)
             if status == "ok":
                 processed += 1
                 print(f"[ok]   {message}")
@@ -153,6 +168,7 @@ async def _run() -> None:
 
     print(
         "\nDone. "
+        f"mode={mode} "
         f"processed={processed} skipped={skipped} failed={failed} "
         f"scanned={len(profiles)}"
     )

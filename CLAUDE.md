@@ -312,37 +312,48 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — PHASE 7 SCORING ENTRY-POINT CONSOLIDATION)
+## LAST SESSION SUMMARY (2026-04-27 — POST-PHASE-7 HARDENING)
 
 ```
 Date: 2026-04-27
-Milestone: Phase 7 implemented in workspace.
+Milestone: Post-Phase-7 hardening completed (staging dry-runs + script hardening).
 
 Commits this session:
   (pending) no commit yet in this session
 
 What landed:
-  - Canonical scoring invariant enforced:
-      `compute_and_persist_score(..., require_skills_assessed=True)` now raises when 0 skills persist
-  - CV upload/text routes now map that failure to HTTP 422:
-      `backend/app/routers/cv/upload.py`
-  - Added thin operational wrappers (both call `compute_and_persist_score()`):
+  - Added canonical no-write mode to the scoring entry point:
+      `compute_and_persist_score(..., persist=False)` runs full score math without DB writes
+  - Hardened both Phase 7 operational wrappers with `--dry-run`:
       `database/backfill_scores.py`
       `database/restore_skills_from_cv_text.py`
-  - Updated scoring documentation:
-      `docs/SCORING_ALGORITHM.md` now documents canonical entry-point + input modes + CV safety invariant
-  - Added regression coverage:
-      `backend/tests/test_scoring_io.py` (require_skills_assessed guard)
-      `backend/tests/test_cv_upload_api.py` (422 behavior when no skills persist)
+  - Fixed restore-script env-load bug:
+      `restore_skills_from_cv_text.py` now loads `backend/.env` before importing `cv_parser`
+      so `app.config.settings` sees LLM provider keys at import-time
+  - Added regression coverage for dry-run semantics:
+      `backend/tests/test_scoring_io.py`
+      - dry-run skips persistence writes
+      - dry-run still enforces `require_skills_assessed` guard
+  - Updated scoring docs with Phase 7 hardening commands:
+      `docs/SCORING_ALGORITHM.md`
+
+Staging dry-run evidence:
+  - `python database/backfill_scores.py --limit 5 --dry-run`
+      processed=5 skipped=3 failed=0 scanned=9
+  - `python database/restore_skills_from_cv_text.py --limit 3 --dry-run`
+      processed=3 skipped=0 failed=0 scanned=6
 
 Verification:
-  - `pytest backend/tests -q` → 173 passed
+  - `pytest backend/tests -q` → 178 passed
   - `frontend/node_modules/.bin/tsc --noEmit --project frontend/tsconfig.json` → pass
   - `cd frontend && ./node_modules/.bin/next lint` → clean
 
-Next: post-phase-7 hardening
-  - dry-run new scripts on staging sample users
-  - run end-to-end production smoke path
+Phase 8 decision:
+  - Defer Stretch Phase 8 (DTO/entity/row separation) for now.
+  - Rationale: no concrete DTO/row divergence pain surfaced during Phase 7 hardening.
+
+Next:
+  - Run authenticated production URL smoke path (CV upload → score → jobs/diary) with dedicated test account.
 ```
 
 ---
