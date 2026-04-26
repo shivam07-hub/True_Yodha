@@ -2,12 +2,20 @@ from fastapi.testclient import TestClient
 
 from app.deps import get_current_user
 from app.main import app
+from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
 
 
+class _FakeJobsRepository:
+    @property
+    def client(self) -> object:
+        return object()
+
+
 def test_get_application_path_calls_service(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_path_service,
         "get_application_path",
@@ -38,8 +46,9 @@ def test_get_application_path_calls_service(monkeypatch) -> None:
 
 
 def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_path_service,
         "replace_skill_targets",
@@ -73,8 +82,9 @@ def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
 
 
 def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
+    repo = _FakeJobsRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    monkeypatch.setattr(jobs, "get_supabase_admin", lambda: object())
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_path_service,
         "generate_job_cv",
