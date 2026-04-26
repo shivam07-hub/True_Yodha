@@ -179,7 +179,7 @@ class TestComputeAndPersistScore:
 
     def _patch_all(self) -> tuple:
         cluster_patch = patch(
-            "app.services.scoring_engine._build_cluster_maps",
+            "app.services.scoring.persistence._build_cluster_maps",
             return_value=self.CLUSTER_MAPS,
         )
         skill_patch = patch(
