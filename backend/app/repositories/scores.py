@@ -6,7 +6,8 @@ from typing import Any
 from fastapi import Depends
 from supabase import Client
 
-from app.database import get_supabase_admin
+from app.database import get_supabase_admin, get_supabase_for_token
+from app.deps import get_current_user
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,15 @@ class ScoresRepository:
         return result.data
 
 
+def get_token_scores_repository(
+    current_user: dict = Depends(get_current_user),
+) -> ScoresRepository:
+    # NOTE: find_role_skill_rows / list_market_skill_rows read public.jobs.
+    # Requires RLS to allow `authenticated` reads on jobs. Verify before deploying.
+    return ScoresRepository(get_supabase_for_token(current_user["token"]))
+
+
 def get_scores_repository(db: Client = Depends(get_supabase_admin)) -> ScoresRepository:
+    """Admin factory — internal/ops use only (e.g. backfill scripts). Not for user routes."""
     return ScoresRepository(db)
 

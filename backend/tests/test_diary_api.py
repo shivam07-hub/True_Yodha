@@ -94,7 +94,7 @@ def test_create_entry_appends_to_existing_daily_log() -> None:
     repo = _FakeDiaryRepository()
     repo.existing_daily = {"entry_text": "Yesterday", "skills_delta": []}
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[diary.get_admin_diary_repository] = lambda: repo
+    app.dependency_overrides[diary.get_token_diary_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
@@ -130,7 +130,7 @@ def test_history_reads_through_token_diary_repository() -> None:
 def test_upsert_milestone_writes_through_admin_diary_repository() -> None:
     repo = _FakeDiaryRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[diary.get_admin_diary_repository] = lambda: repo
+    app.dependency_overrides[diary.get_token_diary_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:

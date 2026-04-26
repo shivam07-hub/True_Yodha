@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
-from app.repositories.scores import ScoresRepository, get_scores_repository
+from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring_engine
 from app.services.scoring_engine import fetch_aspiration_skills
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 @router.get("/me", response_model=MirrorScoreResponse)
 async def get_my_score(
     current_user: dict = Depends(get_current_user),
-    scores_repo: ScoresRepository = Depends(get_scores_repository),
+    scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> MirrorScoreResponse:
     row = scores_repo.get_mirror_score(current_user["user_id"])
     if not row:
@@ -36,7 +36,7 @@ async def get_my_score(
 @router.post("/compute", response_model=ComputeScoreResponse)
 async def recompute_score(
     current_user: dict = Depends(get_current_user),
-    scores_repo: ScoresRepository = Depends(get_scores_repository),
+    scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> ComputeScoreResponse:
     """Re-run scoring from existing user_skills. Used after diary updates."""
     inputs = scores_repo.get_recompute_inputs(current_user["user_id"])

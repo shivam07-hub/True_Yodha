@@ -1,11 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
-from app.repositories.users import (
-    UsersRepository,
-    get_admin_users_repository,
-    get_token_users_repository,
-)
+from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
     UpdateProfileRequest,
     UserProfileResponse,
@@ -30,7 +26,7 @@ async def get_me(
 @router.get("/me/skills", response_model=UserSkillsByDomainResponse)
 async def get_my_skills(
     current_user: dict = Depends(get_current_user),
-    users_repo: UsersRepository = Depends(get_admin_users_repository),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> UserSkillsByDomainResponse:
     """Returns the authenticated user's skills grouped by Lightcast taxonomy domain."""
     by_domain: dict[str, list[dict]] = {}   # L1 — for radar drill-down

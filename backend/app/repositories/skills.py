@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import Depends
 from supabase import Client
 
-from app.database import get_supabase_admin
+from app.database import get_supabase
 
 
 @dataclass(frozen=True)
@@ -53,6 +53,6 @@ class SkillsRepository:
         )
 
 
-def get_skills_repository(db: Client = Depends(get_supabase_admin)) -> SkillsRepository:
+def get_skills_repository(db: Client = Depends(get_supabase)) -> SkillsRepository:
     return SkillsRepository(db)
 

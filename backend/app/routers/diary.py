@@ -3,11 +3,7 @@ from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, status
 
 from app.deps import get_current_user
-from app.repositories.diary import (
-    DiaryRepository,
-    get_admin_diary_repository,
-    get_token_diary_repository,
-)
+from app.repositories.diary import DiaryRepository, get_token_diary_repository
 from app.schemas import (
     DiaryEntryRequest,
     DiaryEntryResponse,
@@ -26,7 +22,7 @@ router = APIRouter(prefix="/diary", tags=["diary"])
 async def create_or_update_entry(
     body: DiaryEntryRequest,
     current_user: dict = Depends(get_current_user),
-    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> DiaryEntryResponse:
     user_id = current_user["user_id"]
     log_date = body.log_date or date.today()
@@ -82,7 +78,7 @@ async def get_diary_history(
 @router.get("/milestones", response_model=MilestoneListResponse)
 async def get_milestones(
     current_user: dict = Depends(get_current_user),
-    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
 ) -> MilestoneListResponse:
     milestones = [
@@ -96,7 +92,7 @@ async def get_milestones(
 async def upsert_milestone(
     body: MilestoneRequest,
     current_user: dict = Depends(get_current_user),
-    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> MilestoneResponse:
     now = datetime.now(timezone.utc).isoformat()
     payload = {

@@ -97,7 +97,7 @@ def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
 
     monkeypatch.setattr(users, "lookup_by_name", fake_lookup)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[users.get_admin_users_repository] = lambda: repo
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:

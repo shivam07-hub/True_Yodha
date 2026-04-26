@@ -39,7 +39,7 @@ def _score_row(total_score: float = 72.5) -> dict[str, Any]:
 def test_get_my_score_reads_through_scores_repository() -> None:
     repo = _FakeScoresRepository(score_row=_score_row())
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[scores.get_scores_repository] = lambda: repo
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
@@ -55,7 +55,7 @@ def test_get_my_score_reads_through_scores_repository() -> None:
 def test_get_my_score_returns_404_when_missing() -> None:
     repo = _FakeScoresRepository(score_row=None)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[scores.get_scores_repository] = lambda: repo
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
@@ -89,7 +89,7 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
     monkeypatch.setattr(scores, "fetch_aspiration_skills", fake_fetch)
     monkeypatch.setattr(scores.scoring_engine, "compute_and_persist_score", fake_compute)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[scores.get_scores_repository] = lambda: repo
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
@@ -114,7 +114,7 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
 def test_recompute_score_returns_404_without_skills() -> None:
     repo = _FakeScoresRepository(recompute_inputs=ScoreRecomputeInputs({}, []))
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[scores.get_scores_repository] = lambda: repo
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
