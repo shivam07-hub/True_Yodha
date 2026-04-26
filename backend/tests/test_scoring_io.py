@@ -232,3 +232,19 @@ class TestComputeAndPersistScore:
                 include_market_signals=False,
             )
             assert result is not None
+
+    def test_require_skills_assessed_raises_when_no_rows_persisted(self) -> None:
+        cluster_patch = patch(
+            "app.services.scoring.persistence._build_cluster_maps",
+            return_value=self.CLUSTER_MAPS,
+        )
+        skill_patch = patch("app.services.taxonomy_loader.ensure_skill_in_db", return_value=None)
+        with cluster_patch, skill_patch:
+            with pytest.raises(ValueError, match="No valid skills could be persisted"):
+                compute_and_persist_score(
+                    self._make_db(),
+                    "u1",
+                    [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": ""}],
+                    include_market_signals=False,
+                    require_skills_assessed=True,
+                )

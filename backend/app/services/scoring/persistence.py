@@ -178,6 +178,7 @@ def compute_and_persist_score(
     aspiration_skills: dict[str, int] | None = None,
     skill_level_map: dict[str, int] | None = None,
     include_market_signals: bool = True,
+    require_skills_assessed: bool = False,
 ) -> dict:
     """
     Full scoring pipeline. Two calling modes:
@@ -185,6 +186,9 @@ def compute_and_persist_score(
       - Recompute: pass skill_level_map (stored matched_level values). Skips signal
         inference and does NOT overwrite user_skills — preserves original proficiency
         levels and evidence text.
+
+    Set require_skills_assessed=True for CV ingestion paths that must reject
+    payloads when zero skills can be persisted to user_skills.
     """
     if skill_level_map is None:
         skill_level_map = build_skill_level_map(skills_detected or [])
@@ -209,6 +213,8 @@ def compute_and_persist_score(
 
     if skills_detected is not None:
         skills_count = persist_user_skills(db, user_id, skill_level_map, skills_detected)
+        if require_skills_assessed and skills_count == 0:
+            raise ValueError("No valid skills could be persisted for this user.")
     else:
         skills_count = len(skill_level_map)
 

@@ -50,12 +50,19 @@ async def upload_cv(
             detail="No skills could be extracted from this CV. Try a more detailed document.",
         )
 
-    score_row = scoring_engine.compute_and_persist_score(
-        cv_repo.client,
-        current_user["user_id"],
-        skills_detected,
-        include_market_signals=False,
-    )
+    try:
+        score_row = scoring_engine.compute_and_persist_score(
+            cv_repo.client,
+            current_user["user_id"],
+            skills_detected,
+            include_market_signals=False,
+            require_skills_assessed=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV skills could not be mapped to the skill taxonomy. Please revise and try again.",
+        ) from exc
     now = datetime.now(timezone.utc).isoformat()
     cv_repo.update_cv_profile(
         current_user["user_id"],
@@ -109,12 +116,19 @@ async def submit_cv_text(
             detail="No skills could be identified from your description. Try adding more detail about your work and projects.",
         )
 
-    score_row = scoring_engine.compute_and_persist_score(
-        cv_repo.client,
-        current_user["user_id"],
-        skills_detected,
-        include_market_signals=False,
-    )
+    try:
+        score_row = scoring_engine.compute_and_persist_score(
+            cv_repo.client,
+            current_user["user_id"],
+            skills_detected,
+            include_market_signals=False,
+            require_skills_assessed=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CV skills could not be mapped to the skill taxonomy. Please revise and try again.",
+        ) from exc
     now = datetime.now(timezone.utc).isoformat()
     cv_repo.update_cv_profile(
         current_user["user_id"],

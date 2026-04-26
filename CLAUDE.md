@@ -92,7 +92,7 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 
 ---
 
-## NEXT SESSION FOCUS (PHASE 7 — DUAL SCORING ENTRY-POINT CONSOLIDATION)
+## NEXT SESSION FOCUS (POST-PHASE-7 HARDENING)
 
 **Phase 5 complete:** frontend prototype references moved to `reference/` and no live `BF_*` imports remain in production frontend code.
 
@@ -101,13 +101,20 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 - `backend/app/routers/cv/{upload,history,variants}.py`
 - Top-level router exports preserved via package `__init__.py` so `app.main` still mounts `jobs.router` and `cv.router`.
 
-**Next up: Phase 7 — Dual scoring entry-point consolidation.**
-- Make `compute_and_persist_score()` the single canonical path.
-- Convert `backfill_scores.py` and `restore_skills_from_cv_text.py` into thin wrappers.
-- Enforce CV upload flow guarantee: every CV persists skills through the canonical scorer.
-- Update `docs/SCORING_ALGORITHM.md` to match final flow.
+**Phase 7 complete (workspace):**
+- `compute_and_persist_score()` remains the single canonical scoring path.
+- Added thin CLI wrappers:
+  - `database/backfill_scores.py`
+  - `database/restore_skills_from_cv_text.py`
+- Enforced CV upload/text invariant: require at least one persisted skill row.
+- Updated `docs/SCORING_ALGORITHM.md` with canonical-flow documentation.
 
-Verification for Phase 7:
+**Next up: hardening + rollout confidence**
+- Dry-run both Phase 7 scripts against a small user sample on staging.
+- Smoke test end-to-end production URL flow (CV upload → score compute → jobs/diary).
+- Decide whether to start Stretch Phase 8 (DTO/entity/row separation) based on pain observed.
+
+Verification completed this session:
 ```
 pytest backend/tests -q   → all pass
 tsc --noEmit              → exit 0
@@ -153,9 +160,12 @@ Eight modularity issues tackled across seven phases. Each phase = one session, o
   `routers/jobs/{list,detail,match,apply,milestone}.py`, `routers/cv/{upload,history,variants}.py`.
   Top-level router re-exports preserved for unchanged `app.main` mounting.
 
-**Phase 7 — Dual scoring entry-point consolidation.**
+**Phase 7 — Dual scoring entry-point consolidation.** ✅ DONE (workspace)
   Owner: Claude Code.
-  `compute_and_persist_score()` is the single canonical scoring entry point. `backfill_scores.py` and `restore_skills_from_cv_text.py` become thin CLI wrappers that call it. Every CV must have skills attached — enforce this in the upload flow. Document final flow in `docs/SCORING_ALGORITHM.md`.
+  `compute_and_persist_score()` is the single canonical scoring entry point.
+  Added thin wrappers `database/backfill_scores.py` and `database/restore_skills_from_cv_text.py`.
+  CV upload/text now enforce that at least one skill is persisted before completion.
+  `docs/SCORING_ALGORITHM.md` updated to reflect canonical scoring flow.
 
 **Stretch (Phase 8) — Domain layer separation.**
   Owner: Claude Code.
@@ -302,7 +312,42 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — PHASE 5/6 FRONTEND CLEANUP + ROUTER SPLIT)
+## LAST SESSION SUMMARY (2026-04-27 — PHASE 7 SCORING ENTRY-POINT CONSOLIDATION)
+
+```
+Date: 2026-04-27
+Milestone: Phase 7 implemented in workspace.
+
+Commits this session:
+  (pending) no commit yet in this session
+
+What landed:
+  - Canonical scoring invariant enforced:
+      `compute_and_persist_score(..., require_skills_assessed=True)` now raises when 0 skills persist
+  - CV upload/text routes now map that failure to HTTP 422:
+      `backend/app/routers/cv/upload.py`
+  - Added thin operational wrappers (both call `compute_and_persist_score()`):
+      `database/backfill_scores.py`
+      `database/restore_skills_from_cv_text.py`
+  - Updated scoring documentation:
+      `docs/SCORING_ALGORITHM.md` now documents canonical entry-point + input modes + CV safety invariant
+  - Added regression coverage:
+      `backend/tests/test_scoring_io.py` (require_skills_assessed guard)
+      `backend/tests/test_cv_upload_api.py` (422 behavior when no skills persist)
+
+Verification:
+  - `pytest backend/tests -q` → 173 passed
+  - `frontend/node_modules/.bin/tsc --noEmit --project frontend/tsconfig.json` → pass
+  - `cd frontend && ./node_modules/.bin/next lint` → clean
+
+Next: post-phase-7 hardening
+  - dry-run new scripts on staging sample users
+  - run end-to-end production smoke path
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — PHASE 5/6 FRONTEND CLEANUP + ROUTER SPLIT)
 
 ```
 Date: 2026-04-27

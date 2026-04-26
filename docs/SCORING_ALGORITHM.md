@@ -1,7 +1,39 @@
 # Mirror Score Algorithm
 
-> Implemented in: `backend/app/services/scoring_engine.py`
+> Canonical scoring entry point: `backend/app/services/scoring/persistence.py::compute_and_persist_score()`
+> Back-compat shim: `backend/app/services/scoring_engine.py` (re-export only)
 > Taxonomy source: `lightcast_skills_taxonomy.json`
+
+---
+
+## Canonical Scoring Flow (Phase 7)
+
+`compute_and_persist_score()` is the single scoring orchestrator for all paths:
+
+- CV upload / text submit (`/cv/upload`, `/cv/text`)
+- Score recompute (`/scores/compute`)
+- Diary-triggered recompute (`/diary/entry`)
+- Operational scripts:
+  - `database/backfill_scores.py`
+  - `database/restore_skills_from_cv_text.py`
+
+No route or script should call lower-level persistence helpers directly for full score recomputation.
+
+### Input modes
+
+1. CV ingestion mode (`skills_detected`)
+   - infer levels from signals
+   - persist `user_skills`
+   - persist `mirror_scores` + `mirror_score_history`
+
+2. Recompute mode (`skill_level_map`)
+   - reuse already persisted levels
+   - recompute and persist score artifacts without rewriting skill evidence
+
+### CV safety invariant
+
+CV ingestion paths enforce at least one persisted skill row (`require_skills_assessed=True`).
+If zero skills can be written to `user_skills`, request fails with HTTP 422 and CV state is not advanced.
 
 ---
 
