@@ -310,59 +310,53 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-26 — OPEN QUESTIONS + RENAME)
+## LAST SESSION SUMMARY (2026-04-26 — OQ2 POLICY ENFORCEMENT)
 
 ```
 Date: 2026-04-26
-Milestone: All open questions resolved. Product renamed Mirror → Myro. CLAUDE.md updated.
+Milestone: OQ2 policy enforced across all Phase 2A repos. All user-facing routes now token-scoped.
 
 Commits this session:
-  fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence} [Phase 1]
-  0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
-  (no new commit — session ended with CLAUDE.md update only)
+  9e21063  docs(claude): rename Mirror→Myro, lock all open questions, reset Phase 2 to NEXT
+  3c958bb  refactor(repos): enforce token-scoped client on all user-facing routes (OQ2 policy)
 
-Incident:
-  Claude Code misread "delete all file changes" as "revert all uncommitted Codex work."
-  Ran `git checkout -- .` + `git clean -fd`, permanently deleting Codex's Phase 2 work:
-    - backend/app/repositories/{scores,skills,users,diary}.py
-    - backend/app/services/job_feed/{importer,taxonomy}.py
-    - backend/app/services/job_path/llm_polish.py
-    - backend/tests/ (10 new test files)
-    - docs/adr/
-    - UBIQUITOUS_LANGUAGE.md
-    - skills/
-  Phase 2 must be fully redone by Codex. See NEXT SESSION FOCUS above.
+OQ2 policy applied (commit 3c958bb):
+  scores:  GET /me, POST /compute → get_token_scores_repository
+           ⚠️  find_role_skill_rows / list_market_skill_rows read public.jobs.
+               Requires RLS to allow `authenticated` reads on jobs. Verify in Supabase
+               before promoting to production.
+  skills:  GET /, GET /domains → get_supabase() anon (global taxonomy, no user ownership)
+  users:   GET /me/skills → token-scoped (was admin; reads own user_skills)
+           GET /me, PUT /me/profile were already token-scoped ✓
+  diary:   POST /entry, GET /milestones, PUT /milestones → token-scoped
+           GET /history was already token-scoped ✓
 
-Decisions made this session:
-  OQ1: Separate repos (independent deploy cadence)
-  OQ2: Token-scoped client for user endpoints — service-role for admin only
-  OQ3: Scraper stays local-only; Myro stays cloud — Phase 3 unifies Myro internals only
-  OQ4: compute_and_persist_score() is the single canonical entry point; CVs always have skills
-  S1: Deprecate user_milestones → job_application_milestones (job_id nullable)
-  S2: Join table for daily_logs ↔ milestones
-  S3: job_applications.status='pending' = saved job
-  S4: Intel skill targeting is ephemeral
-  S5: No cap on active job-paths — surface "next due" in diary
-
-Rename:
-  Product name changed: Mirror → Myro
-  CLAUDE.md updated throughout. Code/DB references not yet renamed (separate task).
+Admin factories kept in repo files for backfill/ops scripts. Removed from user-facing routers.
+Tests updated. 166 passed.
 
 Known follow-ups (carried):
   [ ] Smoke test production URL end-to-end
   [ ] Regenerate Signal Dot particle logo in amber for Forge mode
   [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal
   [ ] Rename Mirror → Myro in code (API strings, UI labels, env var comments)
+  [ ] Verify RLS on public.jobs allows `authenticated` reads (needed for scores endpoints)
 
-Next for Codex:
-  1. Phase 2A — redo repositories/{scores,skills,users,diary}.py with token-scoped client
-  2. Phase 2B — repositories/cv.py
-  3. Phase 2C — repositories/jobs.py
-  4. Run full test suite + tsc + lint before committing each phase
-  CRITICAL: user-facing endpoints use token-scoped Supabase client, NOT get_supabase_admin()
+Next for Codex — Phase 2B:
+  Create backend/app/repositories/cv.py and move routers/cv.py Supabase calls behind it.
+  CV only — no jobs.py yet.
+  Use token-scoped client (get_supabase_for_token) for all user-facing CV endpoints.
+  Use get_supabase_admin() only if a CV endpoint genuinely needs cross-user reads (explain why).
+  CV slice covers:
+    - Baseline CV profile read (user_profiles.cv_raw_text, cv_parsed_at)
+    - CV History reads/writes and next version number
+    - Upload/text-submit profile update + cv_history insert
+    - Evidence summary reads from job_application_milestones, daily_logs, user_skills, mirror_scores
+    - Generated-draft/save-draft insert and user skill count
+    - Rate-limit adapter access to cv_history.uploaded_at
+  Run: pytest backend/tests -q + tsc --noEmit + next lint before committing.
 
 Next for Claude:
-  1. Review completed Phase 2 adapters for correct token-scoped vs service-role split
+  1. Verify RLS policy on public.jobs in Supabase dashboard
   2. Define LLM provider interface for Phase 3
 ```
 
