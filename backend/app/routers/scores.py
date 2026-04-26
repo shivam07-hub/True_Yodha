@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_supabase_admin
 from app.deps import get_current_user
+from app.repositories.scores import ScoresRepository, get_scores_repository
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring_engine
 from app.services.scoring_engine import fetch_aspiration_skills
@@ -12,22 +12,17 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 
 
 @router.get("/me", response_model=MirrorScoreResponse)
-async def get_my_score(current_user: dict = Depends(get_current_user)) -> MirrorScoreResponse:
-    result = (
-        get_supabase_admin()
-        .table("mirror_scores")
-        .select("*")
-        .eq("user_id", current_user["user_id"])
-        .maybe_single()
-        .execute()
-    )
-    if result is None or not result.data:
+async def get_my_score(
+    current_user: dict = Depends(get_current_user),
+    scores_repo: ScoresRepository = Depends(get_scores_repository),
+) -> MirrorScoreResponse:
+    row = scores_repo.get_mirror_score(current_user["user_id"])
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No score found. Upload your CV first.",
         )
 
-    row = result.data
     # rank_tier is intentionally excluded from the response
     return MirrorScoreResponse(
         total_score=row["total_score"],
@@ -39,36 +34,25 @@ async def get_my_score(current_user: dict = Depends(get_current_user)) -> Mirror
 
 
 @router.post("/compute", response_model=ComputeScoreResponse)
-async def recompute_score(current_user: dict = Depends(get_current_user)) -> ComputeScoreResponse:
+async def recompute_score(
+    current_user: dict = Depends(get_current_user),
+    scores_repo: ScoresRepository = Depends(get_scores_repository),
+) -> ComputeScoreResponse:
     """Re-run scoring from existing user_skills. Used after diary updates."""
-    db = get_supabase_admin()
-
-    user_skills = (
-        db.table("user_skills")
-        .select("matched_level, evidence_text, skills(taxonomy_key)")
-        .eq("user_id", current_user["user_id"])
-        .execute()
-    )
-    if not user_skills.data:
+    inputs = scores_repo.get_recompute_inputs(current_user["user_id"])
+    if not inputs.skill_level_map:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No skills found. Upload your CV first.",
         )
 
-    skill_level_map = {
-        row["skills"]["taxonomy_key"]: row["matched_level"]
-        for row in user_skills.data
-        if row.get("skills")
-    }
-
-    profile = db.table("user_profiles").select("target_roles").eq("id", current_user["user_id"]).maybe_single().execute()
-    target_roles: list[str] = ((profile.data or {}).get("target_roles") or [])
-    aspiration_skills = fetch_aspiration_skills(db, target_roles)
+    aspiration_skills = fetch_aspiration_skills(scores_repo, inputs.target_roles)
 
     score_row = scoring_engine.compute_and_persist_score(
-        db, current_user["user_id"],
+        scores_repo,
+        current_user["user_id"],
         aspiration_skills=aspiration_skills or None,
-        skill_level_map=skill_level_map,
+        skill_level_map=inputs.skill_level_map,
     )
 
     score_response = MirrorScoreResponse(

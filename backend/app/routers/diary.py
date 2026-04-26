@@ -2,8 +2,12 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, status
 
-from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.repositories.diary import (
+    DiaryRepository,
+    get_admin_diary_repository,
+    get_token_diary_repository,
+)
 from app.schemas import (
     DiaryEntryRequest,
     DiaryEntryResponse,
@@ -22,99 +26,69 @@ router = APIRouter(prefix="/diary", tags=["diary"])
 async def create_or_update_entry(
     body: DiaryEntryRequest,
     current_user: dict = Depends(get_current_user),
+    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
 ) -> DiaryEntryResponse:
-    db = get_supabase_admin()
     user_id = current_user["user_id"]
     log_date = body.log_date or date.today()
 
     # Score before
-    existing_score = db.table("mirror_scores").select("total_score").eq("user_id", user_id).maybe_single().execute()
-    score_before = existing_score.data["total_score"] if (existing_score is not None and existing_score.data) else None
+    score_before = diary_repo.get_total_score(user_id)
 
     signals: list[dict] = []
 
     # Update user_skills if any signals found
     if signals:
-        _merge_signals_into_user_skills(db, user_id, signals)
-        score_row = scoring_engine.compute_and_persist_score(db, user_id, signals)
+        _merge_signals_into_user_skills(diary_repo, user_id, signals)
+        score_row = scoring_engine.compute_and_persist_score(diary_repo.client, user_id, signals)
         score_after = score_row["total_score"]
     else:
         score_after = score_before
 
     # Append to existing entry for the day (never overwrite)
-    existing_entry = (
-        db.table("daily_logs")
-        .select("entry_text, skills_delta")
-        .eq("user_id", user_id)
-        .eq("log_date", str(log_date))
-        .maybe_single()
-        .execute()
-    )
-    if existing_entry is not None and existing_entry.data:
-        prior_text = existing_entry.data.get("entry_text") or ""
+    existing_entry = diary_repo.get_daily_log_for_append(user_id, log_date)
+    if existing_entry:
+        prior_text = existing_entry.get("entry_text") or ""
         combined_text = prior_text + "\n\n---\n\n" + body.entry_text if prior_text else body.entry_text
-        prior_delta = existing_entry.data.get("skills_delta") or []
+        prior_delta = existing_entry.get("skills_delta") or []
     else:
         combined_text = body.entry_text
         prior_delta = []
 
     skills_delta = prior_delta + [{"taxonomy_key": s["taxonomy_key"], "xp_added": s["xp_awarded"], "evidence": s["evidence"]} for s in signals]
     now = datetime.now(timezone.utc).isoformat()
-    db.table("daily_logs").upsert(
+    diary_repo.upsert_daily_log(
         {
             "user_id": user_id,
             "log_date": str(log_date),
             "entry_text": combined_text,
             "skills_delta": skills_delta,
             "updated_at": now,
-        },
-        on_conflict="user_id,log_date",
-    ).execute()
-    result = (
-        db.table("daily_logs")
-        .select("*")
-        .eq("user_id", user_id)
-        .eq("log_date", str(log_date))
-        .single()
-        .execute()
+        }
     )
-    row = result.data
+    row = diary_repo.get_daily_log(user_id, log_date)
     return _to_diary_response(row, score_before, score_after)
 
 
 @router.get("/history", response_model=DiaryHistoryResponse)
 async def get_diary_history(
     current_user: dict = Depends(get_current_user),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
 ) -> DiaryHistoryResponse:
-    result = (
-        get_supabase_for_token(current_user["token"])
-        .table("daily_logs")
-        .select("*")
-        .eq("user_id", current_user["user_id"])
-        .order("log_date", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    entries = [_to_diary_response(row) for row in result.data]
+    entries = [_to_diary_response(row) for row in diary_repo.list_daily_logs(current_user["user_id"], limit)]
     return DiaryHistoryResponse(entries=entries, total=len(entries))
 
 
 @router.get("/milestones", response_model=MilestoneListResponse)
 async def get_milestones(
     current_user: dict = Depends(get_current_user),
+    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
     limit: int = 30,
 ) -> MilestoneListResponse:
-    result = (
-        get_supabase_admin()
-        .table("user_milestones")
-        .select("*")
-        .eq("user_id", current_user["user_id"])
-        .order("milestone_date", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    milestones = [_to_milestone_response(row) for row in result.data]
+    milestones = [
+        _to_milestone_response(row)
+        for row in diary_repo.list_user_milestones(current_user["user_id"], limit)
+    ]
     return MilestoneListResponse(milestones=milestones, total=len(milestones))
 
 
@@ -122,8 +96,8 @@ async def get_milestones(
 async def upsert_milestone(
     body: MilestoneRequest,
     current_user: dict = Depends(get_current_user),
+    diary_repo: DiaryRepository = Depends(get_admin_diary_repository),
 ) -> MilestoneResponse:
-    db = get_supabase_admin()
     now = datetime.now(timezone.utc).isoformat()
     payload = {
         "user_id": current_user["user_id"],
@@ -138,29 +112,23 @@ async def upsert_milestone(
     if body.completed:
         payload["completed_at"] = now
 
-    db.table("user_milestones").upsert(payload, on_conflict="user_id,milestone_date").execute()
-    result = (
-        db.table("user_milestones")
-        .select("*")
-        .eq("user_id", current_user["user_id"])
-        .eq("milestone_date", str(body.milestone_date))
-        .single()
-        .execute()
-    )
-    return _to_milestone_response(result.data)
+    diary_repo.upsert_user_milestone(payload)
+    row = diary_repo.get_user_milestone(current_user["user_id"], body.milestone_date)
+    return _to_milestone_response(row)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _merge_signals_into_user_skills(db, user_id: str, signals: list[dict]) -> None:
+def _merge_signals_into_user_skills(
+    diary_repo: DiaryRepository,
+    user_id: str,
+    signals: list[dict],
+) -> None:
     """Only upgrade a skill level — never downgrade from diary entries."""
     from app.services.scoring_engine import infer_level_from_signals
 
-    skill_id_result = db.table("skills").select("id, taxonomy_key").execute()
-    skill_id_map = {r["taxonomy_key"]: r["id"] for r in skill_id_result.data}
-
-    existing = db.table("user_skills").select("skill_id, matched_level").eq("user_id", user_id).execute()
-    current_levels = {r["skill_id"]: r["matched_level"] for r in existing.data}
+    skill_id_map = diary_repo.skill_ids_by_taxonomy_key()
+    current_levels = diary_repo.user_skill_levels_by_skill_id(user_id)
 
     grouped: dict[str, list[dict]] = {}
     for s in signals:
@@ -184,7 +152,7 @@ def _merge_signals_into_user_skills(db, user_id: str, signals: list[dict]) -> No
             })
 
     if rows:
-        db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
+        diary_repo.upsert_user_skill_rows(rows)
 
 
 def _to_diary_response(

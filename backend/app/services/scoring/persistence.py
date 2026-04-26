@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from supabase import Client
 
+from app.repositories.scores import ScoresRepository
 from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
     _build_cluster_maps,
@@ -24,9 +25,15 @@ from app.services.scoring.gap import compute_gap_skills, compute_rank_tier
 logger = logging.getLogger(__name__)
 
 
+def _scores_repository(db: Client | ScoresRepository) -> ScoresRepository:
+    if isinstance(db, ScoresRepository):
+        return db
+    return ScoresRepository(db)
+
+
 # ── Supabase reads ────────────────────────────────────────────────────────────
 
-def fetch_aspiration_skills(db: Client, target_roles: list[str]) -> dict[str, int]:
+def fetch_aspiration_skills(db: Client | ScoresRepository, target_roles: list[str]) -> dict[str, int]:
     """
     Builds {skill_name: target_proficiency} from jobs matching any of the target roles.
 
@@ -40,11 +47,11 @@ def fetch_aspiration_skills(db: Client, target_roles: list[str]) -> dict[str, in
     if not target_roles:
         return {}
 
+    scores_repo = _scores_repository(db)
     all_rows: list[dict] = []
     for role in target_roles:
-        pattern = f"%{role}%"
         try:
-            page1 = db.table("jobs").select("main_skills, side_skills").ilike("job_title", pattern).limit(100).execute().data
+            page1 = scores_repo.find_role_skill_rows(role)
         except Exception as exc:
             logger.warning("Aspiration skill lookup failed for role %r: %s", role, exc)
             continue
@@ -76,20 +83,19 @@ def fetch_aspiration_skills(db: Client, target_roles: list[str]) -> dict[str, in
     return aspiration
 
 
-def fetch_skill_demand(db: Client) -> dict[str, int]:
+def fetch_skill_demand(db: Client | ScoresRepository) -> dict[str, int]:
     """
     Returns {skill_name: job_count} by counting occurrences across
     jobs.main_skills and jobs.side_skills. Source of truth: public.jobs table.
     main_skills weighted ×2 to reflect must-have vs nice-to-have distinction.
     """
     try:
-        page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-        page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+        rows = _scores_repository(db).list_market_skill_rows()
     except Exception as exc:
         logger.warning("Market skill demand lookup failed: %s", exc)
         return {}
     counts: dict[str, int] = {}
-    for row in (page1 or []) + (page2 or []):
+    for row in rows:
         for s in (row.get("main_skills") or []):
             if s and s.strip():
                 counts[s.strip()] = counts.get(s.strip(), 0) + 2
@@ -102,7 +108,7 @@ def fetch_skill_demand(db: Client) -> dict[str, int]:
 # ── Supabase writes ───────────────────────────────────────────────────────────
 
 def persist_user_skills(
-    db: Client,
+    db: Client | ScoresRepository,
     user_id: str,
     skill_level_map: dict[str, int],
     signals: list[dict],
@@ -110,13 +116,14 @@ def persist_user_skills(
     """Upsert one row per detected skill into user_skills. Returns count written."""
     from app.services.taxonomy_loader import ensure_skill_in_db
 
+    scores_repo = _scores_repository(db)
     evidence_map: dict[str, str] = {}
     for s in signals:
         evidence_map.setdefault(s["taxonomy_key"], s["evidence"])
 
     rows = []
     for key, level in skill_level_map.items():
-        skill_id = ensure_skill_in_db(db, key)
+        skill_id = ensure_skill_in_db(scores_repo.client, key)
         if skill_id is None:
             continue
         rows.append({
@@ -129,13 +136,12 @@ def persist_user_skills(
             "last_updated":    datetime.now(timezone.utc).isoformat(),
         })
 
-    if rows:
-        db.table("user_skills").upsert(rows, on_conflict="user_id,skill_id").execute()
+    scores_repo.upsert_user_skill_rows(rows)
     return len(rows)
 
 
 def persist_score(
-    db: Client,
+    db: Client | ScoresRepository,
     user_id: str,
     total_score: float,
     domain_scores: dict[str, float],
@@ -144,6 +150,7 @@ def persist_score(
     rank_tier: str,
 ) -> dict:
     """Write to mirror_scores (upsert) and append to mirror_score_history."""
+    scores_repo = _scores_repository(db)
     payload = {
         "total_score":     total_score,
         "domain_scores":   domain_scores,
@@ -152,28 +159,20 @@ def persist_score(
         "rank_tier":       rank_tier,
         "skills_assessed": skills_assessed,
     }
-    existing = (
-        db.table("mirror_scores")
-        .select("user_id").eq("user_id", user_id).maybe_single().execute()
-    )
-    if existing and existing.data:
-        db.table("mirror_scores").update(payload).eq("user_id", user_id).execute()
+    if scores_repo.mirror_score_exists(user_id):
+        scores_repo.update_mirror_score(user_id, payload)
     else:
-        db.table("mirror_scores").insert({"user_id": user_id, **payload}).execute()
+        scores_repo.insert_mirror_score(user_id, payload)
 
-    db.table("mirror_score_history").insert({
-        "user_id":     user_id,
-        "total_score": total_score,
-    }).execute()
+    scores_repo.append_score_history(user_id, total_score)
 
-    result = db.table("mirror_scores").select("*").eq("user_id", user_id).single().execute()
-    return result.data
+    return scores_repo.require_mirror_score(user_id)
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 def compute_and_persist_score(
-    db: Client,
+    db: Client | ScoresRepository,
     user_id: str,
     skills_detected: list[dict] | None = None,
     aspiration_skills: dict[str, int] | None = None,

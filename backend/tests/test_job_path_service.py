@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.services import job_path
+from app.services.job_path import cv_generator as _cv_generator_mod
 
 
 class _Result:
@@ -230,7 +231,7 @@ def test_generate_job_cv_cache_hit_skips_ai_polish(monkeypatch) -> None:
     def fail_polish(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("cache hit should not call the LLM")
 
-    monkeypatch.setattr(job_path, "_call_ai_polish", fail_polish)
+    monkeypatch.setattr(_cv_generator_mod, "_call_ai_polish", fail_polish)
 
     response = job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
 
@@ -260,7 +261,7 @@ def test_generate_job_cv_blocks_fourth_cache_miss(monkeypatch) -> None:
     def fail_polish(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("rate limit should block the LLM")
 
-    monkeypatch.setattr(job_path, "_call_ai_polish", fail_polish)
+    monkeypatch.setattr(_cv_generator_mod, "_call_ai_polish", fail_polish)
 
     response = job_path.generate_job_cv(db, "u1", "job-1", ai_polish=True)
 
@@ -272,7 +273,7 @@ def test_generate_job_cv_blocks_fourth_cache_miss(monkeypatch) -> None:
 def test_generate_job_cv_rejects_bad_polish_and_falls_back(monkeypatch) -> None:
     db = _FakeDB()
     monkeypatch.setattr(
-        job_path,
+        _cv_generator_mod,
         "_call_ai_polish",
         lambda *_args, **_kwargs: "World-class rockstar who grew revenue by 42%.",
     )

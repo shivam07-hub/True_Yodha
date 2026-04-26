@@ -8,20 +8,22 @@ routers and tests that import names directly from `app.services.job_path`.
 
 from app.services.job_path._content import CONTENT_DIR, content_bundle
 from app.services.job_path.cv_generator import (
-    AI_POLISH_LIMIT,
-    _ai_polish_count,
     _build_deterministic_cv,
-    _build_polish_messages,
-    _call_ai_polish,
     _completed_milestones,
     _ensure_application_minimal,
     _latest_cv_history,
-    _latest_polished_cv,
-    _polish_providers,
     _profile_cv_text,
-    _prompt_section,
     _snapshot_hash,
     generate_job_cv,
+)
+from app.services.job_path.llm_polish import (
+    AI_POLISH_LIMIT,
+    _ai_polish_count,
+    _build_polish_messages,
+    _call_ai_polish,
+    _latest_polished_cv,
+    _polish_providers,
+    _prompt_section,
 )
 from app.services.job_path.milestones import (
     _fill_slots,

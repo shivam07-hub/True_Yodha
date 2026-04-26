@@ -1,6 +1,6 @@
 # Mirror — Tech Stack & Architecture
 
-> Last updated: 2026-04-18
+> Last updated: 2026-04-26
 
 ---
 
@@ -45,6 +45,24 @@ LM Studio (local, dev only)           OpenRouter (prod fallback)
 | `users` | `/users` | GET `/me`, GET `/me/skills` |
 | `skills` | `/skills` | GET `/`, GET `/:taxonomy_key` |
 | `diary` | `/diary` | GET `/today`, POST `/` |
+
+### Repositories
+
+Repository Modules own Supabase reads/writes for table families and expose a smaller interface to routers/services. This is Phase 2 of the modularity refactor: the Supabase query-chain implementation is kept local to adapters, while routers depend on Repository seams through FastAPI `Depends`.
+
+Completed Repository Modules:
+
+| Repository | Current callers | Notes |
+|------------|-----------------|-------|
+| `repositories/scores.py` | `routers/scores.py`, scoring persistence | Mirror Score reads, recompute inputs, market/aspiration skill rows, score writes/history |
+| `repositories/skills.py` | `routers/skills.py` | Active Skill list + Domain list; normalizes missing taxonomy grouping to `General` |
+| `repositories/users.py` | `routers/users.py` | Token-scoped profile adapter + admin User Skill adapter; preserves current policy |
+| `repositories/diary.py` | `routers/diary.py` | Daily Logs, user milestones, diary score lookup, diary skill-upgrade rows |
+
+Remaining Phase 2 Repository Modules:
+- `repositories/cv.py` — next exact slice; should cover Baseline CV profile reads, CV History, evidence summary, draft generation, and rate-limit reads.
+- `repositories/jobs.py` — largest slice; do after CV.
+- Decide after `cv`/`jobs` whether `auth` and `feedback` stay direct auth/event adapters or get small Repository Modules.
 
 ### Services
 
@@ -113,6 +131,21 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 ---
 
+## Reference Workspace
+
+Reference codebases, design experiments, screenshots, and image exports live under `reference/`.
+This folder is intentionally `.gitignored`: it is local context for designers and agents, not a production module.
+
+Rules:
+- Production code must not import from `reference/`.
+- If a reference idea graduates into the app, copy the needed behaviour into `frontend/`, `backend/`, or `docs/` using project conventions.
+- Graph/audit tools should treat `reference/` as out-of-scope unless the task is explicitly about design reference material.
+
+Current local reference codebase:
+- `reference/codebases/black-futurist-frontend/` — former `frontend/Black_futuristist_frontend/` prototype.
+
+---
+
 ## Database — Supabase (PostgreSQL v4.0)
 
 Schema file: `database/schema.sql`
@@ -166,11 +199,14 @@ See `docs/SCORING_ALGORITHM.md` for the full Mirror Score algorithm.
 ## Data Pipeline — Job Ingestion
 
 ```
-External scraper (Firecrawl — separate repo)
-    │  outputs JSON
+Firecrawl_Supabase crawler (external operational codebase)
+    │  writes canonical job JSON
     ▼
-backend/app/services/csv_importer.py
-    │  upserts into jobs table
+backend/app/services/job_feed/
+    │  normalizes crawler rows to public.jobs
+    ▼
+Supabase upsert adapter
+    │  upserts into public.jobs
     ▼
 jobs table (Supabase)
     │
@@ -181,4 +217,4 @@ job_matcher.py  →  skill overlap scores  →  user_job_matches
 llm_ranker.py   →  LLM re-rank top 5    →  llm_rank + llm_explanation
 ```
 
-Scraper runs on a manual cadence (weekly). ~2,774 jobs per dump (Dump 2 quality: poor JD text — scraper root cause pending fix).
+The crawler currently lives at `/Users/incognito/Mirror CV/firecrawl_Supabase`. Do not bulk-copy that folder into this repo: generated dumps, local `.env`, Archon state, and upstream Firecrawl files stay external. Mirror owns the Job Feed module at `backend/app/services/job_feed/`: canonical job row normalization, taxonomy compatibility checks, quality reporting, and the Supabase upsert adapter. See `docs/adr/0001-job-feed-firecrawl-crawler-contract.md`.

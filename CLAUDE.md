@@ -101,12 +101,23 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 
 ## NEXT SESSION FOCUS (MODULARITY REFACTOR PHASE 2)
 
-**Phase 1 shipped `fedb32e` (scoring engine split). Phase 1b shipped `0ccb804` (job_path split). Both on `Develop`.**
+**Phase 1 shipped `fedb32e` (scoring engine split). Phase 1b shipped `0ccb804` (job_path split), then Codex recovered the missing `llm_polish.py` cleanup after an accidental reset. Phase 2 is in progress and should be committed before starting new work.**
 
 **Phase 2 — Repository layer.**
-Create `backend/app/repositories/{jobs,cv,scores,diary,users,skills}.py`. Move every direct Supabase call out of routers/services into repos, inject via FastAPI `Depends`. Removes the #1 god node `get_supabase_admin()` (degree 33) and decouples tests from Supabase row shape.
-Owner: Claude Code (defines repo interfaces + ports `routers/scores.py` end-to-end as the reference). Codex sweeps the remaining routers afterwards.
-Blocker: resolve Open Question #3 (`get_supabase_admin()` injection scope) before kicking off.
+Repository Modules now exist for `scores`, `skills`, `users`, and `diary`. The corresponding routers no longer create Supabase clients or call `.table(...)` directly. The current admin vs token-scoped Supabase behavior was preserved through Repository adapters; Open Question #3 remains a policy/security decision before changing those adapters, but it no longer blocks behavior-preserving structural work.
+
+**Next exact Codex pickup after the recovery commit: Phase 2B — CV Repository seam.**
+Create `backend/app/repositories/cv.py` and move `routers/cv.py` Supabase calls behind it. Keep behavior unchanged. The CV slice should cover:
+- Baseline CV profile read (`user_profiles.cv_raw_text`, `cv_parsed_at`)
+- CV History reads/writes and next version number
+- Upload/text-submit profile update + `cv_history` insert
+- Evidence summary reads from `user_milestones`, `daily_logs`, `user_skills`, `mirror_scores`
+- Generated-draft/save-draft insert and user skill count
+- Rate-limit adapter access to `cv_history.uploaded_at`
+
+After CV is green, pick up **Phase 2C — Jobs Repository seam**. That is the largest remaining slice and should not be mixed with CV in the same patch.
+
+**Claude pickup:** review the completed Repository interfaces for policy intent, especially which routes should use service-role vs token-scoped adapters. Do not rewrite the seams unless changing that policy deliberately.
 
 ---
 
@@ -114,19 +125,21 @@ Blocker: resolve Open Question #3 (`get_supabase_admin()` injection scope) befor
 
 Eight modularity issues tackled across seven phases. Each phase = one session, one commit, smoke-tested before any merge to `main`.
 
-**Phase 1 — Scoring engine split.** ⏳ NEXT
+**Phase 1 — Scoring engine split.** ✅ DONE
   Owner: Claude Code (orchestration) + Codex (mechanical move).
   Split `services/scoring_engine.py` (455L) → `services/scoring/{formulas,gap,persistence}.py`.
   *Codex pickup:* given final interface, do the file moves + import rewrites + run tests.
 
-**Phase 1b — `job_path.py` triage** (stretch, depends on Open Question #4).
+**Phase 1b — `job_path.py` triage** ✅ DONE
   Split `services/job_path.py` (961L, 3.2× the 300-line limit) into `services/job_path/{plan,milestones,cv_generator,quality_gate}.py`. Defer until we confirm with user that the per-job-CV-tailoring feature is still in scope.
+  Codex follow-up completed the missing `services/job_path/llm_polish.py` split so every file in `services/job_path/` is now under the 300-line cap.
 
-**Phase 2 — Repository layer.**
-  Owner: Claude Code.
+**Phase 2 — Repository layer.** 🔄 IN PROGRESS
+  Owner: Codex for behavior-preserving seams; Claude Code for policy review.
   Create `backend/app/repositories/{jobs,cv,scores,diary,users,skills}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
   Removes the #1 god node `get_supabase_admin()` (degree 33) and decouples tests from Supabase row shape.
-  *Codex pickup:* once repo interfaces are defined, port one router (e.g. `routers/scores.py`) end-to-end as the reference, then sweep the rest.
+  Completed so far: `scores`, `skills`, `users`, `diary`.
+  Remaining next: `cv`, then `jobs`. Small follow-up after those: decide whether `auth` and `feedback` need Repository Modules or stay direct auth/event adapters.
 
 **Phase 3 — Unified LLM provider abstraction.**
   Owner: Codex (after Claude defines the interface).
@@ -137,7 +150,7 @@ Eight modularity issues tackled across seven phases. Each phase = one session, o
 **Phase 4 — Cross-repo taxonomy + jobs schema contract.**
   Owner: Claude Code (cross-repo, needs careful coordination).
   Lightcast taxonomy lives in TWO places: `backend/lightcast_skills_taxonomy.json` AND `firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json`. Promote to a versioned shared artefact + checksum check on boot. Add a contract test that asserts the `public.jobs` table shape matches what `csv_importer.py` writes (job_id, job_title, job_description, company_name, Industry, Location, apply_url, main_skills[], side_skills[], batch_date).
-  Direction: do not bulk-copy `/Users/incognito/Mirror CV/firecrawl_Supabase` into this repo. Build the deep Job Feed module at `backend/app/services/job_feed/`: canonical row contract first, then taxonomy checksum, quality report, and one Supabase upsert adapter.
+  Direction: do not bulk-copy `/Users/incognito/Mirror CV/firecrawl_Supabase` into this repo. The deep Job Feed module lives at `backend/app/services/job_feed/`: canonical row contract, taxonomy checksum, quality report, and one Supabase upsert adapter. Decision recorded in `docs/adr/0001-job-feed-firecrawl-crawler-contract.md`.
   Open Questions #1 and #5 must be resolved before this phase.
 
 **Phase 5 — Frontend prototype cleanup.**
@@ -167,7 +180,7 @@ These came out of the 2026-04-26 graphify audit. Save for a focused `/grill-me` 
 
 2. **`black-futurist-frontend/` lifecycle.** Resolved for Phase 5: keep as ignored reference material at `reference/codebases/black-futurist-frontend/`. Do not import from it in production code; copy ideas into production modules intentionally.
 
-3. **`get_supabase_admin()` injection scope.** Service-role key is currently used in user-facing endpoints. Intentional (RLS bypass for cross-user reads), or accidental (should be the user-scoped client)? Phase 2 needs the answer.
+3. **`get_supabase_admin()` injection scope.** Service-role key is currently used in user-facing endpoints. Intentional (RLS bypass for cross-user reads), or accidental (should be the user-scoped client)? Phase 2 can continue structurally by preserving current behavior inside Repository adapters, but Claude should review this before changing any adapter from admin to token-scoped.
 
 4. **`job_path.py` (961L) status.** Confirmed: powers the 7-day-plan + tailored-CV-per-job feature. Is this feature in the active roadmap, or ripe for aggressive trimming? Phase 1b needs to know how much we can cut.
 
@@ -328,40 +341,73 @@ These came out of the 2026-04-26 graphify audit. Save for a focused `/grill-me` 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-28 — MODULARITY REFACTOR PHASE 1b)
+## LAST SESSION SUMMARY (2026-04-26 — MODULARITY REFACTOR RECOVERY)
 
 ```
-Date: 2026-04-28
-Milestone: Phase 1b shipped — job_path.py (961L) split into package.
+Date: 2026-04-26
+Milestone: Recovery after accidental reset; Phase 1b cleanup and Phase 2 Repository seams restored.
 
 Commits this session:
   fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence} [Phase 1, prev session]
   0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
+  Recovery commit pending in this session.
 
 Work done:
-  Codex completed the mechanical split of services/job_path.py into:
+  Claude completed the mechanical split of services/job_path.py into:
     services/job_path/plan.py          (283L)
     services/job_path/milestones.py    (212L)
-    services/job_path/cv_generator.py  (418L — acceptable, no clean sub-concern)
+    services/job_path/cv_generator.py
     services/job_path/quality_gate.py  (63L)
     services/job_path/_db.py           (49L — shared Supabase reads)
     services/job_path/_helpers.py      (44L)
     services/job_path/_content.py      (33L)
-    services/job_path/__init__.py      (70L — re-exports full public API for back-compat)
+    services/job_path/__init__.py      (re-exports full public API for back-compat)
+
+  Codex restored the missing Phase 1b cleanup:
+    services/job_path/llm_polish.py    (AI Polish Provider Chain + rate-limit lookup)
+    services/job_path/cv_generator.py  under 300L
+    services/job_path/plan.py imports _latest_polished_cv from llm_polish
+    tests/test_job_path_service.py patches cv_generator._call_ai_polish
 
   Codex also landed job_feed/ contract module (Phase 4 groundwork):
     services/job_feed/__init__.py
     services/job_feed/contract.py
+    services/job_feed/importer.py
+    services/job_feed/taxonomy.py
     tests/test_job_feed_contract.py
+    tests/test_job_feed_importer.py
+    tests/test_job_feed_taxonomy.py
+    ADR: docs/adr/0001-job-feed-firecrawl-crawler-contract.md
 
-  Claude verified: imports OK, 136/136 tests pass, committed.
+  Codex restored Phase 2 Repository layer:
+    repositories/scores.py + router/tests
+    repositories/skills.py + router/tests
+    repositories/users.py + router/tests
+    repositories/diary.py + router/tests
+    routers/scores.py, skills.py, users.py, diary.py no longer call Supabase directly.
+    Existing admin vs token-scoped behavior preserved inside adapters.
+
+Verification before recovery commit:
+  pytest backend/tests -q                         166 passed
+  focused recovery tests                           42 passed
+  frontend/node_modules/.bin/tsc --noEmit          passed
+  frontend/node_modules/.bin/next lint             passed
+  wc -l backend/app/services/job_path/*.py         all <= 300L
+  wc -l backend/app/repositories/*.py              all <= 300L
 
 Known follow-ups (carried):
   [ ] Smoke test production URL end-to-end after Phase 1 ships
   [ ] Regenerate Signal Dot particle logo in amber for Forge mode (from 2026-04-20)
   [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal (from 2026-04-20)
 
-Next: Phase 2 — Repository layer (see NEXT SESSION FOCUS above).
+Next for Codex:
+  1. Commit this recovery after verification.
+  2. Phase 2B — create repositories/cv.py and move routers/cv.py Supabase calls behind it.
+  3. Phase 2C — repositories/jobs.py and routers/jobs.py sweep.
+
+Next for Claude:
+  1. Review Repository adapter policy: which seams should stay service-role and which should become token-scoped.
+  2. Do not alter behavior unless making that policy decision deliberately.
 ```
 
 ---

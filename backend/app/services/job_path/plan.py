@@ -17,7 +17,7 @@ from supabase import Client
 
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path._helpers import _key, _now_iso, _single_or_none
-from app.services.job_path.cv_generator import _latest_polished_cv  # noqa: F401  (kept for back-compat re-export)
+from app.services.job_path.llm_polish import _latest_polished_cv  # noqa: F401  (kept for back-compat re-export)
 from app.services.job_path.milestones import (
     build_rolling_milestones,
     compute_readiness,
