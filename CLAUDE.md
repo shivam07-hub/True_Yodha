@@ -92,37 +92,34 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 
 ---
 
-## NEXT SESSION FOCUS (PHASE 2 — REPOSITORY LAYER)
+## NEXT SESSION FOCUS (POST-PHASE-7 HARDENING)
 
-**Phase 1 shipped `fedb32e` (scoring engine split). Phase 1b shipped `0ccb804` (job_path split). Both committed and verified.**
+**Phase 5 complete:** frontend prototype references moved to `reference/` and no live `BF_*` imports remain in production frontend code.
 
-**Phase 2 work was lost in an accidental reset this session — needs full redo.**
+**Phase 6 complete (workspace):** routers split and kept mount surface unchanged:
+- `backend/app/routers/jobs/{list,detail,match,apply,milestone}.py`
+- `backend/app/routers/cv/{upload,history,variants}.py`
+- Top-level router exports preserved via package `__init__.py` so `app.main` still mounts `jobs.router` and `cv.router`.
 
-**Phase 2 — Repository layer (Codex pickup).**
-Create `backend/app/repositories/{scores,skills,users,diary,cv,jobs}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
+**Phase 7 complete (workspace):**
+- `compute_and_persist_score()` remains the single canonical scoring path.
+- Added thin CLI wrappers:
+  - `database/backfill_scores.py`
+  - `database/restore_skills_from_cv_text.py`
+- Enforced CV upload/text invariant: require at least one persisted skill row.
+- Updated `docs/SCORING_ALGORITHM.md` with canonical-flow documentation.
 
-**Critical constraint from OQ2 decision (2026-04-26):** User-facing endpoints must use the **token-scoped Supabase client** (user's JWT), not `get_supabase_admin()`. Service-role is reserved for internal/admin-only operations. This is a behavior change from the previous version — enforce it in every repo adapter.
+**Next up: hardening + rollout confidence**
+- Dry-run both Phase 7 scripts against a small user sample on staging.
+- Smoke test end-to-end production URL flow (CV upload → score compute → jobs/diary).
+- Decide whether to start Stretch Phase 8 (DTO/entity/row separation) based on pain observed.
 
-Build order:
-1. **Phase 2A** — `repositories/{scores,skills,users,diary}.py` (four routers, previously done — redo with token-scoped constraint)
-2. **Phase 2B** — `repositories/cv.py`. Covers:
-   - Baseline CV profile read (`user_profiles.cv_raw_text`, `cv_parsed_at`)
-   - CV History reads/writes and next version number
-   - Upload/text-submit profile update + `cv_history` insert
-   - Evidence summary reads from `job_application_milestones`, `daily_logs`, `user_skills`, `mirror_scores`
-   - Generated-draft/save-draft insert and user skill count
-   - Rate-limit adapter access to `cv_history.uploaded_at`
-3. **Phase 2C** — `repositories/jobs.py` (largest slice — do not mix with CV in the same patch)
-
-Verification after each phase:
+Verification completed this session:
 ```
-pytest backend/tests -q          → all pass
-tsc --noEmit                     → exit 0
-next lint                        → no errors
-wc -l backend/app/repositories/* → all ≤ 300L
+pytest backend/tests -q   → all pass
+tsc --noEmit              → exit 0
+next lint                 → no errors
 ```
-
-After Phase 2C is green, commit to `Develop` and update LAST SESSION SUMMARY.
 
 ---
 
@@ -153,17 +150,22 @@ Eight modularity issues tackled across seven phases. Each phase = one session, o
   Lightcast taxonomy lives in TWO places: `backend/lightcast_skills_taxonomy.json` AND `firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json`. Promote to a versioned shared artefact + checksum check on boot. Add a contract test that asserts the `public.jobs` table shape matches what `csv_importer.py` writes.
   Repos stay separate (independent deploy cadence). The contract test lives in Myro and runs in CI.
 
-**Phase 5 — Frontend prototype cleanup.**
+**Phase 5 — Frontend prototype cleanup.** ✅ DONE
   Owner: Codex.
-  `frontend/Black_futuristist_frontend/` — confirm no live `BF_*` imports in production `.tsx`. Remove any that exist. Reference material stays out of the repo.
+  `frontend/Black_futuristist_frontend/` references moved to `reference/`. Confirmed no live `BF_*` imports in production `.tsx`.
 
-**Phase 6 — Router file-size triage.**
+**Phase 6 — Router file-size triage.** ✅ DONE (workspace)
   Owner: Codex.
-  Split `routers/jobs.py` (592L) and `routers/cv.py` (446L) along feature-area lines: `routers/jobs/{list,detail,match,apply,milestone}.py`, `routers/cv/{upload,history,variants}.py`. Keep top-level `__init__.py` re-exports so `app.main` mounting stays unchanged.
+  Split monolith routers into feature modules:
+  `routers/jobs/{list,detail,match,apply,milestone}.py`, `routers/cv/{upload,history,variants}.py`.
+  Top-level router re-exports preserved for unchanged `app.main` mounting.
 
-**Phase 7 — Dual scoring entry-point consolidation.**
+**Phase 7 — Dual scoring entry-point consolidation.** ✅ DONE (workspace)
   Owner: Claude Code.
-  `compute_and_persist_score()` is the single canonical scoring entry point. `backfill_scores.py` and `restore_skills_from_cv_text.py` become thin CLI wrappers that call it. Every CV must have skills attached — enforce this in the upload flow. Document final flow in `docs/SCORING_ALGORITHM.md`.
+  `compute_and_persist_score()` is the single canonical scoring entry point.
+  Added thin wrappers `database/backfill_scores.py` and `database/restore_skills_from_cv_text.py`.
+  CV upload/text now enforce that at least one skill is persisted before completion.
+  `docs/SCORING_ALGORITHM.md` updated to reflect canonical scoring flow.
 
 **Stretch (Phase 8) — Domain layer separation.**
   Owner: Claude Code.
@@ -310,7 +312,90 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — PHASE 3 LLM PROVIDER ABSTRACTION)
+## LAST SESSION SUMMARY (2026-04-27 — POST-PHASE-7 HARDENING)
+
+```
+Date: 2026-04-27
+Milestone: Post-Phase-7 hardening completed (staging dry-runs + script hardening).
+
+Commits this session:
+  f485508  refactor(scoring): harden phase-7 dry-run workflows
+
+What landed:
+  - Added canonical no-write mode to the scoring entry point:
+      `compute_and_persist_score(..., persist=False)` runs full score math without DB writes
+  - Hardened both Phase 7 operational wrappers with `--dry-run`:
+      `database/backfill_scores.py`
+      `database/restore_skills_from_cv_text.py`
+  - Fixed restore-script env-load bug:
+      `restore_skills_from_cv_text.py` now loads `backend/.env` before importing `cv_parser`
+      so `app.config.settings` sees LLM provider keys at import-time
+  - Added regression coverage for dry-run semantics:
+      `backend/tests/test_scoring_io.py`
+      - dry-run skips persistence writes
+      - dry-run still enforces `require_skills_assessed` guard
+  - Updated scoring docs with Phase 7 hardening commands:
+      `docs/SCORING_ALGORITHM.md`
+
+Staging dry-run evidence:
+  - `python database/backfill_scores.py --limit 5 --dry-run`
+      processed=5 skipped=3 failed=0 scanned=9
+  - `python database/restore_skills_from_cv_text.py --limit 3 --dry-run`
+      processed=3 skipped=0 failed=0 scanned=6
+
+Verification:
+  - `pytest backend/tests -q` → 178 passed
+  - `frontend/node_modules/.bin/tsc --noEmit --project frontend/tsconfig.json` → pass
+  - `cd frontend && ./node_modules/.bin/next lint` → clean
+
+Phase 8 decision:
+  - Defer Stretch Phase 8 (DTO/entity/row separation) for now.
+  - Rationale: no concrete DTO/row divergence pain surfaced during Phase 7 hardening.
+
+Next:
+  - Run authenticated production URL smoke path (CV upload → score → jobs/diary) with dedicated test account.
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — PHASE 5/6 FRONTEND CLEANUP + ROUTER SPLIT)
+
+```
+Date: 2026-04-27
+Milestone: Phase 5 completed and Phase 6 implemented in workspace.
+
+Commits this session:
+  (pending) no commit yet in this session
+
+What landed:
+  Phase 5:
+    - Frontend prototype references moved to `reference/`
+    - Confirmed no live `BF_*` imports in production frontend code
+
+  Phase 6:
+    - Split `backend/app/routers/jobs.py` into:
+      `backend/app/routers/jobs/{list,detail,match,apply,milestone}.py`
+    - Split `backend/app/routers/cv.py` into:
+      `backend/app/routers/cv/{upload,history,variants}.py`
+    - Added package-level router aggregators in:
+      `backend/app/routers/jobs/__init__.py`
+      `backend/app/routers/cv/__init__.py`
+    - Preserved import/mount compatibility:
+      `from app.routers import jobs, cv` and `jobs.router` / `cv.router` unchanged
+    - Preserved test monkeypatch surface:
+      `jobs.job_importer` and `jobs.job_path_service` exported from `jobs/__init__.py`
+
+Verification:
+  - `pytest backend/tests -q` → 170 passed
+  - `wc -l backend/app/routers/jobs/*.py backend/app/routers/cv/*.py` → all files <= 214L
+
+Next: Phase 7 — Dual scoring entry-point consolidation.
+  Canonicalize on `compute_and_persist_score()` and turn score scripts into thin wrappers.
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — PHASE 3 LLM PROVIDER ABSTRACTION)
 
 ```
 Date: 2026-04-27

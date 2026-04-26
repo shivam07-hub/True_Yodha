@@ -9,8 +9,6 @@ Writes:  public.user_skills, public.mirror_scores, public.mirror_score_history
 import logging
 from datetime import datetime, timezone
 
-from supabase import Client
-
 from app.repositories.scores import ScoresRepository
 from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
@@ -25,15 +23,9 @@ from app.services.scoring.gap import compute_gap_skills, compute_rank_tier
 logger = logging.getLogger(__name__)
 
 
-def _scores_repository(db: Client | ScoresRepository) -> ScoresRepository:
-    if isinstance(db, ScoresRepository):
-        return db
-    return ScoresRepository(db)
-
-
 # ── Supabase reads ────────────────────────────────────────────────────────────
 
-def fetch_aspiration_skills(db: Client | ScoresRepository, target_roles: list[str]) -> dict[str, int]:
+def fetch_aspiration_skills(scores_repo: ScoresRepository, target_roles: list[str]) -> dict[str, int]:
     """
     Builds {skill_name: target_proficiency} from jobs matching any of the target roles.
 
@@ -47,7 +39,6 @@ def fetch_aspiration_skills(db: Client | ScoresRepository, target_roles: list[st
     if not target_roles:
         return {}
 
-    scores_repo = _scores_repository(db)
     all_rows: list[dict] = []
     for role in target_roles:
         try:
@@ -83,14 +74,14 @@ def fetch_aspiration_skills(db: Client | ScoresRepository, target_roles: list[st
     return aspiration
 
 
-def fetch_skill_demand(db: Client | ScoresRepository) -> dict[str, int]:
+def fetch_skill_demand(scores_repo: ScoresRepository) -> dict[str, int]:
     """
     Returns {skill_name: job_count} by counting occurrences across
     jobs.main_skills and jobs.side_skills. Source of truth: public.jobs table.
     main_skills weighted ×2 to reflect must-have vs nice-to-have distinction.
     """
     try:
-        rows = _scores_repository(db).list_market_skill_rows()
+        rows = scores_repo.list_market_skill_rows()
     except Exception as exc:
         logger.warning("Market skill demand lookup failed: %s", exc)
         return {}
@@ -108,15 +99,13 @@ def fetch_skill_demand(db: Client | ScoresRepository) -> dict[str, int]:
 # ── Supabase writes ───────────────────────────────────────────────────────────
 
 def persist_user_skills(
-    db: Client | ScoresRepository,
+    scores_repo: ScoresRepository,
     user_id: str,
     skill_level_map: dict[str, int],
     signals: list[dict],
 ) -> int:
     """Upsert one row per detected skill into user_skills. Returns count written."""
     from app.services.taxonomy_loader import ensure_skill_in_db
-
-    scores_repo = _scores_repository(db)
     evidence_map: dict[str, str] = {}
     for s in signals:
         evidence_map.setdefault(s["taxonomy_key"], s["evidence"])
@@ -141,7 +130,7 @@ def persist_user_skills(
 
 
 def persist_score(
-    db: Client | ScoresRepository,
+    scores_repo: ScoresRepository,
     user_id: str,
     total_score: float,
     domain_scores: dict[str, float],
@@ -150,7 +139,6 @@ def persist_score(
     rank_tier: str,
 ) -> dict:
     """Write to mirror_scores (upsert) and append to mirror_score_history."""
-    scores_repo = _scores_repository(db)
     payload = {
         "total_score":     total_score,
         "domain_scores":   domain_scores,
@@ -172,12 +160,14 @@ def persist_score(
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 def compute_and_persist_score(
-    db: Client | ScoresRepository,
+    scores_repo: ScoresRepository,
     user_id: str,
     skills_detected: list[dict] | None = None,
     aspiration_skills: dict[str, int] | None = None,
     skill_level_map: dict[str, int] | None = None,
     include_market_signals: bool = True,
+    require_skills_assessed: bool = False,
+    persist: bool = True,
 ) -> dict:
     """
     Full scoring pipeline. Two calling modes:
@@ -185,12 +175,16 @@ def compute_and_persist_score(
       - Recompute: pass skill_level_map (stored matched_level values). Skips signal
         inference and does NOT overwrite user_skills — preserves original proficiency
         levels and evidence text.
+
+    Set require_skills_assessed=True for CV ingestion paths that must reject
+    payloads when zero skills can be persisted to user_skills.
+    Set persist=False to run a no-write dry-run that still executes canonical score math.
     """
     if skill_level_map is None:
         skill_level_map = build_skill_level_map(skills_detected or [])
 
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
-    skill_demand = fetch_skill_demand(db) if include_market_signals else {}
+    skill_demand = fetch_skill_demand(scores_repo) if include_market_signals else {}
 
     cluster_scores = compute_cluster_scores(skill_level_map, cluster_children, skill_to_cluster)
     cluster_skill_counts = {
@@ -208,10 +202,27 @@ def compute_and_persist_score(
     rank_tier = compute_rank_tier(total_score)
 
     if skills_detected is not None:
-        skills_count = persist_user_skills(db, user_id, skill_level_map, skills_detected)
+        skills_count = (
+            persist_user_skills(scores_repo, user_id, skill_level_map, skills_detected)
+            if persist
+            else len(skill_level_map)
+        )
+        if require_skills_assessed and skills_count == 0:
+            raise ValueError("No valid skills could be persisted for this user.")
     else:
         skills_count = len(skill_level_map)
 
+    if not persist:
+        return {
+            "user_id": user_id,
+            "total_score": total_score,
+            "domain_scores": domain_scores,
+            "skill_scores": {},
+            "gap_skills": gap_skills,
+            "rank_tier": rank_tier,
+            "skills_assessed": skills_count,
+        }
+
     return persist_score(
-        db, user_id, total_score, domain_scores, gap_skills, skills_count, rank_tier
+        scores_repo, user_id, total_score, domain_scores, gap_skills, skills_count, rank_tier
     )

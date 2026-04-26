@@ -79,6 +79,9 @@ class _FakeDiaryRepository:
     def list_user_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
         return self.milestones
 
+    def list_job_application_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
+        return []
+
     def upsert_user_milestone(self, payload: dict[str, Any]) -> None:
         self.upserted_milestone = payload
 
@@ -88,6 +91,21 @@ class _FakeDiaryRepository:
             task=(self.upserted_milestone or {})["task"],
             completed_at=(self.upserted_milestone or {}).get("completed_at"),
         )
+
+    def list_user_skill_keys(self, _user_id: str) -> list[str]:
+        return []
+
+    def list_user_skill_rows(self, _user_id: str) -> list[dict[str, Any]]:
+        return []
+
+    def get_user_skill_level_map(self, _user_id: str) -> dict[str, int]:
+        return {}
+
+    def get_target_roles(self, _user_id: str) -> list[str]:
+        return []
+
+    def upsert_user_skill_rows(self, _rows: list[dict[str, Any]]) -> None:
+        return None
 
 
 def test_create_entry_appends_to_existing_daily_log() -> None:
@@ -150,4 +168,3 @@ def test_upsert_milestone_writes_through_admin_diary_repository() -> None:
     assert repo.upserted_milestone is not None
     assert repo.upserted_milestone["skill"] == "Python"
     assert repo.upserted_milestone["completed_at"] is not None
-

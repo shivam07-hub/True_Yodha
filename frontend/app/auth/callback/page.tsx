@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase"
+import { setSessionTokens } from "@/lib/session"
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -12,10 +13,7 @@ export default function AuthCallbackPage() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        localStorage.setItem("mirror_token", session.access_token)
-        if (session.refresh_token) {
-          localStorage.setItem("mirror_refresh_token", session.refresh_token)
-        }
+        setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
         router.replace("/market")
       } else {
         router.replace("/login")

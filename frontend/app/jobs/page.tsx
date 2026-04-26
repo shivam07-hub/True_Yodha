@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { jobs, scores, type JobMatch } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 
@@ -120,13 +121,13 @@ export default function JobsPage() {
   const [search, setSearch] = useState("")
 
   const matches = useQuery({
-    queryKey: ["jobs", token],
+    queryKey: dataKeys.jobs(token),
     queryFn: () => jobs.matches(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
@@ -136,12 +137,12 @@ export default function JobsPage() {
 
   const compute = useMutation({
     mutationFn: () => jobs.compute(token!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs", token] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }),
   })
 
   const track = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) }),
   })
 
   const filtered = useMemo(() => {

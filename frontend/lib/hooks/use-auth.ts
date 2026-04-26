@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { clearSessionTokens, getAccessToken } from "@/lib/session"
 
 export function useAuth() {
   const router = useRouter()
@@ -9,7 +10,7 @@ export function useAuth() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const t = localStorage.getItem("mirror_token")
+    const t = getAccessToken()
     if (!t) {
       router.replace("/login")
     } else {
@@ -19,8 +20,7 @@ export function useAuth() {
   }, [router])
 
   function signOut() {
-    localStorage.removeItem("mirror_token")
-    localStorage.removeItem("mirror_refresh_token")
+    clearSessionTokens()
     router.push("/login")
   }
 

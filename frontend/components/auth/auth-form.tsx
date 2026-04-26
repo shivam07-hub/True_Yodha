@@ -8,6 +8,7 @@ import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
+import { setSessionTokens } from "@/lib/session"
 
 interface Props {
   mode: "login" | "signup"
@@ -55,8 +56,7 @@ export function AuthForm({ mode }: Props) {
         return
       }
 
-      localStorage.setItem("mirror_token", res.access_token)
-      if (res.refresh_token) localStorage.setItem("mirror_refresh_token", res.refresh_token)
+      setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
       router.push(mode === "login" ? "/market" : "/onboarding")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")

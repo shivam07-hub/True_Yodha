@@ -4,6 +4,8 @@
  * Never call fetch() directly in components — use TanStack Query + these functions.
  */
 
+import { clearSessionTokens, getRefreshToken, setSessionTokens } from "./session"
+
 const BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
@@ -19,7 +21,7 @@ function extractError(body: unknown, status: number): string {
 
 async function tryRefreshToken(): Promise<string | null> {
   if (typeof window === "undefined") return null
-  const refreshToken = localStorage.getItem("mirror_refresh_token")
+  const refreshToken = getRefreshToken()
   if (!refreshToken) return null
   try {
     const res = await fetch(`${BASE}/auth/refresh`, {
@@ -28,9 +30,8 @@ async function tryRefreshToken(): Promise<string | null> {
       body: JSON.stringify({ refresh_token: refreshToken }),
     })
     if (!res.ok) return null
-    const data = await res.json() as { access_token: string; refresh_token: string }
-    localStorage.setItem("mirror_token", data.access_token)
-    localStorage.setItem("mirror_refresh_token", data.refresh_token)
+    const data = await res.json() as { access_token: string; refresh_token: string | null }
+    setSessionTokens({ accessToken: data.access_token, refreshToken: data.refresh_token })
     return data.access_token
   } catch {
     return null
@@ -38,9 +39,8 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 function forceLogout(): never {
-  localStorage.removeItem("mirror_token")
-  localStorage.removeItem("mirror_refresh_token")
-  window.location.href = "/login"
+  clearSessionTokens()
+  if (typeof window !== "undefined") window.location.href = "/login"
   throw new Error("Session expired. Please sign in again.")
 }
 

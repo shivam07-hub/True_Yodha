@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { jobs, scores, uploadCV, cv, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
+import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 const STATUS_CONFIG = {
@@ -291,25 +292,25 @@ export default function CVPage() {
   }, [])
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
-    queryKey: ["cv-profile", token],
+    queryKey: dataKeys.cvProfile(token),
     queryFn: () => cv.me(token!),
     enabled: !!token,
   })
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: ["user-skills", token],
+    queryKey: dataKeys.userSkills(token),
     queryFn: () => users.mySkills(token!),
     enabled: !!token,
   })
 
   const { data: scoreData } = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: ["job-path", jobId, token],
+    queryKey: dataKeys.jobPath(jobId, token),
     queryFn: () => jobs.path(token!, jobId!),
     enabled: !!token && !!jobId,
   })
@@ -317,7 +318,7 @@ export default function CVPage() {
   const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
   const { data: evidenceData, isLoading: evidenceLoading } = useQuery({
-    queryKey: ["cv-evidence", token],
+    queryKey: dataKeys.cvEvidence(token),
     queryFn: () => cv.evidence(token!),
     enabled: !!token && hasCv,
   })
@@ -330,8 +331,8 @@ export default function CVPage() {
       setDraftFlowError(null)
     },
     onSuccess: (draft) => {
-      queryClient.invalidateQueries({ queryKey: ["cv-profile", token] })
-      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
       setMessage(`Saved CV draft v${draft.version_number} from ${draft.evidence_count} milestone days.`)
       setSelectedVersionId(draft.version_id)
       setShowDraftGuide(false)
@@ -355,7 +356,7 @@ export default function CVPage() {
       } else {
         setJobCvNotice("Job CV ready.")
       }
-      queryClient.invalidateQueries({ queryKey: ["job-path", jobId, token] })
+      invalidateJobPathData(queryClient, jobId, token)
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not generate job CV"),
   })
@@ -431,16 +432,16 @@ export default function CVPage() {
     try {
       const result = await uploadCV(token, file)
       void scores.compute(token)
-        .then(() => queryClient.invalidateQueries({ queryKey: ["scores", token] }))
+        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) }))
         .catch(() => null)
       void jobs.compute(token)
-        .then(() => queryClient.invalidateQueries({ queryKey: ["jobs", token] }))
+        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }))
         .catch(() => null)
-      queryClient.invalidateQueries({ queryKey: ["scores", token] })
-      queryClient.invalidateQueries({ queryKey: ["jobs", token] })
-      queryClient.invalidateQueries({ queryKey: ["cv-profile", token] })
-      queryClient.invalidateQueries({ queryKey: ["cv-evidence", token] })
-      queryClient.invalidateQueries({ queryKey: ["user-skills", token] })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
       setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
       setShowUpload(false)
       setSelectedVersionId(null) // snap back to latest after new upload

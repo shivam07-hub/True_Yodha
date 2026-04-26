@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores } from "@/lib/api"
 import type { JobSearchItem } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
@@ -117,18 +118,18 @@ export default function MarketPage() {
 
   const addToTracker = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["applications", token] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) }),
   })
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: analytics, isLoading } = useQuery({
-    queryKey: ["jobs-analytics"],
+    queryKey: dataKeys.jobsAnalytics(),
     queryFn: () => jobs.analytics(),
     staleTime: 5 * 60 * 1000,
   })
@@ -136,7 +137,7 @@ export default function MarketPage() {
   const hasCv = !scoreLoading && !!scoreData
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: ["jobs-search", drillSkill?.company],
+    queryKey: dataKeys.jobsSearch(drillSkill?.company),
     queryFn: () => jobs.search(drillSkill!.company),
     enabled: !!drillSkill,
     staleTime: 5 * 60 * 1000,

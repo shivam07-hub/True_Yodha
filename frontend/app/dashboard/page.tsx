@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { scores, users } from "@/lib/api"
+import { dataKeys, invalidateScoreData } from "@/lib/domain-data"
 import { AppShell } from "@/components/app-shell"
 import { DomainRadar } from "@/components/dashboard/domain-radar"
 import { SkillGraphPreview } from "@/components/skill-graph-preview"
@@ -14,7 +15,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient()
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
-    queryKey: ["scores", token],
+    queryKey: dataKeys.scores(token),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     retry: false,
@@ -22,11 +23,11 @@ export default function DashboardPage() {
 
   const recompute = useMutation({
     mutationFn: () => scores.compute(token!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["scores", token] }),
+    onSuccess: () => invalidateScoreData(queryClient, token),
   })
 
   const { data: skillsData } = useQuery({
-    queryKey: ["user-skills", token],
+    queryKey: dataKeys.userSkills(token),
     queryFn: () => users.mySkills(token!),
     enabled: !!token,
   })
