@@ -19,6 +19,7 @@ from app.services.job_feed.taxonomy import (
     JobFeedTaxonomyMismatchError,
     assert_matching_taxonomy_checksum,
     taxonomy_sha256,
+    verify_taxonomy_integrity,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "normalize_job_feed_row",
     "quality_score",
     "taxonomy_sha256",
+    "verify_taxonomy_integrity",
 ]
