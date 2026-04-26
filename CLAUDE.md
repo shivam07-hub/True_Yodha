@@ -24,12 +24,15 @@
 
 Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV → skills are extracted and matched against a global skill taxonomy (L1–L5 levels determined by comparing CV evidence to taxonomy benchmark definitions) → top 5 job matches are found by skill overlap and LLM-ranked → top 3 are recommended to the user with explanations and a 7-day action plan to align their CV to each job → a Mirror Score (0–100) is computed across 10 domains → user sees their score, domain breakdown, top 3 recommended jobs, and top 5 skill upgrade priorities. Application tracking records whether the user applied, received a response, and status at the 1-week check-in. Rank, tier, and percentile are computed internally.
 
-**Tech stack:** FastAPI (backend) · Railway (backend hosting) ~ Next.js 14 (frontend) , Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) ·  · Vercel (frontend hosting) · OpenRouter API (LLM ranking)
+**Tech stack:** FastAPI (backend) · Railway (backend hosting) ~ Next.js 14 (frontend) , Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) ·  · Vercel (frontend hosting) · OpenRouter API (LLM ranking) · Chrome Manifest V3 (browser extension at `/Chrome_extension/` — captures jobs from any URL into the user's Application list)
 
 **Reference docs:**
 - Full tech stack + architecture: `docs/TECH_STACK.md`
 - Scoring algorithm: `docs/SCORING_ALGORITHM.md`
 - Deployment guide (Git → GitHub → Vercel): `docs/DEPLOYMENT_GUIDE.md`
+- Domain glossary (canonical terms): `UBIQUITOUS_LANGUAGE.md` — read before any new feature or refactor
+- Skill Timer UX reference: `WhatsApp Image 2026-04-26 at 20.14.07.jpeg` — per-skill progress card aesthetic to replicate in Application Path, Diary, and Progress dashboard
+- Chrome extension code: `/Chrome_extension/` (Manifest V3, captures `JobPosting` JSON-LD → backend)
 
 ---
 
@@ -54,25 +57,371 @@ Mirror is an Intelligence-as-a-Service platform for job seekers. User uploads CV
 
 ---
 
-## NEXT SESSION FOCUS (2026-04-25 — IA REORDER + FRICTIONLESS CV-OPTIONAL UX)
+## WORKING WITH CODEX (ChatGPT) — TWO-AGENT WORKFLOW
 
-**Spec:** `docs/superpowers/specs/2026-04-25-nav-reorder-and-cv-nudge.md`
+We have two coding agents on this codebase: **Claude Code** (this session) and **Codex / ChatGPT**. Treat Codex as a peer engineer on the same team.
 
-Headline changes (read the spec for exact JSX, copy, tokens, and acceptance checks):
+**Division of labour by strength**
 
-1. Sidebar order → **Intel → Jobs → Progress → CV Builder → Dashboard**.
-2. Score block: drop the `Market position` subtitle. Keep `MYRO SCORE` + number.
-3. Onboarding: gentle `×` close button, top-right of the header, font-consistent. Skips to `/market`.
-4. No first-run CV gate anywhere. Users without a CV browse freely.
-5. New reusable `<CVRequiredNudge />` component — banner or block variant — rendered consistently on `/market`, `/tracker`, `/jobs`, `/diary`, `/dashboard`. Replaces empty/blocked states.
+| Task type | Best fit | Why |
+|---|---|---|
+| Multi-file orchestration, cross-cutting refactors | Claude Code | Has `graphify-out/graph.json` context, subagents, persistent memory of architecture. |
+| Investigating uncertain code paths ("what does X do?", "where is Y called?") | Claude Code | Subagent + grep + graph queries. |
+| Mechanical splits / renames once interfaces are agreed | Codex | Faster on pure code transformation. |
+| Test scaffolding once new module boundaries are defined | Codex | Boilerplate-heavy, low-context. |
+| Coordinated commits, PR descriptions, smoke checks | Claude Code | Lives inside the git workflow. |
+| Single-file Python tweaks with clear instructions | Either | Pick whoever is free. |
 
-**Branch:** `develop`. Four commits per spec. Smoke on Vercel preview before any merge to `main`.
+**Handoff contract — Claude → Codex**
+When Claude writes a refactor plan for Codex it specifies:
+- target file(s) and exact line ranges (`file_path:line_number`)
+- new module names and public function signatures
+- which tests must pass after the move
+- any imports that need rewriting
 
-**Out of scope this session:** the milestone / job_application_milestones / CV variant rewiring (Part 2 of the IA discussion). That gets its own spec.
+**Handoff contract — Codex → Claude**
+When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SESSION SUMMARY** block in this file with what landed. Claude picks up from that summary on the next session.
+
+**Branch hygiene shared by both agents**
+- All work on `Develop`. Never push to `main` without explicit user approval.
+- One conventional-commits scope per commit.
+- Run `pytest backend/tests` + `tsc --noEmit` + `next lint` before marking a task complete.
+
+**Architecture audit artefact (refer to often)**
+- `graphify-out/GRAPH_REPORT.md` — knowledge-graph audit report (832 nodes, 1247 edges, 94 communities, generated 2026-04-26).
+- `graphify-out/graph.html` — interactive graph viewer.
+- Both agents should consult these before kicking off a refactor phase.
+
+**Reference workspace**
+- Local reference codebases, screenshots, and image exports live under `reference/`.
+- `reference/` is intentionally `.gitignored`; production code must not import from it.
+- Current reference codebase: `reference/codebases/black-futurist-frontend/` (moved from `frontend/Black_futuristist_frontend/`).
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
+## NEXT SESSION FOCUS (MODULARITY REFACTOR PHASE 2)
+
+**Phase 1 shipped `fedb32e` (scoring engine split). Phase 1b shipped `0ccb804` (job_path split). Both on `Develop`.**
+
+**Phase 2 — Repository layer.**
+Create `backend/app/repositories/{jobs,cv,scores,diary,users,skills}.py`. Move every direct Supabase call out of routers/services into repos, inject via FastAPI `Depends`. Removes the #1 god node `get_supabase_admin()` (degree 33) and decouples tests from Supabase row shape.
+Owner: Claude Code (defines repo interfaces + ports `routers/scores.py` end-to-end as the reference). Codex sweeps the remaining routers afterwards.
+Blocker: resolve Open Question #3 (`get_supabase_admin()` injection scope) before kicking off.
+
+---
+
+## REFACTOR ROADMAP (drafted 2026-04-26 from /graphify audit)
+
+Eight modularity issues tackled across seven phases. Each phase = one session, one commit, smoke-tested before any merge to `main`.
+
+**Phase 1 — Scoring engine split.** ⏳ NEXT
+  Owner: Claude Code (orchestration) + Codex (mechanical move).
+  Split `services/scoring_engine.py` (455L) → `services/scoring/{formulas,gap,persistence}.py`.
+  *Codex pickup:* given final interface, do the file moves + import rewrites + run tests.
+
+**Phase 1b — `job_path.py` triage** (stretch, depends on Open Question #4).
+  Split `services/job_path.py` (961L, 3.2× the 300-line limit) into `services/job_path/{plan,milestones,cv_generator,quality_gate}.py`. Defer until we confirm with user that the per-job-CV-tailoring feature is still in scope.
+
+**Phase 2 — Repository layer.**
+  Owner: Claude Code.
+  Create `backend/app/repositories/{jobs,cv,scores,diary,users,skills}.py`. Move every direct Supabase call out of routers/services into repos. Inject via FastAPI `Depends`.
+  Removes the #1 god node `get_supabase_admin()` (degree 33) and decouples tests from Supabase row shape.
+  *Codex pickup:* once repo interfaces are defined, port one router (e.g. `routers/scores.py`) end-to-end as the reference, then sweep the rest.
+
+**Phase 3 — Unified LLM provider abstraction.**
+  Owner: Codex (after Claude defines the interface).
+  Three files (`skill_tagger.py`, `llm_ranker.py`, `job_path.py`) each re-implement the same OpenRouter → Groq → Gemini fallback chain with their own constants. Consolidate into `services/llm_provider.py` exposing `LLMProvider.complete(prompt, model_pref) -> str` with built-in fallback + rate-limit detection.
+  After Phase 3, `cv_parser.py` and the diary processor should also migrate to the same abstraction.
+  *Codex pickup:* mechanical migration of all callers once the new class exists + passes its own unit tests.
+
+**Phase 4 — Cross-repo taxonomy + jobs schema contract.**
+  Owner: Claude Code (cross-repo, needs careful coordination).
+  Lightcast taxonomy lives in TWO places: `backend/lightcast_skills_taxonomy.json` AND `firecrawl_Supabase/scraper/lightcast_skills_taxonomy.json`. Promote to a versioned shared artefact + checksum check on boot. Add a contract test that asserts the `public.jobs` table shape matches what `csv_importer.py` writes (job_id, job_title, job_description, company_name, Industry, Location, apply_url, main_skills[], side_skills[], batch_date).
+  Direction: do not bulk-copy `/Users/incognito/Mirror CV/firecrawl_Supabase` into this repo. Build the deep Job Feed module at `backend/app/services/job_feed/`: canonical row contract first, then taxonomy checksum, quality report, and one Supabase upsert adapter.
+  Open Questions #1 and #5 must be resolved before this phase.
+
+**Phase 5 — Frontend prototype cleanup.**
+  Owner: Codex.
+  `frontend/Black_futuristist_frontend/` moved to ignored `reference/codebases/black-futurist-frontend/` so production frontend tooling cannot import or index it by accident. Production `.tsx` files currently have no live `BF_*` imports.
+
+**Phase 6 — Router file-size triage.**
+  Owner: Codex.
+  Split `routers/jobs.py` (592L) and `routers/cv.py` (446L) along feature-area lines: `routers/jobs/{list,detail,match,apply,milestone}.py`, `routers/cv/{upload,history,variants}.py`. Keep top-level `__init__.py` re-exports so `app.main` mounting stays unchanged.
+
+**Phase 7 — Dual scoring entry-point consolidation.**
+  Owner: Claude Code.
+  `backfill_scores.py`, `restore_skills_from_cv_text.py`, and `compute_and_persist_score()` are three entry points to roughly the same flow. Pick `compute_and_persist_score()` as canonical; convert the standalone scripts into thin CLI wrappers. Document final flow in `docs/SCORING_ALGORITHM.md`.
+  Open Question #6 must be resolved before this phase.
+
+**Stretch (Phase 8) — Domain layer separation.**
+  Owner: Claude Code.
+  Pydantic schemas currently double as API contracts AND DB row shapes. Introduce DTO ↔ entity ↔ row mapping where the divergence is real. Only do this if Phases 1–7 surface concrete pain.
+
+---
+
+## OPEN QUESTIONS PARKED (FOR /grill-me — NOT to ask user yet)
+
+These came out of the 2026-04-26 graphify audit. Save for a focused `/grill-me` session before kicking off **Phase 4** (which is when most of them become blocking).
+
+1. **Repo split vs monorepo.** Mirror and `firecrawl_Supabase` are separate repos sharing a Supabase schema implicitly. Keep separate (and add contract tests in Phase 4), or merge scraper into Mirror as `services/ingest/`? Trade-off: independent deploy cadence vs schema-drift safety.
+
+2. **`black-futurist-frontend/` lifecycle.** Resolved for Phase 5: keep as ignored reference material at `reference/codebases/black-futurist-frontend/`. Do not import from it in production code; copy ideas into production modules intentionally.
+
+3. **`get_supabase_admin()` injection scope.** Service-role key is currently used in user-facing endpoints. Intentional (RLS bypass for cross-user reads), or accidental (should be the user-scoped client)? Phase 2 needs the answer.
+
+4. **`job_path.py` (961L) status.** Confirmed: powers the 7-day-plan + tailored-CV-per-job feature. Is this feature in the active roadmap, or ripe for aggressive trimming? Phase 1b needs to know how much we can cut.
+
+5. **Two LLM stacks.** LM Studio (local-only) in scraper, OpenRouter+Groq+Gemini (cloud) in Mirror. Intentional per the scraper's `CLAUDE.md` ("no cloud AI APIs are permitted"), or should we unify to one provider abstraction in Phase 3 with a `local_only=True` mode for the scraper?
+
+6. **Dual scoring entry points.** `backfill_scores.py` + `restore_skills_from_cv_text.py` + `compute_and_persist_score()` — one canonical flow with two ops scripts, or do they have meaningfully different behaviour we need to preserve? Phase 7 needs the answer.
+
+---
+
+## ARCHITECTURE DECISIONS — PROGRESS FLOW UNIFICATION (Part 2)
+
+> **Read this in the architecture-planning phase before writing any spec or migration for the Job → Diary → Milestone → CV chain.**
+>
+> Target flow:
+>
+> ```
+> Intel    → pick target skill / company
+> Jobs     → save a target job
+>            ↳ writes job_application_skill_targets
+>            ↳ seeds job_application_milestones (7 rows)
+> Progress → today's milestone featured at top of /diary
+>            ↳ submitting an entry bound to that milestone:
+>               • appends to daily_logs.entry_text
+>               • runs LLM signal extraction → fills skills_delta
+>               • upgrades user_skills.matched_level
+>               • marks job_application_milestones[today].completed_at
+>               • copies proof/impact onto that milestone row
+> CV       → when ≥N milestones for a job have proof,
+>            regenerate job_cv_variants (deterministic + optional AI polish)
+> Dashboard → trajectory view (score Δ, jobs in flight, milestones done, CV vN)
+> ```
+>
+> **Known structural bugs to fix as part of this work:**
+> 1. Two parallel milestone tables (`user_milestones` and `job_application_milestones`) — only the latter feeds `job_cv_variants`. Diary writes to neither.
+> 2. `backend/app/routers/diary.py` has `signals: list[dict] = []` hardcoded (~line 34) — the LLM signal-extraction step is dead. `daily_logs.skills_delta` and `user_skills` upgrades from diary never fire.
+> 3. The skill-cart URL (`frontend/lib/diary-skill-cart.ts`) drops `job_id` and `milestone_date` between the Job page and the Diary page, so the binding context is lost.
+
+**Process to use during architecture planning:**
+- Run a focused `/grill-me` walking Tier 1 first (those 5 block migrations).
+- Once Tier 1 is settled, draft the migration + write the formal ADR at `docs/adr/0001-progress-flow-unification.md`.
+- Then walk Tier 2 surface-by-surface as each spec is written.
+- Tier 3 stays parked until v1 ships and we have user feedback.
+- The "*Lean*" notes are starting suggestions, **not decisions**. Confirm each one with the user.
+
+### Tier 1 — Schema decisions (BLOCKING — answer before any migration)
+
+1. **Collapse `user_milestones` into `job_application_milestones`?**
+   Options: (a) deprecate `user_milestones`, make `job_id` nullable on the survivor; (b) keep both, formally split as "job-bound" vs "personal"; (c) keep both and copy across.
+   *Lean: (a). Two tables doing the same thing is the root cause.*
+
+2. **Add `daily_logs.milestone_id` (nullable FK), or a join table?**
+   Options: (a) single FK — one entry binds to one milestone; (b) join table — one entry can complete multiple milestones; (c) no FK — match by date + user.
+   *Lean: (b) join table. A user might log "shipped feature X" that proves milestones for two saved jobs at once.*
+
+3. **Saved-job semantics — new state or reuse `job_applications.status`?**
+   Options: (a) reuse `status='pending'` to mean "saved/targeted"; (b) add new status `targeted` between `pending` and `applied`; (c) new `job_paths` table tracking lifecycle (active / paused / abandoned / converted).
+   *Lean: (c). Paths and applications are different things; conflating them will hurt later.*
+
+4. **Where does Intel "pick a target skill" persist?**
+   Options: (a) ephemeral — pure browse, no persistence; (b) new `user_target_skills` table; (c) infer targets from saved jobs only — Intel writes nothing.
+   *Lean: (a) for v1. Real persistence comes from saving a job.*
+
+5. **Cap on concurrent active job-paths?**
+   A user with 8 saved jobs would have 56 milestones competing for daily attention.
+   Options: (a) cap at 3 active; (b) no cap, surface only "next due" in Diary; (c) cap at 1 active "primary" path, others archived.
+   *Lean: (a) at 3. Mirrors the existing "top 3 recommended jobs" pattern.*
+
+### Tier 2 — Surface-by-surface decisions (answer as each surface is built)
+
+**Jobs page — when user saves a job:**
+
+6. **Seed milestones automatically, or behind a "Build my 7-day plan" CTA?**
+   *Lean: CTA. Auto-seed risks spamming users who are still browsing.*
+
+7. **Milestone content source — LLM, template library, or user picks?**
+   `template_id` + `proof_prompt` + `impact_prompt` columns already exist on `job_application_milestones`, suggesting templates are intended.
+   *Lean: hybrid — template if `template_id` matches, else LLM-generated.*
+
+8. **Skill selection per path — all gap skills, top N, or user picks?**
+   *Lean: top 3 gap skills, user can swap.*
+
+9. **Plan start date — today, next Monday, or user-picked?**
+   *Lean: today, with a "shift to next Monday" toggle.*
+
+**Progress page — diary ↔ milestone binding:**
+
+10. **When user has multiple active paths, which milestone is "today's featured"?**
+    Options: next-due, oldest-incomplete, primary-path-only, show all.
+    *Lean: stack — primary path's milestone hero, others as quiet rows below.*
+
+11. **Binding mechanism — auto-bind today's entry to today's featured milestone, or explicit dropdown?**
+    *Lean: auto-bind with a one-tap "this isn't about that milestone" override.*
+
+12. **Auto-complete the milestone on submit, or explicit "Mark complete" button?**
+    *Lean: explicit. Milestone completion is a meaningful event we don't want to fire by accident.*
+
+13. **Where do `proof` and `impact` come from?**
+    Options: (a) LLM-summarised from entry text; (b) two extra form fields on the diary; (c) entry text becomes proof, impact is a separate prompt — uses the existing `proof_prompt` / `impact_prompt` columns.
+    *Lean: (c).*
+
+14. **Confidence score — user slider, LLM-rated, or derived from word-count/specificity?**
+    *Lean: LLM-rated with a user override.*
+
+**LLM extraction — diary signal pipeline:**
+
+15. **Provider chain.** Default: same as `cv_parser` (OpenRouter free Llama → Groq → Gemini → OpenRouter paid). Confirm or override?
+    *(Note: this overlaps with refactor Phase 3 — the unified LLM provider abstraction. Coordinate.)*
+
+16. **Sync vs async.** Sync blocks submit (~2–4 s); async returns instantly and updates `skills_delta` in the background.
+    *Lean: sync for v1, switch to async if latency hurts.*
+
+17. **Cost cap per submit.** Free Llama and Groq are free; Gemini and paid OpenRouter cost money. Cap at one paid call per submit?
+
+18. **Degradation policy when all providers fail.** Save entry without `skills_delta`, or 503?
+    *Lean: save entry. Diary must not fail because the LLM is down.*
+
+19. **Skill-source attribution conflict.** When diary upgrades a skill that was originally `source='cv'`, today the value gets overwritten.
+    Options: (a) keep overwrite; (b) add `source='cv+diary'`; (c) keep `cv` but stamp a new `last_diary_evidence_at` column.
+    *Lean: (c).*
+
+**CV builder — variant regeneration:**
+
+20. **Threshold N — milestones-with-proof needed before regenerating `job_cv_variants`.**
+    Options: 3 / 5 / 7.
+    *Lean: 3. Fast feedback loop; user sees progress early.*
+
+21. **Auto-regenerate on threshold, or explicit "Generate tailored CV" CTA?**
+    *Lean: auto for the deterministic version, CTA for the AI polish (it costs money).*
+
+22. **AI polish — always, opt-in per draft, or first-N-free?**
+    Existing `ai_polish_used_at` column suggests opt-in. Confirm.
+
+23. **`job_cv_variants` ↔ `cv_history` relationship.**
+    Does a polished variant become a `cv_history` row with `version_type='generated_draft'` (column already exists)?
+    *Lean: yes — single source of truth for "all CVs the user has".*
+
+24. **Where does the user view / edit / download a variant?**
+    Options: new page (`/cv/job/[job_id]`), inline drawer on `/cv`, or in `/tracker`.
+    *Lean: inline drawer on `/cv` — keeps the CV surface as the canonical place.*
+
+**Dashboard — trajectory view:**
+
+25. **Metric set.** Mirror Score line (have `mirror_score_history`) + jobs in flight + milestones-completed-this-week + latest CV variant — anything else?
+    *Lean: those four for v1.*
+
+26. **Time range.** Last 30 days fixed, or user-pickable?
+    *Lean: 30-day fixed, expand later.*
+
+### Tier 3 — defer to v2 / first user feedback
+
+- Pause / abandon / resume job-path flows
+- Daily reminder notifications
+- Per-job progress detail views
+- Multi-user comparisons / leaderboards
+- Sharing CV variants externally
+- Undoing a milestone completion
+- Source attribution UI ("this skill was credited from your diary entry on…")
+
+---
+
+## LAST SESSION SUMMARY (2026-04-28 — MODULARITY REFACTOR PHASE 1b)
+
+```
+Date: 2026-04-28
+Milestone: Phase 1b shipped — job_path.py (961L) split into package.
+
+Commits this session:
+  fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence} [Phase 1, prev session]
+  0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
+
+Work done:
+  Codex completed the mechanical split of services/job_path.py into:
+    services/job_path/plan.py          (283L)
+    services/job_path/milestones.py    (212L)
+    services/job_path/cv_generator.py  (418L — acceptable, no clean sub-concern)
+    services/job_path/quality_gate.py  (63L)
+    services/job_path/_db.py           (49L — shared Supabase reads)
+    services/job_path/_helpers.py      (44L)
+    services/job_path/_content.py      (33L)
+    services/job_path/__init__.py      (70L — re-exports full public API for back-compat)
+
+  Codex also landed job_feed/ contract module (Phase 4 groundwork):
+    services/job_feed/__init__.py
+    services/job_feed/contract.py
+    tests/test_job_feed_contract.py
+
+  Claude verified: imports OK, 136/136 tests pass, committed.
+
+Known follow-ups (carried):
+  [ ] Smoke test production URL end-to-end after Phase 1 ships
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode (from 2026-04-20)
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal (from 2026-04-20)
+
+Next: Phase 2 — Repository layer (see NEXT SESSION FOCUS above).
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-25 / 2026-04-26 — IA REORDER + ARCHITECTURE AUDIT)
+
+```
+Date: 2026-04-25 (UI work) + 2026-04-26 (architecture audit)
+Milestone: Spec docs/superpowers/specs/2026-04-25-nav-reorder-and-cv-nudge.md shipped.
+           Architecture audit run on 2026-04-26 produced graphify-out/GRAPH_REPORT.md.
+
+Commits this session (UI):
+  7ce0acd  Reordering-dashbaord
+  8e06969  feat(ui): cv-required nudge + remove first-run CV gates
+  46db81b  feat(onboarding): add gentle close button to escape onboarding
+  76753dc  feat(ui): drop Market position subtitle on score pill
+  a11f9aa  feat(ui): reorder sidebar (Intel→Jobs→Progress→CV→Dashboard)
+
+UI work shipped:
+  1. Sidebar order = Intel → Jobs → Progress → CV Builder → Dashboard
+  2. Score block: "Market position" subtitle dropped; MYRO SCORE + number only
+  3. Onboarding: × close button top-right; skips to /market
+  4. First-run CV gate removed; users without CV browse freely
+  5. <CVRequiredNudge /> component added — banner + block variants
+     rendered on /market, /tracker, /jobs, /diary, /dashboard
+
+Architecture audit (2026-04-26):
+  - Resumed an interrupted /graphify run on True_Yodha (832 nodes, 1247 edges, 94 communities).
+  - Surveyed firecrawl_Supabase/ (scraper, csv_importer, weekly_run) for cross-repo handoff.
+  - Outputs: graphify-out/{GRAPH_REPORT.md, graph.html, graph.json}.
+
+  Eight modularity issues identified:
+    1. Supabase client god object (get_supabase_admin, degree 33, touches 5 communities)
+    2. Scoring engine doing 4 jobs (formulas + gap + persistence + diary merge in one 455L file)
+    3. CV parsing duplication across cv_parser, restore_skills_from_cv_text, backfill_scores
+    4. Frontend prototype contamination (BF_* symbols still imported by production .tsx)
+    5. Cross-repo skill taxonomy duplication (no version pinning, silent drift risk)
+    6. Two LLM provider stacks (skill_tagger + llm_ranker + job_path each reimplement fallback)
+    7. No domain layer (Pydantic schemas double as API contract + DB row shape)
+    8. Implicit scraper handoff contract (no schema test on public.jobs)
+
+  Six open questions parked for /grill-me (see OPEN QUESTIONS PARKED above).
+
+  File-size violations vs. CLAUDE.md 300-line cap:
+    services/job_path.py        961 lines   3.2x limit
+    routers/jobs.py             592         2.0x
+    scoring_engine.py           455         1.5x
+    skill_tagger.py             452         1.5x
+    routers/cv.py               446         1.5x
+    cv_parser.py                334         1.1x
+
+Known follow-ups (carried):
+  [ ] Smoke test production URL end-to-end after Phase 1 ships
+  [ ] Regenerate Signal Dot particle logo in amber for Forge mode (from 2026-04-20)
+  [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal (from 2026-04-20)
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-20 — PRODUCTION DEPLOYMENT + FULL TOKEN PASS)
 
 ```
 Date: 2026-04-20
