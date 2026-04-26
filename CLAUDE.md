@@ -350,7 +350,7 @@ Milestone: Recovery after accidental reset; Phase 1b cleanup and Phase 2 Reposit
 Commits this session:
   fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence} [Phase 1, prev session]
   0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
-  Recovery commit pending in this session.
+  de0977e  refactor(architecture): recover repository seams
 
 Work done:
   Claude completed the mechanical split of services/job_path.py into:
