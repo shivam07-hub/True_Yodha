@@ -351,6 +351,7 @@ Commits this session:
   fedb32e  refactor(scoring): split scoring_engine.py → scoring/{formulas,gap,persistence} [Phase 1, prev session]
   0ccb804  refactor(job-path): split job_path.py (961L) into job_path/ package (Phase 1b)
   de0977e  refactor(architecture): recover repository seams
+  3037454  docs(claude): record recovery commit
 
 Work done:
   Claude completed the mechanical split of services/job_path.py into:
@@ -401,9 +402,8 @@ Known follow-ups (carried):
   [ ] Replace TMLogo SVG with new Signal Dot mark in sidebar + About modal (from 2026-04-20)
 
 Next for Codex:
-  1. Commit this recovery after verification.
-  2. Phase 2B — create repositories/cv.py and move routers/cv.py Supabase calls behind it.
-  3. Phase 2C — repositories/jobs.py and routers/jobs.py sweep.
+  1. Phase 2B — create repositories/cv.py and move routers/cv.py Supabase calls behind it.
+  2. Phase 2C — repositories/jobs.py and routers/jobs.py sweep.
 
 Next for Claude:
   1. Review Repository adapter policy: which seams should stay service-role and which should become token-scoped.
