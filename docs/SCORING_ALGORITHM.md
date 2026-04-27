@@ -1,4 +1,4 @@
-# Mirror Score Algorithm
+# Myro Score Algorithm
 
 > Canonical scoring entry point: `backend/app/services/scoring/persistence.py::compute_and_persist_score()`
 > Back-compat shim: `backend/app/services/scoring_engine.py` (re-export only)
@@ -150,7 +150,7 @@ This prevents punishing a Data Engineer for having zero skills in "Hospitality a
 
 ---
 
-### Step 5 — Mirror Score
+### Step 5 — Myro Score
 
 ```
 mirror_score = mean(domain_score(D) for all D where user has ≥1 skill)
@@ -170,14 +170,14 @@ normalised_skill_score(C) = percentile_rank(cluster_score(C), all_users_scored_o
 ```
 
 - Used for display and peer comparison only
-- Not fed back into Mirror Score (avoids circular dependency on user pool size)
+- Not fed back into Myro Score (avoids circular dependency on user pool size)
 - Percentile computation deferred — not yet stored in DB
 
 ---
 
 ## Rank Tiers (INTERNAL ONLY — never returned via API)
 
-| Mirror Score | Tier |
+| Myro Score | Tier |
 |---|---|
 | 89–100 | Expert |
 | 76–88 | Professional |
