@@ -107,23 +107,32 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 - Updated `docs/SCORING_ALGORITHM.md` with canonical-flow documentation.
 - Phase 7 CLI wrapper scripts removed (backfill embedded in SQL migrations per design policy).
 
-**Universal skill taxonomy enforced (this session):**
+**Universal skill taxonomy enforced + production smoke-tested (this session):**
 - Created `job_skills` join table: `job_id → jobs.job_id`, `skill_id → skills.id`, `is_primary`.
 - Trigger on `jobs` syncs `main_skills`/`side_skills` → `job_skills` (scraper backward-compat).
-- SQL migration `20260427_job_skills_table.sql` backfills existing jobs.
-- `job_matcher.py`, `repositories/jobs.py`, `repositories/scores.py`, `taxonomy_loader.py` all read from `job_skills JOIN skills` — canonical taxonomy enforced end-to-end.
-- RLS fixed: `jobs`, `skills`, `job_skills` all enabled with `FOR SELECT USING (true)`.
+- SQL migrations run in production: `20260427_fix_jobs_skills_rls.sql` + `20260427_job_skills_table.sql`.
+- 16,342 rows backfilled. All code reads from `job_skills JOIN skills` — canonical taxonomy end-to-end.
+- Fixed `job_path/_db.py::_get_job` to read from `job_skills` → overlap_score and readiness_pct now use identical skill source.
+- Fixed `max(len(main), 1)` denominator bug that inflated scores for sparse-indexed jobs.
+- Fixed `is_cache_valid` to invalidate when `user_skills.last_updated > computed_at` — prevents stale scores after CV re-upload.
+- Fixed `find_role_skill_rows` (last path still on legacy TEXT arrays) to use `job_skills`.
+- Deleted stale `user_job_matches` rows computed against partial backfill window.
+- **Production verified**: `POST /jobs/compute` returns correct matches. Job cards show honest overlap %.
 
-**Next up:**
-- Run `20260427_fix_jobs_skills_rls.sql` + `20260427_job_skills_table.sql` in Supabase dashboard.
-- Smoke test `POST /jobs/compute` — should now return matches (RLS fix + job_skills backfill).
-- Scraper update (separate session): write to `job_skills` directly, then drop trigger + legacy columns.
+**Next session priorities:**
+1. **Diary/Progress flow** — three known structural bugs (see ARCHITECTURE DECISIONS below):
+   - `routers/diary.py` LLM signal extraction hardcoded `signals: list = []` → skills_delta never fires
+   - Skill-cart URL drops `job_id` + `milestone_date` between Job page and Diary page
+   - `user_milestones` table deprecated — migrate writes to `job_application_milestones`
+2. **Scraper update** (separate session): write to `job_skills` directly, then drop trigger + legacy TEXT columns.
+3. **Smoke test continuation** — resume from step 4 (tracker → diary → score recompute loop).
 
-Verification completed this session:
+Verification:
 ```
-pytest backend/tests -q   → all pass
+pytest backend/tests -q   → 179 passed
 tsc --noEmit              → exit 0
 next lint                 → no errors
+Production smoke test     → CV upload ✓  score ✓  job matches ✓  overlap % correct ✓
 ```
 
 ---
@@ -317,45 +326,61 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — POST-PHASE-7 HARDENING)
+## LAST SESSION SUMMARY (2026-04-27 — TAXONOMY NORMALISATION + PRODUCTION SMOKE TEST)
 
 ```
 Date: 2026-04-27
-Milestone: Post-Phase-7 hardening completed (staging dry-runs + script hardening).
+Milestone: Universal skill taxonomy enforced end-to-end. Production smoke test passed.
 
 Commits this session:
-  f485508  refactor(scoring): harden phase-7 dry-run workflows
+  38feb10  feat(taxonomy): normalise job skills into FK-enforced job_skills join table
+  8351c25  fix(taxonomy): unify overlap_score and readiness_pct to same skill source
+  e0045b2  fix(jobs): invalidate match cache when user skills updated after compute
 
 What landed:
-  - Added canonical no-write mode to the scoring entry point:
-      `compute_and_persist_score(..., persist=False)` runs full score math without DB writes
-  - Hardened both Phase 7 operational wrappers with `--dry-run`:
-      `database/backfill_scores.py`
-      `database/restore_skills_from_cv_text.py`
-  - Fixed restore-script env-load bug:
-      `restore_skills_from_cv_text.py` now loads `backend/.env` before importing `cv_parser`
-      so `app.config.settings` sees LLM provider keys at import-time
-  - Added regression coverage for dry-run semantics:
-      `backend/tests/test_scoring_io.py`
-      - dry-run skips persistence writes
-      - dry-run still enforces `require_skills_assessed` guard
-  - Updated scoring docs with Phase 7 hardening commands:
-      `docs/SCORING_ALGORITHM.md`
 
-Staging dry-run evidence:
-  - `python database/backfill_scores.py --limit 5 --dry-run`
-      processed=5 skipped=3 failed=0 scanned=9
-  - `python database/restore_skills_from_cv_text.py --limit 3 --dry-run`
-      processed=3 skipped=0 failed=0 scanned=6
+  Taxonomy normalisation:
+    - Created job_skills (job_id FK→jobs, skill_id FK→skills, is_primary)
+    - Trigger syncs jobs.main_skills/side_skills → job_skills on INSERT/UPDATE
+    - SQL migrations run in production; 16,342 rows backfilled
+    - repositories/jobs.py, repositories/scores.py, taxonomy_loader.py,
+      job_matcher.py all read from job_skills JOIN skills
+    - Deleted database/backfill_scores.py and restore_skills_from_cv_text.py
+      (backfill logic belongs in SQL migrations)
+
+  Bug fixes:
+    - RLS on jobs + skills + job_skills: FOR SELECT USING (true) — fixed
+      POST /jobs/compute 404 (token-scoped client couldn't read public tables)
+    - job_path/_db.py::_get_job: reads job_skills JOIN skills instead of
+      jobs.main_skills TEXT[] — overlap_score and readiness_pct now use
+      identical skill source (was 100% vs 17% on same job)
+    - job_matcher.py: removed max(len(main), 1) denominator hack that inflated
+      scores for jobs with sparse indexed skills
+    - scores.py::find_role_skill_rows: migrated from legacy TEXT arrays to job_skills
+    - llm_ranker.is_cache_valid: now compares user_skills.last_updated vs
+      computed_at — stale scores auto-invalidated after CV re-upload
+
+  Production evidence (user abc@gmail.com, Wells Fargo job):
+    - job_skills: 5 main + 8 side = 13 rows ✓
+    - User has 2 of 13 skills → overlap = 16.7% = 17% readiness ✓ (was 100%)
+    - POST /jobs/compute: returns matches ✓
+    - Stale user_job_matches rows cleared from DB ✓
 
 Verification:
-  - `pytest backend/tests -q` → 178 passed
-  - `frontend/node_modules/.bin/tsc --noEmit --project frontend/tsconfig.json` → pass
-  - `cd frontend && ./node_modules/.bin/next lint` → clean
+  pytest backend/tests -q   → 179 passed
+  tsc --noEmit              → exit 0
+  next lint                 → no errors
 
-Phase 8 decision:
-  - Defer Stretch Phase 8 (DTO/entity/row separation) for now.
-  - Rationale: no concrete DTO/row divergence pain surfaced during Phase 7 hardening.
+Next session — pick up in this order:
+  1. Diary/Progress structural bugs (all three are blocking the full loop):
+       a. diary.py: `signals: list[dict] = []` hardcoded → LLM extraction dead,
+          skills_delta and user_skills upgrades never fire
+       b. diary-skill-cart.ts: drops job_id + milestone_date in URL → binding lost
+       c. user_milestones deprecated → migrate diary writes to job_application_milestones
+  2. Scraper update (separate session): write to job_skills directly,
+     then drop trigger + legacy main_skills/side_skills columns
+  3. Full smoke test steps 4–10 (tracker → diary → score recompute loop)
+```
 
 Next:
   - Run authenticated production URL smoke path (CV upload → score → jobs/diary) with dedicated test account.
