@@ -73,7 +73,8 @@ _market_skills_cache: list[str] | None = None
 
 def get_market_skills(db: Client) -> list[str]:
     """
-    Returns sorted list of unique skill names seen across all jobs.
+    Returns sorted list of unique taxonomy skill names seen across all jobs.
+    Sources from job_skills JOIN skills (FK-enforced) rather than raw TEXT arrays.
     Cached after first call.
     """
     global _market_skills_cache
@@ -81,15 +82,12 @@ def get_market_skills(db: Client) -> list[str]:
         return _market_skills_cache
 
     names: set[str] = set()
-    page1 = db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-    page2 = db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
+    page1 = db.table("job_skills").select("skills(taxonomy_key)").range(0, 9999).execute().data or []
+    page2 = db.table("job_skills").select("skills(taxonomy_key)").range(10000, 29999).execute().data or []
     for row in page1 + page2:
-        for s in (row.get("main_skills") or []):
-            if s and s.strip():
-                names.add(s.strip())
-        for s in (row.get("side_skills") or []):
-            if s and s.strip():
-                names.add(s.strip())
+        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+        if key:
+            names.add(key)
 
     _market_skills_cache = sorted(names)
     return _market_skills_cache

@@ -134,6 +134,22 @@ CREATE TABLE jobs (
   batch_date       DATE         NOT NULL DEFAULT CURRENT_DATE
 );
 
+-- ─── JOB SKILLS (normalised) ────────────────────────────────
+-- FK-enforced join table: each row links a job to a taxonomy skill.
+-- is_primary=true → main_skills (must-have); false → side_skills (nice-to-have).
+-- A trigger on jobs keeps this in sync when main_skills/side_skills are written.
+
+CREATE TABLE job_skills (
+  id         BIGSERIAL PRIMARY KEY,
+  job_id     TEXT      NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
+  skill_id   INT       NOT NULL REFERENCES skills(id),
+  is_primary BOOLEAN   NOT NULL DEFAULT true,
+  UNIQUE (job_id, skill_id)
+);
+
+CREATE INDEX idx_job_skills_job_id   ON job_skills(job_id);
+CREATE INDEX idx_job_skills_skill_id ON job_skills(skill_id);
+
 -- ─── JOB MATCHES ────────────────────────────────────────────
 -- Top matches per user per week by skill overlap + LLM ranking.
 -- batch_week = Monday of the week this set was generated.
@@ -304,7 +320,8 @@ CREATE INDEX idx_feedback_created     ON user_feedback(created_at DESC);
 
 ALTER TABLE user_profiles     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_skills        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mirror_scores          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mirror_score_history   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_application_skill_targets ENABLE ROW LEVEL SECURITY;
@@ -314,10 +331,14 @@ ALTER TABLE daily_logs         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_milestones    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cv_history         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_feedback      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE jobs               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE skills             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE job_skills         ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);
-CREATE POLICY "own scores"         ON mirror_scores     FOR ALL     USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own scores"         ON mirror_scores         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own score history"  ON mirror_score_history  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own job path targets" ON job_application_skill_targets FOR ALL USING (auth.uid() = user_id);
@@ -326,7 +347,8 @@ CREATE POLICY "own job cv variants" ON job_cv_variants FOR ALL USING (auth.uid()
 CREATE POLICY "own diary"          ON daily_logs        FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own milestones"     ON user_milestones   FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own cv history"     ON cv_history        FOR ALL     USING (auth.uid() = user_id);
-CREATE POLICY "skills public read" ON skills            FOR SELECT  USING (true);
-CREATE POLICY "jobs public read"   ON jobs              FOR SELECT  USING (true);
+CREATE POLICY "skills public read"    ON skills     FOR SELECT USING (true);
+CREATE POLICY "jobs public read"      ON jobs       FOR SELECT USING (true);
+CREATE POLICY "job_skills public read" ON job_skills FOR SELECT USING (true);
 CREATE POLICY "feedback insert"    ON user_feedback     FOR INSERT  WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
 CREATE POLICY "own feedback read"  ON user_feedback     FOR SELECT  USING (auth.uid() = user_id);

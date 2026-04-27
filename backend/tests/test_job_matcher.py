@@ -2,42 +2,72 @@
 test_job_matcher.py
 Unit tests for job_matcher.get_top_matches.
 No Supabase required — DB is fully mocked.
+
+Mock structure reflects the new two-table query pattern:
+  - db.table("job_skills")  → paginated skill rows
+  - db.table("jobs")        → metadata fetch via .in_()
 """
 
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.services.job_matcher import get_top_matches
 
 
 # ── Mock helpers ──────────────────────────────────────────────────────────────
 
-def _make_db(job_rows_p1: list[dict], job_rows_p2: list[dict] | None = None) -> MagicMock:
-    """Build a mock Supabase client that returns job rows across two pages."""
-    p2 = job_rows_p2 or []
+def _make_db(job_rows: list[dict], job_skills_rows: list[dict] | None = None) -> MagicMock:
+    """
+    Build a mock Supabase client for job_matcher tests.
 
-    call_count = {"n": 0}
+    job_rows: job metadata dicts (job_id, job_title, company_name, …)
+    job_skills_rows: {job_id, is_primary, skills:{taxonomy_key}} rows.
+      Auto-generated from job_rows.main_skills / side_skills if omitted.
+    """
+    if job_skills_rows is None:
+        job_skills_rows = []
+        for job in job_rows:
+            for s in (job.get("main_skills") or []):
+                job_skills_rows.append(
+                    {"job_id": job["job_id"], "is_primary": True, "skills": {"taxonomy_key": s}}
+                )
+            for s in (job.get("side_skills") or []):
+                job_skills_rows.append(
+                    {"job_id": job["job_id"], "is_primary": False, "skills": {"taxonomy_key": s}}
+                )
 
-    def _range(start: int, end: int) -> MagicMock:
-        q = MagicMock()
-        result = MagicMock()
-        result.data = job_rows_p1 if start == 0 else p2
-        q.execute.return_value = result
-        return q
+    # job_skills table mock — same rows for both range pages
+    js_result = MagicMock()
+    js_result.data = job_skills_rows
+    js_range = MagicMock()
+    js_range.execute.return_value = js_result
+    js_select = MagicMock()
+    js_select.range.return_value = js_range
+    js_table = MagicMock()
+    js_table.select.return_value = js_select
 
-    select_mock = MagicMock()
-    select_mock.range.side_effect = _range
-
-    table_mock = MagicMock()
-    table_mock.select.return_value = select_mock
+    # jobs table mock — returns all job_rows for any .in_() call
+    jobs_result = MagicMock()
+    jobs_result.data = job_rows
+    jobs_in = MagicMock()
+    jobs_in.execute.return_value = jobs_result
+    jobs_select = MagicMock()
+    jobs_select.in_.return_value = jobs_in
+    jobs_table = MagicMock()
+    jobs_table.select.return_value = jobs_select
 
     db = MagicMock()
-    db.table.return_value = table_mock
+    db.table.side_effect = lambda name: js_table if name == "job_skills" else jobs_table
     return db
 
 
-def _job(job_id: str, title: str, company: str, main: list[str], side: list[str], location: str = "India") -> dict:
+def _job(
+    job_id: str,
+    title: str,
+    company: str,
+    main: list[str],
+    side: list[str],
+    location: str = "India",
+) -> dict:
     return {
         "job_id": job_id,
         "job_title": title,
@@ -89,7 +119,10 @@ class TestBasic:
     def test_returned_shape(self) -> None:
         db = _make_db([_job("abc123", "DE", "TechCorp", ["Python"], [])])
         result = get_top_matches(db, {"Python": 3}, top_n=1)
-        keys = {"job_id", "title", "company", "location", "industry", "apply_url", "description", "overlap_score", "matched_skills"}
+        keys = {
+            "job_id", "title", "company", "location", "industry",
+            "apply_url", "description", "overlap_score", "matched_skills",
+        }
         assert keys.issubset(result[0].keys())
         assert result[0]["job_id"] == "abc123"
 
@@ -97,6 +130,15 @@ class TestBasic:
         db = _make_db([_job("j1", "Job", "Acme", ["Python"], [])])
         result = get_top_matches(db, {"Python": 3})
         assert "boosted_score" not in result[0]
+
+    def test_zero_overlap_jobs_excluded(self) -> None:
+        jobs = [
+            _job("j1", "Python Job", "Acme",  ["Python"], []),
+            _job("j2", "Java Job",   "Other", ["Java"],   []),
+        ]
+        db = _make_db(jobs)
+        result = get_top_matches(db, {"Python": 3})
+        assert all(r["job_id"] != "j2" for r in result)
 
 
 # ── Aspiration rerank ─────────────────────────────────────────────────────────
@@ -108,7 +150,6 @@ class TestAspirationRerank:
             _job("j2", "Sales Executive",     "Other", ["Python"], []),
         ]
         db = _make_db(jobs)
-        # Without boost j1==j2 (same skills). With boost j1 wins.
         result = get_top_matches(db, {"Python": 3}, target_roles=["Data Engineer"], top_n=2)
         assert result[0]["job_id"] == "j1"
 
@@ -135,16 +176,15 @@ class TestAspirationRerank:
 
 class TestCompanyCap:
     def test_single_company_capped_at_30_percent(self) -> None:
-        # 8 Accenture jobs + 2 others, all with same skill → without cap Accenture takes 8/10
         accenture_jobs = [_job(f"acc{i}", f"Role {i}", "Accenture", ["Python"], []) for i in range(8)]
         other_jobs = [
-            _job("oth1", "DE Role",  "Wipro", ["Python"], []),
-            _job("oth2", "PM Role",  "Infosys", ["Python"], []),
+            _job("oth1", "DE Role", "Wipro",   ["Python"], []),
+            _job("oth2", "PM Role", "Infosys", ["Python"], []),
         ]
         db = _make_db(accenture_jobs + other_jobs)
         result = get_top_matches(db, {"Python": 3}, top_n=10)
         accenture_count = sum(1 for r in result if r["company"] == "Accenture")
-        assert accenture_count <= 3  # 30% of 10
+        assert accenture_count <= 3
 
     def test_cap_does_not_reduce_variety_when_companies_diverse(self) -> None:
         jobs = [_job(f"j{i}", f"Job {i}", f"Co{i}", ["Python"], []) for i in range(10)]

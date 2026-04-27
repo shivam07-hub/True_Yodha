@@ -47,16 +47,16 @@ class DiaryRepository:
             on_conflict="user_id,log_date",
         ).execute()
 
-    def get_daily_log(self, user_id: str, log_date: date) -> dict[str, Any]:
+    def get_daily_log(self, user_id: str, log_date: date) -> dict[str, Any] | None:
         result = (
             self._db.table("daily_logs")
             .select("*")
             .eq("user_id", user_id)
             .eq("log_date", str(log_date))
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     def list_daily_logs(self, user_id: str, limit: int) -> list[dict[str, Any]]:
         result = (
@@ -97,16 +97,16 @@ class DiaryRepository:
             on_conflict="user_id,milestone_date",
         ).execute()
 
-    def get_user_milestone(self, user_id: str, milestone_date: date) -> dict[str, Any]:
+    def get_user_milestone(self, user_id: str, milestone_date: date) -> dict[str, Any] | None:
         result = (
             self._db.table("user_milestones")
             .select("*")
             .eq("user_id", user_id)
             .eq("milestone_date", str(milestone_date))
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data
+        return result.data if result else None
 
     def skill_ids_by_taxonomy_key(self) -> dict[str, int]:
         result = self._db.table("skills").select("id, taxonomy_key").execute()

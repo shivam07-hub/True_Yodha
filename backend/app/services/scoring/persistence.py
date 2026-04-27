@@ -98,6 +98,33 @@ def fetch_skill_demand(scores_repo: ScoresRepository) -> dict[str, int]:
 
 # ── Supabase writes ───────────────────────────────────────────────────────────
 
+def _build_user_skill_rows(
+    scores_repo: ScoresRepository,
+    user_id: str,
+    skill_level_map: dict[str, int],
+    signals: list[dict],
+) -> list[dict]:
+    """Build user_skills rows without writing. Resolves taxonomy IDs eagerly."""
+    from app.services.taxonomy_loader import ensure_skill_in_db
+    evidence_map: dict[str, str] = {s["taxonomy_key"]: s["evidence"] for s in signals}
+    now = datetime.now(timezone.utc).isoformat()
+    rows = []
+    for key, level in skill_level_map.items():
+        skill_id = ensure_skill_in_db(scores_repo.client, key)
+        if skill_id is None:
+            continue
+        rows.append({
+            "user_id":           user_id,
+            "skill_id":          skill_id,
+            "matched_level":     level,
+            "proficiency_title": _PROFICIENCY_TITLES.get(level, "Scout"),
+            "source":            "cv",
+            "evidence_text":     evidence_map.get(key, ""),
+            "last_updated":      now,
+        })
+    return rows
+
+
 def persist_user_skills(
     scores_repo: ScoresRepository,
     user_id: str,
@@ -105,26 +132,7 @@ def persist_user_skills(
     signals: list[dict],
 ) -> int:
     """Upsert one row per detected skill into user_skills. Returns count written."""
-    from app.services.taxonomy_loader import ensure_skill_in_db
-    evidence_map: dict[str, str] = {}
-    for s in signals:
-        evidence_map.setdefault(s["taxonomy_key"], s["evidence"])
-
-    rows = []
-    for key, level in skill_level_map.items():
-        skill_id = ensure_skill_in_db(scores_repo.client, key)
-        if skill_id is None:
-            continue
-        rows.append({
-            "user_id":         user_id,
-            "skill_id":        skill_id,
-            "matched_level":   level,
-            "proficiency_title": _PROFICIENCY_TITLES.get(level, "Scout"),
-            "source":          "cv",
-            "evidence_text":   evidence_map.get(key, ""),
-            "last_updated":    datetime.now(timezone.utc).isoformat(),
-        })
-
+    rows = _build_user_skill_rows(scores_repo, user_id, skill_level_map, signals)
     scores_repo.upsert_user_skill_rows(rows)
     return len(rows)
 
@@ -201,16 +209,21 @@ def compute_and_persist_score(
     )
     rank_tier = compute_rank_tier(total_score)
 
+    # Build skill rows first (no DB write yet) so we have an accurate count
+    # before any writes. Score is written before skills so that a score-write
+    # failure never leaves orphaned skill rows in user_skills.
     if skills_detected is not None:
-        skills_count = (
-            persist_user_skills(scores_repo, user_id, skill_level_map, skills_detected)
-            if persist
-            else len(skill_level_map)
-        )
+        if persist:
+            skill_rows = _build_user_skill_rows(scores_repo, user_id, skill_level_map, skills_detected)
+            skills_count = len(skill_rows)
+        else:
+            skill_rows = []
+            skills_count = len(skill_level_map)
         if require_skills_assessed and skills_count == 0:
             raise ValueError("No valid skills could be persisted for this user.")
     else:
         skills_count = len(skill_level_map)
+        skill_rows = []
 
     if not persist:
         return {
@@ -223,6 +236,10 @@ def compute_and_persist_score(
             "skills_assessed": skills_count,
         }
 
-    return persist_score(
+    # Score first — if this raises, skill_rows has not been flushed yet.
+    score_row = persist_score(
         scores_repo, user_id, total_score, domain_scores, gap_skills, skills_count, rank_tier
     )
+    if skill_rows:
+        scores_repo.upsert_user_skill_rows(skill_rows)
+    return score_row

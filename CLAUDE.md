@@ -103,16 +103,21 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 
 **Phase 7 complete (workspace):**
 - `compute_and_persist_score()` remains the single canonical scoring path.
-- Added thin CLI wrappers:
-  - `database/backfill_scores.py`
-  - `database/restore_skills_from_cv_text.py`
 - Enforced CV upload/text invariant: require at least one persisted skill row.
 - Updated `docs/SCORING_ALGORITHM.md` with canonical-flow documentation.
+- Phase 7 CLI wrapper scripts removed (backfill embedded in SQL migrations per design policy).
 
-**Next up: hardening + rollout confidence**
-- Dry-run both Phase 7 scripts against a small user sample on staging.
-- Smoke test end-to-end production URL flow (CV upload → score compute → jobs/diary).
-- Decide whether to start Stretch Phase 8 (DTO/entity/row separation) based on pain observed.
+**Universal skill taxonomy enforced (this session):**
+- Created `job_skills` join table: `job_id → jobs.job_id`, `skill_id → skills.id`, `is_primary`.
+- Trigger on `jobs` syncs `main_skills`/`side_skills` → `job_skills` (scraper backward-compat).
+- SQL migration `20260427_job_skills_table.sql` backfills existing jobs.
+- `job_matcher.py`, `repositories/jobs.py`, `repositories/scores.py`, `taxonomy_loader.py` all read from `job_skills JOIN skills` — canonical taxonomy enforced end-to-end.
+- RLS fixed: `jobs`, `skills`, `job_skills` all enabled with `FOR SELECT USING (true)`.
+
+**Next up:**
+- Run `20260427_fix_jobs_skills_rls.sql` + `20260427_job_skills_table.sql` in Supabase dashboard.
+- Smoke test `POST /jobs/compute` — should now return matches (RLS fix + job_skills backfill).
+- Scraper update (separate session): write to `job_skills` directly, then drop trigger + legacy columns.
 
 Verification completed this session:
 ```

@@ -33,17 +33,43 @@ SYSTEM_PROMPT = (
 # ── Cache check ───────────────────────────────────────────────────────────────
 
 def is_cache_valid(db: Client, user_id: str, batch_week: date) -> bool:
-    """Returns True if LLM-ranked matches already exist for this user + batch_week."""
-    result = (
+    """
+    Returns True if ranked matches exist for this week AND no skill change
+    happened after the last compute. Stale scores from partial job_skills
+    backfills or CV re-uploads are always recomputed.
+    """
+    match_result = (
         db.table("user_job_matches")
-        .select("id")
+        .select("computed_at")
         .eq("user_id", user_id)
         .eq("batch_week", str(batch_week))
         .eq("is_recommended", True)
         .limit(1)
         .execute()
     )
-    return bool(result.data)
+    if not match_result.data:
+        return False
+
+    computed_at = match_result.data[0].get("computed_at")
+    if not computed_at:
+        return False
+
+    # Invalidate if any user skill was updated after the last match compute
+    skill_result = (
+        db.table("user_skills")
+        .select("last_updated")
+        .eq("user_id", user_id)
+        .order("last_updated", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if skill_result.data:
+        last_skill_update = skill_result.data[0].get("last_updated") or ""
+        if last_skill_update > computed_at:
+            logger.info("Match cache stale for user %s — skills updated after last compute", user_id)
+            return False
+
+    return True
 
 
 # ── Prompt building ───────────────────────────────────────────────────────────

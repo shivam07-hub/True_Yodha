@@ -24,20 +24,20 @@ class CVRepository:
             self._db.table("user_profiles")
             .select("cv_raw_text, cv_parsed_at")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data or None
+        return (result.data if result else None) or None
 
     def get_cv_raw_text(self, user_id: str) -> str | None:
         result = (
             self._db.table("user_profiles")
             .select("cv_raw_text")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return (result.data or {}).get("cv_raw_text")
+        return ((result.data if result else None) or {}).get("cv_raw_text")
 
     def update_cv_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         self._db.table("user_profiles").update(updates).eq("id", user_id).execute()
