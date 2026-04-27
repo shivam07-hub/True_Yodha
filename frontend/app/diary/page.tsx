@@ -137,7 +137,7 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
               stroke="var(--tm-accent-wash)" strokeWidth={6}
               strokeDasharray={`${CIRC} ${CIRC}`}
             />
-            {/* Progress arc */}
+            {/* Progress arc — no filter here; glow handled by opacity sibling below */}
             <circle
               cx={50} cy={50} r={44} fill="none"
               stroke="var(--tm-accent)" strokeWidth={4}
@@ -145,7 +145,20 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
               strokeDasharray={dashArray}
               style={{
                 transition: running ? "stroke-dasharray 1s linear" : "stroke-dasharray 0.4s var(--tm-ease)",
-                filter: running ? "drop-shadow(0 0 8px var(--tm-accent-glow))" : "drop-shadow(0 0 4px var(--tm-accent-glow))",
+              }}
+            />
+            {/* Running glow: static filter, toggled via opacity (composite) */}
+            <circle
+              cx={50} cy={50} r={44} fill="none"
+              stroke="var(--tm-accent)" strokeWidth={4}
+              strokeLinecap="round"
+              strokeDasharray={dashArray}
+              aria-hidden
+              style={{
+                filter: "drop-shadow(0 0 8px var(--tm-accent-glow))",
+                opacity: running ? 1 : 0,
+                transition: "opacity var(--tm-dur) var(--tm-ease)",
+                pointerEvents: "none",
               }}
             />
           </svg>

@@ -155,9 +155,11 @@ export function NextMissionCard({
           </div>
           <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
             <div style={{
-              height: "100%", width: `${readinessPct}%`, borderRadius: 999,
+              height: "100%", width: "100%", borderRadius: 999,
               background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-pressed))",
-              transition: "width 0.9s cubic-bezier(0.16,1,0.3,1)",
+              transform: `scaleX(${readinessPct / 100})`,
+              transformOrigin: "left",
+              transition: "transform 0.9s cubic-bezier(0.16,1,0.3,1)",
             }} />
           </div>
         </div>
