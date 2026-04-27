@@ -304,7 +304,8 @@ CREATE INDEX idx_feedback_created     ON user_feedback(created_at DESC);
 
 ALTER TABLE user_profiles     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_skills        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mirror_scores      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mirror_scores          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mirror_score_history   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_job_matches   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_applications   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_application_skill_targets ENABLE ROW LEVEL SECURITY;
@@ -317,7 +318,8 @@ ALTER TABLE user_feedback      ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);
-CREATE POLICY "own scores"         ON mirror_scores     FOR ALL     USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own scores"         ON mirror_scores         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own score history"  ON mirror_score_history  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own matches"        ON user_job_matches  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own applications"   ON job_applications  FOR ALL     USING (auth.uid() = user_id);
 CREATE POLICY "own job path targets" ON job_application_skill_targets FOR ALL USING (auth.uid() = user_id);
