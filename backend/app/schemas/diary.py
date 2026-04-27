@@ -71,6 +71,7 @@ class MilestoneResponse(BaseModel):
     completed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    source_type: str = "personal"  # 'personal' | 'job'
 
 
 class MilestoneListResponse(BaseModel):

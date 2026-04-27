@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 class UserProfileResponse(BaseModel):
@@ -34,3 +34,20 @@ class UserSkillItem(BaseModel):
 class UserSkillsByDomainResponse(BaseModel):
     by_domain: dict[str, list[UserSkillItem]]    # keyed by L1 domain (for radar drill-down)
     by_cluster: dict[str, list[UserSkillItem]]   # keyed by L2 cluster (for CV page)
+
+
+class SkillLevelCorrectionRequest(BaseModel):
+    level: int
+
+    @field_validator("level")
+    @classmethod
+    def level_in_range(cls, v: int) -> int:
+        if v < 1 or v > 5:
+            raise ValueError("Level must be between 1 and 5")
+        return v
+
+
+class SkillLevelCorrectionResponse(BaseModel):
+    taxonomy_key: str
+    new_level: int
+    total_score: float | None

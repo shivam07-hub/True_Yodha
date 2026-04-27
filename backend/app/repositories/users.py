@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends
@@ -62,6 +63,32 @@ class UsersRepository:
                 )
             )
         return records
+
+
+    def get_skill_id_by_taxonomy_key(self, taxonomy_key: str) -> int | None:
+        result = (
+            self._db.table("skills")
+            .select("id")
+            .eq("taxonomy_key", taxonomy_key)
+            .maybe_single()
+            .execute()
+        )
+        if not result or not result.data:
+            return None
+        return int(result.data["id"])
+
+    def correct_skill_level(self, user_id: str, skill_id: int, new_level: int) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self._db.table("user_skills").upsert(
+            {
+                "user_id": user_id,
+                "skill_id": skill_id,
+                "matched_level": new_level,
+                "source": "user_correction",
+                "last_updated": now,
+            },
+            on_conflict="user_id,skill_id",
+        ).execute()
 
 
 def get_admin_users_repository(db: Client = Depends(get_supabase_admin)) -> UsersRepository:

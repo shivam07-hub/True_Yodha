@@ -55,6 +55,8 @@ from app.schemas.skills import (
     SkillsListResponse,
 )
 from app.schemas.users import (
+    SkillLevelCorrectionRequest,
+    SkillLevelCorrectionResponse,
     UpdateProfileRequest,
     UserProfileResponse,
     UserSkillItem,
@@ -80,4 +82,5 @@ __all__ = [
     "SkillResponse", "SkillsListResponse",
     "UpdateProfileRequest", "UserProfileResponse",
     "UserSkillItem", "UserSkillsByDomainResponse",
+    "SkillLevelCorrectionRequest", "SkillLevelCorrectionResponse",
 ]

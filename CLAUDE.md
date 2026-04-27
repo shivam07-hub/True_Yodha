@@ -47,6 +47,54 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
+## CLAUDE CODE SKILLS (available via `/skill-name`)
+
+> **For Codex:** These are Claude Code slash-command skills. When handing off to Claude Code, reference the trigger to invoke the relevant skill.
+
+| Skill | Trigger | Purpose |
+|---|---|---|
+| `improve-codebase-architecture` | `/improve-codebase-architecture` | Find deepening opportunities, ADR-informed refactor suggestions |
+| `graphify` | `/graphify` | Any input → knowledge graph (HTML + JSON + audit report) |
+| `triage-issue` | `/triage-issue` | Root-cause a bug, file GitHub issue with TDD fix plan |
+| `request-refactor-plan` | `/request-refactor-plan` | Interview-driven refactor plan → GitHub issue |
+| `to-issues` | `/to-issues` | Break plan/spec/PRD into vertical-slice GitHub issues |
+| `to-prd` | `/to-prd` | Turn conversation into a PRD, file as GitHub issue |
+| `review` | `/review` | Review current branch PR |
+| `security-review` | `/security-review` | Security review of pending branch changes |
+| `tdd` | `/tdd` | Red-green-refactor TDD loop for features/bug fixes |
+| `simplify` | `/simplify` | Review changed code for reuse, quality, efficiency |
+| `brooks-design` | `/brooks-design` | Brooks' design philosophy — conceptual integrity audit |
+| `ousterhout-design` | `/ousterhout-design` | Ousterhout deep module principles — complexity audit |
+| `init` | `/init` | Initialize CLAUDE.md with codebase documentation |
+| `qa` | `/qa` | Interactive QA session → GitHub issues |
+| `grill-me` | `/grill-me` | Relentless interview to resolve plan/design ambiguities |
+| `github-triage` | `/github-triage` | Label-based GitHub issue triage state machine |
+| `git-guardrails-claude-code` | `/git-guardrails-claude-code` | Block dangerous git commands via hooks |
+| `setup-pre-commit` | `/setup-pre-commit` | Husky + lint-staged + type check + tests pre-commit hooks |
+| `frontend-design` | `/frontend-design` | Production-grade frontend interfaces, high design quality |
+| `baseline-ui` | `/baseline-ui` | Animation, typography, accessibility, layout audits |
+| `fixing-accessibility` | `/fixing-accessibility` | ARIA, keyboard nav, focus, contrast audits + fixes |
+| `fixing-motion-performance` | `/fixing-motion-performance` | Animation perf: layout thrashing, compositor, scroll-linked |
+| `fixing-metadata` | `/fixing-metadata` | HTML metadata: titles, OG tags, Twitter cards, canonical |
+| `design-an-interface` | `/design-an-interface` | Multiple radically different interface designs via subagents |
+| `schedule` | `/schedule` | Schedule recurring or one-time remote agents |
+| `loop` | `/loop` | Run a prompt on a recurring interval |
+| `claude-api` | `/claude-api` | Build/debug/optimize Claude API / Anthropic SDK apps |
+| `archon` | `/archon` | Run Archon AI workflows from Claude Code |
+| `obsidian-vault` | `/obsidian-vault` | Search, create, manage Obsidian vault notes |
+| `edit-article` | `/edit-article` | Restructure, clarify, tighten prose in articles |
+| `write-a-skill` | `/write-a-skill` | Create new agent skills with proper structure |
+| `caveman` | `/caveman` | Ultra-compressed communication mode (~75% token reduction) |
+| `find-skills` | `/find-skills` | Discover and install agent skills |
+| `karpathy-guidelines` | `/karpathy-guidelines` | Reduce common LLM coding mistakes |
+| `update-config` | `/update-config` | Configure Claude Code harness via settings.json |
+| `fewer-permission-prompts` | `/fewer-permission-prompts` | Add allowlist to reduce permission prompts |
+| `scaffold-exercises` | `/scaffold-exercises` | Create exercise directory structures |
+| `migrate-to-shoehorn` | `/migrate-to-shoehorn` | Migrate `as` type assertions to shoehorn |
+| `keybindings-help` | `/keybindings-help` | Customize keyboard shortcuts |
+
+---
+
 ## ENVIRONMENT & VIRTUAL ENV
 
 - Python venv lives at `.venv/` (project root)
@@ -107,23 +155,32 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 - Updated `docs/SCORING_ALGORITHM.md` with canonical-flow documentation.
 - Phase 7 CLI wrapper scripts removed (backfill embedded in SQL migrations per design policy).
 
-**Universal skill taxonomy enforced (this session):**
+**Universal skill taxonomy enforced + production smoke-tested (this session):**
 - Created `job_skills` join table: `job_id → jobs.job_id`, `skill_id → skills.id`, `is_primary`.
 - Trigger on `jobs` syncs `main_skills`/`side_skills` → `job_skills` (scraper backward-compat).
-- SQL migration `20260427_job_skills_table.sql` backfills existing jobs.
-- `job_matcher.py`, `repositories/jobs.py`, `repositories/scores.py`, `taxonomy_loader.py` all read from `job_skills JOIN skills` — canonical taxonomy enforced end-to-end.
-- RLS fixed: `jobs`, `skills`, `job_skills` all enabled with `FOR SELECT USING (true)`.
+- SQL migrations run in production: `20260427_fix_jobs_skills_rls.sql` + `20260427_job_skills_table.sql`.
+- 16,342 rows backfilled. All code reads from `job_skills JOIN skills` — canonical taxonomy end-to-end.
+- Fixed `job_path/_db.py::_get_job` to read from `job_skills` → overlap_score and readiness_pct now use identical skill source.
+- Fixed `max(len(main), 1)` denominator bug that inflated scores for sparse-indexed jobs.
+- Fixed `is_cache_valid` to invalidate when `user_skills.last_updated > computed_at` — prevents stale scores after CV re-upload.
+- Fixed `find_role_skill_rows` (last path still on legacy TEXT arrays) to use `job_skills`.
+- Deleted stale `user_job_matches` rows computed against partial backfill window.
+- **Production verified**: `POST /jobs/compute` returns correct matches. Job cards show honest overlap %.
 
-**Next up:**
-- Run `20260427_fix_jobs_skills_rls.sql` + `20260427_job_skills_table.sql` in Supabase dashboard.
-- Smoke test `POST /jobs/compute` — should now return matches (RLS fix + job_skills backfill).
-- Scraper update (separate session): write to `job_skills` directly, then drop trigger + legacy columns.
+**Next session priorities:**
+1. **Diary/Progress flow** — three known structural bugs (see ARCHITECTURE DECISIONS below):
+   - `routers/diary.py` LLM signal extraction hardcoded `signals: list = []` → skills_delta never fires
+   - Skill-cart URL drops `job_id` + `milestone_date` between Job page and Diary page
+   - `user_milestones` table deprecated — migrate writes to `job_application_milestones`
+2. **Scraper update** (separate session): write to `job_skills` directly, then drop trigger + legacy TEXT columns.
+3. **Smoke test continuation** — resume from step 4 (tracker → diary → score recompute loop).
 
-Verification completed this session:
+Verification:
 ```
-pytest backend/tests -q   → all pass
+pytest backend/tests -q   → 179 passed
 tsc --noEmit              → exit 0
 next lint                 → no errors
+Production smoke test     → CV upload ✓  score ✓  job matches ✓  overlap % correct ✓
 ```
 
 ---
@@ -317,45 +374,114 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — POST-PHASE-7 HARDENING)
+## LAST SESSION SUMMARY (2026-04-27 — CV SKILL JOURNEYS + MILESTONE SOURCE_TYPE)
 
 ```
 Date: 2026-04-27
-Milestone: Post-Phase-7 hardening completed (staging dry-runs + script hardening).
+Milestone: CV skill correction + diary tracking from CV page. source_type on milestones.
 
 Commits this session:
-  f485508  refactor(scoring): harden phase-7 dry-run workflows
+  6cc04f8  feat(cv+diary): skill level correction + milestone source_type + CV journey 2/3
 
 What landed:
-  - Added canonical no-write mode to the scoring entry point:
-      `compute_and_persist_score(..., persist=False)` runs full score math without DB writes
-  - Hardened both Phase 7 operational wrappers with `--dry-run`:
-      `database/backfill_scores.py`
-      `database/restore_skills_from_cv_text.py`
-  - Fixed restore-script env-load bug:
-      `restore_skills_from_cv_text.py` now loads `backend/.env` before importing `cv_parser`
-      so `app.config.settings` sees LLM provider keys at import-time
-  - Added regression coverage for dry-run semantics:
-      `backend/tests/test_scoring_io.py`
-      - dry-run skips persistence writes
-      - dry-run still enforces `require_skills_assessed` guard
-  - Updated scoring docs with Phase 7 hardening commands:
-      `docs/SCORING_ALGORITHM.md`
 
-Staging dry-run evidence:
-  - `python database/backfill_scores.py --limit 5 --dry-run`
-      processed=5 skipped=3 failed=0 scanned=9
-  - `python database/restore_skills_from_cv_text.py --limit 3 --dry-run`
-      processed=3 skipped=0 failed=0 scanned=6
+  Backend:
+    - PATCH /users/me/skills/{taxonomy_key}/level — corrects user_skills.matched_level,
+      stamps source='user_correction', recomputes score via compute_and_persist_score
+    - UsersRepository: get_skill_id_by_taxonomy_key(), correct_skill_level()
+    - MilestoneResponse.source_type field ('personal' | 'job')
+    - progress.list_progress_milestones: stamps source_type on both table results
+    - diary._to_milestone_response: passes source_type from row (was defaulting to 'personal')
+
+  Frontend:
+    - CV SkillRow Journey 2: "Track upgrade in diary" → creates user_milestone →
+      navigates to /diary; invalidates dataKeys.milestones
+    - CV SkillRow Journey 3: inline L1–L5 level picker → PATCH skill level →
+      updates pill + progress bar; invalidates dataKeys.userSkills + dataKeys.scores
+    - api.ts: users.correctSkillLevel(), Milestone.source_type typed
+    - diary/page.tsx: personalMilestones filter (source_type==='personal') feeds milestonesByDate
+
+  Tests:
+    - test_users_skill_correction.py — 5 tests (200 body, 422 on 0/6, 404 unknown, writes correct skill_id)
+    - test_diary_source_type.py — 3 tests (personal/job source_type on GET /diary/milestones)
+    - Total: 187 passed
+
+Architecture decisions locked this session:
+  - Bug 1 (signals hardcoded []): resolved — keyword matching IS live; LLM was intentionally removed
+  - Bug 2 (skill-cart drops job_id): lower priority; tracker passes jobId directly
+  - Bug 3 (user_milestones deprecated): kept alive as personal milestone store (no schema change)
+  - user_milestones = personal milestones; job_application_milestones = job-path milestones
+  - Merge at service layer only (list_progress_milestones)
 
 Verification:
-  - `pytest backend/tests -q` → 178 passed
-  - `frontend/node_modules/.bin/tsc --noEmit --project frontend/tsconfig.json` → pass
-  - `cd frontend && ./node_modules/.bin/next lint` → clean
+  pytest backend/tests -q   → 187 passed
+  tsc --noEmit              → exit 0
+  next lint                 → no errors
 
-Phase 8 decision:
-  - Defer Stretch Phase 8 (DTO/entity/row separation) for now.
-  - Rationale: no concrete DTO/row divergence pain surfaced during Phase 7 hardening.
+Next session — pick up in this order:
+  1. Scraper update (separate session): write to job_skills directly,
+     then drop trigger + legacy main_skills/side_skills columns
+  2. Full smoke test steps 4–10 (tracker → diary → score recompute loop)
+  3. diary/page.tsx: render jobMilestones section (currently filtered but not displayed)
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — TAXONOMY NORMALISATION + PRODUCTION SMOKE TEST)
+
+```
+Date: 2026-04-27
+Milestone: Universal skill taxonomy enforced end-to-end. Production smoke test passed.
+
+Commits this session:
+  38feb10  feat(taxonomy): normalise job skills into FK-enforced job_skills join table
+  8351c25  fix(taxonomy): unify overlap_score and readiness_pct to same skill source
+  e0045b2  fix(jobs): invalidate match cache when user skills updated after compute
+
+What landed:
+
+  Taxonomy normalisation:
+    - Created job_skills (job_id FK→jobs, skill_id FK→skills, is_primary)
+    - Trigger syncs jobs.main_skills/side_skills → job_skills on INSERT/UPDATE
+    - SQL migrations run in production; 16,342 rows backfilled
+    - repositories/jobs.py, repositories/scores.py, taxonomy_loader.py,
+      job_matcher.py all read from job_skills JOIN skills
+    - Deleted database/backfill_scores.py and restore_skills_from_cv_text.py
+      (backfill logic belongs in SQL migrations)
+
+  Bug fixes:
+    - RLS on jobs + skills + job_skills: FOR SELECT USING (true) — fixed
+      POST /jobs/compute 404 (token-scoped client couldn't read public tables)
+    - job_path/_db.py::_get_job: reads job_skills JOIN skills instead of
+      jobs.main_skills TEXT[] — overlap_score and readiness_pct now use
+      identical skill source (was 100% vs 17% on same job)
+    - job_matcher.py: removed max(len(main), 1) denominator hack that inflated
+      scores for jobs with sparse indexed skills
+    - scores.py::find_role_skill_rows: migrated from legacy TEXT arrays to job_skills
+    - llm_ranker.is_cache_valid: now compares user_skills.last_updated vs
+      computed_at — stale scores auto-invalidated after CV re-upload
+
+  Production evidence (user abc@gmail.com, Wells Fargo job):
+    - job_skills: 5 main + 8 side = 13 rows ✓
+    - User has 2 of 13 skills → overlap = 16.7% = 17% readiness ✓ (was 100%)
+    - POST /jobs/compute: returns matches ✓
+    - Stale user_job_matches rows cleared from DB ✓
+
+Verification:
+  pytest backend/tests -q   → 179 passed
+  tsc --noEmit              → exit 0
+  next lint                 → no errors
+
+Next session — pick up in this order:
+  1. Diary/Progress structural bugs (all three are blocking the full loop):
+       a. diary.py: `signals: list[dict] = []` hardcoded → LLM extraction dead,
+          skills_delta and user_skills upgrades never fire
+       b. diary-skill-cart.ts: drops job_id + milestone_date in URL → binding lost
+       c. user_milestones deprecated → migrate diary writes to job_application_milestones
+  2. Scraper update (separate session): write to job_skills directly,
+     then drop trigger + legacy main_skills/side_skills columns
+  3. Full smoke test steps 4–10 (tracker → diary → score recompute loop)
+```
 
 Next:
   - Run authenticated production URL smoke path (CV upload → score → jobs/diary) with dedicated test account.
