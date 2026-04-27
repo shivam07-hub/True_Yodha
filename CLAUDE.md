@@ -47,6 +47,54 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
+## CLAUDE CODE SKILLS (available via `/skill-name`)
+
+> **For Codex:** These are Claude Code slash-command skills. When handing off to Claude Code, reference the trigger to invoke the relevant skill.
+
+| Skill | Trigger | Purpose |
+|---|---|---|
+| `improve-codebase-architecture` | `/improve-codebase-architecture` | Find deepening opportunities, ADR-informed refactor suggestions |
+| `graphify` | `/graphify` | Any input → knowledge graph (HTML + JSON + audit report) |
+| `triage-issue` | `/triage-issue` | Root-cause a bug, file GitHub issue with TDD fix plan |
+| `request-refactor-plan` | `/request-refactor-plan` | Interview-driven refactor plan → GitHub issue |
+| `to-issues` | `/to-issues` | Break plan/spec/PRD into vertical-slice GitHub issues |
+| `to-prd` | `/to-prd` | Turn conversation into a PRD, file as GitHub issue |
+| `review` | `/review` | Review current branch PR |
+| `security-review` | `/security-review` | Security review of pending branch changes |
+| `tdd` | `/tdd` | Red-green-refactor TDD loop for features/bug fixes |
+| `simplify` | `/simplify` | Review changed code for reuse, quality, efficiency |
+| `brooks-design` | `/brooks-design` | Brooks' design philosophy — conceptual integrity audit |
+| `ousterhout-design` | `/ousterhout-design` | Ousterhout deep module principles — complexity audit |
+| `init` | `/init` | Initialize CLAUDE.md with codebase documentation |
+| `qa` | `/qa` | Interactive QA session → GitHub issues |
+| `grill-me` | `/grill-me` | Relentless interview to resolve plan/design ambiguities |
+| `github-triage` | `/github-triage` | Label-based GitHub issue triage state machine |
+| `git-guardrails-claude-code` | `/git-guardrails-claude-code` | Block dangerous git commands via hooks |
+| `setup-pre-commit` | `/setup-pre-commit` | Husky + lint-staged + type check + tests pre-commit hooks |
+| `frontend-design` | `/frontend-design` | Production-grade frontend interfaces, high design quality |
+| `baseline-ui` | `/baseline-ui` | Animation, typography, accessibility, layout audits |
+| `fixing-accessibility` | `/fixing-accessibility` | ARIA, keyboard nav, focus, contrast audits + fixes |
+| `fixing-motion-performance` | `/fixing-motion-performance` | Animation perf: layout thrashing, compositor, scroll-linked |
+| `fixing-metadata` | `/fixing-metadata` | HTML metadata: titles, OG tags, Twitter cards, canonical |
+| `design-an-interface` | `/design-an-interface` | Multiple radically different interface designs via subagents |
+| `schedule` | `/schedule` | Schedule recurring or one-time remote agents |
+| `loop` | `/loop` | Run a prompt on a recurring interval |
+| `claude-api` | `/claude-api` | Build/debug/optimize Claude API / Anthropic SDK apps |
+| `archon` | `/archon` | Run Archon AI workflows from Claude Code |
+| `obsidian-vault` | `/obsidian-vault` | Search, create, manage Obsidian vault notes |
+| `edit-article` | `/edit-article` | Restructure, clarify, tighten prose in articles |
+| `write-a-skill` | `/write-a-skill` | Create new agent skills with proper structure |
+| `caveman` | `/caveman` | Ultra-compressed communication mode (~75% token reduction) |
+| `find-skills` | `/find-skills` | Discover and install agent skills |
+| `karpathy-guidelines` | `/karpathy-guidelines` | Reduce common LLM coding mistakes |
+| `update-config` | `/update-config` | Configure Claude Code harness via settings.json |
+| `fewer-permission-prompts` | `/fewer-permission-prompts` | Add allowlist to reduce permission prompts |
+| `scaffold-exercises` | `/scaffold-exercises` | Create exercise directory structures |
+| `migrate-to-shoehorn` | `/migrate-to-shoehorn` | Migrate `as` type assertions to shoehorn |
+| `keybindings-help` | `/keybindings-help` | Customize keyboard shortcuts |
+
+---
+
 ## ENVIRONMENT & VIRTUAL ENV
 
 - Python venv lives at `.venv/` (project root)
@@ -326,7 +374,60 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — TAXONOMY NORMALISATION + PRODUCTION SMOKE TEST)
+## LAST SESSION SUMMARY (2026-04-27 — CV SKILL JOURNEYS + MILESTONE SOURCE_TYPE)
+
+```
+Date: 2026-04-27
+Milestone: CV skill correction + diary tracking from CV page. source_type on milestones.
+
+Commits this session:
+  6cc04f8  feat(cv+diary): skill level correction + milestone source_type + CV journey 2/3
+
+What landed:
+
+  Backend:
+    - PATCH /users/me/skills/{taxonomy_key}/level — corrects user_skills.matched_level,
+      stamps source='user_correction', recomputes score via compute_and_persist_score
+    - UsersRepository: get_skill_id_by_taxonomy_key(), correct_skill_level()
+    - MilestoneResponse.source_type field ('personal' | 'job')
+    - progress.list_progress_milestones: stamps source_type on both table results
+    - diary._to_milestone_response: passes source_type from row (was defaulting to 'personal')
+
+  Frontend:
+    - CV SkillRow Journey 2: "Track upgrade in diary" → creates user_milestone →
+      navigates to /diary; invalidates dataKeys.milestones
+    - CV SkillRow Journey 3: inline L1–L5 level picker → PATCH skill level →
+      updates pill + progress bar; invalidates dataKeys.userSkills + dataKeys.scores
+    - api.ts: users.correctSkillLevel(), Milestone.source_type typed
+    - diary/page.tsx: personalMilestones filter (source_type==='personal') feeds milestonesByDate
+
+  Tests:
+    - test_users_skill_correction.py — 5 tests (200 body, 422 on 0/6, 404 unknown, writes correct skill_id)
+    - test_diary_source_type.py — 3 tests (personal/job source_type on GET /diary/milestones)
+    - Total: 187 passed
+
+Architecture decisions locked this session:
+  - Bug 1 (signals hardcoded []): resolved — keyword matching IS live; LLM was intentionally removed
+  - Bug 2 (skill-cart drops job_id): lower priority; tracker passes jobId directly
+  - Bug 3 (user_milestones deprecated): kept alive as personal milestone store (no schema change)
+  - user_milestones = personal milestones; job_application_milestones = job-path milestones
+  - Merge at service layer only (list_progress_milestones)
+
+Verification:
+  pytest backend/tests -q   → 187 passed
+  tsc --noEmit              → exit 0
+  next lint                 → no errors
+
+Next session — pick up in this order:
+  1. Scraper update (separate session): write to job_skills directly,
+     then drop trigger + legacy main_skills/side_skills columns
+  2. Full smoke test steps 4–10 (tracker → diary → score recompute loop)
+  3. diary/page.tsx: render jobMilestones section (currently filtered but not displayed)
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — TAXONOMY NORMALISATION + PRODUCTION SMOKE TEST)
 
 ```
 Date: 2026-04-27
