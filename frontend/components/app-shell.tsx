@@ -67,6 +67,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
         <div style={{ padding: "32px 32px 24px", borderBottom: "1px solid var(--tm-border-soft)", textAlign: "center", position: "relative" }}>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{ position: "absolute", top: 20, right: 20, background: "transparent", border: "none", color: "var(--tm-text-faint)", fontSize: 23, cursor: "pointer" }}
           >×</button>
           <div style={{
@@ -220,6 +221,7 @@ function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]
               <span style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{action.label}</span>
               <button
                 onClick={onClose}
+                aria-label="Close"
                 style={{ marginLeft: "auto", background: "transparent", border: "none", color: "var(--tm-text-faint)", fontSize: 19, cursor: "pointer", lineHeight: 1 }}
               >×</button>
             </div>
@@ -851,7 +853,7 @@ function UserFooter({
                   borderRadius: "var(--tm-radius-sm)",
                   background: "var(--tm-hover-soft)", border: "1px solid var(--tm-border-soft)",
                   cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                  transition: "all var(--tm-dur-fast) var(--tm-ease)", width: "100%",
+                  transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)", width: "100%",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-hover-soft)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
@@ -870,7 +872,7 @@ function UserFooter({
                   borderRadius: "var(--tm-radius-sm)",
                   background: "transparent", border: "1px solid transparent",
                   cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                  transition: "all var(--tm-dur-fast) var(--tm-ease)", width: "100%",
+                  transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)", width: "100%",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
@@ -898,7 +900,7 @@ function UserFooter({
             border: `1px solid ${menuOpen ? "var(--tm-accent-ring)" : "var(--tm-border)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 12, fontWeight: 700, color: "var(--tm-text)",
-            transition: "all var(--tm-dur) var(--tm-ease)",
+            transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
             boxShadow: menuOpen ? "0 0 12px var(--tm-accent-glow)" : "none",
           }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}</div>
           <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
@@ -963,7 +965,7 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
     <nav
       style={{
         width: 220,
-        height: "100vh",
+        height: "100dvh",
         flexShrink: 0,
         background: "var(--tm-surface)",
         borderRight: "1px solid var(--tm-border-soft)",
@@ -1031,7 +1033,7 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
                 padding: "9px 8px", borderRadius: "var(--tm-radius-sm)",
                 background: active ? "var(--tm-accent-wash)" : "transparent",
                 boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
-                transition: "all var(--tm-dur) var(--tm-ease)",
+                transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
                 textDecoration: "none",
                 position: "relative",
               }}
@@ -1044,7 +1046,7 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
                   fontSize: 18,
                   color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
                   filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
-                  transition: "all var(--tm-dur) var(--tm-ease)",
+                  transition: "color var(--tm-dur) var(--tm-ease)",
                 }}>
                   {item.icon}
                 </span>
@@ -1082,12 +1084,12 @@ function Sidebar({ score, profile, onLogoClick }: { score: number | null; profil
       {/* Background + Accent utilities collapse when user menu opens */}
       {expanded && (
         <div style={{
-          maxHeight: isUserMenuOpen ? 0 : 220,
+          height: isUserMenuOpen ? 0 : "auto",
           opacity: isUserMenuOpen ? 0 : 1,
           transform: isUserMenuOpen ? "translateY(-6px)" : "translateY(0)",
           pointerEvents: isUserMenuOpen ? "none" : "auto",
           overflow: "hidden",
-          transition: "max-height 150ms var(--tm-ease), opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
+          transition: "opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
         }}>
           <div style={{
             padding: "10px 12px 12px",
@@ -1126,7 +1128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!ready) return null
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", position: "relative" }}>
+    <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <ParticleBg />
       <Sidebar
         score={scoreData?.total_score ?? null}

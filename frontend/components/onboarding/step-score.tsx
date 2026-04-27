@@ -52,10 +52,12 @@ export function StepScore({ score }: Props) {
               <div style={{ flex: 1, background: "var(--tm-surface-2)", borderRadius: 999, height: 6, overflow: "hidden" }}>
                 <div
                   style={{
-                    height: "100%", width: `${val}%`,
+                    height: "100%", width: "100%",
                     background: "var(--tm-accent)",
                     borderRadius: 999,
-                    transition: "width 700ms var(--tm-ease)",
+                    transform: `scaleX(${val / 100})`,
+                    transformOrigin: "left",
+                    transition: "transform 700ms var(--tm-ease)",
                   }}
                 />
               </div>

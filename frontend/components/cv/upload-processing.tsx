@@ -45,32 +45,8 @@ export function CVUploadProcessing({ success, result }: Props) {
   }
 
   return (
-    <>
-      {/* Inject keyframes once */}
-      <style>{`
-        @keyframes tm-pulse-ring {
-          0%   { transform: scale(1);    opacity: 0.55; }
-          60%  { transform: scale(1.18); opacity: 0.15; }
-          100% { transform: scale(1.18); opacity: 0; }
-        }
-        @keyframes tm-spin-slow {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes tm-check-draw {
-          from { stroke-dashoffset: 24; }
-          to   { stroke-dashoffset: 0; }
-        }
-        @keyframes tm-fade-up {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .tm-pulse-ring, .tm-spinner { animation: none !important; }
-        }
-      `}</style>
-
-      <div
-        role="status"
+    <div
+      role="status"
         aria-live="polite"
         aria-label={success ? `Upload complete. ${result?.skills_detected} skills detected.` : `Processing CV — stage ${stage + 1} of ${STAGES.length}`}
         style={{
@@ -255,7 +231,6 @@ export function CVUploadProcessing({ success, result }: Props) {
         >
           {success ? "All done" : "Usually takes 5–15 seconds"}
         </p>
-      </div>
-    </>
+    </div>
   )
 }
