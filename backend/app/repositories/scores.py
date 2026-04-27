@@ -69,14 +69,23 @@ class ScoresRepository:
 
     def find_role_skill_rows(self, role: str) -> list[dict[str, Any]]:
         pattern = f"%{role}%"
-        result = (
+        jobs = (
             self._db.table("jobs")
-            .select("main_skills, side_skills")
+            .select("job_id")
             .ilike("job_title", pattern)
             .limit(100)
             .execute()
-        )
-        return result.data or []
+        ).data or []
+        if not jobs:
+            return []
+        job_ids = [j["job_id"] for j in jobs]
+        rows = (
+            self._db.table("job_skills")
+            .select("job_id, is_primary, skills(taxonomy_key)")
+            .in_("job_id", job_ids)
+            .execute()
+        ).data or []
+        return _group_job_skills(rows)
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""

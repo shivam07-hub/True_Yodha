@@ -33,6 +33,10 @@ class _FakeQuery:
         self.filters.append(("gte", field, value))
         return self
 
+    def in_(self, field: str, values: list[Any]) -> "_FakeQuery":
+        self.filters.append(("in", field, values))
+        return self
+
     def order(self, field: str, desc: bool = False) -> "_FakeQuery":
         self.order_field = field
         self.order_desc = desc
@@ -76,6 +80,8 @@ class _FakeQuery:
         for op, field, value in self.filters:
             if op == "eq":
                 rows = [row for row in rows if row.get(field) == value]
+            elif op == "in":
+                rows = [row for row in rows if row.get(field) in value]
             elif op == "gte":
                 rows = [row for row in rows if str(row.get(field) or "") >= str(value)]
         if self.order_field:
@@ -94,10 +100,12 @@ class _FakeDB:
                     "job_title": "Data Analyst",
                     "company_name": "Acme",
                     "job_description": "Use SQL to inspect product metrics.",
-                    "main_skills": ["SQL"],
-                    "side_skills": ["Communication"],
                     "apply_url": "https://example.com",
                 }
+            ],
+            "job_skills": [
+                {"job_id": "job-1", "is_primary": True,  "skills": {"taxonomy_key": "SQL"}},
+                {"job_id": "job-1", "is_primary": False, "skills": {"taxonomy_key": "Communication"}},
             ],
             "job_applications": [{"id": 1, "user_id": "u1", "job_id": "job-1", "status": "pending"}],
             "cv_history": [{"id": 1, "user_id": "u1", "version_number": 1, "cv_raw_text": "Built APIs with Python and SQL."}],

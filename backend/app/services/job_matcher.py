@@ -43,7 +43,6 @@ def get_top_matches(
 
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
 
-    # 1. Fetch all job skills from the normalised join table
     page1 = db.table("job_skills").select(
         "job_id, is_primary, skills(taxonomy_key)"
     ).range(0, 9999).execute().data or []
@@ -51,7 +50,6 @@ def get_top_matches(
         "job_id, is_primary, skills(taxonomy_key)"
     ).range(10000, 29999).execute().data or []
 
-    # 2. Group by job_id → {main: [...], side: [...]}
     job_skill_map: dict[str, dict[str, list[str]]] = {}
     for row in page1 + page2:
         key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
@@ -68,7 +66,6 @@ def get_top_matches(
     if not job_skill_map:
         return []
 
-    # 3. Score each job
     scored: list[dict] = []
     for jid, skills in job_skill_map.items():
         main = skills["main"]
@@ -79,7 +76,7 @@ def get_top_matches(
         main_hits = [s for s in main if s.lower() in user_lower]
         side_hits = [s for s in side if s.lower() in user_lower]
 
-        max_possible = PRIMARY_WEIGHT * max(len(main), 1) + SECONDARY_WEIGHT * len(side)
+        max_possible = PRIMARY_WEIGHT * len(main) + SECONDARY_WEIGHT * len(side)
         raw = (PRIMARY_WEIGHT * len(main_hits) + SECONDARY_WEIGHT * len(side_hits)) / max_possible
         score = round(raw * 100, 1)
 
@@ -101,7 +98,6 @@ def get_top_matches(
     candidates = scored[:min(len(scored), top_n * 10)]
     candidate_ids = [j["job_id"] for j in candidates]
 
-    # 4. Fetch metadata for candidate jobs only
     jobs_data = db.table("jobs").select(
         "job_id, job_title, job_description, company_name, industry, location, apply_url"
     ).in_("job_id", candidate_ids).execute().data or []
@@ -111,7 +107,6 @@ def get_top_matches(
     role_tokens = [r.lower() for r in (target_roles or []) if r]
     loc_lower = (target_location or "").lower()
 
-    # 5. Apply boosts
     full_scored: list[dict] = []
     for job in candidates:
         meta = job_meta.get(job["job_id"])
@@ -142,7 +137,6 @@ def get_top_matches(
 
     full_scored.sort(key=lambda x: x["boosted_score"], reverse=True)
 
-    # 6. Anti-bias cap: no company > 30% of top_n
     cap = max(1, int(top_n * COMPANY_CAP_RATIO))
     company_count: dict[str, int] = {}
     result: list[dict] = []
