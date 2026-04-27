@@ -19,6 +19,7 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
     sq = MagicMock()
     sq.execute.return_value = single_result
     q.single.return_value = sq
+    q.maybe_single.return_value = sq
     return q
 
 

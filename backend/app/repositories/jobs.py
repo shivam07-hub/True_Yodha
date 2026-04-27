@@ -103,10 +103,10 @@ class JobsRepository:
             self._db.table("user_profiles")
             .select("target_roles, target_location")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data or {}
+        return (result.data if result else None) or {}
 
     # ── applications ───────────────────────────────────────────────────────────
 
@@ -138,10 +138,10 @@ class JobsRepository:
             .select("*, jobs(job_title, company_name, job_description)")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data or None
+        return (result.data if result else None) or None
 
     def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
         for table_name in ("job_applications", "user_job_matches"):
@@ -160,10 +160,10 @@ class JobsRepository:
             self._db.table("jobs")
             .select("job_id, job_title, company_name, main_skills, side_skills")
             .eq("job_id", job_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data or None
+        return (result.data if result else None) or None
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

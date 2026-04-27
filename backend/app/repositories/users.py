@@ -29,10 +29,10 @@ class UsersRepository:
             self._db.table("user_profiles")
             .select("*")
             .eq("id", user_id)
-            .single()
+            .maybe_single()
             .execute()
         )
-        return result.data or None
+        return (result.data if result else None) or None
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         self._db.table("user_profiles").update(updates).eq("id", user_id).execute()
