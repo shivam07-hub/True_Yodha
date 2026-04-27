@@ -5,6 +5,7 @@ import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { StepCV } from "@/components/onboarding/step-cv"
+import { CVUploadProcessing } from "@/components/cv/upload-processing"
 import {
   Dialog,
   DialogContent,
@@ -268,6 +269,7 @@ export default function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const [uploading, setUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
@@ -427,6 +429,7 @@ export default function CVPage() {
   async function handleUpload(file: File) {
     if (!token) return
     setUploading(true)
+    setUploadResult(null)
     setError(null)
     setMessage(null)
     try {
@@ -442,9 +445,14 @@ export default function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
+      setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
       setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
-      setShowUpload(false)
-      setSelectedVersionId(null) // snap back to latest after new upload
+      setSelectedVersionId(null)
+      // Show success state briefly before closing
+      setTimeout(() => {
+        setShowUpload(false)
+        setUploadResult(null)
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload CV")
     } finally {
@@ -1082,7 +1090,7 @@ export default function CVPage() {
       {/* Upload modal overlay */}
       {showUpload && (
         <div
-          onClick={() => setShowUpload(false)}
+          onClick={() => { if (!uploading && !uploadResult) setShowUpload(false) }}
           style={{
             position: "fixed", inset: 0, zIndex: 50,
             background: "rgba(0,0,0,0.6)",
@@ -1103,17 +1111,20 @@ export default function CVPage() {
               padding: 28,
             }}
           >
-            {/* Close */}
+            {/* Close — hidden while processing */}
             <button
               onClick={() => setShowUpload(false)}
+              disabled={uploading || !!uploadResult}
+              aria-label="Close upload panel"
               style={{
                 position: "absolute", top: 12, right: 12,
                 width: 28, height: 28, borderRadius: "50%",
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid var(--tm-border-soft)",
                 color: "var(--tm-text-faint)",
-                fontSize: 14, cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, cursor: uploading || uploadResult ? "default" : "pointer",
+                display: uploading || uploadResult ? "none" : "flex",
+                alignItems: "center", justifyContent: "center",
                 fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
               }}
               onMouseEnter={e => {
@@ -1126,7 +1137,6 @@ export default function CVPage() {
                 ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-text-faint)"
                 ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-border-soft)"
               }}
-              aria-label="Close upload panel"
             >
               ✕
             </button>
@@ -1138,18 +1148,18 @@ export default function CVPage() {
               {hasCv ? "Replace the baseline only if the original CV was wrong" : "Upload your baseline CV"}
             </h2>
 
-            {uploading && (
-              <p style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>
-                Reading your baseline and mapping skills...
-              </p>
-            )}
-            {message && (
-              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)" }}>{message}</p>
-            )}
             {error && (
-              <p style={{ marginBottom: 8, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
+              <p role="alert" style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
             )}
-            <StepCV onNext={handleUpload} />
+
+            {(uploading || uploadResult) ? (
+              <CVUploadProcessing
+                success={!!uploadResult}
+                result={uploadResult ?? undefined}
+              />
+            ) : (
+              <StepCV onNext={handleUpload} />
+            )}
           </div>
         </div>
       )}
