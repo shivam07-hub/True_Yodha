@@ -192,6 +192,9 @@
 }
 
 /* ── Smooth accent swap (color-only, no layout) ────────────── */
+/* Accent-swap transitions — composite/paint properties only, no layout.
+   box-shadow intentionally excluded: scoped to .tm-btn and .tm-card-interactive
+   to avoid a mass paint across all elements on accent toggle. */
 :root,
 :root * {
   transition:
@@ -200,7 +203,6 @@
     border-color     var(--tm-dur) var(--tm-ease),
     fill             var(--tm-dur) var(--tm-ease),
     stroke           var(--tm-dur) var(--tm-ease),
-    box-shadow       var(--tm-dur) var(--tm-ease),
     outline-color    var(--tm-dur) var(--tm-ease);
 }
 

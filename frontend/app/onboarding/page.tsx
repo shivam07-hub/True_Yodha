@@ -77,7 +77,7 @@ export default function OnboardingPage() {
   if (!ready) return null
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
+    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>

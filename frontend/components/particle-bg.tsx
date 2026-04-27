@@ -124,7 +124,13 @@ export function ParticleBg() {
 
     let frame = 0
 
+    const onVisibilityChange = () => {
+      if (!document.hidden && animId === 0) tick()
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+
     function tick() {
+      if (document.hidden) { animId = 0; return }
       animId = requestAnimationFrame(tick)
       frame++
       if (canvas!.width !== window.innerWidth) resize()
@@ -262,6 +268,7 @@ export function ParticleBg() {
       window.removeEventListener("click", onClick)
       document.removeEventListener("mouseleave", onLeave)
       document.removeEventListener("mouseenter", onEnter)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
     }
   }, [])
 

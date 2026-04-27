@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { NextMissionCard } from "@/components/diary/next-mission-card"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
@@ -136,7 +137,7 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
               stroke="var(--tm-accent-wash)" strokeWidth={6}
               strokeDasharray={`${CIRC} ${CIRC}`}
             />
-            {/* Progress arc */}
+            {/* Progress arc — no filter here; glow handled by opacity sibling below */}
             <circle
               cx={50} cy={50} r={44} fill="none"
               stroke="var(--tm-accent)" strokeWidth={4}
@@ -144,7 +145,20 @@ function DeepFocusTimer({ todayTask }: { todayTask: string }) {
               strokeDasharray={dashArray}
               style={{
                 transition: running ? "stroke-dasharray 1s linear" : "stroke-dasharray 0.4s var(--tm-ease)",
-                filter: running ? "drop-shadow(0 0 8px var(--tm-accent-glow))" : "drop-shadow(0 0 4px var(--tm-accent-glow))",
+              }}
+            />
+            {/* Running glow: static filter, toggled via opacity (composite) */}
+            <circle
+              cx={50} cy={50} r={44} fill="none"
+              stroke="var(--tm-accent)" strokeWidth={4}
+              strokeLinecap="round"
+              strokeDasharray={dashArray}
+              aria-hidden
+              style={{
+                filter: "drop-shadow(0 0 8px var(--tm-accent-glow))",
+                opacity: running ? 1 : 0,
+                transition: "opacity var(--tm-dur) var(--tm-ease)",
+                pointerEvents: "none",
               }}
             />
           </svg>
@@ -298,7 +312,10 @@ function DiaryPageInner() {
   const [completionConfidence, setCompletionConfidence] = useState(0.7)
   const [jobProof, setJobProof] = useState("")
   const [jobImpact, setJobImpact] = useState("")
-  const [jobConfidence, setJobConfidence] = useState(3)
+  const [jobConfidence] = useState(3)
+  const [missionLogged,    setMissionLogged]    = useState(false)
+  const [missionCompleted, setMissionCompleted] = useState(false)
+  const [missionDismissed, setMissionDismissed] = useState(false)
 
   const jobId = searchParams.get("jobId")
   const milestoneId = searchParams.get("milestoneId")
@@ -378,6 +395,7 @@ function DiaryPageInner() {
     onSuccess: () => {
       setJobProof("")
       setJobImpact("")
+      setMissionCompleted(true)
       invalidateJobPathData(queryClient, jobId, token)
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
     },
@@ -471,6 +489,10 @@ function DiaryPageInner() {
     })
   }
 
+  const prefillText = jobMilestone
+    ? `Working on: ${jobMilestone.title}\n\nTask: ${jobMilestone.action}\n\nProgress today: `
+    : ""
+
   // Today index (0=Mon … 6=Sun)
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
   const todayTask = weekPlan[todayIdx]?.task ?? "Log your progress"
@@ -539,86 +561,22 @@ function DiaryPageInner() {
           <CVRequiredNudge hasCv={hasCv} feature="personalised milestones" />
 
           {jobId && (
-            <div className="tm-card" style={{ backdropFilter: "blur(20px)", marginBottom: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                  <div className="tm-label-caps" style={{ marginBottom: 6, color: "var(--tm-accent)" }}>Job Milestone</div>
-                  <div style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)", fontWeight: 600 }}>
-                    {jobPathQuery.data?.job_title ?? "Tracked job"}
-                  </div>
-                  <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                    {jobPathQuery.data?.company ?? ""}
-                  </div>
-                </div>
-                {jobPathQuery.data && (
-                  <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-accent)", fontWeight: 700 }}>
-                    {jobPathQuery.data.readiness_pct}% ready
-                  </div>
-                )}
-              </div>
-
-              {jobPathQuery.isLoading ? (
-                <div style={{ height: 80, borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }} />
-              ) : jobMilestone ? (
-                <>
-                  <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
-                    <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)", fontWeight: 600, marginBottom: 4 }}>{jobMilestone.title}</div>
-                    <div style={{ fontSize: "var(--tm-fs-meta)", lineHeight: "var(--tm-lh-meta)", color: "var(--tm-text-muted)" }}>{jobMilestone.action}</div>
-                  </div>
-                  {!jobMilestone.completed_at ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
-                        Proof
-                        <input
-                          value={jobProof}
-                          onChange={(e) => setJobProof(e.target.value)}
-                          placeholder={jobMilestone.proof_prompt ?? "Paste link, file path, or short note."}
-                          className="tm-input"
-                          style={{ fontSize: "var(--tm-fs-meta)" }}
-                        />
-                      </label>
-                      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
-                        Impact
-                        <input
-                          value={jobImpact}
-                          onChange={(e) => setJobImpact(e.target.value)}
-                          placeholder={jobMilestone.impact_prompt ?? "Why this matters for the role."}
-                          className="tm-input"
-                          style={{ fontSize: "var(--tm-fs-meta)" }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => saveJobMilestone.mutate()}
-                        disabled={!jobProof.trim() || saveJobMilestone.isPending}
-                        className="tm-btn tm-btn-primary"
-                        style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap", opacity: !jobProof.trim() ? 0.5 : 1 }}
-                      >
-                        {saveJobMilestone.isPending ? "Saving..." : "Save proof"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="tm-pill" style={{ color: "var(--tm-accent)", border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)", alignSelf: "flex-start" }}>
-                      Proof saved
-                    </div>
-                  )}
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                    Confidence · {jobConfidence}/5
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={jobConfidence}
-                      onChange={(event) => setJobConfidence(Number(event.target.value))}
-                    />
-                  </label>
-                </>
-              ) : (
-                <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                  No milestone is active for this job. Pick target skills in the tracker.
-                </div>
-              )}
-            </div>
+            <NextMissionCard
+              mission={jobMilestone}
+              jobTitle={jobPathQuery.data?.job_title ?? undefined}
+              company={jobPathQuery.data?.company ?? undefined}
+              readinessPct={jobPathQuery.data?.readiness_pct}
+              isLogged={missionLogged}
+              isCompleted={missionCompleted || !!jobMilestone?.completed_at}
+              isDismissed={missionDismissed}
+              completeError={saveJobMilestone.isError ? (saveJobMilestone.error instanceof Error ? saveJobMilestone.error.message : "Could not mark complete") : null}
+              onLogProgress={() => {
+                setEntryText(prefillText)
+                setMissionLogged(true)
+              }}
+              onComplete={() => saveJobMilestone.mutate()}
+              onDismiss={() => setMissionDismissed((d) => !d)}
+            />
           )}
 
           {/* Two-panel row */}
