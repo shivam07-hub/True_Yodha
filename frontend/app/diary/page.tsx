@@ -569,6 +569,7 @@ function DiaryPageInner() {
               isLogged={missionLogged}
               isCompleted={missionCompleted || !!jobMilestone?.completed_at}
               isDismissed={missionDismissed}
+              completeError={saveJobMilestone.isError ? (saveJobMilestone.error instanceof Error ? saveJobMilestone.error.message : "Could not mark complete") : null}
               onLogProgress={() => {
                 setEntryText(prefillText)
                 setMissionLogged(true)

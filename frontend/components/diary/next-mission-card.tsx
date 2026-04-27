@@ -16,6 +16,7 @@ interface NextMissionCardProps {
   isLogged:      boolean
   isCompleted:   boolean
   isDismissed:   boolean
+  completeError?: string | null
   onLogProgress: () => void
   onComplete:    () => void
   onDismiss:     () => void
@@ -23,7 +24,7 @@ interface NextMissionCardProps {
 
 export function NextMissionCard({
   mission, jobTitle, company, readinessPct = 0,
-  isLogged, isCompleted, isDismissed,
+  isLogged, isCompleted, isDismissed, completeError,
   onLogProgress, onComplete, onDismiss,
 }: NextMissionCardProps) {
 
@@ -108,7 +109,7 @@ export function NextMissionCard({
             animation: "pulse 2s ease-in-out infinite",
           }} />
           <span style={{
-            fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase",
+            fontSize: 10, letterSpacing: "var(--tm-tracking-caps)", textTransform: "uppercase",
             color: "var(--tm-accent)", fontWeight: 700,
           }}>Your move today</span>
           <span style={{
@@ -119,7 +120,7 @@ export function NextMissionCard({
           }}>Today</span>
         </div>
 
-        <div style={{ fontSize: 17, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.4, marginBottom: 8 }}>
+        <div style={{ fontSize: 17, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.4, marginBottom: 8, textWrap: "balance" } as React.CSSProperties}>
           {mission.action}
         </div>
 
@@ -147,7 +148,7 @@ export function NextMissionCard({
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
             <span style={{
               fontSize: 11, color: "var(--tm-text-faint)",
-              letterSpacing: "0.07em", textTransform: "uppercase",
+              letterSpacing: "var(--tm-tracking-caps)", textTransform: "uppercase",
             }}>Readiness</span>
             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)" }}>
               {readinessPct}%
@@ -175,7 +176,6 @@ export function NextMissionCard({
             background: isLogged ? "var(--tm-success-wash)" : "var(--tm-accent)",
             border: isLogged ? "1px solid var(--tm-success)" : "none",
             color: isLogged ? "var(--tm-success)" : "var(--tm-accent-fg)",
-            boxShadow: isLogged ? "none" : "var(--tm-shadow-glow)",
           }}
         >
           {isLogged ? "✓ Diary pre-filled below" : "▶  Log progress now"}
@@ -197,6 +197,12 @@ export function NextMissionCard({
             Not today
           </button>
         </div>
+
+        {completeError && (
+          <div role="alert" style={{ fontSize: 12, color: "var(--tm-danger)", marginTop: 8 }}>
+            {completeError}
+          </div>
+        )}
       </div>
     </div>
   )
