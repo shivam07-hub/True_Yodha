@@ -167,13 +167,91 @@ When Codex finishes a chunk: commit on `Develop`, push, and update the **LAST SE
 - Deleted stale `user_job_matches` rows computed against partial backfill window.
 - **Production verified**: `POST /jobs/compute` returns correct matches. Job cards show honest overlap %.
 
-**Next session priorities:**
-1. **Diary/Progress flow** — three known structural bugs (see ARCHITECTURE DECISIONS below):
-   - `routers/diary.py` LLM signal extraction hardcoded `signals: list = []` → skills_delta never fires
-   - Skill-cart URL drops `job_id` + `milestone_date` between Job page and Diary page
-   - `user_milestones` table deprecated — migrate writes to `job_application_milestones`
-2. **Scraper update** (separate session): write to `job_skills` directly, then drop trigger + legacy TEXT columns.
-3. **Smoke test continuation** — resume from step 4 (tracker → diary → score recompute loop).
+**Current priorities:**
+1. **Diary/Progress flow bugs — RESOLVED this session.** See Last Session Summary.
+2. **Scraper update — assigned to Codex.** See handoff note below.
+3. **Diary job-milestone card — in design phase.** See design brief below.
+4. **Smoke test continuation** — resume from step 4 (tracker → diary → score recompute loop) once design is implemented.
+
+---
+
+### CODEX HANDOFF — Scraper: write to `job_skills` directly
+
+**Owner: Codex · Repo: `firecrawl_Supabase/`**
+
+**Background:**
+`job_skills` is a FK-enforced join table (`job_id → jobs.job_id`, `skill_id → skills.id`, `is_primary BOOLEAN`).
+It was created in migration `database/migrations/20260427_job_skills_table.sql` with a backward-compat trigger that syncs `jobs.main_skills`/`jobs.side_skills` (legacy TEXT arrays) → `job_skills` on INSERT/UPDATE.
+All Myro backend code already reads from `job_skills JOIN skills`. The trigger is a temporary crutch.
+
+**What to do:**
+1. In `firecrawl_Supabase/scraper/`, find where scraper writes skill data to `jobs` rows (likely `csv_importer.py` or similar — search for `main_skills` or `side_skills` writes).
+2. Change those writes to:
+   a. Look up `skills.id` for each skill string via `skills.taxonomy_key` exact match.
+   b. Insert rows into `job_skills (job_id, skill_id, is_primary)` instead of writing TEXT arrays.
+   c. Skip skills that don't exist in the taxonomy (don't crash — log and continue).
+3. Write a SQL migration to drop the trigger on `jobs`.
+4. Write a SQL migration to drop `jobs.main_skills` and `jobs.side_skills` columns (or `ALTER TABLE jobs DROP COLUMN` — confirm no Myro backend code references these columns first by grepping `main_skills` and `side_skills` in `backend/`).
+5. Run scraper tests. Confirm `job_skills` rows are created correctly.
+
+**Concerns to watch for:**
+- Skills that exist in the scraper's local `lightcast_skills_taxonomy.json` but not in the production `skills` table will silently drop. Add a warning log for these — they reveal taxonomy drift between repos.
+- The trigger currently handles `is_primary`: skills from `main_skills` get `is_primary=true`, `side_skills` get `is_primary=false`. Preserve this in the new direct-write logic.
+- Don't drop the legacy columns until you've verified at least one scraper run wrote correctly to `job_skills`.
+
+**Verification:**
+- After a test scraper run: `SELECT COUNT(*) FROM job_skills WHERE job_id = '<new_job_id>'` should return > 0.
+- `SELECT * FROM jobs WHERE job_id = '<new_job_id>'` should no longer have `main_skills`/`side_skills` columns (after migration).
+- Run `pytest backend/tests` in the Myro repo — nothing should break since backend already reads `job_skills`.
+
+---
+
+### DESIGN BRIEF — Diary "Next Mission" job-milestone card
+
+**Context for Claude Design:**
+The `/diary` page currently shows:
+- A 7-day personal plan grid (Mon–Sun) built from `user_milestones` (source_type='personal')
+- A diary entry text input
+- An achievements ribbon
+- A score + streak summary
+
+**What we're adding:**
+A prominent "Next Mission" card anchored to the top of the diary page (above the 7-day grid). It surfaces the single next-due incomplete job-path milestone across all active job applications.
+
+**Data available (already flowing from `GET /diary/milestones`):**
+```typescript
+// Milestone shape
+{
+  id: string
+  milestone_date: string        // "2026-04-28"
+  skill: string | null          // "Python" — the skill being upgraded
+  task: string                  // "Build a data pipeline in Python end-to-end"
+  proof: string | null          // user's proof text (empty until completed)
+  impact: string | null         // user's impact text (empty until completed)
+  confidence: number            // 0.0–1.0
+  completed_at: string | null   // null = incomplete
+  source_type: "personal" | "job"
+}
+```
+Job title is not currently on the milestone — it needs to be added to either the response or fetched from the job applications query (already available on the page as `jobPathQuery.data`).
+
+**Required interactions:**
+1. Mark complete button — sets `completed_at` via existing `PUT /diary/milestones` endpoint
+2. Log entry for this milestone — pre-fills the diary textarea with the task context and auto-binds to this milestone on submit
+3. Dismiss / "not today" — hides the card for the session (no DB write needed)
+
+**Design constraints:**
+- Tailwind CSS + Shadcn/ui components only
+- Must work at 375px mobile viewport
+- The page uses a dark theme with Signal (blue/purple) and Forge (amber) accent modes — design should respect CSS variable tokens, not hardcoded colours
+- Existing diary page reference: `frontend/app/diary/page.tsx`
+- Design tokens: `frontend/app/design-tokens.css`
+
+**What to hand back to Claude Code:**
+- Agreed component structure (JSX outline or mockup)
+- Which existing Shadcn components to use
+- Any new state variables needed
+- Exact position in the page (relative to which existing section)
 
 Verification:
 ```
