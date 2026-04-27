@@ -27,3 +27,8 @@
 .page-enter {
   animation: pageSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
