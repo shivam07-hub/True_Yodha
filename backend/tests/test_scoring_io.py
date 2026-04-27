@@ -57,18 +57,22 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
 
 class TestFetchSkillDemand:
     def test_returns_demand_map(self) -> None:
-        # Mock returns same rows for both page1 and page2 (both .range() calls share the mock).
-        # main_skills weighted ×2, side_skills ×1, counts doubled across 2 pages.
-        rows = [{"main_skills": ["Python"], "side_skills": ["SQL"]}]
+        # job_skills rows: {job_id, is_primary, skills:{taxonomy_key}}
+        # Both page1 and page2 share the same mock → counts doubled.
+        rows = [
+            {"job_id": "j1", "is_primary": True,  "skills": {"taxonomy_key": "Python"}},
+            {"job_id": "j1", "is_primary": False, "skills": {"taxonomy_key": "SQL"}},
+        ]
         db = MagicMock()
         db.table.return_value = _q(rows)
         result = fetch_skill_demand(ScoresRepository(db))
-        # page1 + page2 both return rows → Python: 2×2=4, SQL: 1×2=2
+        # page1 + page2 both return rows → j1 appears twice:
+        # Python (main ×2 per job × 2 pages = 4), SQL (side ×1 × 2 pages = 2)
         assert result["Python"] == 4
         assert result["SQL"] == 2
 
     def test_none_skills_skipped(self) -> None:
-        rows = [{"main_skills": None, "side_skills": None}]
+        rows = [{"job_id": "j1", "is_primary": True, "skills": None}]
         db = MagicMock()
         db.table.return_value = _q(rows)
         assert fetch_skill_demand(ScoresRepository(db)) == {}
@@ -164,14 +168,14 @@ class TestComputeAndPersistScore:
     )
 
     def _make_db(self) -> MagicMock:
-        # fetch_skill_demand now reads from jobs table
-        demand_q  = _q([{"main_skills": ["Django"], "side_skills": []}])
+        # fetch_skill_demand reads from job_skills JOIN skills
+        demand_q  = _q([{"job_id": "j1", "is_primary": True, "skills": {"taxonomy_key": "Django"}}])
         scores_q  = _q({"user_id": "u1", "total_score": 20.0})
         history_q = _q([])
         db = MagicMock()
         def _table(name: str) -> MagicMock:
             return {
-                "jobs":                 demand_q,
+                "job_skills":           demand_q,
                 "mirror_scores":        scores_q,
                 "mirror_score_history": history_q,
             }.get(name, _q([]))

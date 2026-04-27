@@ -8,6 +8,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.repositories.jobs import _group_job_skills
 
 
 @dataclass(frozen=True)
@@ -78,9 +79,14 @@ class ScoresRepository:
         return result.data or []
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
-        page1 = self._db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-        page2 = self._db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
-        return (page1 or []) + (page2 or [])
+        """Returns job skills from the FK-enforced job_skills join table."""
+        page1 = self._db.table("job_skills").select(
+            "job_id, is_primary, skills(taxonomy_key)"
+        ).range(0, 9999).execute().data or []
+        page2 = self._db.table("job_skills").select(
+            "job_id, is_primary, skills(taxonomy_key)"
+        ).range(10000, 29999).execute().data or []
+        return _group_job_skills(page1 + page2)
 
     def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
         if rows:

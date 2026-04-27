@@ -10,6 +10,23 @@ from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 
 
+def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse job_skills JOIN skills rows into [{main_skills:[...], side_skills:[...]}] per job."""
+    job_map: dict[str, dict[str, list[str]]] = {}
+    for row in rows:
+        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+        if not key:
+            continue
+        jid = row["job_id"]
+        if jid not in job_map:
+            job_map[jid] = {"main_skills": [], "side_skills": []}
+        if row.get("is_primary"):
+            job_map[jid]["main_skills"].append(key)
+        else:
+            job_map[jid]["side_skills"].append(key)
+    return list(job_map.values())
+
+
 class JobsRepository:
     def __init__(self, db: Client) -> None:
         self._db = db
@@ -55,9 +72,14 @@ class JobsRepository:
         return result.data or []
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
-        page1 = self._db.table("jobs").select("main_skills, side_skills").range(0, 999).execute().data
-        page2 = self._db.table("jobs").select("main_skills, side_skills").range(1000, 9999).execute().data
-        return (page1 or []) + (page2 or [])
+        """Returns job skills from the FK-enforced job_skills join table."""
+        page1 = self._db.table("job_skills").select(
+            "job_id, is_primary, skills(taxonomy_key)"
+        ).range(0, 9999).execute().data or []
+        page2 = self._db.table("job_skills").select(
+            "job_id, is_primary, skills(taxonomy_key)"
+        ).range(10000, 29999).execute().data or []
+        return _group_job_skills(page1 + page2)
 
     def get_user_target_roles(self, user_id: str) -> list[str]:
         result = (
@@ -156,14 +178,31 @@ class JobsRepository:
     # ── skill gap ──────────────────────────────────────────────────────────────
 
     def get_job_skills(self, job_id: str) -> dict[str, Any] | None:
-        result = (
+        meta = (
             self._db.table("jobs")
-            .select("job_id, job_title, company_name, main_skills, side_skills")
+            .select("job_id, job_title, company_name")
             .eq("job_id", job_id)
             .maybe_single()
             .execute()
         )
-        return (result.data if result else None) or None
+        if not meta or not meta.data:
+            return None
+
+        rows = (
+            self._db.table("job_skills")
+            .select("is_primary, skills(taxonomy_key)")
+            .eq("job_id", job_id)
+            .execute()
+        ).data or []
+
+        main_skills, side_skills = [], []
+        for row in rows:
+            key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+            if not key:
+                continue
+            (main_skills if row.get("is_primary") else side_skills).append(key)
+
+        return {**meta.data, "main_skills": main_skills, "side_skills": side_skills}
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

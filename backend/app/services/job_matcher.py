@@ -1,6 +1,9 @@
 """
 job_matcher.py
-Skill-overlap scoring against public.jobs (Lightcast main_skills / side_skills arrays).
+Skill-overlap scoring via the normalised job_skills join table.
+
+Skills are FK-linked to skills.taxonomy_key, guaranteeing every comparison
+uses canonical Lightcast taxonomy entries on both the job and user sides.
 
 Overlap formula (0–100):
   weighted_matches / max_possible * 100
@@ -33,25 +36,43 @@ def get_top_matches(
     """
     Returns top N jobs sorted by boosted overlap_score descending.
     Empty user_skill_map returns [].
+    Skills sourced from job_skills JOIN skills (FK-enforced taxonomy).
     """
     if not user_skill_map:
         return []
 
-    page1 = db.table("jobs").select(
-        "job_id, job_title, job_description, company_name, industry, location, apply_url, main_skills, side_skills"
-    ).range(0, 999).execute().data
-    page2 = db.table("jobs").select(
-        "job_id, job_title, job_description, company_name, industry, location, apply_url, main_skills, side_skills"
-    ).range(1000, 9999).execute().data
-
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-    role_tokens = [r.lower() for r in (target_roles or []) if r]
-    loc_lower = (target_location or "").lower()
 
-    scored: list[dict] = []
+    # 1. Fetch all job skills from the normalised join table
+    page1 = db.table("job_skills").select(
+        "job_id, is_primary, skills(taxonomy_key)"
+    ).range(0, 9999).execute().data or []
+    page2 = db.table("job_skills").select(
+        "job_id, is_primary, skills(taxonomy_key)"
+    ).range(10000, 29999).execute().data or []
+
+    # 2. Group by job_id → {main: [...], side: [...]}
+    job_skill_map: dict[str, dict[str, list[str]]] = {}
     for row in page1 + page2:
-        main = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
-        side = [s.strip() for s in (row.get("side_skills") or []) if s and s.strip()]
+        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+        if not key:
+            continue
+        jid = row["job_id"]
+        if jid not in job_skill_map:
+            job_skill_map[jid] = {"main": [], "side": []}
+        if row.get("is_primary"):
+            job_skill_map[jid]["main"].append(key)
+        else:
+            job_skill_map[jid]["side"].append(key)
+
+    if not job_skill_map:
+        return []
+
+    # 3. Score each job
+    scored: list[dict] = []
+    for jid, skills in job_skill_map.items():
+        main = skills["main"]
+        side = skills["side"]
         if not main and not side:
             continue
 
@@ -62,36 +83,70 @@ def get_top_matches(
         raw = (PRIMARY_WEIGHT * len(main_hits) + SECONDARY_WEIGHT * len(side_hits)) / max_possible
         score = round(raw * 100, 1)
 
-        boosted = score
-        title_lower = (row.get("job_title") or "").lower()
-        if role_tokens and any(tok in title_lower for tok in role_tokens):
-            boosted = round(boosted * ROLE_BOOST, 1)
+        if score == 0:
+            continue
 
-        job_loc = (row.get("location") or "").lower()
-        if loc_lower and (loc_lower in job_loc or "remote" in job_loc or "hybrid" in job_loc):
-            boosted = round(boosted * LOCATION_BOOST, 1)
-
-        desc = (row.get("job_description") or "")[:800]
         scored.append({
-            "job_id": row["job_id"],
-            "title": row.get("job_title") or "",
-            "company": row.get("company_name"),
-            "location": row.get("location"),
-            "industry": row.get("industry"),
-            "apply_url": row.get("apply_url"),
-            "description": desc,
+            "job_id": jid,
             "overlap_score": score,
-            "boosted_score": boosted,
             "matched_skills": list({s for s in main_hits + side_hits}),
         })
 
-    scored.sort(key=lambda x: x["boosted_score"], reverse=True)
+    if not scored:
+        return []
 
-    # Anti-bias cap: no company > 30% of top_n
+    scored.sort(key=lambda x: x["overlap_score"], reverse=True)
+
+    # Generous candidate window to survive boosts + company cap
+    candidates = scored[:min(len(scored), top_n * 10)]
+    candidate_ids = [j["job_id"] for j in candidates]
+
+    # 4. Fetch metadata for candidate jobs only
+    jobs_data = db.table("jobs").select(
+        "job_id, job_title, job_description, company_name, industry, location, apply_url"
+    ).in_("job_id", candidate_ids).execute().data or []
+
+    job_meta: dict[str, dict] = {row["job_id"]: row for row in jobs_data}
+
+    role_tokens = [r.lower() for r in (target_roles or []) if r]
+    loc_lower = (target_location or "").lower()
+
+    # 5. Apply boosts
+    full_scored: list[dict] = []
+    for job in candidates:
+        meta = job_meta.get(job["job_id"])
+        if not meta:
+            continue
+
+        boosted = job["overlap_score"]
+        title_lower = (meta.get("job_title") or "").lower()
+        if role_tokens and any(tok in title_lower for tok in role_tokens):
+            boosted = round(boosted * ROLE_BOOST, 1)
+
+        job_loc = (meta.get("location") or "").lower()
+        if loc_lower and (loc_lower in job_loc or "remote" in job_loc or "hybrid" in job_loc):
+            boosted = round(boosted * LOCATION_BOOST, 1)
+
+        full_scored.append({
+            "job_id": job["job_id"],
+            "title": meta.get("job_title") or "",
+            "company": meta.get("company_name"),
+            "location": meta.get("location"),
+            "industry": meta.get("industry"),
+            "apply_url": meta.get("apply_url"),
+            "description": (meta.get("job_description") or "")[:800],
+            "overlap_score": job["overlap_score"],
+            "boosted_score": boosted,
+            "matched_skills": job["matched_skills"],
+        })
+
+    full_scored.sort(key=lambda x: x["boosted_score"], reverse=True)
+
+    # 6. Anti-bias cap: no company > 30% of top_n
     cap = max(1, int(top_n * COMPANY_CAP_RATIO))
     company_count: dict[str, int] = {}
     result: list[dict] = []
-    for job in scored:
+    for job in full_scored:
         co = (job.get("company") or "").lower()
         if co and company_count.get(co, 0) >= cap:
             continue
@@ -100,7 +155,6 @@ def get_top_matches(
         if len(result) >= top_n:
             break
 
-    # Strip internal boosted_score before returning
     for job in result:
         del job["boosted_score"]
 
