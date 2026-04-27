@@ -108,4 +108,5 @@ def _to_milestone_response(row: dict) -> MilestoneResponse:
         completed_at=row.get("completed_at"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        source_type=row.get("source_type", "personal"),
     )

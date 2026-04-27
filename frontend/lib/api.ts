@@ -145,6 +145,15 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
+  correctSkillLevel: (token: string, taxonomyKey: string, level: number) =>
+    request<{ taxonomy_key: string; new_level: number; total_score: number | null }>(
+      `/users/me/skills/${encodeURIComponent(taxonomyKey)}/level`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ level }),
+      },
+    ),
 }
 
 // ── CV ────────────────────────────────────────────────────────────────────────
@@ -608,6 +617,7 @@ export interface Milestone {
   completed_at: string | null
   created_at: string
   updated_at: string
+  source_type: "personal" | "job"
 }
 
 export interface MilestoneListResponse {

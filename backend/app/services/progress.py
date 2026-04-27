@@ -205,6 +205,10 @@ def list_progress_milestones(
     personal_rows = diary_repo.list_user_milestones(user_id, limit)
     job_rows = diary_repo.list_job_application_milestones(user_id, limit)
 
+    normalized_personal_rows = [
+        {**row, "source_type": "personal"} for row in personal_rows
+    ]
+
     normalized_job_rows: list[dict[str, Any]] = []
     for row in job_rows:
         normalized_job_rows.append(
@@ -219,10 +223,11 @@ def list_progress_milestones(
                 "completed_at": row.get("completed_at"),
                 "created_at": row.get("created_at"),
                 "updated_at": row.get("updated_at"),
+                "source_type": "job",
             }
         )
 
-    combined = personal_rows + normalized_job_rows
+    combined = normalized_personal_rows + normalized_job_rows
     combined.sort(key=lambda item: str(item.get("milestone_date") or ""), reverse=True)
     return combined[:limit]
 

@@ -407,7 +407,8 @@ function DiaryPageInner() {
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
   const weekDates = getWeekDates()
-  const milestonesByDate = new Map<string, Milestone>(persistedMilestones.map((m) => [m.milestone_date, m]))
+  const personalMilestones = persistedMilestones.filter((m) => m.source_type === "personal")
+  const milestonesByDate = new Map<string, Milestone>(personalMilestones.map((m) => [m.milestone_date, m]))
   const weekPlan = weekDays.map((day, i) => {
     const dateKey = toDateKey(weekDates[i])
     const saved = milestonesByDate.get(dateKey)

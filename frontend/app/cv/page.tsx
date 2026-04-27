@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
@@ -13,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { jobs, scores, uploadCV, cv, users } from "@/lib/api"
+import { diary, jobs, scores, uploadCV, cv, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -108,16 +109,51 @@ function cvExample(skillName: string, currentLevel: number): string {
 
 function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; delay?: number; highlighted: boolean }) {
   const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
+  const [showLevelPicker, setShowLevelPicker] = useState(false)
+  const [pickedLevel, setPickedLevel] = useState<number | null>(null)
+  const [correctionDone, setCorrectionDone] = useState(false)
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+
   const statusKey = levelToStatus(skill.level)
   const cfg = STATUS_CONFIG[statusKey]
   const isMaxLevel = skill.level >= 5
+  const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
+    if (showLevelPicker) return
     setClickState((s) => (s === 3 ? 0 : (s + 1) as 0 | 1 | 2 | 3))
   }
 
-  const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
+  const trackUpgrade = useMutation({
+    mutationFn: () => {
+      const today = new Date().toISOString().slice(0, 10)
+      return diary.saveMilestone(token!, {
+        milestone_date: today,
+        skill: skill.display_name,
+        task: `Level up ${skill.display_name} from L${skill.level} to L${skill.level + 1}`,
+        confidence: 0.6,
+        completed: false,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
+      router.push("/diary")
+    },
+  })
+
+  const correctLevel = useMutation({
+    mutationFn: (newLevel: number) => users.correctSkillLevel(token!, skill.key, newLevel),
+    onSuccess: (data) => {
+      setCorrectionDone(true)
+      setShowLevelPicker(false)
+      setPickedLevel(data.new_level)
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
+    },
+  })
 
   return (
     <div
@@ -145,9 +181,14 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         <span style={{ flex: 1, fontSize: "var(--tm-fs-meta)", fontWeight: 500, color: "var(--tm-text)" }}>
           {skill.display_name}
         </span>
-        {clickState === 0 && (
+        {clickState === 0 && !correctionDone && (
           <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em" }}>
             tap to explore ↓
+          </span>
+        )}
+        {correctionDone && pickedLevel !== null && (
+          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600 }}>
+            Corrected to L{pickedLevel} ✓
           </span>
         )}
         <span style={{
@@ -155,14 +196,14 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
           background: cfg.bg, color: cfg.color,
           border: `1px solid ${cfg.color}`, opacity: 0.9, flexShrink: 0,
         }}>
-          L{skill.level} · {cfg.label}
+          L{correctionDone && pickedLevel !== null ? pickedLevel : skill.level} · {cfg.label}
         </span>
       </div>
 
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: 999,
-          width: `${(skill.level / 5) * 100}%`,
+          width: `${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5) * 100}%`,
           background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-wash))",
           transition: `width ${0.8 + delay * 0.001}s var(--tm-ease)`,
         }} />
@@ -194,9 +235,9 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         </div>
       )}
 
-      {/* State 2 — How to reach next level */}
+      {/* State 2 — How to reach next level + Journey 2 + Journey 3 */}
       {clickState === 2 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             marginBottom: 6,
@@ -204,16 +245,103 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
             <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
               {isMaxLevel ? "Max Level" : `How to reach ${nextLevelTitle} (L${skill.level + 1})`}
             </span>
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again for CV example →</span>
+            <span
+              style={{ fontSize: 10, color: "var(--tm-text-faint)", cursor: "pointer" }}
+              onClick={(e) => { e.stopPropagation(); setClickState(3) }}
+            >
+              tap again for CV example →
+            </span>
           </div>
           <div style={{
             padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
             background: "rgba(255,255,255,0.03)",
             border: `1px solid ${cfg.color}30`,
             fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
+            marginBottom: 10,
           }}>
             {howToLevelUp(skill.display_name, skill.level)}
           </div>
+
+          {/* Journey 2 + Journey 3 CTAs */}
+          {!isMaxLevel && !showLevelPicker && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); trackUpgrade.mutate() }}
+                disabled={trackUpgrade.isPending}
+                className="tm-btn tm-btn-primary"
+                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+              >
+                {trackUpgrade.isPending ? "Saving…" : `Track upgrade in diary →`}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowLevelPicker(true) }}
+                className="tm-btn tm-btn-ghost"
+                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+              >
+                Fix my level
+              </button>
+            </div>
+          )}
+
+          {/* Journey 3 — inline level picker */}
+          {showLevelPicker && (
+            <div
+              style={{
+                marginTop: 8, padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+                border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)",
+                display: "flex", flexDirection: "column", gap: 8,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>
+                My actual level for {skill.display_name}:
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[1, 2, 3, 4, 5].map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setPickedLevel(lvl) }}
+                    style={{
+                      width: 36, height: 36, borderRadius: "var(--tm-radius-sm)",
+                      border: pickedLevel === lvl ? "2px solid var(--tm-accent)" : "1px solid var(--tm-border)",
+                      background: pickedLevel === lvl ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                      color: pickedLevel === lvl ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                      fontSize: 13, fontWeight: 700, cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    L{lvl}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); if (pickedLevel) correctLevel.mutate(pickedLevel) }}
+                  disabled={!pickedLevel || correctLevel.isPending}
+                  className="tm-btn tm-btn-primary"
+                  style={{ fontSize: 11, height: 30, padding: "0 12px", opacity: !pickedLevel ? 0.5 : 1 }}
+                >
+                  {correctLevel.isPending ? "Saving…" : "Confirm correction"}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowLevelPicker(false); setPickedLevel(null) }}
+                  className="tm-btn tm-btn-ghost"
+                  style={{ fontSize: 11, height: 30, padding: "0 12px" }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {correctLevel.isError && (
+                <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>Could not save correction. Try again.</div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
