@@ -37,6 +37,15 @@ from functools import lru_cache
 from openai import AsyncOpenAI
 
 from app.config import settings
+from app.services.llm_provider import (
+    OR_KIMI_MODELS,
+    GROQ_FALLBACK_MODEL,
+    OR_OPENAI_FALLBACK_MODEL,
+    _OR_BASE,
+    _OR_HEADERS,
+    _GROQ_BASE,
+    _GEMINI_BASE,
+)
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
 # pymupdf (fitz) and python-docx are imported lazily inside the extract_* helpers
@@ -60,14 +69,6 @@ _FUZZY_THRESHOLD = 0.88
 _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
 
-_OPENROUTER_BASE  = "https://openrouter.ai/api/v1"
-_GROQ_BASE        = "https://api.groq.com/openai/v1"
-_GEMINI_BASE      = "https://generativelanguage.googleapis.com/v1beta/openai/"
-# Free tier first; direct Groq/Gemini if OpenRouter rate-limits; paid OR last resort
-_OPENROUTER_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "google/gemini-flash-1.5",
-]
 
 
 # ── Text extraction ───────────────────────────────────────────────────────────
@@ -120,36 +121,45 @@ Return JSON only — no prose, no markdown fences. Shape:
 
 
 async def _llm_extract(cv_text: str) -> list[dict]:
-    """Try OpenRouter gpt-4o-mini → Groq → Gemini → OpenRouter free. Returns [] if all fail."""
-    providers: list[tuple[AsyncOpenAI, str]] = []
-    _or_headers = {"HTTP-Referer": "https://truemirror.vercel.app", "X-Title": "Truth Mirror"}
+    """Try OR kimi (k2.6→k2.5) → Groq → OR gpt-4o-mini. Returns [] if all fail."""
+    # (client, model_id, extra_body | None)
+    providers: list[tuple[AsyncOpenAI, str, dict | None]] = []
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(
             api_key=settings.openrouter_api_key,
-            base_url=_OPENROUTER_BASE,
-            default_headers=_or_headers,
+            base_url=_OR_BASE,
+            default_headers=_OR_HEADERS,
         )
-        providers.append((or_client, "openai/gpt-4o-mini"))
+        # Primary + secondary: OR handles kimi-k2.6 → kimi-k2.5 natively
+        providers.append((or_client, OR_KIMI_MODELS[0], {"models": OR_KIMI_MODELS}))
     if settings.groq_api_key:
+        # Tertiary: Groq direct
         providers.append((
             AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
-            "llama-3.3-70b-versatile",
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    if settings.openrouter_api_key:
+        # Quaternary: OR with OpenAI model
+        providers.append((
+            AsyncOpenAI(
+                api_key=settings.openrouter_api_key,
+                base_url=_OR_BASE,
+                default_headers=_OR_HEADERS,
+            ),
+            OR_OPENAI_FALLBACK_MODEL,
+            None,
         ))
     if settings.google_api_key:
+        # Quinary: Gemini direct
         providers.append((
             AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
             "gemini-2.0-flash-lite",
+            None,
         ))
-    if settings.openrouter_api_key:
-        or_free = AsyncOpenAI(
-            api_key=settings.openrouter_api_key,
-            base_url=_OPENROUTER_BASE,
-            default_headers=_or_headers,
-        )
-        providers.append((or_free, "meta-llama/llama-3.3-70b-instruct:free"))
 
     if not providers:
-        logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY, GROQ_API_KEY, or GOOGLE_API_KEY")
+        logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY or GROQ_API_KEY")
         return []
 
     truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
@@ -158,10 +168,10 @@ async def _llm_extract(cv_text: str) -> list[dict]:
         "Extract the candidate's skills per the rules. Return JSON only."
     )
 
-    for client, model in providers:
+    for client, model, extra_body in providers:
         logger.info("CV extraction using model: %s", model)
         try:
-            resp = await client.chat.completions.create(
+            kwargs: dict = dict(
                 model=model,
                 max_tokens=2048,
                 temperature=0,
@@ -170,6 +180,9 @@ async def _llm_extract(cv_text: str) -> list[dict]:
                     {"role": "user",   "content": user_prompt},
                 ],
             )
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+            resp = await client.chat.completions.create(**kwargs)
             content = resp.choices[0].message.content or ""
             parsed = _parse_llm_json(content)
             if parsed:
