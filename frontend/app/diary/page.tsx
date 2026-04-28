@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { NextMissionCard } from "@/components/diary/next-mission-card"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { ForgeSession } from "@/components/diary/forge-session"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
@@ -316,6 +317,7 @@ function DiaryPageInner() {
   const [missionLogged,    setMissionLogged]    = useState(false)
   const [missionCompleted, setMissionCompleted] = useState(false)
   const [missionDismissed, setMissionDismissed] = useState(false)
+  const [forgeMode, setForgeMode] = useState(false)
 
   const jobId = searchParams.get("jobId")
   const milestoneId = searchParams.get("milestoneId")
@@ -497,6 +499,26 @@ function DiaryPageInner() {
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
   const todayTask = weekPlan[todayIdx]?.task ?? "Log your progress"
 
+  const forgeMilestones = jobPathQuery.data?.milestones ?? []
+  const forgeSkill = jobPathQuery.data?.target_skills?.[0]?.skill ?? gapSkills[0]?.skill ?? "Skill"
+  const forgeLevel = 1
+
+  if (forgeMode && forgeMilestones.length > 0) {
+    return (
+      <ForgeSession
+        skillName={forgeSkill}
+        currentLevel={forgeLevel}
+        milestones={forgeMilestones}
+        jobName={jobPathQuery.data?.company ?? jobPathQuery.data?.job_title}
+        onStepComplete={(milestoneId, proof) => {
+          jobs.updateMilestone(token!, jobId!, milestoneId, { proof, completed: true })
+            .then(() => { queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) }) })
+        }}
+        onSessionEnd={() => setForgeMode(false)}
+      />
+    )
+  }
+
   return (
     <AppShell>
       <div className="tm-page-enter" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -509,7 +531,19 @@ function DiaryPageInner() {
           padding: "14px 32px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div className="tm-label-caps">Diary & Achievements</div>
+            <div className="tm-label-caps">Forge · Progress</div>
+            <button
+              onClick={() => setForgeMode(true)}
+              style={{
+                marginLeft: "auto", padding: "5px 14px", borderRadius: "var(--tm-radius-pill)",
+                background: "linear-gradient(135deg, #060C1A, #0B1424)",
+                border: "1px solid rgba(0,245,212,0.4)",
+                color: "#00F5D4", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "0 0 12px rgba(0,245,212,0.2)",
+              }}
+            >
+              ◑ Enter Forge Mode
+            </button>
             {streak >= 3 && (
               <span className="tm-pill tm-pill-warning">🔥 {streak}-day streak</span>
             )}

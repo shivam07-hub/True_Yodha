@@ -3,11 +3,12 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores } from "@/lib/api"
-import type { JobSearchItem } from "@/lib/api"
+import type { JobSearchItem, JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { JobFitPanel } from "@/components/market/job-fit-panel"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -115,6 +116,7 @@ export default function MarketPage() {
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null)
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
   const [companySearch, setCompanySearch] = useState("")
+  const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
 
   const addToTracker = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
@@ -127,6 +129,18 @@ export default function MarketPage() {
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
+
+  const { data: matchesData } = useQuery({
+    queryKey: ["job-matches", token],
+    queryFn: () => jobs.matches(token!),
+    enabled: !!token,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const matchByJobId = (matchesData?.jobs ?? []).reduce<Record<string, JobMatch>>((acc, m) => {
+    acc[m.job_id] = m
+    return acc
+  }, {})
 
   const { data: analytics, isLoading } = useQuery({
     queryKey: dataKeys.jobsAnalytics(),
@@ -289,7 +303,7 @@ export default function MarketPage() {
             Loading market data…
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: selectedJobFit ? "1fr 1fr 280px" : "1fr 1fr", gap: 16, transition: "grid-template-columns 0.25s ease" }}>
             {/* Bars */}
             <div style={{
               background: "var(--tm-surface)",
@@ -426,13 +440,13 @@ export default function MarketPage() {
                             </div>
                             {/* Title */}
                             <div
-                              onClick={() => token && setTrackJob({ job_id: job.job_id, job_title: job.job_title, company_name: job.company_name })}
+                              onClick={() => setSelectedJobFit(job)}
                               style={{
-                                fontSize: 12, fontWeight: 500, color: token ? "var(--tm-accent)" : "var(--tm-text)",
+                                fontSize: 12, fontWeight: 500, color: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent)" : "var(--tm-text)",
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                cursor: token ? "pointer" : "default",
-                                textDecoration: token ? "underline" : "none",
-                                textDecorationColor: "var(--tm-accent-ring)",
+                                cursor: "pointer",
+                                textDecoration: "underline",
+                                textDecorationColor: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent-ring)" : "var(--tm-border-soft)",
                               }}
                             >
                               {job.job_title || "—"}
@@ -507,6 +521,28 @@ export default function MarketPage() {
                 </div>
               )}
             </div>
+
+            {/* Fit panel — 3rd col, shown when a job is selected */}
+            {selectedJobFit && (
+              <div style={{
+                background: "var(--tm-surface)",
+                border: "1px solid var(--tm-border-soft)",
+                borderRadius: "var(--tm-radius)",
+                padding: 16,
+                overflow: "hidden",
+                display: "flex", flexDirection: "column",
+                maxHeight: 540,
+                animation: "tm-fade-up 0.2s ease",
+              }}>
+                <JobFitPanel
+                  job={selectedJobFit}
+                  matchData={matchByJobId[selectedJobFit.job_id]}
+                  gapSkills={scoreData?.gap_skills ?? []}
+                  onClose={() => setSelectedJobFit(null)}
+                  onTrack={() => setTrackJob({ job_id: selectedJobFit.job_id, job_title: selectedJobFit.job_title, company_name: selectedJobFit.company_name })}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

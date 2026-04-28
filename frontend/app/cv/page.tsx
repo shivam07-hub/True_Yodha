@@ -198,6 +198,15 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         }}>
           L{correctionDone && pickedLevel !== null ? pickedLevel : skill.level} · {cfg.label}
         </span>
+        {!skill.evidence_text && (
+          <span style={{
+            fontSize: 10, padding: "2px 7px", borderRadius: 999, flexShrink: 0,
+            background: "rgba(255,179,71,0.1)", color: "var(--tm-warning, #FFB347)",
+            border: "1px solid rgba(255,179,71,0.3)", fontWeight: 600,
+          }}>
+            Proof weak
+          </span>
+        )}
       </div>
 
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
@@ -393,6 +402,43 @@ function ClusterSection({ cluster, skills, highlighted }: { cluster: string; ski
   )
 }
 
+function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
+  const weak = allSkills.filter(s => !s.evidence_text)
+  const strong = allSkills.filter(s => !!s.evidence_text)
+  const LEVEL_LABEL = ["", "Awareness", "Working", "Practitioner", "Expert", "Authority"]
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {weak.length > 0 && (
+        <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-warning, #FFB347)", marginBottom: 6, marginTop: 4 }}>
+          Proof weak · {weak.length} skills — keyword-inferred only
+        </div>
+      )}
+      {weak.map(s => (
+        <div key={s.key} style={{ display: "grid", gridTemplateColumns: "1fr 60px auto", gap: 10, padding: "7px 10px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,179,71,0.04)", border: "1px solid rgba(255,179,71,0.15)", alignItems: "center" }}>
+          <div style={{ fontSize: 12, color: "var(--tm-text)" }}>{s.display_name}</div>
+          <div style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)" }}>L{s.level} · {LEVEL_LABEL[s.level]}</div>
+          <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: "rgba(255,179,71,0.1)", color: "var(--tm-warning, #FFB347)", border: "1px solid rgba(255,179,71,0.3)", whiteSpace: "nowrap" }}>Proof weak</span>
+        </div>
+      ))}
+      {strong.length > 0 && (
+        <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-success)", marginTop: 14, marginBottom: 6 }}>
+          Proof logged · {strong.length} skills
+        </div>
+      )}
+      {strong.map(s => (
+        <div key={s.key} style={{ display: "grid", gridTemplateColumns: "1fr 60px 1fr", gap: 10, padding: "7px 10px", borderRadius: "var(--tm-radius-sm)", background: "rgba(74,222,128,0.03)", border: "1px solid rgba(74,222,128,0.1)", alignItems: "start" }}>
+          <div style={{ fontSize: 12, color: "var(--tm-text)" }}>{s.display_name}</div>
+          <div style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", paddingTop: 1 }}>L{s.level} · {LEVEL_LABEL[s.level]}</div>
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.5, fontStyle: "italic" }}>&quot;{s.evidence_text?.slice(0, 80)}{(s.evidence_text?.length ?? 0) > 80 ? "…" : ""}&quot;</div>
+        </div>
+      ))}
+      {allSkills.length === 0 && (
+        <div style={{ padding: "24px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 13 }}>Upload a CV to see skill audit</div>
+      )}
+    </div>
+  )
+}
+
 export default function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
@@ -408,7 +454,7 @@ export default function CVPage() {
   const [isGeneratingWithPuter, setIsGeneratingWithPuter] = useState(false)
   const [isPuterReady, setIsPuterReady] = useState(false)
   const [isPuterSignedIn, setIsPuterSignedIn] = useState<boolean | null>(null)
-  const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft">("all")
+  const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft" | "skill-audit">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [highlightedSkill] = useState<string | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
@@ -840,8 +886,8 @@ export default function CVPage() {
         }}>
           {/* LEFT — Skill mapping */}
           <div style={{ overflowY: "auto", padding: "16px 20px 24px 32px", borderRight: "1px solid var(--tm-border-soft)" }}>
-            <div style={{ display: "flex", gap: 5, marginBottom: 14 }}>
-              {(["all", "technical", "domain", "soft"] as const).map((c) => (
+            <div style={{ display: "flex", gap: 5, marginBottom: 14, flexWrap: "wrap" }}>
+              {(["all", "technical", "domain", "soft", "skill-audit"] as const).map((c) => (
                 <button key={c} onClick={() => setCatFilter(c)} style={{
                   padding: "5px 12px", borderRadius: 999,
                   fontSize: "var(--tm-fs-meta)", fontWeight: 500,
@@ -851,7 +897,7 @@ export default function CVPage() {
                   cursor: "pointer", textTransform: "capitalize",
                   transition: "all var(--tm-dur) var(--tm-ease)",
                   fontFamily: "inherit",
-                }}>{c}</button>
+                }}>{c === "skill-audit" ? "◈ Skill Audit" : c}</button>
               ))}
             </div>
 
@@ -859,6 +905,8 @@ export default function CVPage() {
               <div style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", padding: "32px 0", textAlign: "center" }}>
                 Loading skills…
               </div>
+            ) : catFilter === "skill-audit" ? (
+              <SkillAuditView allSkills={Object.values(skillsData?.by_cluster ?? {}).flat()} />
             ) : filteredClusterEntries.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>
                 <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.3 }}>◈</div>
@@ -959,65 +1007,51 @@ export default function CVPage() {
               </div>
 
               {!!cvProfile?.history?.length && (
-                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {/* Root node */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 4 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--tm-accent)", flexShrink: 0, boxShadow: "0 0 6px var(--tm-accent-glow)" }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>📄 Base CV</span>
+                  </div>
                   {cvProfile.history.map((v, i) => {
                     const isLatest = i === 0
                     const isSelected = selectedVersionId === v.id || (selectedVersionId === null && isLatest)
                     const prev = cvProfile.history[i + 1]
                     const delta = prev ? Math.round(v.mirror_score - prev.mirror_score) : null
+                    const isLast = i === cvProfile.history.length - 1
                     return (
-                      <button
-                        key={v.id}
-                        onClick={() => setSelectedVersionId(isLatest ? null : v.id)}
-                        style={{
-                          flexShrink: 0,
-                          padding: "6px 10px",
-                          borderRadius: "var(--tm-radius-sm)",
-                          background: isSelected ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${isSelected ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                          cursor: "pointer", fontFamily: "inherit",
-                          transition: "all var(--tm-dur) var(--tm-ease)",
-                          outline: "none", textAlign: "left",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          {isLatest && (
-                            <span style={{
-                              fontSize: 9, padding: "1px 5px", borderRadius: 999,
-                              background: "var(--tm-accent)", color: "var(--tm-bg)",
-                              fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
-                            }}>Active</span>
-                          )}
-                          <span style={{
-                            fontSize: 11, fontFamily: "var(--tm-font-mono)", fontWeight: 600,
-                            color: isSelected ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                          }}>
-                            v{v.version_number}
-                          </span>
+                      <div key={v.id} style={{ display: "flex", gap: 0 }}>
+                        {/* Tree connector */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 16, flexShrink: 0 }}>
+                          <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 8 }} />
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", border: `1.5px solid ${isSelected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`, background: isSelected ? "var(--tm-accent-wash)" : "transparent", flexShrink: 0 }} />
+                          <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 8 }} />
                         </div>
-                        <div style={{ fontSize: 10, color: isSelected ? "var(--tm-text-muted)" : "var(--tm-text-faint)", marginTop: 2 }}>
-                          {v.version_type === "generated_draft" ? "Generated draft" : "Baseline"}
-                        </div>
-                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>
-                          {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 1 }}>
-                          <span style={{
-                            fontSize: 10, fontFamily: "var(--tm-font-mono)",
-                            color: isSelected ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                          }}>
-                            {Math.round(v.mirror_score)}
-                          </span>
-                          {delta !== null && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 700,
-                              color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)",
-                            }}>
-                              {delta >= 0 ? `+${delta}` : delta}
+                        <button
+                          onClick={() => setSelectedVersionId(isLatest ? null : v.id)}
+                          style={{
+                            flex: 1, padding: "5px 8px", margin: "2px 0",
+                            borderRadius: "var(--tm-radius-sm)",
+                            background: isSelected ? "var(--tm-accent-wash)" : "transparent",
+                            border: `1px solid ${isSelected ? "var(--tm-accent-ring)" : "transparent"}`,
+                            cursor: "pointer", fontFamily: "inherit",
+                            textAlign: "left", transition: "all var(--tm-dur) var(--tm-ease)",
+                          }}
+                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
+                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent" }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isSelected ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
+                              v{v.version_number}
                             </span>
-                          )}
-                        </div>
-                      </button>
+                            {isLatest && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>HEAD</span>}
+                            {delta !== null && <span style={{ fontSize: 9, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>{delta >= 0 ? `+${delta}` : delta}</span>}
+                          </div>
+                          <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>
+                            {v.version_type === "generated_draft" ? "generated draft" : "baseline"} · {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          </div>
+                        </button>
+                      </div>
                     )
                   })}
                 </div>

@@ -844,12 +844,24 @@ function JobSkillGapPanel({
                     {s.is_primary ? "Required for this role" : "Nice to have"}
                   </div>
                 </div>
-                <SkillActionButton
-                  label="Target"
-                  queued={queued}
-                  onClick={() => onToggle(selection)}
-                  ariaLabel={`${queued ? "Remove" : "Target"} ${s.skill} for this job`}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <a
+                    href={`/diary?skill=${encodeURIComponent(s.skill)}`}
+                    style={{
+                      fontSize: 11, padding: "3px 8px", borderRadius: 6, fontWeight: 600,
+                      background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent-ring)",
+                      color: "var(--tm-accent)", textDecoration: "none",
+                    }}
+                  >
+                    Forge →
+                  </a>
+                  <SkillActionButton
+                    label="Target"
+                    queued={queued}
+                    onClick={() => onToggle(selection)}
+                    ariaLabel={`${queued ? "Remove" : "Target"} ${s.skill} for this job`}
+                  />
+                </div>
               </div>
             )
           })}
@@ -1273,10 +1285,6 @@ export default function TrackerPage() {
     () => new Set((jobPathQuery.data?.target_skills ?? []).map((selection) => skillSelectionKey(selection.skill))),
     [jobPathQuery.data?.target_skills],
   )
-  const selectedJobTitle = useMemo(
-    () => topJobs.find((job) => job.job_id === selectedJobId)?.title ?? skillGapQuery.data?.job_title ?? null,
-    [selectedJobId, skillGapQuery.data, topJobs],
-  )
 
   function handleDiaryToggle(selection: DiarySkillSelection) {
     setDiarySelections((current) => toggleDiarySelection(current, selection))
@@ -1447,8 +1455,8 @@ export default function TrackerPage() {
               {selectedJobId ? (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, color: "var(--tm-text)", fontWeight: 600, lineHeight: 1.4, paddingRight: 12 }}>
-                      {`Skill gap - ${selectedJobTitle ?? "Selected job"}`}
+                    <div style={{ fontSize: 12, color: "var(--tm-accent)", fontWeight: 700, lineHeight: 1.4, paddingRight: 12, letterSpacing: "0.04em" }}>
+                      ◑ Skill Forge Bucket
                     </div>
                     {skillGapQuery.data && (
                       <div style={{
@@ -1473,6 +1481,24 @@ export default function TrackerPage() {
                       targetSkillKeys={targetSkillKeys}
                       onToggle={handleTargetToggle}
                     />
+                  )}
+                  {targetSkillKeys.size > 0 && (
+                    <a
+                      href={buildDiarySelectionsHref((jobPathQuery.data?.target_skills ?? []).map(t => ({ skill: t.skill, intent: "add" as const, source: "job-gap" as const })))}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        gap: 8, padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
+                        background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+                        color: "var(--tm-accent)", fontSize: 13, fontWeight: 700,
+                        textDecoration: "none", marginTop: 8,
+                        letterSpacing: "0.02em",
+                        transition: "all 0.15s var(--tm-ease)",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,245,212,0.15)" }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "var(--tm-accent-wash)" }}
+                    >
+                      ▶ Start forging {targetSkillKeys.size} queued skill{targetSkillKeys.size > 1 ? "s" : ""}
+                    </a>
                   )}
                   {skillGapQuery.isError && (
                     <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>Failed to load skill gap.</div>
