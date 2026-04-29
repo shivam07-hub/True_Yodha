@@ -16,7 +16,7 @@ async function init() {
       apiUrl: apiUrl.value.trim(),
       token: token.value.trim(),
     })
-    statusText.textContent = "Saved. Mirko can now track jobs from the extension."
+    statusText.textContent = "Saved. Myro can now track jobs from the extension."
   })
 }
 

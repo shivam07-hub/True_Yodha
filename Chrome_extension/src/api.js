@@ -3,7 +3,7 @@ function endpoint(apiUrl, path) {
 }
 
 async function request(apiUrl, token, path, body) {
-  if (!token) throw new Error("Connect Mirko before saving jobs.")
+  if (!token) throw new Error("Connect Myro before saving jobs.")
   const response = await fetch(endpoint(apiUrl, path), {
     method: "POST",
     headers: {
@@ -14,7 +14,7 @@ async function request(apiUrl, token, path, body) {
   })
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
-    throw new Error(errorBody.detail || `Mirko API returned HTTP ${response.status}`)
+    throw new Error(errorBody.detail || `Myro API returned HTTP ${response.status}`)
   }
   return response.json()
 }
