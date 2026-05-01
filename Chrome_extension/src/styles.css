@@ -271,6 +271,33 @@ textarea::placeholder {
   color: var(--tm-text);
 }
 
+.popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.footer-link {
+  color: var(--tm-text-faint);
+  font-size: 11px;
+  line-height: 16px;
+  text-decoration: none;
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+
+.footer-link:hover {
+  color: var(--tm-accent);
+}
+
+.footer-sep {
+  color: var(--tm-border);
+  font-size: 11px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
