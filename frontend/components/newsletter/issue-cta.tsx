@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 
 interface NewsletterCTAProps {
@@ -38,6 +40,15 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
           color: "var(--tm-accent-fg)",
           fontSize: 13, fontWeight: 600,
           textDecoration: "none",
+          transition: "background var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--tm-accent-hover)"
+          e.currentTarget.style.boxShadow = "var(--tm-shadow-glow)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "var(--tm-accent)"
+          e.currentTarget.style.boxShadow = "none"
         }}
       >
         Get my free Myro Score →

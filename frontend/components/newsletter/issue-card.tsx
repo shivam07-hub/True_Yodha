@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import type { Issue } from "@/lib/newsletter"
 
@@ -19,14 +21,18 @@ export function IssueCard({ issue }: IssueCardProps) {
         borderRadius: "var(--tm-radius)",
         background: "var(--tm-surface)",
         border: "1px solid var(--tm-border-soft)",
+        borderLeft: "3px solid var(--tm-accent)",
         transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+        position: "relative",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+        e.currentTarget.style.borderLeftColor = "var(--tm-accent)"
         e.currentTarget.style.boxShadow = "var(--tm-shadow-glow)"
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+        e.currentTarget.style.borderLeftColor = "var(--tm-accent)"
         e.currentTarget.style.boxShadow = "none"
       }}
     >

@@ -39,6 +39,7 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
     >
       {NAV_ITEMS.map((item) => {
         const isActive = item.id === active
+        const isCTA = item.id === "signup"
         return (
           <Link
             key={item.id}
@@ -50,22 +51,36 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
               height: 28,
               borderRadius: "var(--tm-radius-pill)",
               fontSize: 12,
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)",
-              background: isActive ? "var(--tm-accent-wash)" : "transparent",
-              border: `1px solid ${isActive ? "var(--tm-accent-ring)" : "transparent"}`,
+              fontWeight: isActive || isCTA ? 600 : 400,
+              color: isCTA
+                ? "var(--tm-accent-fg)"
+                : isActive
+                ? "var(--tm-accent)"
+                : "var(--tm-text-muted)",
+              background: isCTA
+                ? "var(--tm-accent)"
+                : isActive
+                ? "var(--tm-accent-wash)"
+                : "transparent",
+              border: `1px solid ${isCTA ? "var(--tm-accent)" : isActive ? "var(--tm-accent-ring)" : "transparent"}`,
               textDecoration: "none",
               whiteSpace: "nowrap",
               transition: "all var(--tm-dur-fast) var(--tm-ease)",
             }}
             onMouseEnter={(e) => {
-              if (!isActive) {
+              if (isCTA) {
+                e.currentTarget.style.background = "var(--tm-accent-hover)"
+                e.currentTarget.style.borderColor = "var(--tm-accent-hover)"
+              } else if (!isActive) {
                 e.currentTarget.style.color = "var(--tm-text)"
                 e.currentTarget.style.background = "rgba(255,255,255,0.04)"
               }
             }}
             onMouseLeave={(e) => {
-              if (!isActive) {
+              if (isCTA) {
+                e.currentTarget.style.background = "var(--tm-accent)"
+                e.currentTarget.style.borderColor = "var(--tm-accent)"
+              } else if (!isActive) {
                 e.currentTarget.style.color = "var(--tm-text-muted)"
                 e.currentTarget.style.background = "transparent"
               }

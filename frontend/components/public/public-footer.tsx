@@ -1,4 +1,8 @@
+"use client"
+
 import Link from "next/link"
+
+const linkStyle = { fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color var(--tm-dur-fast) var(--tm-ease)" }
 
 export function PublicFooter() {
   return (
@@ -16,14 +20,18 @@ export function PublicFooter() {
     >
       <Link
         href="/privacy"
-        style={{ fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none" }}
+        style={linkStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
       >
         Privacy
       </Link>
       <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
       <Link
         href="/newsletter"
-        style={{ fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none" }}
+        style={linkStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
       >
         Newsletter
       </Link>

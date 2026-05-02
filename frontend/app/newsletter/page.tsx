@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { getAllIssues } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
 
@@ -22,7 +23,7 @@ export default async function NewsletterIndexPage() {
         <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10, opacity: 0.8 }}>
           Free · Weekly
         </div>
-        <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 12 }}>
+        <h1 style={{ fontSize: "var(--tm-fs-display)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", lineHeight: "var(--tm-lh-display)", marginBottom: 12 }}>
           Myro Weekly
         </h1>
         <p style={{ fontSize: 16, color: "var(--tm-text-muted)", lineHeight: 1.65, maxWidth: 540 }}>
@@ -37,9 +38,12 @@ export default async function NewsletterIndexPage() {
         }}>
           <div style={{ fontSize: 32, marginBottom: 16, color: "var(--tm-accent)", opacity: 0.4 }}>◉</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 8 }}>First issue coming soon</div>
-          <p style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>
+          <p style={{ fontSize: 14, color: "var(--tm-text-muted)", marginBottom: 20 }}>
             Sign up to get notified when Issue 001 drops.
           </p>
+          <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", padding: "9px 20px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            Sign up free →
+          </Link>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { MDXRemote } from "next-mdx-remote/rsc"
 import remarkGfm from "remark-gfm"
@@ -66,6 +67,12 @@ export default async function IssuePage({ params }: Props) {
 
   return (
     <article style={{ maxWidth: 720, margin: "0 auto", padding: "48px var(--tm-page-px)" }}>
+      <Link
+        href="/newsletter"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none", marginBottom: 32, letterSpacing: "0.04em" }}
+      >
+        ← Newsletter
+      </Link>
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
@@ -74,7 +81,7 @@ export default async function IssuePage({ params }: Props) {
           <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>·</span>
           <time dateTime={issue.publishedAt} style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{date}</time>
         </div>
-        <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 12 }}>
+        <h1 style={{ fontSize: "var(--tm-fs-display)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", lineHeight: "var(--tm-lh-display)", marginBottom: 12 }}>
           {issue.title}
         </h1>
         <p style={{ fontSize: 16, color: "var(--tm-text-muted)", lineHeight: 1.65 }}>{issue.summary}</p>
