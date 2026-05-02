@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { trackEvent } from "@/lib/analytics"
 
 interface NewsletterCTAProps {
   role: string
@@ -32,6 +33,7 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
       </p>
       <Link
         href={href}
+        onClick={() => trackEvent("newsletter_cta_click", { role, issue_slug: issueSlug })}
         style={{
           alignSelf: "flex-start",
           padding: "10px 20px",
