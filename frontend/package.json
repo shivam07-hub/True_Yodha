@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "test:contracts": "node --test tests/api-session-contract.test.mjs",
+    "new:issue": "tsx ../scripts/new-issue.ts",
     "newsletter:sync": "tsx ../scripts/sync-newsletter.ts",
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
-    "prebuild": "npm run newsletter:check"
+    "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
+    "prebuild": "npm run newsletter:check && npm run newsletter:feed"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
