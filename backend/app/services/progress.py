@@ -214,6 +214,7 @@ def list_progress_milestones(
         normalized_job_rows.append(
             {
                 "id": row["id"],
+                "job_id": row.get("job_id"),
                 "milestone_date": row["milestone_date"],
                 "skill": row.get("skill"),
                 "task": row.get("action") or row.get("title") or "",

@@ -608,6 +608,7 @@ export interface DiaryHistoryResponse {
 
 export interface Milestone {
   id: string
+  job_id: string | null
   milestone_date: string
   skill: string | null
   task: string
