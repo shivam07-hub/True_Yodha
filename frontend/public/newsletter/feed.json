@@ -1,0 +1,27 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Myro Weekly",
+  "home_page_url": "https://truemirror.vercel.app/newsletter",
+  "feed_url": "https://truemirror.vercel.app/newsletter/feed.json",
+  "description": "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
+  "language": "en",
+  "authors": [
+    {
+      "name": "Shivam Pathak"
+    }
+  ],
+  "items": [
+    {
+      "id": "https://truemirror.vercel.app/newsletter/2026-04-ai-hiring-heatmap",
+      "url": "https://truemirror.vercel.app/newsletter/2026-04-ai-hiring-heatmap",
+      "title": "AI Hiring April 2026: Banks Beat Big Tech",
+      "summary": "Real April 2026 hiring data: banks are out-hiring Big Tech for AI roles, Prompt Engineer postings hit zero, and the work is in India.",
+      "date_published": "2026-04-28T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    }
+  ]
+}
