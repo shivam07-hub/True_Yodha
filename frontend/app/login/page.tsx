@@ -12,6 +12,8 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
 import { setSessionTokens } from "@/lib/session"
+import { PublicTopNav } from "@/components/public/top-nav"
+import { PublicFooter } from "@/components/public/public-footer"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -373,8 +375,9 @@ export default function LoginPage() {
       </nav>
 
       {/* ── Market Intelligence — same as /market page, no AppShell wrapper ── */}
-      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
-        <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2, display: "flex", flexDirection: "column" }}>
+        <PublicTopNav active="intel" />
+        <div className="tm-page-enter" style={{ flex: 1, padding: "var(--tm-page-py) var(--tm-page-px)" }}>
 
           {/* Header */}
           <div style={{ marginBottom: 24 }}>
@@ -584,6 +587,7 @@ export default function LoginPage() {
           </div>
 
         </div>
+        <PublicFooter />
       </main>
     </div>
   )

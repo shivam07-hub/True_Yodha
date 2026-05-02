@@ -9,6 +9,8 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
 import { setSessionTokens } from "@/lib/session"
+import { PublicTopNav } from "@/components/public/top-nav"
+import { PublicFooter } from "@/components/public/public-footer"
 
 interface Props {
   mode: "login" | "signup"
@@ -74,10 +76,12 @@ export function AuthForm({ mode }: Props) {
   const hasError = !!error
 
   return (
-    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative" }}>
+    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
       <ParticleBg />
+      <PublicTopNav active={mode === "signup" ? "signup" : "login"} />
 
-      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 360 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", zIndex: 2 }}>
+      <div style={{ width: "100%", maxWidth: 360 }}>
         {/* Logo */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
           <div style={{ marginBottom: 12, filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }}>
@@ -278,6 +282,8 @@ export function AuthForm({ mode }: Props) {
           <SurfaceToggle />
         </div>
       </div>
+      </div>
+      <PublicFooter />
     </main>
   )
 }
