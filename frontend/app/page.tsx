@@ -1,13 +1,22 @@
 import type { Metadata } from "next"
 import { ParticleBg } from "@/components/particle-bg"
 
+const BASE = "https://truemirror.vercel.app"
+
 export const metadata: Metadata = {
   title: "Myro — Career Intelligence for Job Seekers",
   description: "Upload your CV and get your Myro Score in 60 seconds. See which skills the market demands, match against top jobs, and get a 7-day action plan.",
+  alternates: { canonical: BASE },
   openGraph: {
     title: "Myro — Career Intelligence for Job Seekers",
     description: "Upload your CV and get your Myro Score in 60 seconds.",
     type: "website",
+    url: BASE,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Myro — Career Intelligence for Job Seekers",
+    description: "Upload your CV and get your Myro Score in 60 seconds.",
   },
 }
 import { PublicTopNav } from "@/components/public/top-nav"

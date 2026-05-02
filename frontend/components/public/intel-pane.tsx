@@ -58,7 +58,7 @@ function IntelBar({ label, count, max, active, onClick }: {
           {label}
         </div>
         <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${pct}%`, borderRadius: 999, background: "var(--tm-accent)", transition: "width 1s var(--tm-ease)" }} />
+          <div style={{ height: "100%", width: "100%", borderRadius: 999, background: "var(--tm-accent)", transform: `scaleX(${pct / 100})`, transformOrigin: "left", transition: "transform 1s var(--tm-ease)" }} />
         </div>
       </div>
       <div style={{ fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0, minWidth: 40, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
@@ -146,7 +146,7 @@ export function IntelPane() {
           background: a ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
           border: `1px solid ${a ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
           color: a ? "var(--tm-accent)" : "var(--tm-text-muted)",
-          fontFamily: "inherit", transition: "all var(--tm-dur-fast) var(--tm-ease)",
+          fontFamily: "inherit", transition: "color var(--tm-dur-fast) var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease)",
           boxShadow: a ? "var(--tm-shadow-glow)" : "none",
         })
         const SkillGroup = ({ label, items }: { label: string; items: typeof topSkills }) => (
@@ -185,7 +185,7 @@ export function IntelPane() {
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
         {(["companies", "industries"] as const).map((v) => (
           <button key={v} onClick={() => { setView(v); setSelected(null); setSkillFilters(new Set()) }}
-            style={{ padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500, background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)", border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`, color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)", cursor: "pointer", textTransform: "capitalize", transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit" }}
+            style={{ padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500, background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)", border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`, color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)", cursor: "pointer", textTransform: "capitalize", transition: "color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)", fontFamily: "inherit" }}
           >{v.charAt(0).toUpperCase() + v.slice(1)}</button>
         ))}
       </div>

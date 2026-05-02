@@ -15,19 +15,33 @@ export async function generateStaticParams() {
   return issues.map((i) => ({ slug: i.slug }))
 }
 
+const BASE = "https://truemirror.vercel.app"
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) return {}
   const title = `${issue.title} | Myro Weekly`
+  const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
+  const absoluteOgImage = issue.ogImage
+    ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`
+    : undefined
   return {
     title,
     description: issue.summary,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title,
       description: issue.summary,
       type: "article",
+      url: canonicalUrl,
       publishedTime: issue.publishedAt,
-      ...(issue.ogImage && { images: [issue.ogImage] }),
+      ...(absoluteOgImage && { images: [absoluteOgImage] }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: issue.summary,
+      ...(absoluteOgImage && { images: [absoluteOgImage] }),
     },
     other: {
       "script:ld+json": JSON.stringify([
@@ -39,15 +53,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           description: issue.summary,
           author: { "@type": "Person", name: "Shivam Pathak" },
           publisher: { "@type": "Organization", name: "Myro" },
-          ...(issue.ogImage && { image: issue.ogImage }),
+          ...(absoluteOgImage && { image: absoluteOgImage }),
         },
         {
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
           itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Home", item: "https://truemirror.vercel.app" },
-            { "@type": "ListItem", position: 2, name: "Newsletter", item: "https://truemirror.vercel.app/newsletter" },
-            { "@type": "ListItem", position: 3, name: issue.title },
+            { "@type": "ListItem", position: 1, name: "Home", item: BASE },
+            { "@type": "ListItem", position: 2, name: "Newsletter", item: `${BASE}/newsletter` },
+            { "@type": "ListItem", position: 3, name: issue.title, item: canonicalUrl },
           ],
         },
       ]),

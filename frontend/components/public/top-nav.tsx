@@ -65,7 +65,7 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
               border: `1px solid ${isCTA ? "var(--tm-accent)" : isActive ? "var(--tm-accent-ring)" : "transparent"}`,
               textDecoration: "none",
               whiteSpace: "nowrap",
-              transition: "all var(--tm-dur-fast) var(--tm-ease)",
+              transition: "color var(--tm-dur-fast) var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
             }}
             onMouseEnter={(e) => {
               if (isCTA) {
@@ -103,7 +103,7 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             background: "transparent",
             border: "1px solid var(--tm-border-soft)",
             textDecoration: "none", whiteSpace: "nowrap",
-            transition: "all var(--tm-dur-fast) var(--tm-ease)",
+            transition: "color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = "var(--tm-accent)"

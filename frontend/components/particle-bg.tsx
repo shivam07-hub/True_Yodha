@@ -133,7 +133,6 @@ export function ParticleBg() {
       if (document.hidden) { animId = 0; return }
       animId = requestAnimationFrame(tick)
       frame++
-      if (canvas!.width !== window.innerWidth) resize()
 
       // Cursor lerp — higher speed (was 0.038)
       lx += (mx - lx) * 0.082

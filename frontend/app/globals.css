@@ -27,6 +27,9 @@
 .page-enter {
   animation: pageSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -69,11 +72,12 @@
   margin-top: 2rem;
   margin-bottom: 0.75rem;
   line-height: 1.25;
+  text-wrap: balance;
 }
 .mdx-prose h1 { font-size: var(--tm-fs-display); }
 .mdx-prose h2 { font-size: var(--tm-fs-title); }
 .mdx-prose h3 { font-size: var(--tm-fs-heading); }
-.mdx-prose p  { margin-bottom: 1.25rem; color: var(--tm-text-muted); }
+.mdx-prose p  { margin-bottom: 1.25rem; color: var(--tm-text-muted); text-wrap: pretty; }
 .mdx-prose ul,
 .mdx-prose ol {
   margin: 0 0 1.25rem 1.5rem;

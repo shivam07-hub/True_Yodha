@@ -3,13 +3,22 @@ import Link from "next/link"
 import { getAllIssues } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
 
+const BASE = "https://truemirror.vercel.app"
+
 export const metadata: Metadata = {
   title: "Myro Weekly — Free AI Hiring Intel",
   description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings. No fluff.",
+  alternates: { canonical: `${BASE}/newsletter` },
   openGraph: {
     title: "Myro Weekly — Free AI Hiring Intel",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
     type: "website",
+    url: `${BASE}/newsletter`,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Myro Weekly — Free AI Hiring Intel",
+    description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
   },
 }
 

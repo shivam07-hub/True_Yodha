@@ -2,10 +2,24 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { NAV, muted, tocLink, accentNum, Section, Li, Ul, Sub, P } from "./privacy-components"
 
+const BASE = "https://truemirror.vercel.app"
+
 export const metadata: Metadata = {
   title: "Privacy Policy — Myro",
   description: "How Myro collects, uses, and protects your data.",
+  alternates: { canonical: `${BASE}/privacy` },
   robots: { index: true, follow: true },
+  openGraph: {
+    title: "Privacy Policy — Myro",
+    description: "How Myro collects, uses, and protects your data.",
+    type: "website",
+    url: `${BASE}/privacy`,
+  },
+  twitter: {
+    card: "summary",
+    title: "Privacy Policy — Myro",
+    description: "How Myro collects, uses, and protects your data.",
+  },
 }
 
 export default function PrivacyPage() {
