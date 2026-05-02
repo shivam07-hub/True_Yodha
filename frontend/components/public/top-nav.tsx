@@ -6,6 +6,7 @@ export type PublicNavPage = "intel" | "newsletter" | "privacy" | "signup" | "log
 
 interface PublicTopNavProps {
   active?: PublicNavPage
+  showSignIn?: boolean
 }
 
 const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
@@ -15,7 +16,7 @@ const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
   { label: "Sign up", href: "/signup", id: "signup" },
 ]
 
-export function PublicTopNav({ active }: PublicTopNavProps) {
+export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
   return (
     <nav
       aria-label="Public navigation"
@@ -74,6 +75,33 @@ export function PublicTopNav({ active }: PublicTopNavProps) {
           </Link>
         )
       })}
+      {showSignIn && (
+        <Link
+          href="/login"
+          style={{
+            marginLeft: "auto",
+            display: "flex", alignItems: "center",
+            padding: "4px 12px", height: 28,
+            borderRadius: "var(--tm-radius-pill)",
+            fontSize: 12, fontWeight: 500,
+            color: "var(--tm-text-muted)",
+            background: "transparent",
+            border: "1px solid var(--tm-border-soft)",
+            textDecoration: "none", whiteSpace: "nowrap",
+            transition: "all var(--tm-dur-fast) var(--tm-ease)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--tm-accent)"
+            e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--tm-text-muted)"
+            e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+          }}
+        >
+          Sign in →
+        </Link>
+      )}
     </nav>
   )
 }
