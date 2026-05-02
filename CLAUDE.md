@@ -452,7 +452,81 @@ All open questions from the graphify audit and progress flow planning resolved. 
 
 ---
 
-## LAST SESSION SUMMARY (2026-04-27 — CV SKILL JOURNEYS + MILESTONE SOURCE_TYPE)
+## LAST SESSION SUMMARY (2026-05-02 — PHASES N3+N4: ISSUE 001 + AUTHOR PIPELINE)
+
+```
+Date: 2026-05-02
+Phases: N3 + N4 complete
+
+Commits this session:
+  c5c3a91  feat(ui): frontend-design audit — public surface polish
+  c07855b  fix(ui): motion-perf + baseline-ui + metadata audit on public surface
+  f5d355b  feat(newsletter): sync script + parity check
+  aa91ac0  feat(newsletter): publish Issue 001 — April 2026 AI Hiring Heatmap
+  d64870a  feat(newsletter): new-issue scaffolding CLI
+  75512a0  feat(newsletter): RSS + JSON Feed generation
+  a2fe357  feat(analytics): instrument newsletter CTA clicks
+  5ab8616  docs(newsletter): authoring guide + metrics targets
+
+Phase N3 — Issue 001 publishing pipeline:
+  - Myro Newsletter/issues/ created; 2026-04-ai-hiring-heatmap.mdx authored
+  - scripts/sync-newsletter.ts: copies MDX + dashboard HTML; validates frontmatter/slug;
+    dry-run mode; removes stale files from destination
+  - scripts/check-newsletter-sync.ts: parity gate for CI/prebuild
+  - frontend/content/newsletter/issues/: committed mirror (1 issue live)
+  - frontend/public/newsletter/charts/: 5 dashboard HTML files (Chart.js via CDN)
+  - components/newsletter/chart-embed.tsx: lazy-loaded iframe wrapper
+  - newsletter/[slug]/page.tsx: ChartEmbed added to MDXRemote components
+  - _placeholder.mdx deleted (auto-removed by sync)
+
+Phase N4 — Author workflow + measurement:
+  - scripts/new-issue.ts: interactive CLI (prompts theme/title/keyword/role;
+    auto-derives YYYY-MM-keyword slug; scaffolds MDX with page anatomy template)
+  - scripts/newsletter-feed.ts: generates rss.xml (RSS 2.0) + feed.json (JSON Feed 1.1)
+    from committed MDX mirror; wired into prebuild
+  - frontend/public/newsletter/rss.xml + feed.json: generated, committed
+  - frontend/lib/analytics.ts: trackEvent() stub (forwards to window.gtag if present)
+  - components/newsletter/issue-cta.tsx: onClick fires newsletter_cta_click event
+  - package.json scripts: new:issue, newsletter:sync, newsletter:check, newsletter:feed,
+    prebuild (check + feed)
+  - docs/NEWSLETTER_AUTHORING.md: frontmatter spec, slug rules, MDX structure,
+    component reference, pre-publish checklist, publish workflow
+  - docs/NEWSLETTER_METRICS.md: Day 30/90 targets, metric sources, weekly Supabase query,
+    GA4 wiring instructions
+
+Four-skill audit (also this session — same commits c5c3a91 + c07855b):
+  - frontend-design: mdx-prose CSS, display-scale headings, CTA polish, hover states
+  - fixing-motion-performance: transition: all → explicit; progress bar width → scaleX
+  - baseline-ui: text-wrap: balance/pretty on prose; prefers-reduced-motion on .page-enter
+  - fixing-metadata: login/signup noindex; canonical + og:url + twitter on all public pages;
+    absolute og:image URLs; breadcrumb item URLs
+
+Verification:
+  tsc --noEmit   → exit 0
+  next lint      → no errors
+  newsletter:check → exit 0 (in sync)
+  newsletter:feed  → rss.xml + feed.json generated
+
+Next session — Phase N5 deferred (needs ≥3 issues):
+  - Pillar pages /careers/* (when 3+ issues per pillar exist)
+  - GA4 script wiring (add NEXT_PUBLIC_GA_ID to Vercel env + next/script in root layout)
+  - Diary smoke test steps 4-10 (tracker → diary → score recompute loop)
+  - Scraper update: write to job_skills directly (Codex)
+```
+  4. Add newsletter:sync / newsletter:check / prebuild scripts to package.json
+  5. Delete _placeholder.mdx
+  6. Embed charts (decide React vs iframe during session)
+  7. Commit per handoff N3 commit messages
+
+Related ongoing work (not blocked by this):
+  - Scraper update assigned to Codex (write to job_skills directly)
+  - Diary smoke test continuation (steps 4–10)
+  - Diary job-milestone card design phase
+```
+
+---
+
+## PREVIOUS SESSION SUMMARY (2026-04-27 — CV SKILL JOURNEYS + MILESTONE SOURCE_TYPE)
 
 ```
 Date: 2026-04-27
