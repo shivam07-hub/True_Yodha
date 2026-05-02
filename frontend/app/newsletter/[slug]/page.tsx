@@ -5,6 +5,7 @@ import { MDXRemote } from "next-mdx-remote/rsc"
 import remarkGfm from "remark-gfm"
 import { getAllIssues, getIssueBySlug } from "@/lib/newsletter"
 import { NewsletterCTA } from "@/components/newsletter/issue-cta"
+import { ChartEmbed } from "@/components/newsletter/chart-embed"
 
 interface Props {
   params: { slug: string }
@@ -102,7 +103,7 @@ export default async function IssuePage({ params }: Props) {
       </div>
 
       <div className="mdx-prose">
-        <MDXRemote source={issue.content} options={mdxOptions} components={{ NewsletterCTA }} />
+        <MDXRemote source={issue.content} options={mdxOptions} components={{ NewsletterCTA, ChartEmbed }} />
       </div>
 
       <NewsletterCTA role={issue.ctaRole} issueSlug={issue.slug} />
