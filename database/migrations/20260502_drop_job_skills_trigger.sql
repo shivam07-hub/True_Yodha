@@ -11,8 +11,8 @@
 --
 -- Run: copy-paste into Supabase SQL editor and execute once.
 
-DROP TRIGGER IF EXISTS sync_job_skills_trigger ON jobs;
-DROP FUNCTION IF EXISTS sync_job_skills_from_arrays();
+DROP TRIGGER IF EXISTS trg_sync_job_skills ON jobs;
+DROP FUNCTION IF EXISTS sync_job_skills_from_arrays() CASCADE;
 
 -- Verify: check no trigger remains on jobs table
 -- SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'jobs';
