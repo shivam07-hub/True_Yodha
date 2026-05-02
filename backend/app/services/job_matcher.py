@@ -2,8 +2,9 @@
 job_matcher.py
 Skill-overlap scoring via the normalised job_skills join table.
 
-Skills are FK-linked to skills.taxonomy_key, guaranteeing every comparison
-uses canonical Lightcast taxonomy entries on both the job and user sides.
+get_top_matches() is DB-agnostic: it accepts pre-fetched job_skill_rows
+and a callable for job metadata. DB queries are owned by JobsRepository
+(repositories/jobs.py), keeping schema knowledge in one place.
 
 Overlap formula (0–100):
   weighted_matches / max_possible * 100
@@ -16,8 +17,7 @@ Aspiration reranking:
 Anti-bias cap:
   No single company exceeds 30% of top_n results.
 """
-
-from supabase import Client
+from typing import Callable
 
 PRIMARY_WEIGHT = 2.0
 SECONDARY_WEIGHT = 1.0
@@ -27,31 +27,28 @@ COMPANY_CAP_RATIO = 0.30
 
 
 def get_top_matches(
-    db: Client,
+    job_skill_rows: list[dict],
     user_skill_map: dict[str, int],
+    job_meta_fetcher: Callable[[list[str]], list[dict]],
     target_roles: list[str] | None = None,
     target_location: str | None = None,
     top_n: int = 10,
 ) -> list[dict]:
     """
     Returns top N jobs sorted by boosted overlap_score descending.
-    Empty user_skill_map returns [].
-    Skills sourced from job_skills JOIN skills (FK-enforced taxonomy).
+
+    job_skill_rows: raw rows from job_skills JOIN skills
+      [{job_id, is_primary, skills: {taxonomy_key}}]
+    user_skill_map: {taxonomy_key: matched_level}
+    job_meta_fetcher: callable(job_ids) -> list of job metadata dicts
     """
     if not user_skill_map:
         return []
 
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
 
-    page1 = db.table("job_skills").select(
-        "job_id, is_primary, skills(taxonomy_key)"
-    ).range(0, 9999).execute().data or []
-    page2 = db.table("job_skills").select(
-        "job_id, is_primary, skills(taxonomy_key)"
-    ).range(10000, 29999).execute().data or []
-
     job_skill_map: dict[str, dict[str, list[str]]] = {}
-    for row in page1 + page2:
+    for row in job_skill_rows:
         key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
         if not key:
             continue
@@ -98,10 +95,7 @@ def get_top_matches(
     candidates = scored[:min(len(scored), top_n * 10)]
     candidate_ids = [j["job_id"] for j in candidates]
 
-    jobs_data = db.table("jobs").select(
-        "job_id, job_title, job_description, company_name, industry, location, apply_url"
-    ).in_("job_id", candidate_ids).execute().data or []
-
+    jobs_data = job_meta_fetcher(candidate_ids)
     job_meta: dict[str, dict] = {row["job_id"]: row for row in jobs_data}
 
     role_tokens = [r.lower() for r in (target_roles or []) if r]

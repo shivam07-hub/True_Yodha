@@ -115,9 +115,11 @@ async def compute_job_matches(
         if row.get("skills")
     }
     profile = repo.get_user_profile_targeting(user_id)
+    job_skill_rows = repo.get_all_job_skill_rows()
     top_jobs = job_matcher.get_top_matches(
-        db,
+        job_skill_rows,
         user_skill_map,
+        job_meta_fetcher=repo.get_jobs_by_ids,
         target_roles=profile.get("target_roles") or [],
         target_location=profile.get("target_location"),
         top_n=10,
