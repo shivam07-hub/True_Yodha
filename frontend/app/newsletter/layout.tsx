@@ -8,7 +8,7 @@ export const metadata: Metadata = {
       "@context": "https://schema.org",
       "@type": "Organization",
       name: "Myro",
-      url: "https://truemirror.vercel.app",
+      url: "https://www.himyro.com",
       description: "Intelligence-as-a-Service for job seekers",
     }),
   },

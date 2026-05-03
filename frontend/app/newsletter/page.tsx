@@ -3,7 +3,7 @@ import Link from "next/link"
 import { getAllIssues } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
 
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 
 export const metadata: Metadata = {
   title: "Myro Weekly — Free AI Hiring Intel",

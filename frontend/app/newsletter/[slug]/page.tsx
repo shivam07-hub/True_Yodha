@@ -16,7 +16,7 @@ export async function generateStaticParams() {
   return issues.map((i) => ({ slug: i.slug }))
 }
 
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const issue = await getIssueBySlug(params.slug)
