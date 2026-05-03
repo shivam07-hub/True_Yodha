@@ -113,7 +113,7 @@ export default async function IssuePage({ params }: Props) {
     <>
       <ReadingProgress />
 
-      <article className="nl-page-enter" style={{ maxWidth: 680, margin: "0 auto", padding: "56px 24px 96px" }}>
+      <article className="nl-page-enter" style={{ maxWidth: 760, margin: "0 auto", padding: "56px 32px 96px" }}>
 
         {/* Back link */}
         <Link

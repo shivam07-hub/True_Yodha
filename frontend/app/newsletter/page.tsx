@@ -28,7 +28,7 @@ export default async function NewsletterIndexPage() {
   const publishedIssues = issues.filter((i) => i.slug !== "_placeholder")
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px var(--tm-page-px)" }}>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "48px var(--tm-page-px)" }}>
       <div style={{ marginBottom: 40 }}>
         <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10, opacity: 0.8 }}>
           Free · Weekly
