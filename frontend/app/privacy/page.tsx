@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { PublicTopNav } from "@/components/public/top-nav"
 import { NAV, muted, tocLink, accentNum, Section, Li, Ul, Sub, P } from "./privacy-components"
 
 const BASE = "https://truemirror.vercel.app"
@@ -24,7 +25,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--tm-bg)", fontFamily: "var(--tm-font-sans)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--tm-bg)", fontFamily: "var(--tm-font-sans)", display: "flex", flexDirection: "column" }}>
+
+      <PublicTopNav active="privacy" showSignIn />
 
       {/* Hero */}
       <header className="relative overflow-hidden px-4 lg:px-8 pt-16 lg:pt-20 pb-12">

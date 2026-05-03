@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { IntelPane } from "@/components/public/intel-pane"
+import { AboutSection } from "@/components/public/about-section"
 
 export default function HomePage() {
   return (
@@ -29,9 +30,13 @@ export default function HomePage() {
       <ParticleBg />
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
-        <IntelPane />
+        <AboutSection />
+        {/* Intel pane fills the viewport on scroll */}
+        <div style={{ height: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
+          <IntelPane />
+        </div>
+        <PublicFooter />
       </div>
-      <PublicFooter />
     </div>
   )
 }
