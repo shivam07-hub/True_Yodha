@@ -10,21 +10,6 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
 
-const SOFT_SKILLS = new Set([
-  "communication", "leadership", "teamwork", "collaboration", "problem solving",
-  "time management", "critical thinking", "adaptability", "creativity", "attention to detail",
-  "project management", "analytical thinking", "customer service", "presentation",
-  "negotiation", "writing", "organization", "decision making", "interpersonal skills",
-  "stakeholder management", "strategic planning", "mentoring", "coaching",
-  "conflict resolution", "public speaking", "emotional intelligence", "research",
-  "planning", "multitasking", "work ethic", "accountability", "flexibility",
-  "active listening", "self-motivation", "initiative",
-])
-
-function issoft(skill: string) {
-  return SOFT_SKILLS.has(skill.toLowerCase())
-}
-
 interface TrackJob { job_id: string; job_title: string; company_name: string | null }
 
 function TrackConfirmModal({ job, onConfirm, onClose }: { job: TrackJob; onConfirm: () => void; onClose: () => void }) {
@@ -61,42 +46,51 @@ function IntelBar({ label, count, max, active, onClick }: {
   const pct = max > 0 ? (count / max) * 100 : 0
   return (
     <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
+      type="button" onClick={onClick} aria-pressed={active}
       aria-label={`${label}, ${count.toLocaleString()} roles`}
       style={{
         display: "flex", alignItems: "center", gap: 12, width: "100%",
         padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
-        background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
-        border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-        marginBottom: 4, fontFamily: "inherit", outline: "none",
+        background: active ? "var(--tm-accent-wash)" : "transparent",
+        border: `1px solid ${active ? "var(--tm-accent-ring)" : "transparent"}`,
+        marginBottom: 2, fontFamily: "inherit", outline: "none",
+        transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
       }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
+      onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" } }}
       onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
       onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 13, fontWeight: 500, marginBottom: 5,
+          fontSize: 13, fontWeight: active ? 600 : 500, marginBottom: 5, textAlign: "left",
           color: active ? "var(--tm-accent)" : "var(--tm-text)",
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          transition: "color var(--tm-dur-fast) var(--tm-ease)",
         }}>
           {label}
         </div>
-        <div style={{ height: 3, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
+        <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${pct}%`, borderRadius: 999,
-            background: "var(--tm-accent)",
-            transition: "width 1s var(--tm-ease)",
+            background: active ? "var(--tm-accent)" : "rgba(255,255,255,0.18)",
+            transition: "width 0.9s var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease)",
           }} />
         </div>
       </div>
-      <div style={{ fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0, minWidth: 40, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+      <div style={{
+        fontSize: 12, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        flexShrink: 0, minWidth: 36, textAlign: "right",
+        fontVariantNumeric: "tabular-nums", fontWeight: 500,
+        transition: "color var(--tm-dur-fast) var(--tm-ease)",
+      }}>
         {count.toLocaleString()}
       </div>
-      <div style={{ fontSize: 12, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }} aria-hidden="true">›</div>
+      <div style={{
+        fontSize: 11, opacity: active ? 1 : 0.3,
+        color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        transition: "opacity var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease)",
+      }} aria-hidden="true">›</div>
     </button>
   )
 }
@@ -111,7 +105,6 @@ export default function MarketPage() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
-  const [skillFilters, setSkillFilters] = useState<Set<string>>(new Set())
   const [drillSkill, setDrillSkill] = useState<DrillSkill | null>(null)
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null)
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
@@ -170,18 +163,10 @@ export default function MarketPage() {
   }))
 
   const baseList = view === "companies" ? companies : industries
-  const skillFiltered = skillFilters.size > 0
-    ? baseList.filter((e) =>
-        Array.from(skillFilters).every((f) =>
-          e.skills.some((s) => s.toLowerCase().includes(f.toLowerCase()))
-        )
-      )
-    : baseList
   const list = view === "companies" && companySearch.trim()
-    ? skillFiltered.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
-    : skillFiltered
+    ? baseList.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
+    : baseList
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
-  const topSkills = analytics?.top_skills?.slice(0, 14) ?? []
   const marketSummary = analytics
     ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} domains`
     : "Loading market coverage"
@@ -210,80 +195,12 @@ export default function MarketPage() {
 
         <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
 
-        {/* Top skills — split hard / soft */}
-        {topSkills.length > 0 && (() => {
-          const hard = topSkills.filter((s) => !issoft(s.skill))
-          const soft = topSkills.filter((s) => issoft(s.skill))
-          function toggleSkill(skill: string) {
-            setSkillFilters((prev) => {
-              const next = new Set(prev)
-              if (next.has(skill)) { next.delete(skill) } else { next.add(skill) }
-              return next
-            })
-            setSelected(null)
-          }
-          const pillStyle = (active: boolean): React.CSSProperties => ({
-            fontSize: 12, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
-            background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-            border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-            color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-            fontFamily: "inherit", transition: "all var(--tm-dur-fast) var(--tm-ease)",
-            boxShadow: active ? "var(--tm-shadow-glow)" : "none",
-          })
-          const SkillGroup = ({ label, items }: { label: string; items: typeof topSkills }) => (
-            items.length === 0 ? null : (
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>{label}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {items.map((s) => {
-                    const active = skillFilters.has(s.skill)
-                    return (
-                      <button key={s.skill} onClick={() => toggleSkill(s.skill)} style={pillStyle(active)} aria-pressed={active}>
-                        {s.skill}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          )
-          return (
-            <div style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-                  {skillFilters.size > 0 && (
-                    <><span style={{ color: "var(--tm-accent)", fontWeight: 600 }}>{skillFilters.size}</span> skill{skillFilters.size > 1 ? "s" : ""} selected — showing intersection</>
-                  )}
-                </div>
-                {skillFilters.size > 0 && (
-                  <button
-                    onClick={() => { setSkillFilters(new Set()); setSelected(null) }}
-                    style={{
-                      fontSize: 11, color: "var(--tm-text-faint)", background: "none",
-                      border: "none", cursor: "pointer", fontFamily: "inherit", padding: "2px 6px",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-danger)" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
-                  >
-                    Clear ×
-                  </button>
-                )}
-              </div>
-              <SkillGroup label="Hard Skills" items={hard} />
-              {hard.length > 0 && soft.length > 0 && (
-                <div style={{ height: 1, background: "var(--tm-border-soft)" }} />
-              )}
-              <SkillGroup label="Soft Skills" items={soft} />
-            </div>
-          )
-        })()}
-
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           {(["companies", "industries"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setSelected(null); setSkillFilters(new Set()); setDrillSkill(null); setExpandedDesc(null); setCompanySearch("") }}
+              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setExpandedDesc(null); setCompanySearch("") }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
                 background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
@@ -336,7 +253,7 @@ export default function MarketPage() {
               <div style={{ overflowY: "auto", maxHeight: 480 }}>
                 {list.length === 0 ? (
                   <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
-                    {companySearch ? `No companies matching "${companySearch}"` : skillFilters.size > 0 ? "No companies hire for all selected skills" : "No data yet"}
+                    {companySearch ? `No companies matching "${companySearch}"` : "No data yet"}
                   </div>
                 ) : (
                   list.map((entity) => (
