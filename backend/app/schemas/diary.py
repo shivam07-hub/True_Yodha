@@ -62,6 +62,7 @@ class MilestoneRequest(BaseModel):
 
 class MilestoneResponse(BaseModel):
     id: str
+    job_id: str | None = None
     milestone_date: date
     skill: str | None
     task: str

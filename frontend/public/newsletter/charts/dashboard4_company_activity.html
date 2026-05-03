@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D4 — Company Hiring Activity | True Yodha</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+  .header{background:linear-gradient(135deg,#7c2d12,#ea580c);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:22px;font-weight:600}
+  .header .sub{font-size:13px;opacity:0.75;margin-top:2px}
+  .badge{background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+  .filters{background:#fff;padding:14px 32px;display:flex;gap:12px;align-items:center;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+  .filters label{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px}
+  select{padding:6px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;cursor:pointer;min-width:160px}
+  select:focus{outline:none;border-color:#ea580c}
+  .container{padding:24px 32px;max-width:1400px;margin:0 auto}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+  .kpi{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #ea580c}
+  .kpi.blue{border-left-color:#2563eb}.kpi.green{border-left-color:#10b981}.kpi.purple{border-left-color:#7c3aed}
+  .kpi-label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px}
+  .kpi-value{font-size:28px;font-weight:700;color:#1e293b;margin:4px 0 2px}
+  .kpi-sub{font-size:11px;color:#94a3b8}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  .grid-r{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:20px}
+  .card h2{font-size:14px;font-weight:600;color:#374151;margin-bottom:16px}
+  .card h2 span{font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px}
+  .chart-h300{position:relative;height:300px}
+  .chart-h220{position:relative;height:220px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+  td{padding:9px 12px;border-bottom:1px solid #f1f5f9}
+  tr:hover td{background:#fff7ed}
+  .bar-inline{height:6px;background:#e2e8f0;border-radius:3px}
+  .bar-fill{height:100%;background:#ea580c;border-radius:3px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+  .p-orange{background:#ffedd5;color:#9a3412}.p-blue{background:#dbeafe;color:#1d4ed8}
+  .p-green{background:#d1fae5;color:#065f46}.p-purple{background:#ede9fe;color:#6d28d9}
+  .p-gray{background:#f1f5f9;color:#475569}
+  .avatar{width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-right:8px;flex-shrink:0}
+  .company-cell{display:flex;align-items:center}
+  .footer{text-align:center;padding:16px;font-size:11px;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Dashboard 4 — Company Hiring Activity</h1>
+    <div class="sub">True Yodha · Company leaderboard, batch velocity, and industry breakdown</div>
+  </div>
+  <div class="badge">57 Companies · Apr 19 Peak</div>
+</div>
+
+<div class="filters">
+  <label>Batch Date</label>
+  <select id="fDate" onchange="applyFilters()">
+    <option value="all">All Dates</option>
+    <option value="20260419" selected>Apr 19, 2026</option>
+    <option value="20260417">Apr 17, 2026</option>
+    <option value="20260416">Apr 16, 2026</option>
+  </select>
+  <label>Industry</label>
+  <select id="fInd" onchange="applyFilters()">
+    <option value="all">All Industries</option>
+  </select>
+  <label>Location</label>
+  <select id="fLoc" onchange="applyFilters()">
+    <option value="all">All Locations</option>
+  </select>
+  <label>Min Jobs</label>
+  <select id="fMin" onchange="applyFilters()">
+    <option value="0">Any</option>
+    <option value="50">50+ jobs</option>
+    <option value="100">100+ jobs</option>
+    <option value="200">200+ jobs</option>
+    <option value="400">400+ jobs</option>
+  </select>
+</div>
+
+<div class="container">
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">#1 Employer</div><div class="kpi-value" style="font-size:16px" id="kTop">Accenture</div><div class="kpi-sub" id="kTopSub">1,000 jobs (Apr 19)</div></div>
+    <div class="kpi blue"><div class="kpi-label">Companies Hiring</div><div class="kpi-value" id="kCount">57</div><div class="kpi-sub" id="kCountSub">In selected batch</div></div>
+    <div class="kpi green"><div class="kpi-label">Avg Jobs/Company</div><div class="kpi-value" id="kAvg">141</div><div class="kpi-sub">Apr 19 average</div></div>
+    <div class="kpi purple"><div class="kpi-label">Top 5 Share</div><div class="kpi-value" id="kTop5">43%</div><div class="kpi-sub">Of all Apr 19 jobs</div></div>
+  </div>
+
+  <div class="grid-r">
+    <div class="card">
+      <h2>Top Companies by Job Count <span id="barTitle">— Apr 19</span></h2>
+      <div class="chart-h300"><canvas id="compBar"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Industry Mix of Top Companies <span>Sector distribution</span></h2>
+      <div class="chart-h300"><canvas id="indDoughnut"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Company Presence Across Batches <span>Which companies appear in multiple batches</span></h2>
+      <div class="chart-h220"><canvas id="presenceBar"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Hiring Scale Distribution <span>Companies by job volume tier</span></h2>
+      <div class="chart-h220"><canvas id="scaleBar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Company Hiring Leaderboard <span id="tableTitle">— Ranked by total jobs</span></h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Company</th><th>Industry</th><th>Jobs</th><th>Active</th><th>Volume</th><th>Scale</th></tr>
+      </thead>
+      <tbody id="compTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">True Yodha · Myro Newsletter · Company hiring data from Supabase jobs table</div>
+
+<script>
+const COMPANY_DATA = [
+  {batch:20260419,company:"Accenture",industry:"IT Services / Consulting",jobs:1000,active:1000,location:"India"},
+  {batch:20260419,company:"CMA CGM",industry:"Shipping / Logistics",jobs:592,active:592,location:"India"},
+  {batch:20260419,company:"Sanofi",industry:"Pharmaceutical",jobs:500,active:500,location:"India"},
+  {batch:20260419,company:"Novartis",industry:"Pharmaceutical",jobs:500,active:500,location:"India"},
+  {batch:20260419,company:"Barclays",industry:"BFSI",jobs:500,active:500,location:"India"},
+  {batch:20260419,company:"Stripe",industry:"FinTech",jobs:498,active:498,location:"India"},
+  {batch:20260419,company:"Alstom",industry:"Transportation",jobs:488,active:488,location:"India"},
+  {batch:20260419,company:"ServiceNow",industry:"SaaS",jobs:439,active:439,location:"India"},
+  {batch:20260419,company:"Cognizant",industry:"IT Consulting",jobs:383,active:383,location:"India"},
+  {batch:20260419,company:"State Street",industry:"BFSI",jobs:351,active:351,location:"India"},
+  {batch:20260419,company:"DBS Bank",industry:"BFSI",jobs:286,active:286,location:"India"},
+  {batch:20260419,company:"Wells Fargo",industry:"BFSI",jobs:243,active:243,location:"India"},
+  {batch:20260419,company:"DXC Technology",industry:"IT Services",jobs:211,active:211,location:"India"},
+  {batch:20260419,company:"Adobe",industry:"Technology",jobs:207,active:207,location:"India"},
+  {batch:20260419,company:"Paytm",industry:"Fintech",jobs:203,active:203,location:"India"},
+  {batch:20260419,company:"NXP Semiconductors",industry:"Semiconductors",jobs:161,active:161,location:"India"},
+  {batch:20260419,company:"Target",industry:"Retail",jobs:114,active:114,location:"India"},
+  {batch:20260419,company:"Autodesk",industry:"Technology",jobs:111,active:111,location:"India"},
+  {batch:20260419,company:"Mastercard",industry:"FinTech",jobs:108,active:108,location:"India"},
+  {batch:20260419,company:"Bosch",industry:"Automotive",jobs:100,active:100,location:"India"},
+  {batch:20260419,company:"Continental",industry:"Automotive",jobs:100,active:100,location:"India"},
+  {batch:20260419,company:"Maersk",industry:"Logistics",jobs:98,active:98,location:"India"},
+  {batch:20260419,company:"3M",industry:"Industrial",jobs:81,active:81,location:"India"},
+  {batch:20260419,company:"Airbus",industry:"Aerospace",jobs:74,active:74,location:"India"},
+  {batch:20260419,company:"Fidelity Investments",industry:"Financial Services",jobs:73,active:73,location:"India"},
+  {batch:20260419,company:"Intel",industry:"Semiconductors",jobs:68,active:68,location:"India"},
+  {batch:20260419,company:"Philips",industry:"Healthcare Tech",jobs:63,active:63,location:"India"},
+  {batch:20260419,company:"Meesho",industry:"E-commerce",jobs:52,active:52,location:"India"},
+  {batch:20260419,company:"Eli Lilly",industry:"Pharmaceutical",jobs:46,active:46,location:"India"},
+  {batch:20260419,company:"Razorpay",industry:"Fintech",jobs:46,active:46,location:"India"},
+  {batch:20260419,company:"PhonePe",industry:"Fintech",jobs:43,active:43,location:"India"},
+  {batch:20260419,company:"Haleon",industry:"Consumer Goods",jobs:31,active:31,location:"India"},
+  {batch:20260419,company:"Salesforce",industry:"SaaS",jobs:30,active:30,location:"India"},
+  {batch:20260419,company:"Michelin",industry:"Automotive",jobs:22,active:22,location:"Global"},
+  {batch:20260419,company:"Solvay",industry:"Chemicals",jobs:20,active:20,location:"Global"},
+  {batch:20260419,company:"Schneider Electric",industry:"Energy",jobs:20,active:20,location:"India"},
+  {batch:20260419,company:"LDC (Louis Dreyfus)",industry:"Commodities",jobs:18,active:18,location:"India"},
+  {batch:20260419,company:"Shell",industry:"Oil & Gas",jobs:17,active:17,location:"India"},
+  {batch:20260419,company:"WESCO",industry:"Industrial",jobs:17,active:17,location:"Global"},
+  {batch:20260419,company:"AstraZeneca",industry:"Pharmaceutical",jobs:15,active:15,location:"India"},
+  {batch:20260419,company:"Airbnb",industry:"Technology",jobs:15,active:15,location:"Global"},
+  {batch:20260419,company:"Morgan Stanley",industry:"BFSI",jobs:10,active:10,location:"India"},
+  {batch:20260419,company:"Engie",industry:"Energy",jobs:10,active:10,location:"Global"},
+  {batch:20260417,company:"Accenture",industry:"IT Services",jobs:427,active:427,location:"India"},
+  {batch:20260417,company:"Airbus",industry:"Aerospace",jobs:75,active:75,location:"India"},
+  {batch:20260417,company:"Amazon",industry:"E-commerce",jobs:9,active:9,location:"India"},
+  {batch:20260416,company:"Wells Fargo",industry:"BFSI",jobs:231,active:231,location:"India"},
+  {batch:20260416,company:"Salesforce",industry:"SaaS",jobs:159,active:159,location:"India"},
+  {batch:20260416,company:"Novartis",industry:"Pharmaceutical",jobs:105,active:105,location:"India"},
+  {batch:20260416,company:"Amazon",industry:"E-commerce",jobs:92,active:92,location:"India"},
+  {batch:20260416,company:"Sanofi",industry:"Pharmaceutical",jobs:84,active:84,location:"India"},
+  {batch:20260416,company:"Dell",industry:"Technology",jobs:77,active:77,location:"India"},
+  {batch:20260416,company:"Philips",industry:"Healthcare Tech",jobs:63,active:63,location:"India"},
+  {batch:20260416,company:"ServiceNow",industry:"SaaS",jobs:29,active:29,location:"India"},
+  {batch:20260416,company:"Shell",industry:"Energy",jobs:17,active:17,location:"India"},
+];
+
+const IND_COLORS = {'BFSI':'#2563eb','FinTech':'#0891b2','IT Services / Consulting':'#7c3aed','Pharmaceutical':'#10b981','Logistics':'#f59e0b','SaaS':'#ea580c','IT Consulting':'#6d28d9','Automotive':'#d97706','Technology':'#64748b','Semiconductors':'#8b5cf6','Fintech':'#0284c7','E-commerce':'#ec4899','Healthcare Tech':'#14b8a6','Aerospace':'#6366f1'};
+
+let cBar2, dDoughnut, presBar, scaleBar2;
+
+function populateFilters() {
+  const indSel = document.getElementById('fInd');
+  const locSel = document.getElementById('fLoc');
+  const inds = new Set(COMPANY_DATA.map(d=>d.industry));
+  const locs = new Set(COMPANY_DATA.map(d=>d.location));
+  [...inds].sort().forEach(i=>{ const o=document.createElement('option');o.value=i;o.textContent=i;indSel.appendChild(o); });
+  [...locs].sort().forEach(l=>{ const o=document.createElement('option');o.value=l;o.textContent=l;locSel.appendChild(o); });
+}
+
+function getFilteredData() {
+  const batch = document.getElementById('fDate').value;
+  const ind = document.getElementById('fInd').value;
+  const loc = document.getElementById('fLoc').value;
+  const min = parseInt(document.getElementById('fMin').value)||0;
+  let data = COMPANY_DATA;
+  if (batch !== 'all') data = data.filter(d=>d.batch==batch);
+  if (ind !== 'all') data = data.filter(d=>d.industry===ind);
+  if (loc !== 'all') data = data.filter(d=>d.location===loc);
+  // Merge same company across industries
+  const merged = {};
+  data.forEach(d=>{
+    if (!merged[d.company]) merged[d.company]={company:d.company,industry:d.industry,jobs:0,active:0,location:d.location};
+    merged[d.company].jobs+=d.jobs;
+    merged[d.company].active+=d.active;
+  });
+  return Object.values(merged).filter(d=>d.jobs>=min).sort((a,b)=>b.jobs-a.jobs);
+}
+
+function getPresenceData() {
+  const counts = {};
+  [20260416,20260417,20260419].forEach(b=>{
+    const inBatch = new Set(COMPANY_DATA.filter(d=>d.batch===b).map(d=>d.company));
+    inBatch.forEach(c=>{ counts[c]=(counts[c]||0)+1; });
+  });
+  const multi = Object.entries(counts).filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return multi;
+}
+
+function updateKPIs(data) {
+  const total = data.reduce((s,d)=>s+d.jobs,0);
+  const top = data[0];
+  const top5 = data.slice(0,5).reduce((s,d)=>s+d.jobs,0);
+  document.getElementById('kTop').textContent = top?.company||'-';
+  document.getElementById('kTopSub').textContent = top?`${top.jobs.toLocaleString()} jobs`:'-';
+  document.getElementById('kCount').textContent = data.length;
+  document.getElementById('kAvg').textContent = data.length?Math.round(total/data.length).toLocaleString():'0';
+  document.getElementById('kTop5').textContent = total?Math.round(top5/total*100)+'%':'0%';
+}
+
+const AVATAR_COLORS = ['#ea580c','#2563eb','#7c3aed','#059669','#0891b2','#f59e0b','#ef4444','#6d28d9'];
+
+function drawCompBar(data) {
+  const ctx = document.getElementById('compBar').getContext('2d');
+  if (cBar2) cBar2.destroy();
+  const top20 = data.slice(0,20);
+  cBar2 = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:top20.map(d=>d.company),
+      datasets:[{
+        label:'Jobs',
+        data:top20.map(d=>d.jobs),
+        backgroundColor:top20.map(d=>IND_COLORS[d.industry]||'#ea580c'),
+        borderRadius:4,borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x.toLocaleString()} jobs`}}},
+      scales:{x:{grid:{color:'#f1f5f9'},ticks:{callback:v=>v>=1000?v/1000+'k':v}},y:{grid:{display:false},ticks:{font:{size:11}}}}
+    }
+  });
+}
+
+function drawIndDoughnut(data) {
+  const ctx = document.getElementById('indDoughnut').getContext('2d');
+  if (dDoughnut) dDoughnut.destroy();
+  const dm = {};
+  data.forEach(d=>{ dm[d.industry]=(dm[d.industry]||0)+d.jobs; });
+  const top8 = Object.entries(dm).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  dDoughnut = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:top8.map(e=>e[0]),
+      datasets:[{data:top8.map(e=>e[1]),backgroundColor:top8.map(e=>IND_COLORS[e[0]]||'#64748b'),borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},padding:4}}}}
+  });
+}
+
+function drawPresenceBar() {
+  const ctx = document.getElementById('presenceBar').getContext('2d');
+  if (presBar) presBar.destroy();
+  const multi = getPresenceData();
+  presBar = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:multi.map(e=>e[0]),
+      datasets:[{label:'Batches present in',data:multi.map(e=>e[1]),backgroundColor:'#ea580c',borderRadius:4,borderSkipped:false}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f1f5f9'},max:3,ticks:{stepSize:1}},x:{grid:{display:false},ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function drawScaleBar(data) {
+  const ctx = document.getElementById('scaleBar').getContext('2d');
+  if (scaleBar2) scaleBar2.destroy();
+  const tiers = {'500+':0,'200-499':0,'100-199':0,'50-99':0,'10-49':0,'<10':0};
+  data.forEach(d=>{
+    if(d.jobs>=500) tiers['500+']++;
+    else if(d.jobs>=200) tiers['200-499']++;
+    else if(d.jobs>=100) tiers['100-199']++;
+    else if(d.jobs>=50) tiers['50-99']++;
+    else if(d.jobs>=10) tiers['10-49']++;
+    else tiers['<10']++;
+  });
+  scaleBar2 = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:Object.keys(tiers),
+      datasets:[{label:'Companies',data:Object.values(tiers),backgroundColor:['#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'],borderRadius:4,borderSkipped:false}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f1f5f9'},ticks:{stepSize:1}},x:{grid:{display:false}}}
+    }
+  });
+}
+
+function drawTable(data) {
+  const maxJobs = data[0]?.jobs||1;
+  const tbody = document.getElementById('compTable');
+  tbody.innerHTML = data.map((d,i)=>{
+    const barW = Math.round(d.jobs/maxJobs*100);
+    const initials = d.company.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const scale = d.jobs>=500?'<span class="pill p-blue">Enterprise</span>':d.jobs>=100?'<span class="pill p-orange">Large</span>':d.jobs>=20?'<span class="pill p-green">Mid</span>':'<span class="pill p-gray">Small</span>';
+    return `<tr>
+      <td style="color:#94a3b8;font-size:12px">${i+1}</td>
+      <td><div class="company-cell"><div class="avatar" style="background:${AVATAR_COLORS[i%8]}">${initials}</div><strong>${d.company}</strong></div></td>
+      <td style="font-size:12px;color:#64748b">${d.industry}</td>
+      <td><strong>${d.jobs.toLocaleString()}</strong></td>
+      <td>${d.active.toLocaleString()}</td>
+      <td><div class="bar-inline"><div class="bar-fill" style="width:${barW}%"></div></div></td>
+      <td>${scale}</td>
+    </tr>`;
+  }).join('');
+}
+
+function applyFilters() {
+  const data = getFilteredData();
+  updateKPIs(data);
+  drawCompBar(data);
+  drawIndDoughnut(data);
+  drawScaleBar(data);
+  drawTable(data);
+}
+
+populateFilters();
+applyFilters();
+drawPresenceBar();
+</script>
+</body>
+</html>

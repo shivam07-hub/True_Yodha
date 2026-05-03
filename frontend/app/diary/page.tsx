@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { NextMissionCard } from "@/components/diary/next-mission-card"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { ForgeSession } from "@/components/diary/forge-session"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
@@ -316,6 +317,7 @@ function DiaryPageInner() {
   const [missionLogged,    setMissionLogged]    = useState(false)
   const [missionCompleted, setMissionCompleted] = useState(false)
   const [missionDismissed, setMissionDismissed] = useState(false)
+  const [forgeMode, setForgeMode] = useState(false)
 
   const jobId = searchParams.get("jobId")
   const milestoneId = searchParams.get("milestoneId")
@@ -354,6 +356,19 @@ function DiaryPageInner() {
     enabled: !!token && !!jobId,
   })
 
+  const applicationsQuery = useQuery({
+    queryKey: dataKeys.applications(token),
+    queryFn: () => jobs.applications(token!),
+    enabled: !!token,
+  })
+
+  // Derive next-due job milestone early so mutations can reference it
+  const _rawMilestones = milestonesQuery.data?.milestones ?? []
+  const nextJobMilestone = _rawMilestones
+    .filter((m) => m.source_type === "job" && !m.completed_at)
+    .sort((a, b) => a.milestone_date.localeCompare(b.milestone_date))[0] ?? null
+  const activeJobId = jobId ?? nextJobMilestone?.job_id ?? null
+
   const saveEntry = useMutation({
     mutationFn: () => diary.createEntry(token!, entryText),
     onMutate: () => setError(null),
@@ -382,9 +397,9 @@ function DiaryPageInner() {
 
   const saveJobMilestone = useMutation({
     mutationFn: () => {
-      const activeMilestoneId = milestoneId ?? jobMilestone?.id
-      if (!jobId || !activeMilestoneId) throw new Error("Missing job milestone")
-      return jobs.updateMilestone(token!, jobId, activeMilestoneId, {
+      const activeMilestoneId = milestoneId ?? jobMilestone?.id ?? nextJobMilestone?.id
+      if (!activeJobId || !activeMilestoneId) throw new Error("Missing job milestone")
+      return jobs.updateMilestone(token!, activeJobId, activeMilestoneId, {
         proof: jobProof,
         impact: jobImpact || null,
         confidence: jobConfidence / 5,
@@ -396,7 +411,8 @@ function DiaryPageInner() {
       setJobProof("")
       setJobImpact("")
       setMissionCompleted(true)
-      invalidateJobPathData(queryClient, jobId, token)
+      invalidateJobPathData(queryClient, activeJobId, token)
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save job milestone"),
@@ -413,6 +429,25 @@ function DiaryPageInner() {
   const jobMilestone = milestoneId
     ? jobPathQuery.data?.milestones.find((milestone) => milestone.id === milestoneId) ?? null
     : jobPathQuery.data?.today_milestone ?? null
+
+  // Job milestones list (item #5) — all job-path milestones, most recent first
+  const allJobMilestones = persistedMilestones.filter((m) => m.source_type === "job")
+
+  // Application lookup for job title/company resolution
+  const appsByJobId = new Map(
+    (applicationsQuery.data ?? []).map((a) => [a.job_id, a])
+  )
+  const activeApp = activeJobId ? appsByJobId.get(activeJobId) : undefined
+
+  // Unified mission for NextMissionCard — jobPath takes priority when URL param set
+  const activeMission = jobMilestone
+    ? jobMilestone
+    : nextJobMilestone
+    ? { id: nextJobMilestone.id, title: nextJobMilestone.skill ?? "Skill", action: nextJobMilestone.task, completed_at: nextJobMilestone.completed_at }
+    : null
+  const activeMissionJobTitle = jobId ? (jobPathQuery.data?.job_title ?? undefined) : (activeApp?.title ?? undefined)
+  const activeMissionCompany = jobId ? (jobPathQuery.data?.company ?? undefined) : (activeApp?.company ?? undefined)
+  const activeMissionReadiness = jobId ? jobPathQuery.data?.readiness_pct : undefined
 
   const ACHIEVEMENTS = [
     { label: "CV Analysed",    done: entries.length > 0 || !!scoresQuery.data, icon: "◈" },
@@ -489,13 +524,33 @@ function DiaryPageInner() {
     })
   }
 
-  const prefillText = jobMilestone
-    ? `Working on: ${jobMilestone.title}\n\nTask: ${jobMilestone.action}\n\nProgress today: `
+  const prefillText = activeMission
+    ? `Working on: ${activeMission.title}\n\nTask: ${activeMission.action}\n\nProgress today: `
     : ""
 
   // Today index (0=Mon … 6=Sun)
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
   const todayTask = weekPlan[todayIdx]?.task ?? "Log your progress"
+
+  const forgeMilestones = jobPathQuery.data?.milestones ?? []
+  const forgeSkill = jobPathQuery.data?.target_skills?.[0]?.skill ?? gapSkills[0]?.skill ?? "Skill"
+  const forgeLevel = 1
+
+  if (forgeMode && forgeMilestones.length > 0) {
+    return (
+      <ForgeSession
+        skillName={forgeSkill}
+        currentLevel={forgeLevel}
+        milestones={forgeMilestones}
+        jobName={jobPathQuery.data?.company ?? jobPathQuery.data?.job_title}
+        onStepComplete={(milestoneId, proof) => {
+          jobs.updateMilestone(token!, jobId!, milestoneId, { proof, completed: true })
+            .then(() => { queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) }) })
+        }}
+        onSessionEnd={() => setForgeMode(false)}
+      />
+    )
+  }
 
   return (
     <AppShell>
@@ -509,7 +564,19 @@ function DiaryPageInner() {
           padding: "14px 32px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <div className="tm-label-caps">Diary & Achievements</div>
+            <div className="tm-label-caps">Forge · Progress</div>
+            <button
+              onClick={() => setForgeMode(true)}
+              style={{
+                marginLeft: "auto", padding: "5px 14px", borderRadius: "var(--tm-radius-pill)",
+                background: "linear-gradient(135deg, #060C1A, #0B1424)",
+                border: "1px solid rgba(0,245,212,0.4)",
+                color: "#00F5D4", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "0 0 12px rgba(0,245,212,0.2)",
+              }}
+            >
+              ◑ Enter Forge Mode
+            </button>
             {streak >= 3 && (
               <span className="tm-pill tm-pill-warning">🔥 {streak}-day streak</span>
             )}
@@ -560,14 +627,14 @@ function DiaryPageInner() {
 
           <CVRequiredNudge hasCv={hasCv} feature="personalised milestones" />
 
-          {jobId && (
+          {activeMission && (
             <NextMissionCard
-              mission={jobMilestone}
-              jobTitle={jobPathQuery.data?.job_title ?? undefined}
-              company={jobPathQuery.data?.company ?? undefined}
-              readinessPct={jobPathQuery.data?.readiness_pct}
+              mission={activeMission}
+              jobTitle={activeMissionJobTitle}
+              company={activeMissionCompany}
+              readinessPct={activeMissionReadiness}
               isLogged={missionLogged}
-              isCompleted={missionCompleted || !!jobMilestone?.completed_at}
+              isCompleted={missionCompleted || !!activeMission?.completed_at}
               isDismissed={missionDismissed}
               completeError={saveJobMilestone.isError ? (saveJobMilestone.error instanceof Error ? saveJobMilestone.error.message : "Could not mark complete") : null}
               onLogProgress={() => {
@@ -736,6 +803,58 @@ function DiaryPageInner() {
               </div>
             </div>
           </div>
+
+          {/* ── Job Path Milestones ─────────────────────────────── */}
+          {allJobMilestones.length > 0 && (
+            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+              <div className="tm-label-caps" style={{ marginBottom: 12 }}>Job Path Milestones</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {allJobMilestones.map((m) => {
+                  const app = m.job_id ? appsByJobId.get(m.job_id) : undefined
+                  const isDone = !!m.completed_at
+                  return (
+                    <div key={m.id} style={{
+                      display: "flex", alignItems: "flex-start", gap: 10,
+                      padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+                      background: isDone ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+                      border: `1px solid ${isDone ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                      opacity: isDone ? 0.7 : 1,
+                    }}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+                        border: `1.5px solid ${isDone ? "var(--tm-accent)" : "var(--tm-border)"}`,
+                        background: isDone ? "var(--tm-accent-wash)" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 9, color: isDone ? "var(--tm-accent)" : "transparent",
+                      }}>
+                        {isDone ? "✓" : ""}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: isDone ? "var(--tm-text-faint)" : "var(--tm-text)", textDecoration: isDone ? "line-through" : "none", lineHeight: 1.4 }}>
+                          {m.task}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                          {m.skill && (
+                            <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", color: "var(--tm-accent)", border: "1px solid var(--tm-accent-ring)" }}>
+                              {m.skill}
+                            </span>
+                          )}
+                          {app && (
+                            <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                              {app.title}{app.company ? ` @ ${app.company}` : ""}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 11, color: "var(--tm-text-faint)", marginLeft: "auto" }}>
+                            {m.milestone_date}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── Learning Diary ──────────────────────────────────── */}
           <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>

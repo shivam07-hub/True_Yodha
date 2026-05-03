@@ -63,6 +63,7 @@ agency-agents/
 graphify-out/
 Screenshot*.png
 *.png
+!frontend/public/newsletter/*.png
 
 # Claude Code settings — local only
 .claude/

@@ -83,7 +83,7 @@ class DiaryRepository:
     def list_job_application_milestones(self, user_id: str, limit: int) -> list[dict[str, Any]]:
         result = (
             self._db.table("job_application_milestones")
-            .select("id, milestone_date, skill, title, action, proof, impact, confidence, completed_at, created_at, updated_at")
+            .select("id, job_id, milestone_date, skill, title, action, proof, impact, confidence, completed_at, created_at, updated_at")
             .eq("user_id", user_id)
             .order("milestone_date", desc=True)
             .limit(limit)

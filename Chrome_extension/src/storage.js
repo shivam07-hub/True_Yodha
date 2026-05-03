@@ -1,7 +1,7 @@
 const DEFAULT_API_URL = "http://localhost:8000"
 const STORAGE_KEYS = {
-  apiUrl: "mirko_api_url",
-  token: "mirko_token",
+  apiUrl: "myro_api_url",
+  token: "myro_token",
 }
 
 function hasChromeStorage() {

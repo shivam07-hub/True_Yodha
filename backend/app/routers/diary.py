@@ -99,6 +99,7 @@ def _to_diary_response(
 def _to_milestone_response(row: dict) -> MilestoneResponse:
     return MilestoneResponse(
         id=row["id"],
+        job_id=row.get("job_id"),
         milestone_date=row["milestone_date"],
         skill=row.get("skill"),
         task=row["task"],

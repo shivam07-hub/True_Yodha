@@ -1,0 +1,167 @@
+"use client"
+
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { AppShell } from "@/components/app-shell"
+import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
+import { DomainRadar } from "@/components/skills/domain-radar"
+import { users } from "@/lib/api"
+import type { UserSkillsByDomain } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { useAuth } from "@/lib/hooks/use-auth"
+
+const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
+
+export default function SkillsPage() {
+  const { token } = useAuth()
+  const [view, setView] = useState<"tree" | "radar">("tree")
+  const [activeDomain, setActiveDomain] = useState<string | null>(null)
+
+  const { data: userSkills, isLoading } = useQuery({
+    queryKey: dataKeys.userSkills(token),
+    queryFn: () => users.mySkills(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const skills = userSkills ?? EMPTY_SKILLS
+  const totalSkills = Object.values(skills.by_domain).flat().length
+  const levellingCount = Object.values(skills.by_domain).flat().filter(s => s.level > 0 && s.level < 5).length
+  const proofCount = Object.values(skills.by_domain).flat().filter(s => s.evidence_text).length
+
+  const activeDomainSkills = activeDomain ? (skills.by_domain[activeDomain] ?? []) : []
+
+  return (
+    <AppShell>
+      <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6, opacity: 0.8 }}>
+              YOUR CONSTELLATION
+            </div>
+            <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
+              Skill Map
+            </h1>
+            <p style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 4 }}>
+              {totalSkills} skills · {proofCount} with proof · {levellingCount} actively levelling
+            </p>
+          </div>
+
+          {/* View toggle */}
+          <div className="tm-segment-toggle">
+            <button aria-pressed={view === "tree"} onClick={() => setView("tree")}>⬡ Skill Tree</button>
+            <button aria-pressed={view === "radar"} onClick={() => setView("radar")}>◈ Domain Radar</button>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+          {Object.entries(skills.by_domain).map(([domain, items]) => {
+            const avg = items.length > 0 ? Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20) : 0
+            const isActive = activeDomain === domain
+            return (
+              <button key={domain} onClick={() => setActiveDomain(isActive ? null : domain)}
+                style={{
+                  padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
+                  background: isActive ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${isActive ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  textAlign: "left", fontFamily: "inherit",
+                  transition: "all 200ms var(--tm-ease)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text)", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{domain}</div>
+                <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>{items.length} skills · {avg}%</div>
+                <div style={{ height: 2, background: "var(--tm-border)", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${avg}%`, background: "var(--tm-accent)", borderRadius: 99, transition: "width 600ms var(--tm-ease)" }} />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Main visualization */}
+        <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden" }}>
+          {isLoading ? (
+            <div style={{ height: 560, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: 14 }}>
+              Loading your skill constellation…
+            </div>
+          ) : totalSkills === 0 ? (
+            <div style={{ height: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+              <div style={{ fontSize: 40 }}>⬡</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped yet</div>
+              <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV to generate your personal skill constellation</div>
+            </div>
+          ) : view === "tree" ? (
+            <div style={{ padding: "20px 10px" }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", padding: "0 14px 10px", display: "flex", gap: 20 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)" }} />
+                  L1 Domain
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "inline-block", width: 8, height: 3, background: "var(--tm-border)", borderRadius: 99 }} />
+                  Derived connection
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ display: "inline-block", width: 8, height: 1, background: "var(--tm-accent)", borderRadius: 99, opacity: 0.5 }} />
+                  CV reference
+                </span>
+              </div>
+              <OrganicSkillGraph userSkills={skills} />
+            </div>
+          ) : (
+            <div style={{ padding: "28px 32px" }}>
+              <DomainRadar userSkills={skills} onDomainClick={d => setActiveDomain(a => a === d ? null : d)} activeDomain={activeDomain} />
+            </div>
+          )}
+        </div>
+
+        {/* Domain drill-down */}
+        {activeDomain && activeDomainSkills.length > 0 && (
+          <div style={{ marginTop: 16, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius)", padding: "20px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>DOMAIN DRILL-DOWN</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{activeDomain}</div>
+              </div>
+              <button onClick={() => setActiveDomain(null)} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text-faint)", cursor: "pointer", padding: "5px 12px", fontSize: 12, fontFamily: "inherit" }}>
+                ✕ Close
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+              {activeDomainSkills.map(skill => (
+                <div key={skill.key} style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>{skill.proficiency_title}</div>
+                  <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(skill.level / 5) * 100}%`, background: skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)", borderRadius: 99 }} />
+                  </div>
+                  {skill.evidence_text ? (
+                    <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
+                  ) : (
+                    <div style={{ fontSize: 10, color: "var(--tm-warning)", marginTop: 6, fontStyle: "italic" }}>No proof · keyword-inferred</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Legend */}
+        <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,255,255,0.01)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", display: "flex", gap: 24, flexWrap: "wrap" }}>
+          {["Proof logged from CV (dashed ← back to You)", "Derived connection (amber, cross-domain)", "Skill tree edge (white faint)"].map((leg, i) => (
+            <div key={i} style={{ fontSize: 11, color: "var(--tm-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 16, height: 1.5, display: "inline-block", background: i === 0 ? "var(--tm-accent)" : i === 1 ? "var(--tm-warning)" : "rgba(255,255,255,0.2)", borderRadius: 99 }} />
+              {leg}
+            </div>
+          ))}
+        </div>
+      </div>
+    </AppShell>
+  )
+}

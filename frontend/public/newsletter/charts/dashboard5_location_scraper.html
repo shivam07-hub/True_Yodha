@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D5 — Location Trends & Scraper Health | True Yodha</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+  .header{background:linear-gradient(135deg,#0f4c75,#1b6ca8);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:22px;font-weight:600}
+  .header .sub{font-size:13px;opacity:0.75;margin-top:2px}
+  .badge{background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+  .section-header{background:#e0f2fe;padding:8px 32px;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #bae6fd}
+  .filters{background:#fff;padding:14px 32px;display:flex;gap:12px;align-items:center;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+  .filters label{font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px}
+  select{padding:6px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;cursor:pointer;min-width:140px}
+  select:focus{outline:none;border-color:#0891b2}
+  .container{padding:24px 32px;max-width:1400px;margin:0 auto}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+  .kpi{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #0891b2}
+  .kpi.green{border-left-color:#10b981}.kpi.amber{border-left-color:#f59e0b}.kpi.red{border-left-color:#ef4444}.kpi.purple{border-left-color:#7c3aed}
+  .kpi-label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px}
+  .kpi-value{font-size:26px;font-weight:700;color:#1e293b;margin:4px 0 2px}
+  .kpi-sub{font-size:11px;color:#94a3b8}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  .grid-r{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:20px}
+  .card h2{font-size:14px;font-weight:600;color:#374151;margin-bottom:16px}
+  .card h2 span{font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px}
+  .chart-h300{position:relative;height:300px}
+  .chart-h220{position:relative;height:220px}
+  .section-divider{font-size:13px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:1px;padding:8px 0;margin:8px 0 16px;border-bottom:2px solid #e0f2fe}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+  td{padding:9px 12px;border-bottom:1px solid #f1f5f9}
+  tr:hover td{background:#f0f9ff}
+  .bar-inline{height:6px;background:#e2e8f0;border-radius:3px}
+  .bar-fill{height:100%;border-radius:3px;background:#0891b2}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+  .p-blue{background:#dbeafe;color:#1d4ed8}.p-green{background:#d1fae5;color:#065f46}
+  .p-red{background:#fee2e2;color:#991b1b}.p-amber{background:#fef3c7;color:#92400e}.p-gray{background:#f1f5f9;color:#475569}
+  .health-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot-green{background:#10b981}.dot-amber{background:#f59e0b}.dot-red{background:#ef4444}
+  .progress-wrap{display:flex;align-items:center;gap:8px}
+  .progress-track{flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:3px}
+  .fill-green{background:#10b981}.fill-amber{background:#f59e0b}.fill-red{background:#ef4444}
+  .footer{text-align:center;padding:16px;font-size:11px;color:#94a3b8}
+  .note{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Dashboard 5 — Location Trends &amp; Scraper Health</h1>
+    <div class="sub">True Yodha · Geographic distribution of jobs + pipeline monitoring</div>
+  </div>
+  <div class="badge">India-First Market</div>
+</div>
+
+<div class="filters">
+  <label>Batch Date</label>
+  <select id="fDate" onchange="applyFilters()">
+    <option value="20260419" selected>Apr 19, 2026</option>
+    <option value="all">All Dates</option>
+  </select>
+  <label>Industry</label>
+  <select id="fInd" onchange="applyFilters()">
+    <option value="all">All Industries</option>
+    <option value="BFSI">BFSI</option>
+    <option value="IT">IT / Technology</option>
+    <option value="Pharmaceutical">Pharmaceutical</option>
+    <option value="Logistics">Logistics</option>
+  </select>
+  <label>ATS (Scraper)</label>
+  <select id="fATS" onchange="filterScraper()">
+    <option value="all">All ATS</option>
+    <option value="workday">Workday</option>
+    <option value="greenhouse">Greenhouse</option>
+    <option value="smartrecruiters">SmartRecruiters</option>
+    <option value="lever">Lever</option>
+    <option value="oracle">Oracle</option>
+    <option value="sap">SAP</option>
+    <option value="eightfold">Eightfold</option>
+    <option value="custom">Custom</option>
+    <option value="other">Other</option>
+  </select>
+</div>
+
+<div class="container">
+
+  <!-- LOCATION SECTION -->
+  <div class="section-divider">Location Intelligence</div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Top City</div><div class="kpi-value" style="font-size:18px">Bangalore</div><div class="kpi-sub">~2,000+ jobs (all variants)</div></div>
+    <div class="kpi green"><div class="kpi-label">India Jobs</div><div class="kpi-value">1,068</div><div class="kpi-sub">Direct "India" location tag</div></div>
+    <div class="kpi amber"><div class="kpi-label">Global Coverage</div><div class="kpi-value">12+</div><div class="kpi-sub">Countries represented</div></div>
+    <div class="kpi purple"><div class="kpi-label">Unique Locations</div><div class="kpi-value">100+</div><div class="kpi-sub">Distinct location strings</div></div>
+  </div>
+
+  <div class="note">Note: Location data has many variants of the same city (e.g. "Bangalore", "Bengaluru", "Bangalore, India", "IND-KA-BANGALORE"). Totals below show deduplicated city-level groupings.</div>
+
+  <div class="grid-r">
+    <div class="card">
+      <h2>Top Locations by Job Count <span>Apr 19 batch — consolidated city view</span></h2>
+      <div class="chart-h300"><canvas id="locBar"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>India vs Global Split <span>Job distribution by geography</span></h2>
+      <div class="chart-h300"><canvas id="geoDonut"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Top Indian Cities <span>Consolidated across naming variants</span></h2>
+      <div class="chart-h220"><canvas id="indiaBar"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Global Hubs <span>International job locations</span></h2>
+      <div class="chart-h220"><canvas id="globalBar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Location Breakdown Table <span>Top 30 locations with job counts</span></h2>
+    <table>
+      <thead><tr><th>#</th><th>Location (raw)</th><th>Jobs</th><th>Companies</th><th>Industries</th><th>Volume</th><th>Region</th></tr></thead>
+      <tbody id="locTable"></tbody>
+    </table>
+  </div>
+
+  <!-- SCRAPER SECTION -->
+  <div class="section-divider" style="margin-top:32px">Scraper Health — Apr 28, 2026</div>
+
+  <div class="kpi-grid">
+    <div class="kpi green"><div class="kpi-label">Total Raw Fetched</div><div class="kpi-value" id="kRaw">1,782</div><div class="kpi-sub">Today's scrape run</div></div>
+    <div class="kpi"><div class="kpi-label">Saved New Jobs</div><div class="kpi-value" id="kSaved">715</div><div class="kpi-sub">Net new to DB</div></div>
+    <div class="kpi amber"><div class="kpi-label">Save Rate</div><div class="kpi-value" id="kRate">40%</div><div class="kpi-sub">Saved / Raw fetched</div></div>
+    <div class="kpi red"><div class="kpi-label">Failed Runs</div><div class="kpi-value" id="kFail">98</div><div class="kpi-sub">Need investigation</div></div>
+    <div class="kpi purple"><div class="kpi-label">Companies Scraped</div><div class="kpi-value" id="kCo">120</div><div class="kpi-sub">Today's run</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>ATS Platform Distribution <span>Jobs by applicant tracking system</span></h2>
+      <div class="chart-h220"><canvas id="atsBar"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Save Rate by ATS <span>Efficiency: saved ÷ raw fetched</span></h2>
+      <div class="chart-h220"><canvas id="saveRateBar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scraper Run Details <span>Apr 28, 2026 — company-level</span></h2>
+    <table>
+      <thead><tr><th>Company</th><th>ATS</th><th>Scope</th><th>Runs</th><th>Success</th><th>Failures</th><th>Raw</th><th>Saved</th><th>Save Rate</th><th>Health</th></tr></thead>
+      <tbody id="scraperTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">True Yodha · Myro Newsletter · Location data from Apr 19 batch · Scraper data from Apr 28, 2026</div>
+
+<script>
+const LOCATION_DATA = [
+  {loc:"India (generic)",city:"India",jobs:1068,companies:11,industries:10,region:"India"},
+  {loc:"Bangalore (all variants)",city:"Bangalore",jobs:996,companies:20,industries:14,region:"India"},
+  {loc:"Pune (all variants)",city:"Pune",jobs:768,companies:5,industries:5,region:"India"},
+  {loc:"Bengaluru (variants)",city:"Bengaluru",jobs:404,companies:12,industries:8,region:"India"},
+  {loc:"Hyderabad (all variants)",city:"Hyderabad",jobs:396,companies:8,industries:7,region:"India"},
+  {loc:"Noida (all variants)",city:"Noida",jobs:250,companies:4,industries:3,region:"India"},
+  {loc:"Chennai (all variants)",city:"Chennai",jobs:226,companies:8,industries:8,region:"India"},
+  {loc:"Mumbai",city:"Mumbai",jobs:61,companies:9,industries:7,region:"India"},
+  {loc:"Gurgaon",city:"Gurgaon",jobs:32,companies:1,industries:1,region:"India"},
+  {loc:"Marseille",city:"Marseille",jobs:71,companies:2,industries:2,region:"Europe"},
+  {loc:"Gentilly",city:"Gentilly",jobs:68,companies:1,industries:1,region:"Europe"},
+  {loc:"Dublin",city:"Dublin",jobs:65,companies:4,industries:4,region:"Europe"},
+  {loc:"Toronto",city:"Toronto",jobs:52,companies:4,industries:4,region:"Americas"},
+  {loc:"Singapore",city:"Singapore",jobs:49,companies:3,industries:3,region:"APAC"},
+  {loc:"San Francisco",city:"San Francisco",jobs:48,companies:2,industries:2,region:"Americas"},
+  {loc:"Mountain View",city:"Mountain View",jobs:47,companies:1,industries:1,region:"Americas"},
+  {loc:"Saint-Bruno",city:"Saint-Bruno",jobs:47,companies:1,industries:1,region:"Americas"},
+  {loc:"Budapest",city:"Budapest",jobs:46,companies:2,industries:1,region:"Europe"},
+  {loc:"Santa Clara",city:"Santa Clara",jobs:45,companies:1,industries:1,region:"Americas"},
+  {loc:"Barcelona",city:"Barcelona",jobs:45,companies:4,industries:4,region:"Europe"},
+  {loc:"Marcy-l'Etoile",city:"Marcy-l'Etoile",jobs:44,companies:1,industries:1,region:"Europe"},
+  {loc:"East Hanover",city:"East Hanover",jobs:36,companies:1,industries:1,region:"Americas"},
+  {loc:"Frankfurt",city:"Frankfurt",jobs:34,companies:1,industries:1,region:"Europe"},
+  {loc:"Tokyo",city:"Tokyo",jobs:33,companies:2,industries:2,region:"APAC"},
+  {loc:"Val-de-Reuil",city:"Val-de-Reuil",jobs:31,companies:1,industries:1,region:"Europe"},
+  {loc:"Vitry-sur-Seine",city:"Vitry-sur-Seine",jobs:31,companies:1,industries:1,region:"Europe"},
+  {loc:"London",city:"London",jobs:29,companies:5,industries:5,region:"Europe"},
+  {loc:"New York",city:"New York",jobs:28,companies:3,industries:3,region:"Americas"},
+  {loc:"Chicago",city:"Chicago",jobs:38,companies:2,industries:2,region:"Americas"},
+  {loc:"2 Locations (mixed)",city:"Multiple",jobs:136,companies:9,industries:6,region:"Mixed"},
+];
+
+const SCRAPER_DATA = [
+  {company:"Salesforce",ats:"workday",scope:"india",raw:524,saved:181,runs:6,success:6,fail:0},
+  {company:"Stripe",ats:"greenhouse",scope:"india",raw:192,saved:64,runs:6,success:3,fail:3},
+  {company:"ServiceNow",ats:"smartrecruiters",scope:"india",raw:67,saved:31,runs:5,success:5,fail:0},
+  {company:"Amazon",ats:"custom",scope:"india",raw:15,saved:13,runs:3,success:3,fail:0},
+  {company:"LTIMindtree",ats:"other",scope:"india",raw:10,saved:10,runs:3,success:2,fail:1},
+  {company:"PepsiCo",ats:"sap",scope:"india",raw:10,saved:10,runs:3,success:2,fail:1},
+  {company:"Barclays",ats:"workday",scope:"india",raw:15,saved:9,runs:3,success:3,fail:0},
+  {company:"BNY Mellon",ats:"oracle",scope:"india",raw:10,saved:7,runs:3,success:2,fail:1},
+  {company:"Micron Technology",ats:"eightfold",scope:"india",raw:7,saved:7,runs:3,success:2,fail:1},
+  {company:"Novartis",ats:"workday",scope:"india",raw:15,saved:7,runs:3,success:3,fail:0},
+  {company:"Autodesk",ats:"workday",scope:"india",raw:15,saved:7,runs:3,success:3,fail:0},
+  {company:"Wells Fargo",ats:"workday",scope:"india",raw:15,saved:8,runs:3,success:3,fail:0},
+  {company:"LDC (Louis Dreyfus)",ats:"smartrecruiters",scope:"india",raw:15,saved:6,runs:3,success:3,fail:0},
+  {company:"Maersk",ats:"workday",scope:"india",raw:15,saved:6,runs:3,success:3,fail:0},
+  {company:"Intel",ats:"workday",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"BlackBerry",ats:"workday",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Target",ats:"workday",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Philips",ats:"workday",scope:"india",raw:15,saved:6,runs:3,success:3,fail:0},
+  {company:"DXC Technology",ats:"workday",scope:"india",raw:15,saved:6,runs:3,success:3,fail:0},
+  {company:"Paytm",ats:"lever",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"CRED",ats:"lever",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Haleon",ats:"workday",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Accenture",ats:"workday",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Meesho",ats:"lever",scope:"india",raw:15,saved:5,runs:3,success:3,fail:0},
+  {company:"Bain & Company",ats:"other",scope:"india",raw:10,saved:7,runs:3,success:2,fail:1},
+  {company:"EY Parthenon",ats:"other",scope:"india",raw:10,saved:6,runs:3,success:2,fail:1},
+  {company:"Credila",ats:"other",scope:"india",raw:10,saved:5,runs:3,success:2,fail:1},
+  {company:"Kearney",ats:"other",scope:"india",raw:10,saved:5,runs:3,success:2,fail:1},
+  {company:"JP Morgan Chase",ats:"oracle",scope:"india",raw:10,saved:5,runs:3,success:2,fail:1},
+  {company:"Citibank",ats:"eightfold",scope:"india",raw:10,saved:5,runs:3,success:2,fail:1},
+];
+
+const REGION_COLORS = {'India':'#f59e0b','Europe':'#2563eb','Americas':'#10b981','APAC':'#7c3aed','Mixed':'#94a3b8'};
+const ATS_COLORS = {'workday':'#2563eb','greenhouse':'#059669','smartrecruiters':'#ea580c','lever':'#7c3aed','oracle':'#dc2626','sap':'#0891b2','eightfold':'#d97706','custom':'#64748b','other':'#94a3b8'};
+
+let lBar, gDt, iBar2, glBar, atsBar2, srBar, scraperChart;
+
+function drawLocBar() {
+  const ctx = document.getElementById('locBar').getContext('2d');
+  if (lBar) lBar.destroy();
+  const top15 = LOCATION_DATA.slice(0,15);
+  lBar = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:top15.map(d=>d.loc.length>25?d.loc.substring(0,25)+'…':d.loc),
+      datasets:[{label:'Jobs',data:top15.map(d=>d.jobs),backgroundColor:top15.map(d=>REGION_COLORS[d.region]||'#64748b'),borderRadius:4,borderSkipped:false}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x.toLocaleString()} jobs — ${top15[c.dataIndex].region}`}}},
+      scales:{x:{grid:{color:'#f1f5f9'},ticks:{callback:v=>v>=1000?v/1000+'k':v}},y:{grid:{display:false},ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function drawGeoDonut() {
+  const ctx = document.getElementById('geoDonut').getContext('2d');
+  if (gDt) gDt.destroy();
+  const regions = {};
+  LOCATION_DATA.forEach(d=>{ regions[d.region]=(regions[d.region]||0)+d.jobs; });
+  const entries = Object.entries(regions).sort((a,b)=>b[1]-a[1]);
+  gDt = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:entries.map(e=>e[0]),datasets:[{data:entries.map(e=>e[1]),backgroundColor:entries.map(e=>REGION_COLORS[e[0]]||'#64748b'),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}}}
+  });
+}
+
+function drawIndiaBar() {
+  const ctx = document.getElementById('indiaBar').getContext('2d');
+  if (iBar2) iBar2.destroy();
+  const india = LOCATION_DATA.filter(d=>d.region==='India').sort((a,b)=>b.jobs-a.jobs);
+  iBar2 = new Chart(ctx, {
+    type:'bar',
+    data:{labels:india.map(d=>d.city),datasets:[{label:'Jobs',data:india.map(d=>d.jobs),backgroundColor:'#f59e0b',borderRadius:4,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f1f5f9'},ticks:{callback:v=>v>=1000?v/1000+'k':v}},x:{grid:{display:false},ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function drawGlobalBar() {
+  const ctx = document.getElementById('globalBar').getContext('2d');
+  if (glBar) glBar.destroy();
+  const global = LOCATION_DATA.filter(d=>d.region!=='India'&&d.region!=='Mixed').sort((a,b)=>b.jobs-a.jobs).slice(0,12);
+  glBar = new Chart(ctx, {
+    type:'bar',
+    data:{labels:global.map(d=>d.city),datasets:[{label:'Jobs',data:global.map(d=>d.jobs),backgroundColor:global.map(d=>REGION_COLORS[d.region]||'#64748b'),borderRadius:4,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} jobs — ${global[c.dataIndex].region}`}}},
+      scales:{y:{grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10},maxRotation:35}}}
+    }
+  });
+}
+
+function drawATSBar(data) {
+  const ctx = document.getElementById('atsBar').getContext('2d');
+  if (atsBar2) atsBar2.destroy();
+  const ats = {};
+  data.forEach(d=>{ ats[d.ats]=(ats[d.ats]||0)+d.raw; });
+  const entries = Object.entries(ats).sort((a,b)=>b[1]-a[1]);
+  atsBar2 = new Chart(ctx, {
+    type:'bar',
+    data:{labels:entries.map(e=>e[0]),datasets:[{label:'Raw Jobs Fetched',data:entries.map(e=>e[1]),backgroundColor:entries.map(e=>ATS_COLORS[e[0]]||'#64748b'),borderRadius:4,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function drawSaveRateBar(data) {
+  const ctx = document.getElementById('saveRateBar').getContext('2d');
+  if (srBar) srBar.destroy();
+  const ats = {};
+  data.forEach(d=>{
+    if (!ats[d.ats]) ats[d.ats]={raw:0,saved:0};
+    ats[d.ats].raw+=d.raw; ats[d.ats].saved+=d.saved;
+  });
+  const entries = Object.entries(ats).map(e=>({ats:e[0],rate:Math.round(e[1].saved/e[1].raw*100)})).sort((a,b)=>b.rate-a.rate);
+  srBar = new Chart(ctx, {
+    type:'bar',
+    data:{labels:entries.map(e=>e.ats),datasets:[{label:'Save Rate %',data:entries.map(e=>e.rate),backgroundColor:entries.map(e=>e.rate>=70?'#10b981':e.rate>=40?'#f59e0b':'#ef4444'),borderRadius:4,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y}% save rate`}}},
+      scales:{y:{grid:{color:'#f1f5f9'},max:100,ticks:{callback:v=>v+'%'}},x:{grid:{display:false},ticks:{font:{size:10}}}}
+    }
+  });
+}
+
+function drawLocTable() {
+  const maxJ = LOCATION_DATA[0].jobs;
+  document.getElementById('locTable').innerHTML = LOCATION_DATA.map((d,i)=>{
+    const barW = Math.round(d.jobs/maxJ*100);
+    const regClass = {India:'p-amber',Europe:'p-blue',Americas:'p-green',APAC:'p-green',Mixed:'p-gray'}[d.region]||'p-gray';
+    return `<tr>
+      <td style="color:#94a3b8;font-size:12px">${i+1}</td>
+      <td>${d.loc}</td>
+      <td><strong>${d.jobs.toLocaleString()}</strong></td>
+      <td>${d.companies}</td>
+      <td>${d.industries}</td>
+      <td><div class="bar-inline"><div class="bar-fill" style="width:${barW}%"></div></div></td>
+      <td><span class="pill ${regClass}">${d.region}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function drawScraperTable(data) {
+  const totalRaw = data.reduce((s,d)=>s+d.raw,0);
+  const totalSaved = data.reduce((s,d)=>s+d.saved,0);
+  const totalFail = data.reduce((s,d)=>s+d.fail,0);
+  document.getElementById('kRaw').textContent = totalRaw.toLocaleString();
+  document.getElementById('kSaved').textContent = totalSaved.toLocaleString();
+  document.getElementById('kRate').textContent = Math.round(totalSaved/totalRaw*100)+'%';
+  document.getElementById('kFail').textContent = totalFail;
+  document.getElementById('kCo').textContent = data.length;
+
+  document.getElementById('scraperTable').innerHTML = data.map(d=>{
+    const rate = Math.round(d.saved/d.raw*100);
+    const healthClass = d.fail===0?'dot-green':d.fail<d.success?'dot-amber':'dot-red';
+    const health = d.fail===0?'<span class="pill p-green">Healthy</span>':d.fail<d.success?'<span class="pill p-amber">Partial</span>':'<span class="pill p-red">Degraded</span>';
+    const fillClass = rate>=70?'fill-green':rate>=40?'fill-amber':'fill-red';
+    return `<tr>
+      <td><strong>${d.company}</strong></td>
+      <td><span class="pill" style="background:${ATS_COLORS[d.ats]||'#64748b'}20;color:${ATS_COLORS[d.ats]||'#64748b'}">${d.ats}</span></td>
+      <td><span class="pill p-blue">${d.scope}</span></td>
+      <td>${d.runs}</td>
+      <td style="color:#10b981;font-weight:600">${d.success}</td>
+      <td style="color:${d.fail>0?'#ef4444':'#94a3b8'};font-weight:${d.fail>0?700:400}">${d.fail}</td>
+      <td>${d.raw}</td>
+      <td>${d.saved}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${rate}%"></div></div>
+          <span style="font-size:11px;color:#64748b;min-width:32px">${rate}%</span>
+        </div>
+      </td>
+      <td>${health}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterScraper() {
+  const atsF = document.getElementById('fATS').value;
+  const data = atsF==='all'?SCRAPER_DATA:SCRAPER_DATA.filter(d=>d.ats===atsF);
+  drawATSBar(data);
+  drawSaveRateBar(data);
+  drawScraperTable(data);
+}
+
+function applyFilters() {
+  filterScraper();
+}
+
+drawLocBar();
+drawGeoDonut();
+drawIndiaBar();
+drawGlobalBar();
+drawLocTable();
+filterScraper();
+</script>
+</body>
+</html>
