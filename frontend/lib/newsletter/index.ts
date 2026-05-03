@@ -15,6 +15,11 @@ export interface IssueFrontmatter {
   ogImage?: string
   summary: string
   pillar?: IssuePillar
+  issueNumber?: number
+  seriesLabel?: string
+  readMinutes?: number
+  authorName?: string
+  authorInitials?: string
 }
 
 export interface Issue extends IssueFrontmatter {

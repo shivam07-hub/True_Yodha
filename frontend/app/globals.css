@@ -150,3 +150,77 @@
   .mdx-prose h1 { font-size: var(--tm-fs-title); }
   .mdx-prose h2 { font-size: var(--tm-fs-heading); }
 }
+
+/* ── Newsletter article prose overrides ───────────────────────── */
+.newsletter-prose {
+  font-size: 1.0625rem;
+  line-height: 1.72;
+}
+.newsletter-prose h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--tm-text);
+  margin: 48px 0 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.newsletter-prose p {
+  color: var(--tm-text);
+}
+.newsletter-prose p strong {
+  color: var(--tm-text);
+}
+
+/* ── Methodology block inner elements ────────────────────────── */
+.methodology-block strong { color: var(--tm-text-muted); }
+.methodology-block code {
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  background: var(--tm-surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--tm-accent);
+  border: none;
+}
+.methodology-block p { margin: 0; color: inherit; }
+
+/* ── Newsletter article hover utilities ──────────────────────── */
+.nl-back-link:hover { color: var(--tm-accent) !important; }
+.nl-cta-btn:hover {
+  background: var(--tm-accent-hover) !important;
+  box-shadow: var(--tm-shadow-glow) !important;
+}
+
+/* ── Reading progress bar (CSS scroll-driven — no JS) ────────── */
+@keyframes nl-reading-bar {
+  to { transform: scaleX(1); }
+}
+.nl-reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--tm-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 200; /* --z-progress */
+  pointer-events: none;
+  animation: nl-reading-bar linear;
+  animation-timeline: scroll();
+  animation-range: 0% 100%;
+}
+
+/* ── Newsletter article page-enter ───────────────────────────── */
+@keyframes nl-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.nl-page-enter {
+  animation: nl-fade-up 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nl-reading-progress { animation: none; }
+  .nl-page-enter { animation: none; }
+}

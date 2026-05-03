@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Myro Weekly — Free AI Hiring Intel",
   description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings. No fluff.",
   alternates: { canonical: `${BASE}/newsletter` },
+  robots: { index: true, follow: true },
   openGraph: {
     title: "Myro Weekly — Free AI Hiring Intel",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",

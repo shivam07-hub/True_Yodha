@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function NewsletterLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--tm-bg)" }}>
-      <PublicTopNav active="newsletter" />
+      <PublicTopNav active="newsletter" showSignIn />
       <main style={{ flex: 1 }}>{children}</main>
       <PublicFooter />
     </div>

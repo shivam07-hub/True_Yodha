@@ -173,7 +173,7 @@ export default function PrivacyPage() {
 
             <Section id="your-rights" n="06" title="Your Rights">
               <P>You have the right to access your data, correct inaccuracies, request deletion, and export your data.</P>
-              <P>Email <a href="mailto:privacy@himyro.com" style={{ color: "var(--tm-accent)" }}>privacy@himyro.com</a> to exercise any right.</P>
+              <P>Email <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)" }}>hello@himyro.com</a> to exercise any right.</P>
             </Section>
 
             <Section id="cookies" n="07" title="Cookies">
@@ -195,8 +195,8 @@ export default function PrivacyPage() {
             <Section id="contact" n="11" title="Contact">
               <P>Questions about this policy? Reach us at:</P>
               <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", marginTop: 8, display: "inline-block" }}>
-                <a href="mailto:privacy@himyro.com" style={{ color: "var(--tm-accent)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
-                  privacy@himyro.com
+                <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
+                  hello@himyro.com
                 </a>
               </div>
             </Section>
