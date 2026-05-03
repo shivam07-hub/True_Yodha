@@ -6,6 +6,16 @@ import remarkGfm from "remark-gfm"
 import { getAllIssues, getIssueBySlug } from "@/lib/newsletter"
 import { NewsletterCTA } from "@/components/newsletter/issue-cta"
 import { ChartEmbed } from "@/components/newsletter/chart-embed"
+import { ReadingProgress } from "@/components/newsletter/reading-progress"
+import { ShareButton } from "@/components/newsletter/share-button"
+import { TldrCard } from "@/components/newsletter/tldr-card"
+import { StatCards } from "@/components/newsletter/stat-cards"
+import { DataTable } from "@/components/newsletter/data-table"
+import { LocationChart } from "@/components/newsletter/location-chart"
+import { SkillsList } from "@/components/newsletter/skills-list"
+import { CareerCards } from "@/components/newsletter/career-cards"
+import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
+import { MethodologyBlock } from "@/components/newsletter/methodology-block"
 
 interface Props {
   params: { slug: string }
@@ -26,16 +36,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const absoluteOgImage = issue.ogImage
     ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`
     : undefined
+  const isoDate = new Date(issue.publishedAt).toISOString()
   return {
     title,
     description: issue.summary,
     alternates: { canonical: canonicalUrl },
+    robots: { index: true, follow: true },
     openGraph: {
       title,
       description: issue.summary,
       type: "article",
       url: canonicalUrl,
-      publishedTime: issue.publishedAt,
+      publishedTime: isoDate,
       ...(absoluteOgImage && { images: [absoluteOgImage] }),
     },
     twitter: {
@@ -50,10 +62,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           "@context": "https://schema.org",
           "@type": "Article",
           headline: issue.title,
-          datePublished: issue.publishedAt,
+          datePublished: isoDate,
           description: issue.summary,
-          author: { "@type": "Person", name: "Shivam Pathak" },
-          publisher: { "@type": "Organization", name: "Myro" },
+          author: { "@type": "Person", name: issue.authorName ?? "Shivam Pathak" },
+          publisher: { "@type": "Organization", name: "Myro", url: BASE },
           ...(absoluteOgImage && { image: absoluteOgImage }),
         },
         {
@@ -70,43 +82,132 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+const mdxComponents = {
+  NewsletterCTA, ChartEmbed,
+  TldrCard, StatCards, DataTable,
+  LocationChart, SkillsList, CareerCards,
+  EmailSubscribe, MethodologyBlock,
+}
+
 const mdxOptions = { mdxOptions: { remarkPlugins: [remarkGfm] } }
+
+function themeLabel(theme: string) {
+  return theme.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+}
 
 export default async function IssuePage({ params }: Props) {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) notFound()
 
+  const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
   })
+  const initials = issue.authorInitials ?? "SP"
+  const authorName = issue.authorName ?? "Shivam Pathak"
+  const issueNum = issue.issueNumber ? String(issue.issueNumber).padStart(3, "0") : "001"
+  const series = issue.seriesLabel ?? "Monday Hiring Heatmap"
+  const mins = issue.readMinutes ?? 5
 
   return (
-    <article style={{ maxWidth: 720, margin: "0 auto", padding: "48px var(--tm-page-px)" }}>
-      <Link
-        href="/newsletter"
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none", marginBottom: 32, letterSpacing: "0.04em" }}
-      >
-        ← Newsletter
-      </Link>
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <span style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            {issue.theme}
+    <>
+      <ReadingProgress />
+
+      <article className="nl-page-enter" style={{ maxWidth: 760, margin: "0 auto", padding: "56px 32px 96px" }}>
+
+        {/* Back link */}
+        <Link
+          href="/newsletter"
+          className="nl-back-link"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--tm-text-muted)", textDecoration: "none", marginBottom: 40, transition: "color var(--tm-dur) var(--tm-ease)" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Newsletter
+        </Link>
+
+        {/* Issue tag */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--tm-accent)", background: "var(--tm-accent-wash)",
+            border: "1px solid var(--tm-accent-ring)", padding: "3px 10px", borderRadius: "var(--tm-radius-pill)",
+          }}>
+            {themeLabel(issue.theme)}
           </span>
-          <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>·</span>
-          <time dateTime={issue.publishedAt} style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{date}</time>
+          <time dateTime={issue.publishedAt} style={{ fontSize: 13, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
+            {date}
+          </time>
         </div>
-        <h1 style={{ fontSize: "var(--tm-fs-display)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", lineHeight: "var(--tm-lh-display)", marginBottom: 12 }}>
+
+        {/* Headline */}
+        <h1 style={{ fontSize: "2.125rem", lineHeight: 1.18, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--tm-text)", margin: "0 0 16px", textWrap: "balance" as never }}>
           {issue.title}
         </h1>
-        <p style={{ fontSize: 16, color: "var(--tm-text-muted)", lineHeight: 1.65 }}>{issue.summary}</p>
-      </div>
+        <p style={{ fontSize: "1.0625rem", lineHeight: 1.65, color: "var(--tm-text-muted)", margin: "0 0 32px", textWrap: "pretty" as never }}>
+          {issue.summary}
+        </p>
 
-      <div className="mdx-prose">
-        <MDXRemote source={issue.content} options={mdxOptions} components={{ NewsletterCTA, ChartEmbed }} />
-      </div>
+        {/* Byline */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+          padding: "16px 0", borderTop: "1px solid var(--tm-border-soft)", borderBottom: "1px solid var(--tm-border-soft)", marginBottom: 48,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div aria-hidden="true" style={{
+              width: 36, height: 36, borderRadius: "50%", background: "var(--tm-accent-wash)",
+              border: "1px solid var(--tm-accent-ring)", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, fontWeight: 600, color: "var(--tm-accent)", flexShrink: 0,
+            }}>
+              {initials}
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{authorName}</div>
+              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>
+                Issue {issueNum} · {series} · {mins}-minute read
+              </div>
+            </div>
+          </div>
+          <ShareButton url={canonicalUrl} title={issue.title} />
+        </div>
 
-      <NewsletterCTA role={issue.ctaRole} issueSlug={issue.slug} />
-    </article>
+        {/* MDX content */}
+        <div className="mdx-prose newsletter-prose">
+          <MDXRemote source={issue.content} options={mdxOptions} components={mdxComponents} />
+        </div>
+
+        {/* Bottom CTA */}
+        <div style={{
+          background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+          borderRadius: "var(--tm-radius-lg)", padding: "28px 32px",
+          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 40,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+            Free · No credit card
+          </div>
+          <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
+            Get your free Myro Score →
+          </p>
+          <p style={{ fontSize: 14, color: "var(--tm-text-muted)", lineHeight: 1.55, margin: 0 }}>
+            Upload your CV in 60 seconds and see exactly where you stand against this market.
+          </p>
+          <Link
+            href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
+            className="nl-cta-btn"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              fontSize: 14, fontWeight: 600, color: "var(--tm-accent-fg)",
+              background: "var(--tm-accent)", padding: "10px 22px",
+              borderRadius: "var(--tm-radius)", textDecoration: "none",
+              transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+            }}
+          >
+            Get started free
+          </Link>
+        </div>
+
+      </article>
+    </>
   )
 }
