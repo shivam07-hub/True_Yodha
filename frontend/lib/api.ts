@@ -472,7 +472,6 @@ export interface MarketAnalytics {
   total_jobs: number
   total_companies: number
   total_industries: number
-  latest_batch: string | null
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
   top_skills: SkillCountItem[]

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Space_Grotesk } from "next/font/google"
+import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
 
@@ -60,6 +61,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body className="font-sans antialiased">
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${process.env.NEXT_PUBLIC_GA_ID}');`}
+            </Script>
+          </>
+        )}
         <Providers>{children}</Providers>
       </body>
     </html>
