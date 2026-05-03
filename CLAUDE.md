@@ -101,7 +101,7 @@ Priority order:
 
 1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop. Full end-to-end production path with dedicated test account.
 
-2. **GA4 wiring** — add `NEXT_PUBLIC_GA_ID` to Vercel env vars; add `<Script src="..." strategy="afterInteractive">` to `frontend/app/layout.tsx`. Enables `trackEvent()` in `frontend/lib/analytics.ts` to forward `newsletter_cta_click` events. (Reminder scheduled for ~2026-05-05.)
+2. ~~**GA4 wiring**~~ ✅ DONE (2026-05-03) — `NEXT_PUBLIC_GA_ID=G-W4JXC52DKW` set in Vercel; `<Script>` added to `frontend/app/layout.tsx`. `trackEvent()` now live in production.
 
 3. **cv_parser.py + diary processor → LLMProvider** — still on raw API calls. Migrate to unified `LLMProvider.complete()` fallback chain (same pattern as `llm_ranker.py`). Files: `backend/app/services/cv_parser.py`, `backend/app/services/diary_processor.py`.
 
@@ -200,45 +200,37 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-03 — DIARY NEXT MISSION + JOB MILESTONES)
+## LAST SESSION SUMMARY (2026-05-03 — NEWSLETTER REDESIGN + GA4)
 
 ```
 Date: 2026-05-03
-Commits:
-  595cb41  feat(diary): Next Mission card + job milestones section
-  fix(tests): update test_job_matcher for new data-in signature  (earlier this session)
-  Various architecture improvements (normalizer.py, csv_importer.py, job_matcher refactor)
-
 What landed this session:
 
-  Diary — Next Mission card (item 1) + job milestones section (item 5):
-    - MilestoneResponse.job_id added (backend: schema, repo select, service normalize, router builder)
-    - diary/page.tsx: NextMissionCard now renders for next-due job milestone across ALL active paths
-      — no longer gated on jobId URL param
-    - applicationsQuery added for job title/company resolution without a jobPath fetch
-    - Job milestones section added below 7-day plan — all job-path milestones with skill badge,
-      job title, completion state
-    - saveJobMilestone mutation uses activeJobId (URL param OR next-due job_id)
+  Newsletter redesign (Substack-style layout):
+    - New components: ReadingProgress, ShareButton, TldrCard, StatCards, DataTable,
+      LocationChart, SkillsList, CareerCards, EmailSubscribe, MethodologyBlock
+    - app/newsletter/[slug]/page.tsx: full rewrite — 760px max-width, reading progress bar
+      (CSS scroll-driven, no JS), byline bar, share button, bottom CTA only
+    - app/newsletter/page.tsx: robots indexing fixed, max-width 760
+    - globals.css: newsletter-prose overrides, nl-reading-progress, nl-page-enter, z-index scale
+    - design-tokens.css: fixed z-index scale added
+    - lib/newsletter/index.ts: issueNumber, seriesLabel, readMinutes, authorName, authorInitials fields
+    - content/newsletter/issues/2026-04-ai-hiring-heatmap.mdx: frontmatter extended,
+      mid-article CTA removed, methodology section cleaned (no internal schema exposed)
 
-  Scraper (firecrawl_Supabase):
-    - normalizer.py created — single source for taxonomy matching, JSON parse
-    - enricher.py refactored to use normalizer (removed duplicate matching logic)
-    - csv_importer.py created — Phase 3 upload: reads jobs.json → upserts jobs + job_skills
-    - supabase_enricher.py updated — writes via write_job_skills() to job_skills directly
-    - database/migrations/20260502_drop_job_skills_trigger.sql — trigger dropped in production
+  Newsletter guidelines (sister repo):
+    - /Myro Newsletter/skills/myro-newsletter/references/monday-hiring-heatmap.md:
+      methodology template rewritten — instructs plain-language output only, no SQL/schema
+    - /Myro Newsletter/skills/myro-newsletter/references/data-sources.md:
+      "Honest caveats" items 4-5 rewritten to reader-safe language;
+      INTERNAL NOTE added blocking schema exposure in published articles
 
-  Backend matcher refactor:
-    - job_matcher.py: DB-agnostic (no Supabase client param), data-in pattern
-    - repositories/jobs.py: get_all_job_skill_rows(), get_jobs_by_ids() added
-    - jobs_workflow.py: updated to pass pre-fetched data to matcher
-    - test_job_matcher.py: rewritten (no MagicMock DB, data-in helpers)
-
-  Frontend (prebuild fix):
-    - newsletter:check removed from prebuild (local-only tool, broke Vercel build)
-    - prebuild = newsletter:feed only
+  GA4 wiring:
+    - frontend/app/layout.tsx: <Script> tags added (afterInteractive, only renders when env var set)
+    - NEXT_PUBLIC_GA_ID=G-W4JXC52DKW set in Vercel — live in production
+    - trackEvent() in lib/analytics.ts now active
 
 Verification:
-  pytest backend/tests -q  → 187 passed
-  tsc --noEmit             → exit 0
-  next lint                → no errors
+  tsc --noEmit  → exit 0
+  next lint     → no errors
 ```
