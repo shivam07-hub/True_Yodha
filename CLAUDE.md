@@ -234,3 +234,68 @@ Verification:
   tsc --noEmit  → exit 0
   next lint     → no errors
 ```
+
+---
+
+## LAST SESSION SUMMARY (2026-05-03 — PLANNING: REPORT INACTIVE + SCRAPER PHASE 3)
+
+```
+Date: 2026-05-03 (planning session — no code landed in True_Yodha this session)
+Context: work happened in sister repo firecrawl_Supabase (scraper pipeline)
+
+  SCRAPER STATUS:
+    - Phase 2 (LM Studio enrichment) complete: 28,815 jobs enriched (99.9%)
+    - Output path: /Users/incognito/Mirror CV/firecrawl_Supabase/All_CSV_Outputs_thru_firecrawl
+    - Phase 3 (Supabase upload) NOT YET RUN — pending SQL migrations in firecrawl_Supabase
+    - Supabase currently has 9,446 rows; will grow to ~28k after Phase 3 runs
+
+  WHAT NEEDS TO HAPPEN IN firecrawl_Supabase FIRST (before working in True_Yodha):
+    Task 1 — SQL migrations (run via Supabase MCP):
+      - ALTER TABLE jobs ADD COLUMN role_domain TEXT, industry_group TEXT, location_city TEXT
+      - CREATE TABLE job_reports (see docs/REPORT_INACTIVE_FEATURE.md for full DDL)
+      - Add jobs.report_count INT DEFAULT 0
+      - Deactivation trigger: report_count >= 5 → is_active = false
+    Task 2 — csv_importer.py changes:
+      - Add role_domain to _JOB_FIELDS (bug fix — field extracted but never uploaded)
+      - Add industry_group derivation (_INDUSTRY_GROUP mapping dict, 10 super-categories)
+      - Add location_city extraction (_extract_city fn)
+      - Add apply_url quality gate (null out image/.png URLs)
+      - Lifecycle: INSERT sets first_seen + last_seen + is_active=true; UPDATE sets last_seen only
+    Task 3 — schema.py: add role_domain, industry_group, location_city to CANONICAL_FIELDS
+    Task 4 — run upload: python csv_importer.py --dry-run → then full run
+
+  FEATURE TO BUILD IN True_Yodha (start here after scraper tasks done):
+    "Report as Inactive" — community freshness loop
+    Full spec: docs/REPORT_INACTIVE_FEATURE.md
+
+    Backend tasks (True_Yodha):
+      1. New router: backend/app/routers/jobs/report.py
+         POST /jobs/{job_id}/report (auth required)
+         Guards: 1 report/user/job (409), max 3/day (429)
+         On success: insert job_reports, award +10 XP to daily_logs.skills_delta
+         Returns: {report_count, already_reported, xp_earned}
+      2. Register router in backend/app/main.py
+      3. Tests: backend/tests/test_job_report.py
+
+    Frontend tasks (True_Yodha):
+      1. Add jobs.reportInactive(token, jobId) to frontend/lib/api.ts
+      2. JobCard in frontend/app/jobs/page.tsx:
+         - "Report as Inactive" ghost button beside Track button
+         - Show "N users reported inactive" label if report_count > 0
+         - Post-report state: "✓ Reported" disabled + optimistic count increment
+      3. Diary page (frontend/app/diary/page.tsx):
+         - community_reporter entries display as "🛡 Community Contribution +10 XP"
+
+  DECISIONS LOCKED (do not reopen):
+    - Single button, no reason dropdown — just "Report as Inactive"
+    - Threshold: 5 reports → is_active = false (hidden from default view)
+    - Auth required to report
+    - 1 report per user per job (UNIQUE constraint enforced in DB)
+    - Max 3 reports per day per user (backend guard)
+    - XP: +10 per report via daily_logs.skills_delta {taxonomy_key: "community_reporter", xp_added: 10}
+    - Scraper NEVER sets is_active = false — community owns that field
+
+Verification needed next session:
+  - Confirm firecrawl_Supabase tasks 1-4 complete before starting True_Yodha work
+  - Check job_reports table exists in Supabase before writing backend router
+```
