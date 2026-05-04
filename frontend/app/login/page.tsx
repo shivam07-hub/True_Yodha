@@ -34,7 +34,7 @@ export default function LoginPage() {
         return
       }
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
-      router.push("/market")
+      router.push("/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
