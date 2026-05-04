@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections import Counter
 from datetime import date
 from typing import Any
@@ -9,10 +10,12 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
-from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
+_ANALYTICS_TTL = 3600  # 1h
+_analytics_cache: dict[str | None, tuple[float, dict[str, Any]]] = {}
 SKILL_DRILL_MAX_PAGE_SIZE = 100
 
 
@@ -81,22 +84,6 @@ class MarketAnalyticsCompiler:
         }
 
 
-def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse job_skills JOIN skills rows into [{main_skills:[...], side_skills:[...]}] per job."""
-    job_map: dict[str, dict[str, list[str]]] = {}
-    for row in rows:
-        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        jid = row["job_id"]
-        if jid not in job_map:
-            job_map[jid] = {"main_skills": [], "side_skills": []}
-        if row.get("is_primary"):
-            job_map[jid]["main_skills"].append(key)
-        else:
-            job_map[jid]["side_skills"].append(key)
-    return list(job_map.values())
-
 
 class JobsRepository:
     def __init__(self, db: Client) -> None:
@@ -127,12 +114,11 @@ class JobsRepository:
             self._db,
             columns="job_id, skills(taxonomy_key)",
             only_primary=True,
+            job_ids=list(job_ids),
         )
 
         skill_map: dict[str, list[str]] = {}
         for row in primary_skill_rows:
-            if row["job_id"] not in job_ids:
-                continue
             key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
             if key:
                 skill_map.setdefault(row["job_id"], []).append(key)
@@ -143,8 +129,14 @@ class JobsRepository:
         return jobs
 
     def compile_market_analytics(self, role_domain: str | None = None) -> dict[str, Any]:
+        now = time.monotonic()
+        cached = _analytics_cache.get(role_domain)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
         rows = self.fetch_analytics_rows(role_domain=role_domain)
-        return self._analytics_compiler.compile(rows)
+        payload = self._analytics_compiler.compile(rows)
+        _analytics_cache[role_domain] = (now, payload)
+        return payload
 
     def search_jobs_by_filters(
         self,
@@ -188,12 +180,12 @@ class JobsRepository:
             sk_rows = fetch_job_skill_rows(
                 self._db,
                 columns="job_id, skills(taxonomy_key)",
+                job_ids=list(candidate_ids),
             )
             matching_ids = {
                 row["job_id"]
                 for row in sk_rows
-                if row["job_id"] in candidate_ids
-                and skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
+                if skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
             }
             filtered_rows = [row for row in rows if row["job_id"] in matching_ids]
 
@@ -226,11 +218,33 @@ class JobsRepository:
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
-        return _group_job_skills(fetch_job_skill_rows(self._db))
+        return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
-    def get_all_job_skill_rows(self) -> list[dict[str, Any]]:
+    def get_candidate_job_ids_for_skills(self, skill_keys: list[str]) -> list[str]:
+        """Job_ids that have at least one skill in skill_keys. Used to scope matcher fetch."""
+        if not skill_keys:
+            return []
+        lower_keys = [k.lower() for k in skill_keys]
+        skill_id_rows = (
+            self._db.table("skills")
+            .select("id")
+            .in_("taxonomy_key", lower_keys)
+            .execute()
+        ).data or []
+        skill_ids = [r["id"] for r in skill_id_rows]
+        if not skill_ids:
+            return []
+        js_rows = fetch_all_rows(
+            self._db,
+            table="job_skills",
+            columns="job_id",
+            query_builder=lambda q: q.in_("skill_id", skill_ids),
+        )
+        return list({r["job_id"] for r in js_rows})
+
+    def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
-        return fetch_job_skill_rows(self._db)
+        return fetch_job_skill_rows(self._db, job_ids=job_ids)
 
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch job metadata for a specific list of job_ids."""

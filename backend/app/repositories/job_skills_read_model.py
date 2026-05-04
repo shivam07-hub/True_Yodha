@@ -38,12 +38,18 @@ def fetch_job_skill_rows(
     *,
     columns: str = "job_id, is_primary, skills(taxonomy_key)",
     only_primary: bool | None = None,
+    job_ids: list[str] | None = None,
     page_size: int = SUPABASE_PAGE_SIZE,
 ) -> list[dict[str, Any]]:
+    if job_ids is not None and len(job_ids) == 0:
+        return []
+
     def _query_builder(query: Any) -> Any:
-        if only_primary is None:
-            return query
-        return query.eq("is_primary", only_primary)
+        if only_primary is not None:
+            query = query.eq("is_primary", only_primary)
+        if job_ids is not None:
+            query = query.in_("job_id", job_ids)
+        return query
 
     return fetch_all_rows(
         db,
@@ -52,3 +58,20 @@ def fetch_job_skill_rows(
         query_builder=_query_builder,
         page_size=page_size,
     )
+
+
+def group_job_skill_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse job_skills JOIN skills rows into [{main_skills:[...], side_skills:[...]}] per job."""
+    job_map: dict[str, dict[str, list[str]]] = {}
+    for row in rows:
+        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+        if not key:
+            continue
+        jid = row["job_id"]
+        if jid not in job_map:
+            job_map[jid] = {"main_skills": [], "side_skills": []}
+        if row.get("is_primary"):
+            job_map[jid]["main_skills"].append(key)
+        else:
+            job_map[jid]["side_skills"].append(key)
+    return list(job_map.values())

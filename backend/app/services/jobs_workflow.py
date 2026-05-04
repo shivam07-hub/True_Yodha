@@ -115,7 +115,8 @@ async def compute_job_matches(
         if row.get("skills")
     }
     profile = repo.get_user_profile_targeting(user_id)
-    job_skill_rows = repo.get_all_job_skill_rows()
+    candidate_job_ids = repo.get_candidate_job_ids_for_skills(list(user_skill_map.keys()))
+    job_skill_rows = repo.get_all_job_skill_rows(job_ids=candidate_job_ids)
     top_jobs = job_matcher.get_top_matches(
         job_skill_rows,
         user_skill_map,

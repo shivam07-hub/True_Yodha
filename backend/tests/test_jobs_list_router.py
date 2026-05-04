@@ -3,8 +3,57 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.repositories.jobs import MarketAnalyticsCompiler
+from app.repositories.jobs import JobsRepository, MarketAnalyticsCompiler
 from app.routers.jobs.list import get_market_analytics, search_jobs
+
+
+class _Result:
+    def __init__(self, data: list[dict[str, Any]]) -> None:
+        self.data = data
+
+
+class _FakeQuery:
+    def __init__(self, rows: list[dict[str, Any]], *, table: str, db: "_FakeDB") -> None:
+        self._rows = rows
+        self._table = table
+        self._db = db
+        self._eq_filters: list[tuple[str, Any]] = []
+        self._in_filters: list[tuple[str, list[Any]]] = []
+        self._range: tuple[int, int] | None = None
+
+    def select(self, _: str) -> "_FakeQuery":
+        return self
+
+    def eq(self, key: str, value: Any) -> "_FakeQuery":
+        self._eq_filters.append((key, value))
+        return self
+
+    def in_(self, key: str, values: list[Any]) -> "_FakeQuery":
+        self._in_filters.append((key, values))
+        return self
+
+    def range(self, start: int, end: int) -> "_FakeQuery":
+        self._range = (start, end)
+        return self
+
+    def execute(self) -> _Result:
+        rows = self._rows
+        for key, value in self._eq_filters:
+            rows = [r for r in rows if r.get(key) == value]
+        for key, values in self._in_filters:
+            rows = [r for r in rows if r.get(key) in values]
+        if self._range is not None:
+            start, end = self._range
+            rows = rows[start: end + 1]
+        return _Result(rows)
+
+
+class _SearchFakeDB:
+    def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
+        self._tables = tables
+
+    def table(self, name: str) -> _FakeQuery:
+        return _FakeQuery(self._tables.get(name, []), table=name, db=self)
 
 
 class _FakeJobsRepo:
@@ -143,3 +192,60 @@ def test_search_jobs_passes_pagination_contract() -> None:
     assert repo.search_args == ("Acme", "Python", "Software Engineering", 2, 25)
     assert result.page == 2
     assert result.page_size == 25
+
+
+def _make_search_db(num_acme_jobs: int = 3) -> "_SearchFakeDB":
+    jobs = [
+        {
+            "job_id": f"j{i}",
+            "job_title": f"Role {i}",
+            "company_name": "Acme",
+            "job_description": "desc",
+            "role_domain": "Engineering" if i % 2 == 0 else "Finance",
+        }
+        for i in range(num_acme_jobs)
+    ]
+    job_skills = [
+        {"job_id": "j0", "skill_id": "s1", "is_primary": True, "skills": {"taxonomy_key": "python"}},
+        {"job_id": "j2", "skill_id": "s2", "is_primary": True, "skills": {"taxonomy_key": "sql"}},
+    ]
+    skills = [
+        {"id": "s1", "taxonomy_key": "python"},
+        {"id": "s2", "taxonomy_key": "sql"},
+    ]
+    return _SearchFakeDB({"jobs": jobs, "job_skills": job_skills, "skills": skills})
+
+
+def test_search_jobs_pagination_offset_correctness() -> None:
+    jobs = [
+        {"job_id": f"j{i:02d}", "job_title": f"Role {i}", "company_name": "Acme", "job_description": "desc"}
+        for i in range(60)
+    ]
+    db = _SearchFakeDB({"jobs": jobs, "job_skills": []})
+    result = JobsRepository(db).search_jobs_by_filters("Acme", "", page=2, page_size=10)
+
+    assert result["available_total"] == 60
+    assert result["returned_total"] == 10
+    assert result["page"] == 2
+    assert result["page_size"] == 10
+    assert result["has_next_page"] is True
+    assert result["rows"][0]["job_id"] == "j10"
+
+
+def test_search_jobs_company_role_domain_skill_combined() -> None:
+    db = _make_search_db(num_acme_jobs=3)
+    result = JobsRepository(db).search_jobs_by_filters(
+        "Acme", "python", role_domain="Engineering"
+    )
+
+    assert result["available_total"] == 1
+    assert result["rows"][0]["job_id"] == "j0"
+
+
+def test_search_jobs_empty_skill_skips_skill_filter() -> None:
+    db = _make_search_db(num_acme_jobs=3)
+    result = JobsRepository(db).search_jobs_by_filters("Acme", "", role_domain="Engineering")
+
+    # Engineering jobs: j0 (i=0 even), j2 (i=2 even) — j1 is Finance
+    assert result["available_total"] == 2
+    assert {r["job_id"] for r in result["rows"]} == {"j0", "j2"}
