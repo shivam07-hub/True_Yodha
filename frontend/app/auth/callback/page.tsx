@@ -12,13 +12,24 @@ export default function AuthCallbackPage() {
     const supabase = createClient()
     const code = new URLSearchParams(window.location.search).get("code")
 
-    const finish = (session: { access_token: string; refresh_token: string } | null) => {
-      if (session) {
-        setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
-        router.replace("/market")
-      } else {
-        router.replace("/login")
+    const finish = async (session: { access_token: string; refresh_token: string } | null) => {
+      if (!session) { router.replace("/login"); return }
+
+      setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
+
+      try {
+        const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? ""
+        const res = await fetch(`${base}/users/me`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (res.status === 404) { router.replace("/onboarding"); return }
+        const profile = await res.json()
+        if (!profile.onboarding_complete) { router.replace("/onboarding"); return }
+      } catch {
+        // network error — fall through to market, they can onboard later
       }
+
+      router.replace("/dashboard")
     }
 
     if (code) {

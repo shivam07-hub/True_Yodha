@@ -59,7 +59,7 @@ export function AuthForm({ mode }: Props) {
       }
 
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
-      router.push(mode === "login" ? "/market" : "/onboarding")
+      router.push(mode === "login" ? "/dashboard" : "/onboarding")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
