@@ -10,10 +10,11 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    const code = new URLSearchParams(window.location.search).get("code")
+    let handled = false
 
-    const finish = async (session: { access_token: string; refresh_token: string } | null) => {
-      if (!session) { router.replace("/login"); return }
+    const finish = async (session: { access_token: string; refresh_token: string }) => {
+      if (handled) return
+      handled = true
 
       setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
 
@@ -26,16 +27,46 @@ export default function AuthCallbackPage() {
         const profile = await res.json()
         if (!profile.onboarding_complete) { router.replace("/onboarding"); return }
       } catch {
-        // network error — fall through to market, they can onboard later
+        // network error — fall through to dashboard
       }
 
       router.replace("/dashboard")
     }
 
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ data: { session } }) => finish(session))
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => finish(session))
+    // No code in URL — check for an existing session (e.g. email/password callback)
+    const code = new URLSearchParams(window.location.search).get("code")
+    if (!code) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) finish(session)
+        else router.replace("/login")
+      })
+      return
+    }
+
+    // `createBrowserClient` has detectSessionInUrl: true, which means @supabase/auth-js
+    // automatically calls exchangeCodeForSession() internally when it detects ?code= in
+    // the URL. Calling it again manually would consume the single-use PKCE code a second
+    // time → null session → redirect to /login. Instead, listen for the SIGNED_IN event
+    // that fires after the internal exchange completes.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        await finish(session)
+      }
+    })
+
+    // Fallback: session may already be set if the event fired before we subscribed
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) finish(session)
+    })
+
+    // Safety net: if neither path resolves within 5s, send to login
+    const timeout = setTimeout(() => {
+      if (!handled) router.replace("/login")
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
     }
   }, [router])
 
