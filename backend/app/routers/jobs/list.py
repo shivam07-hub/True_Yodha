@@ -1,6 +1,6 @@
 from collections import Counter
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.repositories.jobs import JobsRepository, get_public_jobs_repository
 from app.schemas import (
@@ -78,7 +78,7 @@ async def get_market_analytics(
 
 @router.get("/search", response_model=JobSearchResponse)
 async def search_jobs(
-    company: str | None = None,
+    company: str = Query(..., min_length=1),
     skill: str | None = None,
     role_domain: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),

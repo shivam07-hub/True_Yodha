@@ -3,7 +3,6 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase"
-import { dataKeys } from "@/lib/domain-data"
 
 export function useJobsRealtime(): void {
   const queryClient = useQueryClient()
@@ -16,8 +15,8 @@ export function useJobsRealtime(): void {
         "postgres_changes",
         { event: "*", schema: "public", table: "jobs" },
         () => {
-          queryClient.invalidateQueries({ queryKey: dataKeys.jobsAnalytics() })
-          queryClient.invalidateQueries({ queryKey: dataKeys.jobsAnalyticsPublic() })
+          queryClient.invalidateQueries({ queryKey: ["jobs-analytics"] })
+          queryClient.invalidateQueries({ queryKey: ["jobs-analytics-public"] })
         },
       )
       .subscribe()

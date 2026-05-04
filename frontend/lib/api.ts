@@ -526,8 +526,12 @@ export const jobs = {
     company: string,
     options?: { roleDomain?: string | null; skill?: string | null },
   ) => {
+    const normalizedCompany = company.trim()
+    if (!normalizedCompany) {
+      throw new Error("company is required")
+    }
     const params = new URLSearchParams()
-    params.set("company", company)
+    params.set("company", normalizedCompany)
     if (options?.roleDomain && options.roleDomain.trim()) {
       params.set("role_domain", options.roleDomain.trim())
     }

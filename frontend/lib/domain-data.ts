@@ -17,7 +17,7 @@ export const dataKeys = {
   jobPath: (jobId: JobId, token: Token) => ["job-path", jobId, token] as const,
   skillGap: (jobId: JobId, token: Token) => ["skill-gap", jobId, token] as const,
   jobsAnalytics: (roleDomain?: string | null) => ["jobs-analytics", roleDomain ?? ""] as const,
-  jobsAnalyticsPublic: () => ["jobs-analytics-public"] as const,
+  jobsAnalyticsPublic: (roleDomain?: string | null) => ["jobs-analytics-public", roleDomain ?? ""] as const,
   jobsSearch: (
     company: string | null | undefined,
     roleDomain?: string | null,

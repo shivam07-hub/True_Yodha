@@ -73,15 +73,13 @@ class JobsRepository:
 
     def search_jobs_by_filters(
         self,
-        company: str | None,
+        company: str,
         skill: str | None,
         role_domain: str | None = None,
     ) -> list[dict[str, Any]]:
         query = self._db.table("jobs").select(
             "job_id, job_title, company_name, job_description"
-        )
-        if company:
-            query = query.eq("company_name", company)
+        ).eq("company_name", company)
         if role_domain:
             query = query.eq("role_domain", role_domain)
         rows: list[dict[str, Any]] = query.limit(200).execute().data or []
