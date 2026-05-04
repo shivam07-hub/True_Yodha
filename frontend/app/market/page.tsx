@@ -9,6 +9,7 @@ import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
+import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 
 interface TrackJob { job_id: string; job_title: string; company_name: string | null }
 
@@ -110,6 +111,8 @@ export default function MarketPage() {
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
   const [companySearch, setCompanySearch] = useState("")
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
+
+  useJobsRealtime()
 
   const addToTracker = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),

@@ -39,9 +39,21 @@ class JobsRepository:
 
     def fetch_analytics_rows(self) -> list[dict[str, Any]]:
         cols = "job_id, company_name, industry, batch_date"
-        page1 = self._db.table("jobs").select(cols).range(0, 999).execute().data or []
-        page2 = self._db.table("jobs").select(cols).range(1000, 9999).execute().data or []
-        jobs = page1 + page2
+        jobs: list[dict[str, Any]] = []
+        page_size = 10_000
+        start = 0
+        while True:
+            page = (
+                self._db.table("jobs")
+                .select(cols)
+                .range(start, start + page_size - 1)
+                .execute()
+                .data or []
+            )
+            jobs.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
 
         # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics)
         sk1 = self._db.table("job_skills").select(
