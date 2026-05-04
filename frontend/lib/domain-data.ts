@@ -22,7 +22,9 @@ export const dataKeys = {
     company: string | null | undefined,
     roleDomain?: string | null,
     skill?: string | null,
-  ) => ["jobs-search", company ?? "", roleDomain ?? "", skill ?? ""] as const,
+    page?: number | null,
+    pageSize?: number | null,
+  ) => ["jobs-search", company ?? "", roleDomain ?? "", skill ?? "", page ?? 1, pageSize ?? 50] as const,
 }
 
 export function invalidateScoreData(queryClient: QueryClient, token: Token): void {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date
 from typing import Any
 
@@ -9,6 +10,75 @@ from supabase import Client
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows
+from app.services.industry_grouping import normalize_industry_group
+
+SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
+SKILL_DRILL_MAX_PAGE_SIZE = 100
+
+
+def _sorted_counter_items(counter: Counter[str]) -> list[tuple[str, int]]:
+    return sorted(counter.items(), key=lambda item: (-item[1], item[0].lower(), item[0]))
+
+
+def _bounded_page(page: int) -> int:
+    return max(page, 1)
+
+
+def _bounded_page_size(page_size: int) -> int:
+    return max(1, min(page_size, SKILL_DRILL_MAX_PAGE_SIZE))
+
+
+class MarketAnalyticsCompiler:
+    """Compiles raw market rows into deterministic analytics payloads."""
+
+    def compile(self, rows: list[dict[str, Any]]) -> dict[str, Any]:
+        company_counts: Counter[str] = Counter()
+        industry_counts: Counter[str] = Counter()
+        role_counts: Counter[str] = Counter()
+        skill_counts: Counter[str] = Counter()
+        company_skill_counters: dict[str, Counter[str]] = {}
+        industry_skill_counters: dict[str, Counter[str]] = {}
+        batch_dates: list[int] = []
+
+        for row in rows:
+            company = (row.get("company_name") or "").strip()
+            industry = normalize_industry_group(row.get("industry_group"), row.get("industry"))
+            role = (row.get("role_domain") or "").strip()
+            skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
+
+            if company:
+                company_counts[company] += 1
+                company_skill_counters.setdefault(company, Counter()).update(skills)
+            if industry:
+                industry_counts[industry] += 1
+                industry_skill_counters.setdefault(industry, Counter()).update(skills)
+            if role:
+                role_counts[role] += 1
+            if row.get("batch_date"):
+                batch_dates.append(row["batch_date"])
+            skill_counts.update(skills)
+
+        company_skills = {
+            company: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+            for company, counter in company_skill_counters.items()
+        }
+        industry_skills = {
+            industry: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+            for industry, counter in industry_skill_counters.items()
+        }
+
+        return {
+            "total_jobs": len(rows),
+            "total_companies": len(company_counts),
+            "total_industries": len(industry_counts),
+            "latest_batch": str(max(batch_dates)) if batch_dates else None,
+            "by_company": _sorted_counter_items(company_counts),
+            "by_industry": _sorted_counter_items(industry_counts),
+            "by_role": _sorted_counter_items(role_counts),
+            "top_skills": _sorted_counter_items(skill_counts)[:20],
+            "company_skills": company_skills,
+            "industry_skills": industry_skills,
+        }
 
 
 def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -31,6 +101,7 @@ def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 class JobsRepository:
     def __init__(self, db: Client) -> None:
         self._db = db
+        self._analytics_compiler = MarketAnalyticsCompiler()
 
     @property
     def client(self) -> Client:
@@ -71,33 +142,76 @@ class JobsRepository:
 
         return jobs
 
+    def compile_market_analytics(self, role_domain: str | None = None) -> dict[str, Any]:
+        rows = self.fetch_analytics_rows(role_domain=role_domain)
+        return self._analytics_compiler.compile(rows)
+
     def search_jobs_by_filters(
         self,
         company: str,
-        skill: str | None,
+        skill: str,
+        *,
         role_domain: str | None = None,
-    ) -> list[dict[str, Any]]:
-        query = self._db.table("jobs").select(
-            "job_id, job_title, company_name, job_description"
-        ).eq("company_name", company)
-        if role_domain:
-            query = query.eq("role_domain", role_domain)
-        rows: list[dict[str, Any]] = query.limit(200).execute().data or []
+        page: int = 1,
+        page_size: int = SKILL_DRILL_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        scoped_page = _bounded_page(page)
+        scoped_page_size = _bounded_page_size(page_size)
+        skill_lower = skill.strip().lower()
 
-        if skill:
-            skill_lower = skill.lower()
-            # Resolve matching job_ids via job_skills JOIN skills (FK-enforced taxonomy)
+        def _query_builder(query: Any) -> Any:
+            query = query.eq("company_name", company)
+            if role_domain:
+                query = query.eq("role_domain", role_domain)
+            return query
+
+        rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, job_title, company_name, job_description",
+            query_builder=_query_builder,
+        )
+
+        if not rows:
+            return {
+                "rows": [],
+                "available_total": 0,
+                "returned_total": 0,
+                "page": scoped_page,
+                "page_size": scoped_page_size,
+                "has_next_page": False,
+            }
+
+        filtered_rows = rows
+        if skill_lower:
+            candidate_ids = {row["job_id"] for row in rows}
             sk_rows = fetch_job_skill_rows(
                 self._db,
                 columns="job_id, skills(taxonomy_key)",
             )
             matching_ids = {
-                r["job_id"] for r in sk_rows
-                if skill_lower in ((r.get("skills") or {}).get("taxonomy_key") or "").lower()
+                row["job_id"]
+                for row in sk_rows
+                if row["job_id"] in candidate_ids
+                and skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
             }
-            rows = [r for r in rows if r["job_id"] in matching_ids]
+            filtered_rows = [row for row in rows if row["job_id"] in matching_ids]
 
-        return rows[:50]
+        filtered_rows = sorted(filtered_rows, key=lambda row: str(row.get("job_id") or ""))
+        available_total = len(filtered_rows)
+        start = (scoped_page - 1) * scoped_page_size
+        end = start + scoped_page_size
+        page_rows = filtered_rows[start:end] if start < available_total else []
+        returned_total = len(page_rows)
+
+        return {
+            "rows": page_rows,
+            "available_total": available_total,
+            "returned_total": returned_total,
+            "page": scoped_page,
+            "page_size": scoped_page_size,
+            "has_next_page": (start + returned_total) < available_total,
+        }
 
     # ── user skills / demand ───────────────────────────────────────────────────
 

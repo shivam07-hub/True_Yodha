@@ -101,6 +101,8 @@ interface DrillSkill {
   skill: string
 }
 
+const DRILL_PAGE_SIZE = 50
+
 export default function MarketPage() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
@@ -112,6 +114,7 @@ export default function MarketPage() {
   const [companySearch, setCompanySearch] = useState("")
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>("")
+  const [drillPage, setDrillPage] = useState(1)
 
   useJobsRealtime()
 
@@ -148,13 +151,21 @@ export default function MarketPage() {
   const hasCv = !scoreLoading && !!scoreData
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: dataKeys.jobsSearch(drillSkill?.company, selectedRole, drillSkill?.skill),
+    queryKey: dataKeys.jobsSearch(
+      drillSkill?.company,
+      selectedRole,
+      drillSkill?.skill,
+      drillPage,
+      DRILL_PAGE_SIZE,
+    ),
     queryFn: () =>
       jobs.search(drillSkill!.company, {
         roleDomain: selectedRole || undefined,
-        skill: drillSkill!.skill || undefined,
+        skill: drillSkill!.skill,
+        page: drillPage,
+        pageSize: DRILL_PAGE_SIZE,
       }),
-    enabled: !!drillSkill,
+    enabled: !!drillSkill?.company && !!drillSkill?.skill,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -215,6 +226,7 @@ export default function MarketPage() {
               setSelectedRole(e.target.value)
               setSelected(null)
               setDrillSkill(null)
+              setDrillPage(1)
               setExpandedDesc(null)
               setSelectedJobFit(null)
               setCompanySearch("")
@@ -236,7 +248,7 @@ export default function MarketPage() {
           {(["companies", "industries"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
+              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
                 background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
@@ -299,7 +311,7 @@ export default function MarketPage() {
                       count={entity.roles}
                       max={max}
                       active={selected?.name === entity.name}
-                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setExpandedDesc(null) }}
+                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
                     />
                   ))
                 )}
@@ -321,7 +333,7 @@ export default function MarketPage() {
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                     <button
-                      onClick={() => { setDrillSkill(null); setExpandedDesc(null) }}
+                      onClick={() => { setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
                       style={{
                         background: "none", border: "1px solid var(--tm-border-soft)",
                         borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer",
@@ -338,7 +350,7 @@ export default function MarketPage() {
                         {drillSkill.company}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--tm-accent)", marginTop: 1 }}>
-                        {drillSkill.skill ? `Skill: ${drillSkill.skill} · ` : ""}All open roles · {drillLoading ? "…" : `${drillData?.total ?? 0} jobs`}
+                        Skill: {drillSkill.skill} · {drillLoading ? "…" : `${drillData?.available_total ?? 0} matching jobs`}
                       </div>
                     </div>
                   </div>
@@ -425,6 +437,59 @@ export default function MarketPage() {
                       })
                     )}
                   </div>
+                  {drillData && drillData.available_total > 0 && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      marginTop: 10,
+                      paddingTop: 10,
+                      borderTop: "1px solid var(--tm-border-soft)",
+                    }}>
+                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                        Showing {drillData.returned_total.toLocaleString()} of {drillData.available_total.toLocaleString()} · page {drillData.page}
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
+                          disabled={drillData.page <= 1 || drillLoading}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            border: "1px solid var(--tm-border-soft)",
+                            background: "transparent",
+                            color: "var(--tm-text-muted)",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            cursor: drillData.page <= 1 || drillLoading ? "not-allowed" : "pointer",
+                            opacity: drillData.page <= 1 || drillLoading ? 0.45 : 1,
+                          }}
+                        >
+                          Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDrillPage((p) => p + 1)}
+                          disabled={!drillData.has_next_page || drillLoading}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            border: "1px solid var(--tm-accent-ring)",
+                            background: "var(--tm-accent-wash)",
+                            color: "var(--tm-accent)",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            cursor: !drillData.has_next_page || drillLoading ? "not-allowed" : "pointer",
+                            opacity: !drillData.has_next_page || drillLoading ? 0.45 : 1,
+                          }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : selected ? (
                 /* ── Skills list view ── */
@@ -442,7 +507,11 @@ export default function MarketPage() {
                         {[...selected.skills].slice(0, 10).map((s) => (
                           <div
                             key={s}
-                            onClick={() => selected.type === "company" ? setDrillSkill({ company: selected.name, skill: s }) : undefined}
+                            onClick={() => {
+                              if (selected.type !== "company") return
+                              setDrillSkill({ company: selected.name, skill: s })
+                              setDrillPage(1)
+                            }}
                             style={{
                               display: "flex", alignItems: "center", gap: 10,
                               padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",

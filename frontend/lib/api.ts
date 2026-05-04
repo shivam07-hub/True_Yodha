@@ -465,7 +465,11 @@ export interface JobSearchItem {
 
 export interface JobSearchResponse {
   jobs: JobSearchItem[]
-  total: number
+  available_total: number
+  returned_total: number
+  page: number
+  page_size: number
+  has_next_page: boolean
 }
 
 export interface MarketAnalytics {
@@ -524,7 +528,12 @@ export const jobs = {
   },
   search: (
     company: string,
-    options?: { roleDomain?: string | null; skill?: string | null },
+    options?: {
+      roleDomain?: string | null
+      skill?: string | null
+      page?: number | null
+      pageSize?: number | null
+    },
   ) => {
     const normalizedCompany = company.trim()
     if (!normalizedCompany) {
@@ -537,6 +546,12 @@ export const jobs = {
     }
     if (options?.skill && options.skill.trim()) {
       params.set("skill", options.skill.trim())
+    }
+    if (options?.page && options.page > 0) {
+      params.set("page", String(options.page))
+    }
+    if (options?.pageSize && options.pageSize > 0) {
+      params.set("page_size", String(options.pageSize))
     }
     return request<JobSearchResponse>(`/jobs/search?${params.toString()}`)
   },

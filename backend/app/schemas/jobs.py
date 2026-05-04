@@ -244,7 +244,11 @@ class JobSearchItem(BaseModel):
 
 class JobSearchResponse(BaseModel):
     jobs: list[JobSearchItem]
-    total: int
+    available_total: int
+    returned_total: int
+    page: int
+    page_size: int
+    has_next_page: bool
 
 
 class MarketAnalyticsResponse(BaseModel):

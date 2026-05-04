@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from app.repositories.jobs import MarketAnalyticsCompiler
 from app.routers.jobs.list import get_market_analytics, search_jobs
 
 
 class _FakeJobsRepo:
     def __init__(self) -> None:
         self.analytics_role_domain: str | None = None
-        self.search_args: tuple[str | None, str | None, str | None] | None = None
+        self.search_args: tuple[str, str, str | None, int, int] | None = None
+        self._compiler = MarketAnalyticsCompiler()
         self._rows: list[dict[str, Any]] = [
             {
                 "job_id": "j1",
@@ -40,27 +42,37 @@ class _FakeJobsRepo:
             },
         ]
 
-    def fetch_analytics_rows(self, role_domain: str | None = None) -> list[dict[str, Any]]:
+    def compile_market_analytics(self, role_domain: str | None = None) -> dict[str, Any]:
         self.analytics_role_domain = role_domain
+        rows = list(self._rows)
         if not role_domain:
-            return list(self._rows)
-        return [row for row in self._rows if row.get("role_domain") == role_domain]
+            return self._compiler.compile(rows)
+        return self._compiler.compile([row for row in rows if row.get("role_domain") == role_domain])
 
     def search_jobs_by_filters(
         self,
-        company: str | None,
-        skill: str | None,
+        company: str,
+        skill: str,
+        *,
         role_domain: str | None = None,
-    ) -> list[dict[str, Any]]:
-        self.search_args = (company, skill, role_domain)
-        return [
-            {
-                "job_id": "j1",
-                "job_title": "Software Engineer",
-                "company_name": company or "Acme",
-                "job_description": "Build product systems.",
-            }
-        ]
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict[str, Any]:
+        self.search_args = (company, skill, role_domain, page, page_size)
+        rows = [{
+            "job_id": "j1",
+            "job_title": "Software Engineer",
+            "company_name": company,
+            "job_description": "Build product systems.",
+        }]
+        return {
+            "rows": rows,
+            "available_total": len(rows),
+            "returned_total": len(rows),
+            "page": page,
+            "page_size": page_size,
+            "has_next_page": False,
+        }
 
 
 def test_get_market_analytics_groups_industries_and_exposes_roles() -> None:
@@ -101,10 +113,33 @@ def test_search_jobs_passes_role_and_skill_filters() -> None:
             company="Acme",
             skill="Python",
             role_domain="Software Engineering",
+            page=1,
+            page_size=50,
             repo=repo,
         )
     )
 
-    assert repo.search_args == ("Acme", "Python", "Software Engineering")
-    assert result.total == 1
+    assert repo.search_args == ("Acme", "Python", "Software Engineering", 1, 50)
+    assert result.available_total == 1
+    assert result.returned_total == 1
+    assert result.has_next_page is False
     assert result.jobs[0].company_name == "Acme"
+
+
+def test_search_jobs_passes_pagination_contract() -> None:
+    repo = _FakeJobsRepo()
+
+    result = asyncio.run(
+        search_jobs(
+            company="Acme",
+            skill="Python",
+            role_domain="Software Engineering",
+            page=2,
+            page_size=25,
+            repo=repo,
+        )
+    )
+
+    assert repo.search_args == ("Acme", "Python", "Software Engineering", 2, 25)
+    assert result.page == 2
+    assert result.page_size == 25

@@ -1,4 +1,4 @@
-from collections import Counter
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
@@ -10,7 +10,6 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.schemas.jobs import JobSearchItem
-from app.services.industry_grouping import normalize_industry_group
 
 router = APIRouter()
 
@@ -20,70 +19,38 @@ async def get_market_analytics(
     role_domain: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> MarketAnalyticsResponse:
-    rows = repo.fetch_analytics_rows(role_domain=role_domain)
-
-    company_counts: Counter[str] = Counter()
-    industry_counts: Counter[str] = Counter()
-    role_counts: Counter[str] = Counter()
-    skill_counts: Counter[str] = Counter()
-    company_skill_counters: dict[str, Counter[str]] = {}
-    industry_skill_counters: dict[str, Counter[str]] = {}
-    batch_dates: list[int] = []
-
-    for row in rows:
-        company = row.get("company_name")
-        industry = normalize_industry_group(row.get("industry_group"), row.get("industry"))
-        role = (row.get("role_domain") or "").strip()
-        skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
-
-        if company:
-            company_counts[company] += 1
-            if company not in company_skill_counters:
-                company_skill_counters[company] = Counter()
-            company_skill_counters[company].update(skills)
-        if industry:
-            industry_counts[industry] += 1
-            if industry not in industry_skill_counters:
-                industry_skill_counters[industry] = Counter()
-            industry_skill_counters[industry].update(skills)
-        if role:
-            role_counts[role] += 1
-        if row.get("batch_date"):
-            batch_dates.append(row["batch_date"])
-        for skill in skills:
-            skill_counts[skill] += 1
-
-    company_skills = {
-        company: [skill for skill, _ in counter.most_common(12)]
-        for company, counter in company_skill_counters.items()
-    }
-    industry_skills = {
-        industry: [skill for skill, _ in counter.most_common(12)]
-        for industry, counter in industry_skill_counters.items()
-    }
+    analytics = repo.compile_market_analytics(role_domain=role_domain)
 
     return MarketAnalyticsResponse(
-        total_jobs=len(rows),
-        total_companies=len(company_counts),
-        total_industries=len(industry_counts),
-        latest_batch=str(max(batch_dates)) if batch_dates else None,
-        by_company=[NameCountItem(name=name, count=count) for name, count in company_counts.most_common()],
-        by_industry=[NameCountItem(name=name, count=count) for name, count in industry_counts.most_common()],
-        by_role=[NameCountItem(name=name, count=count) for name, count in role_counts.most_common()],
-        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in skill_counts.most_common(20)],
-        company_skills=company_skills,
-        industry_skills=industry_skills,
+        total_jobs=analytics["total_jobs"],
+        total_companies=analytics["total_companies"],
+        total_industries=analytics["total_industries"],
+        latest_batch=analytics["latest_batch"],
+        by_company=[NameCountItem(name=name, count=count) for name, count in analytics["by_company"]],
+        by_industry=[NameCountItem(name=name, count=count) for name, count in analytics["by_industry"]],
+        by_role=[NameCountItem(name=name, count=count) for name, count in analytics["by_role"]],
+        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
+        company_skills=analytics["company_skills"],
+        industry_skills=analytics["industry_skills"],
     )
 
 
 @router.get("/search", response_model=JobSearchResponse)
 async def search_jobs(
-    company: str = Query(..., min_length=1),
-    skill: str | None = None,
+    company: Annotated[str, Query(min_length=1)],
+    skill: Annotated[str, Query(min_length=1)],
     role_domain: str | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> JobSearchResponse:
-    rows = repo.search_jobs_by_filters(company, skill, role_domain=role_domain)
+    page_result = repo.search_jobs_by_filters(
+        company,
+        skill,
+        role_domain=role_domain,
+        page=page,
+        page_size=page_size,
+    )
     items = [
         JobSearchItem(
             job_id=row["job_id"],
@@ -91,6 +58,13 @@ async def search_jobs(
             company_name=row.get("company_name"),
             job_description=row.get("job_description"),
         )
-        for row in rows
+        for row in page_result["rows"]
     ]
-    return JobSearchResponse(jobs=items, total=len(items))
+    return JobSearchResponse(
+        jobs=items,
+        available_total=page_result["available_total"],
+        returned_total=page_result["returned_total"],
+        page=page_result["page"],
+        page_size=page_result["page_size"],
+        has_next_page=page_result["has_next_page"],
+    )
