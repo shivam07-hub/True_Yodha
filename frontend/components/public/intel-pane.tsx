@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import type { MarketAnalytics } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -129,6 +130,8 @@ export function IntelPane() {
     window.addEventListener("resize", check)
     return () => window.removeEventListener("resize", check)
   }, [])
+
+  useJobsRealtime()
 
   const { data: analytics } = useQuery({
     queryKey: dataKeys.jobsAnalyticsPublic(),
