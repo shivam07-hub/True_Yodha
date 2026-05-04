@@ -10,15 +10,22 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    const code = new URLSearchParams(window.location.search).get("code")
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const finish = (session: { access_token: string; refresh_token: string } | null) => {
       if (session) {
         setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
         router.replace("/market")
       } else {
         router.replace("/login")
       }
-    })
+    }
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ data: { session } }) => finish(session))
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => finish(session))
+    }
   }, [router])
 
   return (
