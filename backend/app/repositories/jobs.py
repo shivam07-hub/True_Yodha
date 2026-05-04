@@ -8,6 +8,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows
 
 
 def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -37,34 +38,30 @@ class JobsRepository:
 
     # ── public / global data ───────────────────────────────────────────────────
 
-    def fetch_analytics_rows(self) -> list[dict[str, Any]]:
-        cols = "job_id, company_name, industry, batch_date"
-        jobs: list[dict[str, Any]] = []
-        page_size = 10_000
-        start = 0
-        while True:
-            page = (
-                self._db.table("jobs")
-                .select(cols)
-                .range(start, start + page_size - 1)
-                .execute()
-                .data or []
-            )
-            jobs.extend(page)
-            if len(page) < page_size:
-                break
-            start += page_size
+    def fetch_analytics_rows(self, role_domain: str | None = None) -> list[dict[str, Any]]:
+        query_builder = None
+        if role_domain:
+            query_builder = lambda query: query.eq("role_domain", role_domain)
+
+        jobs = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, company_name, industry, industry_group, role_domain, batch_date",
+            query_builder=query_builder,
+        )
+        job_ids = {job["job_id"] for job in jobs}
 
         # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics)
-        sk1 = self._db.table("job_skills").select(
-            "job_id, skills(taxonomy_key)"
-        ).eq("is_primary", True).range(0, 9999).execute().data or []
-        sk2 = self._db.table("job_skills").select(
-            "job_id, skills(taxonomy_key)"
-        ).eq("is_primary", True).range(10000, 29999).execute().data or []
+        primary_skill_rows = fetch_job_skill_rows(
+            self._db,
+            columns="job_id, skills(taxonomy_key)",
+            only_primary=True,
+        )
 
         skill_map: dict[str, list[str]] = {}
-        for row in sk1 + sk2:
+        for row in primary_skill_rows:
+            if row["job_id"] not in job_ids:
+                continue
             key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
             if key:
                 skill_map.setdefault(row["job_id"], []).append(key)
@@ -75,21 +72,27 @@ class JobsRepository:
         return jobs
 
     def search_jobs_by_filters(
-        self, company: str | None, skill: str | None
+        self,
+        company: str | None,
+        skill: str | None,
+        role_domain: str | None = None,
     ) -> list[dict[str, Any]]:
         query = self._db.table("jobs").select(
             "job_id, job_title, company_name, job_description"
         )
         if company:
             query = query.eq("company_name", company)
+        if role_domain:
+            query = query.eq("role_domain", role_domain)
         rows: list[dict[str, Any]] = query.limit(200).execute().data or []
 
         if skill:
             skill_lower = skill.lower()
             # Resolve matching job_ids via job_skills JOIN skills (FK-enforced taxonomy)
-            sk_rows = self._db.table("job_skills").select(
-                "job_id, skills(taxonomy_key)"
-            ).execute().data or []
+            sk_rows = fetch_job_skill_rows(
+                self._db,
+                columns="job_id, skills(taxonomy_key)",
+            )
             matching_ids = {
                 r["job_id"] for r in sk_rows
                 if skill_lower in ((r.get("skills") or {}).get("taxonomy_key") or "").lower()
@@ -111,23 +114,11 @@ class JobsRepository:
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
-        page1 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(0, 9999).execute().data or []
-        page2 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(10000, 29999).execute().data or []
-        return _group_job_skills(page1 + page2)
+        return _group_job_skills(fetch_job_skill_rows(self._db))
 
     def get_all_job_skill_rows(self) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
-        page1 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(0, 9999).execute().data or []
-        page2 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(10000, 29999).execute().data or []
-        return page1 + page2
+        return fetch_job_skill_rows(self._db)
 
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch job metadata for a specific list of job_ids."""

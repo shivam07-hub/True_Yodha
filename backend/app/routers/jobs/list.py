@@ -10,18 +10,21 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.schemas.jobs import JobSearchItem
+from app.services.industry_grouping import normalize_industry_group
 
 router = APIRouter()
 
 
 @router.get("/analytics", response_model=MarketAnalyticsResponse)
 async def get_market_analytics(
+    role_domain: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> MarketAnalyticsResponse:
-    rows = repo.fetch_analytics_rows()
+    rows = repo.fetch_analytics_rows(role_domain=role_domain)
 
     company_counts: Counter[str] = Counter()
     industry_counts: Counter[str] = Counter()
+    role_counts: Counter[str] = Counter()
     skill_counts: Counter[str] = Counter()
     company_skill_counters: dict[str, Counter[str]] = {}
     industry_skill_counters: dict[str, Counter[str]] = {}
@@ -29,7 +32,8 @@ async def get_market_analytics(
 
     for row in rows:
         company = row.get("company_name")
-        industry = row.get("industry")
+        industry = normalize_industry_group(row.get("industry_group"), row.get("industry"))
+        role = (row.get("role_domain") or "").strip()
         skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
 
         if company:
@@ -42,6 +46,8 @@ async def get_market_analytics(
             if industry not in industry_skill_counters:
                 industry_skill_counters[industry] = Counter()
             industry_skill_counters[industry].update(skills)
+        if role:
+            role_counts[role] += 1
         if row.get("batch_date"):
             batch_dates.append(row["batch_date"])
         for skill in skills:
@@ -63,6 +69,7 @@ async def get_market_analytics(
         latest_batch=str(max(batch_dates)) if batch_dates else None,
         by_company=[NameCountItem(name=name, count=count) for name, count in company_counts.most_common()],
         by_industry=[NameCountItem(name=name, count=count) for name, count in industry_counts.most_common()],
+        by_role=[NameCountItem(name=name, count=count) for name, count in role_counts.most_common()],
         top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in skill_counts.most_common(20)],
         company_skills=company_skills,
         industry_skills=industry_skills,
@@ -73,9 +80,10 @@ async def get_market_analytics(
 async def search_jobs(
     company: str | None = None,
     skill: str | None = None,
+    role_domain: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> JobSearchResponse:
-    rows = repo.search_jobs_by_filters(company, skill)
+    rows = repo.search_jobs_by_filters(company, skill, role_domain=role_domain)
     items = [
         JobSearchItem(
             job_id=row["job_id"],

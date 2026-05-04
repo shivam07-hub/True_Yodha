@@ -254,6 +254,7 @@ class MarketAnalyticsResponse(BaseModel):
     latest_batch: str | None
     by_company: list[NameCountItem]
     by_industry: list[NameCountItem]
+    by_role: list[NameCountItem] = []
     top_skills: list[SkillCountItem]
     company_skills: dict[str, list[str]] = {}
     industry_skills: dict[str, list[str]] = {}

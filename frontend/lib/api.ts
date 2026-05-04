@@ -474,6 +474,7 @@ export interface MarketAnalytics {
   total_industries: number
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
+  by_role: NameCountItem[]
   top_skills: SkillCountItem[]
   company_skills: Record<string, string[]>
   industry_skills: Record<string, string[]>
@@ -513,9 +514,28 @@ export interface UserSkillDemandResponse {
 }
 
 export const jobs = {
-  analytics: () => request<MarketAnalytics>("/jobs/analytics"),
-  search: (company: string) =>
-    request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}`),
+  analytics: (roleDomain?: string | null) => {
+    const params = new URLSearchParams()
+    if (roleDomain && roleDomain.trim()) {
+      params.set("role_domain", roleDomain.trim())
+    }
+    const query = params.toString()
+    return request<MarketAnalytics>(`/jobs/analytics${query ? `?${query}` : ""}`)
+  },
+  search: (
+    company: string,
+    options?: { roleDomain?: string | null; skill?: string | null },
+  ) => {
+    const params = new URLSearchParams()
+    params.set("company", company)
+    if (options?.roleDomain && options.roleDomain.trim()) {
+      params.set("role_domain", options.roleDomain.trim())
+    }
+    if (options?.skill && options.skill.trim()) {
+      params.set("skill", options.skill.trim())
+    }
+    return request<JobSearchResponse>(`/jobs/search?${params.toString()}`)
+  },
   mySkillDemand: (token: string) =>
     request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
       headers: { Authorization: `Bearer ${token}` },

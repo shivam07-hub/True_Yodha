@@ -111,6 +111,7 @@ export default function MarketPage() {
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
   const [companySearch, setCompanySearch] = useState("")
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
+  const [selectedRole, setSelectedRole] = useState<string>("")
 
   useJobsRealtime()
 
@@ -139,16 +140,20 @@ export default function MarketPage() {
   }, {})
 
   const { data: analytics, isLoading } = useQuery({
-    queryKey: dataKeys.jobsAnalytics(),
-    queryFn: () => jobs.analytics(),
+    queryKey: dataKeys.jobsAnalytics(selectedRole),
+    queryFn: () => jobs.analytics(selectedRole || undefined),
     staleTime: 5 * 60 * 1000,
   })
 
   const hasCv = !scoreLoading && !!scoreData
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: dataKeys.jobsSearch(drillSkill?.company),
-    queryFn: () => jobs.search(drillSkill!.company),
+    queryKey: dataKeys.jobsSearch(drillSkill?.company, selectedRole, drillSkill?.skill),
+    queryFn: () =>
+      jobs.search(drillSkill!.company, {
+        roleDomain: selectedRole || undefined,
+        skill: drillSkill!.skill || undefined,
+      }),
     enabled: !!drillSkill,
     staleTime: 5 * 60 * 1000,
   })
@@ -170,8 +175,9 @@ export default function MarketPage() {
     ? baseList.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
     : baseList
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
+  const roleOptions = analytics?.by_role ?? []
   const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} domains`
+    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}`
     : "Loading market coverage"
 
   return (
@@ -198,12 +204,39 @@ export default function MarketPage() {
 
         <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
 
+        {/* Role Filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+            Role Domain
+          </div>
+          <select
+            value={selectedRole}
+            onChange={(e) => {
+              setSelectedRole(e.target.value)
+              setSelected(null)
+              setDrillSkill(null)
+              setExpandedDesc(null)
+              setSelectedJobFit(null)
+              setCompanySearch("")
+            }}
+            className="tm-input"
+            style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+          >
+            <option value="">All roles</option>
+            {roleOptions.map((role) => (
+              <option key={role.name} value={role.name}>
+                {role.name} ({role.count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           {(["companies", "industries"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setExpandedDesc(null); setCompanySearch("") }}
+              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
                 background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
@@ -305,7 +338,7 @@ export default function MarketPage() {
                         {drillSkill.company}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--tm-accent)", marginTop: 1 }}>
-                        All open roles · {drillLoading ? "…" : `${drillData?.total ?? 0} jobs`}
+                        {drillSkill.skill ? `Skill: ${drillSkill.skill} · ` : ""}All open roles · {drillLoading ? "…" : `${drillData?.total ?? 0} jobs`}
                       </div>
                     </div>
                   </div>
