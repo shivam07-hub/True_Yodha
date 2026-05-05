@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getAllIssues } from "@/lib/newsletter"
 
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const issues = await getAllIssues()

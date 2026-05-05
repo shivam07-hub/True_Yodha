@@ -3,7 +3,7 @@ import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { NAV, muted, tocLink, accentNum, Section, Li, Ul, Sub, P } from "./privacy-components"
 
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 
 export const metadata: Metadata = {
   title: "Privacy Policy — Myro",

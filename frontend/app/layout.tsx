@@ -11,14 +11,14 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://truemirror.vercel.app"),
+  metadataBase: new URL("https://www.himyro.com"),
   title: "Myro — Career Intelligence",
   description:
     "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",
   robots: { index: false, follow: false },
   openGraph: {
     type: "website",
-    url: "https://truemirror.vercel.app",
+    url: "https://www.himyro.com",
     title: "Myro — Career Intelligence",
     description:
       "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",

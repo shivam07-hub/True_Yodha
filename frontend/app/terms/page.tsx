@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 
 export const metadata: Metadata = {
   title: "Terms of Service — Myro",
