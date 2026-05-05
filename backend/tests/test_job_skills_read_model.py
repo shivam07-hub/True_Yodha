@@ -182,7 +182,7 @@ def test_compile_market_analytics_invalidates_after_ttl() -> None:
         result1 = repo.compile_market_analytics()
 
     ranges_after_first = list(db.ranges)
-    with patch("app.repositories.jobs.time.monotonic", return_value=3601.0):
+    with patch("app.repositories.jobs.time.monotonic", return_value=604801.0):  # just over 7 days
         result2 = repo.compile_market_analytics()
 
     assert result1 is not result2

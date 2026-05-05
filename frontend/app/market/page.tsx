@@ -142,10 +142,17 @@ export default function MarketPage() {
     return acc
   }, {})
 
+  // Use personalized analytics when authenticated with no manual role override.
+  // Falls back to public analytics if user overrides via role dropdown or is unauthenticated.
+  const usePersonalized = !!token && !selectedRole
   const { data: analytics, isLoading } = useQuery({
-    queryKey: dataKeys.jobsAnalytics(selectedRole),
-    queryFn: () => jobs.analytics(selectedRole || undefined),
-    staleTime: 5 * 60 * 1000,
+    queryKey: usePersonalized
+      ? dataKeys.jobsAnalyticsMe(token)
+      : dataKeys.jobsAnalytics(selectedRole),
+    queryFn: usePersonalized
+      ? () => jobs.analyticsForMe(token)
+      : () => jobs.analytics(selectedRole || undefined),
+    staleTime: 7 * 24 * 60 * 60 * 1000,
   })
 
   const hasCv = !scoreLoading && !!scoreData

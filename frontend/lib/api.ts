@@ -526,6 +526,10 @@ export const jobs = {
     const query = params.toString()
     return request<MarketAnalytics>(`/jobs/analytics${query ? `?${query}` : ""}`)
   },
+  analyticsForMe: (token: string) =>
+    request<MarketAnalytics>("/jobs/analytics/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   search: (
     company: string,
     options?: {

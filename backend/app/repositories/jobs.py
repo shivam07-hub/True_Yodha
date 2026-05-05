@@ -14,7 +14,7 @@ from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_ski
 from app.services.industry_grouping import normalize_industry_group
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
-_ANALYTICS_TTL = 3600  # 1h
+_ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _analytics_cache: dict[str | None, tuple[float, dict[str, Any]]] = {}
 SKILL_DRILL_MAX_PAGE_SIZE = 100
 
@@ -109,12 +109,13 @@ class JobsRepository:
         )
         job_ids = {job["job_id"] for job in jobs}
 
-        # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics)
+        # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics).
+        # Do NOT pass job_ids here — with 25k+ jobs the .in_() URL exceeds PostgREST limits.
+        # Python-side join below correctly scopes skills to fetched jobs.
         primary_skill_rows = fetch_job_skill_rows(
             self._db,
             columns="job_id, skills(taxonomy_key)",
             only_primary=True,
-            job_ids=list(job_ids),
         )
 
         skill_map: dict[str, list[str]] = {}
@@ -392,6 +393,67 @@ class JobsRepository:
             for row in (result.data or [])
             if row.get("skills") and row["skills"].get("taxonomy_key")
         }
+
+    def get_user_target_roles(self, user_id: str) -> list[str]:
+        result = (
+            self._db.table("user_profiles")
+            .select("target_roles")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        if not result.data:
+            return []
+        return result.data.get("target_roles") or []
+
+    def resolve_role_domain_for_clusters(self, clusters: list[str]) -> str | None:
+        """Map L2 taxonomy cluster names → best matching jobs.role_domain.
+
+        Uses the taxonomy chain: clusters → skills.l2_cluster → job_skills → jobs.role_domain.
+        Samples up to 100 jobs to find the dominant domain (avoids URL-length explosion).
+        """
+        if not clusters:
+            return None
+
+        # skills table has l2_cluster (denormalized from taxonomy) — small result, fine URL
+        skills_result = (
+            self._db.table("skills")
+            .select("id")
+            .in_("l2_cluster", clusters)
+            .execute()
+        )
+        skill_ids = [row["id"] for row in (skills_result.data or [])]
+        if not skill_ids:
+            return None
+
+        # skill_ids are integers — short URL even for 200 skills
+        js_result = (
+            self._db.table("job_skills")
+            .select("job_id")
+            .in_("skill_id", skill_ids)
+            .limit(200)
+            .execute()
+        )
+        job_ids_sample = list({row["job_id"] for row in (js_result.data or [])})[:100]
+        if not job_ids_sample:
+            return None
+
+        # 100 UUIDs × 37 chars = ~3,700 chars — within PostgREST URL limits
+        jobs_result = (
+            self._db.table("jobs")
+            .select("role_domain")
+            .in_("job_id", job_ids_sample)
+            .not_.is_("role_domain", "null")
+            .execute()
+        )
+        role_counts: Counter[str] = Counter()
+        for row in (jobs_result.data or []):
+            domain = (row.get("role_domain") or "").strip()
+            if domain:
+                role_counts[domain] += 1
+
+        return role_counts.most_common(1)[0][0] if role_counts else None
+
 
 def get_public_jobs_repository() -> JobsRepository:
     # Public endpoints have no JWT — admin client reads global reference data.

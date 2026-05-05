@@ -18,6 +18,7 @@ export const dataKeys = {
   skillGap: (jobId: JobId, token: Token) => ["skill-gap", jobId, token] as const,
   jobsAnalytics: (roleDomain?: string | null) => ["jobs-analytics", roleDomain ?? ""] as const,
   jobsAnalyticsPublic: (roleDomain?: string | null) => ["jobs-analytics-public", roleDomain ?? ""] as const,
+  jobsAnalyticsMe: (token: Token) => ["jobs-analytics-me", token] as const,
   jobsSearch: (
     company: string | null | undefined,
     roleDomain?: string | null,

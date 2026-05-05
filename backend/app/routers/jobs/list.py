@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.repositories.jobs import JobsRepository, get_public_jobs_repository
+from app.deps import get_current_user
+from app.repositories.jobs import JobsRepository, get_public_jobs_repository, get_token_jobs_repository
 from app.schemas import (
     JobSearchResponse,
     MarketAnalyticsResponse,
@@ -12,6 +13,28 @@ from app.schemas import (
 from app.schemas.jobs import JobSearchItem
 
 router = APIRouter()
+
+
+@router.get("/analytics/me", response_model=MarketAnalyticsResponse)
+async def get_my_analytics(
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    current_user: dict = Depends(get_current_user),
+) -> MarketAnalyticsResponse:
+    target_roles = repo.get_user_target_roles(current_user["user_id"])
+    role_domain = repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
+    analytics = repo.compile_market_analytics(role_domain=role_domain)
+    return MarketAnalyticsResponse(
+        total_jobs=analytics["total_jobs"],
+        total_companies=analytics["total_companies"],
+        total_industries=analytics["total_industries"],
+        latest_batch=analytics["latest_batch"],
+        by_company=[NameCountItem(name=name, count=count) for name, count in analytics["by_company"]],
+        by_industry=[NameCountItem(name=name, count=count) for name, count in analytics["by_industry"]],
+        by_role=[NameCountItem(name=name, count=count) for name, count in analytics["by_role"]],
+        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
+        company_skills=analytics["company_skills"],
+        industry_skills=analytics["industry_skills"],
+    )
 
 
 @router.get("/analytics", response_model=MarketAnalyticsResponse)
