@@ -7,6 +7,7 @@ Writes:  public.user_skills, public.mirror_scores, public.mirror_score_history
 """
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from app.repositories.scores import ScoresRepository
@@ -21,6 +22,10 @@ from app.services.scoring.formulas import (
 from app.services.scoring.gap import compute_gap_skills, compute_rank_tier
 
 logger = logging.getLogger(__name__)
+
+_DEMAND_CACHE: dict[str, int] = {}
+_DEMAND_CACHE_TS: float = 0.0
+_DEMAND_CACHE_TTL = 3600  # seconds — market demand changes only on job feed refreshes
 
 
 # ── Supabase reads ────────────────────────────────────────────────────────────
@@ -79,12 +84,18 @@ def fetch_skill_demand(scores_repo: ScoresRepository) -> dict[str, int]:
     Returns {skill_name: job_count} by counting occurrences across
     jobs.main_skills and jobs.side_skills. Source of truth: public.jobs table.
     main_skills weighted ×2 to reflect must-have vs nice-to-have distinction.
+
+    Result is cached for _DEMAND_CACHE_TTL seconds — market demand changes only
+    on job feed refreshes, so per-user recompute hits don't need a fresh query.
     """
+    global _DEMAND_CACHE, _DEMAND_CACHE_TS
+    if _DEMAND_CACHE and (time.monotonic() - _DEMAND_CACHE_TS) < _DEMAND_CACHE_TTL:
+        return _DEMAND_CACHE
     try:
         rows = scores_repo.list_market_skill_rows()
     except Exception as exc:
         logger.warning("Market skill demand lookup failed: %s", exc)
-        return {}
+        return _DEMAND_CACHE or {}
     counts: dict[str, int] = {}
     for row in rows:
         for s in (row.get("main_skills") or []):
@@ -93,6 +104,8 @@ def fetch_skill_demand(scores_repo: ScoresRepository) -> dict[str, int]:
         for s in (row.get("side_skills") or []):
             if s and s.strip():
                 counts[s.strip()] = counts.get(s.strip(), 0) + 1
+    _DEMAND_CACHE = counts
+    _DEMAND_CACHE_TS = time.monotonic()
     return counts
 
 

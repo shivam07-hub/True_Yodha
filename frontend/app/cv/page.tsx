@@ -608,15 +608,16 @@ export default function CVPage() {
     setMessage(null)
     try {
       const result = await uploadCV(token, file)
-      void scores.compute(token)
-        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) }))
-        .catch(() => null)
+      // Score is already computed and persisted inside cv_workflow.ingest_uploaded_cv —
+      // no separate scores.compute call needed here.
       void jobs.compute(token)
         .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }))
         .catch(() => null)
+      // Force-refetch CV profile before the modal closes so the text viewer
+      // shows the new CV immediately (invalidateQueries alone only marks stale).
+      await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
       setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
