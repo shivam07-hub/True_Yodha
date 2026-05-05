@@ -526,10 +526,14 @@ export const jobs = {
     const query = params.toString()
     return request<MarketAnalytics>(`/jobs/analytics${query ? `?${query}` : ""}`)
   },
-  analyticsForMe: (token: string) =>
-    request<MarketAnalytics>("/jobs/analytics/me", {
+  analyticsForMe: (token: string, cluster?: string | null) => {
+    const params = new URLSearchParams()
+    if (cluster && cluster.trim()) params.set("cluster", cluster.trim())
+    const query = params.toString()
+    return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
-    }),
+    })
+  },
   search: (
     company: string,
     options?: {

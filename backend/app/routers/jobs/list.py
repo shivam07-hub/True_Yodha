@@ -17,11 +17,15 @@ router = APIRouter()
 
 @router.get("/analytics/me", response_model=MarketAnalyticsResponse)
 async def get_my_analytics(
+    cluster: str | None = None,
     repo: JobsRepository = Depends(get_token_jobs_repository),
     current_user: dict = Depends(get_current_user),
 ) -> MarketAnalyticsResponse:
-    target_roles = repo.get_user_target_roles(current_user["user_id"])
-    role_domain = repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
+    if cluster:
+        role_domain = repo.resolve_role_domain_for_clusters([cluster])
+    else:
+        target_roles = repo.get_user_target_roles(current_user["user_id"])
+        role_domain = repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
     analytics = repo.compile_market_analytics(role_domain=role_domain)
     return MarketAnalyticsResponse(
         total_jobs=analytics["total_jobs"],

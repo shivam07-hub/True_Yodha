@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs, scores } from "@/lib/api"
+import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { AppShell } from "@/components/app-shell"
@@ -114,6 +114,7 @@ export default function MarketPage() {
   const [companySearch, setCompanySearch] = useState("")
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>("")
+  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
   const [drillPage, setDrillPage] = useState(1)
 
   useJobsRealtime()
@@ -130,6 +131,15 @@ export default function MarketPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: profileData } = useQuery({
+    queryKey: dataKeys.profile(token),
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const targetRoles: string[] = profileData?.target_roles ?? []
+
   const { data: matchesData } = useQuery({
     queryKey: ["job-matches", token],
     queryFn: () => jobs.matches(token!),
@@ -142,15 +152,16 @@ export default function MarketPage() {
     return acc
   }, {})
 
-  // Use personalized analytics when authenticated with no manual role override.
-  // Falls back to public analytics if user overrides via role dropdown or is unauthenticated.
-  const usePersonalized = !!token && !selectedRole
+  // Authenticated users get personalized analytics scoped to their target roles.
+  // selectedCluster=null means "all their roles combined"; a cluster name filters to one role.
+  // Unauthenticated users fall back to the public analytics with optional role_domain filter.
+  const usePersonalized = !!token
   const { data: analytics, isLoading } = useQuery({
     queryKey: usePersonalized
-      ? dataKeys.jobsAnalyticsMe(token)
+      ? dataKeys.jobsAnalyticsMe(token, selectedCluster)
       : dataKeys.jobsAnalytics(selectedRole),
     queryFn: usePersonalized
-      ? () => jobs.analyticsForMe(token)
+      ? () => jobs.analyticsForMe(token, selectedCluster)
       : () => jobs.analytics(selectedRole || undefined),
     staleTime: 7 * 24 * 60 * 60 * 1000,
   })
@@ -222,33 +233,75 @@ export default function MarketPage() {
 
         <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
 
-        {/* Role Filter */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-            Role Domain
+        {/* Role Filter — pill tabs for authenticated users, dropdown fallback for public */}
+        {token ? (
+          targetRoles.length > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
+                Your Roles
+              </div>
+              {(["all", ...targetRoles] as const).map((role) => {
+                const isAll = role === "all"
+                const active = isAll ? selectedCluster === null : selectedCluster === role
+                return (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      setSelectedCluster(isAll ? null : role as string)
+                      setSelected(null)
+                      setDrillSkill(null)
+                      setDrillPage(1)
+                      setExpandedDesc(null)
+                      setCompanySearch("")
+                      setSelectedJobFit(null)
+                    }}
+                    style={{
+                      padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
+                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                      color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                      cursor: "pointer",
+                      transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                    }}
+                  >
+                    {isAll ? "All" : role as string}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ marginBottom: 14, fontSize: 12, color: "var(--tm-text-faint)" }}>
+              No target roles set — open Settings to add up to 3 target roles
+            </div>
+          )
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+              Role Domain
+            </div>
+            <select
+              value={selectedRole}
+              onChange={(e) => {
+                setSelectedRole(e.target.value)
+                setSelected(null)
+                setDrillSkill(null)
+                setDrillPage(1)
+                setExpandedDesc(null)
+                setSelectedJobFit(null)
+                setCompanySearch("")
+              }}
+              className="tm-input"
+              style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+            >
+              <option value="">All roles</option>
+              {roleOptions.map((role) => (
+                <option key={role.name} value={role.name}>
+                  {role.name} ({role.count.toLocaleString()})
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            value={selectedRole}
-            onChange={(e) => {
-              setSelectedRole(e.target.value)
-              setSelected(null)
-              setDrillSkill(null)
-              setDrillPage(1)
-              setExpandedDesc(null)
-              setSelectedJobFit(null)
-              setCompanySearch("")
-            }}
-            className="tm-input"
-            style={{ maxWidth: 320, height: 34, fontSize: 12 }}
-          >
-            <option value="">All roles</option>
-            {roleOptions.map((role) => (
-              <option key={role.name} value={role.name}>
-                {role.name} ({role.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-        </div>
+        )}
 
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
