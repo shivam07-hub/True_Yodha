@@ -82,6 +82,33 @@ def test_update_profile_writes_through_token_repository() -> None:
     assert repo.updates == [("u1", {"full_name": "Grace Hopper"})]
 
 
+def test_update_profile_creates_row_for_orphan_user() -> None:
+    """If the user has no profile row yet, PUT must seed it via upsert and return 200."""
+    repo = _FakeUsersRepository(profile=None)
+    seeded: dict[str, Any] = {}
+
+    def _update(user_id: str, updates: dict[str, Any]) -> None:
+        repo.updates.append((user_id, updates))
+        # Simulate upsert: row appears after first write.
+        seeded.update({"id": user_id, **updates})
+        repo.profile = _profile_row(**{**seeded, "email": "orphan@example.com"})
+
+    repo.update_profile = _update  # type: ignore[assignment]
+
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.put("/users/me/profile", json={"target_location": "Mumbai"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["target_location"] == "Mumbai"
+    assert repo.updates == [("u1", {"target_location": "Mumbai"})]
+
+
 def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
     repo = _FakeUsersRepository(
         records=[

@@ -36,7 +36,13 @@ class UsersRepository:
         return (result.data if result else None) or None
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
-        self._db.table("user_profiles").update(updates).eq("id", user_id).execute()
+        """UPSERT the profile so PUT always succeeds even if the row was never seeded.
+
+        Required columns (id, email) are filled in by ensure_profile_exists during
+        get_current_user; this call only sends the fields the user is editing.
+        """
+        payload = {"id": user_id, **updates}
+        self._db.table("user_profiles").upsert(payload, on_conflict="id").execute()
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
@@ -76,6 +82,31 @@ class UsersRepository:
         if not result or not result.data:
             return None
         return int(result.data["id"])
+
+    def ensure_profile_exists(
+        self,
+        user_id: str,
+        *,
+        email: str | None,
+        full_name: str | None = None,
+    ) -> None:
+        """Idempotent: insert a user_profiles row if missing, no-op if present.
+
+        Called from get_current_user so any authenticated request self-provisions
+        its profile. Uses INSERT ... ON CONFLICT DO NOTHING so we never overwrite
+        existing data.
+        """
+        if not email:
+            return
+        self._db.table("user_profiles").upsert(
+            {
+                "id": user_id,
+                "email": email,
+                "full_name": full_name,
+            },
+            on_conflict="id",
+            ignore_duplicates=True,
+        ).execute()
 
     def correct_skill_level(self, user_id: str, skill_id: int, new_level: int) -> None:
         now = datetime.now(timezone.utc).isoformat()
