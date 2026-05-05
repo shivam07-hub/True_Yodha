@@ -156,6 +156,19 @@ export function SettingsModal({ open, onClose, profile }: {
     onClose()
   }
 
+  function saveNow() {
+    if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null }
+    const payload: ProfileUpdate = {
+      full_name: normalize(name),
+      target_location: normalize(location),
+      linkedin_url: normalizeLinkedIn(linkedin),
+      target_roles: normalizeRoles(roles),
+    }
+    pending.current = {}
+    setSaveStatus("saving"); setSaveError(null)
+    mutation.mutate(payload)
+  }
+
   function handleRolesChange(next: string[]) { setRoles(next); schedule({ target_roles: normalizeRoles(next) }) }
   function removeRole(i: number) { handleRolesChange(roles.filter((_, idx) => idx !== i)) }
   function selectRole(r: string) {
@@ -314,6 +327,26 @@ export function SettingsModal({ open, onClose, profile }: {
               onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
               onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
             />
+          </div>
+
+          {/* Explicit save */}
+          <div style={{ paddingTop: 8, borderTop: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+            {saveStatus === "error" && saveError && (
+              <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
+            )}
+            <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
+              style={{
+                padding: "9px 22px", borderRadius: "var(--tm-radius-sm)", border: "none",
+                background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
+                color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+                cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
+                opacity: saveStatus === "saving" ? 0.65 : 1,
+                transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
+                minWidth: 100,
+              }}
+            >
+              {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
+            </button>
           </div>
         </div>
       </DialogContent>

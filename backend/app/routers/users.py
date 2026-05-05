@@ -97,7 +97,7 @@ async def update_profile(
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update.")
 
-    users_repo.update_profile(current_user["user_id"], updates)
+    users_repo.update_profile(current_user["user_id"], updates, email=current_user.get("email"))
     profile = users_repo.get_profile(current_user["user_id"])
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")

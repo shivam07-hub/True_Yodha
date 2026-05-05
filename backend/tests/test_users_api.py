@@ -42,7 +42,7 @@ class _FakeUsersRepository:
     def get_profile(self, _user_id: str) -> dict[str, Any] | None:
         return self.profile
 
-    def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
+    def update_profile(self, user_id: str, updates: dict[str, Any], *, email: str | None = None) -> None:
         self.updates.append((user_id, updates))
         if self.profile:
             self.profile.update(updates)
@@ -87,7 +87,7 @@ def test_update_profile_creates_row_for_orphan_user() -> None:
     repo = _FakeUsersRepository(profile=None)
     seeded: dict[str, Any] = {}
 
-    def _update(user_id: str, updates: dict[str, Any]) -> None:
+    def _update(user_id: str, updates: dict[str, Any], *, email: str | None = None) -> None:
         repo.updates.append((user_id, updates))
         # Simulate upsert: row appears after first write.
         seeded.update({"id": user_id, **updates})

@@ -35,13 +35,15 @@ class UsersRepository:
         )
         return (result.data if result else None) or None
 
-    def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
+    def update_profile(self, user_id: str, updates: dict[str, Any], *, email: str | None = None) -> None:
         """UPSERT the profile so PUT always succeeds even if the row was never seeded.
 
-        Required columns (id, email) are filled in by ensure_profile_exists during
-        get_current_user; this call only sends the fields the user is editing.
+        email is required for the INSERT path (NOT NULL constraint); pass it from
+        the JWT so the upsert never fails on a new row.
         """
         payload = {"id": user_id, **updates}
+        if email:
+            payload.setdefault("email", email)
         self._db.table("user_profiles").upsert(payload, on_conflict="id").execute()
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
