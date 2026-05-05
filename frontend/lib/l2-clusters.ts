@@ -1,4 +1,4 @@
-export const MAX_TARGET_ROLES = 3
+export const MAX_TARGET_ROLES = 5
 
 export const L2_CLUSTERS: string[] = [
   "Account Management","Accounting and Finance Software","Accounts Payable and Receivable",

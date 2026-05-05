@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch } from "@/lib/api"
@@ -140,6 +140,13 @@ export default function MarketPage() {
 
   const targetRoles: string[] = profileData?.target_roles ?? []
 
+  // Auto-select first (highest priority) target role on initial load
+  useEffect(() => {
+    if (targetRoles.length > 0 && selectedCluster === null) {
+      setSelectedCluster(targetRoles[0])
+    }
+  }, [targetRoles])
+
   const { data: matchesData } = useQuery({
     queryKey: ["job-matches", token],
     queryFn: () => jobs.matches(token!),
@@ -238,16 +245,15 @@ export default function MarketPage() {
           targetRoles.length > 0 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
-                Your Roles
+                Target Roles
               </div>
-              {(["all", ...targetRoles] as const).map((role) => {
-                const isAll = role === "all"
-                const active = isAll ? selectedCluster === null : selectedCluster === role
+              {targetRoles.map((role) => {
+                const active = selectedCluster === role
                 return (
                   <button
                     key={role}
                     onClick={() => {
-                      setSelectedCluster(isAll ? null : role as string)
+                      setSelectedCluster(role)
                       setSelected(null)
                       setDrillSkill(null)
                       setDrillPage(1)
@@ -264,14 +270,20 @@ export default function MarketPage() {
                       transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
                     }}
                   >
-                    {isAll ? "All" : role as string}
+                    {role}
                   </button>
                 )
               })}
             </div>
           ) : (
             <div style={{ marginBottom: 14, fontSize: 12, color: "var(--tm-text-faint)" }}>
-              No target roles set — open Settings to add up to 3 target roles
+              No target roles set —{" "}
+              <button
+                onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textDecoration: "underline" }}
+              >
+                Add target roles in Settings →
+              </button>
             </div>
           )
         ) : (
