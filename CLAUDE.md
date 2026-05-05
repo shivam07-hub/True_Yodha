@@ -175,6 +175,23 @@ User reported broken new-user journey. Three independent root causes identified,
 
 ---
 
+### 🔲 OPEN DECISION — CV upload perceived latency (~29s)
+
+**Context:** `POST /cv/upload` takes ~29s end-to-end. The bottleneck is `cv_parser.parse_cv()` — an LLM call via the OpenRouter → Groq → Gemini fallback chain. Observed in production: moonshotai/kimi-k2.6 returned an unparseable response, triggering a provider retry, which added several seconds on top of base latency.
+
+**The redundant 85s `scores.compute` call after upload has already been removed (2026-05-06).** The 29s is now the irreducible minimum with the current synchronous architecture.
+
+**Two paths forward — decision deferred to next session:**
+
+| Option | What it means | Tradeoffs |
+|---|---|---|
+| **A — Better loading UX** | Keep sync upload. Replace the fixed-timer `CVUploadProcessing` animation with step-aware progress tied to real backend stages. Make the wait feel purposeful ("Extracting your skills…", "Mapping to taxonomy…", "Computing your score…"). | Zero backend change. 29s stays 29s. Users may still abandon if they don't trust the wait. |
+| **B — Reduce actual latency** | Options: (1) faster/cheaper LLM model for extraction (Gemini Flash or a quantized local model), (2) async upload — return 202 immediately with a `task_id`, frontend polls `/cv/status/{task_id}` every 2s, (3) parallel provider race instead of sequential fallback. | B1 risks quality loss. B2 adds infra complexity (task store, polling endpoint). B3 is low-effort and directly addresses the retry penalty seen in logs. |
+
+**Do not implement either option without an explicit decision in the next session. Resume from here.**
+
+---
+
 ### Existing backlog (priority order after arch sprint)
 
 1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop. Full end-to-end production path with dedicated test account.
@@ -275,6 +292,48 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 - Vercel: `truemirror.vercel.app` → `main` branch
 - Supabase: `gipvxuugajkugntwkeiz` (prod DB)
 - LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+
+---
+
+## LAST SESSION SUMMARY (2026-05-06 — NEW-USER FLOW FIXES + CV PIPELINE PERF)
+
+```
+Date: 2026-05-06
+What landed:
+
+  Bug 1 — null email 500 on PUT /users/me/profile:
+    - update_profile upsert was missing email in the INSERT path
+    - Router now passes email=current_user["email"] into repo upsert
+    - Fake repos in test_users_api.py updated to accept email= kwarg
+    - 217 tests passing
+
+  Settings modal — explicit Save button:
+    - saveNow() fn flushes debounce immediately and fires mutation
+    - "Save" button at bottom of scrollable body; shows "Saving…" / "✓ Saved"
+    - Autosave (800ms debounce) still runs alongside
+
+  CV pipeline perf (improve-codebase-architecture sprint):
+    - Removed redundant scores.compute call from cv/page.tsx handleUpload
+      and onboarding/page.tsx — score already persisted inside cv_workflow
+    - Changed invalidateQueries → refetchQueries for cvProfile after upload
+      so CV text viewer shows new CV before the 2s modal-close timer fires
+    - jobs/compute 404 → graceful 200 {matches_written:0, needs_onboarding:true}
+      when no job matches found (empty result ≠ not found)
+    - TTL cache (1h) on fetch_skill_demand in scoring/persistence.py —
+      eliminates full jobs table scan on every per-user recompute after warmup
+    - 217 tests passing, tsc + next lint clean
+
+  Open decision recorded in CLAUDE.md:
+    - CV upload still takes ~29s (LLM bottleneck in cv_parser.parse_cv)
+    - Decision pending next session: Option A (better loading UX) vs
+      Option B (reduce actual latency — model swap, async upload, or parallel
+      provider race). Do not implement without explicit decision.
+
+  Still pending:
+    - Supabase SQL migration database/migrations/20260505_fetch_job_skills_rpc.sql
+      not yet run — Bug 2 RPC fix falls back to chunked .in_() until this runs
+    - docs/SETTINGS_MODAL_REDESIGN_PROMPT.md and TASKS.md untracked (not committed)
+```
 
 ---
 
