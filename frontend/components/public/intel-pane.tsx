@@ -123,6 +123,7 @@ export function IntelPane() {
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<string>("")
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -134,22 +135,24 @@ export function IntelPane() {
   useJobsRealtime()
 
   const { data: analytics } = useQuery({
-    queryKey: dataKeys.jobsAnalyticsPublic(),
-    queryFn: () => jobs.analytics(),
+    queryKey: dataKeys.jobsAnalyticsPublic(selectedRole),
+    queryFn: () => jobs.analytics(selectedRole || undefined),
     staleTime: 5 * 60 * 1000,
   })
 
   const { companies, industries } = buildLists(analytics)
   const list = view === "companies" ? companies : industries
   const max = list.reduce((m, e) => Math.max(m, e.roles), 0)
+  const roleOptions = analytics?.by_role ?? []
+  const marketSummary = analytics
+    ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}`
+    : "Loading market coverage"
 
   return (
     <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-          {analytics
-            ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} domains`
-            : "Loading market coverage"}
+          {marketSummary}
         </div>
         <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
           Intel
@@ -159,6 +162,28 @@ export function IntelPane() {
         </p>
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+          Role Domain
+        </div>
+        <select
+          value={selectedRole}
+          onChange={(e) => {
+            setSelectedRole(e.target.value)
+            setSelected(null)
+          }}
+          className="tm-input"
+          style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+        >
+          <option value="">All roles</option>
+          {roleOptions.map((role) => (
+            <option key={role.name} value={role.name}>
+              {role.name} ({role.count.toLocaleString()})
+            </option>
+          ))}
+        </select>
+      </div>
+
       {analytics && (
         <div style={{ padding: "14px 18px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 44, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
@@ -166,7 +191,8 @@ export function IntelPane() {
           <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>
             <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
             <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industries
+            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industry groups
+            {selectedRole ? <> · role: <span style={{ color: "var(--tm-accent)" }}>{selectedRole}</span></> : null}
           </div>
         </div>
       )}

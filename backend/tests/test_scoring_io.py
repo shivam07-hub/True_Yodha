@@ -58,7 +58,6 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
 class TestFetchSkillDemand:
     def test_returns_demand_map(self) -> None:
         # job_skills rows: {job_id, is_primary, skills:{taxonomy_key}}
-        # Both page1 and page2 share the same mock → counts doubled.
         rows = [
             {"job_id": "j1", "is_primary": True,  "skills": {"taxonomy_key": "Python"}},
             {"job_id": "j1", "is_primary": False, "skills": {"taxonomy_key": "SQL"}},
@@ -66,10 +65,9 @@ class TestFetchSkillDemand:
         db = MagicMock()
         db.table.return_value = _q(rows)
         result = fetch_skill_demand(ScoresRepository(db))
-        # page1 + page2 both return rows → j1 appears twice:
-        # Python (main ×2 per job × 2 pages = 4), SQL (side ×1 × 2 pages = 2)
-        assert result["Python"] == 4
-        assert result["SQL"] == 2
+        # For a single job: main skill weight=2, side skill weight=1.
+        assert result["Python"] == 2
+        assert result["SQL"] == 1
 
     def test_none_skills_skipped(self) -> None:
         rows = [{"job_id": "j1", "is_primary": True, "skills": None}]

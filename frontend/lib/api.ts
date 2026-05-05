@@ -465,7 +465,11 @@ export interface JobSearchItem {
 
 export interface JobSearchResponse {
   jobs: JobSearchItem[]
-  total: number
+  available_total: number
+  returned_total: number
+  page: number
+  page_size: number
+  has_next_page: boolean
 }
 
 export interface MarketAnalytics {
@@ -474,6 +478,7 @@ export interface MarketAnalytics {
   total_industries: number
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
+  by_role: NameCountItem[]
   top_skills: SkillCountItem[]
   company_skills: Record<string, string[]>
   industry_skills: Record<string, string[]>
@@ -513,9 +518,51 @@ export interface UserSkillDemandResponse {
 }
 
 export const jobs = {
-  analytics: () => request<MarketAnalytics>("/jobs/analytics"),
-  search: (company: string) =>
-    request<JobSearchResponse>(`/jobs/search?company=${encodeURIComponent(company)}`),
+  analytics: (roleDomain?: string | null) => {
+    const params = new URLSearchParams()
+    if (roleDomain && roleDomain.trim()) {
+      params.set("role_domain", roleDomain.trim())
+    }
+    const query = params.toString()
+    return request<MarketAnalytics>(`/jobs/analytics${query ? `?${query}` : ""}`)
+  },
+  analyticsForMe: (token: string, cluster?: string | null) => {
+    const params = new URLSearchParams()
+    if (cluster && cluster.trim()) params.set("cluster", cluster.trim())
+    const query = params.toString()
+    return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+  search: (
+    company: string,
+    options?: {
+      roleDomain?: string | null
+      skill?: string | null
+      page?: number | null
+      pageSize?: number | null
+    },
+  ) => {
+    const normalizedCompany = company.trim()
+    if (!normalizedCompany) {
+      throw new Error("company is required")
+    }
+    const params = new URLSearchParams()
+    params.set("company", normalizedCompany)
+    if (options?.roleDomain && options.roleDomain.trim()) {
+      params.set("role_domain", options.roleDomain.trim())
+    }
+    if (options?.skill && options.skill.trim()) {
+      params.set("skill", options.skill.trim())
+    }
+    if (options?.page && options.page > 0) {
+      params.set("page", String(options.page))
+    }
+    if (options?.pageSize && options.pageSize > 0) {
+      params.set("page_size", String(options.pageSize))
+    }
+    return request<JobSearchResponse>(`/jobs/search?${params.toString()}`)
+  },
   mySkillDemand: (token: string) =>
     request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
       headers: { Authorization: `Bearer ${token}` },

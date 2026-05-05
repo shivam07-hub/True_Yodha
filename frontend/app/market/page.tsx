@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs, scores } from "@/lib/api"
+import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { AppShell } from "@/components/app-shell"
@@ -101,6 +101,8 @@ interface DrillSkill {
   skill: string
 }
 
+const DRILL_PAGE_SIZE = 50
+
 export default function MarketPage() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
@@ -111,6 +113,9 @@ export default function MarketPage() {
   const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
   const [companySearch, setCompanySearch] = useState("")
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
+  const [selectedRole, setSelectedRole] = useState<string>("")
+  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
+  const [drillPage, setDrillPage] = useState(1)
 
   useJobsRealtime()
 
@@ -126,6 +131,22 @@ export default function MarketPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: profileData } = useQuery({
+    queryKey: dataKeys.profile(token),
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const targetRoles: string[] = profileData?.target_roles ?? []
+
+  // Auto-select first (highest priority) target role on initial load
+  useEffect(() => {
+    if (targetRoles.length > 0 && selectedCluster === null) {
+      setSelectedCluster(targetRoles[0])
+    }
+  }, [targetRoles])
+
   const { data: matchesData } = useQuery({
     queryKey: ["job-matches", token],
     queryFn: () => jobs.matches(token!),
@@ -138,18 +159,38 @@ export default function MarketPage() {
     return acc
   }, {})
 
+  // Authenticated users get personalized analytics scoped to their target roles.
+  // selectedCluster=null means "all their roles combined"; a cluster name filters to one role.
+  // Unauthenticated users fall back to the public analytics with optional role_domain filter.
+  const usePersonalized = !!token
   const { data: analytics, isLoading } = useQuery({
-    queryKey: dataKeys.jobsAnalytics(),
-    queryFn: () => jobs.analytics(),
-    staleTime: 5 * 60 * 1000,
+    queryKey: usePersonalized
+      ? dataKeys.jobsAnalyticsMe(token, selectedCluster)
+      : dataKeys.jobsAnalytics(selectedRole),
+    queryFn: usePersonalized
+      ? () => jobs.analyticsForMe(token, selectedCluster)
+      : () => jobs.analytics(selectedRole || undefined),
+    staleTime: 7 * 24 * 60 * 60 * 1000,
   })
 
   const hasCv = !scoreLoading && !!scoreData
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: dataKeys.jobsSearch(drillSkill?.company),
-    queryFn: () => jobs.search(drillSkill!.company),
-    enabled: !!drillSkill,
+    queryKey: dataKeys.jobsSearch(
+      drillSkill?.company,
+      selectedRole,
+      drillSkill?.skill,
+      drillPage,
+      DRILL_PAGE_SIZE,
+    ),
+    queryFn: () =>
+      jobs.search(drillSkill!.company, {
+        roleDomain: selectedRole || undefined,
+        skill: drillSkill!.skill,
+        page: drillPage,
+        pageSize: DRILL_PAGE_SIZE,
+      }),
+    enabled: !!drillSkill?.company && !!drillSkill?.skill,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -170,8 +211,9 @@ export default function MarketPage() {
     ? baseList.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
     : baseList
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
+  const roleOptions = analytics?.by_role ?? []
   const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} domains`
+    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}`
     : "Loading market coverage"
 
   return (
@@ -198,12 +240,87 @@ export default function MarketPage() {
 
         <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
 
+        {/* Role Filter — pill tabs for authenticated users, dropdown fallback for public */}
+        {token ? (
+          targetRoles.length > 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
+                Target Roles
+              </div>
+              {targetRoles.map((role) => {
+                const active = selectedCluster === role
+                return (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      setSelectedCluster(role)
+                      setSelected(null)
+                      setDrillSkill(null)
+                      setDrillPage(1)
+                      setExpandedDesc(null)
+                      setCompanySearch("")
+                      setSelectedJobFit(null)
+                    }}
+                    style={{
+                      padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
+                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                      color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                      cursor: "pointer",
+                      transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                    }}
+                  >
+                    {role}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ marginBottom: 14, fontSize: 12, color: "var(--tm-text-faint)" }}>
+              No target roles set —{" "}
+              <button
+                onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textDecoration: "underline" }}
+              >
+                Add target roles in Settings →
+              </button>
+            </div>
+          )
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+              Role Domain
+            </div>
+            <select
+              value={selectedRole}
+              onChange={(e) => {
+                setSelectedRole(e.target.value)
+                setSelected(null)
+                setDrillSkill(null)
+                setDrillPage(1)
+                setExpandedDesc(null)
+                setSelectedJobFit(null)
+                setCompanySearch("")
+              }}
+              className="tm-input"
+              style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+            >
+              <option value="">All roles</option>
+              {roleOptions.map((role) => (
+                <option key={role.name} value={role.name}>
+                  {role.name} ({role.count.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
           {(["companies", "industries"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setExpandedDesc(null); setCompanySearch("") }}
+              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
                 background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
@@ -266,7 +383,7 @@ export default function MarketPage() {
                       count={entity.roles}
                       max={max}
                       active={selected?.name === entity.name}
-                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setExpandedDesc(null) }}
+                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
                     />
                   ))
                 )}
@@ -288,7 +405,7 @@ export default function MarketPage() {
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                     <button
-                      onClick={() => { setDrillSkill(null); setExpandedDesc(null) }}
+                      onClick={() => { setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
                       style={{
                         background: "none", border: "1px solid var(--tm-border-soft)",
                         borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer",
@@ -305,7 +422,7 @@ export default function MarketPage() {
                         {drillSkill.company}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--tm-accent)", marginTop: 1 }}>
-                        All open roles · {drillLoading ? "…" : `${drillData?.total ?? 0} jobs`}
+                        Skill: {drillSkill.skill} · {drillLoading ? "…" : `${drillData?.available_total ?? 0} matching jobs`}
                       </div>
                     </div>
                   </div>
@@ -392,6 +509,59 @@ export default function MarketPage() {
                       })
                     )}
                   </div>
+                  {drillData && drillData.available_total > 0 && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      marginTop: 10,
+                      paddingTop: 10,
+                      borderTop: "1px solid var(--tm-border-soft)",
+                    }}>
+                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                        Showing {drillData.returned_total.toLocaleString()} of {drillData.available_total.toLocaleString()} · page {drillData.page}
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
+                          disabled={drillData.page <= 1 || drillLoading}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            border: "1px solid var(--tm-border-soft)",
+                            background: "transparent",
+                            color: "var(--tm-text-muted)",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            cursor: drillData.page <= 1 || drillLoading ? "not-allowed" : "pointer",
+                            opacity: drillData.page <= 1 || drillLoading ? 0.45 : 1,
+                          }}
+                        >
+                          Prev
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDrillPage((p) => p + 1)}
+                          disabled={!drillData.has_next_page || drillLoading}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            border: "1px solid var(--tm-accent-ring)",
+                            background: "var(--tm-accent-wash)",
+                            color: "var(--tm-accent)",
+                            fontSize: 11,
+                            fontFamily: "inherit",
+                            cursor: !drillData.has_next_page || drillLoading ? "not-allowed" : "pointer",
+                            opacity: !drillData.has_next_page || drillLoading ? 0.45 : 1,
+                          }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : selected ? (
                 /* ── Skills list view ── */
@@ -409,7 +579,11 @@ export default function MarketPage() {
                         {[...selected.skills].slice(0, 10).map((s) => (
                           <div
                             key={s}
-                            onClick={() => selected.type === "company" ? setDrillSkill({ company: selected.name, skill: s }) : undefined}
+                            onClick={() => {
+                              if (selected.type !== "company") return
+                              setDrillSkill({ company: selected.name, skill: s })
+                              setDrillPage(1)
+                            }}
                             style={{
                               display: "flex", alignItems: "center", gap: 10,
                               padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",

@@ -244,7 +244,11 @@ class JobSearchItem(BaseModel):
 
 class JobSearchResponse(BaseModel):
     jobs: list[JobSearchItem]
-    total: int
+    available_total: int
+    returned_total: int
+    page: int
+    page_size: int
+    has_next_page: bool
 
 
 class MarketAnalyticsResponse(BaseModel):
@@ -254,6 +258,7 @@ class MarketAnalyticsResponse(BaseModel):
     latest_batch: str | None
     by_company: list[NameCountItem]
     by_industry: list[NameCountItem]
+    by_role: list[NameCountItem] = []
     top_skills: list[SkillCountItem]
     company_skills: dict[str, list[str]] = {}
     industry_skills: dict[str, list[str]] = {}

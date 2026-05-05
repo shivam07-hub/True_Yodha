@@ -16,9 +16,16 @@ export const dataKeys = {
   cvEvidence: (token: Token) => ["cv-evidence", token] as const,
   jobPath: (jobId: JobId, token: Token) => ["job-path", jobId, token] as const,
   skillGap: (jobId: JobId, token: Token) => ["skill-gap", jobId, token] as const,
-  jobsAnalytics: () => ["jobs-analytics"] as const,
-  jobsAnalyticsPublic: () => ["jobs-analytics-public"] as const,
-  jobsSearch: (company: string | null | undefined) => ["jobs-search", company ?? ""] as const,
+  jobsAnalytics: (roleDomain?: string | null) => ["jobs-analytics", roleDomain ?? ""] as const,
+  jobsAnalyticsPublic: (roleDomain?: string | null) => ["jobs-analytics-public", roleDomain ?? ""] as const,
+  jobsAnalyticsMe: (token: Token, cluster?: string | null) => ["jobs-analytics-me", token, cluster ?? ""] as const,
+  jobsSearch: (
+    company: string | null | undefined,
+    roleDomain?: string | null,
+    skill?: string | null,
+    page?: number | null,
+    pageSize?: number | null,
+  ) => ["jobs-search", company ?? "", roleDomain ?? "", skill ?? "", page ?? 1, pageSize ?? 50] as const,
 }
 
 export function invalidateScoreData(queryClient: QueryClient, token: Token): void {

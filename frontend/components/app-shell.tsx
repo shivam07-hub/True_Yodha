@@ -12,6 +12,23 @@ import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 import { MyroLogo } from "@/components/myro-logo"
 
@@ -102,6 +119,65 @@ function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function SortableRoleChip({
+  role,
+  index,
+  onRemove,
+  isOverlay = false,
+}: {
+  role: string
+  index: number
+  onRemove: (index: number) => void
+  isOverlay?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: role })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: transition ?? undefined,
+        opacity: isDragging ? 0.4 : 1,
+        cursor: isDragging ? "grabbing" : "grab",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 8px 5px 12px",
+        borderRadius: "var(--tm-radius-pill)",
+        background: isDragging ? "transparent" : "var(--tm-accent-wash)",
+        border: isDragging
+          ? "1px dashed var(--tm-accent-ring)"
+          : "1px solid var(--tm-accent-ring)",
+        fontSize: 12,
+        color: isDragging ? "transparent" : "var(--tm-accent)",
+        userSelect: "none",
+        boxShadow: isOverlay ? "0 4px 16px rgba(0,0,0,0.4)" : undefined,
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <span style={{ fontWeight: 500 }}>{role}</span>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRemove(index) }}
+        aria-label={`Remove ${role}`}
+        style={{
+          width: 16, height: 16, borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(0,245,212,0.15)",
+          border: "none", padding: 0,
+          cursor: "pointer",
+          color: "var(--tm-accent)",
+          fontSize: 12, lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
     </div>
   )
 }
@@ -228,6 +304,31 @@ function SettingsModal({
     if (field === "target_location") setDraftLocation(profile?.target_location ?? "")
     if (field === "linkedin_url") setDraftLinkedIn(profile?.linkedin_url ?? "")
     setEditingField(null)
+  }
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  async function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string)
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = draftRoles.indexOf(active.id as string)
+    const newIndex = draftRoles.indexOf(over.id as string)
+    const reordered = arrayMove(draftRoles, oldIndex, newIndex)
+    setDraftRoles(reordered)
+    const normalized = normalizeRoleList(reordered)
+    const current = normalizeRoleList(profile?.target_roles ?? [])
+    if (JSON.stringify(current) !== JSON.stringify(normalized)) {
+      setSaveSuccess(null)
+      await updateProfile.mutateAsync({ target_roles: normalized })
+    }
   }
 
   const atRolesMax = draftRoles.length >= MAX_TARGET_ROLES
@@ -466,43 +567,35 @@ function SettingsModal({
               </div>
 
               {roles.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                  {roles.map((role, index) => (
-                    <div key={`${role}-${index}`} style={{
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      padding: "5px 8px 5px 12px",
-                      borderRadius: "var(--tm-radius-pill)",
-                      background: "var(--tm-accent-wash)",
-                      border: "1px solid var(--tm-accent-ring)",
-                      fontSize: 12,
-                      color: "var(--tm-accent)",
-                    }}>
-                      <span style={{ fontWeight: 500 }}>{role}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeRole(index)}
-                        aria-label={`Remove ${role}`}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "rgba(0,245,212,0.15)",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                          color: "var(--tm-accent)",
-                          fontSize: 12,
-                          lineHeight: 1,
-                        }}
-                      >
-                        ×
-                      </button>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {roles.map((role, index) => (
+                        <SortableRoleChip
+                          key={role}
+                          role={role}
+                          index={index}
+                          onRemove={removeRole}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeId ? (
+                      <SortableRoleChip
+                        role={activeId}
+                        index={roles.indexOf(activeId)}
+                        onRemove={() => {}}
+                        isOverlay
+                      />
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               ) : (
                 <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 10 }}>No target roles selected yet.</div>
               )}
@@ -670,6 +763,12 @@ function UserFooter({
   useEffect(() => {
     onMenuOpenChange?.(menuOpen)
   }, [menuOpen, onMenuOpenChange])
+
+  useEffect(() => {
+    const handler = () => setShowSettings(true)
+    document.addEventListener("tm:open-settings", handler)
+    return () => document.removeEventListener("tm:open-settings", handler)
+  }, [])
 
   const extraActions = [
     { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },

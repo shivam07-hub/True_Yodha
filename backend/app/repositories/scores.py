@@ -8,7 +8,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
-from app.repositories.jobs import _group_job_skills
+from app.repositories.job_skills_read_model import fetch_job_skill_rows, group_job_skill_rows
 
 
 @dataclass(frozen=True)
@@ -85,17 +85,11 @@ class ScoresRepository:
             .in_("job_id", job_ids)
             .execute()
         ).data or []
-        return _group_job_skills(rows)
+        return group_job_skill_rows(rows)
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
-        page1 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(0, 9999).execute().data or []
-        page2 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(10000, 29999).execute().data or []
-        return _group_job_skills(page1 + page2)
+        return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
     def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
         if rows:
@@ -141,4 +135,3 @@ def get_token_scores_repository(
 def get_scores_repository(db: Client = Depends(get_supabase_admin)) -> ScoresRepository:
     """Admin factory — internal/ops use only (e.g. backfill scripts). Not for user routes."""
     return ScoresRepository(db)
-

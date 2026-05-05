@@ -95,9 +95,15 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
-## OPEN WORK (as of 2026-05-03)
+## OPEN WORK (as of 2026-05-05)
 
-Priority order:
+### ✅ ARCH SPRINT — job_skills read path — COMPLETE (2026-05-05)
+
+All A1–A6 done. 209 tests passing. Safe to run Phase 3 upload now.
+
+---
+
+### Existing backlog (priority order after arch sprint)
 
 1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop. Full end-to-end production path with dedicated test account.
 
@@ -197,6 +203,53 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 - Vercel: `truemirror.vercel.app` → `main` branch
 - Supabase: `gipvxuugajkugntwkeiz` (prod DB)
 - LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+
+---
+
+## LAST SESSION SUMMARY (2026-05-05 — ARCH SPRINT A1–A6)
+
+```
+Date: 2026-05-05
+What landed:
+
+  ARCH SPRINT — job_skills read path (all 6 tasks complete):
+
+  A1 — DB indexes (run via Supabase MCP, not in code):
+    idx_jobs_company_name, idx_jobs_role_domain,
+    idx_job_skills_job_primary, idx_skills_taxonomy_key
+
+  A2 — DB-side skill filter in fetch_job_skill_rows:
+    - job_skills_read_model.py: added job_ids: list[str] | None param
+    - Injects .in_("job_id", job_ids) DB-side; early-returns [] on empty list
+    - jobs.py fetch_analytics_rows: passes list(job_ids), removed Python filter
+    - jobs.py search_jobs_by_filters: passes list(candidate_ids), removed Python filter
+
+  A3 — Analytics cache:
+    - jobs.py: module-level _analytics_cache dict keyed on role_domain
+    - compile_market_analytics: TTL=3600s, skips DB on cache hit
+    - 3 tests: hit within TTL, miss after TTL, separate keys per role_domain
+
+  A4 — Scope compute_job_matches skill fetch:
+    - jobs.py: new get_candidate_job_ids_for_skills(skill_keys)
+      2-step: skills table → skill_ids, job_skills WHERE skill_id IN → job_ids
+    - get_all_job_skill_rows: added optional job_ids param
+    - jobs_workflow.py compute_job_matches: pre-filters to matching jobs before fetch
+
+  A5 — Deduplicate _group_job_skills:
+    - Moved to job_skills_read_model.py as group_job_skill_rows(rows) (public)
+    - Deleted from jobs.py
+    - scores.py: import fixed, both call sites updated
+
+  A6 — Tests: pagination + combined filter:
+    - test_jobs_list_router.py: added _SearchFakeDB + _FakeQuery for real repo testing
+    - pagination offset correctness (page 2 of 60 → correct slice)
+    - company + role_domain + skill combined filter
+    - skill='' skips skill filter
+
+Verification:
+  pytest backend/tests → 209 passed, 0 failed
+  (tsc + next lint not run — no frontend changes this session)
+```
 
 ---
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+from collections import Counter
 from datetime import date
 from typing import Any
 
@@ -8,28 +10,85 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, group_job_skill_rows
+from app.services.industry_grouping import normalize_industry_group
+
+SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
+_ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
+_analytics_cache: dict[str | None, tuple[float, dict[str, Any]]] = {}
+SKILL_DRILL_MAX_PAGE_SIZE = 100
 
 
-def _group_job_skills(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse job_skills JOIN skills rows into [{main_skills:[...], side_skills:[...]}] per job."""
-    job_map: dict[str, dict[str, list[str]]] = {}
-    for row in rows:
-        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        jid = row["job_id"]
-        if jid not in job_map:
-            job_map[jid] = {"main_skills": [], "side_skills": []}
-        if row.get("is_primary"):
-            job_map[jid]["main_skills"].append(key)
-        else:
-            job_map[jid]["side_skills"].append(key)
-    return list(job_map.values())
+def _sorted_counter_items(counter: Counter[str]) -> list[tuple[str, int]]:
+    return sorted(counter.items(), key=lambda item: (-item[1], item[0].lower(), item[0]))
+
+
+def _bounded_page(page: int) -> int:
+    return max(page, 1)
+
+
+def _bounded_page_size(page_size: int) -> int:
+    return max(1, min(page_size, SKILL_DRILL_MAX_PAGE_SIZE))
+
+
+class MarketAnalyticsCompiler:
+    """Compiles raw market rows into deterministic analytics payloads."""
+
+    def compile(self, rows: list[dict[str, Any]]) -> dict[str, Any]:
+        company_counts: Counter[str] = Counter()
+        industry_counts: Counter[str] = Counter()
+        role_counts: Counter[str] = Counter()
+        skill_counts: Counter[str] = Counter()
+        company_skill_counters: dict[str, Counter[str]] = {}
+        industry_skill_counters: dict[str, Counter[str]] = {}
+        batch_dates: list[int] = []
+
+        for row in rows:
+            company = (row.get("company_name") or "").strip()
+            industry = normalize_industry_group(row.get("industry_group"), row.get("industry"))
+            role = (row.get("role_domain") or "").strip()
+            skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
+
+            if company:
+                company_counts[company] += 1
+                company_skill_counters.setdefault(company, Counter()).update(skills)
+            if industry:
+                industry_counts[industry] += 1
+                industry_skill_counters.setdefault(industry, Counter()).update(skills)
+            if role:
+                role_counts[role] += 1
+            if row.get("batch_date"):
+                batch_dates.append(row["batch_date"])
+            skill_counts.update(skills)
+
+        company_skills = {
+            company: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+            for company, counter in company_skill_counters.items()
+        }
+        industry_skills = {
+            industry: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+            for industry, counter in industry_skill_counters.items()
+        }
+
+        return {
+            "total_jobs": len(rows),
+            "total_companies": len(company_counts),
+            "total_industries": len(industry_counts),
+            "latest_batch": str(max(batch_dates)) if batch_dates else None,
+            "by_company": _sorted_counter_items(company_counts),
+            "by_industry": _sorted_counter_items(industry_counts),
+            "by_role": _sorted_counter_items(role_counts),
+            "top_skills": _sorted_counter_items(skill_counts)[:20],
+            "company_skills": company_skills,
+            "industry_skills": industry_skills,
+        }
+
 
 
 class JobsRepository:
     def __init__(self, db: Client) -> None:
         self._db = db
+        self._analytics_compiler = MarketAnalyticsCompiler()
 
     @property
     def client(self) -> Client:
@@ -37,34 +96,30 @@ class JobsRepository:
 
     # ── public / global data ───────────────────────────────────────────────────
 
-    def fetch_analytics_rows(self) -> list[dict[str, Any]]:
-        cols = "job_id, company_name, industry, batch_date"
-        jobs: list[dict[str, Any]] = []
-        page_size = 10_000
-        start = 0
-        while True:
-            page = (
-                self._db.table("jobs")
-                .select(cols)
-                .range(start, start + page_size - 1)
-                .execute()
-                .data or []
-            )
-            jobs.extend(page)
-            if len(page) < page_size:
-                break
-            start += page_size
+    def fetch_analytics_rows(self, role_domain: str | None = None) -> list[dict[str, Any]]:
+        def _role_filter(query: Any) -> Any:
+            return query.eq("role_domain", role_domain)
 
-        # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics)
-        sk1 = self._db.table("job_skills").select(
-            "job_id, skills(taxonomy_key)"
-        ).eq("is_primary", True).range(0, 9999).execute().data or []
-        sk2 = self._db.table("job_skills").select(
-            "job_id, skills(taxonomy_key)"
-        ).eq("is_primary", True).range(10000, 29999).execute().data or []
+        query_builder = _role_filter if role_domain else None
+
+        jobs = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, company_name, industry, industry_group, role_domain, batch_date",
+            query_builder=query_builder,
+        )
+
+        # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics).
+        # Do NOT pass job_ids here — with 25k+ jobs the .in_() URL exceeds PostgREST limits.
+        # Python-side join below correctly scopes skills to fetched jobs.
+        primary_skill_rows = fetch_job_skill_rows(
+            self._db,
+            columns="job_id, skills(taxonomy_key)",
+            only_primary=True,
+        )
 
         skill_map: dict[str, list[str]] = {}
-        for row in sk1 + sk2:
+        for row in primary_skill_rows:
             key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
             if key:
                 skill_map.setdefault(row["job_id"], []).append(key)
@@ -74,29 +129,82 @@ class JobsRepository:
 
         return jobs
 
+    def compile_market_analytics(self, role_domain: str | None = None) -> dict[str, Any]:
+        now = time.monotonic()
+        cached = _analytics_cache.get(role_domain)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
+        rows = self.fetch_analytics_rows(role_domain=role_domain)
+        payload = self._analytics_compiler.compile(rows)
+        _analytics_cache[role_domain] = (now, payload)
+        return payload
+
     def search_jobs_by_filters(
-        self, company: str | None, skill: str | None
-    ) -> list[dict[str, Any]]:
-        query = self._db.table("jobs").select(
-            "job_id, job_title, company_name, job_description"
-        )
-        if company:
+        self,
+        company: str,
+        skill: str,
+        *,
+        role_domain: str | None = None,
+        page: int = 1,
+        page_size: int = SKILL_DRILL_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        scoped_page = _bounded_page(page)
+        scoped_page_size = _bounded_page_size(page_size)
+        skill_lower = skill.strip().lower()
+
+        def _query_builder(query: Any) -> Any:
             query = query.eq("company_name", company)
-        rows: list[dict[str, Any]] = query.limit(200).execute().data or []
+            if role_domain:
+                query = query.eq("role_domain", role_domain)
+            return query
 
-        if skill:
-            skill_lower = skill.lower()
-            # Resolve matching job_ids via job_skills JOIN skills (FK-enforced taxonomy)
-            sk_rows = self._db.table("job_skills").select(
-                "job_id, skills(taxonomy_key)"
-            ).execute().data or []
-            matching_ids = {
-                r["job_id"] for r in sk_rows
-                if skill_lower in ((r.get("skills") or {}).get("taxonomy_key") or "").lower()
+        rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, job_title, company_name, job_description",
+            query_builder=_query_builder,
+        )
+
+        if not rows:
+            return {
+                "rows": [],
+                "available_total": 0,
+                "returned_total": 0,
+                "page": scoped_page,
+                "page_size": scoped_page_size,
+                "has_next_page": False,
             }
-            rows = [r for r in rows if r["job_id"] in matching_ids]
 
-        return rows[:50]
+        filtered_rows = rows
+        if skill_lower:
+            candidate_ids = {row["job_id"] for row in rows}
+            sk_rows = fetch_job_skill_rows(
+                self._db,
+                columns="job_id, skills(taxonomy_key)",
+                job_ids=list(candidate_ids),
+            )
+            matching_ids = {
+                row["job_id"]
+                for row in sk_rows
+                if skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
+            }
+            filtered_rows = [row for row in rows if row["job_id"] in matching_ids]
+
+        filtered_rows = sorted(filtered_rows, key=lambda row: str(row.get("job_id") or ""))
+        available_total = len(filtered_rows)
+        start = (scoped_page - 1) * scoped_page_size
+        end = start + scoped_page_size
+        page_rows = filtered_rows[start:end] if start < available_total else []
+        returned_total = len(page_rows)
+
+        return {
+            "rows": page_rows,
+            "available_total": available_total,
+            "returned_total": returned_total,
+            "page": scoped_page,
+            "page_size": scoped_page_size,
+            "has_next_page": (start + returned_total) < available_total,
+        }
 
     # ── user skills / demand ───────────────────────────────────────────────────
 
@@ -111,23 +219,33 @@ class JobsRepository:
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
-        page1 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(0, 9999).execute().data or []
-        page2 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(10000, 29999).execute().data or []
-        return _group_job_skills(page1 + page2)
+        return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
-    def get_all_job_skill_rows(self) -> list[dict[str, Any]]:
+    def get_candidate_job_ids_for_skills(self, skill_keys: list[str]) -> list[str]:
+        """Job_ids that have at least one skill in skill_keys. Used to scope matcher fetch."""
+        if not skill_keys:
+            return []
+        lower_keys = [k.lower() for k in skill_keys]
+        skill_id_rows = (
+            self._db.table("skills")
+            .select("id")
+            .in_("taxonomy_key", lower_keys)
+            .execute()
+        ).data or []
+        skill_ids = [r["id"] for r in skill_id_rows]
+        if not skill_ids:
+            return []
+        js_rows = fetch_all_rows(
+            self._db,
+            table="job_skills",
+            columns="job_id",
+            query_builder=lambda q: q.in_("skill_id", skill_ids),
+        )
+        return list({r["job_id"] for r in js_rows})
+
+    def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
-        page1 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(0, 9999).execute().data or []
-        page2 = self._db.table("job_skills").select(
-            "job_id, is_primary, skills(taxonomy_key)"
-        ).range(10000, 29999).execute().data or []
-        return page1 + page2
+        return fetch_job_skill_rows(self._db, job_ids=job_ids)
 
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch job metadata for a specific list of job_ids."""
@@ -275,6 +393,56 @@ class JobsRepository:
             for row in (result.data or [])
             if row.get("skills") and row["skills"].get("taxonomy_key")
         }
+
+
+    def resolve_role_domain_for_clusters(self, clusters: list[str]) -> str | None:
+        """Map L2 taxonomy cluster names → best matching jobs.role_domain.
+
+        Uses the taxonomy chain: clusters → skills.l2_cluster → job_skills → jobs.role_domain.
+        Samples up to 100 jobs to find the dominant domain (avoids URL-length explosion).
+        """
+        if not clusters:
+            return None
+
+        # skills table has l2_cluster (denormalized from taxonomy) — small result, fine URL
+        skills_result = (
+            self._db.table("skills")
+            .select("id")
+            .in_("l2_cluster", clusters)
+            .execute()
+        )
+        skill_ids = [row["id"] for row in (skills_result.data or [])]
+        if not skill_ids:
+            return None
+
+        # skill_ids are integers — short URL even for 200 skills
+        js_result = (
+            self._db.table("job_skills")
+            .select("job_id")
+            .in_("skill_id", skill_ids)
+            .limit(200)
+            .execute()
+        )
+        job_ids_sample = list({row["job_id"] for row in (js_result.data or [])})[:100]
+        if not job_ids_sample:
+            return None
+
+        # 100 UUIDs × 37 chars = ~3,700 chars — within PostgREST URL limits
+        jobs_result = (
+            self._db.table("jobs")
+            .select("role_domain")
+            .in_("job_id", job_ids_sample)
+            .not_.is_("role_domain", "null")
+            .execute()
+        )
+        role_counts: Counter[str] = Counter()
+        for row in (jobs_result.data or []):
+            domain = (row.get("role_domain") or "").strip()
+            if domain:
+                role_counts[domain] += 1
+
+        return role_counts.most_common(1)[0][0] if role_counts else None
+
 
 def get_public_jobs_repository() -> JobsRepository:
     # Public endpoints have no JWT — admin client reads global reference data.

@@ -21,6 +21,8 @@ from pathlib import Path
 
 from supabase import Client
 
+from app.repositories.job_skills_read_model import fetch_job_skill_rows
+
 TAXONOMY_FILE = Path(__file__).resolve().parents[2] / "lightcast_skills_taxonomy.json"
 
 
@@ -82,9 +84,8 @@ def get_market_skills(db: Client) -> list[str]:
         return _market_skills_cache
 
     names: set[str] = set()
-    page1 = db.table("job_skills").select("skills(taxonomy_key)").range(0, 9999).execute().data or []
-    page2 = db.table("job_skills").select("skills(taxonomy_key)").range(10000, 29999).execute().data or []
-    for row in page1 + page2:
+    skill_rows = fetch_job_skill_rows(db, columns="skills(taxonomy_key)")
+    for row in skill_rows:
         key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
         if key:
             names.add(key)
