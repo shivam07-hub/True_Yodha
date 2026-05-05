@@ -97,9 +97,10 @@ class JobsRepository:
     # ── public / global data ───────────────────────────────────────────────────
 
     def fetch_analytics_rows(self, role_domain: str | None = None) -> list[dict[str, Any]]:
-        query_builder = None
-        if role_domain:
-            query_builder = lambda query: query.eq("role_domain", role_domain)
+        def _role_filter(query: Any) -> Any:
+            return query.eq("role_domain", role_domain)
+
+        query_builder = _role_filter if role_domain else None
 
         jobs = fetch_all_rows(
             self._db,
@@ -107,7 +108,6 @@ class JobsRepository:
             columns="job_id, company_name, industry, industry_group, role_domain, batch_date",
             query_builder=query_builder,
         )
-        job_ids = {job["job_id"] for job in jobs}
 
         # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics).
         # Do NOT pass job_ids here — with 25k+ jobs the .in_() URL exceeds PostgREST limits.
@@ -394,17 +394,6 @@ class JobsRepository:
             if row.get("skills") and row["skills"].get("taxonomy_key")
         }
 
-    def get_user_target_roles(self, user_id: str) -> list[str]:
-        result = (
-            self._db.table("user_profiles")
-            .select("target_roles")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
-        if not result.data:
-            return []
-        return result.data.get("target_roles") or []
 
     def resolve_role_domain_for_clusters(self, clusters: list[str]) -> str | None:
         """Map L2 taxonomy cluster names → best matching jobs.role_domain.
