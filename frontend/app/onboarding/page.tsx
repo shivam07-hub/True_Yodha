@@ -58,9 +58,9 @@ export default function OnboardingPage() {
         await uploadCVText(token, cvText)
       }
 
-      // 3. CV upload already persisted the score — just fetch it
+      // 3. CV upload already persisted the score — fetch it directly.
+      // scores.compute is not needed here; it was already run inside cv_workflow.
       const result = await scores.me(token)
-      void scores.compute(token).then((computed) => setScoreData(computed)).catch(() => null)
       void jobs.compute(token).catch(() => null)
       setScoreData(result)
       setStep("score")

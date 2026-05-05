@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from fastapi import HTTPException, status
-
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
 from app.services import job_importer, job_matcher, job_path as job_path_service, llm_ranker
@@ -126,10 +124,7 @@ async def compute_job_matches(
         top_n=10,
     )
     if not top_jobs:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No tagged job postings found. Complete job tagging first.",
-        )
+        return {"matches_written": 0, "from_cache": False, "batch_week": batch_week, "needs_onboarding": True}
 
     written = await llm_ranker.rank_and_persist(
         db,

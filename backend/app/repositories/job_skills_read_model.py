@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 from supabase import Client
@@ -7,6 +8,13 @@ from supabase import Client
 # Supabase/PostgREST commonly enforces a 1000-row response cap per request.
 # Paginate in 1000-row windows to avoid silent truncation.
 SUPABASE_PAGE_SIZE = 1_000
+
+# .in_() serialises each UUID (~36 chars) into the URL query string.
+# 200 IDs × 36 chars = ~7 KB, which is at the PostgREST limit.
+# RPC is the primary path; chunked .in_() is the fallback.
+_IN_CHUNK_SIZE = 200
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_all_rows(
@@ -33,6 +41,59 @@ def fetch_all_rows(
         start += page_size
 
 
+def _adapt_rpc_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Translate flat RPC rows {job_id, is_primary, taxonomy_key} → {job_id, is_primary, skills:{taxonomy_key}}."""
+    return [
+        {
+            "job_id": r["job_id"],
+            "is_primary": r["is_primary"],
+            "skills": {"taxonomy_key": r["taxonomy_key"]},
+        }
+        for r in rows
+    ]
+
+
+def fetch_job_skill_rows_via_rpc(
+    db: Client,
+    job_ids: list[str],
+) -> list[dict[str, Any]]:
+    """Single-round-trip RPC call; body-encoded array avoids PostgREST URL-length limits."""
+    if not job_ids:
+        return []
+    result = db.rpc("fetch_job_skills_by_job_ids", {"job_ids": job_ids}).execute()
+    return _adapt_rpc_rows(result.data or [])
+
+
+def _fetch_job_skill_rows_chunked(
+    db: Client,
+    job_ids: list[str],
+    *,
+    only_primary: bool | None = None,
+    columns: str = "job_id, is_primary, skills(taxonomy_key)",
+    page_size: int = SUPABASE_PAGE_SIZE,
+    chunk_size: int = _IN_CHUNK_SIZE,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for i in range(0, len(job_ids), chunk_size):
+        chunk = job_ids[i : i + chunk_size]
+
+        def _query_builder(query: Any, _chunk: list[str] = chunk) -> Any:
+            if only_primary is not None:
+                query = query.eq("is_primary", only_primary)
+            return query.in_("job_id", _chunk)
+
+        rows.extend(
+            fetch_all_rows(
+                db,
+                table="job_skills",
+                columns=columns,
+                query_builder=_query_builder,
+                page_size=page_size,
+            )
+        )
+    return rows
+
+
 def fetch_job_skill_rows(
     db: Client,
     *,
@@ -44,11 +105,20 @@ def fetch_job_skill_rows(
     if job_ids is not None and len(job_ids) == 0:
         return []
 
+    # When job_ids are scoped, use RPC to avoid PostgREST URL-length 400s.
+    # Fall back to chunked .in_() queries if RPC is unavailable.
+    if job_ids is not None:
+        try:
+            return fetch_job_skill_rows_via_rpc(db, job_ids)
+        except Exception as exc:
+            logger.warning("fetch_job_skills RPC failed (%s), falling back to chunked .in_()", exc)
+            return _fetch_job_skill_rows_chunked(
+                db, job_ids, only_primary=only_primary, columns=columns, page_size=page_size
+            )
+
     def _query_builder(query: Any) -> Any:
         if only_primary is not None:
             query = query.eq("is_primary", only_primary)
-        if job_ids is not None:
-            query = query.in_("job_id", job_ids)
         return query
 
     return fetch_all_rows(

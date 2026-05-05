@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows
+from app.repositories.job_skills_read_model import (
+    fetch_all_rows,
+    fetch_job_skill_rows,
+    fetch_job_skill_rows_via_rpc,
+)
 import app.repositories.jobs as jobs_module
 from app.repositories.jobs import JobsRepository
 
@@ -233,3 +238,65 @@ def test_get_candidate_job_ids_for_skills_no_match_returns_empty() -> None:
         "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
     })
     assert JobsRepository(db).get_candidate_job_ids_for_skills(["java"]) == []
+
+
+# ---------------------------------------------------------------------------
+# RPC path tests (Bug 2 — PostgREST URL-length 400 fix)
+# ---------------------------------------------------------------------------
+
+def test_fetch_job_skill_rows_via_rpc_empty_returns_empty() -> None:
+    mock_db = Mock()
+    result = fetch_job_skill_rows_via_rpc(mock_db, [])
+    assert result == []
+    mock_db.rpc.assert_not_called()
+
+
+def test_fetch_job_skill_rows_via_rpc_adapts_flat_rows() -> None:
+    mock_db = Mock()
+    mock_db.rpc.return_value.execute.return_value = _Result([
+        {"job_id": "j1", "is_primary": True, "taxonomy_key": "python"},
+        {"job_id": "j1", "is_primary": False, "taxonomy_key": "sql"},
+    ])
+    result = fetch_job_skill_rows_via_rpc(mock_db, ["j1"])
+    assert result == [
+        {"job_id": "j1", "is_primary": True, "skills": {"taxonomy_key": "python"}},
+        {"job_id": "j1", "is_primary": False, "skills": {"taxonomy_key": "sql"}},
+    ]
+    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids", {"job_ids": ["j1"]})
+
+
+def test_fetch_job_skill_rows_routes_through_rpc_when_job_ids_provided() -> None:
+    mock_db = Mock()
+    mock_db.rpc.return_value.execute.return_value = _Result([
+        {"job_id": "j1", "is_primary": True, "taxonomy_key": "python"},
+    ])
+    result = fetch_job_skill_rows(mock_db, job_ids=["j1"])
+    assert len(result) == 1
+    assert result[0]["skills"] == {"taxonomy_key": "python"}
+    mock_db.rpc.assert_called_once()
+    mock_db.table.assert_not_called()
+
+
+def test_fetch_job_skill_rows_large_list_uses_rpc_not_in_filter() -> None:
+    """5000 job IDs must not hit PostgREST .in_() URL-length limit."""
+    job_ids = [str(uuid.uuid4()) for _ in range(5_000)]
+    mock_db = Mock()
+    mock_db.rpc.return_value.execute.return_value = _Result([])
+    result = fetch_job_skill_rows(mock_db, job_ids=job_ids)
+    assert result == []
+    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids", {"job_ids": job_ids})
+    mock_db.table.assert_not_called()
+
+
+def test_fetch_job_skill_rows_falls_back_to_chunked_on_rpc_failure() -> None:
+    rows = [
+        {"job_id": "j1", "is_primary": True, "skills": {"taxonomy_key": "python"}},
+        {"job_id": "j2", "is_primary": True, "skills": {"taxonomy_key": "sql"}},
+    ]
+    fake_db = _FakeDB({"job_skills": rows})
+    with patch(
+        "app.repositories.job_skills_read_model.fetch_job_skill_rows_via_rpc",
+        side_effect=Exception("RPC unavailable"),
+    ):
+        result = fetch_job_skill_rows(fake_db, job_ids=["j1", "j2"])
+    assert {r["job_id"] for r in result} == {"j1", "j2"}

@@ -5,7 +5,7 @@ from app.repositories.users import UsersRepository
 
 def _q(data: list[dict] | dict | None = None) -> MagicMock:
     q = MagicMock()
-    for method in ("select", "eq", "update"):
+    for method in ("select", "eq", "update", "upsert"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -33,15 +33,44 @@ def test_get_profile_returns_profile_row() -> None:
     assert result == row
 
 
-def test_update_profile_updates_current_user_row() -> None:
+def test_update_profile_upserts_current_user_row() -> None:
+    """update_profile must UPSERT so PUT can also seed an orphan row."""
     query = _q({})
     db = MagicMock()
     db.table.return_value = query
 
     UsersRepository(db).update_profile("u1", {"full_name": "Ada"})
 
-    query.update.assert_called_once_with({"full_name": "Ada"})
-    query.eq.assert_called_once_with("id", "u1")
+    query.upsert.assert_called_once_with(
+        {"id": "u1", "full_name": "Ada"},
+        on_conflict="id",
+    )
+
+
+def test_ensure_profile_exists_no_op_without_email() -> None:
+    """No email in JWT (edge case) → don't try to insert a half-empty row."""
+    db = MagicMock()
+    UsersRepository(db).ensure_profile_exists("u1", email=None, full_name="Ada")
+    db.table.assert_not_called()
+
+
+def test_ensure_profile_exists_upserts_with_ignore_duplicates() -> None:
+    """Idempotent provisioning: insert if missing, no-op if present."""
+    query = _q({})
+    db = MagicMock()
+    db.table.return_value = query
+
+    UsersRepository(db).ensure_profile_exists(
+        "u1",
+        email="u@example.com",
+        full_name="Ada",
+    )
+
+    query.upsert.assert_called_once_with(
+        {"id": "u1", "email": "u@example.com", "full_name": "Ada"},
+        on_conflict="id",
+        ignore_duplicates=True,
+    )
 
 
 def test_list_user_skill_records_normalizes_skill_rows() -> None:

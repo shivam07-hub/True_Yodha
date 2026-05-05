@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.repositories.scores import ScoresRepository
+from app.services.scoring import persistence as _scoring_persistence
 from app.services.scoring_engine import (
     compute_and_persist_score,
     fetch_aspiration_skills,
@@ -56,6 +57,10 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
 # ── fetch_skill_demand ────────────────────────────────────────────────────────
 
 class TestFetchSkillDemand:
+    def setup_method(self) -> None:
+        _scoring_persistence._DEMAND_CACHE.clear()
+        _scoring_persistence._DEMAND_CACHE_TS = 0.0
+
     def test_returns_demand_map(self) -> None:
         # job_skills rows: {job_id, is_primary, skills:{taxonomy_key}}
         rows = [

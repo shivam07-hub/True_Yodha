@@ -103,6 +103,95 @@ All A1–A6 done. 209 tests passing. Safe to run Phase 3 upload now.
 
 ---
 
+### 🔥 ACTIVE — NEW-USER FLOW BUG SPRINT (started 2026-05-05 PM)
+
+User reported broken new-user journey. Three independent root causes identified, plan locked with user, work in progress. Resume from current state.
+
+#### Bug 1 — Profile-not-found chain (orphan user 404s) — **IN PROGRESS**
+
+**Symptoms:** "Profile not found" red banner in Settings modal · `GET /users/me 404` · `GET /scores/me 404` · `PUT /users/me/profile 404` (PUT 404s because UPDATE affects 0 rows for orphan users).
+
+**Root cause:** `_upsert_user_profile` in `backend/app/routers/auth.py` only runs on `/auth/login` and `/auth/signup`. Any other entry path (magic link, OAuth, Supabase row deletion, dev shortcut) leaves the user with a valid JWT but no `user_profiles` row. `UsersRepository.update_profile` was a plain UPDATE, so PUT couldn't self-heal.
+
+**Fix decision (user-locked):** Auto-create `user_profiles` row from JWT claims (`email`, `user_metadata.full_name`) on first authenticated request.
+
+**Done:**
+- `backend/app/repositories/users.py` — `update_profile` now UPSERTs on `id`. Added `ensure_profile_exists(user_id, email, full_name)` using INSERT … ON CONFLICT DO NOTHING (admin client).
+- `backend/app/deps.py` — `get_current_user` now extracts `email` + `full_name` from JWT and calls `_ensure_profile_provisioned()`. Per-process `_provisioned_users: set[str]` cache avoids redundant Supabase round-trips. Provisioning failures log-and-continue (never block auth).
+- `backend/tests/test_users_repository.py` — added `test_update_profile_upserts_current_user_row`, `test_ensure_profile_exists_no_op_without_email`, `test_ensure_profile_exists_upserts_with_ignore_duplicates`. Updated `_q` helper to mock `upsert`.
+- `backend/tests/test_users_api.py` — added `test_update_profile_creates_row_for_orphan_user`.
+
+**Pending in Bug 1:**
+- Run `pytest backend/tests` and confirm orphan-user tests pass + previous 209 still green.
+- Commit `fix(users): auto-provision user_profiles on first authenticated request`.
+
+#### Bug 2 — Postgrest 400 "JSON could not be generated" — **PENDING**
+
+**Symptoms:** stack trace in Railway deploy logs (14:12:58, 14:13:02) showing `postgrest.exceptions.APIError: 'JSON could not be generated', code 400, 'b\\'Bad Request\\''` originating at `query.range(start, start + page_size - 1).execute()` in `backend/app/repositories/job_skills_read_model.py:29`. Triggered by CV upload's downstream `compute_job_matches`. CV "Computing your score" hangs because matcher errors out before score persistence runs.
+
+**Root cause:** A2/A4 changes (today's ARCH SPRINT) pass `list(user_skill_map.keys())` → `candidate_job_ids` (potentially thousands of UUIDs) directly into `.in_("job_id", candidate_job_ids)`. PostgREST serializes `.in_()` into the URL query string. ~36 chars/UUID × thousands blows past the ~8 KB URL limit. PostgREST replies 400.
+
+**Fix decision (user-locked):** Server-side Postgres function `fetch_job_skills_by_job_ids(job_ids uuid[])` invoked via Supabase RPC — single round-trip, body-encoded array, no URL-length issue.
+
+**Plan:**
+1. SQL migration via Supabase MCP:
+   ```sql
+   CREATE OR REPLACE FUNCTION fetch_job_skills_by_job_ids(job_ids uuid[])
+   RETURNS TABLE (job_id uuid, is_primary boolean, taxonomy_key text)
+   LANGUAGE sql STABLE AS $$
+     SELECT js.job_id, js.is_primary, s.taxonomy_key
+     FROM job_skills js JOIN skills s ON s.id = js.skill_id
+     WHERE js.job_id = ANY(job_ids);
+   $$;
+   GRANT EXECUTE ON FUNCTION fetch_job_skills_by_job_ids(uuid[]) TO authenticated, service_role;
+   ```
+2. `backend/app/repositories/job_skills_read_model.py` — new `fetch_job_skill_rows_via_rpc(db, job_ids)` calling `db.rpc("fetch_job_skills_by_job_ids", {"job_ids": job_ids}).execute()`. Adapter translates RPC row shape `{job_id, is_primary, taxonomy_key}` back to `{job_id, is_primary, skills: {taxonomy_key}}` so existing `group_job_skill_rows` keeps working.
+3. `fetch_job_skill_rows()` — when `job_ids` is provided, route through RPC. Keep `.in_()` chunking (200 IDs/chunk) as fallback for unexpected RPC failure.
+4. Tests: empty list returns `[]`, normal small list works, 5,000-id list executes without 400.
+
+**Files to touch:** repositories/job_skills_read_model.py · repositories/jobs.py (`get_jobs_by_ids` may have same issue — extend RPC pattern if so) · tests/test_job_skills_read_model.py.
+
+#### Bug 3 — Settings modal UX (jarring save model) — **HOLD (design prompt to be drafted)**
+
+**Symptoms:** Inconsistent save behavior across fields (auto-save-on-blur for Ninja Name / Target Location / LinkedIn vs. explicit "Save roles" button for Target Roles). "Profile not found" red banner shown while form is interactive. X close button can scroll out of view inside `maxHeight: 82vh` modal. User couldn't predict where to click to commit.
+
+**Fix decision (user-locked):** **(b) Proper redo** — single unified form, field-level validation, autosave indicator, clean empty-onboarding state ("Welcome — let's set up your profile in 30 seconds"), sticky header X. **No code yet.** Claude writes the design prompt; user iterates with Claude design agent; final spec comes back to Claude Code for implementation.
+
+**Pending in Bug 3:** Claude writes the design prompt as a deliverable in `/Users/incognito/True_Yodha/docs/SETTINGS_MODAL_REDESIGN_PROMPT.md`. User will hand it to design agent.
+
+#### Verification (deferred until Bugs 1+2 land)
+
+- `pytest backend/tests` (target: ≥212 passing — 209 baseline + 3 new orphan-user tests; +RPC tests once Bug 2 lands).
+- `tsc --noEmit && next lint` (no frontend changes yet).
+- Manual smoke: log in as fresh user → /users/me 200 → set Ninja Name → upload CV → score lands → /scores/me 200.
+
+#### Decisions locked this sprint (do not reopen)
+| # | Decision |
+|---|---|
+| NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). Cached per-process. Failure logs-and-continues. |
+| NU2 | `update_profile` UPSERTs (defensive, even though ensure_profile_exists guarantees row presence). |
+| NU3 | Bug 2 fix uses Supabase RPC, not request chunking. Chunking kept only as fallback. |
+| NU4 | Bug 3 = full redesign, not minimal patch. Design happens in a separate loop (Claude design agent → user → Claude Code). |
+
+---
+
+### 🔲 OPEN DECISION — CV upload perceived latency (~29s)
+
+**Context:** `POST /cv/upload` takes ~29s end-to-end. The bottleneck is `cv_parser.parse_cv()` — an LLM call via the OpenRouter → Groq → Gemini fallback chain. Observed in production: moonshotai/kimi-k2.6 returned an unparseable response, triggering a provider retry, which added several seconds on top of base latency.
+
+**The redundant 85s `scores.compute` call after upload has already been removed (2026-05-06).** The 29s is now the irreducible minimum with the current synchronous architecture.
+
+**Two paths forward — decision deferred to next session:**
+
+| Option | What it means | Tradeoffs |
+|---|---|---|
+| **A — Better loading UX** | Keep sync upload. Replace the fixed-timer `CVUploadProcessing` animation with step-aware progress tied to real backend stages. Make the wait feel purposeful ("Extracting your skills…", "Mapping to taxonomy…", "Computing your score…"). | Zero backend change. 29s stays 29s. Users may still abandon if they don't trust the wait. |
+| **B — Reduce actual latency** | Options: (1) faster/cheaper LLM model for extraction (Gemini Flash or a quantized local model), (2) async upload — return 202 immediately with a `task_id`, frontend polls `/cv/status/{task_id}` every 2s, (3) parallel provider race instead of sequential fallback. | B1 risks quality loss. B2 adds infra complexity (task store, polling endpoint). B3 is low-effort and directly addresses the retry penalty seen in logs. |
+
+**Do not implement either option without an explicit decision in the next session. Resume from here.**
+
+---
+
 ### Existing backlog (priority order after arch sprint)
 
 1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop. Full end-to-end production path with dedicated test account.
@@ -203,6 +292,48 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 - Vercel: `truemirror.vercel.app` → `main` branch
 - Supabase: `gipvxuugajkugntwkeiz` (prod DB)
 - LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+
+---
+
+## LAST SESSION SUMMARY (2026-05-06 — NEW-USER FLOW FIXES + CV PIPELINE PERF)
+
+```
+Date: 2026-05-06
+What landed:
+
+  Bug 1 — null email 500 on PUT /users/me/profile:
+    - update_profile upsert was missing email in the INSERT path
+    - Router now passes email=current_user["email"] into repo upsert
+    - Fake repos in test_users_api.py updated to accept email= kwarg
+    - 217 tests passing
+
+  Settings modal — explicit Save button:
+    - saveNow() fn flushes debounce immediately and fires mutation
+    - "Save" button at bottom of scrollable body; shows "Saving…" / "✓ Saved"
+    - Autosave (800ms debounce) still runs alongside
+
+  CV pipeline perf (improve-codebase-architecture sprint):
+    - Removed redundant scores.compute call from cv/page.tsx handleUpload
+      and onboarding/page.tsx — score already persisted inside cv_workflow
+    - Changed invalidateQueries → refetchQueries for cvProfile after upload
+      so CV text viewer shows new CV before the 2s modal-close timer fires
+    - jobs/compute 404 → graceful 200 {matches_written:0, needs_onboarding:true}
+      when no job matches found (empty result ≠ not found)
+    - TTL cache (1h) on fetch_skill_demand in scoring/persistence.py —
+      eliminates full jobs table scan on every per-user recompute after warmup
+    - 217 tests passing, tsc + next lint clean
+
+  Open decision recorded in CLAUDE.md:
+    - CV upload still takes ~29s (LLM bottleneck in cv_parser.parse_cv)
+    - Decision pending next session: Option A (better loading UX) vs
+      Option B (reduce actual latency — model swap, async upload, or parallel
+      provider race). Do not implement without explicit decision.
+
+  Still pending:
+    - Supabase SQL migration database/migrations/20260505_fetch_job_skills_rpc.sql
+      not yet run — Bug 2 RPC fix falls back to chunked .in_() until this runs
+    - docs/SETTINGS_MODAL_REDESIGN_PROMPT.md and TASKS.md untracked (not committed)
+```
 
 ---
 

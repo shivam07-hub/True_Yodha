@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/"],
       },
     ],
-    sitemap: "https://truemirror.vercel.app/sitemap.xml",
+    sitemap: "https://www.himyro.com/sitemap.xml",
   }
 }

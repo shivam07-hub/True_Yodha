@@ -56,29 +56,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: issue.summary,
       ...(absoluteOgImage && { images: [absoluteOgImage] }),
     },
-    other: {
-      "script:ld+json": JSON.stringify([
-        {
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: issue.title,
-          datePublished: isoDate,
-          description: issue.summary,
-          author: { "@type": "Person", name: issue.authorName ?? "Shivam Pathak" },
-          publisher: { "@type": "Organization", name: "Myro", url: BASE },
-          ...(absoluteOgImage && { image: absoluteOgImage }),
-        },
-        {
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Home", item: BASE },
-            { "@type": "ListItem", position: 2, name: "Newsletter", item: `${BASE}/newsletter` },
-            { "@type": "ListItem", position: 3, name: issue.title, item: canonicalUrl },
-          ],
-        },
-      ]),
-    },
   }
 }
 
@@ -109,8 +86,35 @@ export default async function IssuePage({ params }: Props) {
   const series = issue.seriesLabel ?? "Monday Hiring Heatmap"
   const mins = issue.readMinutes ?? 5
 
+  const isoDate = new Date(issue.publishedAt).toISOString()
+  const absoluteOgImage = issue.ogImage
+    ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`
+    : undefined
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: issue.title,
+      datePublished: isoDate,
+      description: issue.summary,
+      author: { "@type": "Person", name: authorName },
+      publisher: { "@type": "Organization", name: "Myro", url: BASE },
+      ...(absoluteOgImage && { image: absoluteOgImage }),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: BASE },
+        { "@type": "ListItem", position: 2, name: "Newsletter", item: `${BASE}/newsletter` },
+        { "@type": "ListItem", position: 3, name: issue.title, item: canonicalUrl },
+      ],
+    },
+  ]
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
       <article className="nl-page-enter" style={{ maxWidth: 760, margin: "0 auto", padding: "56px 32px 96px" }}>
