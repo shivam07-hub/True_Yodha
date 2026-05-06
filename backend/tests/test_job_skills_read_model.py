@@ -203,8 +203,8 @@ def test_compile_market_analytics_keyed_by_role_domain() -> None:
         repo.compile_market_analytics(role_domain=None)
         repo.compile_market_analytics(role_domain="Engineering")
 
-    assert None in jobs_module._analytics_cache
-    assert "Engineering" in jobs_module._analytics_cache
+    assert (None, None, None, None) in jobs_module._analytics_cache
+    assert ("Engineering", None, None, None) in jobs_module._analytics_cache
 
 
 def test_get_candidate_job_ids_for_skills_scopes_correctly() -> None:

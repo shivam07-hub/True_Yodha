@@ -126,11 +126,35 @@ One row per CV upload. Tracks score trajectory.
 | `company_name` | VARCHAR(200) | |
 | `industry` | VARCHAR(200) | |
 | `location` | VARCHAR(200) | |
+| `location_raw` | TEXT | Raw source location string from feed |
+| `location_city` | VARCHAR(200) | Canonical city facet for filtering |
+| `location_country` | VARCHAR(200) | Canonical country facet for filtering |
+| `location_mode` | VARCHAR(20) | `onsite` \| `hybrid` \| `remote` \| `unknown` |
+| `location_quality` | VARCHAR(20) | `ok` \| `unknown` |
 | `apply_url` | VARCHAR(500) | |
 | `job_description` | TEXT | |
 | `main_skills` | TEXT[] | Required skills (weighted ×2 in demand calc) |
 | `side_skills` | TEXT[] | Nice-to-have skills (weighted ×1) |
 | `batch_date` | DATE | |
+
+---
+
+### `job_feed_run_audits`
+One row per feed import run, used for location-quality monitoring and drift alerts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BIGSERIAL PK | |
+| `run_id` | UUID UNIQUE | |
+| `source` | VARCHAR(80) | Import source identifier |
+| `parser_version` | VARCHAR(40) | Location parser version |
+| `total_rows` | INTEGER | Parsed rows in the run |
+| `unknown_location_rows` | INTEGER | Rows marked `location_quality='unknown'` |
+| `unknown_location_rate` | DECIMAL(6,5) | Unknown ratio (0–1) |
+| `top_unknown_aliases` | JSONB | Most common unknown location strings |
+| `status` | VARCHAR(30) | `ok` or `blocked` |
+| `message` | TEXT | Block/alert message |
+| `created_at` | TIMESTAMPTZ | |
 
 ---
 

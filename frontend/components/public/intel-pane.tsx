@@ -124,6 +124,9 @@ export function IntelPane() {
   const [selected, setSelected] = useState<DrillEntity | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string>("")
+  const [selectedCity, setSelectedCity] = useState<string>("")
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [selectedMode, setSelectedMode] = useState<string>("")
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640)
@@ -135,8 +138,12 @@ export function IntelPane() {
   useJobsRealtime()
 
   const { data: analytics } = useQuery({
-    queryKey: dataKeys.jobsAnalyticsPublic(selectedRole),
-    queryFn: () => jobs.analytics(selectedRole || undefined),
+    queryKey: dataKeys.jobsAnalyticsPublic(selectedRole, selectedCity, selectedCountry, selectedMode),
+    queryFn: () => jobs.analytics(selectedRole || undefined, {
+      locationCity: selectedCity || undefined,
+      locationCountry: selectedCountry || undefined,
+      locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+    }),
     staleTime: 5 * 60 * 1000,
   })
 
@@ -144,8 +151,14 @@ export function IntelPane() {
   const list = view === "companies" ? companies : industries
   const max = list.reduce((m, e) => Math.max(m, e.roles), 0)
   const roleOptions = analytics?.by_role ?? []
+  const cityOptions = (analytics?.by_location_city ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const countryOptions = (analytics?.by_location_country ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const modeOptions = (analytics?.by_location_mode ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}`
+    ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
     : "Loading market coverage"
 
   return (
@@ -179,6 +192,57 @@ export function IntelPane() {
           {roleOptions.map((role) => (
             <option key={role.name} value={role.name}>
               {role.name} ({role.count.toLocaleString()})
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedCity}
+          onChange={(e) => {
+            setSelectedCity(e.target.value)
+            setSelected(null)
+          }}
+          className="tm-input"
+          style={{ maxWidth: 200, height: 34, fontSize: 12 }}
+        >
+          <option value="">All cities</option>
+          {cityOptions.map((item) => (
+            <option key={item.name} value={item.name}>
+              {item.name} ({item.count.toLocaleString()})
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedCountry}
+          onChange={(e) => {
+            setSelectedCountry(e.target.value)
+            setSelected(null)
+          }}
+          className="tm-input"
+          style={{ maxWidth: 200, height: 34, fontSize: 12 }}
+        >
+          <option value="">All countries</option>
+          {countryOptions.map((item) => (
+            <option key={item.name} value={item.name}>
+              {item.name} ({item.count.toLocaleString()})
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedMode}
+          onChange={(e) => {
+            setSelectedMode(e.target.value)
+            setSelected(null)
+          }}
+          className="tm-input"
+          style={{ maxWidth: 180, height: 34, fontSize: 12 }}
+        >
+          <option value="">All modes</option>
+          {modeOptions.map((item) => (
+            <option key={item.name} value={item.name}>
+              {item.name} ({item.count.toLocaleString()})
             </option>
           ))}
         </select>

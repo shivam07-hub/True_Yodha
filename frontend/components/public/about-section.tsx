@@ -33,14 +33,10 @@ export function AboutSection() {
         gap: 0,
       }}>
         <div style={{
-          width: 56, height: 56,
-          background: "linear-gradient(135deg, var(--tm-accent), var(--tm-accent-pressed))",
-          borderRadius: "var(--tm-radius-lg)",
-          display: "flex", alignItems: "center", justifyContent: "center",
           filter: "drop-shadow(0 0 16px var(--tm-accent-glow))",
           marginBottom: 24,
         }}>
-          <MyroLogo size={34} />
+          <MyroLogo size={56} />
         </div>
 
         <h1 style={{

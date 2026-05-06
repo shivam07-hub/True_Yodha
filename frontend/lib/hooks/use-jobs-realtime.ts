@@ -17,6 +17,7 @@ export function useJobsRealtime(): void {
         () => {
           queryClient.invalidateQueries({ queryKey: ["jobs-analytics"] })
           queryClient.invalidateQueries({ queryKey: ["jobs-analytics-public"] })
+          queryClient.invalidateQueries({ queryKey: ["jobs-analytics-me"] })
         },
       )
       .subscribe()
