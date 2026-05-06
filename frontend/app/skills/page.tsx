@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
-import { DomainRadar as OverviewDomainRadar } from "@/components/dashboard/domain-radar"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
@@ -50,6 +49,11 @@ export default function SkillsPage() {
   const proofCount = Object.values(skills.by_domain).flat().filter(s => s.evidence_text).length
 
   const activeDomainSkills = activeDomain ? (skills.by_domain[activeDomain] ?? []) : []
+  const rankedDomains = scoreData
+    ? Object.entries(scoreData.domain_scores).sort((a, b) => b[1] - a[1])
+    : []
+  const topDomains = rankedDomains.slice(0, 3)
+  const focusDomains = [...rankedDomains].slice(-3).sort((a, b) => a[1] - b[1])
 
   return (
     <AppShell>
@@ -59,8 +63,8 @@ export default function SkillsPage() {
         <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
           <div>
             <div className="tm-label-caps" style={{ marginBottom: 6 }}>Skill Intelligence Overview</div>
-            <h1 className="tm-title" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
-            <p className="tm-meta">
+            <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
+            <p className="tm-meta text-pretty">
               {scoreData
                 ? `${scoreData.skills_assessed} skills assessed · ${scoreData.gap_skills.length} gaps identified`
                 : "Upload your CV to see your Myro Score"}
@@ -94,12 +98,64 @@ export default function SkillsPage() {
         {hasCv ? (
           <div style={{ marginBottom: 24, position: "relative", zIndex: 1 }}>
             <div className="tm-card">
-              <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div className="tm-label-caps" style={{ marginBottom: 6 }}>Domain Highlights</div>
+                  <p className="tm-meta text-pretty" style={{ margin: 0 }}>
+                    Summary up top, detailed radar and drill-down in the visual explorer below.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setView("radar")}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "var(--tm-radius-sm)",
+                    background: "var(--tm-accent-wash)",
+                    border: "1px solid var(--tm-accent-ring)",
+                    color: "var(--tm-accent)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Open Domain Radar
+                </button>
+              </div>
               {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
-                <OverviewDomainRadar
-                  domainScores={scoreData.domain_scores}
-                  skillsByDomain={skills.by_domain}
-                />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+                  <div style={{ padding: "12px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.01)" }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                      Strongest Domains
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {topDomains.map(([domain, score]) => (
+                        <div key={domain} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{domain}</span>
+                          <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 700, fontFamily: "var(--tm-font-mono)", fontVariantNumeric: "tabular-nums" }}>
+                            {Math.round(score)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ padding: "12px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.01)" }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                      Focus Next
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {focusDomains.map(([domain, score]) => (
+                        <div key={domain} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{domain}</span>
+                          <span style={{ fontSize: 12, color: "var(--tm-warning)", fontWeight: 700, fontFamily: "var(--tm-font-mono)", fontVariantNumeric: "tabular-nums" }}>
+                            {Math.round(score)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               ) : scoreLoading || recompute.isPending ? (
                 <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
                   <div style={{
@@ -144,10 +200,10 @@ export default function SkillsPage() {
             <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6, opacity: 0.8 }}>
               VISUAL EXPLORER
             </div>
-            <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
+            <h1 className="text-balance" style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
               Skill Graph & Radar
             </h1>
-            <p style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 4 }}>
+            <p className="text-pretty" style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 4 }}>
               {totalSkills} skills · {proofCount} with proof · {levellingCount} actively levelling
             </p>
           </div>
