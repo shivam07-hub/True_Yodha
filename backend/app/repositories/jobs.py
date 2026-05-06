@@ -366,11 +366,25 @@ class JobsRepository:
         """Job_ids that have at least one skill in skill_keys. Used to scope matcher fetch."""
         if not skill_keys:
             return []
-        lower_keys = [k.lower() for k in skill_keys]
+
+        # IMPORTANT: taxonomy_key in `skills` is canonical Lightcast case
+        # (e.g. "Python (Programming Language)"). `user_skill_map` keys are
+        # sourced from the same column, so we must preserve case here.
+        normalized_keys: list[str] = []
+        seen: set[str] = set()
+        for raw in skill_keys:
+            key = (raw or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            normalized_keys.append(key)
+        if not normalized_keys:
+            return []
+
         skill_id_rows = (
             self._db.table("skills")
             .select("id")
-            .in_("taxonomy_key", lower_keys)
+            .in_("taxonomy_key", normalized_keys)
             .execute()
         ).data or []
         skill_ids = [r["id"] for r in skill_id_rows]

@@ -11,6 +11,7 @@ import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
+import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 
 interface TrackJob { job_id: string; job_title: string; company_name: string | null }
@@ -450,9 +451,7 @@ export default function MarketPage() {
         </div>
 
         {isLoading ? (
-          <div role="status" aria-live="polite" style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
-            {loadingMessage}
-          </div>
+          <IntelLoadingState message={loadingMessage} />
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: selectedJobFit ? "1fr 1fr 280px" : "1fr 1fr", gap: 16, transition: "grid-template-columns 0.25s ease" }}>
             {/* Bars */}

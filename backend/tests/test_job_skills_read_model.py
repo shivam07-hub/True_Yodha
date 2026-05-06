@@ -240,6 +240,27 @@ def test_get_candidate_job_ids_for_skills_no_match_returns_empty() -> None:
     assert JobsRepository(db).get_candidate_job_ids_for_skills(["java"]) == []
 
 
+def test_get_candidate_job_ids_for_skills_preserves_canonical_case() -> None:
+    db = _FakeDB({
+        "skills": [
+            {"id": "s1", "taxonomy_key": "Python (Programming Language)"},
+            {"id": "s2", "taxonomy_key": "SQL (Programming Language)"},
+            {"id": "s3", "taxonomy_key": "Stakeholder Management"},
+        ],
+        "job_skills": [
+            {"job_id": "j1", "skill_id": "s1"},
+            {"job_id": "j2", "skill_id": "s2"},
+            {"job_id": "j3", "skill_id": "s3"},
+        ],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(
+        ["Python (Programming Language)", "SQL (Programming Language)"]
+    )
+
+    assert set(result) == {"j1", "j2"}
+
+
 # ---------------------------------------------------------------------------
 # RPC path tests (Bug 2 — PostgREST URL-length 400 fix)
 # ---------------------------------------------------------------------------

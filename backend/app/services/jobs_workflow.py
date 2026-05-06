@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any
 
@@ -9,6 +10,8 @@ from app.services import job_importer, job_matcher, job_path as job_path_service
 from app.services.llm_provider import LLMProvider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring import fetch_aspiration_skills
+
+logger = logging.getLogger(__name__)
 
 
 def build_user_skill_demand(
@@ -96,7 +99,18 @@ async def compute_job_matches(
     assert_not_rate_limited(db, user_id, "user_job_matches", "computed_at")
 
     if llm_ranker.is_cache_valid(db, user_id, batch_week):
-        return {"matches_written": 0, "from_cache": True, "batch_week": batch_week}
+        return {
+            "matches_written": 0,
+            "from_cache": True,
+            "batch_week": batch_week,
+            "debug": {
+                "cache_hit": True,
+                "user_skills_count": None,
+                "candidate_jobs_count": None,
+                "top_jobs_count": None,
+                "target_roles_count": None,
+            },
+        }
 
     skill_rows = repo.get_user_skill_rows(user_id)
     if not skill_rows:
@@ -105,6 +119,13 @@ async def compute_job_matches(
             "from_cache": False,
             "batch_week": batch_week,
             "needs_onboarding": True,
+            "debug": {
+                "cache_hit": False,
+                "user_skills_count": 0,
+                "candidate_jobs_count": 0,
+                "top_jobs_count": 0,
+                "target_roles_count": 0,
+            },
         }
 
     user_skill_map: dict[str, int] = {
@@ -113,7 +134,28 @@ async def compute_job_matches(
         if row.get("skills")
     }
     profile = repo.get_user_profile_targeting(user_id)
+    target_roles_count = len(profile.get("target_roles") or [])
     candidate_job_ids = repo.get_candidate_job_ids_for_skills(list(user_skill_map.keys()))
+    if not candidate_job_ids:
+        logger.warning(
+            "compute_job_matches: no candidate jobs for user=%s skills=%d",
+            user_id,
+            len(user_skill_map),
+        )
+        return {
+            "matches_written": 0,
+            "from_cache": False,
+            "batch_week": batch_week,
+            "needs_onboarding": False,
+            "debug": {
+                "cache_hit": False,
+                "user_skills_count": len(user_skill_map),
+                "candidate_jobs_count": 0,
+                "top_jobs_count": 0,
+                "target_roles_count": target_roles_count,
+            },
+        }
+
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=candidate_job_ids)
     top_jobs = job_matcher.get_top_matches(
         job_skill_rows,
@@ -123,8 +165,28 @@ async def compute_job_matches(
         target_location=profile.get("target_location"),
         top_n=10,
     )
+    logger.info(
+        "compute_job_matches: user=%s skills=%d candidates=%d target_roles=%d top_jobs=%d",
+        user_id,
+        len(user_skill_map),
+        len(candidate_job_ids),
+        target_roles_count,
+        len(top_jobs),
+    )
     if not top_jobs:
-        return {"matches_written": 0, "from_cache": False, "batch_week": batch_week, "needs_onboarding": True}
+        return {
+            "matches_written": 0,
+            "from_cache": False,
+            "batch_week": batch_week,
+            "needs_onboarding": False,
+            "debug": {
+                "cache_hit": False,
+                "user_skills_count": len(user_skill_map),
+                "candidate_jobs_count": len(candidate_job_ids),
+                "top_jobs_count": 0,
+                "target_roles_count": target_roles_count,
+            },
+        }
 
     written = await llm_ranker.rank_and_persist(
         db,
@@ -134,7 +196,18 @@ async def compute_job_matches(
         top_jobs,
         llm_provider,
     )
-    return {"matches_written": written, "from_cache": False, "batch_week": batch_week}
+    return {
+        "matches_written": written,
+        "from_cache": False,
+        "batch_week": batch_week,
+        "debug": {
+            "cache_hit": False,
+            "user_skills_count": len(user_skill_map),
+            "candidate_jobs_count": len(candidate_job_ids),
+            "top_jobs_count": len(top_jobs),
+            "target_roles_count": target_roles_count,
+        },
+    }
 
 
 def preview_imported_job(repo: JobsRepository, body: Any) -> dict[str, Any]:

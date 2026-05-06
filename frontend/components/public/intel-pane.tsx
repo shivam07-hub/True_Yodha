@@ -9,6 +9,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+import { IntelLoadingState } from "@/components/market/intel-loading-state"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -108,12 +109,12 @@ function SkillChip({ skill }: { skill: string }) {
 }
 
 function buildLists(analytics: MarketAnalytics | undefined) {
-  const companies: DrillEntity[] = (analytics?.by_company ?? []).slice(0, 12).map((c) => ({
+  const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
     name: c.name, roles: c.count,
     skills: analytics?.company_skills?.[c.name] ?? [],
     type: "company" as const,
   }))
-  const industries: DrillEntity[] = (analytics?.by_industry ?? []).slice(0, 12).map((ind) => ({
+  const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
     name: ind.name, roles: ind.count,
     skills: analytics?.industry_skills?.[ind.name] ?? [],
     type: "industry" as const,
@@ -281,7 +282,7 @@ export function IntelPane() {
       </div>
 
       {!analytics ? (
-        <div role="status" aria-live="polite" style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>{loadingMessage}</div>
+        <IntelLoadingState message={loadingMessage} />
       ) : (
         <div style={{
           display: "grid",
@@ -293,12 +294,32 @@ export function IntelPane() {
             <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 12 }}>
               {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
             </div>
-            {list.map((entity) => (
-              <IntelBar key={entity.name} label={entity.name} count={entity.roles} max={max}
-                active={selected?.name === entity.name}
-                onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
-              />
-            ))}
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              {view === "companies"
+                ? `Showing ${list.length.toLocaleString()} scraped companies`
+                : `Showing ${list.length.toLocaleString()} industry groups`}{" "}
+              · scroll to view all
+            </div>
+            <div
+              role="region"
+              aria-label={view === "companies" ? "Scraped companies list" : "Industry breakdown list"}
+              style={{
+                maxHeight: isMobile ? "min(52dvh, 420px)" : "min(64dvh, 700px)",
+                overflowY: "auto",
+                direction: "rtl",
+                scrollbarWidth: "thin",
+                scrollbarGutter: "stable both-edges",
+              }}
+            >
+              <div style={{ direction: "ltr" }}>
+                {list.map((entity) => (
+                  <IntelBar key={entity.name} label={entity.name} count={entity.roles} max={max}
+                    active={selected?.name === entity.name}
+                    onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div style={{

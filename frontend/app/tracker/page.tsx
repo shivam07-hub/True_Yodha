@@ -1128,6 +1128,7 @@ export default function TrackerPage() {
   const [confidence, setConfidence] = useState(3)
   const [generatedCvText, setGeneratedCvText] = useState<string | null>(null)
   const [cvNotice, setCvNotice] = useState<string | null>(null)
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
 
   const matchesQuery = useQuery({
     queryKey: dataKeys.jobs(token),
@@ -1157,7 +1158,27 @@ export default function TrackerPage() {
 
   const refreshMatches = useMutation({
     mutationFn: () => jobs.compute(token!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }),
+    onSuccess: (payload) => {
+      const debug = payload.debug
+      if (payload.from_cache) {
+        setRefreshNotice("Using this week’s cached matches.")
+      } else if (payload.matches_written > 0) {
+        setRefreshNotice(`Updated ${payload.matches_written} matched roles.`)
+      } else if (payload.needs_onboarding) {
+        setRefreshNotice("Upload your CV first to generate role matches.")
+      } else {
+        if (debug) {
+          const skills = debug.user_skills_count ?? 0
+          const candidates = debug.candidate_jobs_count ?? 0
+          const ranked = debug.top_jobs_count ?? 0
+          setRefreshNotice(`No matches generated (skills=${skills}, candidates=${candidates}, ranked=${ranked}). Try updating target roles in Intel, then refresh.`)
+        } else {
+          setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+    },
+    onError: () => setRefreshNotice("Refresh failed. Please try again."),
   })
 
   const updateStatus = useMutation({
@@ -1335,7 +1356,10 @@ export default function TrackerPage() {
               </p>
             </div>
             <button
-              onClick={() => refreshMatches.mutate()}
+              onClick={() => {
+                setRefreshNotice(null)
+                refreshMatches.mutate()
+              }}
               disabled={refreshMatches.isPending}
               className="tm-btn tm-btn-ghost"
               style={{ opacity: refreshMatches.isPending ? 0.5 : 1 }}
@@ -1343,6 +1367,11 @@ export default function TrackerPage() {
               {refreshMatches.isPending ? "…" : "⟳ Refresh"}
             </button>
           </div>
+          {refreshNotice && (
+            <div style={{ marginTop: 10, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+              {refreshNotice}
+            </div>
+          )}
         </div>
 
         <CVRequiredNudge hasCv={hasCv} feature="your job matches" />
@@ -1390,7 +1419,9 @@ export default function TrackerPage() {
                 <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</div>
                 <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
-                  Upload your CV then click Refresh.
+                  {hasCv
+                    ? "No role matches generated yet. Click Refresh. If still empty, update target roles in Intel."
+                    : "Upload your CV then click Refresh."}
                 </div>
               </div>
             ) : (

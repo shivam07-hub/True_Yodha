@@ -1,12 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { DomainRadar as OverviewDomainRadar } from "@/components/dashboard/domain-radar"
-import { SkillGraphPreview } from "@/components/skill-graph-preview"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
@@ -55,13 +55,6 @@ export default function SkillsPage() {
     <AppShell>
       <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)", position: "relative" }}>
 
-        {/* Accent glow header atmosphere */}
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 220,
-          background: "radial-gradient(ellipse at 60% 0%, var(--tm-accent-wash) 0%, transparent 70%)",
-          pointerEvents: "none", zIndex: 0,
-        }} />
-
         {/* Skill intelligence overview */}
         <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
           <div>
@@ -84,6 +77,7 @@ export default function SkillsPage() {
                 color: "var(--tm-text)",
                 letterSpacing: "var(--tm-tracking-tight)",
                 lineHeight: "var(--tm-lh-display)",
+                fontVariantNumeric: "tabular-nums",
               }}>
                 {totalScore}
                 <span style={{
@@ -98,9 +92,8 @@ export default function SkillsPage() {
         </div>
 
         {hasCv ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24, position: "relative", zIndex: 1 }}>
-
-            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+          <div style={{ marginBottom: 24, position: "relative", zIndex: 1 }}>
+            <div className="tm-card">
               <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
               {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
                 <OverviewDomainRadar
@@ -137,12 +130,6 @@ export default function SkillsPage() {
                   </button>
                 </div>
               )}
-            </div>
-
-            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
-              <div className="tm-label-caps" style={{ marginBottom: 4 }}>Skill Intelligence Graph</div>
-              <div className="tm-meta" style={{ marginBottom: 10 }}>Your skills vs market gaps</div>
-              <SkillGraphPreview />
             </div>
           </div>
         ) : !scoreLoading ? (
@@ -208,24 +195,38 @@ export default function SkillsPage() {
               <div style={{ fontSize: 40 }}>⬡</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped yet</div>
               <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV to generate your personal skill constellation</div>
+              <Link
+                href="/cv"
+                style={{
+                  padding: "7px 14px",
+                  borderRadius: "var(--tm-radius-sm)",
+                  border: "1px solid var(--tm-accent-ring)",
+                  color: "var(--tm-accent)",
+                  textDecoration: "none",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                Upload CV
+              </Link>
             </div>
           ) : view === "tree" ? (
-            <div style={{ padding: "20px 10px" }}>
+            <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
               <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", padding: "0 14px 10px", display: "flex", gap: 20 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)" }} />
-                  L1 Domain
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "var(--tm-accent)" }} />
+                  Skills you have
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 8, height: 3, background: "var(--tm-border)", borderRadius: 99 }} />
-                  Derived connection
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #5B9CFF" }} />
+                  Skills to unlock
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 8, height: 1, background: "var(--tm-accent)", borderRadius: 99, opacity: 0.5 }} />
-                  CV reference
+                  <span style={{ display: "inline-block", width: 16, height: 1.5, background: "rgba(91,156,255,0.75)", borderRadius: 99 }} />
+                  Unlock path
                 </span>
               </div>
-              <OrganicSkillGraph userSkills={skills} />
+              <OrganicSkillGraph userSkills={skills} gapSkills={scoreData?.gap_skills ?? []} />
             </div>
           ) : (
             <div style={{ padding: "28px 32px" }}>
@@ -270,9 +271,9 @@ export default function SkillsPage() {
 
         {/* Legend */}
         <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,255,255,0.01)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", display: "flex", gap: 24, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
-          {["Proof logged from CV (dashed ← back to You)", "Derived connection (amber, cross-domain)", "Skill tree edge (white faint)"].map((leg, i) => (
+          {["Proof logged from CV (dashed ← back to You)", "Unlock path (blue, what to learn next)", "Skill tree edge (faint)"].map((leg, i) => (
             <div key={i} style={{ fontSize: 11, color: "var(--tm-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 16, height: 1.5, display: "inline-block", background: i === 0 ? "var(--tm-accent)" : i === 1 ? "var(--tm-warning)" : "rgba(255,255,255,0.2)", borderRadius: 99 }} />
+              <span style={{ width: 16, height: 1.5, display: "inline-block", background: i === 0 ? "var(--tm-accent)" : i === 1 ? "rgba(91,156,255,0.75)" : "rgba(255,255,255,0.2)", borderRadius: 99 }} />
               {leg}
             </div>
           ))}

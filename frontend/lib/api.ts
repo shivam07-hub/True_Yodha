@@ -361,6 +361,13 @@ export interface ComputeJobMatchesResponse {
   from_cache: boolean
   batch_week: string
   needs_onboarding?: boolean
+  debug?: {
+    cache_hit: boolean
+    user_skills_count: number | null
+    candidate_jobs_count: number | null
+    top_jobs_count: number | null
+    target_roles_count: number | null
+  } | null
 }
 
 export type ApplicationStatus =

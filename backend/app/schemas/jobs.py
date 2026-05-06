@@ -81,6 +81,7 @@ class ComputeJobMatchesResponse(BaseModel):
     from_cache: bool         # True if LLM was skipped (already computed this week)
     batch_week: date
     needs_onboarding: bool = False
+    debug: dict[str, int | bool | None] | None = None
 
 
 class ApplicationResponse(BaseModel):
