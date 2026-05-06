@@ -152,6 +152,20 @@
   --tm-accent-fg:       #1A0F00;
 }
 
+/* ── Accent + Surface combo: FORGE on LIGHT (contrast-safe) ──
+   First-time users default here. Darken the interactive amber
+   so links/buttons remain readable on light surfaces. */
+:root[data-surface="light"][data-accent="forge"] {
+  --tm-accent:          #A65A00;
+  --tm-accent-hover:    #914E00;
+  --tm-accent-pressed:  #7C4300;
+  --tm-accent-glow:     rgba(166, 90, 0, 0.24);
+  --tm-accent-wash:     rgba(166, 90, 0, 0.10);
+  --tm-accent-ring:     rgba(166, 90, 0, 0.44);
+  --tm-accent-grid:     rgba(166, 90, 0, 0.028);
+  --tm-accent-fg:       #FFFFFF;
+}
+
 /* ── Shadcn compatibility layer ────────────────────────────────
    Shadcn/ui components read `hsl(var(--primary))`-style variables.
    Mirror our tokens into that shape so existing components just work.
@@ -197,6 +211,13 @@
   --primary:             35 100% 64%;
   --accent:              35 100% 64%;
   --ring:                35 100% 64%;
+}
+:root[data-surface="light"][data-accent="forge"] {
+  --primary:             33 100% 33%;
+  --accent:              33 100% 33%;
+  --ring:                33 100% 33%;
+  --primary-foreground:  0 0% 100%;
+  --accent-foreground:   0 0% 100%;
 }
 
 /* ── Smooth accent swap (color-only, no layout) ────────────── */

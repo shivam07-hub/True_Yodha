@@ -13,7 +13,7 @@ interface MissionContentProps {
 const HOW_IT_WORKS = [
   { icon: BookOpen,    step: "01", title: "Upload your CV",       body: "We extract every skill you've built across your career." },
   { icon: Globe,       step: "02", title: "We scan the market",   body: "Thousands of live job postings, parsed daily for what companies actually need." },
-  { icon: Target,      step: "03", title: "See your skill map",   body: "Your skills vs market demand — ranked, scored, and honest." },
+  { icon: Target,      step: "03", title: "See your skill intelligence", body: "Your skills vs market demand — mapped, scored, and honest." },
   { icon: Flame,       step: "04", title: "Log daily progress",   body: "The Career Diary captures what you learn each day and credits your skills." },
   { icon: Sparkles,    step: "05", title: "Watch your score rise", body: "Your Myro Score grows as you close the gap. Every entry counts." },
 ]
@@ -83,7 +83,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
           {[
             "Companies know which exact skills they're hiring for. You're guessing.",
             "AI is reshaping every role. Nobody's telling you which human skills survive.",
-            "Your CV is a story. The market wants a skill map.",
+            "Your CV is a story. The market wants skill intelligence.",
           ].map((line) => (
             <p key={line} className="flex items-start gap-2.5 text-sm text-muted-foreground">
               <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive/60" />

@@ -17,20 +17,7 @@ export default function AuthCallbackPage() {
       handled = true
 
       setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
-
-      try {
-        const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? ""
-        const res = await fetch(`${base}/users/me`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
-        if (res.status === 404) { router.replace("/onboarding"); return }
-        const profile = await res.json()
-        if (!profile.onboarding_complete) { router.replace("/onboarding"); return }
-      } catch {
-        // network error — fall through to dashboard
-      }
-
-      router.replace("/dashboard")
+      router.replace("/home")
     }
 
     // No code in URL — check for an existing session (e.g. email/password callback)

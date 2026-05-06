@@ -103,7 +103,7 @@ export function StepScore({ score }: Props) {
       )}
 
       <button
-        onClick={() => router.push("/dashboard")}
+        onClick={() => router.push("/skills")}
         style={{
           width: "100%", padding: "14px",
           background: "var(--tm-accent)", border: "1px solid var(--tm-accent)",
@@ -114,7 +114,7 @@ export function StepScore({ score }: Props) {
         onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-hover)"; e.currentTarget.style.borderColor = "var(--tm-accent-hover)" }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent)" }}
       >
-        See full dashboard →
+        See Full Skill Intelligence →
       </button>
     </div>
   )

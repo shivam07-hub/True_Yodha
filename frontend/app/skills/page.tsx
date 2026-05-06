@@ -1,29 +1,49 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
-import { DomainRadar } from "@/components/skills/domain-radar"
-import { users } from "@/lib/api"
+import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
+import { DomainRadar as OverviewDomainRadar } from "@/components/dashboard/domain-radar"
+import { SkillGraphPreview } from "@/components/skill-graph-preview"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateScoreData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 export default function SkillsPage() {
-  const { token } = useAuth()
+  const { token, ready } = useAuth()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<"tree" | "radar">("tree")
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
-  const { data: userSkills, isLoading } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+    queryKey: dataKeys.scores(token),
+    queryFn: () => scores.me(token!),
+    enabled: !!token,
+    retry: false,
+  })
+
+  const recompute = useMutation({
+    mutationFn: () => scores.compute(token!),
+    onSuccess: () => invalidateScoreData(queryClient, token),
+  })
+
+  const { data: userSkills, isLoading: skillsLoading } = useQuery({
     queryKey: dataKeys.userSkills(token),
     queryFn: () => users.mySkills(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
 
+  if (!ready) return null
+
+  const totalScore = scoreData ? Math.round(scoreData.total_score) : null
+  const hasCv = !scoreLoading && !!scoreData
   const skills = userSkills ?? EMPTY_SKILLS
   const totalSkills = Object.values(skills.by_domain).flat().length
   const levellingCount = Object.values(skills.by_domain).flat().filter(s => s.level > 0 && s.level < 5).length
@@ -33,16 +53,112 @@ export default function SkillsPage() {
 
   return (
     <AppShell>
-      <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+      <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)", position: "relative" }}>
+
+        {/* Accent glow header atmosphere */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 220,
+          background: "radial-gradient(ellipse at 60% 0%, var(--tm-accent-wash) 0%, transparent 70%)",
+          pointerEvents: "none", zIndex: 0,
+        }} />
+
+        {/* Skill intelligence overview */}
+        <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+          <div>
+            <div className="tm-label-caps" style={{ marginBottom: 6 }}>Skill Intelligence Overview</div>
+            <h1 className="tm-title" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
+            <p className="tm-meta">
+              {scoreData
+                ? `${scoreData.skills_assessed} skills assessed · ${scoreData.gap_skills.length} gaps identified`
+                : "Upload your CV to see your Myro Score"}
+            </p>
+          </div>
+
+          {/* Hero Myro Score */}
+          {totalScore !== null && (
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{
+                fontFamily: "var(--tm-font-mono)",
+                fontSize: "var(--tm-fs-display)",
+                fontWeight: 600,
+                color: "var(--tm-text)",
+                letterSpacing: "var(--tm-tracking-tight)",
+                lineHeight: "var(--tm-lh-display)",
+              }}>
+                {totalScore}
+                <span style={{
+                  fontSize: "var(--tm-fs-body)",
+                  color: "var(--tm-text-faint)",
+                  fontFamily: "var(--tm-font-sans)",
+                }}> /100</span>
+              </div>
+              <div className="tm-label-caps">Myro Score</div>
+            </div>
+          )}
+        </div>
+
+        {hasCv ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24, position: "relative", zIndex: 1 }}>
+
+            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+              <div className="tm-label-caps" style={{ marginBottom: 12 }}>Domain Breakdown</div>
+              {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
+                <OverviewDomainRadar
+                  domainScores={scoreData.domain_scores}
+                  skillsByDomain={skills.by_domain}
+                />
+              ) : scoreLoading || recompute.isPending ? (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    border: "2px solid var(--tm-border-soft)",
+                    borderTopColor: "var(--tm-accent)",
+                    animation: "spin 0.9s linear infinite",
+                  }} />
+                  <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                    {recompute.isPending ? "Computing scores…" : "Loading…"}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <button
+                    onClick={() => recompute.mutate()}
+                    style={{
+                      padding: "7px 18px",
+                      borderRadius: "var(--tm-radius-sm)",
+                      background: "var(--tm-accent-wash)",
+                      border: "1px solid var(--tm-accent-ring)",
+                      color: "var(--tm-accent)",
+                      fontSize: 13, fontWeight: 500, cursor: "pointer",
+                      transition: "all var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    {recompute.isError ? "Retry" : "Compute Scores"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="tm-card" style={{ backdropFilter: "blur(20px)" }}>
+              <div className="tm-label-caps" style={{ marginBottom: 4 }}>Skill Intelligence Graph</div>
+              <div className="tm-meta" style={{ marginBottom: 10 }}>Your skills vs market gaps</div>
+              <SkillGraphPreview />
+            </div>
+          </div>
+        ) : !scoreLoading ? (
+          <div style={{ marginBottom: 24, position: "relative", zIndex: 1 }}>
+            <CVRequiredNudge variant="block" hasCv={hasCv} feature="your Myro Score" />
+          </div>
+        ) : null}
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12, position: "relative", zIndex: 1 }}>
           <div>
             <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6, opacity: 0.8 }}>
-              YOUR CONSTELLATION
+              VISUAL EXPLORER
             </div>
             <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
-              Skill Map
+              Skill Graph & Radar
             </h1>
             <p style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 4 }}>
               {totalSkills} skills · {proofCount} with proof · {levellingCount} actively levelling
@@ -57,7 +173,7 @@ export default function SkillsPage() {
         </div>
 
         {/* Stats strip */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
           {Object.entries(skills.by_domain).map(([domain, items]) => {
             const avg = items.length > 0 ? Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20) : 0
             const isActive = activeDomain === domain
@@ -82,8 +198,8 @@ export default function SkillsPage() {
         </div>
 
         {/* Main visualization */}
-        <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden" }}>
-          {isLoading ? (
+        <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden", position: "relative", zIndex: 1 }}>
+          {skillsLoading ? (
             <div style={{ height: 560, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: 14 }}>
               Loading your skill constellation…
             </div>
@@ -113,7 +229,7 @@ export default function SkillsPage() {
             </div>
           ) : (
             <div style={{ padding: "28px 32px" }}>
-              <DomainRadar userSkills={skills} onDomainClick={d => setActiveDomain(a => a === d ? null : d)} activeDomain={activeDomain} />
+              <SkillsDomainRadar userSkills={skills} onDomainClick={d => setActiveDomain(a => a === d ? null : d)} activeDomain={activeDomain} />
             </div>
           )}
         </div>
@@ -153,7 +269,7 @@ export default function SkillsPage() {
         )}
 
         {/* Legend */}
-        <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,255,255,0.01)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,255,255,0.01)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", display: "flex", gap: 24, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
           {["Proof logged from CV (dashed ← back to You)", "Derived connection (amber, cross-domain)", "Skill tree edge (white faint)"].map((leg, i) => (
             <div key={i} style={{ fontSize: 11, color: "var(--tm-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 16, height: 1.5, display: "inline-block", background: i === 0 ? "var(--tm-accent)" : i === 1 ? "var(--tm-warning)" : "rgba(255,255,255,0.2)", borderRadius: 99 }} />

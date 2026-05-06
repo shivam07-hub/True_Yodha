@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
+import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
@@ -57,7 +59,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         marginBottom: 2, fontFamily: "inherit", outline: "none",
         transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
       }}
-      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--tm-hover)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
       onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" } }}
       onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
       onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
@@ -74,7 +76,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${pct}%`, borderRadius: 999,
-            background: active ? "var(--tm-accent)" : "rgba(255,255,255,0.18)",
+            background: active ? "var(--tm-accent)" : "var(--tm-border)",
             transition: "width 0.9s var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease)",
           }} />
         </div>
@@ -239,9 +241,10 @@ export default function MarketPage() {
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const modeOptions = (analytics?.by_location_mode ?? [])
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const loadingMessage = useRotatingMessage(MARKET_LOADING_STEPS, { enabled: isLoading })
   const marketSummary = analytics
     ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
-    : "Loading market coverage"
+    : MARKET_LOADING_SUMMARY
 
   return (
     <>
@@ -257,12 +260,12 @@ export default function MarketPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-            {marketSummary}
-          </div>
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
             Intel
           </h1>
+          <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+            {marketSummary}
+          </div>
         </div>
 
         <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
@@ -290,7 +293,7 @@ export default function MarketPage() {
                     }}
                     style={{
                       padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
-                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                      background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
                       border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
                       color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
                       cursor: "pointer",
@@ -434,7 +437,7 @@ export default function MarketPage() {
               onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
               style={{
                 padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
-                background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
                 border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
                 color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
                 cursor: "pointer", textTransform: "capitalize",
@@ -447,8 +450,8 @@ export default function MarketPage() {
         </div>
 
         {isLoading ? (
-          <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
-            Loading market data…
+          <div role="status" aria-live="polite" style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
+            {loadingMessage}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: selectedJobFit ? "1fr 1fr 280px" : "1fr 1fr", gap: 16, transition: "grid-template-columns 0.25s ease" }}>
@@ -574,7 +577,7 @@ export default function MarketPage() {
                               transition: "background 0.12s",
                               cursor: "default",
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tm-hover-soft)")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             {/* Job ID */}
@@ -706,7 +709,7 @@ export default function MarketPage() {
                               border: "1px solid transparent",
                               transition: "all 0.15s",
                             }}
-                            onMouseEnter={(e) => { if (selected.type === "company") { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.background = "rgba(0,245,212,0.08)" } }}
+                            onMouseEnter={(e) => { if (selected.type === "company") { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.background = "var(--tm-accent-wash)" } }}
                             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
                           >
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", flexShrink: 0 }} />

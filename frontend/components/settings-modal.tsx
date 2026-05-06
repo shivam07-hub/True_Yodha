@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { users } from "@/lib/api"
+import { jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -97,12 +97,16 @@ export function SettingsModal({ open, onClose, profile }: {
   const [roleInput, setRoleInput] = useState("")
   const [roleDropdown, setRoleDropdown] = useState(false)
   const [roleFocused, setRoleFocused] = useState(false)
+  const [locationDropdown, setLocationDropdown] = useState(false)
+  const [locationFocused, setLocationFocused] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const roleInputRef = useRef<HTMLInputElement>(null)
   const roleCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const locationInputRef = useRef<HTMLInputElement>(null)
+  const locationCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pending = useRef<ProfileUpdate>({})
@@ -114,10 +118,16 @@ export function SettingsModal({ open, onClose, profile }: {
     setLinkedin(profile?.linkedin_url ?? "")
     setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
     setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
+    setLocationDropdown(false); setLocationFocused(false)
     setSaveStatus("idle"); setSaveError(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
   }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
+
+  useEffect(() => () => {
+    if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current)
+    if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (payload: ProfileUpdate) => {
@@ -190,6 +200,44 @@ export function SettingsModal({ open, onClose, profile }: {
   const suggestions = roleInput.trim()
     ? L2_CLUSTERS.filter((c) => c.toLowerCase().includes(roleInput.toLowerCase()) && !roles.some((r) => r.toLowerCase() === c.toLowerCase())).slice(0, 8)
     : []
+  const locationCatalogQuery = useQuery({
+    queryKey: dataKeys.jobsAnalytics(),
+    queryFn: () => jobs.analytics(),
+    enabled: open,
+    staleTime: 10 * 60 * 1000,
+  })
+  const locationCatalog = useMemo(() => {
+    const cityOptions = (locationCatalogQuery.data?.by_location_city ?? [])
+      .map((item) => item.name.trim())
+      .filter((name) => name.length > 0 && name.toLowerCase() !== "unknown")
+    const countryOptions = (locationCatalogQuery.data?.by_location_country ?? [])
+      .map((item) => item.name.trim())
+      .filter((name) => name.length > 0 && name.toLowerCase() !== "unknown")
+
+    const merged = [...cityOptions, ...countryOptions, "Remote", "Hybrid", "Onsite"]
+    const seen = new Set<string>()
+
+    return merged.reduce<string[]>((acc, entry) => {
+      const normalized = entry.toLowerCase()
+      if (seen.has(normalized)) return acc
+      seen.add(normalized)
+      return [...acc, entry]
+    }, [])
+  }, [locationCatalogQuery.data])
+  const locationSuggestions = useMemo(() => {
+    const needle = location.trim().toLowerCase()
+    if (!needle) return locationCatalog.slice(0, 10)
+    return locationCatalog
+      .filter((entry) => entry.toLowerCase().includes(needle))
+      .slice(0, 10)
+  }, [location, locationCatalog])
+
+  function selectLocation(nextLocation: string) {
+    setLocation(nextLocation)
+    schedule({ target_location: normalize(nextLocation) })
+    setLocationDropdown(false)
+    locationInputRef.current?.focus()
+  }
 
   const allEmpty = !profile?.full_name && !profile?.target_location && !profile?.linkedin_url &&
     (!profile?.target_roles || profile.target_roles.length === 0)
@@ -311,11 +359,102 @@ export function SettingsModal({ open, onClose, profile }: {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label htmlFor="sm-location" className="tm-label-caps" style={{ fontSize: 11 }}>Target Location</label>
-            <input id="sm-location" type="text" value={location} onChange={(e) => { setLocation(e.target.value); schedule({ target_location: normalize(e.target.value) }) }}
-              placeholder="City, country, or Remote" style={INPUT_STYLE}
-              onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-              onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                ref={locationInputRef}
+                id="sm-location"
+                type="text"
+                value={location}
+                role="combobox"
+                aria-expanded={locationDropdown && locationSuggestions.length > 0}
+                aria-controls="sm-location-listbox"
+                aria-autocomplete="list"
+                aria-label="Search target location"
+                onChange={(e) => {
+                  setLocation(e.target.value)
+                  schedule({ target_location: normalize(e.target.value) })
+                  setLocationDropdown(true)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    if (locationSuggestions[0]) selectLocation(locationSuggestions[0])
+                  }
+                  if (e.key === "Escape") setLocationDropdown(false)
+                }}
+                placeholder="City, country, or Remote"
+                style={{
+                  ...INPUT_STYLE,
+                  borderColor: locationFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)",
+                }}
+                onFocus={(e) => {
+                  setLocationFocused(true)
+                  setLocationDropdown(true)
+                  Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)
+                }}
+                onBlur={(e) => {
+                  locationCloseTimer.current = setTimeout(() => setLocationDropdown(false), 150)
+                  setLocationFocused(false)
+                  Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)
+                }}
+              />
+              {locationDropdown && locationSuggestions.length > 0 && (
+                <div
+                  id="sm-location-listbox"
+                  role="listbox"
+                  aria-label="Location suggestions"
+                  onMouseDown={() => {
+                    if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    left: 0,
+                    right: 0,
+                    background: "var(--tm-surface)",
+                    border: "1px solid var(--tm-accent-ring)",
+                    borderRadius: "var(--tm-radius-sm)",
+                    zIndex: 50,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    maxHeight: 240,
+                    overflowY: "auto",
+                  }}
+                >
+                  {locationSuggestions.map((entry) => (
+                    <button
+                      key={entry}
+                      type="button"
+                      role="option"
+                      aria-selected={entry === location}
+                      onClick={() => selectLocation(entry)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: "1px solid var(--tm-border-soft)",
+                        color: "var(--tm-text-muted)",
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--tm-accent-wash)"
+                        e.currentTarget.style.color = "var(--tm-accent)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                        e.currentTarget.style.color = "var(--tm-text-muted)"
+                      }}
+                    >
+                      {entry}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
