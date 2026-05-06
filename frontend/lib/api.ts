@@ -328,6 +328,10 @@ export interface JobMatch {
   title: string
   company: string | null
   location: string | null
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
+  location_quality?: "ok" | "unknown" | null
   industry?: string | null
   remote: boolean
   overlap_score: number
@@ -461,6 +465,11 @@ export interface JobSearchItem {
   job_title: string
   company_name: string | null
   job_description: string | null
+  location?: string | null
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
+  location_quality?: "ok" | "unknown" | null
 }
 
 export interface JobSearchResponse {
@@ -479,9 +488,18 @@ export interface MarketAnalytics {
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
   by_role: NameCountItem[]
+  by_location_city: NameCountItem[]
+  by_location_country: NameCountItem[]
+  by_location_mode: NameCountItem[]
   top_skills: SkillCountItem[]
   company_skills: Record<string, string[]>
   industry_skills: Record<string, string[]>
+}
+
+export interface JobLocationFilters {
+  locationCity?: string | null
+  locationCountry?: string | null
+  locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
 }
 
 export interface SkillGapItem {
@@ -518,17 +536,42 @@ export interface UserSkillDemandResponse {
 }
 
 export const jobs = {
-  analytics: (roleDomain?: string | null) => {
+  analytics: (
+    roleDomain?: string | null,
+    locationFilters?: JobLocationFilters,
+  ) => {
     const params = new URLSearchParams()
     if (roleDomain && roleDomain.trim()) {
       params.set("role_domain", roleDomain.trim())
     }
+    if (locationFilters?.locationCity && locationFilters.locationCity.trim()) {
+      params.set("location_city", locationFilters.locationCity.trim())
+    }
+    if (locationFilters?.locationCountry && locationFilters.locationCountry.trim()) {
+      params.set("location_country", locationFilters.locationCountry.trim())
+    }
+    if (locationFilters?.locationMode && locationFilters.locationMode.trim()) {
+      params.set("location_mode", locationFilters.locationMode.trim())
+    }
     const query = params.toString()
     return request<MarketAnalytics>(`/jobs/analytics${query ? `?${query}` : ""}`)
   },
-  analyticsForMe: (token: string, cluster?: string | null) => {
+  analyticsForMe: (
+    token: string,
+    cluster?: string | null,
+    locationFilters?: JobLocationFilters,
+  ) => {
     const params = new URLSearchParams()
     if (cluster && cluster.trim()) params.set("cluster", cluster.trim())
+    if (locationFilters?.locationCity && locationFilters.locationCity.trim()) {
+      params.set("location_city", locationFilters.locationCity.trim())
+    }
+    if (locationFilters?.locationCountry && locationFilters.locationCountry.trim()) {
+      params.set("location_country", locationFilters.locationCountry.trim())
+    }
+    if (locationFilters?.locationMode && locationFilters.locationMode.trim()) {
+      params.set("location_mode", locationFilters.locationMode.trim())
+    }
     const query = params.toString()
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -539,6 +582,9 @@ export const jobs = {
     options?: {
       roleDomain?: string | null
       skill?: string | null
+      locationCity?: string | null
+      locationCountry?: string | null
+      locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
       page?: number | null
       pageSize?: number | null
     },
@@ -554,6 +600,15 @@ export const jobs = {
     }
     if (options?.skill && options.skill.trim()) {
       params.set("skill", options.skill.trim())
+    }
+    if (options?.locationCity && options.locationCity.trim()) {
+      params.set("location_city", options.locationCity.trim())
+    }
+    if (options?.locationCountry && options.locationCountry.trim()) {
+      params.set("location_country", options.locationCountry.trim())
+    }
+    if (options?.locationMode && options.locationMode.trim()) {
+      params.set("location_mode", options.locationMode.trim())
     }
     if (options?.page && options.page > 0) {
       params.set("page", String(options.page))

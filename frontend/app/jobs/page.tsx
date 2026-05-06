@@ -119,6 +119,9 @@ export default function JobsPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
+  const [selectedCity, setSelectedCity] = useState("")
+  const [selectedCountry, setSelectedCountry] = useState("")
+  const [selectedMode, setSelectedMode] = useState("")
 
   const matches = useQuery({
     queryKey: dataKeys.jobs(token),
@@ -148,13 +151,58 @@ export default function JobsPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     const list = matches.data?.jobs ?? []
-    if (!term) return list
-    return list.filter((job) =>
-      [job.title, job.company, job.location].filter(Boolean).some((value) =>
+    const modeFilter = selectedMode.trim().toLowerCase()
+    const cityFilter = selectedCity.trim().toLowerCase()
+    const countryFilter = selectedCountry.trim().toLowerCase()
+    const byLocation = list.filter((job) => {
+      if (cityFilter && (job.location_city || "").toLowerCase() !== cityFilter) return false
+      if (countryFilter && (job.location_country || "").toLowerCase() !== countryFilter) return false
+      if (modeFilter && (job.location_mode || "").toLowerCase() !== modeFilter) return false
+      return true
+    })
+    if (!term) return byLocation
+    return byLocation.filter((job) =>
+      [job.title, job.company, job.location, job.location_city, job.location_country].filter(Boolean).some((value) =>
         value!.toLowerCase().includes(term),
       ),
     )
-  }, [matches.data?.jobs, search])
+  }, [matches.data?.jobs, search, selectedCity, selectedCountry, selectedMode])
+
+  const cityOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (matches.data?.jobs ?? [])
+            .map((job) => (job.location_city || "").trim())
+            .filter((value) => value && value.toLowerCase() !== "unknown"),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [matches.data?.jobs],
+  )
+
+  const countryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (matches.data?.jobs ?? [])
+            .map((job) => (job.location_country || "").trim())
+            .filter((value) => value && value.toLowerCase() !== "unknown"),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [matches.data?.jobs],
+  )
+
+  const modeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (matches.data?.jobs ?? [])
+            .map((job) => (job.location_mode || "").trim())
+            .filter((value) => value && value.toLowerCase() !== "unknown"),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [matches.data?.jobs],
+  )
 
   if (!ready) return null
 
@@ -197,6 +245,35 @@ export default function JobsPage() {
                 className="tm-input"
                 style={{ paddingLeft: 36 }}
               />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+                Location
+              </div>
+              <select className="tm-input" style={{ maxWidth: 220, height: 34, fontSize: 12 }} value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}>
+                <option value="">All cities</option>
+                {cityOptions.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+              <select className="tm-input" style={{ maxWidth: 220, height: 34, fontSize: 12 }} value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value)}>
+                <option value="">All countries</option>
+                {countryOptions.map((country) => (
+                  <option key={country} value={country}>{country}</option>
+                ))}
+              </select>
+              <select className="tm-input" style={{ maxWidth: 180, height: 34, fontSize: 12 }} value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
+                <option value="">All modes</option>
+                {modeOptions.map((mode) => (
+                  <option key={mode} value={mode}>{mode}</option>
+                ))}
+              </select>
+              {(selectedCity || selectedCountry || selectedMode) && (
+                <button className="tm-btn tm-btn-ghost" style={{ height: 34, padding: "0 12px", fontSize: 12 }} onClick={() => { setSelectedCity(""); setSelectedCountry(""); setSelectedMode("") }}>
+                  Clear location
+                </button>
+              )}
             </div>
           </div>
 

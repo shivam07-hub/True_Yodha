@@ -127,12 +127,44 @@ CREATE TABLE jobs (
   company_name     VARCHAR(200),
   industry         VARCHAR(200),
   location         VARCHAR(200),
+  location_raw     TEXT,
+  location_city    VARCHAR(200),
+  location_country VARCHAR(200),
+  location_mode    VARCHAR(20)  NOT NULL DEFAULT 'unknown'
+                   CHECK (location_mode IN ('onsite','hybrid','remote','unknown')),
+  location_quality VARCHAR(20)  NOT NULL DEFAULT 'unknown'
+                   CHECK (location_quality IN ('ok','unknown')),
   apply_url        VARCHAR(500),
   job_description  TEXT,
   main_skills      TEXT[]       DEFAULT '{}',
   side_skills      TEXT[]       DEFAULT '{}',
   batch_date       DATE         NOT NULL DEFAULT CURRENT_DATE
 );
+
+CREATE INDEX idx_jobs_location_city    ON jobs(location_city);
+CREATE INDEX idx_jobs_location_country ON jobs(location_country);
+CREATE INDEX idx_jobs_location_mode    ON jobs(location_mode);
+
+-- ─── JOB FEED RUN AUDITS ─────────────────────────────────────
+-- Operational ingest telemetry. One row per feed import run.
+-- Unknown location rate > threshold should block the run.
+
+CREATE TABLE job_feed_run_audits (
+  id                    BIGSERIAL   PRIMARY KEY,
+  run_id                UUID        NOT NULL UNIQUE,
+  source                VARCHAR(80) NOT NULL DEFAULT 'job_feed_importer',
+  parser_version        VARCHAR(40) NOT NULL,
+  total_rows            INTEGER     NOT NULL DEFAULT 0,
+  unknown_location_rows INTEGER     NOT NULL DEFAULT 0,
+  unknown_location_rate DECIMAL(6,5) NOT NULL DEFAULT 0
+                        CHECK (unknown_location_rate BETWEEN 0 AND 1),
+  top_unknown_aliases   JSONB       NOT NULL DEFAULT '[]'::jsonb,
+  status                VARCHAR(30) NOT NULL DEFAULT 'ok',
+  message               TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_job_feed_run_audits_created_at ON job_feed_run_audits(created_at DESC);
 
 -- ─── JOB SKILLS (normalised) ────────────────────────────────
 -- FK-enforced join table: each row links a job to a taxonomy skill.

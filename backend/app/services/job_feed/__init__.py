@@ -12,6 +12,7 @@ from app.services.job_feed.contract import (
 )
 from app.services.job_feed.importer import (
     JobFeedImportReport,
+    JobFeedLocationQualityError,
     import_job_feed_rows,
     quality_score,
 )
@@ -25,6 +26,7 @@ from app.services.job_feed.taxonomy import (
 __all__ = [
     "JobFeedContractError",
     "JobFeedImportReport",
+    "JobFeedLocationQualityError",
     "JobFeedRow",
     "JobFeedTaxonomyMismatchError",
     "assert_matching_taxonomy_checksum",

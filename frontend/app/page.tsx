@@ -24,6 +24,7 @@ import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { IntelPane } from "@/components/public/intel-pane"
 import { AboutSection } from "@/components/public/about-section"
+import { SampleDiagnostic } from "@/components/public/sample-diagnostic"
 
 export default function HomePage() {
   return (
@@ -32,10 +33,30 @@ export default function HomePage() {
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <AboutSection />
-        {/* Intel pane fills the viewport on scroll */}
-        <div style={{ height: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
+        {/* Intel pane — anchored for scroll-from-hero CTA */}
+        <div id="intel" style={{ height: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
           <IntelPane />
         </div>
+        {/* Post-Intel CTA bridge */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "32px 24px 0", background: "var(--tm-bg)" }}>
+          <a
+            href="/signup"
+            style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "0 24px", height: 44,
+              borderRadius: "var(--tm-radius-pill)",
+              fontSize: 14, fontWeight: 600,
+              color: "var(--tm-accent-fg)",
+              background: "var(--tm-accent)",
+              border: "1px solid var(--tm-accent)",
+              textDecoration: "none",
+              boxShadow: "0 0 20px var(--tm-accent-glow)",
+            }}
+          >
+            Upload your CV →
+          </a>
+        </div>
+        <SampleDiagnostic />
         <PublicFooter />
       </div>
     </div>

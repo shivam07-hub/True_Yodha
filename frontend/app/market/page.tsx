@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch } from "@/lib/api"
@@ -115,6 +115,9 @@ export default function MarketPage() {
   const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>("")
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState<string>("")
+  const [selectedCountry, setSelectedCountry] = useState<string>("")
+  const [selectedMode, setSelectedMode] = useState<string>("")
   const [drillPage, setDrillPage] = useState(1)
 
   useJobsRealtime()
@@ -138,14 +141,17 @@ export default function MarketPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const targetRoles: string[] = profileData?.target_roles ?? []
+  const targetRoles: string[] = useMemo(
+    () => profileData?.target_roles ?? [],
+    [profileData?.target_roles],
+  )
 
   // Auto-select first (highest priority) target role on initial load
   useEffect(() => {
     if (targetRoles.length > 0 && selectedCluster === null) {
       setSelectedCluster(targetRoles[0])
     }
-  }, [targetRoles])
+  }, [targetRoles, selectedCluster])
 
   const { data: matchesData } = useQuery({
     queryKey: ["job-matches", token],
@@ -165,28 +171,43 @@ export default function MarketPage() {
   const usePersonalized = !!token
   const { data: analytics, isLoading } = useQuery({
     queryKey: usePersonalized
-      ? dataKeys.jobsAnalyticsMe(token, selectedCluster)
-      : dataKeys.jobsAnalytics(selectedRole),
+      ? dataKeys.jobsAnalyticsMe(token, selectedCluster, selectedCity, selectedCountry, selectedMode)
+      : dataKeys.jobsAnalytics(selectedRole, selectedCity, selectedCountry, selectedMode),
     queryFn: usePersonalized
-      ? () => jobs.analyticsForMe(token, selectedCluster)
-      : () => jobs.analytics(selectedRole || undefined),
+      ? () => jobs.analyticsForMe(token, selectedCluster, {
+        locationCity: selectedCity || undefined,
+        locationCountry: selectedCountry || undefined,
+        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+      })
+      : () => jobs.analytics(selectedRole || undefined, {
+        locationCity: selectedCity || undefined,
+        locationCountry: selectedCountry || undefined,
+        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+      }),
     staleTime: 7 * 24 * 60 * 60 * 1000,
   })
 
   const hasCv = !scoreLoading && !!scoreData
+  const activeRoleFilter = token ? (selectedCluster || "") : selectedRole
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
     queryKey: dataKeys.jobsSearch(
       drillSkill?.company,
-      selectedRole,
+      activeRoleFilter,
       drillSkill?.skill,
+      selectedCity,
+      selectedCountry,
+      selectedMode,
       drillPage,
       DRILL_PAGE_SIZE,
     ),
     queryFn: () =>
       jobs.search(drillSkill!.company, {
-        roleDomain: selectedRole || undefined,
+        roleDomain: activeRoleFilter || undefined,
         skill: drillSkill!.skill,
+        locationCity: selectedCity || undefined,
+        locationCountry: selectedCountry || undefined,
+        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
         page: drillPage,
         pageSize: DRILL_PAGE_SIZE,
       }),
@@ -212,8 +233,14 @@ export default function MarketPage() {
     : baseList
   const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
   const roleOptions = analytics?.by_role ?? []
+  const cityOptions = (analytics?.by_location_city ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const countryOptions = (analytics?.by_location_country ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const modeOptions = (analytics?.by_location_mode ?? [])
+    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}`
+    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
     : "Loading market coverage"
 
   return (
@@ -314,6 +341,90 @@ export default function MarketPage() {
             </select>
           </div>
         )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+            Location
+          </div>
+          <select
+            value={selectedCity}
+            onChange={(e) => {
+              setSelectedCity(e.target.value)
+              setSelected(null)
+              setDrillSkill(null)
+              setDrillPage(1)
+              setExpandedDesc(null)
+              setSelectedJobFit(null)
+            }}
+            className="tm-input"
+            style={{ maxWidth: 220, height: 34, fontSize: 12 }}
+          >
+            <option value="">All cities</option>
+            {cityOptions.map((item) => (
+              <option key={item.name} value={item.name}>
+                {item.name} ({item.count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedCountry}
+            onChange={(e) => {
+              setSelectedCountry(e.target.value)
+              setSelected(null)
+              setDrillSkill(null)
+              setDrillPage(1)
+              setExpandedDesc(null)
+              setSelectedJobFit(null)
+            }}
+            className="tm-input"
+            style={{ maxWidth: 220, height: 34, fontSize: 12 }}
+          >
+            <option value="">All countries</option>
+            {countryOptions.map((item) => (
+              <option key={item.name} value={item.name}>
+                {item.name} ({item.count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedMode}
+            onChange={(e) => {
+              setSelectedMode(e.target.value)
+              setSelected(null)
+              setDrillSkill(null)
+              setDrillPage(1)
+              setExpandedDesc(null)
+              setSelectedJobFit(null)
+            }}
+            className="tm-input"
+            style={{ maxWidth: 180, height: 34, fontSize: 12 }}
+          >
+            <option value="">All modes</option>
+            {modeOptions.map((item) => (
+              <option key={item.name} value={item.name}>
+                {item.name} ({item.count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+          {(selectedCity || selectedCountry || selectedMode) && (
+            <button
+              onClick={() => {
+                setSelectedCity("")
+                setSelectedCountry("")
+                setSelectedMode("")
+                setSelected(null)
+                setDrillSkill(null)
+                setDrillPage(1)
+                setExpandedDesc(null)
+                setSelectedJobFit(null)
+              }}
+              className="tm-btn tm-btn-ghost"
+              style={{ height: 34, fontSize: 12, padding: "0 12px" }}
+            >
+              Clear location
+            </button>
+          )}
+        </div>
 
         {/* Toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
@@ -429,11 +540,11 @@ export default function MarketPage() {
 
                   {/* Column headers */}
                   <div style={{
-                    display: "grid", gridTemplateColumns: "2fr 2fr 3fr",
+                    display: "grid", gridTemplateColumns: "2fr 2fr 2fr 3fr",
                     gap: 8, padding: "6px 10px", marginBottom: 6,
                     borderBottom: "1px solid var(--tm-border-soft)",
                   }}>
-                    {["Job ID", "Job Title", "Description"].map((h) => (
+                    {["Job ID", "Job Title", "Location", "Description"].map((h) => (
                       <div key={h} style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>{h}</div>
                     ))}
                   </div>
@@ -457,7 +568,7 @@ export default function MarketPage() {
                           <div
                             key={job.job_id}
                             style={{
-                              display: "grid", gridTemplateColumns: "2fr 2fr 3fr",
+                              display: "grid", gridTemplateColumns: "2fr 2fr 2fr 3fr",
                               gap: 8, padding: "9px 10px",
                               borderBottom: "1px solid var(--tm-border-soft)",
                               transition: "background 0.12s",
@@ -487,6 +598,9 @@ export default function MarketPage() {
                               }}
                             >
                               {job.job_title || "—"}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {job.location || [job.location_city, job.location_country].filter(Boolean).join(", ") || "Unknown"}
                             </div>
                             {/* Description */}
                             <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>

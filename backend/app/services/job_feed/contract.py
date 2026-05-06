@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Mapping
 
+from app.services.location_normalizer import normalize_location
+
 
 class JobFeedContractError(ValueError):
     """Raised when a crawler row cannot satisfy the public.jobs contract."""
@@ -79,7 +81,12 @@ class JobFeedRow:
     job_description: str
     company_name: str
     industry: str
-    location: str
+    location: str | None
+    location_raw: str | None
+    location_city: str | None
+    location_country: str | None
+    location_mode: str
+    location_quality: str
     apply_url: str | None
     main_skills: tuple[str, ...]
     side_skills: tuple[str, ...]
@@ -92,13 +99,19 @@ class JobFeedRow:
         *,
         default_batch_date: date | None = None,
     ) -> JobFeedRow:
+        normalized_location = normalize_location(_first_value(raw, _LOCATION_KEYS))
         return cls(
             job_id=_required_text(raw, "job_id"),
             job_title=_required_text(raw, "job_title"),
             job_description=_clean_text(raw.get("job_description")),
             company_name=_clean_text(raw.get("company_name")),
             industry=_clean_text(_first_value(raw, _INDUSTRY_KEYS)),
-            location=_clean_text(_first_value(raw, _LOCATION_KEYS), default="India") or "India",
+            location=normalized_location.location,
+            location_raw=normalized_location.location_raw,
+            location_city=normalized_location.location_city,
+            location_country=normalized_location.location_country,
+            location_mode=normalized_location.location_mode,
+            location_quality=normalized_location.location_quality,
             apply_url=_clean_text(raw.get("apply_url")) or None,
             main_skills=_parse_skills(raw.get("main_skills")),
             side_skills=_parse_skills(raw.get("side_skills")),
@@ -113,6 +126,11 @@ class JobFeedRow:
             "company_name": self.company_name,
             "industry": self.industry,
             "location": self.location,
+            "location_raw": self.location_raw,
+            "location_city": self.location_city,
+            "location_country": self.location_country,
+            "location_mode": self.location_mode,
+            "location_quality": self.location_quality,
             "apply_url": self.apply_url,
             "main_skills": list(self.main_skills),
             "side_skills": list(self.side_skills),

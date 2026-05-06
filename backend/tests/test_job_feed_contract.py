@@ -27,7 +27,12 @@ def test_normalizes_firecrawl_crawler_row_to_public_jobs_contract() -> None:
         "job_description": "Build data products with Python and SQL.",
         "company_name": "Acme",
         "industry": "Technology",
-        "location": "Bengaluru",
+        "location": "Bengaluru, India",
+        "location_raw": "Bengaluru",
+        "location_city": "Bengaluru",
+        "location_country": "India",
+        "location_mode": "onsite",
+        "location_quality": "ok",
         "apply_url": "https://jobs.example.com/123",
         "main_skills": ["Python (Programming Language)", "SQL"],
         "side_skills": ["Communication", "SQL"],
@@ -35,7 +40,7 @@ def test_normalizes_firecrawl_crawler_row_to_public_jobs_contract() -> None:
     }
 
 
-def test_accepts_snake_case_keys_and_defaults_location_for_india_feed() -> None:
+def test_accepts_snake_case_keys_and_marks_missing_location_unknown() -> None:
     row = normalize_job_feed_row(
         {
             "job_id": "gh_456",
@@ -49,11 +54,27 @@ def test_accepts_snake_case_keys_and_defaults_location_for_india_feed() -> None:
     )
 
     assert row["industry"] == "Financial Services"
-    assert row["location"] == "India"
+    assert row["location"] is None
+    assert row["location_mode"] == "unknown"
+    assert row["location_quality"] == "unknown"
     assert row["apply_url"] is None
     assert row["batch_date"] == "2026-04-26"
     assert row["main_skills"] == []
     assert row["side_skills"] == []
+
+
+def test_marks_multi_location_values_as_unknown_without_fallback() -> None:
+    row = normalize_job_feed_row(
+        {
+            "job_id": "gh_789",
+            "job_title": "Software Engineer",
+            "Location": "2 Locations",
+        }
+    )
+
+    assert row["location"] == "2 Locations"
+    assert row["location_mode"] == "unknown"
+    assert row["location_quality"] == "unknown"
 
 
 def test_rejects_rows_without_stable_job_identity() -> None:

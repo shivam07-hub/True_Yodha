@@ -47,6 +47,10 @@ class JobMatchResponse(BaseModel):
     title: str
     company: str | None
     location: str | None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    location_quality: str | None = None
     industry: str | None = None
     remote: bool
     overlap_score: float                # 0–100
@@ -240,6 +244,11 @@ class JobSearchItem(BaseModel):
     job_title: str
     company_name: str | None
     job_description: str | None
+    location: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    location_quality: str | None = None
 
 
 class JobSearchResponse(BaseModel):
@@ -259,6 +268,9 @@ class MarketAnalyticsResponse(BaseModel):
     by_company: list[NameCountItem]
     by_industry: list[NameCountItem]
     by_role: list[NameCountItem] = []
+    by_location_city: list[NameCountItem] = []
+    by_location_country: list[NameCountItem] = []
+    by_location_mode: list[NameCountItem] = []
     top_skills: list[SkillCountItem]
     company_skills: dict[str, list[str]] = {}
     industry_skills: dict[str, list[str]] = {}

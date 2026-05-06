@@ -295,6 +295,79 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 
 ---
 
+## LAST SESSION SUMMARY (2026-05-06 PM — NEWSLETTER ISSUE 002 DRAFTED)
+
+```
+Date: 2026-05-06 (PM)
+What landed:
+
+  Issue 002 — "Hiring Map May 2026: 5 Surprises in 9,446 Jobs"
+  Re-cut Apr 11–19 dataset for stories Issue 001 didn't tell. Authored under Myro
+  brand voice (not Shivam personal) per low-engagement decision on Issue 001
+  (10 likes / 22 Substack views / 0 signups).
+
+  Data source decision: re-used the 9,446-job dashboards on disk. The fresh ~28K
+  scrape lives in CSVs but Phase 3 upload not yet run, so dashboards still
+  reflect the April window. Issue 003 will widen once Phase 3 ships.
+
+  Files written:
+    1. /frontend/content/newsletter/issues/2026-05-hiring-map-5-surprises.mdx
+       ~2,500-word long-form site issue. 5 dashboard ChartEmbeds. SEO frontmatter,
+       methodology block, A/B subject lines, 10-slide LinkedIn carousel outline,
+       6-tweet X thread, pre-publish checklist. authorName="Myro" not Shivam.
+
+    2. /Users/incognito/Myro Newsletter/Issue 002/substack/ — 5 mini-issues:
+       01-pune-second-biggest-tech-city.md      (Pune > Hyderabad)
+       02-pharma-stealth-hire.md                 (Sanofi+Novartis = 1,000)
+       03-soft-skills-lie.md                      (229 mentions, 3 primary)
+       04-accenture-thousand-jobs.md              (1,000 in a single day)
+       05-saturday-effect.md                      (85% from one batch)
+       Each ~700-900 words, links back to himyro.com hub.
+
+    3. /Users/incognito/Myro Newsletter/Issue 002/linkedin/posts.md
+       5 posts × ~1,200 chars, formatted for the @Myro company page (NOT personal).
+       Link strategy: post body has the story, link goes in first comment to
+       avoid LinkedIn's external-URL penalty. Includes posting-manager notes.
+
+    4. /Users/incognito/Myro Newsletter/Issue 002/twitter/posts.md
+       SUPERSEDED: user said mid-task to ignore X posts. File written before the
+       cancel arrived. Left in place as optional artifact.
+
+  Anti-slop verification (per skills/myro-newsletter/references/voice-and-anti-slop.md):
+    - Zero "isn't…it's" patterns
+    - Zero "The translation/takeaway/upshot" / "Notice what's missing"
+    - Body em-dashes: 1 (well under the 3-cap)
+    - "actually" reduced from 4 to 1 (in compound adjective "actually-primary")
+    - Hook leads with a number, no throat-clearing
+
+  TASKS.md created at project root with:
+    - India-only job count tracking (per user request — for Issue 003 + future
+      Monday Heatmaps; KPI card in dashboard5_location_scraper.html)
+    - Build Myro brand social accounts (LinkedIn Page, X handle, Substack pub)
+    - Issue 002 distribution scheduling
+    - Existing CLAUDE.md backlog items mirrored
+
+Distribution publishing plan locked in the deliverables:
+  Day 0 (Monday) : Long-form MDX live on himyro.com/newsletter/2026-05-...
+                  Email send 7:00 AM IST (subscribers)
+  Day 1 (Tue)   : Substack 1 (Pune) + LinkedIn post 1 + 5 X tweets
+  Day 2 (Wed)   : Substack 2 (Pharma) + LinkedIn 2 + 5 X tweets
+  Day 3 (Thu)   : Substack 3 (Soft skills) + LinkedIn 3 + 5 X tweets
+  Day 4 (Fri)   : Substack 4 (Accenture) + LinkedIn 4 + 5 X tweets
+  Day 5 (Sat)   : Substack 5 (Saturday) + LinkedIn 5 + 5 X tweets
+  Day 7 (next Mon): LinkedIn carousel (10 slides) on Myro page
+
+Pending / next session:
+  - Owner needs to add featured images (issue-002-hero.png + 5 mini hero images)
+  - Wire internal links to Issue 001 in the MDX (left as pre-publish checklist item)
+  - Set up Myro brand accounts on LinkedIn / X / Substack publication if not done
+  - Schedule the email + social distribution
+  - Decide async-vs-sync on the open CV upload latency question (Option A vs B)
+  - Run the still-pending Supabase RPC migration for Bug 2 fallback
+```
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-06 — NEW-USER FLOW FIXES + CV PIPELINE PERF)
 
 ```
