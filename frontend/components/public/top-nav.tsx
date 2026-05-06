@@ -12,7 +12,6 @@ interface PublicTopNavProps {
 const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
   { label: "Intel", href: "/", id: "intel" },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
-  { label: "Privacy", href: "/privacy", id: "privacy" },
 ]
 
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
