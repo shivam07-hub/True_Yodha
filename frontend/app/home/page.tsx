@@ -8,6 +8,9 @@ import { jobs, scores, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import Link from "next/link"
+import { userCacheKey, withLocalCache } from "@/lib/local-cache"
+
+const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "var(--tm-text-faint)",
@@ -35,13 +38,24 @@ export default function HomePage() {
 
   const { data: scoreData } = useQuery({ queryKey: dataKeys.scores(), queryFn: () => scores.me(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => users.me(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
-  const { data: jobsData } = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobs.matches(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: jobsData } = useQuery({
+    queryKey: dataKeys.jobs(),
+    queryFn: () => withLocalCache(
+      userCacheKey(token!, ["matches"]),
+      MATCHES_TTL,
+      () => jobs.matches(token!),
+    ),
+    enabled: !!token,
+    staleTime: MATCHES_TTL,
+  })
   const { data: applications } = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
 
   const score = scoreData?.total_score ?? 0
   const topJobs = jobsData?.jobs?.slice(0, 5) ?? []
   const apps = applications ?? []
   const activeJob = topJobs[activeJobIdx] ?? null
+  const activeJobId = activeJob?.job_id ?? null
+  const { data: skillGapData } = useQuery({ queryKey: ["skillGap", activeJobId], queryFn: () => jobs.skillGap(token!, activeJobId!), enabled: !!token && !!activeJobId, staleTime: 10 * 60 * 1000 })
 
   const pipelineApps = apps.slice(0, 4)
   const targetRoles = profile?.target_roles?.join(", ") ?? "Set your target role"
@@ -75,7 +89,7 @@ export default function HomePage() {
                   fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                   transition: "all 200ms var(--tm-ease)",
                 }}>
-                  {j.company ?? "Company"} · {Math.round(j.overlap_score * 100)}%
+                  {j.company ?? "Company"} · {Math.min(100, Math.round(j.overlap_score))}%
                 </button>
               ))}
               <Link href="/market" style={{
@@ -122,7 +136,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div style={{ padding: "4px 10px", borderRadius: 99, background: "var(--tm-success-wash)", border: "1px solid var(--tm-success)", color: "var(--tm-success)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                  {Math.round(activeJob.overlap_score * 100)}% fit
+                  {Math.min(100, Math.round(activeJob.overlap_score))}% fit
                 </div>
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -172,35 +186,51 @@ export default function HomePage() {
         {/* Row 2: Skill Intelligence · Pipeline · CV Readiness */}
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 14 }}>
 
-          {/* Skill intelligence preview */}
+          {/* Top Skill Gaps */}
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "var(--tm-card-pad)", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>Skill Intelligence</div>
-            <div style={{ flex: 1, minHeight: 80, border: "1px dashed var(--tm-border)", borderRadius: "var(--tm-radius-sm)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="160" height="80" viewBox="0 0 160 80">
-                <line x1="80" y1="14" x2="30" y2="42" stroke="var(--tm-border)" strokeWidth="1.5" />
-                <line x1="80" y1="14" x2="80" y2="42" stroke="var(--tm-border)" strokeWidth="1.5" />
-                <line x1="80" y1="14" x2="130" y2="42" stroke="var(--tm-border)" strokeWidth="1.5" />
-                <line x1="30" y1="42" x2="15" y2="66" stroke="var(--tm-border)" strokeWidth="1" />
-                <line x1="30" y1="42" x2="42" y2="66" stroke="var(--tm-border)" strokeWidth="1" />
-                <line x1="80" y1="42" x2="70" y2="66" stroke="var(--tm-border)" strokeWidth="1" />
-                <line x1="80" y1="42" x2="90" y2="66" stroke="var(--tm-accent)" strokeWidth="1.5" opacity="0.4" />
-                <circle cx="80" cy="14" r="9" fill="var(--tm-accent-wash)" stroke="var(--tm-accent)" strokeWidth="1.5" />
-                <text x="80" y="18" textAnchor="middle" fontSize="6" fill="var(--tm-accent)" fontFamily="inherit">YOU</text>
-                {[[30, 42, "V"], [80, 42, "S"], [130, 42, "M"]].map(([x, y, l]) => (
-                  <circle key={String(l)} cx={Number(x)} cy={Number(y)} r="10" fill="var(--tm-accent-wash)" stroke="var(--tm-accent)" strokeWidth="1.2" />
-                ))}
-                {[[15, 66], [42, 66], [70, 66]].map(([x, y], i) => (
-                  <circle key={i} cx={x} cy={y} r="6" fill="var(--tm-accent-wash)" stroke="var(--tm-accent)" strokeWidth="1" />
-                ))}
-                <circle cx="90" cy="66" r="6" fill="var(--tm-danger-wash)" stroke="var(--tm-danger)" strokeWidth="1" strokeDasharray="3 2" />
-              </svg>
+            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+              Top Gaps{activeJob ? ` — ${activeJob.company ?? activeJob.title}` : ""}
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Hierarchy preview</span>
-              <Link href="/skills" style={{ fontSize: 11, color: "var(--tm-accent)", textDecoration: "none", border: "1px solid var(--tm-accent-ring)", borderRadius: 6, padding: "3px 10px" }}>
-                Open skills →
-              </Link>
-            </div>
+            {!activeJob ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--tm-text-faint)", textAlign: "center" }}>Save a target job to see your skill gaps</span>
+              </div>
+            ) : !skillGapData ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Loading gaps…</span>
+              </div>
+            ) : skillGapData.skills.filter(g => g.missing).length === 0 ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--tm-success)" }}>No gaps — you meet all requirements ✓</span>
+              </div>
+            ) : (
+              <>
+                {skillGapData.skills.filter(g => g.missing).slice(0, 3).map(gap => (
+                  <div key={gap.skill} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 10, color: gap.user_level === 0 ? "var(--tm-danger)" : "var(--tm-warning)" }}>
+                        {gap.user_level === 0 ? "●" : "●"}
+                      </span>
+                      <span style={{ fontSize: 13, color: "var(--tm-text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{gap.skill}</span>
+                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, fontFamily: "var(--tm-font-mono)" }}>
+                        L{gap.user_level}→L{gap.required_level}
+                      </span>
+                    </div>
+                    <button onClick={() => router.push("/diary")} style={{
+                      padding: "4px 10px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
+                      background: "transparent", border: "1px solid var(--tm-border)",
+                      color: "var(--tm-accent)", fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+                      textAlign: "left", transition: "all 150ms var(--tm-ease)",
+                    }}>
+                      ▶ Forge this gap
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+            <Link href="/skills" style={{ fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", textAlign: "right", marginTop: "auto" }}>
+              View all skill gaps →
+            </Link>
           </div>
 
           {/* Pipeline */}
@@ -229,9 +259,9 @@ export default function HomePage() {
               CV — {activeJob?.company ?? "Target"}
             </div>
             <div style={{ fontSize: 32, fontWeight: 700, color: "var(--tm-warning)", lineHeight: 1, fontFamily: "var(--tm-font-mono)" }}>
-              {activeJob ? `${Math.round(activeJob.overlap_score * 100)}%` : "—"}
+              {activeJob ? `${Math.min(100, Math.round(activeJob.overlap_score))}%` : "—"}
             </div>
-            <ScoreBar pct={activeJob ? activeJob.overlap_score * 100 : 0} color="var(--tm-warning)" />
+            <ScoreBar pct={activeJob ? Math.min(100, activeJob.overlap_score) : 0} color="var(--tm-warning)" />
             <Link href="/cv" style={{
               padding: "9px 14px", borderRadius: "var(--tm-radius-sm)", textAlign: "center",
               background: "var(--tm-accent)", border: "none", color: "var(--tm-accent-fg)",

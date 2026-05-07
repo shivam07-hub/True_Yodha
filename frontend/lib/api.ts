@@ -427,6 +427,8 @@ export interface JobMatchesResponse {
   jobs: JobMatch[]
   batch_week: string
   total: number
+  feed_updated_at: string | null
+  matches_computed_at: string | null
 }
 
 export interface ActionPlanDay {
@@ -618,7 +620,8 @@ export interface JobLocationFilters {
 export interface SkillGapItem {
   skill: string
   is_primary: boolean
-  user_level: number | null
+  user_level: number
+  required_level: number
   missing: boolean
 }
 
