@@ -126,8 +126,8 @@ def test_create_entry_appends_to_existing_daily_log() -> None:
     assert response.status_code == 201
     assert repo.upserted_daily is not None
     assert repo.upserted_daily["entry_text"] == "Yesterday\n\n---\n\nToday"
-    assert response.json()["score_before"] == 50.0
-    assert response.json()["score_after"] == 50.0
+    assert response.json()["score_before"] is None
+    assert response.json()["score_after"] is None
 
 
 def test_history_reads_through_token_diary_repository() -> None:

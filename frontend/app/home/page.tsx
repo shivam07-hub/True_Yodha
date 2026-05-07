@@ -89,7 +89,7 @@ export default function HomePage() {
                   fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                   transition: "all 200ms var(--tm-ease)",
                 }}>
-                  {j.company ?? "Company"} · {Math.min(100, Math.round(j.overlap_score))}%
+                  {j.company ?? "Company"}
                 </button>
               ))}
               <Link href="/market" style={{
@@ -124,7 +124,7 @@ export default function HomePage() {
 
           {/* Active job card */}
           {activeJob ? (
-            <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "var(--tm-card-pad)", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ background: "var(--tm-surface)", border: "2px solid var(--tm-accent)", borderRadius: "var(--tm-radius)", padding: "var(--tm-card-pad)", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 0 24px var(--tm-accent-glow)" }}>
               <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
                 Focused on: {activeJob.company ?? ""}
               </div>
@@ -153,7 +153,7 @@ export default function HomePage() {
                 boxShadow: "0 0 16px var(--tm-accent-glow)",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
-                <span>▶ Forge next gap</span>
+                <span>▶ Forge: {skillGapData?.skills?.find(g => g.missing)?.skill ?? "next gap"}</span>
                 <span style={{ fontSize: 11, opacity: 0.8 }}>→ Forge</span>
               </button>
             </div>
@@ -167,10 +167,14 @@ export default function HomePage() {
           {/* Today card */}
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "var(--tm-card-pad)", display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>Today</div>
-            <div style={{ fontSize: 36, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1 }}>
-              {new Date().toLocaleDateString("en", { weekday: "short" })}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1 }}>
+                {new Date().toLocaleDateString("en", { weekday: "short" })}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                {new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}
+              </span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}</div>
             <Link href="/diary" style={{
               padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
               background: "var(--tm-warning-wash)", border: "1px solid rgba(245,158,11,0.3)",
@@ -178,7 +182,7 @@ export default function HomePage() {
               textDecoration: "none", display: "block", textAlign: "center",
               transition: "all 200ms var(--tm-ease)",
             }}>
-              → Enter Forge
+              Open Forge →
             </Link>
           </div>
         </div>

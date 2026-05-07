@@ -38,9 +38,8 @@ from openai import AsyncOpenAI
 
 from app.config import settings
 from app.services.llm_provider import (
-    OR_KIMI_MODELS,
+    OR_PRIMARY_MODELS,
     GROQ_FALLBACK_MODEL,
-    OR_OPENAI_FALLBACK_MODEL,
     _OR_BASE,
     _OR_HEADERS,
     _GROQ_BASE,
@@ -151,23 +150,12 @@ async def _llm_extract(cv_text: str) -> list[dict] | None:
             default_headers=_OR_HEADERS,
         )
         # Primary + secondary: OR handles kimi-k2.6 → kimi-k2.5 natively
-        providers.append((or_client, OR_KIMI_MODELS[0], {"models": OR_KIMI_MODELS}))
+        providers.append((or_client, OR_PRIMARY_MODELS[0], {"models": OR_PRIMARY_MODELS}))
     if settings.groq_api_key:
         # Tertiary: Groq direct
         providers.append((
             AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
             GROQ_FALLBACK_MODEL,
-            None,
-        ))
-    if settings.openrouter_api_key:
-        # Quaternary: OR with OpenAI model
-        providers.append((
-            AsyncOpenAI(
-                api_key=settings.openrouter_api_key,
-                base_url=_OR_BASE,
-                default_headers=_OR_HEADERS,
-            ),
-            OR_OPENAI_FALLBACK_MODEL,
             None,
         ))
     if settings.google_api_key:

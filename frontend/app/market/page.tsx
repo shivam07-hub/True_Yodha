@@ -13,6 +13,9 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
+import { cacheKey, userCacheKey, withLocalCache } from "@/lib/local-cache"
+
+const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 
 interface TrackJob { job_id: string; job_title: string; company_name: string | null }
@@ -178,17 +181,25 @@ export default function MarketPage() {
       ? dataKeys.jobsAnalyticsMe(selectedCluster, selectedCity, selectedCountry, selectedMode)
       : dataKeys.jobsAnalytics(selectedRole, selectedCity, selectedCountry, selectedMode),
     queryFn: usePersonalized
-      ? () => jobs.analyticsForMe(token, selectedCluster, {
-        locationCity: selectedCity || undefined,
-        locationCountry: selectedCountry || undefined,
-        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-      })
-      : () => jobs.analytics(selectedRole || undefined, {
-        locationCity: selectedCity || undefined,
-        locationCountry: selectedCountry || undefined,
-        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-      }),
-    staleTime: 7 * 24 * 60 * 60 * 1000,
+      ? () => withLocalCache(
+          userCacheKey(token!, ["analytics_me", selectedCluster, selectedCity, selectedCountry, selectedMode]),
+          ANALYTICS_TTL,
+          () => jobs.analyticsForMe(token, selectedCluster, {
+            locationCity: selectedCity || undefined,
+            locationCountry: selectedCountry || undefined,
+            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+          }),
+        )
+      : () => withLocalCache(
+          cacheKey(["analytics_public", selectedRole, selectedCity, selectedCountry, selectedMode]),
+          ANALYTICS_TTL,
+          () => jobs.analytics(selectedRole || undefined, {
+            locationCity: selectedCity || undefined,
+            locationCountry: selectedCountry || undefined,
+            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+          }),
+        ),
+    staleTime: ANALYTICS_TTL,
   })
 
   const hasCv = !scoreLoading && !!scoreData

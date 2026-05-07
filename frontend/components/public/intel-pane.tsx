@@ -7,10 +7,13 @@ import { jobs } from "@/lib/api"
 import type { MarketAnalytics, SkillCountItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dataKeys } from "@/lib/domain-data"
-import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
+import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
+import { cacheKey, withLocalCache } from "@/lib/local-cache"
+
+const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -142,12 +145,16 @@ export function IntelPane() {
 
   const { data: analytics } = useQuery({
     queryKey: dataKeys.jobsAnalyticsPublic(selectedRole, selectedCity, selectedCountry, selectedMode),
-    queryFn: () => jobs.analytics(selectedRole || undefined, {
-      locationCity: selectedCity || undefined,
-      locationCountry: selectedCountry || undefined,
-      locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-    }),
-    staleTime: 5 * 60 * 1000,
+    queryFn: () => withLocalCache(
+      cacheKey(["analytics_public", selectedRole, selectedCity, selectedCountry, selectedMode]),
+      ANALYTICS_TTL,
+      () => jobs.analytics(selectedRole || undefined, {
+        locationCity: selectedCity || undefined,
+        locationCountry: selectedCountry || undefined,
+        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+      }),
+    ),
+    staleTime: ANALYTICS_TTL,
   })
 
   const { data: entitySkillsData, isLoading: skillsLoading } = useQuery({
@@ -172,23 +179,30 @@ export function IntelPane() {
   const modeOptions = (analytics?.by_location_mode ?? [])
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const loadingMessage = useRotatingMessage(MARKET_LOADING_STEPS, { enabled: !analytics })
-  const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
-    : MARKET_LOADING_SUMMARY
 
   return (
     <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
           Intel
         </h1>
-        <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-          {marketSummary}
-        </div>
         <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
           Live hiring signals · tap any {view === "companies" ? "company" : "industry"} to reveal skills in demand
         </p>
       </div>
+
+      {analytics && (
+        <div style={{ padding: "14px 18px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 44, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Market Signal</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>
+            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
+            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
+            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industry groups
+            {selectedRole ? <> · role: <span style={{ color: "var(--tm-accent)" }}>{selectedRole}</span></> : null}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
@@ -262,19 +276,6 @@ export function IntelPane() {
           ))}
         </select>
       </div>
-
-      {analytics && (
-        <div style={{ padding: "14px 18px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 44, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
-          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Market Signal</div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industry groups
-            {selectedRole ? <> · role: <span style={{ color: "var(--tm-accent)" }}>{selectedRole}</span></> : null}
-          </div>
-        </div>
-      )}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
         {(["companies", "industries"] as const).map((v) => (

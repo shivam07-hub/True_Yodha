@@ -8,6 +8,9 @@ import { jobs, scores, type JobComputeStatusResponse, type JobMatch } from "@/li
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
+
+const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 function scoreColor(score: number): string {
   if (score >= 75) return "var(--tm-success)"
@@ -127,8 +130,13 @@ export default function JobsPage() {
 
   const matches = useQuery({
     queryKey: dataKeys.jobs(),
-    queryFn: () => jobs.matches(token!),
+    queryFn: () => withLocalCache(
+      userCacheKey(token!, ["matches"]),
+      MATCHES_TTL,
+      () => jobs.matches(token!),
+    ),
     enabled: !!token,
+    staleTime: MATCHES_TTL,
   })
 
   const scoresQuery = useQuery({
@@ -139,6 +147,13 @@ export default function JobsPage() {
   })
 
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
+
+  const isFeedStale = (() => {
+    const feedAt = matches.data?.feed_updated_at
+    const computedAt = matches.data?.matches_computed_at
+    if (!feedAt || !computedAt || !matches.data?.total) return false
+    return new Date(feedAt) > new Date(computedAt)
+  })()
 
   function stopComputeStream(): void {
     computeStreamAbortRef.current?.abort()
@@ -173,6 +188,7 @@ export default function JobsPage() {
       } else {
         setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
       }
+      clearLocalCache(userCacheKey(token!, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       stopComputeStream()
       return
@@ -324,6 +340,26 @@ export default function JobsPage() {
               <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
                 {refreshNotice}
               </p>
+            )}
+
+            {isFeedStale && !isRefreshingMatches && !compute.isPending && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 12, padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
+                background: "var(--tm-warning-wash)", border: "1px solid var(--tm-warning)",
+                marginBottom: 8,
+              }}>
+                <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)" }}>
+                  New jobs added to the feed since your last match — your results may be outdated.
+                </span>
+                <button
+                  onClick={() => { setRefreshNotice(null); compute.mutate() }}
+                  className="tm-btn tm-btn-ghost"
+                  style={{ fontSize: 12, padding: "4px 10px", flexShrink: 0, borderColor: "var(--tm-warning)", color: "var(--tm-warning)" }}
+                >
+                  Refresh now
+                </button>
+              </div>
             )}
 
             <div style={{ position: "relative" }}>

@@ -34,10 +34,31 @@ async def get_job_matches(
     current_user: dict = Depends(get_current_user),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobMatchesResponse:
+    from datetime import datetime, timezone
     batch_week = last_monday()
     rows = repo.get_user_matches_for_week(current_user["user_id"], batch_week)
     jobs = [to_job_match(row, batch_week) for row in rows]
-    return JobMatchesResponse(jobs=jobs, batch_week=batch_week, total=len(jobs))
+
+    feed_ts_raw = repo.get_feed_updated_at()
+    feed_updated_at = datetime.fromisoformat(feed_ts_raw) if feed_ts_raw else None
+
+    raw_computed = rows[0].get("computed_at") if rows else None
+    matches_computed_at: datetime | None = None
+    if raw_computed:
+        try:
+            matches_computed_at = datetime.fromisoformat(raw_computed)
+            if matches_computed_at.tzinfo is None:
+                matches_computed_at = matches_computed_at.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            pass
+
+    return JobMatchesResponse(
+        jobs=jobs,
+        batch_week=batch_week,
+        total=len(jobs),
+        feed_updated_at=feed_updated_at,
+        matches_computed_at=matches_computed_at,
+    )
 
 
 @router.post("/compute", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
