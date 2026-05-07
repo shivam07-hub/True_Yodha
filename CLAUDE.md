@@ -119,8 +119,7 @@ All phases shipped. See Last Session Summary for details.
 #### ✅ Bug 2 — PostgREST 400 on large job-id list — DONE (2026-05-07)
 RPC `fetch_job_skills_by_job_ids(job_ids text[])` deployed to Supabase. Backend routes through RPC; chunked `.in_()` kept as fallback.
 
-#### 🔲 Bug 3 — Settings modal UX — ON HOLD (design prompt needed)
-Full redesign decided (unified form, autosave indicator, sticky header X, clean onboarding state). No code yet. Write design prompt to `docs/SETTINGS_MODAL_REDESIGN_PROMPT.md` → hand to design agent → spec back to Claude Code.
+#### ✅ Bug 3 — Settings modal UX — DONE (2026-05-07)
 
 ---
 
@@ -283,6 +282,5 @@ What landed:
   Verification: tsc --noEmit + next lint → clean
 
 Pending from this session:
-  - Bug 3 design prompt (docs/SETTINGS_MODAL_REDESIGN_PROMPT.md)
   - CV upload latency decision (Option A vs B)
 ```
