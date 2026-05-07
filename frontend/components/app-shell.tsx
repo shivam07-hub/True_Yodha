@@ -28,7 +28,7 @@ const FEEDBACK_ACTIONS = [
   { id: "feedback",  icon: "◎",  label: "Leave feedback",     color: "var(--tm-success)", bg: "var(--tm-success-wash)", placeholder: "What can we improve?"                },
 ]
 
-type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url">
+type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
 
 function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]; onClose: () => void }) {
   const [text, setText] = useState("")
@@ -437,6 +437,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         score={scoreData?.total_score ?? null}
         profile={{
           full_name: profileData?.full_name ?? null,
+          email: profileData?.email ?? "",
           target_roles: profileData?.target_roles ?? [],
           target_location: profileData?.target_location ?? null,
           linkedin_url: profileData?.linkedin_url ?? null,

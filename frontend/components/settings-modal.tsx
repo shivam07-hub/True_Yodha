@@ -18,8 +18,10 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
+import Link from "next/link"
 
-type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url">
+type Tab = "Account" | "Following"
+type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 const AUTOSAVE_MS = 800
@@ -39,6 +41,36 @@ const normalizeRoles = (roles: string[]): string[] => {
     seen.add(t.toLowerCase())
     return [...acc, t]
   }, [])
+}
+
+function InitialsAvatar({ name, size = 52 }: { name: string; size?: number }) {
+  const initials = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "?"
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.round(size * 0.38), fontWeight: 700, letterSpacing: "-0.02em",
+      boxShadow: "0 0 16px var(--tm-accent-glow)",
+    }}>
+      {initials}
+    </div>
+  )
+}
+
+function CompanyAvatar({ name, size = 36 }: { name: string; size?: number }) {
+  const initials = name.trim().split(/[\s\-&]+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "?"
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 8, flexShrink: 0,
+      background: "rgba(255,255,255,0.05)", border: "1px solid var(--tm-border-soft)",
+      color: "var(--tm-text-muted)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.round(size * 0.38), fontWeight: 600,
+    }}>
+      {initials}
+    </div>
+  )
 }
 
 export function SortableRoleChip({
@@ -84,12 +116,29 @@ const INPUT_STYLE: React.CSSProperties = {
 const INPUT_FOCUS_STYLE = { borderColor: "var(--tm-accent-ring)", boxShadow: "0 0 0 2px var(--tm-accent-glow)" }
 const INPUT_BLUR_STYLE = { borderColor: "var(--tm-border-soft)", boxShadow: "none" }
 
+const SECTION_HEADER: React.CSSProperties = {
+  fontSize: 11, letterSpacing: "0.09em", textTransform: "uppercase" as const,
+  color: "var(--tm-text-faint)", marginBottom: 4, marginTop: 24,
+}
+const ROW_STYLE: React.CSSProperties = {
+  padding: "14px 0", borderBottom: "1px solid var(--tm-border-soft)",
+  display: "flex", flexDirection: "column", gap: 8,
+}
+const ROW_LABEL: React.CSSProperties = {
+  fontSize: 14, fontWeight: 600, color: "var(--tm-text)",
+}
+const ROW_DESC: React.CSSProperties = {
+  fontSize: 12, color: "var(--tm-text-faint)", marginTop: 1,
+}
+
 export function SettingsModal({ open, onClose, profile }: {
   open: boolean; onClose: () => void; profile: SidebarProfile | null
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState<Tab>("Account")
 
+  // Account tab state
   const [name, setName] = useState("")
   const [location, setLocation] = useState("")
   const [linkedin, setLinkedin] = useState("")
@@ -102,6 +151,9 @@ export function SettingsModal({ open, onClose, profile }: {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Following tab state
+  const [followSearch, setFollowSearch] = useState("")
 
   const roleInputRef = useRef<HTMLInputElement>(null)
   const roleCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -129,6 +181,7 @@ export function SettingsModal({ open, onClose, profile }: {
     if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
   }, [])
 
+  // Profile save mutation
   const mutation = useMutation({
     mutationFn: (payload: ProfileUpdate) => {
       if (!token) throw new Error("Session not ready — please refresh.")
@@ -144,6 +197,19 @@ export function SettingsModal({ open, onClose, profile }: {
       setSaveStatus("error")
       setSaveError(err instanceof Error ? err.message : "Could not save")
     },
+  })
+
+  // Following queries/mutations
+  const { data: followingData, isLoading: followingLoading } = useQuery({
+    queryKey: ["followedCompanies"],
+    queryFn: () => users.followedCompanies(token!),
+    enabled: !!token && open && activeTab === "Following",
+    staleTime: 60 * 1000,
+  })
+
+  const unfollowMutation = useMutation({
+    mutationFn: (companyName: string) => users.unfollowCompany(token!, companyName),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
 
   function schedule(updates: ProfileUpdate) {
@@ -200,6 +266,7 @@ export function SettingsModal({ open, onClose, profile }: {
   const suggestions = roleInput.trim()
     ? L2_CLUSTERS.filter((c) => c.toLowerCase().includes(roleInput.toLowerCase()) && !roles.some((r) => r.toLowerCase() === c.toLowerCase())).slice(0, 8)
     : []
+
   const locationCatalogQuery = useQuery({
     queryKey: dataKeys.jobsAnalytics(),
     queryFn: () => jobs.analytics(),
@@ -208,15 +275,11 @@ export function SettingsModal({ open, onClose, profile }: {
   })
   const locationCatalog = useMemo(() => {
     const cityOptions = (locationCatalogQuery.data?.by_location_city ?? [])
-      .map((item) => item.name.trim())
-      .filter((name) => name.length > 0 && name.toLowerCase() !== "unknown")
+      .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
     const countryOptions = (locationCatalogQuery.data?.by_location_country ?? [])
-      .map((item) => item.name.trim())
-      .filter((name) => name.length > 0 && name.toLowerCase() !== "unknown")
-
+      .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
     const merged = [...cityOptions, ...countryOptions, "Remote", "Hybrid", "Onsite"]
     const seen = new Set<string>()
-
     return merged.reduce<string[]>((acc, entry) => {
       const normalized = entry.toLowerCase()
       if (seen.has(normalized)) return acc
@@ -224,12 +287,11 @@ export function SettingsModal({ open, onClose, profile }: {
       return [...acc, entry]
     }, [])
   }, [locationCatalogQuery.data])
+
   const locationSuggestions = useMemo(() => {
     const needle = location.trim().toLowerCase()
     if (!needle) return locationCatalog.slice(0, 10)
-    return locationCatalog
-      .filter((entry) => entry.toLowerCase().includes(needle))
-      .slice(0, 10)
+    return locationCatalog.filter((entry) => entry.toLowerCase().includes(needle)).slice(0, 10)
   }, [location, locationCatalog])
 
   function selectLocation(nextLocation: string) {
@@ -239,15 +301,19 @@ export function SettingsModal({ open, onClose, profile }: {
     locationInputRef.current?.focus()
   }
 
-  const allEmpty = !profile?.full_name && !profile?.target_location && !profile?.linkedin_url &&
-    (!profile?.target_roles || profile.target_roles.length === 0)
+  const filteredFollowing = useMemo(() => {
+    const needle = followSearch.trim().toLowerCase()
+    const companies = followingData?.companies ?? []
+    if (!needle) return companies
+    return companies.filter((c) => c.company_name.toLowerCase().includes(needle))
+  }, [followingData, followSearch])
 
   const statusNode = saveStatus === "saving" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>saving…</span>
+    <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Saving…</span>
   ) : saveStatus === "saved" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-success)", fontWeight: 500 }}>✓ saved</span>
+    <span style={{ fontSize: 11, color: "var(--tm-success)", fontWeight: 500 }}>✓ Saved</span>
   ) : saveStatus === "error" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-danger)", fontWeight: 500 }}>✗ error</span>
+    <span style={{ fontSize: 11, color: "var(--tm-danger)", fontWeight: 500 }}>✗ Error</span>
   ) : null
 
   const liveAnnouncement = saveStatus === "saved"
@@ -256,236 +322,349 @@ export function SettingsModal({ open, onClose, profile }: {
     ? `Save failed: ${saveError ?? "unknown error"}`
     : ""
 
+  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★" }
+
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
-      <DialogContent showCloseButton={false}
-        className="sm:max-w-[620px] max-w-[calc(100%-2rem)] p-0 bg-transparent ring-0"
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-[740px] max-w-[calc(100%-1.5rem)] p-0 bg-transparent ring-0"
         style={{
           background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)",
-          borderRadius: "var(--tm-radius-xl)", boxShadow: "0 0 50px rgba(0,0,0,0.6)",
-          maxHeight: "82dvh", display: "flex", flexDirection: "column", overflow: "hidden",
+          borderRadius: "var(--tm-radius-xl)", boxShadow: "0 0 60px rgba(0,0,0,0.65)",
+          height: "88dvh", maxHeight: 820,
+          display: "flex", overflow: "hidden",
         }}
       >
-        {/* Screen-reader live region for save status */}
         <div aria-live="polite" aria-atomic="true" className="sr-only">{liveAnnouncement}</div>
 
-        {/* Sticky header */}
+        {/* ── Left sidebar ── */}
         <div style={{
-          padding: "20px 24px 16px", borderBottom: "1px solid var(--tm-border-soft)",
-          display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-          gap: 16, flexShrink: 0,
+          width: 200, flexShrink: 0,
+          borderRight: "1px solid var(--tm-border-soft)",
+          display: "flex", flexDirection: "column",
+          background: "rgba(255,255,255,0.015)",
         }}>
-          <div>
-            <div className="tm-label-caps" style={{ fontSize: 11, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-              Settings
-              {statusNode && <span style={{ fontVariantCaps: "normal", textTransform: "none", letterSpacing: "normal", fontWeight: 400 }}>— {statusNode}</span>}
+          {/* Profile card */}
+          <div style={{ padding: "28px 20px 20px", borderBottom: "1px solid var(--tm-border-soft)" }}>
+            <InitialsAvatar name={name || "?"} size={52} />
+            <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1.3 }}>
+              {name || "Set your name"}
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--tm-text)", margin: 0, textWrap: "balance" } as React.CSSProperties}>User Information</h2>
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4, wordBreak: "break-all" }}>
+              {profile?.email ?? ""}
+            </div>
           </div>
-          <button type="button" aria-label="Close settings" onClick={flushAndClose}
-            style={{ background: "transparent", border: "1px solid transparent", color: "var(--tm-text-faint)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: "4px 6px", borderRadius: "var(--tm-radius-sm)", flexShrink: 0, transition: "color var(--tm-dur), background var(--tm-dur), border-color var(--tm-dur)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
-          >×</button>
+
+          {/* Nav tabs */}
+          <nav style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+            {(["Account", "Following"] as Tab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, width: "100%",
+                  padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
+                  background: activeTab === tab ? "var(--tm-accent-wash)" : "transparent",
+                  border: `1px solid ${activeTab === tab ? "var(--tm-accent-ring)" : "transparent"}`,
+                  color: activeTab === tab ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                  fontSize: 13, fontWeight: activeTab === tab ? 600 : 400,
+                  fontFamily: "inherit", textAlign: "left",
+                  transition: "all 180ms var(--tm-ease)",
+                }}
+              >
+                <span style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
+                {tab}
+                {tab === "Following" && (followingData?.total ?? 0) > 0 && (
+                  <span style={{
+                    marginLeft: "auto", fontSize: 10, fontWeight: 600,
+                    background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+                    borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
+                  }}>
+                    {followingData!.total}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Autosave indicator */}
+          <div style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
+            {statusNode ?? <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.5 }}>Auto-saved</span>}
+          </div>
         </div>
 
-        {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-          {allEmpty && (
-            <div style={{ padding: "14px 16px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-accent)", marginBottom: 4 }}>Welcome to Myro</div>
-              <div style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6, textWrap: "pretty" } as React.CSSProperties}>
-                Set up your profile in 30 seconds — your target roles and location power your job matches.
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="sm-ninja-name" className="tm-label-caps" style={{ fontSize: 11 }}>Ninja Name</label>
-            <input id="sm-ninja-name" type="text" value={name} onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
-              placeholder="Your display name" style={INPUT_STYLE}
-              onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-              onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-            />
-          </div>
-
-          <div style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span className="tm-label-caps" style={{ fontSize: 11 }}>Target Roles</span>
-              <span style={{ fontSize: 11, color: atMax ? "var(--tm-warning)" : "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>{roles.length} / {MAX_TARGET_ROLES}</span>
-            </div>
-            <div style={{ position: "relative" }}>
-              <input
-                ref={roleInputRef} type="text" value={roleInput}
-                role="combobox" aria-expanded={roleDropdown && suggestions.length > 0}
-                aria-controls="sm-role-listbox" aria-autocomplete="list"
-                aria-label="Search target roles"
-                onChange={(e) => { setRoleInput(e.target.value); setRoleDropdown(true) }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (suggestions[0]) selectRole(suggestions[0]) } if (e.key === "Escape") setRoleDropdown(false) }}
-                onFocus={(e) => { setRoleFocused(true); setRoleDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
-                onBlur={(e) => { roleCloseTimer.current = setTimeout(() => setRoleDropdown(false), 150); setRoleFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
-                placeholder={atMax ? `Max ${MAX_TARGET_ROLES} selected` : "Search target roles…"}
-                disabled={atMax} autoComplete="off"
-                style={{ ...INPUT_STYLE, borderColor: roleFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)", opacity: atMax ? 0.45 : 1 }}
-              />
-              {roleDropdown && suggestions.length > 0 && (
-                <div id="sm-role-listbox" role="listbox" aria-label="Role suggestions"
-                  onMouseDown={() => { if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current) }}
-                  style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 240, overflowY: "auto" }}
-                >
-                  {suggestions.map((c) => (
-                    <button key={c} type="button" role="option" aria-selected={false} onClick={() => selectRole(c)}
-                      style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
-                    >{c}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {roles.length > 0 ? (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-                <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {roles.map((r, i) => <SortableRoleChip key={r} role={r} index={i} onRemove={removeRole} />)}
-                  </div>
-                </SortableContext>
-                <DragOverlay>
-                  {activeId ? <SortableRoleChip role={activeId} index={roles.indexOf(activeId)} onRemove={() => {}} isOverlay /> : null}
-                </DragOverlay>
-              </DndContext>
-            ) : <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No target roles selected yet.</div>}
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="sm-location" className="tm-label-caps" style={{ fontSize: 11 }}>Target Location</label>
-            <div style={{ position: "relative" }}>
-              <input
-                ref={locationInputRef}
-                id="sm-location"
-                type="text"
-                value={location}
-                role="combobox"
-                aria-expanded={locationDropdown && locationSuggestions.length > 0}
-                aria-controls="sm-location-listbox"
-                aria-autocomplete="list"
-                aria-label="Search target location"
-                onChange={(e) => {
-                  setLocation(e.target.value)
-                  schedule({ target_location: normalize(e.target.value) })
-                  setLocationDropdown(true)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    if (locationSuggestions[0]) selectLocation(locationSuggestions[0])
-                  }
-                  if (e.key === "Escape") setLocationDropdown(false)
-                }}
-                placeholder="City, country, or Remote"
-                style={{
-                  ...INPUT_STYLE,
-                  borderColor: locationFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)",
-                }}
-                onFocus={(e) => {
-                  setLocationFocused(true)
-                  setLocationDropdown(true)
-                  Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)
-                }}
-                onBlur={(e) => {
-                  locationCloseTimer.current = setTimeout(() => setLocationDropdown(false), 150)
-                  setLocationFocused(false)
-                  Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)
-                }}
-              />
-              {locationDropdown && locationSuggestions.length > 0 && (
-                <div
-                  id="sm-location-listbox"
-                  role="listbox"
-                  aria-label="Location suggestions"
-                  onMouseDown={() => {
-                    if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 4px)",
-                    left: 0,
-                    right: 0,
-                    background: "var(--tm-surface)",
-                    border: "1px solid var(--tm-accent-ring)",
-                    borderRadius: "var(--tm-radius-sm)",
-                    zIndex: 50,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                    maxHeight: 240,
-                    overflowY: "auto",
-                  }}
-                >
-                  {locationSuggestions.map((entry) => (
-                    <button
-                      key={entry}
-                      type="button"
-                      role="option"
-                      aria-selected={entry === location}
-                      onClick={() => selectLocation(entry)}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        background: "transparent",
-                        border: "none",
-                        borderBottom: "1px solid var(--tm-border-soft)",
-                        color: "var(--tm-text-muted)",
-                        fontSize: 13,
-                        fontFamily: "inherit",
-                        cursor: "pointer",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--tm-accent-wash)"
-                        e.currentTarget.style.color = "var(--tm-accent)"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                        e.currentTarget.style.color = "var(--tm-text-muted)"
-                      }}
-                    >
-                      {entry}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="sm-linkedin" className="tm-label-caps" style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
-              <LinkedInIcon size={13} aria-hidden />LinkedIn
-            </label>
-            <input id="sm-linkedin" type="url" value={linkedin} onChange={(e) => { setLinkedin(e.target.value); schedule({ linkedin_url: normalizeLinkedIn(e.target.value) }) }}
-              placeholder="linkedin.com/in/your-profile" style={INPUT_STYLE}
-              onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-              onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-            />
-          </div>
-
-          {/* Explicit save */}
-          <div style={{ paddingTop: 8, borderTop: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-            {saveStatus === "error" && saveError && (
-              <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
-            )}
-            <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
+        {/* ── Right content ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+          {/* Tab header */}
+          <div style={{
+            padding: "20px 28px 16px", borderBottom: "1px solid var(--tm-border-soft)",
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+          }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>
+              {activeTab}
+            </h2>
+            <button
+              type="button" aria-label="Close settings" onClick={flushAndClose}
               style={{
-                padding: "9px 22px", borderRadius: "var(--tm-radius-sm)", border: "none",
-                background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
-                color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-                cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
-                opacity: saveStatus === "saving" ? 0.65 : 1,
-                transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
-                minWidth: 100,
+                background: "transparent", border: "1px solid transparent",
+                color: "var(--tm-text-faint)", fontSize: 20, cursor: "pointer",
+                lineHeight: 1, padding: "4px 6px", borderRadius: "var(--tm-radius-sm)",
+                transition: "color var(--tm-dur), background var(--tm-dur), border-color var(--tm-dur)",
               }}
-            >
-              {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
-            </button>
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
+            >×</button>
+          </div>
+
+          {/* Scrollable body */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px 28px 28px" }}>
+
+            {/* ── ACCOUNT TAB ── */}
+            {activeTab === "Account" && (
+              <>
+                {/* Profile section */}
+                <div style={SECTION_HEADER}>Profile</div>
+
+                <div style={ROW_STYLE}>
+                  <div>
+                    <div style={ROW_LABEL}>Ninja Name</div>
+                    <div style={ROW_DESC}>Your display name across Myro</div>
+                  </div>
+                  <input
+                    id="sm-ninja-name" type="text" value={name}
+                    onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
+                    placeholder="Your display name"
+                    style={INPUT_STYLE}
+                    onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                    onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
+                  />
+                </div>
+
+                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={ROW_LABEL}>LinkedIn</div>
+                    <div style={ROW_DESC}>Linked to your profile</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
+                    <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
+                    <input
+                      id="sm-linkedin" type="url" value={linkedin}
+                      onChange={(e) => { setLinkedin(e.target.value); schedule({ linkedin_url: normalizeLinkedIn(e.target.value) }) }}
+                      placeholder="linkedin.com/in/you"
+                      style={{ ...INPUT_STYLE, fontSize: 12 }}
+                      onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                      onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
+                    />
+                  </div>
+                </div>
+
+                {/* Job search section */}
+                <div style={{ ...SECTION_HEADER, marginTop: 32 }}>Job Search</div>
+
+                {/* Target roles */}
+                <div style={ROW_STYLE}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={ROW_LABEL}>Target Roles</div>
+                      <div style={ROW_DESC}>Role types powering your job matches</div>
+                    </div>
+                    <span style={{ fontSize: 11, color: atMax ? "var(--tm-warning)" : "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
+                      {roles.length} / {MAX_TARGET_ROLES}
+                    </span>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      ref={roleInputRef} type="text" value={roleInput}
+                      role="combobox" aria-expanded={roleDropdown && suggestions.length > 0}
+                      aria-controls="sm-role-listbox" aria-autocomplete="list" aria-label="Search target roles"
+                      onChange={(e) => { setRoleInput(e.target.value); setRoleDropdown(true) }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); if (suggestions[0]) selectRole(suggestions[0]) }
+                        if (e.key === "Escape") setRoleDropdown(false)
+                      }}
+                      onFocus={(e) => { setRoleFocused(true); setRoleDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
+                      onBlur={(e) => { roleCloseTimer.current = setTimeout(() => setRoleDropdown(false), 150); setRoleFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
+                      placeholder={atMax ? `Max ${MAX_TARGET_ROLES} selected` : "Search roles…"}
+                      disabled={atMax} autoComplete="off"
+                      style={{ ...INPUT_STYLE, borderColor: roleFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)", opacity: atMax ? 0.45 : 1 }}
+                    />
+                    {roleDropdown && suggestions.length > 0 && (
+                      <div
+                        id="sm-role-listbox" role="listbox" aria-label="Role suggestions"
+                        onMouseDown={() => { if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current) }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                      >
+                        {suggestions.map((c) => (
+                          <button key={c} type="button" role="option" aria-selected={false} onClick={() => selectRole(c)}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                          >{c}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {roles.length > 0 ? (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+                      <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {roles.map((r, i) => <SortableRoleChip key={r} role={r} index={i} onRemove={removeRole} />)}
+                        </div>
+                      </SortableContext>
+                      <DragOverlay>
+                        {activeId ? <SortableRoleChip role={activeId} index={roles.indexOf(activeId)} onRemove={() => {}} isOverlay /> : null}
+                      </DragOverlay>
+                    </DndContext>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No target roles yet — search above to add</div>
+                  )}
+                </div>
+
+                {/* Target location */}
+                <div style={ROW_STYLE}>
+                  <div>
+                    <div style={ROW_LABEL}>Target Location</div>
+                    <div style={ROW_DESC}>Where you want to work — filters job matches</div>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      ref={locationInputRef} id="sm-location" type="text" value={location}
+                      role="combobox" aria-expanded={locationDropdown && locationSuggestions.length > 0}
+                      aria-controls="sm-location-listbox" aria-autocomplete="list" aria-label="Search target location"
+                      onChange={(e) => { setLocation(e.target.value); schedule({ target_location: normalize(e.target.value) }); setLocationDropdown(true) }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (locationSuggestions[0]) selectLocation(locationSuggestions[0]) } if (e.key === "Escape") setLocationDropdown(false) }}
+                      placeholder="City, country, or Remote"
+                      style={{ ...INPUT_STYLE, borderColor: locationFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)" }}
+                      onFocus={(e) => { setLocationFocused(true); setLocationDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
+                      onBlur={(e) => { locationCloseTimer.current = setTimeout(() => setLocationDropdown(false), 150); setLocationFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
+                    />
+                    {locationDropdown && locationSuggestions.length > 0 && (
+                      <div
+                        id="sm-location-listbox" role="listbox" aria-label="Location suggestions"
+                        onMouseDown={() => { if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current) }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                      >
+                        {locationSuggestions.map((entry) => (
+                          <button key={entry} type="button" role="option" aria-selected={entry === location} onClick={() => selectLocation(entry)}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                          >{entry}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                  {saveStatus === "error" && saveError && (
+                    <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
+                  )}
+                  <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
+                    style={{
+                      padding: "9px 24px", borderRadius: "var(--tm-radius-sm)", border: "none",
+                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
+                      color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+                      cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
+                      opacity: saveStatus === "saving" ? 0.65 : 1,
+                      transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
+                      minWidth: 100,
+                    }}
+                  >
+                    {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── FOLLOWING TAB ── */}
+            {activeTab === "Following" && (
+              <>
+                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 14 }}>
+                    Companies you&apos;re tracking — follow from the{" "}
+                    <Link href="/market" onClick={flushAndClose} style={{ color: "var(--tm-accent)", textDecoration: "none" }}>
+                      Market page
+                    </Link>
+                  </div>
+                  <input
+                    type="text" value={followSearch}
+                    onChange={(e) => setFollowSearch(e.target.value)}
+                    placeholder="Search followed companies…"
+                    style={INPUT_STYLE}
+                    onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                    onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
+                  />
+                </div>
+
+                {followingLoading ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", flexShrink: 0 }} />
+                        <div style={{ flex: 1, height: 14, borderRadius: 4, background: "rgba(255,255,255,0.05)" }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredFollowing.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: "48px 0", textAlign: "center" }}>
+                    <div style={{ fontSize: 32, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                      {followSearch ? `No companies matching "${followSearch}"` : "No companies followed yet"}
+                    </div>
+                    {!followSearch && (
+                      <Link href="/market" onClick={flushAndClose} style={{
+                        fontSize: 12, color: "var(--tm-accent)", textDecoration: "none",
+                        padding: "6px 16px", borderRadius: "var(--tm-radius-sm)",
+                        border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)",
+                        transition: "all 150ms",
+                      }}>
+                        Browse companies in Market →
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {filteredFollowing.map((company) => (
+                      <div key={company.company_name} style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 0", borderBottom: "1px solid var(--tm-border-soft)",
+                      }}>
+                        <CompanyAvatar name={company.company_name} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {company.company_name}
+                          </div>
+                        </div>
+                        <Link
+                          href="/market"
+                          onClick={flushAndClose}
+                          style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none", flexShrink: 0 }}
+                        >
+                          View jobs →
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => unfollowMutation.mutate(company.company_name)}
+                          disabled={unfollowMutation.isPending}
+                          aria-label={`Unfollow ${company.company_name}`}
+                          style={{
+                            width: 28, height: 28, borderRadius: 6, border: "1px solid var(--tm-border-soft)",
+                            background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+                            transition: "all 150ms",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-danger)"; e.currentTarget.style.color = "var(--tm-danger)" }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-faint)" }}
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </DialogContent>

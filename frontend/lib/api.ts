@@ -209,6 +209,16 @@ export interface UserSkillsByDomain {
   by_cluster: Record<string, UserSkillItem[]>   // L2 cluster — for CV page
 }
 
+export interface FollowedCompany {
+  company_name: string
+  created_at: string
+}
+
+export interface FollowedCompaniesResponse {
+  companies: FollowedCompany[]
+  total: number
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -233,6 +243,21 @@ export const users = {
         body: JSON.stringify({ level }),
       },
     ),
+  followedCompanies: (token: string) =>
+    request<FollowedCompaniesResponse>("/users/me/following/companies", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  followCompany: (token: string, companyName: string) =>
+    request<{ company_name: string }>("/users/me/following/companies", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ company_name: companyName }),
+    }),
+  unfollowCompany: (token: string, companyName: string) =>
+    request<void>(`/users/me/following/companies/${encodeURIComponent(companyName)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 // ── CV ────────────────────────────────────────────────────────────────────────

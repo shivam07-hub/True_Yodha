@@ -4,6 +4,8 @@ from app.deps import get_current_user
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
+    FollowCompanyRequest,
+    FollowedCompaniesResponse,
     SkillLevelCorrectionRequest,
     SkillLevelCorrectionResponse,
     UpdateProfileRequest,
@@ -102,3 +104,34 @@ async def update_profile(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     return UserProfileResponse(**profile)
+
+
+@router.get("/me/following/companies", response_model=FollowedCompaniesResponse)
+async def get_followed_companies(
+    current_user: dict = Depends(get_current_user),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> FollowedCompaniesResponse:
+    rows = users_repo.get_followed_companies(current_user["user_id"])
+    return FollowedCompaniesResponse(companies=rows, total=len(rows))
+
+
+@router.post("/me/following/companies", status_code=status.HTTP_201_CREATED)
+async def follow_company(
+    body: FollowCompanyRequest,
+    current_user: dict = Depends(get_current_user),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> dict:
+    name = body.company_name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
+    users_repo.follow_company(current_user["user_id"], name)
+    return {"company_name": name}
+
+
+@router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def unfollow_company(
+    company_name: str,
+    current_user: dict = Depends(get_current_user),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> None:
+    users_repo.unfollow_company(current_user["user_id"], company_name)
