@@ -11,6 +11,7 @@ from app.services.cv_parser import (
     _MAX_SKILLS,
     _SIGNAL_XP,
     _fuzzy_match,
+    _is_plausible_professional_text,
     _parse_llm_json,
     _validate_and_normalize,
     parse_cv,
@@ -34,11 +35,15 @@ class TestParseLlmJson:
         text = 'I analysed the CV. [{"taxonomy_key": "Scala"}] hope that helps.'
         assert _parse_llm_json(text) == [{"taxonomy_key": "Scala"}]
 
-    def test_invalid_json_returns_empty(self) -> None:
-        assert _parse_llm_json("not json at all") == []
+    def test_empty_skills_list_returns_empty_list(self) -> None:
+        # Provider responded cleanly but found nothing — distinct from parse failure
+        assert _parse_llm_json('{"skills": []}') == []
 
-    def test_empty_string_returns_empty(self) -> None:
-        assert _parse_llm_json("") == []
+    def test_invalid_json_returns_none(self) -> None:
+        assert _parse_llm_json("not json at all") is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert _parse_llm_json("") is None
 
 
 # ── _validate_and_normalize ────────────────────────────────────────────────────
@@ -124,18 +129,11 @@ class TestParseCv:
             await parse_cv(b"anything", "txt")
 
     @pytest.mark.asyncio
-    async def test_pdf_with_short_text_returns_empty_skills(self, monkeypatch) -> None:
-        monkeypatch.setattr(cv_parser, "_extract_text_pdf", lambda b: "tiny")
-        out = await parse_cv(b"fake-pdf-bytes", "pdf")
-        assert out["skills_detected"] == []
-        assert out["raw_text"] == "tiny"
-
-    @pytest.mark.asyncio
     async def test_end_to_end_with_mocked_llm(self, monkeypatch) -> None:
         fake_text = "Senior Data Engineer with 5 years of Python. " * 10
         monkeypatch.setattr(cv_parser, "_extract_text_pdf", lambda b: fake_text)
 
-        async def fake_extract(cv_text: str) -> list[dict]:
+        async def fake_extract(cv_text: str) -> list[dict] | None:
             return [
                 {"taxonomy_key": "Python (Programming Language)", "signal_type": "impact", "evidence": "5y"},
                 {"taxonomy_key": "Not A Real Skill",              "signal_type": "mention"},
@@ -149,7 +147,52 @@ class TestParseCv:
         assert out["skills_detected"][0]["xp_awarded"] == _SIGNAL_XP["impact"]
 
     @pytest.mark.asyncio
-    async def test_llm_extract_returns_empty_when_no_api_key(self, monkeypatch) -> None:
+    async def test_pdf_returns_provider_failed_false_on_short_text(self, monkeypatch) -> None:
+        monkeypatch.setattr(cv_parser, "_extract_text_pdf", lambda b: "tiny")
+        out = await parse_cv(b"fake-pdf-bytes", "pdf")
+        assert out["skills_detected"] == []
+        assert out["provider_failed"] is False
+
+    @pytest.mark.asyncio
+    async def test_llm_extract_returns_none_when_no_api_key(self, monkeypatch) -> None:
         monkeypatch.setattr(cv_parser.settings, "openrouter_api_key", "")
+        monkeypatch.setattr(cv_parser.settings, "groq_api_key", "")
+        monkeypatch.setattr(cv_parser.settings, "google_api_key", "")
         out = await cv_parser._llm_extract("some CV text")
-        assert out == []
+        assert out is None
+
+    @pytest.mark.asyncio
+    async def test_llm_extract_returns_empty_list_when_provider_responds_with_no_skills(self, monkeypatch) -> None:
+        async def _empty_provider(cv_text: str):  # noqa: ANN001
+            return []
+        monkeypatch.setattr(cv_parser, "_llm_extract", _empty_provider)
+        out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
+        assert out["skills_detected"] == []
+        assert out["provider_failed"] is False
+
+    @pytest.mark.asyncio
+    async def test_parse_cv_text_provider_failed_propagates(self, monkeypatch) -> None:
+        async def _failing_extract(cv_text: str):  # noqa: ANN001
+            return None
+        monkeypatch.setattr(cv_parser, "_llm_extract", _failing_extract)
+        out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
+        assert out["provider_failed"] is True
+        assert out["skills_detected"] == []
+
+
+# ── _is_plausible_professional_text ───────────────────────────────────────────
+
+class TestIsPlausibleProfessionalText:
+    def test_real_cv_text_passes(self) -> None:
+        text = "Senior software engineer with five years of experience building distributed systems in Python and Go."
+        assert _is_plausible_professional_text(text) is True
+
+    def test_keyboard_smash_fails(self) -> None:
+        text = "asfkdsjb mb dsbfkb mzb bmsdbcmb m b mbm bsdm"
+        assert _is_plausible_professional_text(text) is False
+
+    def test_too_short_fails(self) -> None:
+        assert _is_plausible_professional_text("abc") is False
+
+    def test_all_consonants_fails(self) -> None:
+        assert _is_plausible_professional_text("bcdfghjklmnpqrstvwxyz" * 3) is False

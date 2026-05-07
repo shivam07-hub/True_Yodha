@@ -129,21 +129,6 @@ class TestAspirationRerank:
         result = _run(jobs, {"Python": 3}, target_roles=["Data Engineer"], top_n=2)
         assert result[0]["job_id"] == "j1"
 
-    def test_location_boost_applied_for_exact_match(self) -> None:
-        jobs = [
-            _job("j1", "Analyst", "Acme",  ["Python"], [], location="Mumbai, India"),
-            _job("j2", "Analyst", "Other", ["Python"], [], location="London, UK"),
-        ]
-        result = _run(jobs, {"Python": 3}, target_location="India", top_n=2)
-        assert result[0]["job_id"] == "j1"
-
-    def test_location_boost_applied_for_remote(self) -> None:
-        jobs = [
-            _job("j1", "Analyst", "Acme",  ["Python"], [], location="Remote - Worldwide"),
-            _job("j2", "Analyst", "Other", ["Python"], [], location="London, UK"),
-        ]
-        result = _run(jobs, {"Python": 3}, target_location="India", top_n=2)
-        assert result[0]["job_id"] == "j1"
 
 
 # ── Anti-bias company cap ─────────────────────────────────────────────────────

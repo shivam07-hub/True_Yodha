@@ -139,7 +139,7 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones() })
       router.push("/diary")
     },
   })
@@ -150,8 +150,8 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
       setCorrectionDone(true)
       setShowLevelPicker(false)
       setPickedLevel(data.new_level)
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
     },
   })
 
@@ -471,25 +471,25 @@ export default function CVPage() {
   }, [])
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
-    queryKey: dataKeys.cvProfile(token),
+    queryKey: dataKeys.cvProfile(),
     queryFn: () => cv.me(token!),
     enabled: !!token,
   })
 
   const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: dataKeys.userSkills(token),
+    queryKey: dataKeys.userSkills(),
     queryFn: () => users.mySkills(token!),
     enabled: !!token,
   })
 
   const { data: scoreData } = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: dataKeys.jobPath(jobId, token),
+    queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobs.path(token!, jobId!),
     enabled: !!token && !!jobId,
   })
@@ -497,7 +497,7 @@ export default function CVPage() {
   const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
   const { data: evidenceData, isLoading: evidenceLoading } = useQuery({
-    queryKey: dataKeys.cvEvidence(token),
+    queryKey: dataKeys.cvEvidence(),
     queryFn: () => cv.evidence(token!),
     enabled: !!token && hasCv,
   })
@@ -510,8 +510,8 @@ export default function CVPage() {
       setDraftFlowError(null)
     },
     onSuccess: (draft) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
       setMessage(`Saved CV draft v${draft.version_number} from ${draft.evidence_count} milestone days.`)
       setSelectedVersionId(draft.version_id)
       setShowDraftGuide(false)
@@ -535,7 +535,7 @@ export default function CVPage() {
       } else {
         setJobCvNotice("Job CV ready.")
       }
-      invalidateJobPathData(queryClient, jobId, token)
+      invalidateJobPathData(queryClient, jobId)
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not generate job CV"),
   })
@@ -614,15 +614,15 @@ export default function CVPage() {
       // Score is already computed and persisted inside cv_workflow.ingest_uploaded_cv —
       // no separate scores.compute call needed here.
       void jobs.compute(token)
-        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }))
+        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.jobs() }))
         .catch(() => null)
       // Force-refetch CV profile before the modal closes so the text viewer
       // shows the new CV immediately (invalidateQueries alone only marks stale).
-      await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
+      await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
       setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
       setSelectedVersionId(null)

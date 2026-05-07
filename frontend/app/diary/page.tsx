@@ -331,13 +331,13 @@ function DiaryPageInner() {
   }, [searchParams])
 
   const historyQuery = useQuery({
-    queryKey: dataKeys.diary(token),
+    queryKey: dataKeys.diary(),
     queryFn: () => diary.history(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
@@ -345,19 +345,19 @@ function DiaryPageInner() {
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
 
   const milestonesQuery = useQuery({
-    queryKey: dataKeys.milestones(token),
+    queryKey: dataKeys.milestones(),
     queryFn: () => diary.milestones(token!, 30),
     enabled: !!token,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: dataKeys.jobPath(jobId, token),
+    queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobs.path(token!, jobId!),
     enabled: !!token && !!jobId,
   })
 
   const applicationsQuery = useQuery({
-    queryKey: dataKeys.applications(token),
+    queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
     enabled: !!token,
   })
@@ -375,8 +375,8 @@ function DiaryPageInner() {
     onSuccess: () => {
       setEntryText("")
       setPromptSkills([])
-      queryClient.invalidateQueries({ queryKey: dataKeys.diary(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.diary() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save entry"),
   })
@@ -389,8 +389,8 @@ function DiaryPageInner() {
       setCompletionDay(null)
       setCompletionProof("")
       setCompletionImpact("")
-      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save milestone"),
   })
@@ -411,9 +411,9 @@ function DiaryPageInner() {
       setJobProof("")
       setJobImpact("")
       setMissionCompleted(true)
-      invalidateJobPathData(queryClient, activeJobId, token)
-      queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
+      invalidateJobPathData(queryClient, activeJobId)
+      queryClient.invalidateQueries({ queryKey: dataKeys.milestones() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save job milestone"),
   })
@@ -564,7 +564,7 @@ function DiaryPageInner() {
         confidence: 0.72,
         completed: true,
       })
-      invalidateJobPathData(queryClient, jobId, token)
+      invalidateJobPathData(queryClient, jobId)
     } else {
       await diary.saveMilestone(token, {
         milestone_date: todayMilestone?.dateKey ?? toDateKey(new Date()),
@@ -576,12 +576,12 @@ function DiaryPageInner() {
       })
     }
 
-    queryClient.invalidateQueries({ queryKey: dataKeys.diary(token) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.diary() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.milestones() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
 
     return { xpGained }
   }
@@ -589,8 +589,8 @@ function DiaryPageInner() {
   async function handleForgeJobCvGenerate(): Promise<{ notice?: string }> {
     if (!token || !jobId) throw new Error("Track a job first to generate a job CV pointer.")
     const result = await jobs.generateJobCv(token, jobId, false)
-    invalidateJobPathData(queryClient, jobId, token)
-    queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
+    invalidateJobPathData(queryClient, jobId)
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile() })
     return {
       notice: result.from_cache ? "Using your latest cached job CV pointer." : "Job CV pointer generated from your latest proof.",
     }

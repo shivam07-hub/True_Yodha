@@ -71,7 +71,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 - Python venv: `.venv/` (project root) — `source .venv/bin/activate`
 - Install deps: `pip install -r backend/requirements.txt`
-- Backend dev: `uvicorn backend.app.main:app --reload`
+- Backend dev: `PYTHONPATH=backend uvicorn app.main:app --reload`
 - Frontend dev: `cd frontend && npm run dev`
 
 ---
@@ -92,6 +92,185 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 **Shared:** All work on `Develop`. Run `pytest backend/tests` + `tsc --noEmit` + `next lint` before marking complete.
 
 **Architecture audit:** `graphify-out/GRAPH_REPORT.md` (832 nodes, 1247 edges) + `graphify-out/graph.html` — consult before any refactor phase.
+
+---
+
+## 🗺️ MISSION CONTROL REDESIGN PLAN (2026-05-07)
+
+> **Origin:** Design critique session. Full diagnosis in session transcript.
+> **Rule:** Claude Code must state the phase plan + get explicit "yes / proceed / go ahead" before writing any code for that phase.
+> **Branch:** All work on `Develop`. Commit after each numbered task.
+
+---
+
+### PHASE 0 — Data integrity bugs (MUST LAND FIRST — blocks trust)
+
+**Sync point:** Before starting, Claude Code reads this section aloud and confirms file locations for the scoring pipeline and match logic. User approves.
+
+These are not design issues. They are broken numbers that will make every other improvement invisible.
+
+#### P0-1 — Fix match % calculation (showing 10000% instead of 0–100%)
+
+**Symptom:** Active Focus tabs show "Chanel · 10000%", "Sanofi · 6670%", etc. Job card shows "10000% fit" badge. CV card shows "10000%" as hero number. The number is being multiplied by 100 somewhere, or the denominator is wrong.
+
+**Investigation steps:**
+1. Find where match % is computed — likely `backend/app/services/scoring/` or `jobs_workflow.py → compute_job_matches`
+2. Check if overlap is being divided by `len(user_skills)` instead of `len(required_skills)` — that would give > 100 when user has more skills than the job requires
+3. Check if the value is being multiplied by 100 twice (once in the formula, once at the display layer)
+4. Add a hard `min(score, 100)` cap at the point of persistence AND at the frontend display layer as a safety net
+
+**Files to touch:** `backend/app/services/scoring/formulas.py` · wherever `match_score` or `skill_overlap` is computed in `jobs_workflow.py` · `frontend/app/home/` or wherever the Active Focus % is rendered
+
+**Tests:** Add a test asserting `compute_match_score(user_skills=100, required_skills=5, overlap=5) == 100` (not 2000%)
+
+**Commit:** `fix(scoring): clamp match percentage to 0–100`
+
+---
+
+#### P0-2 — Fix location filtering (India target, French jobs surfaced)
+
+**Symptom:** User's target location = India (visible in header). Top recommended job is Chanel Neuilly-Sur-Seine, France. Location filter is not being applied in the match pipeline.
+
+**Investigation steps:**
+1. In `compute_job_matches` or `get_candidate_job_ids_for_skills`, check if a location filter is applied at the DB query level
+2. Check if the Chanel job has `location_city = NULL` or `country = NULL` — if so it bypasses the filter silently
+3. Check if the user's target location is being read from `user_profiles.target_location` and passed into the match call
+4. Decision to lock with user: **strict filter** (only show jobs in target location) vs **soft filter** (show all, but rank in-location jobs higher with a location bonus). Default to strict unless user says otherwise.
+
+**Files to touch:** `backend/app/repositories/jobs.py` · `backend/app/services/jobs_workflow.py` · `backend/app/routers/jobs/match.py`
+
+**Tests:** Add test asserting that `compute_job_matches(target_location="India")` does not return jobs with `location_country != "India"` (or NULL location jobs, depending on decision)
+
+**Commit:** `fix(matching): apply user target location filter in compute_job_matches`
+
+---
+
+**Phase 0 done when:** `pytest backend/tests` green · match % shows 0–100 for all companies · featured job is in India · commit pushed to Develop.
+
+---
+
+### PHASE 1 — Remove skill intelligence widget, add Skill Gaps card
+
+**Sync point:** Claude Code states exactly what it will delete and what it will build. User approves before any file is touched.
+
+**What to remove:**
+- The "Skill Intelligence" card in the bottom-left of the home dashboard
+- The small hierarchy tree SVG/canvas component rendered inside it
+- The "Open skills →" button inside that card
+- The card's grid slot (do not leave empty space — the grid should reflow)
+
+**What to build in its place — "Top Skill Gaps" card:**
+
+```
+┌─────────────────────────────────────────────┐
+│ TOP GAPS — CHANEL                           │
+│                                             │
+│ 🔴 Fragrance Product Development   L2→L4   │
+│    [▶ Forge this gap]                       │
+│                                             │
+│ 🟡 B2B Sales Strategy              L3→L4   │
+│    [▶ Forge this gap]                       │
+│                                             │
+│ 🟡 Compensation & Benefits         L1→L3   │
+│    [▶ Forge this gap]                       │
+│                                             │
+│              [View all skill gaps →]        │
+└─────────────────────────────────────────────┘
+```
+
+- Pull top 3 skill gaps for the currently focused company from `GET /jobs/{job_id}/skill_gaps` or derive from existing match data
+- Each gap shows: skill name · current level → required level · "Forge this gap" button (routes to Forge with that skill pre-selected)
+- "View all skill gaps →" routes to `/skills`
+- If no focused job is set: show placeholder "Save a target job to see your skill gaps"
+
+**Files to touch:** `frontend/app/home/` page component · wherever the grid layout is defined · possibly `frontend/lib/api.ts` if a new endpoint is needed
+
+**Commit:** `feat(home): replace skill intelligence widget with top-skill-gaps card`
+
+---
+
+**Phase 1 done when:** Skill intelligence widget is gone from home · Skill Gaps card renders top 3 gaps for focused job · each gap links to Forge · tsc + next lint clean · commit pushed.
+
+---
+
+### PHASE 2 — Pipeline card redesign
+
+**Sync point:** Claude Code proposes the exact data shape it will fetch and the component structure. User approves.
+
+**Current state:** Three rows of `[Company name] [pending]`. No role title, no age, no action.
+
+**Target state — each pipeline row:**
+
+```
+┌──────────────────────────────────────────────────────┐
+│ [Logo] Chanel                          [Saved] ·  3d │
+│        STAGE - Communication Parfums               │
+│                                    [Log update →]    │
+├──────────────────────────────────────────────────────┤
+│ [Logo] Sanofi                          [Applied] · 1d│
+│        Senior Sales Manager                         │
+│                                    [Log update →]    │
+└──────────────────────────────────────────────────────┘
+```
+
+**Data requirements:**
+- Role title (not just company) — from `job_applications JOIN jobs`
+- Status display label mapping: `pending` → "Saved", `applied` → "Applied", `interviewing` → "Interviewing", `offer` → "Offer", `closed` → "Closed"
+- Days since last activity (`updated_at` age)
+- Inline "Log update →" button routes to `/diary` with that job pre-selected
+
+**Files to touch:** `frontend/app/home/` pipeline card component · `frontend/lib/api.ts` (check if `/track` endpoint returns role title — add it if not) · `backend/app/routers/jobs/apply.py` if response shape needs the job title added
+
+**Commit:** `feat(home): redesign pipeline card with role title, status labels, activity age`
+
+---
+
+**Phase 2 done when:** Pipeline rows show company + role title + meaningful status + days since activity + log update CTA · tsc + next lint clean · commit pushed.
+
+---
+
+### PHASE 3 — UX consistency: Forge entry points + visual hierarchy
+
+**Sync point:** Claude Code explains the exact intent difference between the two Forge CTAs and how it will label them. User approves.
+
+#### P3-1 — Clarify the two Forge entry points
+
+**Current state:** "→ Enter Forge" (Today card) and "▶ Forge next gap" (job card). Same destination, different framing, no explanation of difference.
+
+**Decision needed from user before implementation:** 
+- Option A: "Enter Forge" = open-ended daily log. "Forge next gap" = Forge pre-loaded with the top gap skill for the focused job. Keep both, label clearly.
+- Option B: Merge into one CTA. "Forge: [Skill name] →" in the job card. Remove "Enter Forge" from Today card and put a generic "Open Forge →" link in the nav instead.
+
+**Lock the decision, then implement.**
+
+**Commit:** `fix(home): clarify forge entry points — [option label]`
+
+---
+
+#### P3-2 — Visual hierarchy: focused job card as hero
+
+**Current state:** All 6 cards are the same visual weight. The Myro Score card and the date widget take up equal space to the focused job card.
+
+**Changes:**
+- Focused job card: increase card prominence (slightly larger, stronger border, or elevated shadow)
+- Today card (right column): shrink the date display — it does not need to be `text-5xl`. Replace with a compact date + time + one-line "Next action" summary
+- Active Focus tab bar: remove the % from the tab labels entirely (the % is broken and even when fixed, it belongs inside the card, not in the tab). Tab = company name only.
+
+**Files to touch:** `frontend/app/home/` layout and card components
+
+**Commit:** `refactor(home): elevate focused-job card, compact today card, clean active-focus tabs`
+
+---
+
+**Phase 3 done when:** Forge CTAs have clear, distinct labels · focused job card is visually dominant · Active Focus tabs show company name only · tsc + next lint clean · commit pushed.
+
+---
+
+### VERIFICATION (after all phases)
+
+- `pytest backend/tests` — must be green (no regression)
+- `tsc --noEmit && next lint` — must be clean
+- Manual smoke on Develop: log in → home shows valid % → focused job is in India → Skill Gaps card shows 3 gaps → Pipeline rows have role titles → Forge CTAs are unambiguous
 
 ---
 

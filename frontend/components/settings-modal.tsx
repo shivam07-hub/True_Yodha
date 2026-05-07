@@ -135,7 +135,7 @@ export function SettingsModal({ open, onClose, profile }: {
       return users.updateProfile(token, payload)
     },
     onSuccess: () => {
-      if (token) queryClient.invalidateQueries({ queryKey: dataKeys.profile(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
       if (savedTimer.current) clearTimeout(savedTimer.current)
       savedTimer.current = setTimeout(() => setSaveStatus("idle"), SAVED_DISPLAY_MS)

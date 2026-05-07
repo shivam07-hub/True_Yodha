@@ -136,22 +136,20 @@ def test_fetch_job_skill_rows_empty_job_ids_returns_empty() -> None:
 
 
 def test_jobs_repository_fetch_analytics_rows_reads_all_pages() -> None:
+    # fetch_analytics_rows no longer fetches job_skills (skills are lazy-loaded per entity).
+    # It only needs to paginate across all jobs rows and hydrate location fields.
     jobs = [
         {"job_id": f"j{i}", "company_name": "Acme" if i % 2 == 0 else "Globex", "industry": "Tech", "batch_date": 20260504}
         for i in range(1500)
     ]
-    job_skills = [
-        {"job_id": "j0", "is_primary": True, "skills": {"taxonomy_key": "python"}},
-        {"job_id": "j1200", "is_primary": True, "skills": {"taxonomy_key": "sql"}},
-    ]
-    db = _FakeDB({"jobs": jobs, "job_skills": job_skills})
+    db = _FakeDB({"jobs": jobs, "job_skills": []})
 
     rows = JobsRepository(db).fetch_analytics_rows()
 
     assert len(rows) == 1500
     by_id = {row["job_id"]: row for row in rows}
-    assert by_id["j0"]["main_skills"] == ["python"]
-    assert by_id["j1200"]["main_skills"] == ["sql"]
+    assert by_id["j0"]["company_name"] == "Acme"
+    assert by_id["j1"]["company_name"] == "Globex"
     assert ("jobs", 0, 999) in db.ranges
     assert ("jobs", 1000, 1999) in db.ranges
 

@@ -5,6 +5,7 @@
  */
 
 import { clearSessionTokens, getRefreshToken, setSessionTokens } from "./session"
+import { queryClient } from "./query-client"
 
 const BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -19,23 +20,34 @@ function extractError(body: unknown, status: number): string {
   return `HTTP ${status}`
 }
 
+// Deduplicates concurrent refresh calls — Supabase rotates refresh tokens on each
+// use, so parallel 401s must share one refresh or the second invalidates the first.
+let _refreshInFlight: Promise<string | null> | null = null
+
 async function tryRefreshToken(): Promise<string | null> {
   if (typeof window === "undefined") return null
+  if (_refreshInFlight) return _refreshInFlight
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
-  try {
-    const res = await fetch(`${BASE}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-    if (!res.ok) return null
-    const data = await res.json() as { access_token: string; refresh_token: string | null }
-    setSessionTokens({ accessToken: data.access_token, refreshToken: data.refresh_token })
-    return data.access_token
-  } catch {
-    return null
-  }
+  _refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+      if (!res.ok) return null
+      const data = await res.json() as { access_token: string; refresh_token: string | null }
+      setSessionTokens({ accessToken: data.access_token, refreshToken: data.refresh_token })
+      void queryClient.invalidateQueries()
+      return data.access_token
+    } catch {
+      return null
+    } finally {
+      _refreshInFlight = null
+    }
+  })()
+  return _refreshInFlight
 }
 
 function forceLogout(): never {
@@ -582,17 +594,19 @@ export interface MarketAnalytics {
   total_jobs: number
   total_companies: number
   total_industries: number
+  latest_batch?: string | null
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
   by_role: NameCountItem[]
   by_location_city: NameCountItem[]
   by_location_country: NameCountItem[]
   by_location_mode: NameCountItem[]
-  top_skills: SkillCountItem[]
-  company_skills: Record<string, string[]>
-  industry_skills: Record<string, string[]>
-  company_skill_counts: Record<string, SkillCountItem[]>
-  industry_skill_counts: Record<string, SkillCountItem[]>
+}
+
+export interface EntitySkillsData {
+  entity: string
+  type: string
+  skills: SkillCountItem[]
 }
 
 export interface JobLocationFilters {
@@ -675,6 +689,17 @@ export const jobs = {
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  analyticsEntitySkills: (
+    entity: string,
+    type: "company" | "industry",
+    locationFilters?: JobLocationFilters,
+  ) => {
+    const params = new URLSearchParams({ entity, type })
+    if (locationFilters?.locationCity?.trim()) params.set("location_city", locationFilters.locationCity.trim())
+    if (locationFilters?.locationCountry?.trim()) params.set("location_country", locationFilters.locationCountry.trim())
+    if (locationFilters?.locationMode?.trim()) params.set("location_mode", locationFilters.locationMode.trim())
+    return request<EntitySkillsData>(`/jobs/analytics/skills?${params.toString()}`)
   },
   search: (
     company: string,

@@ -108,16 +108,17 @@ function UserFooter({
   expanded,
   profile,
   onMenuOpenChange,
+  signOut,
 }: {
   expanded: boolean
   profile: SidebarProfile | null
   onMenuOpenChange?: (open: boolean) => void
+  signOut: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
-  const { signOut } = useAuth()
   const fullName = profile?.full_name ?? null
 
   useEffect(() => {
@@ -258,7 +259,7 @@ function UserFooter({
   )
 }
 
-function Sidebar({ score, profile }: { score: number | null; profile: SidebarProfile | null }) {
+function Sidebar({ score, profile, signOut }: { score: number | null; profile: SidebarProfile | null; signOut: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -405,23 +406,23 @@ function Sidebar({ score, profile }: { score: number | null; profile: SidebarPro
         </div>
       )}
 
-      <UserFooter expanded={expanded} profile={profile} onMenuOpenChange={setIsUserMenuOpen} />
+      <UserFooter expanded={expanded} profile={profile} onMenuOpenChange={setIsUserMenuOpen} signOut={signOut} />
     </nav>
   )
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { token, ready } = useAuth()
+  const { token, ready, signOut } = useAuth()
 
   const { data: scoreData } = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: profileData } = useQuery({
-    queryKey: dataKeys.profile(token),
+    queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
@@ -440,6 +441,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           target_location: profileData?.target_location ?? null,
           linkedin_url: profileData?.linkedin_url ?? null,
         }}
+        signOut={signOut}
       />
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
         <div className="tm-page-enter" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>

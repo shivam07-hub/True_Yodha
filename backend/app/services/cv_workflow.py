@@ -55,6 +55,11 @@ async def ingest_uploaded_cv(
     parsed = await cv_parser.parse_cv(file_bytes, file_type)
     skills_detected = parsed.get("skills_detected", [])
     raw_text = parsed.get("raw_text", "")
+    if parsed.get("provider_failed"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Our CV analysis service is temporarily unavailable. Please try again in a few minutes.",
+        )
     if not skills_detected:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -107,6 +112,11 @@ async def ingest_cv_text(
 
     parsed = await cv_parser.parse_cv_text(raw_text)
     skills_detected = parsed.get("skills_detected", [])
+    if parsed.get("provider_failed"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Our CV analysis service is temporarily unavailable. Please try again in a few minutes.",
+        )
     if not skills_detected:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

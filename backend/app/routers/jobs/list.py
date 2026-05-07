@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Query
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_public_jobs_repository, get_token_jobs_repository
 from app.schemas import (
+    EntitySkillsResponse,
     JobSearchResponse,
-    MarketAnalyticsResponse,
+    MarketAnalyticsSummaryResponse,
     NameCountItem,
     SkillCountItem,
 )
@@ -15,14 +16,8 @@ from app.schemas.jobs import JobSearchItem
 router = APIRouter()
 
 
-def _skill_count_map(payload: dict[str, list[tuple[str, int]]]) -> dict[str, list[SkillCountItem]]:
-    return {
-        key: [SkillCountItem(skill=skill, count=count) for skill, count in items]
-        for key, items in payload.items()
-    }
 
-
-@router.get("/analytics/me", response_model=MarketAnalyticsResponse)
+@router.get("/analytics/me", response_model=MarketAnalyticsSummaryResponse)
 async def get_my_analytics(
     cluster: str | None = None,
     location_city: str | None = None,
@@ -30,7 +25,7 @@ async def get_my_analytics(
     location_mode: str | None = None,
     repo: JobsRepository = Depends(get_token_jobs_repository),
     current_user: dict = Depends(get_current_user),
-) -> MarketAnalyticsResponse:
+) -> MarketAnalyticsSummaryResponse:
     if cluster:
         role_domain = repo.resolve_role_domain_for_clusters([cluster])
     else:
@@ -42,7 +37,7 @@ async def get_my_analytics(
         location_country=location_country,
         location_mode=location_mode,
     )
-    return MarketAnalyticsResponse(
+    return MarketAnalyticsSummaryResponse(
         total_jobs=analytics["total_jobs"],
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
@@ -53,30 +48,47 @@ async def get_my_analytics(
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
         by_location_country=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_country"]],
         by_location_mode=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_mode"]],
-        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
-        company_skills=analytics["company_skills"],
-        industry_skills=analytics["industry_skills"],
-        company_skill_counts=_skill_count_map(analytics["company_skill_counts"]),
-        industry_skill_counts=_skill_count_map(analytics["industry_skill_counts"]),
     )
 
 
-@router.get("/analytics", response_model=MarketAnalyticsResponse)
+@router.get("/analytics/skills", response_model=EntitySkillsResponse)
+async def get_entity_skills(
+    entity: str,
+    type: str = "company",
+    location_city: str | None = None,
+    location_country: str | None = None,
+    location_mode: str | None = None,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> EntitySkillsResponse:
+    skills = repo.fetch_entity_skills(
+        entity_name=entity,
+        entity_type=type,
+        location_city=location_city,
+        location_country=location_country,
+        location_mode=location_mode,
+    )
+    return EntitySkillsResponse(
+        entity=entity,
+        type=type,
+        skills=[SkillCountItem(skill=s["skill"], count=s["count"]) for s in skills],
+    )
+
+
+@router.get("/analytics", response_model=MarketAnalyticsSummaryResponse)
 async def get_market_analytics(
     role_domain: str | None = None,
     location_city: str | None = None,
     location_country: str | None = None,
     location_mode: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
-) -> MarketAnalyticsResponse:
+) -> MarketAnalyticsSummaryResponse:
     analytics = repo.compile_market_analytics(
         role_domain=role_domain,
         location_city=location_city,
         location_country=location_country,
         location_mode=location_mode,
     )
-
-    return MarketAnalyticsResponse(
+    return MarketAnalyticsSummaryResponse(
         total_jobs=analytics["total_jobs"],
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
@@ -87,11 +99,6 @@ async def get_market_analytics(
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
         by_location_country=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_country"]],
         by_location_mode=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_mode"]],
-        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
-        company_skills=analytics["company_skills"],
-        industry_skills=analytics["industry_skills"],
-        company_skill_counts=_skill_count_map(analytics["company_skill_counts"]),
-        industry_skill_counts=_skill_count_map(analytics["industry_skill_counts"]),
     )
 
 

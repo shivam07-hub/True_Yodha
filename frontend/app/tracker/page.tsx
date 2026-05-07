@@ -934,19 +934,19 @@ export default function TrackerPage() {
   const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
 
   const matchesQuery = useQuery({
-    queryKey: dataKeys.jobs(token),
+    queryKey: dataKeys.jobs(),
     queryFn: () => jobs.matches(token!),
     enabled: !!token,
   })
 
   const appsQuery = useQuery({
-    queryKey: dataKeys.applications(token),
+    queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
   })
@@ -954,7 +954,7 @@ export default function TrackerPage() {
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
 
   const skillDemandQuery = useQuery({
-    queryKey: dataKeys.userSkillDemand(token),
+    queryKey: dataKeys.userSkillDemand(),
     queryFn: () => jobs.mySkillDemand(token!),
     enabled: !!token,
   })
@@ -1004,7 +1004,7 @@ export default function TrackerPage() {
           setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
         }
       }
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       stopComputeStream()
       return
     }
@@ -1068,8 +1068,8 @@ export default function TrackerPage() {
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) =>
       jobs.updateApplication(token!, jobId, { status }),
     onSuccess: (_app, variables) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
-      invalidateJobPathData(queryClient, variables.jobId, token)
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+      invalidateJobPathData(queryClient, variables.jobId)
     },
   })
 
@@ -1080,7 +1080,7 @@ export default function TrackerPage() {
   const removeTrackerJob = useMutation({
     mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId),
     onSuccess: (_data, jobId) => {
-      invalidateJobData(queryClient, token)
+      invalidateJobData(queryClient)
       setSelectedJobId((current) => (current === jobId ? null : current))
       setDetailJob((current) => (current?.job_id === jobId ? null : current))
       setAppDetailJob((current) => (current?.job_id === jobId ? null : current))
@@ -1088,13 +1088,13 @@ export default function TrackerPage() {
   })
 
   const skillGapQuery = useQuery({
-    queryKey: dataKeys.skillGap(selectedJobId, token),
+    queryKey: dataKeys.skillGap(selectedJobId),
     queryFn: () => jobs.skillGap(token!, selectedJobId!),
     enabled: !!token && !!selectedJobId,
   })
 
   const jobPathQuery = useQuery({
-    queryKey: dataKeys.jobPath(selectedJobId, token),
+    queryKey: dataKeys.jobPath(selectedJobId),
     queryFn: () => jobs.path(token!, selectedJobId!),
     enabled: !!token && !!selectedJobId,
   })
@@ -1103,8 +1103,8 @@ export default function TrackerPage() {
     mutationFn: ({ jobId, targets }: { jobId: string; targets: Array<{ skill: string; is_primary?: boolean | null }> }) =>
       jobs.updateTargets(token!, jobId, targets),
     onSuccess: (_path, variables) => {
-      invalidateJobPathData(queryClient, variables.jobId, token)
-      queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
+      invalidateJobPathData(queryClient, variables.jobId)
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
     },
   })
 
@@ -1124,7 +1124,7 @@ export default function TrackerPage() {
     onSuccess: (_milestone, variables) => {
       setProofText("")
       setImpactText("")
-      invalidateJobPathData(queryClient, variables.jobId, token)
+      invalidateJobPathData(queryClient, variables.jobId)
     },
   })
 
@@ -1142,7 +1142,7 @@ export default function TrackerPage() {
       } else {
         setCvNotice("Job CV ready.")
       }
-      invalidateJobPathData(queryClient, variables.jobId, token)
+      invalidateJobPathData(queryClient, variables.jobId)
     },
   })
 

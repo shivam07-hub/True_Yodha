@@ -1,7 +1,30 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { Bot, Briefcase, ChartNetwork } from "lucide-react"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
+
+const CV_STAGES = [
+  { id: "reading",  label: "Reading your CV",           sub: "Parsing document structure and text",       icon: Bot },
+  { id: "skills",   label: "Extracting your skills",    sub: "Mapping evidence to the skill taxonomy",    icon: Briefcase },
+  { id: "scoring",  label: "Computing your Myro Score", sub: "Ranking across 10 career domains",          icon: ChartNetwork },
+]
+// Advance stages at 8 s and 18 s into the ~29 s backend wait
+const CV_STAGE_MS = [8000, 18000]
+
+const PRESET_LOCATIONS = [
+  "India (All)",
+  "Bangalore",
+  "Mumbai",
+  "Delhi / NCR",
+  "Hyderabad",
+  "Pune",
+  "Chennai",
+  "Kolkata",
+  "Noida",
+  "Gurgaon",
+  "Remote",
+]
 
 const MAX_ROLES = MAX_TARGET_ROLES
 
@@ -17,8 +40,28 @@ export function StepRole({ onNext, loading }: Props) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
   const [locFocused, setLocFocused] = useState(false)
+  const [showCustomLoc, setShowCustomLoc] = useState(false)
+  const [customLoc, setCustomLoc] = useState("")
+  const [cvStage, setCvStage] = useState(0)
+  const [dots, setDots] = useState(".")
   const inputRef = useRef<HTMLInputElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Advance CV analysis stage display while backend processes
+  useEffect(() => {
+    if (!loading) { setCvStage(0); return }
+    const timers = CV_STAGE_MS.map((ms, i) =>
+      setTimeout(() => setCvStage(i + 1), ms)
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [loading])
+
+  // Animate the "..." busy indicator
+  useEffect(() => {
+    if (!loading) return
+    const id = setInterval(() => setDots(d => d.length >= 3 ? "." : d + "."), 420)
+    return () => clearInterval(id)
+  }, [loading])
 
   const atMax = roles.length >= MAX_ROLES
   const canSubmit = roles.length > 0 && location.trim().length > 0 && !loading
@@ -215,25 +258,128 @@ export function StepRole({ onNext, loading }: Props) {
           <label style={{ fontSize: "var(--tm-fs-meta)", fontWeight: 600, color: "var(--tm-text-muted)" }}>
             Location
           </label>
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            onFocus={() => setLocFocused(true)}
-            onBlur={() => setLocFocused(false)}
-            placeholder="e.g. Mumbai, India"
-            style={{
-              padding: "11px 14px",
-              borderRadius: "var(--tm-radius-sm)",
-              background: "rgba(255,255,255,0.03)",
-              border: `1px solid ${locFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-              color: "var(--tm-text)",
-              fontSize: "var(--tm-fs-meta)",
-              fontFamily: "inherit",
-              outline: "none",
-              transition: "border-color var(--tm-dur) var(--tm-ease)",
-            }}
-          />
+
+          {/* Scrollable preset chips */}
+          <div style={{
+            display: "flex",
+            gap: 6,
+            overflowX: "auto",
+            paddingBottom: 4,
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+            className="hide-scrollbar"
+          >
+            {PRESET_LOCATIONS.map((preset) => {
+              const active = location === preset && !showCustomLoc
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => {
+                    setLocation(preset)
+                    setShowCustomLoc(false)
+                    setCustomLoc("")
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    padding: "6px 13px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 500,
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                    color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                    transition: "all var(--tm-dur) var(--tm-ease)",
+                    outline: "none",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+                      e.currentTarget.style.color = "var(--tm-accent)"
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+                      e.currentTarget.style.color = "var(--tm-text-muted)"
+                    }
+                  }}
+                >
+                  {preset}
+                </button>
+              )
+            })}
+
+            {/* Other chip */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowCustomLoc(true)
+                setLocation("")
+              }}
+              style={{
+                flexShrink: 0,
+                padding: "6px 13px",
+                borderRadius: 999,
+                fontSize: 13,
+                fontWeight: showCustomLoc ? 600 : 500,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                background: showCustomLoc ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${showCustomLoc ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                color: showCustomLoc ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                transition: "all var(--tm-dur) var(--tm-ease)",
+                outline: "none",
+              }}
+              onMouseEnter={(e) => {
+                if (!showCustomLoc) {
+                  e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+                  e.currentTarget.style.color = "var(--tm-accent)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showCustomLoc) {
+                  e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+                  e.currentTarget.style.color = "var(--tm-text-muted)"
+                }
+              }}
+            >
+              Other…
+            </button>
+          </div>
+
+          {/* Custom location text input — shown only when "Other" is selected */}
+          {showCustomLoc && (
+            <input
+              type="text"
+              value={customLoc}
+              onChange={(e) => {
+                setCustomLoc(e.target.value)
+                setLocation(e.target.value)
+              }}
+              onFocus={() => setLocFocused(true)}
+              onBlur={() => setLocFocused(false)}
+              placeholder="e.g. Singapore, London, Toronto…"
+              autoFocus
+              style={{
+                padding: "11px 14px",
+                borderRadius: "var(--tm-radius-sm)",
+                background: "rgba(255,255,255,0.03)",
+                border: `1px solid ${locFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                color: "var(--tm-text)",
+                fontSize: "var(--tm-fs-meta)",
+                fontFamily: "inherit",
+                outline: "none",
+                transition: "border-color var(--tm-dur) var(--tm-ease)",
+                animation: "tagIn 180ms var(--tm-ease) both",
+              }}
+            />
+          )}
         </div>
 
         {roles.length > 0 && (
@@ -244,24 +390,102 @@ export function StepRole({ onNext, loading }: Props) {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          style={{
-            marginTop: 4, padding: "14px",
-            borderRadius: "var(--tm-radius-sm)",
-            background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-            color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
-            fontSize: "var(--tm-fs-meta)", fontWeight: 700,
-            cursor: canSubmit ? "pointer" : "default",
-            fontFamily: "inherit",
-            transition: "all var(--tm-dur) var(--tm-ease)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {loading ? "Analysing your CV…" : "Get my Myro Score →"}
-        </button>
+        {loading ? (
+          /* CV analysis loading panel — same icon-circle language as IntelLoadingState */
+          <div
+            role="status"
+            aria-live="polite"
+            aria-label={`Analysing CV — ${CV_STAGES[cvStage].label}`}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 16,
+              padding: "20px 0 4px",
+              animation: "loadIn 300ms var(--tm-ease) both",
+            }}
+          >
+            {/* Icon circles — same pattern as IntelLoadingState */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }} aria-hidden="true">
+              {CV_STAGES.map((stage, index) => {
+                const Icon = stage.icon
+                const active = index === cvStage
+                return (
+                  <div
+                    key={stage.id}
+                    title={stage.label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+                      color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                      transform: active ? "translateY(-2px) scale(1.05)" : "none",
+                      opacity: active ? 1 : 0.55,
+                      transition: "transform var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Current stage label + sub */}
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: "var(--tm-fs-meta)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>
+                {CV_STAGES[cvStage].label}
+              </p>
+              <p style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
+                {CV_STAGES[cvStage].sub}
+              </p>
+            </div>
+
+            {/* Spinner + dots */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="var(--tm-accent)" strokeWidth="2.2" strokeLinecap="round"
+                aria-hidden="true"
+                style={{ animation: "tm-spin-slow 1.8s linear infinite", flexShrink: 0 }}
+              >
+                <circle cx="12" cy="12" r="9" strokeOpacity="0.18" />
+                <path d="M12 3a9 9 0 0 1 9 9" />
+              </svg>
+              <span style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                {dots}
+              </span>
+            </div>
+
+            {/* Honest timing hint */}
+            <p style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>
+              Usually takes 20–40 seconds
+            </p>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            style={{
+              marginTop: 4, padding: "14px",
+              borderRadius: "var(--tm-radius-sm)",
+              background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
+              border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+              color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
+              fontSize: "var(--tm-fs-meta)", fontWeight: 700,
+              cursor: canSubmit ? "pointer" : "default",
+              fontFamily: "inherit",
+              transition: "all var(--tm-dur) var(--tm-ease)",
+              letterSpacing: "0.02em",
+            }}
+          >
+            Get my Myro Score →
+          </button>
+        )}
       </form>
 
       <style>{`
@@ -269,6 +493,14 @@ export function StepRole({ onNext, loading }: Props) {
           from { opacity: 0; transform: scale(0.85) translateY(4px); }
           to   { opacity: 1; transform: scale(1) translateY(0); }
         }
+        @keyframes loadIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes tm-spin-slow {
+          to { transform: rotate(360deg); }
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   )

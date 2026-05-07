@@ -21,7 +21,7 @@ export default function SkillsPage() {
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     retry: false,
@@ -29,11 +29,11 @@ export default function SkillsPage() {
 
   const recompute = useMutation({
     mutationFn: () => scores.compute(token!),
-    onSuccess: () => invalidateScoreData(queryClient, token),
+    onSuccess: () => invalidateScoreData(queryClient),
   })
 
   const { data: userSkills, isLoading: skillsLoading } = useQuery({
-    queryKey: dataKeys.userSkills(token),
+    queryKey: dataKeys.userSkills(),
     queryFn: () => users.mySkills(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
