@@ -9,6 +9,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
+from app.services.location_normalizer import normalize_location
 from app.services.scoring_engine import _PROFICIENCY_TITLES
 
 
@@ -44,6 +45,9 @@ class UsersRepository:
         payload = {"id": user_id, **updates}
         if email:
             payload.setdefault("email", email)
+        if "target_location" in payload:
+            parsed = normalize_location(payload["target_location"])
+            payload["target_location_country"] = parsed.location_country
         self._db.table("user_profiles").upsert(payload, on_conflict="id").execute()
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:

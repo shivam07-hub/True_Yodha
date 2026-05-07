@@ -594,17 +594,19 @@ export interface MarketAnalytics {
   total_jobs: number
   total_companies: number
   total_industries: number
+  latest_batch?: string | null
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
   by_role: NameCountItem[]
   by_location_city: NameCountItem[]
   by_location_country: NameCountItem[]
   by_location_mode: NameCountItem[]
-  top_skills: SkillCountItem[]
-  company_skills: Record<string, string[]>
-  industry_skills: Record<string, string[]>
-  company_skill_counts: Record<string, SkillCountItem[]>
-  industry_skill_counts: Record<string, SkillCountItem[]>
+}
+
+export interface EntitySkillsData {
+  entity: string
+  type: string
+  skills: SkillCountItem[]
 }
 
 export interface JobLocationFilters {
@@ -687,6 +689,17 @@ export const jobs = {
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  analyticsEntitySkills: (
+    entity: string,
+    type: "company" | "industry",
+    locationFilters?: JobLocationFilters,
+  ) => {
+    const params = new URLSearchParams({ entity, type })
+    if (locationFilters?.locationCity?.trim()) params.set("location_city", locationFilters.locationCity.trim())
+    if (locationFilters?.locationCountry?.trim()) params.set("location_country", locationFilters.locationCountry.trim())
+    if (locationFilters?.locationMode?.trim()) params.set("location_mode", locationFilters.locationMode.trim())
+    return request<EntitySkillsData>(`/jobs/analytics/skills?${params.toString()}`)
   },
   search: (
     company: string,

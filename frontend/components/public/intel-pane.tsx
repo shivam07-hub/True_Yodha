@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import type { MarketAnalytics, SkillCountItem } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
@@ -112,18 +113,11 @@ function SkillChip({ skill, count }: { skill: string; count: number }) {
 }
 
 function buildLists(analytics: MarketAnalytics | undefined) {
-  const toSkillCounts = (skills: string[]): SkillCountItem[] =>
-    skills.map((skill) => ({ skill, count: 0 }))
-
   const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
-    name: c.name, roles: c.count,
-    skills: analytics?.company_skill_counts?.[c.name] ?? toSkillCounts(analytics?.company_skills?.[c.name] ?? []),
-    type: "company" as const,
+    name: c.name, roles: c.count, skills: [], type: "company" as const,
   }))
   const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
-    name: ind.name, roles: ind.count,
-    skills: analytics?.industry_skill_counts?.[ind.name] ?? toSkillCounts(analytics?.industry_skills?.[ind.name] ?? []),
-    type: "industry" as const,
+    name: ind.name, roles: ind.count, skills: [], type: "industry" as const,
   }))
   return { companies, industries }
 }
@@ -154,6 +148,17 @@ export function IntelPane() {
       locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
     }),
     staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: entitySkillsData, isLoading: skillsLoading } = useQuery({
+    queryKey: dataKeys.entitySkills(selected?.name, selected?.type, selectedCity, selectedCountry, selectedMode),
+    queryFn: () => jobs.analyticsEntitySkills(
+      selected!.name,
+      selected!.type as "company" | "industry",
+      { locationCity: selectedCity || undefined, locationCountry: selectedCountry || undefined, locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined },
+    ),
+    enabled: !!selected,
+    staleTime: 60 * 60 * 1000,
   })
 
   const { companies, industries } = buildLists(analytics)
@@ -340,9 +345,17 @@ export function IntelPane() {
                   <div style={{ fontSize: 12, color: "var(--tm-accent)" }}>{selected.roles.toLocaleString()} open roles</div>
                 </div>
 
-                {selected.skills.length > 0 ? (() => {
-                  const hard = selected.skills.filter((s) => !issoft(s.skill))
-                  const soft = selected.skills.filter((s) => issoft(s.skill))
+                {skillsLoading ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="animate-pulse" style={{ height: 28, width: `${70 + (i % 3) * 30}px`, borderRadius: 999 }} />
+                    ))}
+                  </div>
+                ) : (() => {
+                  const skills = entitySkillsData?.skills ?? []
+                  const hard = skills.filter((s) => !issoft(s.skill))
+                  const soft = skills.filter((s) => issoft(s.skill))
+                  if (skills.length === 0) return <div style={{ color: "var(--tm-text-faint)", fontSize: 13 }}>No skill data available.</div>
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                       {hard.length > 0 && (
@@ -366,9 +379,7 @@ export function IntelPane() {
                       )}
                     </div>
                   )
-                })() : (
-                  <div style={{ color: "var(--tm-text-faint)", fontSize: 13 }}>No skill data available.</div>
-                )}
+                })()}
               </>
             ) : (
               <div style={{

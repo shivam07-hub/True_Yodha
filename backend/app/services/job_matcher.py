@@ -12,7 +12,6 @@ Overlap formula (0–100):
 
 Aspiration reranking:
   +30% when any target_role token appears in job_title (case-insensitive)
-  +20% when target_location appears in location OR location contains Remote/Hybrid
 
 Anti-bias cap:
   No single company exceeds 30% of top_n results.
@@ -22,7 +21,6 @@ from typing import Callable
 PRIMARY_WEIGHT = 2.0
 SECONDARY_WEIGHT = 1.0
 ROLE_BOOST = 1.3
-LOCATION_BOOST = 1.2
 COMPANY_CAP_RATIO = 0.30
 
 
@@ -31,7 +29,6 @@ def get_top_matches(
     user_skill_map: dict[str, int],
     job_meta_fetcher: Callable[[list[str]], list[dict]],
     target_roles: list[str] | None = None,
-    target_location: str | None = None,
     top_n: int = 10,
 ) -> list[dict]:
     """
@@ -99,7 +96,6 @@ def get_top_matches(
     job_meta: dict[str, dict] = {row["job_id"]: row for row in jobs_data}
 
     role_tokens = [r.lower() for r in (target_roles or []) if r]
-    loc_lower = (target_location or "").lower()
 
     full_scored: list[dict] = []
     for job in candidates:
@@ -111,10 +107,6 @@ def get_top_matches(
         title_lower = (meta.get("job_title") or "").lower()
         if role_tokens and any(tok in title_lower for tok in role_tokens):
             boosted = round(boosted * ROLE_BOOST, 1)
-
-        job_loc = (meta.get("location") or "").lower()
-        if loc_lower and (loc_lower in job_loc or "remote" in job_loc or "hybrid" in job_loc):
-            boosted = round(boosted * LOCATION_BOOST, 1)
 
         full_scored.append({
             "job_id": job["job_id"],

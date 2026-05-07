@@ -300,3 +300,22 @@ class MarketAnalyticsResponse(BaseModel):
     industry_skills: dict[str, list[str]] = {}
     company_skill_counts: dict[str, list[SkillCountItem]] = {}
     industry_skill_counts: dict[str, list[SkillCountItem]] = {}
+
+
+class MarketAnalyticsSummaryResponse(BaseModel):
+    total_jobs: int
+    total_companies: int
+    total_industries: int
+    latest_batch: str | None
+    by_company: list[NameCountItem]
+    by_industry: list[NameCountItem]
+    by_role: list[NameCountItem] = []
+    by_location_city: list[NameCountItem] = []
+    by_location_country: list[NameCountItem] = []
+    by_location_mode: list[NameCountItem] = []
+
+
+class EntitySkillsResponse(BaseModel):
+    entity: str
+    type: str
+    skills: list[SkillCountItem]

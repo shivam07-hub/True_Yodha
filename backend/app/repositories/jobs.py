@@ -17,6 +17,7 @@ from app.services.location_normalizer import normalize_location
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
+_entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
 SKILL_DRILL_MAX_PAGE_SIZE = 100
 ENTITY_SKILL_LIMIT = 20
 
@@ -219,24 +220,8 @@ class JobsRepository:
             query_builder=query_builder,
         )
 
-        # Build skill map from FK-enforced job_skills JOIN skills (primary + secondary).
-        # Do NOT pass job_ids here — with 25k+ jobs the .in_() URL exceeds PostgREST limits.
-        # Python-side join below correctly scopes skills to fetched jobs.
-        skill_rows = fetch_job_skill_rows(
-            self._db,
-            columns="job_id, skills(taxonomy_key,display_name)",
-        )
-
-        skill_map: dict[str, list[str]] = {}
-        for row in skill_rows:
-            skill = row.get("skills") or {}
-            key = (skill.get("display_name") or skill.get("taxonomy_key") or "").strip()
-            if key:
-                skill_map.setdefault(row["job_id"], []).append(key)
-
         for job in jobs:
             _hydrate_location_fields(job)
-            job["main_skills"] = skill_map.get(job["job_id"], [])
 
         return [
             job
@@ -271,6 +256,70 @@ class JobsRepository:
         payload = self._analytics_compiler.compile(rows)
         _analytics_cache[cache_key] = (now, payload)
         return payload
+
+    def fetch_entity_skills(
+        self,
+        entity_name: str,
+        entity_type: str,
+        *,
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
+    ) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        cache_key = (
+            entity_name,
+            entity_type,
+            _norm_filter(location_city),
+            _norm_filter(location_country),
+            _norm_filter(location_mode),
+        )
+        cached = _entity_skills_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
+
+        def _entity_filter(query: Any) -> Any:
+            if entity_type == "company":
+                return query.eq("company_name", entity_name)
+            return query.eq("industry_group", entity_name)
+
+        entity_jobs = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, location_city, location_country, location_mode, location_quality",
+            query_builder=_entity_filter,
+        )
+        for job in entity_jobs:
+            _hydrate_location_fields(job)
+        job_ids = [
+            job["job_id"]
+            for job in entity_jobs
+            if _matches_location_filters(
+                job,
+                location_city=location_city,
+                location_country=location_country,
+                location_mode=location_mode,
+            )
+        ]
+        if not job_ids:
+            _entity_skills_cache[cache_key] = (now, [])
+            return []
+
+        skill_rows = fetch_job_skill_rows(
+            self._db,
+            columns="job_id, skills(taxonomy_key, display_name)",
+            job_ids=job_ids,
+        )
+        skill_counter: Counter[str] = Counter()
+        for row in skill_rows:
+            skill = row.get("skills") or {}
+            key = (skill.get("display_name") or skill.get("taxonomy_key") or "").strip()
+            if key:
+                skill_counter[key] += 1
+
+        result = [{"skill": s, "count": c} for s, c in skill_counter.most_common(ENTITY_SKILL_LIMIT)]
+        _entity_skills_cache[cache_key] = (now, result)
+        return result
 
     def search_jobs_by_filters(
         self,
@@ -450,8 +499,48 @@ class JobsRepository:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
-    def get_candidate_job_ids_for_skills(self, skill_keys: list[str]) -> list[str]:
-        """Job_ids that have at least one skill in skill_keys. Used to scope matcher fetch."""
+    _LOCATION_FILTER_CHUNK = 200
+
+    def _filter_job_ids_by_location(
+        self,
+        job_ids: list[str],
+        target_location_country: str,
+    ) -> list[str]:
+        """Hard-filter job_ids by target country.
+
+        Include if location_country matches OR (location_country is NULL AND mode is remote/hybrid).
+        Queries in chunks of 200 to stay within PostgREST URL limits.
+        """
+        country_lower = target_location_country.strip().lower()
+        result: list[str] = []
+        for i in range(0, len(job_ids), self._LOCATION_FILTER_CHUNK):
+            chunk = job_ids[i:i + self._LOCATION_FILTER_CHUNK]
+            rows = (
+                self._db.table("jobs")
+                .select("job_id, location_country, location_mode")
+                .in_("job_id", chunk)
+                .execute()
+            ).data or []
+            for row in rows:
+                country = (row.get("location_country") or "").strip().lower()
+                mode = (row.get("location_mode") or "").strip().lower()
+                if country and country == country_lower:
+                    result.append(row["job_id"])
+                elif not country and mode in ("remote", "hybrid"):
+                    result.append(row["job_id"])
+        return result
+
+    def get_candidate_job_ids_for_skills(
+        self,
+        skill_keys: list[str],
+        *,
+        target_location_country: str | None = None,
+    ) -> list[str]:
+        """Job_ids that have at least one skill in skill_keys, filtered by target location.
+
+        target_location_country: if set, only jobs in that country (or remote/hybrid with
+        no country set) are returned. None means no location filter.
+        """
         if not skill_keys:
             return []
 
@@ -484,7 +573,10 @@ class JobsRepository:
             columns="job_id",
             query_builder=lambda q: q.in_("skill_id", skill_ids),
         )
-        return list({r["job_id"] for r in js_rows})
+        all_job_ids = list({r["job_id"] for r in js_rows})
+        if not target_location_country:
+            return all_job_ids
+        return self._filter_job_ids_by_location(all_job_ids, target_location_country)
 
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
@@ -554,7 +646,7 @@ class JobsRepository:
     def get_user_profile_targeting(self, user_id: str) -> dict[str, Any]:
         result = (
             self._db.table("user_profiles")
-            .select("target_roles, target_location")
+            .select("target_roles, target_location, target_location_country")
             .eq("id", user_id)
             .maybe_single()
             .execute()

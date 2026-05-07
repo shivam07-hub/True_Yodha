@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch, SkillCountItem } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
@@ -218,20 +219,23 @@ export default function MarketPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: entitySkillsData, isLoading: skillsLoading } = useQuery({
+    queryKey: dataKeys.entitySkills(selected?.name, selected?.type, selectedCity, selectedCountry, selectedMode),
+    queryFn: () => jobs.analyticsEntitySkills(
+      selected!.name,
+      selected!.type as "company" | "industry",
+      { locationCity: selectedCity || undefined, locationCountry: selectedCountry || undefined, locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined },
+    ),
+    enabled: !!selected,
+    staleTime: 60 * 60 * 1000,
+  })
+
   const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
-    name: c.name, roles: c.count,
-    skills:
-      analytics?.company_skill_counts?.[c.name]
-      ?? (analytics?.company_skills?.[c.name] ?? []).map((skill) => ({ skill, count: 0 })),
-    type: "company" as const,
+    name: c.name, roles: c.count, skills: [], type: "company" as const,
   }))
 
   const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
-    name: ind.name, roles: ind.count,
-    skills:
-      analytics?.industry_skill_counts?.[ind.name]
-      ?? (analytics?.industry_skills?.[ind.name] ?? []).map((skill) => ({ skill, count: 0 })),
-    type: "industry" as const,
+    name: ind.name, roles: ind.count, skills: [], type: "industry" as const,
   }))
 
   const baseList = view === "companies" ? companies : industries
@@ -690,13 +694,19 @@ export default function MarketPage() {
                   <div style={{ fontSize: 12, color: "var(--tm-accent)", marginBottom: 14 }}>
                     {selected.roles.toLocaleString()} open roles
                   </div>
-                  {selected.skills.length > 0 ? (
+                  {skillsLoading ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-9 w-full animate-pulse" style={{ borderRadius: "var(--tm-radius-sm)" }} />
+                      ))}
+                    </div>
+                  ) : (entitySkillsData?.skills ?? []).length > 0 ? (
                     <>
                       <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
                         {selected.type === "company" ? "Click a skill to see matching jobs" : "Skills in demand"}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        {[...selected.skills].slice(0, 20).map((s) => (
+                        {(entitySkillsData?.skills ?? []).map((s) => (
                           <div
                             key={s.skill}
                             onClick={() => {

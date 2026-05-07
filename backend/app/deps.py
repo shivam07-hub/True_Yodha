@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.database import get_supabase, get_supabase_admin
+from app.services.location_normalizer import normalize_location
 
 _bearer = HTTPBearer()
 _logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ _logger = logging.getLogger(__name__)
 # Per-process cache of user_ids whose profile row we've already ensured this
 # session. Avoids a round-trip on every authenticated request.
 _provisioned_users: set[str] = set()
+_location_backfilled_users: set[str] = set()
 
 
 def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str | None) -> None:
@@ -40,6 +42,23 @@ def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str 
         _logger.warning("Auto-provision failed for user %s: %s: %s", user_id, type(exc).__name__, exc)
 
 
+def _ensure_location_country_backfilled(user_id: str) -> None:
+    """If target_location is set but target_location_country is not, normalize and write it. Fails open."""
+    if user_id in _location_backfilled_users:
+        return
+    try:
+        admin = get_supabase_admin()
+        result = admin.table("user_profiles").select("target_location, target_location_country").eq("id", user_id).maybe_single().execute()
+        data = (result.data if result else None) or {}
+        if data.get("target_location") and not data.get("target_location_country"):
+            parsed = normalize_location(data["target_location"])
+            if parsed.location_country:
+                admin.table("user_profiles").update({"target_location_country": parsed.location_country}).eq("id", user_id).execute()
+        _location_backfilled_users.add(user_id)
+    except Exception as exc:
+        _logger.warning("Location country backfill failed for user %s: %s: %s", user_id, type(exc).__name__, exc)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
@@ -53,6 +72,7 @@ async def get_current_user(
         if isinstance(metadata, dict):
             full_name = metadata.get("full_name") or metadata.get("name")
         _ensure_profile_provisioned(response.user.id, response.user.email, full_name)
+        _ensure_location_country_backfilled(response.user.id)
         return {
             "user_id": response.user.id,
             "email": response.user.email,

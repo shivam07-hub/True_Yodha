@@ -33,6 +33,13 @@ export const dataKeys = {
     locationCountry?: string | null,
     locationMode?: string | null,
   ) => ["jobs-analytics-me", cluster ?? "", locationCity ?? "", locationCountry ?? "", locationMode ?? ""] as const,
+  entitySkills: (
+    entity: string | null | undefined,
+    type: string | null | undefined,
+    locationCity?: string | null,
+    locationCountry?: string | null,
+    locationMode?: string | null,
+  ) => ["entity-skills", entity ?? "", type ?? "", locationCity ?? "", locationCountry ?? "", locationMode ?? ""] as const,
   jobsSearch: (
     company: string | null | undefined,
     roleDomain?: string | null,

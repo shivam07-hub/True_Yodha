@@ -147,7 +147,10 @@ async def compute_job_matches(
     }
     profile = repo.get_user_profile_targeting(user_id)
     target_roles_count = len(profile.get("target_roles") or [])
-    candidate_job_ids = repo.get_candidate_job_ids_for_skills(list(user_skill_map.keys()))
+    candidate_job_ids = repo.get_candidate_job_ids_for_skills(
+        list(user_skill_map.keys()),
+        target_location_country=profile.get("target_location_country"),
+    )
     if not candidate_job_ids:
         logger.warning(
             "compute_job_matches: no candidate jobs for user=%s skills=%d",
@@ -174,7 +177,6 @@ async def compute_job_matches(
         user_skill_map,
         job_meta_fetcher=repo.get_jobs_by_ids,
         target_roles=profile.get("target_roles") or [],
-        target_location=profile.get("target_location"),
         top_n=10,
     )
     logger.info(

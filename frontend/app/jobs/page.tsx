@@ -121,7 +121,6 @@ export default function JobsPage() {
   const computeStreamAbortRef = useRef<AbortController | null>(null)
   const [search, setSearch] = useState("")
   const [selectedCity, setSelectedCity] = useState("")
-  const [selectedCountry, setSelectedCountry] = useState("")
   const [selectedMode, setSelectedMode] = useState("")
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
   const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
@@ -243,20 +242,18 @@ export default function JobsPage() {
     const list = matches.data?.jobs ?? []
     const modeFilter = selectedMode.trim().toLowerCase()
     const cityFilter = selectedCity.trim().toLowerCase()
-    const countryFilter = selectedCountry.trim().toLowerCase()
     const byLocation = list.filter((job) => {
       if (cityFilter && (job.location_city || "").toLowerCase() !== cityFilter) return false
-      if (countryFilter && (job.location_country || "").toLowerCase() !== countryFilter) return false
       if (modeFilter && (job.location_mode || "").toLowerCase() !== modeFilter) return false
       return true
     })
     if (!term) return byLocation
     return byLocation.filter((job) =>
-      [job.title, job.company, job.location, job.location_city, job.location_country].filter(Boolean).some((value) =>
+      [job.title, job.company, job.location, job.location_city].filter(Boolean).some((value) =>
         value!.toLowerCase().includes(term),
       ),
     )
-  }, [matches.data?.jobs, search, selectedCity, selectedCountry, selectedMode])
+  }, [matches.data?.jobs, search, selectedCity, selectedMode])
 
   const cityOptions = useMemo(
     () =>
@@ -264,18 +261,6 @@ export default function JobsPage() {
         new Set(
           (matches.data?.jobs ?? [])
             .map((job) => (job.location_city || "").trim())
-            .filter((value) => value && value.toLowerCase() !== "unknown"),
-        ),
-      ).sort((a, b) => a.localeCompare(b)),
-    [matches.data?.jobs],
-  )
-
-  const countryOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          (matches.data?.jobs ?? [])
-            .map((job) => (job.location_country || "").trim())
             .filter((value) => value && value.toLowerCase() !== "unknown"),
         ),
       ).sort((a, b) => a.localeCompare(b)),
@@ -362,20 +347,14 @@ export default function JobsPage() {
                   <option key={city} value={city}>{city}</option>
                 ))}
               </select>
-              <select className="tm-input" style={{ maxWidth: 220, height: 34, fontSize: 12 }} value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value)}>
-                <option value="">All countries</option>
-                {countryOptions.map((country) => (
-                  <option key={country} value={country}>{country}</option>
-                ))}
-              </select>
               <select className="tm-input" style={{ maxWidth: 180, height: 34, fontSize: 12 }} value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
                 <option value="">All modes</option>
                 {modeOptions.map((mode) => (
                   <option key={mode} value={mode}>{mode}</option>
                 ))}
               </select>
-              {(selectedCity || selectedCountry || selectedMode) && (
-                <button className="tm-btn tm-btn-ghost" style={{ height: 34, padding: "0 12px", fontSize: 12 }} onClick={() => { setSelectedCity(""); setSelectedCountry(""); setSelectedMode("") }}>
+              {(selectedCity || selectedMode) && (
+                <button className="tm-btn tm-btn-ghost" style={{ height: 34, padding: "0 12px", fontSize: 12 }} onClick={() => { setSelectedCity(""); setSelectedMode("") }}>
                   Clear location
                 </button>
               )}
