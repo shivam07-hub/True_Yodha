@@ -119,14 +119,8 @@ All phases shipped. See Last Session Summary for details.
 
 ---
 
-### 🔲 OPEN DECISION — CV upload perceived latency (~29s)
-
-LLM bottleneck in `cv_parser.parse_cv()`. Two paths — **decide before implementing:**
-
-| Option | What it means | Tradeoff |
-|---|---|---|
-| **A — Better loading UX** | Step-aware progress ("Extracting skills…", "Mapping taxonomy…", "Computing score…") tied to real stages. Zero backend change. | 29s stays 29s. |
-| **B — Reduce actual latency** | B1: faster model (Gemini Flash). B2: async upload + polling. B3: parallel provider race (targets retry penalty seen in logs). | B3 is lowest effort; B2 adds infra complexity. |
+### ✅ CV upload perceived latency — DONE (2026-05-07)
+Stage timers in `CVUploadProcessing` now match real ~29s window (7s → 20s). Footer copy: "20–30 seconds". No backend change needed.
 
 ---
 
