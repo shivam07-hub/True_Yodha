@@ -8,8 +8,8 @@ const STAGES = [
   { id: "scoring",    label: "Computing your score", sub: "Ranking across all career domains" },
 ]
 
-// Advance stages at roughly even intervals across the expected 5–15 s window
-const STAGE_MS = [2800, 5200]
+// Advance stages across the real ~29s window (LLM call dominates)
+const STAGE_MS = [7000, 20000]
 
 type StageStatus = "pending" | "active" | "done"
 
@@ -229,7 +229,7 @@ export function CVUploadProcessing({ success, result }: Props) {
             letterSpacing: "0.04em",
           }}
         >
-          {success ? "All done" : "Usually takes 5–15 seconds"}
+          {success ? "All done" : "Usually takes 20–30 seconds"}
         </p>
     </div>
   )
