@@ -16,6 +16,15 @@ _IN_CHUNK_SIZE = 200
 
 logger = logging.getLogger(__name__)
 
+_RPC_NAME = "fetch_job_skills_by_job_ids"
+_rpc_disabled_for_process = False
+_rpc_missing_logged = False
+
+
+def _is_missing_rpc_signature_error(exc: Exception) -> bool:
+    message = str(exc)
+    return "PGRST202" in message or "Could not find the function public.fetch_job_skills_by_job_ids" in message
+
 
 def fetch_all_rows(
     db: Client,
@@ -60,7 +69,7 @@ def fetch_job_skill_rows_via_rpc(
     """Single-round-trip RPC call; body-encoded array avoids PostgREST URL-length limits."""
     if not job_ids:
         return []
-    result = db.rpc("fetch_job_skills_by_job_ids", {"job_ids": job_ids}).execute()
+    result = db.rpc(_RPC_NAME, {"job_ids": job_ids}).execute()
     return _adapt_rpc_rows(result.data or [])
 
 
@@ -102,19 +111,32 @@ def fetch_job_skill_rows(
     job_ids: list[str] | None = None,
     page_size: int = SUPABASE_PAGE_SIZE,
 ) -> list[dict[str, Any]]:
+    global _rpc_disabled_for_process, _rpc_missing_logged
+
     if job_ids is not None and len(job_ids) == 0:
         return []
 
     # When job_ids are scoped, use RPC to avoid PostgREST URL-length 400s.
     # Fall back to chunked .in_() queries if RPC is unavailable.
     if job_ids is not None:
-        try:
-            return fetch_job_skill_rows_via_rpc(db, job_ids)
-        except Exception as exc:
-            logger.warning("fetch_job_skills RPC failed (%s), falling back to chunked .in_()", exc)
-            return _fetch_job_skill_rows_chunked(
-                db, job_ids, only_primary=only_primary, columns=columns, page_size=page_size
-            )
+        if not _rpc_disabled_for_process:
+            try:
+                return fetch_job_skill_rows_via_rpc(db, job_ids)
+            except Exception as exc:
+                if _is_missing_rpc_signature_error(exc):
+                    _rpc_disabled_for_process = True
+                    if not _rpc_missing_logged:
+                        logger.warning(
+                            "fetch_job_skills RPC unavailable (%s); disabling RPC path and using chunked .in_()",
+                            exc,
+                        )
+                        _rpc_missing_logged = True
+                else:
+                    logger.warning("fetch_job_skills RPC failed (%s), falling back to chunked .in_()", exc)
+
+        return _fetch_job_skill_rows_chunked(
+            db, job_ids, only_primary=only_primary, columns=columns, page_size=page_size
+        )
 
     def _query_builder(query: Any) -> Any:
         if only_primary is not None:

@@ -18,67 +18,79 @@ def build_user_skill_demand(
     repo: JobsRepository,
     user_id: str,
 ) -> list[dict[str, Any]]:
-    user_skills: dict[str, dict[str, Any]] = {}
-    for row in repo.get_user_skills_with_taxonomy(user_id):
-        skill = row.get("skills")
-        if not skill:
-            continue
-        key = (skill.get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        user_skills[key.lower()] = {
-            "skill": key,
-            "display_name": (skill.get("display_name") or key).strip() or key,
-            "current_level": int(row.get("matched_level") or 0),
-            "proficiency_title": row.get("proficiency_title") or "Scout",
-        }
+    if hasattr(repo, "get_user_skill_demand_snapshot"):
+        items = list(repo.get_user_skill_demand_snapshot(user_id))
+    else:
+        # Backward-compatible fallback for seam tests and lightweight fakes.
+        user_skills: dict[str, dict[str, Any]] = {}
+        for row in repo.get_user_skills_with_taxonomy(user_id):
+            skill = row.get("skills")
+            if not skill:
+                continue
+            key = (skill.get("taxonomy_key") or "").strip()
+            if not key:
+                continue
+            user_skills[key.lower()] = {
+                "skill": key,
+                "display_name": (skill.get("display_name") or key).strip() or key,
+                "current_level": int(row.get("matched_level") or 0),
+                "proficiency_title": row.get("proficiency_title") or "Scout",
+            }
 
-    if not user_skills:
+        if not user_skills:
+            return []
+
+        weighted_demand: dict[str, int] = {}
+        job_count: dict[str, int] = {}
+        for row in repo.get_all_jobs_skills():
+            seen_in_job: set[str] = set()
+
+            for raw_skill in row.get("main_skills") or []:
+                skill_key = (raw_skill or "").strip().lower()
+                if skill_key and skill_key in user_skills:
+                    weighted_demand[skill_key] = weighted_demand.get(skill_key, 0) + 2
+                    seen_in_job.add(skill_key)
+
+            for raw_skill in row.get("side_skills") or []:
+                skill_key = (raw_skill or "").strip().lower()
+                if skill_key and skill_key in user_skills:
+                    weighted_demand[skill_key] = weighted_demand.get(skill_key, 0) + 1
+                    seen_in_job.add(skill_key)
+
+            for skill_key in seen_in_job:
+                job_count[skill_key] = job_count.get(skill_key, 0) + 1
+
+        items = []
+        for skill_key, skill_meta in user_skills.items():
+            items.append(
+                {
+                    **skill_meta,
+                    "job_count_30d": job_count.get(skill_key, 0),
+                    "weighted_demand": weighted_demand.get(skill_key, 0),
+                }
+            )
+
+    if not items:
         return []
-
-    weighted_demand: dict[str, int] = {}
-    job_count: dict[str, int] = {}
-    for row in repo.get_all_jobs_skills():
-        seen_in_job: set[str] = set()
-
-        for raw_skill in row.get("main_skills") or []:
-            skill_key = (raw_skill or "").strip().lower()
-            if skill_key and skill_key in user_skills:
-                weighted_demand[skill_key] = weighted_demand.get(skill_key, 0) + 2
-                seen_in_job.add(skill_key)
-
-        for raw_skill in row.get("side_skills") or []:
-            skill_key = (raw_skill or "").strip().lower()
-            if skill_key and skill_key in user_skills:
-                weighted_demand[skill_key] = weighted_demand.get(skill_key, 0) + 1
-                seen_in_job.add(skill_key)
-
-        for skill_key in seen_in_job:
-            job_count[skill_key] = job_count.get(skill_key, 0) + 1
 
     target_roles = repo.get_user_target_roles(user_id)
     aspiration = fetch_aspiration_skills(ScoresRepository(repo.client), target_roles)
     aspiration_by_key = {key.lower(): level for key, level in aspiration.items()}
 
-    items: list[dict[str, Any]] = []
-    for skill_key, skill_meta in user_skills.items():
-        current_level = skill_meta["current_level"]
+    enriched_items: list[dict[str, Any]] = []
+    for item in items:
+        skill_key = str(item.get("skill") or "").strip().lower()
+        current_level = int(item.get("current_level") or 0)
         target_level = aspiration_by_key.get(skill_key)
-        needs_upgrade = target_level is not None and current_level < target_level
-        items.append(
+        enriched_items.append(
             {
-                "skill": skill_meta["skill"],
-                "display_name": skill_meta["display_name"],
-                "current_level": current_level,
-                "proficiency_title": skill_meta["proficiency_title"],
+                **item,
                 "target_level": target_level,
-                "needs_upgrade": needs_upgrade,
-                "job_count_30d": job_count.get(skill_key, 0),
-                "weighted_demand": weighted_demand.get(skill_key, 0),
+                "needs_upgrade": target_level is not None and current_level < target_level,
             }
         )
 
-    items.sort(
+    enriched_items.sort(
         key=lambda item: (
             -item["weighted_demand"],
             -item["job_count_30d"],
@@ -86,7 +98,7 @@ def build_user_skill_demand(
             str(item["display_name"]).lower(),
         )
     )
-    return items
+    return enriched_items
 
 
 async def compute_job_matches(

@@ -33,6 +33,10 @@ groq==0.9.0                      # Groq API client (primary LLM — skill taggin
 # ── HTTP client ─────────────────────────────────────────────────
 httpx==0.27.0                    # async HTTP (used internally)
 
+# ── Async job queue ─────────────────────────────────────────────
+redis==5.0.7                     # Redis client for queue + status storage
+rq==1.16.2                       # durable background worker queue
+
 # ── Email ───────────────────────────────────────────────────────
 sendgrid==6.11.0
 

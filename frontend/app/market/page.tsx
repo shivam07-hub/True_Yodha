@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
-import type { JobSearchItem, JobMatch } from "@/lib/api"
+import type { JobSearchItem, JobMatch, SkillCountItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
@@ -40,7 +40,7 @@ function TrackConfirmModal({ job, onConfirm, onClose }: { job: TrackJob; onConfi
 interface DrillEntity {
   name: string
   roles: number
-  skills: string[]
+  skills: SkillCountItem[]
   type: "company" | "industry"
 }
 
@@ -220,13 +220,17 @@ export default function MarketPage() {
 
   const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
     name: c.name, roles: c.count,
-    skills: analytics?.company_skills?.[c.name] ?? [],
+    skills:
+      analytics?.company_skill_counts?.[c.name]
+      ?? (analytics?.company_skills?.[c.name] ?? []).map((skill) => ({ skill, count: 0 })),
     type: "company" as const,
   }))
 
   const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
     name: ind.name, roles: ind.count,
-    skills: analytics?.industry_skills?.[ind.name] ?? [],
+    skills:
+      analytics?.industry_skill_counts?.[ind.name]
+      ?? (analytics?.industry_skills?.[ind.name] ?? []).map((skill) => ({ skill, count: 0 })),
     type: "industry" as const,
   }))
 
@@ -692,12 +696,12 @@ export default function MarketPage() {
                         {selected.type === "company" ? "Click a skill to see matching jobs" : "Skills in demand"}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        {[...selected.skills].slice(0, 10).map((s) => (
+                        {[...selected.skills].slice(0, 20).map((s) => (
                           <div
-                            key={s}
+                            key={s.skill}
                             onClick={() => {
                               if (selected.type !== "company") return
-                              setDrillSkill({ company: selected.name, skill: s })
+                              setDrillSkill({ company: selected.name, skill: s.skill })
                               setDrillPage(1)
                             }}
                             style={{
@@ -712,7 +716,10 @@ export default function MarketPage() {
                             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
                           >
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", flexShrink: 0 }} />
-                            <span style={{ flex: 1, fontSize: 13, color: "var(--tm-text)" }}>{s}</span>
+                            <span style={{ flex: 1, fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
+                            <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                              {s.count.toLocaleString()}
+                            </span>
                             {selected.type === "company" && (
                               <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>›</span>
                             )}

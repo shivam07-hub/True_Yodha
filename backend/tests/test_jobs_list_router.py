@@ -178,6 +178,27 @@ def test_get_market_analytics_passes_role_filter_to_repository() -> None:
     assert result.by_role[0].name == "Software Engineering"
 
 
+def test_get_market_analytics_exposes_company_skill_frequencies() -> None:
+    repo = _FakeJobsRepo()
+    repo._rows.append(
+        {
+            "job_id": "j4",
+            "company_name": "Acme",
+            "industry": "IT Services",
+            "industry_group": None,
+            "role_domain": "Software Engineering",
+            "batch_date": 20260504,
+            "main_skills": ["Python", "Cloud Computing"],
+        }
+    )
+
+    result = asyncio.run(get_market_analytics(repo=repo))
+
+    acme = result.company_skill_counts["Acme"]
+    assert acme[0].skill == "Python"
+    assert acme[0].count == 2
+
+
 def test_search_jobs_passes_role_and_skill_filters() -> None:
     repo = _FakeJobsRepo()
 

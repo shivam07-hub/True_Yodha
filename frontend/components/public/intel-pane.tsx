@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
-import type { MarketAnalytics } from "@/lib/api"
+import type { MarketAnalytics, SkillCountItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
@@ -29,7 +29,7 @@ function issoft(skill: string) {
 interface DrillEntity {
   name: string
   roles: number
-  skills: string[]
+  skills: SkillCountItem[]
   type: "company" | "industry"
 }
 
@@ -89,11 +89,11 @@ function IntelBar({ label, count, max, active, onClick }: {
   )
 }
 
-function SkillChip({ skill }: { skill: string }) {
+function SkillChip({ skill, count }: { skill: string; count: number }) {
   const soft = issoft(skill)
   return (
     <div style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 8,
       padding: "4px 10px", borderRadius: 999, fontSize: 12,
       background: soft ? "var(--tm-hover)" : "var(--tm-accent-wash)",
       border: `1px solid ${soft ? "var(--tm-border-soft)" : "var(--tm-accent-ring)"}`,
@@ -104,19 +104,25 @@ function SkillChip({ skill }: { skill: string }) {
         background: soft ? "var(--tm-text-faint)" : "var(--tm-accent)",
       }} />
       {skill}
+      <span style={{ color: "var(--tm-text-faint)", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
+        {count.toLocaleString()}
+      </span>
     </div>
   )
 }
 
 function buildLists(analytics: MarketAnalytics | undefined) {
+  const toSkillCounts = (skills: string[]): SkillCountItem[] =>
+    skills.map((skill) => ({ skill, count: 0 }))
+
   const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
     name: c.name, roles: c.count,
-    skills: analytics?.company_skills?.[c.name] ?? [],
+    skills: analytics?.company_skill_counts?.[c.name] ?? toSkillCounts(analytics?.company_skills?.[c.name] ?? []),
     type: "company" as const,
   }))
   const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
     name: ind.name, roles: ind.count,
-    skills: analytics?.industry_skills?.[ind.name] ?? [],
+    skills: analytics?.industry_skill_counts?.[ind.name] ?? toSkillCounts(analytics?.industry_skills?.[ind.name] ?? []),
     type: "industry" as const,
   }))
   return { companies, industries }
@@ -335,15 +341,15 @@ export function IntelPane() {
                 </div>
 
                 {selected.skills.length > 0 ? (() => {
-                  const hard = selected.skills.filter((s) => !issoft(s))
-                  const soft = selected.skills.filter((s) => issoft(s))
+                  const hard = selected.skills.filter((s) => !issoft(s.skill))
+                  const soft = selected.skills.filter((s) => issoft(s.skill))
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                       {hard.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Hard Skills</div>
+                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Hard Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {hard.slice(0, 8).map((s) => <SkillChip key={s} skill={s} />)}
+                            {hard.slice(0, 12).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
                         </div>
                       )}
@@ -352,9 +358,9 @@ export function IntelPane() {
                       )}
                       {soft.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Soft Skills</div>
+                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Soft Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {soft.slice(0, 6).map((s) => <SkillChip key={s} skill={s} />)}
+                            {soft.slice(0, 8).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
                         </div>
                       )}

@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # Environment
     railway_environment: str = "development"
 
+    # Redis (durable async jobs)
+    redis_url: str = ""
+    job_compute_queue_name: str = "jobs_compute"
+    job_compute_status_ttl_seconds: int = 24 * 3600
+    job_compute_lock_ttl_seconds: int = 30 * 60
+
     # CORS — comma-separated string, e.g.:
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
     allowed_origins: str = "*"

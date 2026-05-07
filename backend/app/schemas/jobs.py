@@ -1,4 +1,6 @@
 from datetime import date, datetime
+from typing import Any, Literal
+
 from pydantic import BaseModel
 
 
@@ -82,6 +84,27 @@ class ComputeJobMatchesResponse(BaseModel):
     batch_week: date
     needs_onboarding: bool = False
     debug: dict[str, int | bool | None] | None = None
+    status: Literal["idle", "queued", "running", "succeeded", "failed"] = "queued"
+    already_running: bool = False
+    job_id: str | None = None
+    message: str | None = None
+
+
+class JobComputeStatusResponse(BaseModel):
+    user_id: str
+    batch_week: date
+    status: Literal["idle", "queued", "running", "succeeded", "failed"]
+    job_id: str | None = None
+    already_running: bool = False
+    matches_written: int | None = None
+    from_cache: bool | None = None
+    needs_onboarding: bool | None = None
+    debug: dict[str, Any] | None = None
+    message: str | None = None
+    error: str | None = None
+    enqueued_at: datetime | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 class ApplicationResponse(BaseModel):
@@ -275,3 +298,5 @@ class MarketAnalyticsResponse(BaseModel):
     top_skills: list[SkillCountItem]
     company_skills: dict[str, list[str]] = {}
     industry_skills: dict[str, list[str]] = {}
+    company_skill_counts: dict[str, list[SkillCountItem]] = {}
+    industry_skill_counts: dict[str, list[SkillCountItem]] = {}

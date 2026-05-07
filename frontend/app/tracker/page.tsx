@@ -1,38 +1,22 @@
 "use client"
 
-import Script from "next/script"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   jobs,
   scores,
   type ApplicationResponse,
   type ApplicationStatus,
-  type GapSkill,
   type JobPathMilestone,
   type JobPathResponse,
   type JobMatch,
+  type JobComputeStatusResponse,
   type SkillGapItem,
   type UserSkillDemandItem,
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
-import {
-  askPuter,
-  buildChatPrompt,
-  ensurePuterSignedIn,
-  hasSeenPuterIntro,
-  isPuterSignedIn,
-  markPuterIntroSeen,
-} from "@/lib/puter-ai"
 import {
   buildDiarySelectionsHref,
   toggleDiarySelection,
@@ -433,188 +417,6 @@ function JobCard({
         )}
       </div>
     </div>
-  )
-}
-
-type TutorMessage = {
-  role: "ai" | "user"
-  text: string
-}
-
-function buildTutorContext(topJobs: JobMatch[], topGapSkills: GapSkill[]): string {
-  const jobsSummary = topJobs
-    .slice(0, 5)
-    .map((job, index) => `${index + 1}. ${job.title} at ${job.company ?? "Unknown company"} (fit ${Math.round(job.overlap_score)}%)`)
-    .join("\n")
-  const gapSummary = topGapSkills
-    .slice(0, 5)
-    .map((skill, index) => `${index + 1}. ${skill.skill} (gap ${Math.round(skill.gap_score)})`)
-    .join("\n")
-
-  return `You are Myro, the career agent.
-Give practical and concise guidance in plain text.
-You can help with CV bullet improvements, interview prep, skill gap action plans, and job-specific preparation.
-Do not claim to have written to the database, applied for jobs, or changed tracker state.
-If user asks to persist anything, tell them to use product actions in the UI.
-
-Top matched jobs:
-${jobsSummary || "No matched jobs yet"}
-
-Top gap skills:
-${gapSummary || "No gap skill data yet"}`
-}
-
-function AITutor({
-  topJobs,
-  topGapSkills,
-  puterReady,
-}: {
-  topJobs: JobMatch[]
-  topGapSkills: GapSkill[]
-  puterReady: boolean
-}) {
-  const [msg, setMsg] = useState("")
-  const [chat, setChat] = useState<TutorMessage[]>([
-    { role: "ai", text: "Hi, I'm Myro. I can coach you on job-fit strategy, CV bullet upgrades, and interview prep. Ask me what role you want to target next." },
-  ])
-  const [loading, setLoading] = useState(false)
-  const [showIntro, setShowIntro] = useState(false)
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
-
-  const signedIn = puterReady ? isPuterSignedIn() : false
-
-  async function sendToPuter(userMsg: string) {
-    setMsg("")
-    const nextChat = [...chat, { role: "user" as const, text: userMsg }]
-    setChat(nextChat)
-    setLoading(true)
-
-    try {
-      await ensurePuterSignedIn()
-      const prompt = buildChatPrompt(
-        nextChat.map((item) => ({
-          role: item.role === "ai" ? "assistant" : "user",
-          content: item.text,
-        })),
-        buildTutorContext(topJobs, topGapSkills),
-      )
-      const answer = await askPuter(prompt)
-      setChat((current) => [...current, { role: "ai", text: answer }])
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : "Unknown error"
-      setChat((current) => [
-        ...current,
-        { role: "ai", text: `I could not reach Puter right now. ${reason}` },
-      ])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleSend() {
-    const userMsg = msg.trim()
-    if (!userMsg || loading) return
-    if (!puterReady) {
-      setChat((current) => [
-        ...current,
-        { role: "ai", text: "Puter is still loading. Try again in a moment." },
-      ])
-      return
-    }
-    if (!hasSeenPuterIntro()) {
-      setPendingMessage(userMsg)
-      setShowIntro(true)
-      return
-    }
-    await sendToPuter(userMsg)
-  }
-
-  async function continueAfterIntro() {
-    markPuterIntroSeen()
-    setShowIntro(false)
-    const queued = pendingMessage
-    setPendingMessage(null)
-    if (queued) {
-      await sendToPuter(queued)
-    }
-  }
-
-  return (
-    <>
-      <Dialog open={showIntro} onOpenChange={setShowIntro}>
-        <DialogContent className="max-w-md p-0" showCloseButton={false}>
-          <div style={{ padding: 20 }}>
-            <DialogHeader>
-              <DialogTitle style={{ fontSize: 16, color: "var(--tm-text)" }}>Call Puter</DialogTitle>
-              <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
-                This chat uses Puter in the browser for AI guidance. It does not auto-apply jobs or write to your tracker data.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 16, borderTop: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-            <button onClick={() => setShowIntro(false)} className="tm-btn tm-btn-ghost" style={{ height: 36, fontSize: 12 }}>
-              Cancel
-            </button>
-            <button onClick={continueAfterIntro} className="tm-btn tm-btn-primary" style={{ height: 36, fontSize: 12 }}>
-              Continue
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <div style={{
-        background: "var(--tm-surface)",
-        border: "1px solid var(--tm-border)",
-        borderRadius: "var(--tm-radius)",
-        padding: 20,
-        display: "flex", flexDirection: "column", gap: 12,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
-            Myro
-          </div>
-          <div style={{
-            fontSize: 10, color: puterReady ? (signedIn ? "var(--tm-success)" : "var(--tm-warning)") : "var(--tm-text-faint)",
-            border: "1px solid var(--tm-border-soft)", borderRadius: 999, padding: "2px 8px",
-            background: "rgba(255,255,255,0.03)",
-          }}>
-            {puterReady ? (signedIn ? "Puter connected" : "Puter ready") : "Loading Puter..."}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 280, overflowY: "auto" }}>
-          {chat.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{
-                maxWidth: "85%", padding: "10px 14px",
-                borderRadius: m.role === "user" ? "12px 12px 2px 12px" : "2px 12px 12px 12px",
-                background: m.role === "user" ? "var(--tm-accent-wash)" : "var(--tm-surface-2)",
-                border: "1px solid var(--tm-border-soft)",
-                fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.6,
-              }}>{m.text}</div>
-            </div>
-          ))}
-          {loading && <div style={{ fontSize: 13, color: "var(--tm-text-faint)", padding: "4px 0" }}>Thinking...</div>}
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void handleSend()}
-            placeholder="Ask Myro anything..."
-            className="tm-input"
-            style={{ flex: 1, height: 40 }}
-          />
-          <button
-            onClick={() => void handleSend()}
-            disabled={loading}
-            className="tm-btn tm-btn-ghost"
-            style={{ flexShrink: 0, opacity: loading ? 0.6 : 1 }}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </>
   )
 }
 
@@ -1121,7 +923,7 @@ function JobPathPanel({
 export default function TrackerPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
-  const [puterReady, setPuterReady] = useState(false)
+  const computeStreamAbortRef = useRef<AbortController | null>(null)
   const [diarySelections, setDiarySelections] = useState<DiarySkillSelection[]>([])
   const [proofText, setProofText] = useState("")
   const [impactText, setImpactText] = useState("")
@@ -1129,6 +931,7 @@ export default function TrackerPage() {
   const [generatedCvText, setGeneratedCvText] = useState<string | null>(null)
   const [cvNotice, setCvNotice] = useState<string | null>(null)
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
+  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
 
   const matchesQuery = useQuery({
     queryKey: dataKeys.jobs(token),
@@ -1156,17 +959,42 @@ export default function TrackerPage() {
     enabled: !!token,
   })
 
-  const refreshMatches = useMutation({
-    mutationFn: () => jobs.compute(token!),
-    onSuccess: (payload) => {
-      const debug = payload.debug
-      if (payload.from_cache) {
+  function stopComputeStream(): void {
+    computeStreamAbortRef.current?.abort()
+    computeStreamAbortRef.current = null
+  }
+
+  function applyComputeStatus(statusPayload: JobComputeStatusResponse): void {
+    if (statusPayload.status === "queued") {
+      setIsRefreshingMatches(true)
+      setRefreshNotice(statusPayload.message || "Refresh queued. We’ll update this list shortly.")
+      return
+    }
+    if (statusPayload.status === "running") {
+      setIsRefreshingMatches(true)
+      setRefreshNotice(statusPayload.message || "Refreshing matches in the background…")
+      return
+    }
+    if (statusPayload.status === "failed") {
+      setIsRefreshingMatches(false)
+      setRefreshNotice(statusPayload.error || "Refresh failed. Please try again.")
+      stopComputeStream()
+      return
+    }
+    if (statusPayload.status === "succeeded") {
+      setIsRefreshingMatches(false)
+      if (statusPayload.from_cache) {
         setRefreshNotice("Using this week’s cached matches.")
-      } else if (payload.matches_written > 0) {
-        setRefreshNotice(`Updated ${payload.matches_written} matched roles.`)
-      } else if (payload.needs_onboarding) {
+      } else if ((statusPayload.matches_written ?? 0) > 0) {
+        setRefreshNotice(`Updated ${statusPayload.matches_written ?? 0} matched roles.`)
+      } else if (statusPayload.needs_onboarding) {
         setRefreshNotice("Upload your CV first to generate role matches.")
       } else {
+        const debug = statusPayload.debug as {
+          user_skills_count?: number | null
+          candidate_jobs_count?: number | null
+          top_jobs_count?: number | null
+        } | null
         if (debug) {
           const skills = debug.user_skills_count ?? 0
           const candidates = debug.candidate_jobs_count ?? 0
@@ -1177,8 +1005,63 @@ export default function TrackerPage() {
         }
       }
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+      stopComputeStream()
+      return
+    }
+    if (statusPayload.status === "idle") {
+      setIsRefreshingMatches(false)
+      stopComputeStream()
+    }
+  }
+
+  async function startComputeStatusStream(): Promise<void> {
+    if (!token) return
+    stopComputeStream()
+    const controller = new AbortController()
+    computeStreamAbortRef.current = controller
+    try {
+      await jobs.computeStatusStream(token, (statusPayload) => {
+        applyComputeStatus(statusPayload)
+      }, controller.signal)
+    } catch (error) {
+      if (controller.signal.aborted) return
+      setIsRefreshingMatches(false)
+      setRefreshNotice((error as Error).message || "Could not receive refresh progress updates.")
+      stopComputeStream()
+    }
+  }
+
+  const refreshMatches = useMutation({
+    mutationFn: () => jobs.compute(token!),
+    onSuccess: (payload) => {
+      if (payload.status === "queued" || payload.status === "running" || payload.already_running) {
+        setIsRefreshingMatches(true)
+        setRefreshNotice(payload.message || "Refreshing matches in the background…")
+        void startComputeStatusStream()
+        return
+      }
+      // Backward-compatible fallback for sync/legacy responses.
+      applyComputeStatus({
+        user_id: "current",
+        batch_week: payload.batch_week,
+        status: "succeeded",
+        job_id: payload.job_id ?? null,
+        already_running: !!payload.already_running,
+        matches_written: payload.matches_written,
+        from_cache: payload.from_cache,
+        needs_onboarding: payload.needs_onboarding ?? false,
+        debug: payload.debug ?? null,
+        message: payload.message ?? null,
+        error: null,
+        enqueued_at: null,
+        started_at: null,
+        finished_at: null,
+      })
     },
-    onError: () => setRefreshNotice("Refresh failed. Please try again."),
+    onError: () => {
+      setIsRefreshingMatches(false)
+      setRefreshNotice("Refresh failed. Please try again.")
+    },
   })
 
   const updateStatus = useMutation({
@@ -1271,6 +1154,13 @@ export default function TrackerPage() {
     setCvNotice(null)
   }, [selectedJobId, jobPathQuery.data?.today_milestone?.id])
 
+  useEffect(() => {
+    return () => {
+      computeStreamAbortRef.current?.abort()
+      computeStreamAbortRef.current = null
+    }
+  }, [])
+
   const appsByJobId = useMemo(() => {
     const map: Record<string, { status: ApplicationStatus; appliedAt: string | null }> = {}
     for (const app of appsQuery.data ?? []) {
@@ -1296,7 +1186,6 @@ export default function TrackerPage() {
     [appsQuery.data, matchedJobIds],
   )
 
-  const topGapSkills = useMemo(() => (scoresQuery.data?.gap_skills ?? []).slice(0, 4), [scoresQuery.data])
   const topDemandSkills = useMemo(() => (skillDemandQuery.data?.skills ?? []).slice(0, 6), [skillDemandQuery.data])
   const queuedSkillKeys = useMemo(
     () => new Set(diarySelections.map((selection) => skillSelectionKey(selection.skill))),
@@ -1334,11 +1223,6 @@ export default function TrackerPage() {
     {detailJob && <JobDetailModal job={detailJob} onClose={() => setDetailJob(null)} />}
     {appDetailJob && <AppDetailModal app={appDetailJob} onClose={() => setAppDetailJob(null)} />}
     <AppShell>
-      <Script
-        src="https://js.puter.com/v2/"
-        strategy="afterInteractive"
-        onLoad={() => setPuterReady(true)}
-      />
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
 
         {/* Header */}
@@ -1360,11 +1244,11 @@ export default function TrackerPage() {
                 setRefreshNotice(null)
                 refreshMatches.mutate()
               }}
-              disabled={refreshMatches.isPending}
+              disabled={refreshMatches.isPending || isRefreshingMatches}
               className="tm-btn tm-btn-ghost"
-              style={{ opacity: refreshMatches.isPending ? 0.5 : 1 }}
+              style={{ opacity: refreshMatches.isPending || isRefreshingMatches ? 0.5 : 1 }}
             >
-              {refreshMatches.isPending ? "…" : "⟳ Refresh"}
+              {refreshMatches.isPending || isRefreshingMatches ? "…" : "⟳ Refresh"}
             </button>
           </div>
           {refreshNotice && (
@@ -1447,7 +1331,6 @@ export default function TrackerPage() {
 
           {/* Sidebar */}
           <div style={{ position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-            <AITutor topJobs={topJobs} topGapSkills={topGapSkills} puterReady={puterReady} />
             <DiaryCartPanel
               selections={diarySelections}
               onRemove={handleDiaryToggle}
