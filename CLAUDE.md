@@ -116,24 +116,8 @@ All phases shipped. See Last Session Summary for details.
 #### ✅ Bug 1 — Orphan user 404s — DONE (2026-05-06)
 `get_current_user` in `deps.py` auto-provisions `user_profiles` row on first authenticated request via `ensure_profile_exists()`. `update_profile` UPSERTs. 217+ tests passing.
 
-#### ⏳ Bug 2 — PostgREST 400 on large job-id list — PENDING SQL MIGRATION
-
-**User action required:** Run this in Supabase SQL editor (file: `database/migrations/20260507_fix_fetch_job_skills_rpc_signature.sql`):
-
-```sql
-DROP FUNCTION IF EXISTS public.fetch_job_skills_by_job_ids(uuid[]);
-CREATE OR REPLACE FUNCTION public.fetch_job_skills_by_job_ids(job_ids text[])
-RETURNS TABLE (job_id text, is_primary boolean, taxonomy_key text)
-LANGUAGE sql STABLE AS $func$
-  SELECT js.job_id, js.is_primary, s.taxonomy_key
-  FROM public.job_skills js
-  JOIN public.skills s ON s.id = js.skill_id
-  WHERE js.job_id = ANY(job_ids);
-$func$;
-GRANT EXECUTE ON FUNCTION public.fetch_job_skills_by_job_ids(text[]) TO authenticated, service_role;
-```
-
-Backend code (`job_skills_read_model.py`) already routes through RPC when job_ids provided; falls back to chunked `.in_()` until migration runs.
+#### ✅ Bug 2 — PostgREST 400 on large job-id list — DONE (2026-05-07)
+RPC `fetch_job_skills_by_job_ids(job_ids text[])` deployed to Supabase. Backend routes through RPC; chunked `.in_()` kept as fallback.
 
 #### 🔲 Bug 3 — Settings modal UX — ON HOLD (design prompt needed)
 Full redesign decided (unified form, autosave indicator, sticky header X, clean onboarding state). No code yet. Write design prompt to `docs/SETTINGS_MODAL_REDESIGN_PROMPT.md` → hand to design agent → spec back to Claude Code.
@@ -293,14 +277,12 @@ What landed:
     - P3-2: Today card date → fontSize 22 (was 36+)
 
   Bug 2 RPC migration:
-    - SQL written: database/migrations/20260507_fix_fetch_job_skills_rpc_signature.sql
-    - NOT YET RUN — user must run manually in Supabase SQL editor
-    - Backend already routes through RPC; falls back to chunked .in_() until run
+    - SQL run in Supabase: fetch_job_skills_by_job_ids(job_ids text[]) live
+    - Backend routes through RPC; chunked .in_() kept as fallback
 
   Verification: tsc --noEmit + next lint → clean
 
 Pending from this session:
-  - Run Bug 2 SQL migration in Supabase SQL editor (see OPEN WORK above)
   - Bug 3 design prompt (docs/SETTINGS_MODAL_REDESIGN_PROMPT.md)
   - CV upload latency decision (Option A vs B)
 ```
