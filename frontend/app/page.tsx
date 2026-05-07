@@ -34,7 +34,18 @@ export default function HomePage() {
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <AboutSection />
         {/* Intel pane — anchored for scroll-from-hero CTA */}
-        <div id="intel" style={{ height: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
+        <div
+          id="intel"
+          style={{
+            minHeight: "100dvh",
+            height: "auto",
+            overflow: "visible",
+            scrollMarginTop: 72,
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+          }}
+        >
           <IntelPane />
         </div>
         {/* Post-Intel CTA bridge */}

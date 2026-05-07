@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -115,3 +116,77 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
     assert repo.updated_profile is not None
     assert repo.inserted_history is not None
     assert result["score"] == 68.4
+
+
+class _FakeComputeJobsRepository:
+    def __init__(self, candidate_job_ids: list[str]) -> None:
+        self.client = object()
+        self._candidate_job_ids = candidate_job_ids
+
+    def get_user_skill_rows(self, _user_id: str) -> list[dict[str, Any]]:
+        return [{"matched_level": 3, "skills": {"taxonomy_key": "Python (Programming Language)"}}]
+
+    def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
+        return {"target_roles": ["Data Analyst"], "target_location": "Remote"}
+
+    def get_candidate_job_ids_for_skills(self, _skill_keys: list[str]) -> list[str]:
+        return self._candidate_job_ids
+
+    def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
+        return [
+            {"job_id": "job-1", "is_primary": True, "skills": {"taxonomy_key": "Python (Programming Language)"}},
+            {"job_id": "job-2", "is_primary": True, "skills": {"taxonomy_key": "SQL (Programming Language)"}},
+        ] if job_ids else []
+
+    def get_jobs_by_ids(self, _job_ids: list[str]) -> list[dict[str, Any]]:
+        return []
+
+
+def test_compute_job_matches_includes_debug_on_cache_hit(monkeypatch: Any) -> None:
+    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1"])
+
+    monkeypatch.setattr(jobs_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: True)
+
+    result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
+
+    assert result["from_cache"] is True
+    assert result["debug"]["cache_hit"] is True
+    assert result["debug"]["candidate_jobs_count"] is None
+
+
+def test_compute_job_matches_includes_debug_when_no_candidates(monkeypatch: Any) -> None:
+    repo = _FakeComputeJobsRepository(candidate_job_ids=[])
+
+    monkeypatch.setattr(jobs_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
+
+    result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
+
+    assert result["from_cache"] is False
+    assert result["needs_onboarding"] is False
+    assert result["debug"]["user_skills_count"] == 1
+    assert result["debug"]["candidate_jobs_count"] == 0
+    assert result["debug"]["top_jobs_count"] == 0
+
+
+def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None:
+    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
+
+    async def _fake_rank_and_persist(*_args: Any, **_kwargs: Any) -> int:
+        return 2
+
+    monkeypatch.setattr(jobs_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", lambda *_args, **_kwargs: [
+        {"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python (Programming Language)"]},
+        {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
+    ])
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+
+    result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
+
+    assert result["matches_written"] == 2
+    assert result["debug"]["user_skills_count"] == 1
+    assert result["debug"]["candidate_jobs_count"] == 2
+    assert result["debug"]["top_jobs_count"] == 2

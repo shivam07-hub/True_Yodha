@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { href: "/market",    label: "Intel",      desc: "Market intelligence",      icon: "◉",  nudge: false },
   { href: "/tracker",   label: "Track",      desc: "Jobs & applications",      icon: "◆",  nudge: false },
   { href: "/diary",     label: "Forge",      desc: "Deep work chamber",        icon: "◑",  nudge: true  },
-  { href: "/skills",    label: "Skill Map",  desc: "Your skill constellation", icon: "⬡",  nudge: false },
+  { href: "/skills",    label: "Skills",     desc: "Score, gaps & graph",      icon: "⬡",  nudge: false },
   { href: "/cv",        label: "CV Builder", desc: "Your skill profile",       icon: "◈",  nudge: false },
 ]
 

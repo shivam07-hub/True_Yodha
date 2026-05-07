@@ -118,7 +118,7 @@ export function AboutSection() {
         background: "var(--tm-surface-2)",
       }}>
         <p style={{
-          fontSize: 12, fontWeight: 500,
+          fontSize: 14, fontWeight: 500,
           color: "var(--tm-text-faint)",
           margin: 0, letterSpacing: "0.01em",
         }}>

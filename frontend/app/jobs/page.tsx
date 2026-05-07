@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
-import { jobs, scores, type JobMatch } from "@/lib/api"
+import { jobs, scores, type JobComputeStatusResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
@@ -118,10 +118,13 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
 export default function JobsPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
+  const computeStreamAbortRef = useRef<AbortController | null>(null)
   const [search, setSearch] = useState("")
   const [selectedCity, setSelectedCity] = useState("")
   const [selectedCountry, setSelectedCountry] = useState("")
   const [selectedMode, setSelectedMode] = useState("")
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null)
+  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
 
   const matches = useQuery({
     queryKey: dataKeys.jobs(token),
@@ -138,9 +141,96 @@ export default function JobsPage() {
 
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data
 
+  function stopComputeStream(): void {
+    computeStreamAbortRef.current?.abort()
+    computeStreamAbortRef.current = null
+  }
+
+  function applyComputeStatus(statusPayload: JobComputeStatusResponse): void {
+    if (statusPayload.status === "queued") {
+      setIsRefreshingMatches(true)
+      setRefreshNotice(statusPayload.message || "Refresh queued. We’ll update this list shortly.")
+      return
+    }
+    if (statusPayload.status === "running") {
+      setIsRefreshingMatches(true)
+      setRefreshNotice(statusPayload.message || "Refreshing matches in the background…")
+      return
+    }
+    if (statusPayload.status === "failed") {
+      setIsRefreshingMatches(false)
+      setRefreshNotice(statusPayload.error || "Refresh failed. Please try again.")
+      stopComputeStream()
+      return
+    }
+    if (statusPayload.status === "succeeded") {
+      setIsRefreshingMatches(false)
+      if (statusPayload.from_cache) {
+        setRefreshNotice("Using this week’s cached matches.")
+      } else if ((statusPayload.matches_written ?? 0) > 0) {
+        setRefreshNotice(`Updated ${statusPayload.matches_written ?? 0} matched roles.`)
+      } else if (statusPayload.needs_onboarding) {
+        setRefreshNotice("Upload your CV first to generate role matches.")
+      } else {
+        setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
+      }
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+      stopComputeStream()
+      return
+    }
+    if (statusPayload.status === "idle") {
+      setIsRefreshingMatches(false)
+      stopComputeStream()
+    }
+  }
+
+  async function startComputeStatusStream(): Promise<void> {
+    if (!token) return
+    stopComputeStream()
+    const controller = new AbortController()
+    computeStreamAbortRef.current = controller
+    try {
+      await jobs.computeStatusStream(token, (statusPayload) => {
+        applyComputeStatus(statusPayload)
+      }, controller.signal)
+    } catch (error) {
+      if (controller.signal.aborted) return
+      setIsRefreshingMatches(false)
+      setRefreshNotice((error as Error).message || "Could not receive refresh progress updates.")
+      stopComputeStream()
+    }
+  }
+
   const compute = useMutation({
     mutationFn: () => jobs.compute(token!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) }),
+    onSuccess: (payload) => {
+      if (payload.status === "queued" || payload.status === "running" || payload.already_running) {
+        setIsRefreshingMatches(true)
+        setRefreshNotice(payload.message || "Refreshing matches in the background…")
+        void startComputeStatusStream()
+        return
+      }
+      applyComputeStatus({
+        user_id: "current",
+        batch_week: payload.batch_week,
+        status: "succeeded",
+        job_id: payload.job_id ?? null,
+        already_running: !!payload.already_running,
+        matches_written: payload.matches_written,
+        from_cache: payload.from_cache,
+        needs_onboarding: payload.needs_onboarding ?? false,
+        debug: payload.debug ?? null,
+        message: payload.message ?? null,
+        error: null,
+        enqueued_at: null,
+        started_at: null,
+        finished_at: null,
+      })
+    },
+    onError: () => {
+      setIsRefreshingMatches(false)
+      setRefreshNotice("Refresh failed. Please try again.")
+    },
   })
 
   const track = useMutation({
@@ -204,6 +294,13 @@ export default function JobsPage() {
     [matches.data?.jobs],
   )
 
+  useEffect(() => {
+    return () => {
+      computeStreamAbortRef.current?.abort()
+      computeStreamAbortRef.current = null
+    }
+  }, [])
+
   if (!ready) return null
 
   return (
@@ -226,15 +323,23 @@ export default function JobsPage() {
                 </p>
               </div>
               <button
-                onClick={() => compute.mutate()}
-                disabled={!token || compute.isPending}
+                onClick={() => {
+                  setRefreshNotice(null)
+                  compute.mutate()
+                }}
+                disabled={!token || compute.isPending || isRefreshingMatches}
                 className="tm-btn tm-btn-ghost"
-                style={{ opacity: !token || compute.isPending ? 0.5 : 1 }}
+                style={{ opacity: !token || compute.isPending || isRefreshingMatches ? 0.5 : 1 }}
               >
-                {compute.isPending ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Sparkles style={{ width: 14, height: 14 }} />}
+                {compute.isPending || isRefreshingMatches ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Sparkles style={{ width: 14, height: 14 }} />}
                 Refresh matches
               </button>
             </div>
+            {refreshNotice && (
+              <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
+                {refreshNotice}
+              </p>
+            )}
 
             <div style={{ position: "relative" }}>
               <Search style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 15, height: 15, color: "var(--tm-text-faint)", pointerEvents: "none" }} />

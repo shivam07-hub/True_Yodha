@@ -4,9 +4,12 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
-import type { MarketAnalytics } from "@/lib/api"
+import type { MarketAnalytics, SkillCountItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
+import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+import { IntelLoadingState } from "@/components/market/intel-loading-state"
 
 const SOFT_SKILLS = new Set([
   "communication", "leadership", "teamwork", "collaboration", "problem solving",
@@ -26,7 +29,7 @@ function issoft(skill: string) {
 interface DrillEntity {
   name: string
   roles: number
-  skills: string[]
+  skills: SkillCountItem[]
   type: "company" | "industry"
 }
 
@@ -46,7 +49,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         marginBottom: 2, fontFamily: "inherit", outline: "none",
         transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
       }}
-      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--tm-hover)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
       onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" } }}
       onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
       onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
@@ -63,7 +66,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${pct}%`, borderRadius: 999,
-            background: active ? "var(--tm-accent)" : "rgba(255,255,255,0.18)",
+            background: active ? "var(--tm-accent)" : "var(--tm-border)",
             transition: "width 0.9s var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease)",
           }} />
         </div>
@@ -86,13 +89,13 @@ function IntelBar({ label, count, max, active, onClick }: {
   )
 }
 
-function SkillChip({ skill }: { skill: string }) {
+function SkillChip({ skill, count }: { skill: string; count: number }) {
   const soft = issoft(skill)
   return (
     <div style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
+      display: "inline-flex", alignItems: "center", gap: 8,
       padding: "4px 10px", borderRadius: 999, fontSize: 12,
-      background: soft ? "rgba(255,255,255,0.04)" : "var(--tm-accent-wash)",
+      background: soft ? "var(--tm-hover)" : "var(--tm-accent-wash)",
       border: `1px solid ${soft ? "var(--tm-border-soft)" : "var(--tm-accent-ring)"}`,
       color: soft ? "var(--tm-text-muted)" : "var(--tm-accent)",
     }}>
@@ -101,19 +104,25 @@ function SkillChip({ skill }: { skill: string }) {
         background: soft ? "var(--tm-text-faint)" : "var(--tm-accent)",
       }} />
       {skill}
+      <span style={{ color: "var(--tm-text-faint)", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
+        {count.toLocaleString()}
+      </span>
     </div>
   )
 }
 
 function buildLists(analytics: MarketAnalytics | undefined) {
-  const companies: DrillEntity[] = (analytics?.by_company ?? []).slice(0, 12).map((c) => ({
+  const toSkillCounts = (skills: string[]): SkillCountItem[] =>
+    skills.map((skill) => ({ skill, count: 0 }))
+
+  const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
     name: c.name, roles: c.count,
-    skills: analytics?.company_skills?.[c.name] ?? [],
+    skills: analytics?.company_skill_counts?.[c.name] ?? toSkillCounts(analytics?.company_skills?.[c.name] ?? []),
     type: "company" as const,
   }))
-  const industries: DrillEntity[] = (analytics?.by_industry ?? []).slice(0, 12).map((ind) => ({
+  const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
     name: ind.name, roles: ind.count,
-    skills: analytics?.industry_skills?.[ind.name] ?? [],
+    skills: analytics?.industry_skill_counts?.[ind.name] ?? toSkillCounts(analytics?.industry_skills?.[ind.name] ?? []),
     type: "industry" as const,
   }))
   return { companies, industries }
@@ -157,19 +166,20 @@ export function IntelPane() {
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const modeOptions = (analytics?.by_location_mode ?? [])
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
+  const loadingMessage = useRotatingMessage(MARKET_LOADING_STEPS, { enabled: !analytics })
   const marketSummary = analytics
     ? `${analytics.total_jobs.toLocaleString()} jobs · ${analytics.total_companies.toLocaleString()} companies · ${analytics.total_industries} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
-    : "Loading market coverage"
+    : MARKET_LOADING_SUMMARY
 
   return (
     <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
-          {marketSummary}
-        </div>
         <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
           Intel
         </h1>
+        <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+          {marketSummary}
+        </div>
         <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
           Live hiring signals · tap any {view === "companies" ? "company" : "industry"} to reveal skills in demand
         </p>
@@ -266,7 +276,7 @@ export function IntelPane() {
           <button key={v} onClick={() => { setView(v); setSelected(null) }}
             style={{
               padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
-              background: view === v ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
+              background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
               border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
               color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
               cursor: "pointer", textTransform: "capitalize",
@@ -278,7 +288,7 @@ export function IntelPane() {
       </div>
 
       {!analytics ? (
-        <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>Loading market data…</div>
+        <IntelLoadingState message={loadingMessage} />
       ) : (
         <div style={{
           display: "grid",
@@ -290,12 +300,32 @@ export function IntelPane() {
             <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 12 }}>
               {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
             </div>
-            {list.map((entity) => (
-              <IntelBar key={entity.name} label={entity.name} count={entity.roles} max={max}
-                active={selected?.name === entity.name}
-                onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
-              />
-            ))}
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              {view === "companies"
+                ? `Showing ${list.length.toLocaleString()} scraped companies`
+                : `Showing ${list.length.toLocaleString()} industry groups`}{" "}
+              · scroll to view all
+            </div>
+            <div
+              role="region"
+              aria-label={view === "companies" ? "Scraped companies list" : "Industry breakdown list"}
+              style={{
+                maxHeight: isMobile ? "min(52dvh, 420px)" : "min(64dvh, 700px)",
+                overflowY: "auto",
+                direction: "rtl",
+                scrollbarWidth: "thin",
+                scrollbarGutter: "stable both-edges",
+              }}
+            >
+              <div style={{ direction: "ltr" }}>
+                {list.map((entity) => (
+                  <IntelBar key={entity.name} label={entity.name} count={entity.roles} max={max}
+                    active={selected?.name === entity.name}
+                    onClick={() => setSelected(entity.name === selected?.name ? null : entity)}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div style={{
@@ -311,15 +341,15 @@ export function IntelPane() {
                 </div>
 
                 {selected.skills.length > 0 ? (() => {
-                  const hard = selected.skills.filter((s) => !issoft(s))
-                  const soft = selected.skills.filter((s) => issoft(s))
+                  const hard = selected.skills.filter((s) => !issoft(s.skill))
+                  const soft = selected.skills.filter((s) => issoft(s.skill))
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                       {hard.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Hard Skills</div>
+                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Hard Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {hard.slice(0, 8).map((s) => <SkillChip key={s} skill={s} />)}
+                            {hard.slice(0, 12).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
                         </div>
                       )}
@@ -328,9 +358,9 @@ export function IntelPane() {
                       )}
                       {soft.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Soft Skills</div>
+                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Soft Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {soft.slice(0, 6).map((s) => <SkillChip key={s} skill={s} />)}
+                            {soft.slice(0, 8).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
                         </div>
                       )}
@@ -357,7 +387,7 @@ export function IntelPane() {
         </div>
       )}
 
-      <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: "var(--tm-radius)", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", boxShadow: "var(--tm-shadow-1)" }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 3 }}>See how your skills stack up against this market</div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Upload your CV → get your Myro Score in 60 seconds</div>

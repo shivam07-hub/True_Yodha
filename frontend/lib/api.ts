@@ -69,6 +69,73 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
   return res.json() as Promise<T>
 }
 
+interface SSEMessage<T> {
+  event: string
+  data: T
+}
+
+async function streamSSE<T>(
+  path: string,
+  token: string,
+  onMessage: (message: SSEMessage<T>) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "text/event-stream",
+    },
+    signal,
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ detail: response.statusText }))
+    throw new Error(extractError(body, response.status))
+  }
+  if (!response.body) {
+    throw new Error("Streaming not supported in this environment.")
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    while (true) {
+      const splitIndex = buffer.indexOf("\n\n")
+      if (splitIndex === -1) break
+      const block = buffer.slice(0, splitIndex)
+      buffer = buffer.slice(splitIndex + 2)
+
+      const lines = block.split(/\r?\n/)
+      let event = "message"
+      const dataLines: string[] = []
+      for (const line of lines) {
+        if (line.startsWith(":")) continue
+        if (line.startsWith("event:")) {
+          event = line.slice(6).trim() || "message"
+          continue
+        }
+        if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trimStart())
+        }
+      }
+
+      if (!dataLines.length) continue
+      const raw = dataLines.join("\n")
+      try {
+        onMessage({ event, data: JSON.parse(raw) as T })
+      } catch {
+        // Ignore malformed event payloads and keep stream alive.
+      }
+    }
+  }
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export interface AuthResponse {
@@ -361,6 +428,36 @@ export interface ComputeJobMatchesResponse {
   from_cache: boolean
   batch_week: string
   needs_onboarding?: boolean
+  status?: JobComputeStatus
+  already_running?: boolean
+  job_id?: string | null
+  message?: string | null
+  debug?: {
+    cache_hit: boolean
+    user_skills_count: number | null
+    candidate_jobs_count: number | null
+    top_jobs_count: number | null
+    target_roles_count: number | null
+  } | null
+}
+
+export type JobComputeStatus = "idle" | "queued" | "running" | "succeeded" | "failed"
+
+export interface JobComputeStatusResponse {
+  user_id: string
+  batch_week: string
+  status: JobComputeStatus
+  job_id: string | null
+  already_running: boolean
+  matches_written: number | null
+  from_cache: boolean | null
+  needs_onboarding: boolean | null
+  debug: Record<string, unknown> | null
+  message: string | null
+  error: string | null
+  enqueued_at: string | null
+  started_at: string | null
+  finished_at: string | null
 }
 
 export type ApplicationStatus =
@@ -494,6 +591,8 @@ export interface MarketAnalytics {
   top_skills: SkillCountItem[]
   company_skills: Record<string, string[]>
   industry_skills: Record<string, string[]>
+  company_skill_counts: Record<string, SkillCountItem[]>
+  industry_skill_counts: Record<string, SkillCountItem[]>
 }
 
 export interface JobLocationFilters {
@@ -631,6 +730,23 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  computeStatus: (token: string) =>
+    request<JobComputeStatusResponse>("/jobs/compute/status", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  computeStatusStream: (
+    token: string,
+    onStatus: (status: JobComputeStatusResponse) => void,
+    signal?: AbortSignal,
+  ) =>
+    streamSSE<JobComputeStatusResponse>(
+      "/jobs/compute/status/stream",
+      token,
+      (message) => {
+        if (message.event === "status") onStatus(message.data)
+      },
+      signal,
+    ),
   applications: (token: string) =>
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },

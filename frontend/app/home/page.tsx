@@ -102,8 +102,8 @@ export default function HomePage() {
             <ScoreBar pct={score} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 12, color: "var(--tm-success)" }}>↑ improving</span>
-              <Link href="/dashboard" style={{ fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, padding: "3px 10px" }}>
-                How to improve →
+              <Link href="/skills" style={{ fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", border: "1px solid var(--tm-border-soft)", borderRadius: 6, padding: "3px 10px" }}>
+                Open Skill Intelligence →
               </Link>
             </div>
           </div>
@@ -169,12 +169,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Row 2: Skill Map Preview · Pipeline · CV Readiness */}
+        {/* Row 2: Skill Intelligence · Pipeline · CV Readiness */}
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 14 }}>
 
-          {/* Skill map preview */}
+          {/* Skill intelligence preview */}
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "var(--tm-card-pad)", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>Skill Map</div>
+            <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>Skill Intelligence</div>
             <div style={{ flex: 1, minHeight: 80, border: "1px dashed var(--tm-border)", borderRadius: "var(--tm-radius-sm)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="160" height="80" viewBox="0 0 160 80">
                 <line x1="80" y1="14" x2="30" y2="42" stroke="var(--tm-border)" strokeWidth="1.5" />
@@ -198,7 +198,7 @@ export default function HomePage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Hierarchy preview</span>
               <Link href="/skills" style={{ fontSize: 11, color: "var(--tm-accent)", textDecoration: "none", border: "1px solid var(--tm-accent-ring)", borderRadius: 6, padding: "3px 10px" }}>
-                Full map →
+                Open skills →
               </Link>
             </div>
           </div>

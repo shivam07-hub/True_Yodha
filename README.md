@@ -49,8 +49,16 @@ True_Yodha/
 ```bash
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-# edit backend/.env with Supabase keys + LLM config
+# edit backend/.env with Supabase keys + LLM config + REDIS_URL
 cd backend && uvicorn app.main:app --reload
+```
+
+### Jobs Compute Worker
+```bash
+source .venv/bin/activate
+cd backend
+# requires REDIS_URL in backend/.env
+python -m app.workers.jobs_compute_worker
 ```
 
 ### Frontend

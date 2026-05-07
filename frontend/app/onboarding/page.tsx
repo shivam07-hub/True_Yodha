@@ -8,6 +8,7 @@ import { StepScore } from "@/components/onboarding/step-score"
 import { uploadCV, uploadCVText, jobs, scores, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { MyroLogo } from "@/components/myro-logo"
 
 type Step = "cv" | "role" | "score"
 
@@ -80,9 +81,12 @@ export default function OnboardingPage() {
     <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-        <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
-          Myro
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <MyroLogo size={24} />
+          <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
+            Myro
+          </span>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {STEPS.map((s, i) => (

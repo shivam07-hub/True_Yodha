@@ -18,6 +18,7 @@ SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 SKILL_DRILL_MAX_PAGE_SIZE = 100
+ENTITY_SKILL_LIMIT = 20
 
 
 def _sorted_counter_items(counter: Counter[str]) -> list[tuple[str, int]]:
@@ -147,13 +148,21 @@ class MarketAnalyticsCompiler:
                 batch_dates.append(row["batch_date"])
             skill_counts.update(skills)
 
-        company_skills = {
-            company: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+        company_skill_counts = {
+            company: _sorted_counter_items(counter)[:ENTITY_SKILL_LIMIT]
             for company, counter in company_skill_counters.items()
         }
-        industry_skills = {
-            industry: [skill for skill, _ in _sorted_counter_items(counter)[:12]]
+        industry_skill_counts = {
+            industry: _sorted_counter_items(counter)[:ENTITY_SKILL_LIMIT]
             for industry, counter in industry_skill_counters.items()
+        }
+        company_skills = {
+            company: [skill for skill, _ in items]
+            for company, items in company_skill_counts.items()
+        }
+        industry_skills = {
+            industry: [skill for skill, _ in items]
+            for industry, items in industry_skill_counts.items()
         }
 
         return {
@@ -170,6 +179,8 @@ class MarketAnalyticsCompiler:
             "top_skills": _sorted_counter_items(skill_counts)[:20],
             "company_skills": company_skills,
             "industry_skills": industry_skills,
+            "company_skill_counts": company_skill_counts,
+            "industry_skill_counts": industry_skill_counts,
         }
 
 
@@ -208,18 +219,18 @@ class JobsRepository:
             query_builder=query_builder,
         )
 
-        # Build skill map from FK-enforced job_skills JOIN skills (primary only for analytics).
+        # Build skill map from FK-enforced job_skills JOIN skills (primary + secondary).
         # Do NOT pass job_ids here — with 25k+ jobs the .in_() URL exceeds PostgREST limits.
         # Python-side join below correctly scopes skills to fetched jobs.
-        primary_skill_rows = fetch_job_skill_rows(
+        skill_rows = fetch_job_skill_rows(
             self._db,
-            columns="job_id, skills(taxonomy_key)",
-            only_primary=True,
+            columns="job_id, skills(taxonomy_key,display_name)",
         )
 
         skill_map: dict[str, list[str]] = {}
-        for row in primary_skill_rows:
-            key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+        for row in skill_rows:
+            skill = row.get("skills") or {}
+            key = (skill.get("display_name") or skill.get("taxonomy_key") or "").strip()
             if key:
                 skill_map.setdefault(row["job_id"], []).append(key)
 
@@ -358,6 +369,83 @@ class JobsRepository:
         )
         return result.data or []
 
+    def get_user_skill_demand_snapshot(self, user_id: str) -> list[dict[str, Any]]:
+        """
+        Returns per-user Skill demand stats without scanning the full Job Skill read model.
+
+        Shape:
+          [
+            {
+              "skill": "<taxonomy_key>",
+              "display_name": "<display_name>",
+              "current_level": <int>,
+              "proficiency_title": "<title>",
+              "job_count_30d": <int>,
+              "weighted_demand": <int>,
+            },
+          ]
+        """
+        rows = (
+            self._db.table("user_skills")
+            .select("matched_level, proficiency_title, skills(id, taxonomy_key, display_name)")
+            .eq("user_id", user_id)
+            .execute()
+        ).data or []
+
+        user_skills_by_id: dict[int, dict[str, Any]] = {}
+        for row in rows:
+            skill = row.get("skills") or {}
+            raw_skill_id = skill.get("id")
+            if raw_skill_id is None:
+                continue
+            try:
+                skill_id = int(raw_skill_id)
+            except (TypeError, ValueError):
+                continue
+            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
+            if not taxonomy_key:
+                continue
+            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
+            user_skills_by_id[skill_id] = {
+                "skill": taxonomy_key,
+                "display_name": display_name,
+                "current_level": int(row.get("matched_level") or 0),
+                "proficiency_title": row.get("proficiency_title") or "Scout",
+            }
+
+        if not user_skills_by_id:
+            return []
+
+        skill_ids = list(user_skills_by_id.keys())
+        demand_rows = fetch_all_rows(
+            self._db,
+            table="job_skills",
+            columns="skill_id, is_primary",
+            query_builder=lambda q, _skill_ids=skill_ids: q.in_("skill_id", _skill_ids),
+        )
+
+        weighted_demand: dict[int, int] = {skill_id: 0 for skill_id in skill_ids}
+        job_count: dict[int, int] = {skill_id: 0 for skill_id in skill_ids}
+        for row in demand_rows:
+            raw_skill_id = row.get("skill_id")
+            try:
+                skill_id = int(raw_skill_id)
+            except (TypeError, ValueError):
+                continue
+            if skill_id not in user_skills_by_id:
+                continue
+            weighted_demand[skill_id] = weighted_demand.get(skill_id, 0) + (2 if row.get("is_primary") else 1)
+            job_count[skill_id] = job_count.get(skill_id, 0) + 1
+
+        return [
+            {
+                **skill_meta,
+                "job_count_30d": job_count.get(skill_id, 0),
+                "weighted_demand": weighted_demand.get(skill_id, 0),
+            }
+            for skill_id, skill_meta in user_skills_by_id.items()
+        ]
+
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))
@@ -366,11 +454,25 @@ class JobsRepository:
         """Job_ids that have at least one skill in skill_keys. Used to scope matcher fetch."""
         if not skill_keys:
             return []
-        lower_keys = [k.lower() for k in skill_keys]
+
+        # IMPORTANT: taxonomy_key in `skills` is canonical Lightcast case
+        # (e.g. "Python (Programming Language)"). `user_skill_map` keys are
+        # sourced from the same column, so we must preserve case here.
+        normalized_keys: list[str] = []
+        seen: set[str] = set()
+        for raw in skill_keys:
+            key = (raw or "").strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            normalized_keys.append(key)
+        if not normalized_keys:
+            return []
+
         skill_id_rows = (
             self._db.table("skills")
             .select("id")
-            .in_("taxonomy_key", lower_keys)
+            .in_("taxonomy_key", normalized_keys)
             .execute()
         ).data or []
         skill_ids = [r["id"] for r in skill_id_rows]

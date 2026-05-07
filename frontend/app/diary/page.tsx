@@ -6,11 +6,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { NextMissionCard } from "@/components/diary/next-mission-card"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
-import { ForgeSession } from "@/components/diary/forge-session"
+import { ForgeFocusOverlay, type ForgeCompletionPayload } from "@/components/diary/forge-focus-overlay"
 import { diary, jobs, scores } from "@/lib/api"
 import { buildDiaryPrefill, parseDiarySelections } from "@/lib/diary-skill-cart"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
-import type { Milestone, MilestonePayload } from "@/lib/api"
+import type { JobPathMilestone, Milestone, MilestonePayload } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -530,26 +530,70 @@ function DiaryPageInner() {
 
   // Today index (0=Mon … 6=Sun)
   const todayIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
+  const todayMilestone = weekPlan[todayIdx]
   const todayTask = weekPlan[todayIdx]?.task ?? "Log your progress"
 
   const forgeMilestones = jobPathQuery.data?.milestones ?? []
-  const forgeSkill = jobPathQuery.data?.target_skills?.[0]?.skill ?? gapSkills[0]?.skill ?? "Skill"
-  const forgeLevel = 1
+  const activeForgeMilestone: JobPathMilestone | null = jobId
+    ? (jobMilestone ?? jobPathQuery.data?.today_milestone ?? forgeMilestones.find((milestone) => !milestone.completed_at) ?? null)
+    : null
+  const forgeSkill = activeForgeMilestone?.skill ?? jobPathQuery.data?.target_skills?.[0]?.skill ?? gapSkills[0]?.skill ?? "Skill"
+  const forgeTask = activeForgeMilestone?.action ?? todayTask
+  const cvHref = jobId
+    ? `/cv?source=forge&jobId=${encodeURIComponent(jobId)}`
+    : "/cv?source=forge"
 
-  if (forgeMode && forgeMilestones.length > 0) {
-    return (
-      <ForgeSession
-        skillName={forgeSkill}
-        currentLevel={forgeLevel}
-        milestones={forgeMilestones}
-        jobName={jobPathQuery.data?.company ?? jobPathQuery.data?.job_title}
-        onStepComplete={(milestoneId, proof) => {
-          jobs.updateMilestone(token!, jobId!, milestoneId, { proof, completed: true })
-            .then(() => { queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) }) })
-        }}
-        onSessionEnd={() => setForgeMode(false)}
-      />
-    )
+  async function handleForgeSessionComplete(payload: ForgeCompletionPayload): Promise<{ xpGained: number }> {
+    if (!token) throw new Error("Sign in to log this focus session.")
+
+    const reflection = payload.reflection.trim()
+    const minutes = Math.max(1, Math.round(payload.durationSeconds / 60))
+    const entryText = [
+      `Forge session complete (${minutes} min).`,
+      `Skill focus: ${forgeSkill}.`,
+      `Milestone: ${forgeTask}.`,
+      `Progress note: ${reflection}`,
+    ].join("\n")
+
+    const entry = await diary.createEntry(token, entryText)
+    const xpGained = entry.skills_delta.reduce((sum, delta) => sum + delta.xp_added, 0)
+
+    if (jobId && activeForgeMilestone) {
+      await jobs.updateMilestone(token, jobId, activeForgeMilestone.id, {
+        proof: reflection,
+        confidence: 0.72,
+        completed: true,
+      })
+      invalidateJobPathData(queryClient, jobId, token)
+    } else {
+      await diary.saveMilestone(token, {
+        milestone_date: todayMilestone?.dateKey ?? toDateKey(new Date()),
+        skill: todayMilestone?.skill ?? forgeSkill,
+        task: todayTask,
+        proof: reflection,
+        confidence: 0.72,
+        completed: true,
+      })
+    }
+
+    queryClient.invalidateQueries({ queryKey: dataKeys.diary(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.milestones(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.scores(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills(token) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) })
+
+    return { xpGained }
+  }
+
+  async function handleForgeJobCvGenerate(): Promise<{ notice?: string }> {
+    if (!token || !jobId) throw new Error("Track a job first to generate a job CV pointer.")
+    const result = await jobs.generateJobCv(token, jobId, false)
+    invalidateJobPathData(queryClient, jobId, token)
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile(token) })
+    return {
+      notice: result.from_cache ? "Using your latest cached job CV pointer." : "Job CV pointer generated from your latest proof.",
+    }
   }
 
   return (
@@ -943,6 +987,16 @@ function DiaryPageInner() {
           </div>
         </div>
       </div>
+      <ForgeFocusOverlay
+        open={forgeMode}
+        onOpenChange={setForgeMode}
+        milestoneText={forgeTask}
+        focusSkill={forgeSkill}
+        cvHref={cvHref}
+        hasJobContext={!!jobId}
+        onSessionComplete={handleForgeSessionComplete}
+        onGenerateJobCv={jobId ? handleForgeJobCvGenerate : undefined}
+      />
     </AppShell>
   )
 }

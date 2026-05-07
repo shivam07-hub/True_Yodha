@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 from unittest.mock import Mock, patch
 
+import app.repositories.job_skills_read_model as job_skills_module
 from app.repositories.job_skills_read_model import (
     fetch_all_rows,
     fetch_job_skill_rows,
@@ -240,6 +241,67 @@ def test_get_candidate_job_ids_for_skills_no_match_returns_empty() -> None:
     assert JobsRepository(db).get_candidate_job_ids_for_skills(["java"]) == []
 
 
+def test_get_user_skill_demand_snapshot_scopes_to_current_user_skills() -> None:
+    db = _FakeDB({
+        "user_skills": [
+            {
+                "user_id": "u1",
+                "matched_level": 2,
+                "proficiency_title": "Trailblazer",
+                "skills": {"id": 1, "taxonomy_key": "Python", "display_name": "Python"},
+            },
+            {
+                "user_id": "u1",
+                "matched_level": 1,
+                "proficiency_title": "Scout",
+                "skills": {"id": 2, "taxonomy_key": "SQL", "display_name": "SQL"},
+            },
+            {
+                "user_id": "u2",
+                "matched_level": 5,
+                "proficiency_title": "Legend",
+                "skills": {"id": 3, "taxonomy_key": "Go", "display_name": "Go"},
+            },
+        ],
+        "job_skills": [
+            {"skill_id": 1, "is_primary": True},
+            {"skill_id": 1, "is_primary": False},
+            {"skill_id": 2, "is_primary": False},
+            {"skill_id": 3, "is_primary": True},
+        ],
+    })
+
+    result = JobsRepository(db).get_user_skill_demand_snapshot("u1")
+    by_skill = {row["skill"]: row for row in result}
+
+    assert set(by_skill) == {"Python", "SQL"}
+    assert by_skill["Python"]["job_count_30d"] == 2
+    assert by_skill["Python"]["weighted_demand"] == 3
+    assert by_skill["SQL"]["job_count_30d"] == 1
+    assert by_skill["SQL"]["weighted_demand"] == 1
+
+
+def test_get_candidate_job_ids_for_skills_preserves_canonical_case() -> None:
+    db = _FakeDB({
+        "skills": [
+            {"id": "s1", "taxonomy_key": "Python (Programming Language)"},
+            {"id": "s2", "taxonomy_key": "SQL (Programming Language)"},
+            {"id": "s3", "taxonomy_key": "Stakeholder Management"},
+        ],
+        "job_skills": [
+            {"job_id": "j1", "skill_id": "s1"},
+            {"job_id": "j2", "skill_id": "s2"},
+            {"job_id": "j3", "skill_id": "s3"},
+        ],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(
+        ["Python (Programming Language)", "SQL (Programming Language)"]
+    )
+
+    assert set(result) == {"j1", "j2"}
+
+
 # ---------------------------------------------------------------------------
 # RPC path tests (Bug 2 — PostgREST URL-length 400 fix)
 # ---------------------------------------------------------------------------
@@ -300,3 +362,29 @@ def test_fetch_job_skill_rows_falls_back_to_chunked_on_rpc_failure() -> None:
     ):
         result = fetch_job_skill_rows(fake_db, job_ids=["j1", "j2"])
     assert {r["job_id"] for r in result} == {"j1", "j2"}
+
+
+def test_fetch_job_skill_rows_disables_rpc_after_missing_signature_error() -> None:
+    fake_db = _FakeDB({"job_skills": []})
+    missing_exc = Exception(
+        "PGRST202: Could not find the function public.fetch_job_skills_by_job_ids(job_ids) in the schema cache"
+    )
+
+    job_skills_module._rpc_disabled_for_process = False
+    job_skills_module._rpc_missing_logged = False
+    try:
+        with patch(
+            "app.repositories.job_skills_read_model.fetch_job_skill_rows_via_rpc",
+            side_effect=missing_exc,
+        ) as rpc_call, patch(
+            "app.repositories.job_skills_read_model._fetch_job_skill_rows_chunked",
+            return_value=[],
+        ) as chunked_call:
+            fetch_job_skill_rows(fake_db, job_ids=["j1"])
+            fetch_job_skill_rows(fake_db, job_ids=["j1"])
+    finally:
+        job_skills_module._rpc_disabled_for_process = False
+        job_skills_module._rpc_missing_logged = False
+
+    assert rpc_call.call_count == 1
+    assert chunked_call.call_count == 2

@@ -461,10 +461,13 @@ export default function CVPage() {
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobCvText, setJobCvText] = useState<string | null>(null)
   const [jobCvNotice, setJobCvNotice] = useState<string | null>(null)
+  const [showForgeBanner, setShowForgeBanner] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    setJobId(new URLSearchParams(window.location.search).get("jobId"))
+    const params = new URLSearchParams(window.location.search)
+    setJobId(params.get("jobId"))
+    setShowForgeBanner(params.get("source") === "forge")
   }, [])
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
@@ -760,6 +763,38 @@ export default function CVPage() {
           {(message || error) && (
             <div role={error ? "alert" : "status"} style={{ marginTop: 8, fontSize: 12, color: error ? "var(--tm-danger)" : "var(--tm-accent)" }}>
               {error ?? message}
+            </div>
+          )}
+          {showForgeBanner && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: "10px 12px",
+                borderRadius: "var(--tm-radius-sm)",
+                border: "1px solid var(--tm-accent-ring)",
+                background: "var(--tm-accent-wash)",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div className="tm-label-caps text-balance" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>
+                  From Forge Session
+                </div>
+                <p className="text-pretty" style={{ margin: 0, fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.65 }}>
+                  Your latest deep-focus reflection is now anchored in your evidence stream. Use the timeline and draft tools below to shape sharper CV pointers.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="tm-btn tm-btn-ghost"
+                style={{ height: 30, fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}
+                onClick={() => setShowForgeBanner(false)}
+              >
+                Dismiss
+              </button>
             </div>
           )}
 
