@@ -33,10 +33,10 @@ export default function HomePage() {
   const router = useRouter()
   const [activeJobIdx, setActiveJobIdx] = useState(0)
 
-  const { data: scoreData } = useQuery({ queryKey: dataKeys.scores(token), queryFn: () => scores.me(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
-  const { data: profile } = useQuery({ queryKey: dataKeys.profile(token), queryFn: () => users.me(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
-  const { data: jobsData } = useQuery({ queryKey: dataKeys.jobs(token), queryFn: () => jobs.matches(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
-  const { data: applications } = useQuery({ queryKey: dataKeys.applications(token), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: scoreData } = useQuery({ queryKey: dataKeys.scores(), queryFn: () => scores.me(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => users.me(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
+  const { data: jobsData } = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobs.matches(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: applications } = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
 
   const score = scoreData?.total_score ?? 0
   const topJobs = jobsData?.jobs?.slice(0, 5) ?? []

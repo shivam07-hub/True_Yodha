@@ -127,18 +127,18 @@ export default function MarketPage() {
 
   const addToTracker = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
   })
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: profileData } = useQuery({
-    queryKey: dataKeys.profile(token),
+    queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
@@ -174,7 +174,7 @@ export default function MarketPage() {
   const usePersonalized = !!token
   const { data: analytics, isLoading } = useQuery({
     queryKey: usePersonalized
-      ? dataKeys.jobsAnalyticsMe(token, selectedCluster, selectedCity, selectedCountry, selectedMode)
+      ? dataKeys.jobsAnalyticsMe(selectedCluster, selectedCity, selectedCountry, selectedMode)
       : dataKeys.jobsAnalytics(selectedRole, selectedCity, selectedCountry, selectedMode),
     queryFn: usePersonalized
       ? () => jobs.analyticsForMe(token, selectedCluster, {

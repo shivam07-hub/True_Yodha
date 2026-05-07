@@ -127,13 +127,13 @@ export default function JobsPage() {
   const [isRefreshingMatches, setIsRefreshingMatches] = useState(false)
 
   const matches = useQuery({
-    queryKey: dataKeys.jobs(token),
+    queryKey: dataKeys.jobs(),
     queryFn: () => jobs.matches(token!),
     enabled: !!token,
   })
 
   const scoresQuery = useQuery({
-    queryKey: dataKeys.scores(token),
+    queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
@@ -174,7 +174,7 @@ export default function JobsPage() {
       } else {
         setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
       }
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs(token) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       stopComputeStream()
       return
     }
@@ -235,7 +235,7 @@ export default function JobsPage() {
 
   const track = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications(token) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
   })
 
   const filtered = useMemo(() => {

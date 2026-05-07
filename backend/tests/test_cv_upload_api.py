@@ -51,6 +51,30 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
     assert "could not be mapped" in response.json()["detail"]
 
 
+def test_submit_cv_text_returns_503_when_all_providers_fail(monkeypatch) -> None:
+    repo = _FakeCVRepository()
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_token_cv_repository] = lambda: repo
+    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+
+    async def _provider_failed_parse(_raw_text: str) -> dict:
+        return {"skills_detected": [], "raw_text": _raw_text, "provider_failed": True}
+
+    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _provider_failed_parse)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/cv/text",
+                json={"text": "I built production data dashboards with SQL and analytics tooling across projects."},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert "temporarily unavailable" in response.json()["detail"]
+
+
 def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
     repo = _FakeCVRepository()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}

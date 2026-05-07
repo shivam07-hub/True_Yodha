@@ -68,7 +68,20 @@ _MAX_SKILLS = 50
 _FUZZY_THRESHOLD = 0.88
 _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
+_MIN_VOWEL_RATIO = 0.15       # real text ≥ 35%; keyboard-smash is typically < 5%
 
+
+
+# ── Input quality guard ───────────────────────────────────────────────────────
+
+def _is_plausible_professional_text(text: str) -> bool:
+    """Return False for obvious keyboard-smash — saves LLM quota and gives a
+    clear 'add real content' response instead of a false provider-failure 503."""
+    letters = re.sub(r"[^a-zA-Z]", "", text)
+    if len(letters) < 10:
+        return False
+    vowels = sum(1 for c in letters.lower() if c in "aeiou")
+    return (vowels / len(letters)) >= _MIN_VOWEL_RATIO
 
 
 # ── Text extraction ───────────────────────────────────────────────────────────
@@ -120,8 +133,15 @@ Return JSON only — no prose, no markdown fences. Shape:
 {"skills": [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}]}"""
 
 
-async def _llm_extract(cv_text: str) -> list[dict]:
-    """Try OR kimi (k2.6→k2.5) → Groq → OR gpt-4o-mini. Returns [] if all fail."""
+async def _llm_extract(cv_text: str) -> list[dict] | None:
+    """Try OR kimi (k2.6→k2.5) → Groq → OR gpt-4o-mini → Gemini.
+
+    Returns:
+        list[dict]  — skills extracted (may be empty if the LLM found none)
+        None        — every provider either threw an exception or returned
+                      unparseable output; caller should treat as infrastructure
+                      failure, not as "no skills in CV"
+    """
     # (client, model_id, extra_body | None)
     providers: list[tuple[AsyncOpenAI, str, dict | None]] = []
     if settings.openrouter_api_key:
@@ -160,7 +180,7 @@ async def _llm_extract(cv_text: str) -> list[dict]:
 
     if not providers:
         logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY or GROQ_API_KEY")
-        return []
+        return None
 
     truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
     user_prompt = (
@@ -185,20 +205,26 @@ async def _llm_extract(cv_text: str) -> list[dict]:
             resp = await client.chat.completions.create(**kwargs)
             content = resp.choices[0].message.content or ""
             parsed = _parse_llm_json(content)
-            if parsed:
+            if parsed is not None:
+                # Provider responded with valid JSON — trust the result even if empty
                 return parsed
             logger.warning("CV extraction: %s returned unparseable response — trying next provider", model)
         except Exception as exc:
             logger.warning("CV extraction failed with %s: %s — trying next provider", model, exc)
 
     logger.error("All CV extraction providers failed")
-    return []
+    return None
 
 
-def _parse_llm_json(text: str) -> list[dict]:
-    """Pull JSON out of an LLM response — tolerates code fences and prose."""
+def _parse_llm_json(text: str) -> list[dict] | None:
+    """Pull JSON out of an LLM response — tolerates code fences and prose.
+
+    Returns:
+        list[dict]  — parsed skill list, may be empty (provider responded cleanly)
+        None        — could not locate or decode valid JSON (provider failure)
+    """
     if not text:
-        return []
+        return None
 
     # Strip markdown code fences
     if "```" in text:
@@ -211,13 +237,13 @@ def _parse_llm_json(text: str) -> list[dict]:
     start_arr = text.find("[")
     starts = [s for s in (start_obj, start_arr) if s >= 0]
     if not starts:
-        return []
+        return None
 
     try:
         parsed, _ = json.JSONDecoder().raw_decode(text, min(starts))
     except json.JSONDecodeError:
         logger.warning("CV extractor: could not parse LLM response as JSON")
-        return []
+        return None
 
     if isinstance(parsed, list):
         return parsed
@@ -226,7 +252,7 @@ def _parse_llm_json(text: str) -> list[dict]:
         for v in parsed.values():
             if isinstance(v, list):
                 return v
-    return []
+    return None
 
 
 # ── Validation / Lightcast mapping ────────────────────────────────────────────
@@ -294,16 +320,30 @@ def _validate_and_normalize(raw_skills: list[dict]) -> list[dict]:
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 async def parse_cv_text(raw_text: str) -> dict:
-    """Parse free-form self-description text and return detected skill signals."""
+    """Parse free-form self-description text and return detected skill signals.
+
+    Result keys:
+        skills_detected  — validated skill list (may be empty)
+        raw_text         — original input
+        provider_failed  — True when every LLM provider errored or returned
+                           unparseable output; False when at least one responded
+                           with valid JSON (even if skills list is empty)
+    """
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
-        return {"skills_detected": [], "raw_text": raw_text}
+        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
+
+    if not _is_plausible_professional_text(raw_text):
+        logger.info("CV text rejected as non-linguistic input (%d chars)", len(raw_text))
+        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
+
     raw_skills = await _llm_extract(raw_text)
-    skills = _validate_and_normalize(raw_skills)
+    provider_failed = raw_skills is None
+    skills = _validate_and_normalize(raw_skills or [])
     logger.info(
-        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills",
-        len(raw_text), len(raw_skills), len(skills),
+        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills (provider_failed=%s)",
+        len(raw_text), len(raw_skills or []), len(skills), provider_failed,
     )
-    return {"skills_detected": skills, "raw_text": raw_text}
+    return {"skills_detected": skills, "raw_text": raw_text, "provider_failed": provider_failed}
 
 
 async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
@@ -335,13 +375,14 @@ async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
 
     if len(raw_text) < _MIN_RAW_TEXT_LEN:
         logger.warning("CV extracted text is too short (%d chars) — likely scanned", len(raw_text))
-        return {"skills_detected": [], "raw_text": raw_text}
+        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
 
     raw_skills = await _llm_extract(raw_text)
-    skills = _validate_and_normalize(raw_skills)
+    provider_failed = raw_skills is None
+    skills = _validate_and_normalize(raw_skills or [])
     logger.info(
-        "CV parsed: %d chars → %d raw → %d validated Lightcast skills",
-        len(raw_text), len(raw_skills), len(skills),
+        "CV parsed: %d chars → %d raw → %d validated Lightcast skills (provider_failed=%s)",
+        len(raw_text), len(raw_skills or []), len(skills), provider_failed,
     )
 
-    return {"skills_detected": skills, "raw_text": raw_text}
+    return {"skills_detected": skills, "raw_text": raw_text, "provider_failed": provider_failed}

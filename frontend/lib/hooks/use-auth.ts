@@ -17,6 +17,14 @@ export function useAuth() {
       setToken(t)
     }
     setReady(true)
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== "mirror_token") return
+      if (e.newValue) setToken(e.newValue)
+      else router.replace("/login")
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
   }, [router])
 
   function signOut() {
