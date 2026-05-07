@@ -111,15 +111,11 @@ All phases shipped. See Last Session Summary for details.
 
 ## OPEN WORK
 
-### 🔥 ACTIVE — NEW-USER FLOW BUG SPRINT
+### ✅ NEW-USER FLOW BUG SPRINT — COMPLETE (2026-05-07)
 
-#### ✅ Bug 1 — Orphan user 404s — DONE (2026-05-06)
-`get_current_user` in `deps.py` auto-provisions `user_profiles` row on first authenticated request via `ensure_profile_exists()`. `update_profile` UPSERTs. 217+ tests passing.
-
-#### ✅ Bug 2 — PostgREST 400 on large job-id list — DONE (2026-05-07)
-RPC `fetch_job_skills_by_job_ids(job_ids text[])` deployed to Supabase. Backend routes through RPC; chunked `.in_()` kept as fallback.
-
-#### ✅ Bug 3 — Settings modal UX — DONE (2026-05-07)
+- ✅ Bug 1 — Orphan user 404s: `ensure_profile_exists()` in `deps.py`, `update_profile` UPSERTs
+- ✅ Bug 2 — PostgREST 400: RPC `fetch_job_skills_by_job_ids(text[])` live in Supabase
+- ✅ Bug 3 — Settings modal: full Substack-inspired redesign (see Last Session Summary)
 
 ---
 
@@ -211,6 +207,7 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 
 **DB schema highlights:**
 - `job_skills (job_id FK→jobs, skill_id FK→skills, is_primary BOOLEAN)` — canonical skill source
+- `followed_companies (user_id FK→user_profiles, company_name TEXT, UNIQUE(user_id, company_name))` — RLS-protected, live (2026-05-07)
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled (15,340 rows, 2026-05-07)
 - Backward-compat trigger DROPPED (`trg_sync_job_skills` removed 2026-05-02)
 - `jobs.main_skills` / `jobs.side_skills` still exist — drop pending (see backlog #4)
@@ -280,6 +277,18 @@ What landed:
     - Backend routes through RPC; chunked .in_() kept as fallback
 
   Verification: tsc --noEmit + next lint → clean
+
+  Settings modal redesign (Substack-inspired):
+    - Two-column layout: 200px left sidebar + scrollable right content
+    - Left sidebar: 52px initials avatar, name, email, Account/Following nav tabs,
+      autosave indicator at bottom
+    - Account tab: PROFILE section (Ninja Name + LinkedIn), JOB SEARCH section
+      (Target Roles DnD chips + Target Location combobox), Save button
+    - Following tab: search bar, company list (initials avatar + name + View jobs →
+      + unfollow ×), empty state with Market CTA
+    - followed_companies table: UNIQUE(user_id, company_name), RLS, live in Supabase
+    - 3 endpoints: GET/POST/DELETE /users/me/following/companies
+    - Market page: ☆ Follow / ★ Following pill button on company skills panel
 
 Pending from this session:
   - CV upload latency decision (Option A vs B)
