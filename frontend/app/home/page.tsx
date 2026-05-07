@@ -23,6 +23,24 @@ const STATUS_COLOR: Record<string, string> = {
   abandoned: "var(--tm-text-faint)",
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Saved",
+  applied: "Applied",
+  interviewing: "Interviewing",
+  responded: "Responded",
+  offer: "Offer",
+  rejected: "Rejected",
+  no_response: "No Response",
+  abandoned: "Abandoned",
+}
+
+function daysAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
+  if (diff === 0) return "today"
+  if (diff === 1) return "1d"
+  return `${diff}d`
+}
+
 function ScoreBar({ pct, color }: { pct: number; color?: string }) {
   return (
     <div style={{ height: 4, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden" }}>
@@ -246,9 +264,28 @@ export default function HomePage() {
               </div>
             ) : (
               pipelineApps.map(app => (
-                <div key={app.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
-                  <span style={{ fontSize: 13, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{app.company ?? app.title}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: STATUS_COLOR[app.status] ?? "var(--tm-text-faint)", flexShrink: 0, marginLeft: 8 }}>{app.status}</span>
+                <div key={app.id} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "7px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {app.company ?? app.title}
+                    </span>
+                    <span style={{ fontSize: 11, flexShrink: 0, color: STATUS_COLOR[app.status] ?? "var(--tm-text-faint)" }}>
+                      <span style={{ fontWeight: 600 }}>{STATUS_LABEL[app.status] ?? app.status}</span>
+                      {" · "}
+                      <span style={{ opacity: 0.7 }}>{daysAgo(app.created_at)}</span>
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {app.title}
+                  </div>
+                  <button onClick={() => router.push(`/diary?job=${app.job_id}`)} style={{
+                    alignSelf: "flex-end", padding: "3px 10px", borderRadius: "var(--tm-radius-sm)",
+                    background: "transparent", border: "1px solid var(--tm-border)",
+                    color: "var(--tm-text-faint)", fontSize: 11, fontWeight: 500, cursor: "pointer",
+                    fontFamily: "inherit", transition: "all 150ms var(--tm-ease)",
+                  }}>
+                    Log update →
+                  </button>
                 </div>
               ))
             )}
