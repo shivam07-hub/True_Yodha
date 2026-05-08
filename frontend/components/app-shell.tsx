@@ -14,12 +14,11 @@ import { SettingsModal } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 
 const NAV_ITEMS = [
-  { href: "/home",      label: "Home",       desc: "Mission control",          icon: "⌂",  nudge: false },
-  { href: "/market",    label: "Intel",      desc: "Market intelligence",      icon: "◉",  nudge: false },
-  { href: "/tracker",   label: "Track",      desc: "Jobs & applications",      icon: "◆",  nudge: false },
-  { href: "/diary",     label: "Forge",      desc: "Deep work chamber",        icon: "◑",  nudge: true  },
-  { href: "/skills",    label: "Skills",     desc: "Score, gaps & graph",      icon: "⬡",  nudge: false },
-  { href: "/cv",        label: "CV Builder", desc: "Your skill profile",       icon: "◈",  nudge: false },
+  { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
+  { href: "/market",  label: "Intel",      desc: "Market intelligence",   icon: "◉",  hideLabel: false, nudge: false },
+  { href: "/tracker", label: "Track",      desc: "Jobs & applications",   icon: "◆",  hideLabel: false, nudge: false },
+  { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",   icon: "⬡",  hideLabel: false, nudge: false },
+  { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
 ]
 
 const FEEDBACK_ACTIONS = [
@@ -328,6 +327,63 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
       <div style={{ flex: 1, padding: "8px", display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV_ITEMS.map((item) => {
           const active = pathname.startsWith(item.href)
+
+          if (item.hideLabel) {
+            // Icon-only home/dashboard entry — Claude-style anchor
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.desc}
+                aria-label={item.label}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "flex-start",
+                  gap: 12, padding: "10px 8px",
+                  borderRadius: "var(--tm-radius-sm)",
+                  background: active ? "var(--tm-accent-wash)" : "transparent",
+                  boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
+                  transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+                  textDecoration: "none", position: "relative",
+                }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
+              >
+                <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg
+                    width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    style={{
+                      color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
+                      filter: active ? "drop-shadow(0 0 6px var(--tm-accent-glow))" : "none",
+                      transition: "color var(--tm-dur) var(--tm-ease), filter var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    {/* 4-point sparkle — matches Claude/Anthropic's mark aesthetic */}
+                    <path
+                      d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  {item.nudge && !active && (
+                    <span
+                      className="animate-pulse"
+                      style={{
+                        position: "absolute", top: -3, right: -3,
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: "var(--tm-accent)",
+                        boxShadow: "0 0 6px var(--tm-accent-glow)",
+                      }}
+                    />
+                  )}
+                </span>
+                <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
+                    {item.nudge && !active ? <span style={{ color: "var(--tm-accent)" }}>Log today →</span> : item.desc}
+                  </div>
+                </div>
+              </Link>
+            )
+          }
+
           return (
             <Link
               key={item.href}
@@ -344,7 +400,6 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
               onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
               onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
             >
-              {/* Icon + nudge dot container */}
               <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{
                   fontSize: 18,
@@ -354,30 +409,14 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
                 }}>
                   {item.icon}
                 </span>
-                {/* Progress nudge dot — pulsing, visible when not on /diary */}
-                {item.nudge && !active && (
-                  <span
-                    className="animate-pulse"
-                    style={{
-                      position: "absolute", top: -3, right: -3,
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: "var(--tm-accent)",
-                      boxShadow: "0 0 6px var(--tm-accent-glow)",
-                    }}
-                  />
-                )}
               </span>
 
               <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
                   {item.label}
                 </div>
-                <div style={{ fontSize: 11, marginTop: 1 }}>
-                  {item.nudge && !active ? (
-                    <span style={{ color: "var(--tm-accent)" }}>Log today →</span>
-                  ) : (
-                    <span style={{ color: "var(--tm-text-faint)" }}>{item.desc}</span>
-                  )}
+                <div style={{ fontSize: 11, marginTop: 1, color: "var(--tm-text-faint)" }}>
+                  {item.desc}
                 </div>
               </div>
             </Link>
