@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { scores, users } from "@/lib/api"
+import { scores, users, cv } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
@@ -14,12 +14,11 @@ import { SettingsModal } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 
 const NAV_ITEMS = [
-  { href: "/home",      label: "Home",       desc: "Mission control",          icon: "⌂",  nudge: false },
-  { href: "/market",    label: "Intel",      desc: "Market intelligence",      icon: "◉",  nudge: false },
-  { href: "/tracker",   label: "Track",      desc: "Jobs & applications",      icon: "◆",  nudge: false },
-  { href: "/diary",     label: "Forge",      desc: "Deep work chamber",        icon: "◑",  nudge: true  },
-  { href: "/skills",    label: "Skills",     desc: "Score, gaps & graph",      icon: "⬡",  nudge: false },
-  { href: "/cv",        label: "CV Builder", desc: "Your skill profile",       icon: "◈",  nudge: false },
+  { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
+  { href: "/market",  label: "Intel",      desc: "Market intelligence",   icon: "◉",  hideLabel: false, nudge: false },
+  { href: "/tracker", label: "Track",      desc: "Jobs & applications",   icon: "◆",  hideLabel: false, nudge: false },
+  { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",   icon: "⬡",  hideLabel: false, nudge: false },
+  { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
 ]
 
 const FEEDBACK_ACTIONS = [
@@ -28,7 +27,7 @@ const FEEDBACK_ACTIONS = [
   { id: "feedback",  icon: "◎",  label: "Leave feedback",     color: "var(--tm-success)", bg: "var(--tm-success-wash)", placeholder: "What can we improve?"                },
 ]
 
-type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url">
+type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
 
 function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]; onClose: () => void }) {
   const [text, setText] = useState("")
@@ -259,6 +258,87 @@ function UserFooter({
   )
 }
 
+function CvVersionsWidget() {
+  const { token } = useAuth()
+  const pathname = usePathname()
+  const { data: cvProfile } = useQuery({
+    queryKey: dataKeys.cvProfile(),
+    queryFn: () => cv.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  if (!cvProfile?.history?.length) return null
+
+  // Determine active version from URL
+  const activeId = typeof window !== "undefined"
+    ? Number(new URLSearchParams(window.location.search).get("v")) || null
+    : null
+  const onCvPage = pathname.startsWith("/cv")
+
+  return (
+    <div style={{ padding: "0 8px 6px 8px" }}>
+      {/* Base CV root */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 2px" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)", flexShrink: 0 }} />
+        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>Base CV</span>
+      </div>
+      {cvProfile.history.map((v, i) => {
+        const isLatest = i === 0
+        const prev = cvProfile.history[i + 1]
+        const delta = prev ? Math.round(v.mirror_score - prev.mirror_score) : null
+        const isLast = i === cvProfile.history.length - 1
+        const href = isLatest ? "/cv" : `/cv?v=${v.id}`
+        const isActive = onCvPage && (isLatest ? activeId === null : activeId === v.id)
+        return (
+          <div key={v.id} style={{ display: "flex", gap: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, paddingLeft: 3, flexShrink: 0 }}>
+              <div style={{ width: 1, flex: 1, background: "var(--tm-border-soft)", minHeight: 5 }} />
+              <div style={{
+                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                border: `1.5px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                background: isActive ? "var(--tm-accent-wash)" : "transparent",
+              }} />
+              <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 5 }} />
+            </div>
+            <Link
+              href={href}
+              style={{
+                flex: 1, padding: "2px 6px", margin: "1px 0",
+                borderRadius: "var(--tm-radius-sm)",
+                background: isActive ? "var(--tm-accent-wash)" : "transparent",
+                textDecoration: "none",
+                transition: "background var(--tm-dur) var(--tm-ease)",
+              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
+                  v{v.version_number}
+                </span>
+                {isLatest && (
+                  <span style={{ fontSize: 8, padding: "1px 4px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    HEAD
+                  </span>
+                )}
+                {delta !== null && (
+                  <span style={{ fontSize: 9, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>
+                    {delta >= 0 ? `+${delta}` : delta}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 9, color: "var(--tm-text-faint)", marginTop: 1 }}>
+                {v.title ?? (v.version_type === "generated_draft" ? "generated" : "baseline")} · {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+              </div>
+            </Link>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function Sidebar({ score, profile, signOut }: { score: number | null; profile: SidebarProfile | null; signOut: () => void }) {
   const expanded = true
   const pathname = usePathname()
@@ -328,59 +408,101 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
       <div style={{ flex: 1, padding: "8px", display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV_ITEMS.map((item) => {
           const active = pathname.startsWith(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "9px 8px", borderRadius: "var(--tm-radius-sm)",
-                background: active ? "var(--tm-accent-wash)" : "transparent",
-                boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
-                transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-                textDecoration: "none",
-                position: "relative",
-              }}
-              onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
-            >
-              {/* Icon + nudge dot container */}
-              <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{
-                  fontSize: 18,
-                  color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
-                  filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
-                  transition: "color var(--tm-dur) var(--tm-ease)",
-                }}>
-                  {item.icon}
-                </span>
-                {/* Progress nudge dot — pulsing, visible when not on /diary */}
-                {item.nudge && !active && (
-                  <span
-                    className="animate-pulse"
-                    style={{
-                      position: "absolute", top: -3, right: -3,
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: "var(--tm-accent)",
-                      boxShadow: "0 0 6px var(--tm-accent-glow)",
-                    }}
-                  />
-                )}
-              </span>
 
-              <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
-                  {item.label}
-                </div>
-                <div style={{ fontSize: 11, marginTop: 1 }}>
-                  {item.nudge && !active ? (
-                    <span style={{ color: "var(--tm-accent)" }}>Log today →</span>
-                  ) : (
-                    <span style={{ color: "var(--tm-text-faint)" }}>{item.desc}</span>
+          if (item.hideLabel) {
+            // Icon-only home/dashboard entry — Claude-style anchor
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.desc}
+                aria-label={item.label}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "flex-start",
+                  gap: 12, padding: "10px 8px",
+                  borderRadius: "var(--tm-radius-sm)",
+                  background: active ? "var(--tm-accent-wash)" : "transparent",
+                  boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
+                  transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+                  textDecoration: "none", position: "relative",
+                }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
+              >
+                <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg
+                    width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    style={{
+                      color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
+                      filter: active ? "drop-shadow(0 0 6px var(--tm-accent-glow))" : "none",
+                      transition: "color var(--tm-dur) var(--tm-ease), filter var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    {/* 4-point sparkle — matches Claude/Anthropic's mark aesthetic */}
+                    <path
+                      d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  {item.nudge && !active && (
+                    <span
+                      className="animate-pulse"
+                      style={{
+                        position: "absolute", top: -3, right: -3,
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: "var(--tm-accent)",
+                        boxShadow: "0 0 6px var(--tm-accent-glow)",
+                      }}
+                    />
                   )}
+                </span>
+                <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
+                    {item.nudge && !active ? <span style={{ color: "var(--tm-accent)" }}>Log today →</span> : item.desc}
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            )
+          }
+
+          return (
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "9px 8px", borderRadius: "var(--tm-radius-sm)",
+                  background: active ? "var(--tm-accent-wash)" : "transparent",
+                  boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
+                  transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+                  textDecoration: "none",
+                  position: "relative",
+                }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
+              >
+                <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{
+                    fontSize: 18,
+                    color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
+                    filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
+                    transition: "color var(--tm-dur) var(--tm-ease)",
+                  }}>
+                    {item.icon}
+                  </span>
+                </span>
+
+                <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 1, color: "var(--tm-text-faint)" }}>
+                    {item.desc}
+                  </div>
+                </div>
+              </Link>
+              {item.href === "/cv" && <CvVersionsWidget />}
+            </div>
           )
         })}
       </div>
@@ -396,11 +518,10 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
           transition: "opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
         }}>
           <div style={{
-            padding: "10px 12px 12px",
+            padding: "8px 12px 12px",
             borderTop: "1px solid var(--tm-border-soft)",
-            display: "flex", flexDirection: "column", gap: 6,
+            display: "flex", alignItems: "center",
           }}>
-            <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
             <SurfaceToggle />
           </div>
         </div>
@@ -437,6 +558,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         score={scoreData?.total_score ?? null}
         profile={{
           full_name: profileData?.full_name ?? null,
+          email: profileData?.email ?? "",
           target_roles: profileData?.target_roles ?? [],
           target_location: profileData?.target_location ?? null,
           linkedin_url: profileData?.linkedin_url ?? null,

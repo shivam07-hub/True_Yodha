@@ -12,8 +12,9 @@ class ActionPlanDay(BaseModel):
 
 class SkillGapItem(BaseModel):
     skill: str
-    is_primary: bool        # True = main_skill, False = side_skill
-    user_level: int | None  # None = user doesn't have this skill
+    is_primary: bool
+    user_level: int          # 0 = user doesn't have this skill
+    required_level: int      # from job_skills.required_level; fallback: primary→4, secondary→2
     missing: bool
 
 
@@ -69,6 +70,8 @@ class JobMatchesResponse(BaseModel):
     jobs: list[JobMatchResponse]
     batch_week: date        # Monday of the current week's batch
     total: int
+    feed_updated_at: datetime | None = None    # MAX(jobs.created_at) — when the feed last grew
+    matches_computed_at: datetime | None = None  # when this user's matches were last computed
 
 
 class ApplicationStatusUpdate(BaseModel):

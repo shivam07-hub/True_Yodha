@@ -5,8 +5,6 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from app.repositories.diary import DiaryRepository
-from app.repositories.scores import ScoresRepository
-from app.services.scoring import compute_and_persist_score, fetch_aspiration_skills, infer_level_from_signals
 
 _SIGNAL_XP: dict[str, int] = {
     "mention": 50,
@@ -94,64 +92,6 @@ def _extract_signals(entry_text: str, known_skill_keys: list[str]) -> list[dict[
     return signals
 
 
-def _upgrade_user_skills_from_signals(
-    diary_repo: DiaryRepository,
-    user_id: str,
-    signals: list[dict[str, Any]],
-) -> None:
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for signal in signals:
-        grouped.setdefault(signal["taxonomy_key"], []).append(signal)
-
-    current_rows = diary_repo.list_user_skill_rows(user_id)
-    skill_by_key: dict[str, tuple[int, int]] = {}
-    for row in current_rows:
-        skill = row.get("skills") or {}
-        key = (skill.get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        skill_by_key[key] = (int(row.get("skill_id") or 0), int(row.get("matched_level") or 0))
-
-    updates: list[dict[str, Any]] = []
-    for taxonomy_key, skill_signals in grouped.items():
-        record = skill_by_key.get(taxonomy_key)
-        if not record:
-            continue
-
-        skill_id, current_level = record
-        new_level = infer_level_from_signals(skill_signals)
-        if new_level <= current_level:
-            continue
-
-        updates.append(
-            {
-                "user_id": user_id,
-                "skill_id": skill_id,
-                "matched_level": new_level,
-                "source": "diary",
-                "evidence_text": skill_signals[0]["evidence"],
-                "last_updated": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-
-    if updates:
-        diary_repo.upsert_user_skill_rows(updates)
-
-
-def _recompute_score(diary_repo: DiaryRepository, user_id: str) -> float | None:
-    skill_level_map = diary_repo.get_user_skill_level_map(user_id)
-    if not skill_level_map:
-        return diary_repo.get_total_score(user_id)
-
-    scores_repo = ScoresRepository(diary_repo.client)
-    aspiration_skills = fetch_aspiration_skills(scores_repo, diary_repo.get_target_roles(user_id))
-    score_row = compute_and_persist_score(
-        scores_repo,
-        user_id,
-        aspiration_skills=aspiration_skills or None,
-        skill_level_map=skill_level_map,
-    )
-    return score_row.get("total_score")
 
 
 def record_diary_entry(
@@ -160,15 +100,10 @@ def record_diary_entry(
     entry_text: str,
     log_date: date,
 ) -> tuple[dict[str, Any], float | None, float | None]:
-    score_before = diary_repo.get_total_score(user_id)
-
+    # Diary = intent log, not a completion event. XP tracked via skills_delta.
+    # Score recomputes only on CV upload or milestone completion.
     known_skill_keys = diary_repo.list_user_skill_keys(user_id)
     signals = _extract_signals(entry_text, known_skill_keys)
-    if signals:
-        _upgrade_user_skills_from_signals(diary_repo, user_id, signals)
-        score_after = _recompute_score(diary_repo, user_id)
-    else:
-        score_after = score_before
 
     existing_entry = diary_repo.get_daily_log_for_append(user_id, log_date)
     if existing_entry:
@@ -194,7 +129,7 @@ def record_diary_entry(
         }
     )
     row = diary_repo.get_daily_log(user_id, log_date)
-    return row, score_before, score_after
+    return row, None, None
 
 
 def list_progress_milestones(

@@ -23,6 +23,9 @@ import {
   type DiarySkillSelection,
 } from "@/lib/diary-skill-cart"
 import { dataKeys, invalidateJobData, invalidateJobPathData } from "@/lib/domain-data"
+import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
+
+const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 function JobDetailModal({ job, onClose }: { job: JobMatch; onClose: () => void }) {
   return (
@@ -935,8 +938,13 @@ export default function TrackerPage() {
 
   const matchesQuery = useQuery({
     queryKey: dataKeys.jobs(),
-    queryFn: () => jobs.matches(token!),
+    queryFn: () => withLocalCache(
+      userCacheKey(token!, ["matches"]),
+      MATCHES_TTL,
+      () => jobs.matches(token!),
+    ),
     enabled: !!token,
+    staleTime: MATCHES_TTL,
   })
 
   const appsQuery = useQuery({
@@ -955,8 +963,13 @@ export default function TrackerPage() {
 
   const skillDemandQuery = useQuery({
     queryKey: dataKeys.userSkillDemand(),
-    queryFn: () => jobs.mySkillDemand(token!),
+    queryFn: () => withLocalCache(
+      userCacheKey(token!, ["skill_demand"]),
+      MATCHES_TTL,
+      () => jobs.mySkillDemand(token!),
+    ),
     enabled: !!token,
+    staleTime: MATCHES_TTL,
   })
 
   function stopComputeStream(): void {
@@ -1004,6 +1017,7 @@ export default function TrackerPage() {
           setRefreshNotice("No match set generated. Try updating target roles in Intel, then refresh.")
         }
       }
+      clearLocalCache(userCacheKey(token!, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       stopComputeStream()
       return

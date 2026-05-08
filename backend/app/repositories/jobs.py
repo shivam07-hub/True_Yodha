@@ -18,6 +18,24 @@ SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
+
+_FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
+_feed_ts_cache: tuple[float, str | None] = (0.0, None)
+
+
+def get_feed_updated_at(db: Client) -> str | None:
+    """Returns ISO timestamp of the most recently created job row. Cached 5 min."""
+    global _feed_ts_cache
+    cached_at, cached_value = _feed_ts_cache
+    if cached_value and (time.monotonic() - cached_at) < _FEED_TS_TTL:
+        return cached_value
+    try:
+        result = db.table("jobs").select("created_at").order("created_at", desc=True).limit(1).execute()
+        value = ((result.data or [{}])[0].get("created_at")) if result.data else None
+    except Exception:
+        return cached_value
+    _feed_ts_cache = (time.monotonic(), value)
+    return value
 SKILL_DRILL_MAX_PAGE_SIZE = 100
 ENTITY_SKILL_LIMIT = 20
 
@@ -321,6 +339,26 @@ class JobsRepository:
         _entity_skills_cache[cache_key] = (now, result)
         return result
 
+    def search_companies(self, q: str, limit: int = 10) -> list[str]:
+        result = (
+            self._db.table("jobs")
+            .select("company_name")
+            .ilike("company_name", f"%{q.strip()}%")
+            .not_.is_("company_name", "null")
+            .limit(limit * 20)
+            .execute()
+        )
+        seen: set[str] = set()
+        companies: list[str] = []
+        for row in result.data or []:
+            name = (row.get("company_name") or "").strip()
+            if name and name not in seen:
+                seen.add(name)
+                companies.append(name)
+                if len(companies) >= limit:
+                    break
+        return sorted(companies)
+
     def search_jobs_by_filters(
         self,
         company: str,
@@ -610,6 +648,9 @@ class JobsRepository:
         return ((result.data if result else {}) or {}).get("target_roles") or []
 
     # ── job matches ────────────────────────────────────────────────────────────
+
+    def get_feed_updated_at(self) -> str | None:
+        return get_feed_updated_at(self._db)
 
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date

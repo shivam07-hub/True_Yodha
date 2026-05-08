@@ -442,6 +442,7 @@ function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
 export default function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -468,6 +469,8 @@ export default function CVPage() {
     const params = new URLSearchParams(window.location.search)
     setJobId(params.get("jobId"))
     setShowForgeBanner(params.get("source") === "forge")
+    const vParam = params.get("v")
+    if (vParam) setSelectedVersionId(Number(vParam))
   }, [])
 
   const { data: cvProfile, isLoading: cvLoading } = useQuery({
@@ -514,6 +517,7 @@ export default function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
       setMessage(`Saved CV draft v${draft.version_number} from ${draft.evidence_count} milestone days.`)
       setSelectedVersionId(draft.version_id)
+      router.replace(`/cv?v=${draft.version_id}`, { scroll: false })
       setShowDraftGuide(false)
       setDraftStage("guide")
       setDraftText("")
@@ -962,137 +966,6 @@ export default function CVPage() {
 
           {/* RIGHT — Version history + CV viewer */}
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-            {hasCv && (
-              <section style={{
-                padding: "14px 20px 12px",
-                borderBottom: "1px solid var(--tm-border-soft)",
-                flexShrink: 0,
-                background: "rgba(255,255,255,0.02)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                  <div className="tm-label-caps">Evidence Since Last CV</div>
-                  <span style={{
-                    fontSize: 10, color: evidenceData?.eligible ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                    background: evidenceData?.eligible ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-                    padding: "2px 8px", borderRadius: 999,
-                    border: `1px solid ${evidenceData?.eligible ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                  }}>
-                    {evidenceData?.evidence_count ?? 0}/{evidenceData?.required_count ?? 7} days
-                  </span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6, marginBottom: 10 }}>
-                  {[
-                    { label: "Milestone days", value: evidenceData?.evidence_count ?? 0 },
-                    { label: "Diary entries", value: evidenceData?.diary_entries_count ?? 0 },
-                    { label: "Skill upgrades", value: evidenceData?.skill_upgrades_count ?? 0 },
-                    { label: "Score move", value: evidenceData?.score_delta == null ? "0" : `${evidenceData.score_delta >= 0 ? "+" : ""}${Math.round(evidenceData.score_delta)}` },
-                  ].map((item) => (
-                    <div key={item.label} style={{ padding: "8px 10px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-                      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 16, color: "var(--tm-text)", fontWeight: 700 }}>{item.value}</div>
-                      <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {evidenceLoading ? (
-                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Loading evidence...</div>
-                ) : evidenceData?.evidence.length ? (
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-                    {evidenceData.evidence.slice(-7).map((item) => (
-                      <div key={`${item.date}-${item.skill}-${item.task}`} style={{
-                        flexShrink: 0, width: 180,
-                        padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
-                        border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)",
-                      }}>
-                        <div style={{ fontSize: 11, color: "var(--tm-accent)", fontWeight: 600, marginBottom: 3 }}>{item.skill}</div>
-                        <div style={{ fontSize: 11, color: "var(--tm-text-muted)", lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.task}</div>
-                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 4 }}>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                    Complete milestone days in Progress to unlock the next draft.
-                  </div>
-                )}
-                {!!evidenceData?.missing_detail_prompts.length && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-warning)" }}>
-                    {evidenceData.missing_detail_prompts[0]}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* Version timeline */}
-            <div style={{
-              padding: "14px 20px 12px",
-              borderBottom: "1px solid var(--tm-border-soft)",
-              flexShrink: 0,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: cvProfile?.history?.length ? 10 : 0 }}>
-                <div className="tm-label-caps">CV Versions</div>
-                {!!cvProfile?.history?.length && (
-                  <span style={{
-                    fontSize: 10, color: "var(--tm-text-faint)",
-                    background: "rgba(255,255,255,0.04)", padding: "1px 7px",
-                    borderRadius: 999, border: "1px solid var(--tm-border-soft)",
-                  }}>
-                    {cvProfile.history.length}
-                  </span>
-                )}
-              </div>
-
-              {!!cvProfile?.history?.length && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  {/* Root node */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, paddingBottom: 4 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--tm-accent)", flexShrink: 0, boxShadow: "0 0 6px var(--tm-accent-glow)" }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>📄 Base CV</span>
-                  </div>
-                  {cvProfile.history.map((v, i) => {
-                    const isLatest = i === 0
-                    const isSelected = selectedVersionId === v.id || (selectedVersionId === null && isLatest)
-                    const prev = cvProfile.history[i + 1]
-                    const delta = prev ? Math.round(v.mirror_score - prev.mirror_score) : null
-                    const isLast = i === cvProfile.history.length - 1
-                    return (
-                      <div key={v.id} style={{ display: "flex", gap: 0 }}>
-                        {/* Tree connector */}
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 16, flexShrink: 0 }}>
-                          <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 8 }} />
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", border: `1.5px solid ${isSelected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`, background: isSelected ? "var(--tm-accent-wash)" : "transparent", flexShrink: 0 }} />
-                          <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 8 }} />
-                        </div>
-                        <button
-                          onClick={() => setSelectedVersionId(isLatest ? null : v.id)}
-                          style={{
-                            flex: 1, padding: "5px 8px", margin: "2px 0",
-                            borderRadius: "var(--tm-radius-sm)",
-                            background: isSelected ? "var(--tm-accent-wash)" : "transparent",
-                            border: `1px solid ${isSelected ? "var(--tm-accent-ring)" : "transparent"}`,
-                            cursor: "pointer", fontFamily: "inherit",
-                            textAlign: "left", transition: "all var(--tm-dur) var(--tm-ease)",
-                          }}
-                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
-                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent" }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isSelected ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
-                              v{v.version_number}
-                            </span>
-                            {isLatest && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>HEAD</span>}
-                            {delta !== null && <span style={{ fontSize: 9, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>{delta >= 0 ? `+${delta}` : delta}</span>}
-                          </div>
-                          <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>
-                            {v.version_type === "generated_draft" ? "generated draft" : "baseline"} · {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                          </div>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
 
             {/* CV text viewer */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 32px 20px", position: "relative" }}>

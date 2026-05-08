@@ -13,6 +13,9 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
+import { cacheKey, userCacheKey, withLocalCache } from "@/lib/local-cache"
+
+const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 
 interface TrackJob { job_id: string; job_title: string; company_name: string | null }
@@ -131,6 +134,25 @@ export default function MarketPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
   })
 
+  const { data: followingData } = useQuery({
+    queryKey: ["followedCompanies"],
+    queryFn: () => users.followedCompanies(token!),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  })
+  const followedSet = useMemo(
+    () => new Set((followingData?.companies ?? []).map((c) => c.company_name)),
+    [followingData],
+  )
+  const followMutation = useMutation({
+    mutationFn: (name: string) => users.followCompany(token!, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
+  })
+  const unfollowMutation = useMutation({
+    mutationFn: (name: string) => users.unfollowCompany(token!, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
+  })
+
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
@@ -178,17 +200,25 @@ export default function MarketPage() {
       ? dataKeys.jobsAnalyticsMe(selectedCluster, selectedCity, selectedCountry, selectedMode)
       : dataKeys.jobsAnalytics(selectedRole, selectedCity, selectedCountry, selectedMode),
     queryFn: usePersonalized
-      ? () => jobs.analyticsForMe(token, selectedCluster, {
-        locationCity: selectedCity || undefined,
-        locationCountry: selectedCountry || undefined,
-        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-      })
-      : () => jobs.analytics(selectedRole || undefined, {
-        locationCity: selectedCity || undefined,
-        locationCountry: selectedCountry || undefined,
-        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-      }),
-    staleTime: 7 * 24 * 60 * 60 * 1000,
+      ? () => withLocalCache(
+          userCacheKey(token!, ["analytics_me", selectedCluster, selectedCity, selectedCountry, selectedMode]),
+          ANALYTICS_TTL,
+          () => jobs.analyticsForMe(token, selectedCluster, {
+            locationCity: selectedCity || undefined,
+            locationCountry: selectedCountry || undefined,
+            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+          }),
+        )
+      : () => withLocalCache(
+          cacheKey(["analytics_public", selectedRole, selectedCity, selectedCountry, selectedMode]),
+          ANALYTICS_TTL,
+          () => jobs.analytics(selectedRole || undefined, {
+            locationCity: selectedCity || undefined,
+            locationCountry: selectedCountry || undefined,
+            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
+          }),
+        ),
+    staleTime: ANALYTICS_TTL,
   })
 
   const hasCv = !scoreLoading && !!scoreData
@@ -690,7 +720,28 @@ export default function MarketPage() {
               ) : selected ? (
                 /* ── Skills list view ── */
                 <>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{selected.name}</div>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{selected.name}</div>
+                    {selected.type === "company" && token && (
+                      <button
+                        onClick={() => {
+                          const isFollowed = followedSet.has(selected.name)
+                          if (isFollowed) unfollowMutation.mutate(selected.name)
+                          else followMutation.mutate(selected.name)
+                        }}
+                        disabled={followMutation.isPending || unfollowMutation.isPending}
+                        style={{
+                          flexShrink: 0, padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                          fontFamily: "inherit", cursor: "pointer", transition: "all 150ms",
+                          background: followedSet.has(selected.name) ? "var(--tm-accent-wash)" : "transparent",
+                          border: `1px solid ${followedSet.has(selected.name) ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                          color: followedSet.has(selected.name) ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                        }}
+                      >
+                        {followedSet.has(selected.name) ? "★ Following" : "☆ Follow"}
+                      </button>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: "var(--tm-accent)", marginBottom: 14 }}>
                     {selected.roles.toLocaleString()} open roles
                   </div>

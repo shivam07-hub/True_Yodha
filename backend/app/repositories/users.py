@@ -114,6 +114,26 @@ class UsersRepository:
             ignore_duplicates=True,
         ).execute()
 
+    def get_followed_companies(self, user_id: str) -> list[dict]:
+        result = (
+            self._db.table("followed_companies")
+            .select("company_name, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+
+    def follow_company(self, user_id: str, company_name: str) -> None:
+        self._db.table("followed_companies").upsert(
+            {"user_id": user_id, "company_name": company_name.strip()},
+            on_conflict="user_id,company_name",
+            ignore_duplicates=True,
+        ).execute()
+
+    def unfollow_company(self, user_id: str, company_name: str) -> None:
+        self._db.table("followed_companies").delete().eq("user_id", user_id).eq("company_name", company_name).execute()
+
     def correct_skill_level(self, user_id: str, skill_id: int, new_level: int) -> None:
         now = datetime.now(timezone.utc).isoformat()
         self._db.table("user_skills").upsert(

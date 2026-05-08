@@ -36,6 +36,20 @@ class UserSkillsByDomainResponse(BaseModel):
     by_cluster: dict[str, list[UserSkillItem]]   # keyed by L2 cluster (for CV page)
 
 
+class FollowCompanyRequest(BaseModel):
+    company_name: str
+
+
+class FollowedCompany(BaseModel):
+    company_name: str
+    created_at: datetime
+
+
+class FollowedCompaniesResponse(BaseModel):
+    companies: list[FollowedCompany]
+    total: int
+
+
 class SkillLevelCorrectionRequest(BaseModel):
     level: int
 

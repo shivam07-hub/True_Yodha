@@ -17,20 +17,43 @@ async def get_skill_gap(
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    main_skills = [skill.strip() for skill in (job.get("main_skills") or []) if skill and skill.strip()]
-    side_skills = [skill.strip() for skill in (job.get("side_skills") or []) if skill and skill.strip()]
     user_skill_map = repo.get_user_skill_map(current_user["user_id"])
 
     gap_items: list[SkillGapItem] = []
-    for skill in main_skills:
-        level = user_skill_map.get(skill.lower())
-        gap_items.append(SkillGapItem(skill=skill, is_primary=True, user_level=level, missing=level is None))
-    for skill in side_skills:
-        level = user_skill_map.get(skill.lower())
-        gap_items.append(SkillGapItem(skill=skill, is_primary=False, user_level=level, missing=level is None))
+    for skill in job.get("main_skills") or []:
+        key = skill.strip()
+        if not key:
+            continue
+        user_level = user_skill_map.get(key.lower()) or 0
+        # required_level: use job_skills.required_level when scraper populates it; heuristic until then
+        required_level = 4
+        gap_items.append(SkillGapItem(
+            skill=key, is_primary=True,
+            user_level=user_level, required_level=required_level,
+            missing=user_level < required_level,
+        ))
+    for skill in job.get("side_skills") or []:
+        key = skill.strip()
+        if not key:
+            continue
+        user_level = user_skill_map.get(key.lower()) or 0
+        required_level = 2
+        gap_items.append(SkillGapItem(
+            skill=key, is_primary=False,
+            user_level=user_level, required_level=required_level,
+            missing=user_level < required_level,
+        ))
+
+    # Sort: missing primary → below-level primary → missing secondary → below-level secondary
+    gap_items.sort(key=lambda g: (
+        0 if (g.is_primary and g.user_level == 0) else
+        1 if (g.is_primary and g.missing) else
+        2 if (not g.is_primary and g.user_level == 0) else
+        3 if (not g.is_primary and g.missing) else 4
+    ))
 
     total = len(gap_items)
-    missing_count = sum(1 for item in gap_items if item.missing)
+    missing_count = sum(1 for g in gap_items if g.missing)
     gap_pct = round(missing_count / total * 100) if total else 0
 
     return SkillGapResponse(
