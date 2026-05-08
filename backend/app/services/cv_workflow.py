@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -8,6 +9,9 @@ from app.repositories.scores import ScoresRepository
 from app.repositories.cv import CVRepository
 from app.services import cv_parser, scoring_engine
 from app.services.rate_limit import assert_not_rate_limited
+from app.services.xp_service import grant_welcome_xp
+
+_log = logging.getLogger(__name__)
 
 
 def _persist_baseline_cv(
@@ -88,6 +92,10 @@ async def ingest_uploaded_cv(
         skills_detected=skills_detected,
         score_total=score_total,
     )
+    try:
+        await grant_welcome_xp(user_id)
+    except Exception as exc:
+        _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
     return {
         "skills_detected": len(skills_detected),
         "score": score_total,

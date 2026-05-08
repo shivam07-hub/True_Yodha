@@ -99,6 +99,7 @@ def record_diary_entry(
     user_id: str,
     entry_text: str,
     log_date: date,
+    cart_skills: list[dict] | None = None,
 ) -> tuple[dict[str, Any], float | None, float | None]:
     # Diary = intent log, not a completion event. XP tracked via skills_delta.
     # Score recomputes only on CV upload or milestone completion.
@@ -119,15 +120,16 @@ def record_diary_entry(
         for signal in signals
     ]
     now = datetime.now(timezone.utc).isoformat()
-    diary_repo.upsert_daily_log(
-        {
-            "user_id": user_id,
-            "log_date": str(log_date),
-            "entry_text": combined_text,
-            "skills_delta": prior_delta + signal_deltas,
-            "updated_at": now,
-        }
-    )
+    upsert_payload: dict = {
+        "user_id": user_id,
+        "log_date": str(log_date),
+        "entry_text": combined_text,
+        "skills_delta": prior_delta + signal_deltas,
+        "updated_at": now,
+    }
+    if cart_skills:
+        upsert_payload["cart_skills"] = cart_skills
+    diary_repo.upsert_daily_log(upsert_payload)
     row = diary_repo.get_daily_log(user_id, log_date)
     return row, None, None
 

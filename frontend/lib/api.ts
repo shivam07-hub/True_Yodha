@@ -948,6 +948,49 @@ export const skills = {
   domains: () => request<string[]>("/skills/domains"),
 }
 
+// ── XP + Forge ───────────────────────────────────────────────────────────────
+
+export interface XPBalanceResponse {
+  balance: number
+}
+
+export interface ForgeSessionResult {
+  xp_earned: number
+  new_xp_balance: number
+  level_before: number
+  level_after: number
+  leveled_up: boolean
+  sessions_toward_next: number
+  sessions_needed: number | null
+}
+
+export interface ForgeCompletePayload {
+  skill_name: string
+  skill_id?: string | null
+  duration_minutes: number
+}
+
+export const xp = {
+  balance: (token: string) =>
+    request<XPBalanceResponse>("/users/me/xp", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  spend: (token: string, amount: number, action: string) =>
+    request<XPBalanceResponse>("/users/me/xp/spend", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, action }),
+    }),
+
+  completeForge: (token: string, payload: ForgeCompletePayload) =>
+    request<ForgeSessionResult>("/users/me/forge/complete", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+}
+
 // ── Feedback ─────────────────────────────────────────────────────────────────
 
 export type FeedbackType = "feedback" | "company" | "bug"
