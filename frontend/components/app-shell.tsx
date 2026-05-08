@@ -435,11 +435,10 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
           transition: "opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
         }}>
           <div style={{
-            padding: "10px 12px 12px",
+            padding: "8px 12px 12px",
             borderTop: "1px solid var(--tm-border-soft)",
-            display: "flex", flexDirection: "column", gap: 6,
+            display: "flex", alignItems: "center",
           }}>
-            <div className="tm-label-caps" style={{ fontSize: 10 }}>Background</div>
             <SurfaceToggle />
           </div>
         </div>
