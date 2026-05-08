@@ -11,8 +11,8 @@
      <html data-accent="forge">    → amber/gold
 
    Surface switching:
-     <html data-surface="dark">    → deep dark (default)
-     <html data-surface="light">   → antigravity-style white
+     <html data-surface="dark">    → deep dark
+     <html data-surface="light">   → executive light
    ───────────────────────────────────────────────────────────── */
 
 :root {
@@ -43,25 +43,30 @@
   --tm-danger-wash:   rgba(251, 113, 133, 0.12);
 
   /* ── Typography ──────────────────────────────────────────── */
-  --tm-font-sans:     var(--font-sans), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --tm-font-sans:     var(--font-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --tm-font-display:  var(--font-display), "Source Serif 4", Georgia, serif;
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
 
-  --tm-fs-display:    2.3125rem;  /* 37px */
-  --tm-fs-title:      1.5625rem;  /* 25px */
-  --tm-fs-heading:    1.1875rem;  /* 19px */
+  --tm-fs-hero:       5rem;       /* 80px */
+  --tm-fs-display:    3rem;       /* 48px */
+  --tm-fs-title:      2rem;       /* 32px */
+  --tm-fs-heading:    1.375rem;   /* 22px */
   --tm-fs-body:       1.0625rem;  /* 17px */
-  --tm-fs-meta:       0.875rem;   /* 14px */
+  --tm-fs-meta:       0.9375rem;  /* 15px */
+  --tm-fs-caption:    0.8125rem;  /* 13px */
 
-  --tm-lh-display:    2.5625rem;  /* 41px */
-  --tm-lh-title:      2.0625rem;  /* 33px */
-  --tm-lh-heading:    1.6875rem;  /* 27px */
+  --tm-lh-hero:       5.125rem;   /* 82px */
+  --tm-lh-display:    3.375rem;   /* 54px */
+  --tm-lh-title:      2.5rem;     /* 40px */
+  --tm-lh-heading:    1.875rem;   /* 30px */
   --tm-lh-body:       1.5625rem;  /* 25px */
-  --tm-lh-meta:       1.1875rem;  /* 19px */
+  --tm-lh-meta:       1.375rem;   /* 22px */
+  --tm-lh-caption:    1.125rem;   /* 18px */
 
-  --tm-tracking-tight:   -0.01em;
+  --tm-tracking-tight:    0;
   --tm-tracking-normal:   0;
-  --tm-tracking-meta:    0.02em;
-  --tm-tracking-caps:    0.08em;
+  --tm-tracking-meta:     0;
+  --tm-tracking-caps:     0;
 
   /* ── Radii ───────────────────────────────────────────────── */
   --tm-radius-sm:     0.375rem;  /*  6px — chips, badges        */
@@ -107,12 +112,12 @@
   --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
 }
 
-/* ── Surface: LIGHT (antigravity-style white) ──────────────── */
+/* ── Surface: LIGHT (executive white) ──────────────────────── */
 :root[data-surface="light"] {
-  --tm-bg:            #F8F9FC;
+  --tm-bg:            #FFFFFF;
   --tm-surface:       #FFFFFF;
-  --tm-surface-2:     #EFF2F7;
-  --tm-border:        #E1E6EC;
+  --tm-surface-2:     #F4F7FA;
+  --tm-border:        #DDE3EA;
   --tm-border-soft:   rgba(32, 33, 36, 0.14);
   --tm-scrim:         rgba(15, 23, 42, 0.32);
   --tm-overlay-soft:  rgba(15, 23, 42, 0.16);
@@ -120,12 +125,23 @@
   --tm-hover:         rgba(32, 33, 36, 0.06);
   --tm-icon-muted:    rgba(32, 33, 36, 0.48);
 
-  --tm-text:          #121317;
-  --tm-text-muted:    #45474D;
-  --tm-text-faint:    #6A6A71;
+  --tm-text:          #16181D;
+  --tm-text-muted:    #3F4752;
+  --tm-text-faint:    #667085;
 
   --tm-shadow-1:      0 1px 2px rgba(15, 23, 42, 0.10);
-  --tm-shadow-2:      0 14px 36px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --tm-shadow-2:      0 18px 44px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-surface="light"][data-accent="signal"] {
+  --tm-accent:          #126E68;
+  --tm-accent-hover:    #0D5E59;
+  --tm-accent-pressed:  #0A4C48;
+  --tm-accent-glow:     rgba(18, 110, 104, 0.18);
+  --tm-accent-wash:     rgba(18, 110, 104, 0.09);
+  --tm-accent-ring:     rgba(18, 110, 104, 0.34);
+  --tm-accent-grid:     rgba(18, 110, 104, 0.022);
+  --tm-accent-fg:       #FFFFFF;
 }
 
 /* ── Accent: SIGNAL (teal/electric mint) ───────────────────── */
@@ -156,13 +172,13 @@
    First-time users default here. Darken the interactive amber
    so links/buttons remain readable on light surfaces. */
 :root[data-surface="light"][data-accent="forge"] {
-  --tm-accent:          #A65A00;
-  --tm-accent-hover:    #914E00;
-  --tm-accent-pressed:  #7C4300;
-  --tm-accent-glow:     rgba(166, 90, 0, 0.24);
-  --tm-accent-wash:     rgba(166, 90, 0, 0.10);
-  --tm-accent-ring:     rgba(166, 90, 0, 0.44);
-  --tm-accent-grid:     rgba(166, 90, 0, 0.028);
+  --tm-accent:          #8F541F;
+  --tm-accent-hover:    #774417;
+  --tm-accent-pressed:  #5F3510;
+  --tm-accent-glow:     rgba(143, 84, 31, 0.20);
+  --tm-accent-wash:     rgba(143, 84, 31, 0.09);
+  --tm-accent-ring:     rgba(143, 84, 31, 0.34);
+  --tm-accent-grid:     rgba(143, 84, 31, 0.022);
   --tm-accent-fg:       #FFFFFF;
 }
 
@@ -298,6 +314,7 @@ body::after {
 
 /* ── Typography utilities ─────────────────────────────────── */
 .tm-display {
+  font-family: var(--tm-font-display);
   font-size: var(--tm-fs-display);
   line-height: var(--tm-lh-display);
   letter-spacing: var(--tm-tracking-tight);
@@ -327,11 +344,11 @@ body::after {
   color: var(--tm-text-muted);
 }
 .tm-label-caps {
-  font-size: var(--tm-fs-meta);
-  line-height: var(--tm-lh-meta);
+  font-size: var(--tm-fs-caption);
+  line-height: var(--tm-lh-caption);
   letter-spacing: var(--tm-tracking-caps);
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--tm-text-muted);
 }
 
@@ -353,11 +370,11 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  height: 2.5rem;
-  padding: 0 1rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
   border-radius: var(--tm-radius);
   font-weight: 500;
-  font-size: var(--tm-fs-body);
+  font-size: var(--tm-fs-meta);
   cursor: pointer;
   transition: background var(--tm-dur) var(--tm-ease),
               color var(--tm-dur) var(--tm-ease),
@@ -428,13 +445,13 @@ body::after {
 /* ── Input ────────────────────────────────────────────────── */
 .tm-input {
   width: 100%;
-  height: 2.5rem;
+  min-height: 2.75rem;
   padding: 0 0.875rem;
   background: var(--tm-surface);
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius);
   color: var(--tm-text);
-  font-size: var(--tm-fs-body);
+  font-size: var(--tm-fs-meta);
   transition: border-color var(--tm-dur) var(--tm-ease),
               box-shadow var(--tm-dur) var(--tm-ease);
 }

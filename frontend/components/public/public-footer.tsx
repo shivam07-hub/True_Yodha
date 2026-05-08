@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-const linkStyle = { fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color var(--tm-dur-fast) var(--tm-ease)" }
+const linkStyle = { fontSize: 13, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color var(--tm-dur-fast) var(--tm-ease)" }
 
 export function PublicFooter() {
   return (
@@ -26,7 +26,7 @@ export function PublicFooter() {
       >
         Privacy
       </Link>
-      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
+      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
       <Link
         href="/newsletter"
         style={linkStyle}
@@ -35,8 +35,8 @@ export function PublicFooter() {
       >
         Newsletter
       </Link>
-      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
-      <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>© Myro 2026</span>
+      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
+      <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>© Myro 2026</span>
     </div>
   )
 }

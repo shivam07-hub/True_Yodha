@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { MyroLogo } from "@/components/myro-logo"
 
 export type PublicNavPage = "intel" | "newsletter" | "privacy" | "signup" | "login"
 
@@ -24,10 +25,12 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
         zIndex: 10,
         display: "flex",
         alignItems: "center",
-        gap: 2,
-        padding: "0 12px",
-        height: 44,
-        minHeight: 44,
+        width: "100%",
+        minWidth: 0,
+        gap: 20,
+        padding: "0 32px",
+        height: 64,
+        minHeight: 64,
         background: "var(--tm-surface)",
         borderBottom: "1px solid var(--tm-border-soft)",
         overflowX: "auto",
@@ -35,7 +38,31 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
         flexShrink: 0,
       }}
     >
-      {/* Left group: informational nav links */}
+      <Link
+        href="/"
+        aria-label="Myro home"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          color: "var(--tm-text)",
+          textDecoration: "none",
+          flexShrink: 0,
+        }}
+      >
+        <MyroLogo size={34} />
+        <span
+          style={{
+            fontFamily: "var(--tm-font-display)",
+            fontSize: 24,
+            lineHeight: 1,
+            fontWeight: 600,
+          }}
+        >
+          Myro
+        </span>
+      </Link>
+
       {NAV_ITEMS.map((item) => {
         const isActive = item.id === active
         return (
@@ -45,11 +72,11 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "4px 10px",
-              height: 28,
+              padding: "0 12px",
+              height: 40,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 12,
-              fontWeight: isActive ? 600 : 400,
+              fontSize: 15,
+              fontWeight: isActive ? 600 : 500,
               color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)",
               background: isActive ? "var(--tm-accent-wash)" : "transparent",
               border: `1px solid ${isActive ? "var(--tm-accent-ring)" : "transparent"}`,
@@ -75,15 +102,14 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
         )
       })}
 
-      {/* Right group: auth entry points */}
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
         <Link
           href="/signup"
           style={{
             display: "flex", alignItems: "center",
-            padding: "4px 12px", height: 28,
+            padding: "0 18px", height: 42,
             borderRadius: "var(--tm-radius-pill)",
-            fontSize: 12, fontWeight: 600,
+            fontSize: 15, fontWeight: 700,
             color: "var(--tm-accent-fg)",
             background: "var(--tm-accent)",
             border: "1px solid var(--tm-accent)",
@@ -106,9 +132,9 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             href="/login"
             style={{
               display: "flex", alignItems: "center",
-              padding: "4px 12px", height: 28,
+              padding: "0 16px", height: 42,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 12, fontWeight: 500,
+              fontSize: 15, fontWeight: 600,
               color: "var(--tm-text-muted)",
               background: "transparent",
               border: "1px solid var(--tm-border-soft)",
