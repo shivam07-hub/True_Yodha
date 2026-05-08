@@ -162,7 +162,7 @@ function UserFooter({
                 onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-hover-soft)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
               >
                 <span style={{ fontSize: 14, color: a.color, minWidth: 18, textAlign: "center", filter: `drop-shadow(0 0 3px ${a.color})` }}>{a.icon}</span>
-                <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
+                <span style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>{a.label}</span>
               </button>
             ))}
             <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "4px 0" }} />
@@ -181,7 +181,7 @@ function UserFooter({
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
               >
                 <span style={{ fontSize: 14, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                <span style={{ fontSize: 13, color: a.color }}>{a.label}</span>
+                <span style={{ fontSize: 14, color: a.color }}>{a.label}</span>
               </button>
             ))}
             <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "4px 0 0" }} />
@@ -207,10 +207,10 @@ function UserFooter({
             boxShadow: menuOpen ? "0 0 12px var(--tm-accent-glow)" : "none",
           }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}</div>
           <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
           </div>
           {expanded && (
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", transition: `transform var(--tm-dur)`, transform: menuOpen ? "rotate(180deg)" : "none", marginRight: 4 }}>▴</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", transition: `transform var(--tm-dur)`, transform: menuOpen ? "rotate(180deg)" : "none", marginRight: 4 }}>▴</div>
           )}
         </div>
       </div>
@@ -281,7 +281,7 @@ function CvVersionsWidget() {
       {/* Base CV root */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 2px" }}>
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)", flexShrink: 0 }} />
-        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>Base CV</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>Base CV</span>
       </div>
       {cvProfile.history.map((v, i) => {
         const isLatest = i === 0
@@ -314,21 +314,21 @@ function CvVersionsWidget() {
               onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
+                <span style={{ fontSize: 12, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
                   v{v.version_number}
                 </span>
                 {isLatest && (
-                  <span style={{ fontSize: 8, padding: "1px 4px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                  <span style={{ fontSize: 10, padding: "1px 4px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: 0, textTransform: "uppercase" }}>
                     HEAD
                   </span>
                 )}
                 {delta !== null && (
-                  <span style={{ fontSize: 9, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>
                     {delta >= 0 ? `+${delta}` : delta}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 9, color: "var(--tm-text-faint)", marginTop: 1 }}>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 1 }}>
                 {v.title ?? (v.version_type === "generated_draft" ? "generated" : "baseline")} · {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
               </div>
             </Link>
@@ -377,8 +377,8 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
           <MyroLogo size={32} />
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
-          <div className="tm-label-caps" style={{ marginTop: 2, fontSize: 10 }}>Career Intelligence</div>
+          <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 24, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
+          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 13, letterSpacing: 0 }}>Career Intelligence</div>
         </div>
       </Link>
 
@@ -393,14 +393,14 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
         <div style={{
           minWidth: 32, textAlign: "center",
           fontFamily: "var(--tm-font-mono)",
-          fontSize: 19, fontWeight: 700,
+          fontSize: 22, fontWeight: 700,
           color: "var(--tm-text)", lineHeight: 1,
           filter: "drop-shadow(0 0 6px var(--tm-accent-glow))",
         }}>
           {score !== null ? Math.round(score) : "—"}
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
-          <div className="tm-label-caps" style={{ fontSize: 10 }}>Myro Score</div>
+          <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>Myro Score</div>
         </div>
       </div>
 
@@ -457,7 +457,7 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
                   )}
                 </span>
                 <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
                     {item.nudge && !active ? <span style={{ color: "var(--tm-accent)" }}>Log today →</span> : item.desc}
                   </div>
                 </div>
@@ -493,10 +493,10 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
                 </span>
 
                 <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
                     {item.label}
                   </div>
-                  <div style={{ fontSize: 11, marginTop: 1, color: "var(--tm-text-faint)" }}>
+                  <div style={{ fontSize: 13, marginTop: 1, color: "var(--tm-text-faint)" }}>
                     {item.desc}
                   </div>
                 </div>

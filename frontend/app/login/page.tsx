@@ -59,7 +59,7 @@ export default function LoginPage() {
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 10px", borderRadius: 7,
     background: "var(--tm-hover)", border: "1px solid var(--tm-border)",
-    color: "var(--tm-text)", fontSize: 13, outline: "none", fontFamily: "inherit",
+    color: "var(--tm-text)", fontSize: 14, outline: "none", fontFamily: "inherit",
     boxSizing: "border-box",
   }
 
@@ -93,8 +93,8 @@ export default function LoginPage() {
             <MyroLogo size={32} />
           </div>
           <div style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 2 }}>Career Intelligence</div>
+            <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 24, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
+            <div style={{ fontSize: 11, lineHeight: 1.1, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase", marginTop: 4 }}>Career Intelligence</div>
           </div>
         </div>
 
@@ -106,14 +106,14 @@ export default function LoginPage() {
         }}>
           {/* Welcome heading */}
           <div style={{ whiteSpace: "nowrap" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>Welcome back</div>
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>Sign in to continue</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "var(--tm-text)" }}>Welcome back</div>
+            <div style={{ fontSize: 14, color: "var(--tm-text-faint)", marginTop: 2 }}>Sign in to continue</div>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Email */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 5 }}>
                 Email
               </label>
               <input
@@ -128,7 +128,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 5 }}>
                 Password
               </label>
               <div style={{ position: "relative" }}>
@@ -171,7 +171,7 @@ export default function LoginPage() {
 
             {error && (
               <p style={{
-                fontSize: 12, color: "var(--tm-danger, #ff6b6b)", padding: "6px 9px", borderRadius: 6,
+                fontSize: 13, color: "var(--tm-danger, #ff6b6b)", padding: "6px 9px", borderRadius: 6,
                 background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)", margin: 0,
                 whiteSpace: "normal", lineHeight: 1.4,
               }}>
@@ -186,7 +186,7 @@ export default function LoginPage() {
                 padding: "9px", borderRadius: 8,
                 background: loading ? "var(--tm-accent-wash)" : "var(--tm-accent-wash)",
                 border: "1px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)", fontSize: 13, fontWeight: 600,
+                color: "var(--tm-accent)", fontSize: 14, fontWeight: 700,
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit", transition: "all 0.2s", opacity: loading ? 0.6 : 1,
                 whiteSpace: "nowrap",
@@ -198,7 +198,7 @@ export default function LoginPage() {
             {/* Divider */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "2px 0" }}>
               <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-              <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>or</span>
+              <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>or</span>
               <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
             </div>
 
@@ -211,7 +211,7 @@ export default function LoginPage() {
                 padding: "8px 10px", borderRadius: 8, width: "100%",
                 background: "var(--tm-hover)",
                 border: "1px solid var(--tm-border)",
-                color: "var(--tm-text)", fontSize: 12, fontWeight: 500,
+                color: "var(--tm-text)", fontSize: 14, fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit", opacity: loading ? 0.6 : 1,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
@@ -239,7 +239,7 @@ export default function LoginPage() {
         </div>
 
         <div style={{ padding: "10px 12px 12px", borderTop: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Background</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase" }}>Background</div>
           <SurfaceToggle />
         </div>
 
@@ -252,13 +252,13 @@ export default function LoginPage() {
               background: "linear-gradient(135deg, var(--tm-border), var(--tm-accent-wash))",
               border: "1px solid var(--tm-border)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 11, fontWeight: 700, color: "var(--tm-text-faint)",
+              fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)",
             }}>
               ?
             </div>
             <div style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
-              <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>No account?</div>
-              <Link href="/signup" style={{ fontSize: 11, color: "var(--tm-accent)", textDecoration: "none" }}>
+              <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>No account?</div>
+              <Link href="/signup" style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-accent)", textDecoration: "none" }}>
                 Sign up free →
               </Link>
             </div>

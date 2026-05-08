@@ -70,7 +70,7 @@ export function AuthForm({ mode }: Props) {
   const inputBase: React.CSSProperties = {
     width: "100%", padding: "10px 14px", borderRadius: 8,
     background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)",
-    color: "var(--tm-text)", fontSize: 14, outline: "none", fontFamily: "inherit",
+    color: "var(--tm-text)", fontSize: 15, outline: "none", fontFamily: "inherit",
   }
 
   const hasError = !!error
@@ -87,8 +87,8 @@ export function AuthForm({ mode }: Props) {
           <div style={{ marginBottom: 12, filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }}>
             <MyroLogo size={44} />
           </div>
-          <div style={{ fontSize: 21, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>Myro</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.1em", textTransform: "uppercase", marginTop: 4 }}>Career Intelligence</div>
+          <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 32, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase", marginTop: 6 }}>Career Intelligence</div>
         </div>
 
         {/* Card */}
@@ -98,10 +98,10 @@ export function AuthForm({ mode }: Props) {
           borderRadius: 16, padding: 28,
           backdropFilter: "blur(20px)",
         }}>
-          <h1 style={{ fontSize: 19, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--tm-text)", marginBottom: 4 }}>
             {mode === "login" ? "Welcome back" : ""}
           </h1>
-          <p style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24 }}>
+          <p style={{ fontSize: 15, color: "var(--tm-text-muted)", marginBottom: 24 }}>
             {mode === "login" ? "Sign in to see your Myro Score" : ""}
           </p>
 
@@ -111,7 +111,7 @@ export function AuthForm({ mode }: Props) {
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }} noValidate>
             {mode === "signup" && (
               <div>
-                <label htmlFor="auth-name" style={{ fontSize: 12, color: "var(--tm-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                <label htmlFor="auth-name" style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
                   Secret Ninja User_Code
                 </label>
                 <input
@@ -128,7 +128,7 @@ export function AuthForm({ mode }: Props) {
             )}
 
             <div>
-              <label htmlFor="auth-email" style={{ fontSize: 12, color: "var(--tm-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+              <label htmlFor="auth-email" style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
                 Email
               </label>
               <input
@@ -146,7 +146,7 @@ export function AuthForm({ mode }: Props) {
             </div>
 
             <div>
-              <label htmlFor="auth-password" style={{ fontSize: 12, color: "var(--tm-text-muted)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+              <label htmlFor="auth-password" style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
                 Password
               </label>
               <div style={{ position: "relative" }}>
@@ -220,7 +220,7 @@ export function AuthForm({ mode }: Props) {
                 background: loading ? "var(--tm-accent-wash)" : "var(--tm-accent)",
                 border: `1px solid ${loading ? "var(--tm-border)" : "var(--tm-accent)"}`,
                 color: loading ? "var(--tm-text-muted)" : "var(--tm-accent-fg)",
-                fontSize: 14, fontWeight: 600,
+                fontSize: 15, fontWeight: 700,
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
                 opacity: loading ? 0.6 : 1,
@@ -231,7 +231,7 @@ export function AuthForm({ mode }: Props) {
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
               <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-              <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>or</span>
+              <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>or</span>
               <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
             </div>
 
@@ -244,7 +244,7 @@ export function AuthForm({ mode }: Props) {
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid var(--tm-border)",
                 color: "var(--tm-text)",
-                fontSize: 14, fontWeight: 500,
+                fontSize: 15, fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
@@ -265,7 +265,7 @@ export function AuthForm({ mode }: Props) {
           </form>
         </div>
 
-        <p style={{ marginTop: 20, textAlign: "center", fontSize: 13, color: "var(--tm-text-faint)" }}>
+        <p style={{ marginTop: 20, textAlign: "center", fontSize: 14, color: "var(--tm-text-faint)" }}>
           {mode === "login" ? (
             <>No account?{" "}
               <Link href="/signup" style={{ color: "var(--tm-accent)", textDecoration: "none" }}>Sign up</Link>
@@ -278,7 +278,7 @@ export function AuthForm({ mode }: Props) {
         </p>
 
         <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
-          <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Background</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase" }}>Background</div>
           <SurfaceToggle />
         </div>
       </div>

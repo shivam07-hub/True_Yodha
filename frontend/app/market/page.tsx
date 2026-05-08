@@ -71,7 +71,7 @@ function IntelBar({ label, count, max, active, onClick }: {
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 13, fontWeight: active ? 600 : 500, marginBottom: 5, textAlign: "left",
+          fontSize: 14, fontWeight: active ? 700 : 600, marginBottom: 5, textAlign: "left",
           color: active ? "var(--tm-accent)" : "var(--tm-text)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           transition: "color var(--tm-dur-fast) var(--tm-ease)",
@@ -87,7 +87,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         </div>
       </div>
       <div style={{
-        fontSize: 12, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
         flexShrink: 0, minWidth: 36, textAlign: "right",
         fontVariantNumeric: "tabular-nums", fontWeight: 500,
         transition: "color var(--tm-dur-fast) var(--tm-ease)",
@@ -299,10 +299,10 @@ export default function MarketPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
+          <h1 style={{ fontFamily: "var(--tm-font-display)", fontSize: "var(--tm-fs-display)", lineHeight: "var(--tm-lh-display)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0, marginBottom: 4 }}>
             Intel
           </h1>
-          <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+          <div style={{ fontSize: 16, lineHeight: 1.45, color: "var(--tm-accent)", letterSpacing: 0, textTransform: "uppercase", marginBottom: 6, opacity: 0.7, fontWeight: 600 }}>
             {marketSummary}
           </div>
         </div>
@@ -313,7 +313,7 @@ export default function MarketPage() {
         {token ? (
           targetRoles.length > 0 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
                 Target Roles
               </div>
               {targetRoles.map((role) => {
@@ -331,7 +331,7 @@ export default function MarketPage() {
                       setSelectedJobFit(null)
                     }}
                     style={{
-                      padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
+                      padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
                       background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
                       border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
                       color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
@@ -345,11 +345,11 @@ export default function MarketPage() {
               })}
             </div>
           ) : (
-            <div style={{ marginBottom: 14, fontSize: 12, color: "var(--tm-text-faint)" }}>
+            <div style={{ marginBottom: 14, fontSize: 14, color: "var(--tm-text-faint)" }}>
               No target roles set —{" "}
               <button
                 onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
-                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", textDecoration: "underline" }}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textDecoration: "underline" }}
               >
                 Add target roles in Settings →
               </button>
@@ -357,7 +357,7 @@ export default function MarketPage() {
           )
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
               Role Domain
             </div>
             <select
@@ -372,7 +372,7 @@ export default function MarketPage() {
                 setCompanySearch("")
               }}
               className="tm-input"
-              style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+              style={{ maxWidth: 320, height: 34, fontSize: 14 }}
             >
               <option value="">All roles</option>
               {roleOptions.map((role) => (
@@ -385,7 +385,7 @@ export default function MarketPage() {
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
             Location
           </div>
           <select
@@ -399,7 +399,7 @@ export default function MarketPage() {
               setSelectedJobFit(null)
             }}
             className="tm-input"
-            style={{ maxWidth: 220, height: 34, fontSize: 12 }}
+            style={{ maxWidth: 220, height: 34, fontSize: 14 }}
           >
             <option value="">All cities</option>
             {cityOptions.map((item) => (
@@ -419,7 +419,7 @@ export default function MarketPage() {
               setSelectedJobFit(null)
             }}
             className="tm-input"
-            style={{ maxWidth: 220, height: 34, fontSize: 12 }}
+            style={{ maxWidth: 220, height: 34, fontSize: 14 }}
           >
             <option value="">All countries</option>
             {countryOptions.map((item) => (
@@ -439,7 +439,7 @@ export default function MarketPage() {
               setSelectedJobFit(null)
             }}
             className="tm-input"
-            style={{ maxWidth: 180, height: 34, fontSize: 12 }}
+            style={{ maxWidth: 180, height: 34, fontSize: 14 }}
           >
             <option value="">All modes</option>
             {modeOptions.map((item) => (
@@ -461,7 +461,7 @@ export default function MarketPage() {
                 setSelectedJobFit(null)
               }}
               className="tm-btn tm-btn-ghost"
-              style={{ height: 34, fontSize: 12, padding: "0 12px" }}
+              style={{ height: 34, fontSize: 14, padding: "0 12px" }}
             >
               Clear location
             </button>
@@ -475,7 +475,7 @@ export default function MarketPage() {
               key={v}
               onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
               style={{
-                padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
+                padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
                 background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
                 border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
                 color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
@@ -501,11 +501,11 @@ export default function MarketPage() {
               display: "flex", flexDirection: "column",
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78 }}>
                   {view === "companies" ? `All Companies · ${list.length}` : "Industry Breakdown"}
                 </div>
                 {view === "companies" && (
-                  <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                  <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
                     {analytics?.total_companies ?? 0} total
                   </span>
                 )}
@@ -517,7 +517,7 @@ export default function MarketPage() {
                   onChange={(e) => { setCompanySearch(e.target.value); setSelected(null) }}
                   placeholder="Search companies…"
                   className="tm-input"
-                  style={{ marginBottom: 10, height: 34, fontSize: 12 }}
+                  style={{ marginBottom: 10, height: 34, fontSize: 14 }}
                 />
               )}
 
@@ -569,10 +569,10 @@ export default function MarketPage() {
                       ← Back
                     </button>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tm-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {drillSkill.company}
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--tm-accent)", marginTop: 1 }}>
+                      <div style={{ fontSize: 13, color: "var(--tm-accent)", marginTop: 1, fontWeight: 600 }}>
                         Skill: {drillSkill.skill} · {drillLoading ? "…" : `${drillData?.available_total ?? 0} matching jobs`}
                       </div>
                     </div>
@@ -585,7 +585,7 @@ export default function MarketPage() {
                     borderBottom: "1px solid var(--tm-border-soft)",
                   }}>
                     {["Job ID", "Job Title", "Location", "Description"].map((h) => (
-                      <div key={h} style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>{h}</div>
+                      <div key={h} style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>{h}</div>
                     ))}
                   </div>
 
@@ -630,7 +630,7 @@ export default function MarketPage() {
                             <div
                               onClick={() => setSelectedJobFit(job)}
                               style={{
-                                fontSize: 12, fontWeight: 500, color: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent)" : "var(--tm-text)",
+                                fontSize: 13, fontWeight: 600, color: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent)" : "var(--tm-text)",
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                 cursor: "pointer",
                                 textDecoration: "underline",
@@ -639,18 +639,18 @@ export default function MarketPage() {
                             >
                               {job.job_title || "—"}
                             </div>
-                            <div style={{ fontSize: 12, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {job.location || [job.location_city, job.location_country].filter(Boolean).join(", ") || "Unknown"}
                             </div>
                             {/* Description */}
-                            <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
+                            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
                               {isOpen ? (job.job_description || "No description") : (shortDesc + (hasMore ? "…" : "") || "No description")}
                               {hasMore && (
                                 <button
                                   onClick={() => setExpandedDesc(isOpen ? null : job.job_id)}
                                   style={{
                                     marginLeft: 5, background: "none", border: "none",
-                                    color: "var(--tm-accent)", cursor: "pointer", fontSize: 11,
+                                    color: "var(--tm-accent)", cursor: "pointer", fontSize: 12,
                                     fontFamily: "inherit", padding: 0, textDecoration: "underline",
                                   }}
                                 >
@@ -673,7 +673,7 @@ export default function MarketPage() {
                       paddingTop: 10,
                       borderTop: "1px solid var(--tm-border-soft)",
                     }}>
-                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                      <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
                         Showing {drillData.returned_total.toLocaleString()} of {drillData.available_total.toLocaleString()} · page {drillData.page}
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
@@ -687,7 +687,7 @@ export default function MarketPage() {
                             border: "1px solid var(--tm-border-soft)",
                             background: "transparent",
                             color: "var(--tm-text-muted)",
-                            fontSize: 11,
+                            fontSize: 12,
                             fontFamily: "inherit",
                             cursor: drillData.page <= 1 || drillLoading ? "not-allowed" : "pointer",
                             opacity: drillData.page <= 1 || drillLoading ? 0.45 : 1,
@@ -705,7 +705,7 @@ export default function MarketPage() {
                             border: "1px solid var(--tm-accent-ring)",
                             background: "var(--tm-accent-wash)",
                             color: "var(--tm-accent)",
-                            fontSize: 11,
+                            fontSize: 12,
                             fontFamily: "inherit",
                             cursor: !drillData.has_next_page || drillLoading ? "not-allowed" : "pointer",
                             opacity: !drillData.has_next_page || drillLoading ? 0.45 : 1,
@@ -721,7 +721,7 @@ export default function MarketPage() {
                 /* ── Skills list view ── */
                 <>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{selected.name}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)" }}>{selected.name}</div>
                     {selected.type === "company" && token && (
                       <button
                         onClick={() => {
@@ -731,7 +731,7 @@ export default function MarketPage() {
                         }}
                         disabled={followMutation.isPending || unfollowMutation.isPending}
                         style={{
-                          flexShrink: 0, padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                          flexShrink: 0, padding: "4px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700,
                           fontFamily: "inherit", cursor: "pointer", transition: "all 150ms",
                           background: followedSet.has(selected.name) ? "var(--tm-accent-wash)" : "transparent",
                           border: `1px solid ${followedSet.has(selected.name) ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
@@ -742,7 +742,7 @@ export default function MarketPage() {
                       </button>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--tm-accent)", marginBottom: 14 }}>
+                  <div style={{ fontSize: 14, color: "var(--tm-accent)", marginBottom: 14, fontWeight: 600 }}>
                     {selected.roles.toLocaleString()} open roles
                   </div>
                   {skillsLoading ? (
@@ -753,7 +753,7 @@ export default function MarketPage() {
                     </div>
                   ) : (entitySkillsData?.skills ?? []).length > 0 ? (
                     <>
-                      <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
                         {selected.type === "company" ? "Click a skill to see matching jobs" : "Skills in demand"}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -777,23 +777,23 @@ export default function MarketPage() {
                             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
                           >
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", flexShrink: 0 }} />
-                            <span style={{ flex: 1, fontSize: 13, color: "var(--tm-text)" }}>{s.skill}</span>
-                            <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{s.skill}</span>
+                            <span style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
                               {s.count.toLocaleString()}
                             </span>
                             {selected.type === "company" && (
-                              <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>›</span>
+                              <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>›</span>
                             )}
                           </div>
                         ))}
                       </div>
                     </>
                   ) : (
-                    <div style={{ color: "var(--tm-text-faint)", fontSize: 13, padding: "16px 0" }}>No skill breakdown available.</div>
+                    <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "16px 0" }}>No skill breakdown available.</div>
                   )}
                 </>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--tm-text-faint)", fontSize: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--tm-text-faint)", fontSize: 15 }}>
                   <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.3, color: "var(--tm-accent)" }}>◉</div>
                   Select a {view === "companies" ? "company" : "industry"} to see skills
                 </div>

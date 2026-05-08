@@ -127,12 +127,13 @@ Stage timers in `CVUploadProcessing` now match real ~29s window (7s → 20s). Fo
 
 ### Backlog (priority order)
 
-1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop.
-2. ✅ **cv_parser.py → LLMProvider** — `_llm_extract()` now delegates to `get_llm_provider().complete()`; private provider constants removed. (`diary_processor.py` never existed — backlog description was stale.)
-3. **Phase 4 — Cross-repo taxonomy contract** — checksum check on boot + contract test asserting `public.jobs` shape matches `csv_importer.py` output.
-4. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote directly to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
-5. **Newsletter Issue 002 distribution** — images, internal links, schedule email + social.
-6. **Report as Inactive feature** — full spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
+1. **🔴 XP + Forge system** — full spec in §XP + FORGE SYSTEM above. Build order: schema → backend → frontend. Start here.
+2. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop.
+3. ✅ **cv_parser.py → LLMProvider** — `_llm_extract()` now delegates to `get_llm_provider().complete()`; private provider constants removed.
+4. **Phase 4 — Cross-repo taxonomy contract** — checksum check on boot + contract test asserting `public.jobs` shape matches `csv_importer.py` output.
+5. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote directly to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
+6. **Newsletter Issue 002 distribution** — images, internal links, schedule email + social.
+7. **Report as Inactive feature** — full spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*` · Per-job progress detail views
 
@@ -219,6 +220,389 @@ Dashboard → trajectory view: score Δ, jobs in flight, milestones done, latest
 - Vercel: `truemirror.vercel.app` → `main`
 - Supabase: `gipvxuugajkugntwkeiz` (prod DB)
 - LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+
+---
+
+## XP + FORGE SYSTEM — FULL BUILD SPEC (2026-05-09)
+
+> Status: **READY TO BUILD** — design finalised in Cowork session 2026-05-09.
+> Build on `Develop` branch. Do NOT touch `main`.
+> Complete each phase in order — later phases depend on earlier schema/endpoints.
+
+---
+
+### WHAT THIS REPLACES / REMOVES
+
+- **7-day milestone plan removed entirely** — no `job_application_milestones` seeds, no LLM-generated plans, no 7-day UI. The user drives their own schedule through the skill cart.
+- **Forge progress strip moved** — now sits directly below the "Mission control" heading, above company tabs.
+- **Diary redesigned** — no longer a raw text-dump at bottom of page. Now a slide-in panel with two zones: (1) personal journal / vent area, (2) skill cart.
+- **Achievements demoted** — compact pill row at bottom of Mission Control, not a full section.
+- **Evidence Since Last CV strip removed as standalone section** — data collapsed into forge strip subtitle: "Since last CV: +N score · N diary entries · N days".
+
+---
+
+### DECISIONS LOCKED (XP + FORGE)
+
+| # | Decision |
+|---|---|
+| XP1 | XP is permanent — never resets at midnight or any interval. It is a wallet the user owns forever. |
+| XP2 | Welcome grant = 1000 XP, fired once after CV analysis completes (`cv_parser.py` pipeline end), gated by `user_profiles.welcome_xp_granted = FALSE`. |
+| XP3 | Each forge session = +50 wallet XP. Each diary entry submit = +30 wallet XP. |
+| XP4 | XP spend: 100 XP = rewrite one CV line (AI-tailored to focused job). 50 XP = download tailored CV PDF. Deducted immediately on button press — no confirm modal. |
+| XP5 | Skill level thresholds (cumulative forge sessions on that skill): L0→L1 = 3, L1→L2 = 9, L2→L3 = 27, L3→L4 = 108. Wallet XP and skill-session counts are separate — wallet XP is currency, session counts drive level-up. |
+| XP6 | Cart size = number of forge sessions the user can run. 3 skills in cart → 3 sessions available. No artificial daily cap — sessions are available as long as skills are in cart. |
+| XP7 | Cart is ephemeral UI state (Zustand) until the user submits a diary entry — then it is snapshot-saved as `daily_logs.cart_skills JSONB`. Cart entry is immutable after submit. |
+| XP8 | Forge modal is full-screen dark overlay. Cursor-following teal glow (radial CSS, JS mouse tracking). Teal edge particles (CSS keyframe animation). Everything else on screen disappears. |
+| XP9 | Company tab selection reconfigures the WHOLE Mission Control page: gaps, pipeline, CV%, forge label, hero job card — all switch to that company's data. |
+
+---
+
+### PHASE 1 — SUPABASE SCHEMA (run in SQL editor, no migration tooling)
+
+```sql
+-- 1a. XP wallet + welcome grant flag on user_profiles
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS xp_balance       INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS welcome_xp_granted BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- 1b. Cart snapshot on daily_logs
+ALTER TABLE daily_logs
+  ADD COLUMN IF NOT EXISTS cart_skills JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- 1c. Forge sessions log (lightweight, one row per completed session)
+CREATE TABLE IF NOT EXISTS forge_sessions (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  skill_name       TEXT        NOT NULL,
+  skill_id         UUID        REFERENCES skills(id),
+  level_before     INTEGER     NOT NULL DEFAULT 0,
+  level_after      INTEGER     NOT NULL DEFAULT 0,
+  sessions_toward_next INTEGER NOT NULL DEFAULT 1,
+  duration_minutes INTEGER     NOT NULL DEFAULT 25,
+  xp_earned        INTEGER     NOT NULL DEFAULT 50,
+  completed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE forge_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own forge sessions"
+  ON forge_sessions FOR ALL USING (user_id = auth.uid());
+
+-- 1d. Skill session counter on user_skills (tracks cumulative forge sessions per skill)
+ALTER TABLE user_skills
+  ADD COLUMN IF NOT EXISTS forge_sessions_count INTEGER NOT NULL DEFAULT 0;
+```
+
+**Verify schema applied** before moving to Phase 2:
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'user_profiles' AND column_name IN ('xp_balance','welcome_xp_granted');
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'daily_logs' AND column_name = 'cart_skills';
+SELECT table_name FROM information_schema.tables WHERE table_name = 'forge_sessions';
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'user_skills' AND column_name = 'forge_sessions_count';
+```
+
+---
+
+### PHASE 2 — BACKEND
+
+#### 2a. `backend/app/services/xp_service.py` (new file, <120 lines)
+
+```python
+# Functions to implement (all async, use admin Supabase client):
+
+async def get_xp_balance(user_id: str) -> int:
+    # SELECT xp_balance FROM user_profiles WHERE id = user_id
+
+async def grant_welcome_xp(user_id: str) -> int:
+    # Guard: if welcome_xp_granted = TRUE, return current balance (idempotent)
+    # UPDATE user_profiles SET xp_balance = xp_balance + 1000,
+    #   welcome_xp_granted = TRUE WHERE id = user_id
+    # Return new balance
+
+async def earn_xp(user_id: str, amount: int) -> int:
+    # UPDATE user_profiles SET xp_balance = xp_balance + amount WHERE id = user_id
+    # Return new balance
+
+async def spend_xp(user_id: str, amount: int, action: str) -> int:
+    # SELECT xp_balance — if insufficient raise HTTPException(400, "Insufficient XP")
+    # UPDATE user_profiles SET xp_balance = xp_balance - amount WHERE id = user_id
+    # Return new balance
+```
+
+#### 2b. `backend/app/services/forge_service.py` (new file, <150 lines)
+
+Skill level thresholds — define as module constant:
+```python
+LEVEL_THRESHOLDS = {0: 3, 1: 9, 2: 27, 3: 108}
+# cumulative forge sessions needed to reach next level
+# level 4 is max — no further progression
+```
+
+```python
+async def complete_forge_session(
+    user_id: str,
+    skill_name: str,
+    skill_id: str | None,
+    duration_minutes: int,
+) -> dict:
+    # 1. Earn +50 XP (call xp_service.earn_xp)
+    # 2. Fetch current user_skills row for this skill (match by skill_id or skill_name)
+    #    — if no row exists, create one with matched_level=0, forge_sessions_count=0
+    # 3. Increment forge_sessions_count += 1
+    # 4. Determine level_before = matched_level
+    # 5. Check if cumulative sessions cross threshold for current level:
+    #    threshold = LEVEL_THRESHOLDS.get(level_before)
+    #    if threshold and forge_sessions_count >= threshold:
+    #        new_level = level_before + 1
+    #        UPDATE user_skills SET matched_level = new_level, forge_sessions_count = forge_sessions_count + 1
+    #    else:
+    #        UPDATE user_skills SET forge_sessions_count = forge_sessions_count + 1
+    # 6. INSERT into forge_sessions (all fields)
+    # 7. Return {xp_earned: 50, new_xp_balance, level_before, level_after, leveled_up: bool,
+    #            sessions_toward_next, sessions_needed: LEVEL_THRESHOLDS.get(new_level)}
+```
+
+#### 2c. `backend/app/routers/xp.py` (new router, <100 lines)
+
+Register in `backend/app/main.py` with prefix `/users/me`.
+
+```
+GET  /users/me/xp
+     → {balance: int}
+
+POST /users/me/xp/spend
+     Body: {amount: int, action: str}
+     → {balance: int}  |  400 if insufficient
+
+POST /users/me/forge/complete
+     Body: {skill_name: str, skill_id: str | None, duration_minutes: int}
+     → {xp_earned, new_xp_balance, level_before, level_after,
+        leveled_up, sessions_toward_next, sessions_needed}
+```
+
+#### 2d. `backend/app/routers/cv/upload.py` — add welcome XP grant
+
+After the CV analysis pipeline resolves skills successfully (after `compute_and_persist_score` is called), add:
+```python
+from app.services.xp_service import grant_welcome_xp
+# ...after analysis completes:
+await grant_welcome_xp(user_id)
+```
+
+This is idempotent — safe to call on re-upload.
+
+#### 2e. `backend/app/routers/diary.py` (or wherever daily_logs POST lives)
+
+Extend the diary entry creation endpoint to accept and persist `cart_skills`:
+```python
+class DiaryEntryCreate(BaseModel):
+    entry_text: str
+    cart_skills: list[dict] = []   # [{skill_name, level_from, level_to, company}]
+    # ... existing fields
+
+# After INSERT into daily_logs, earn XP:
+from app.services.xp_service import earn_xp
+new_balance = await earn_xp(user_id, 30)
+# Return entry + {xp_earned: 30, new_xp_balance: new_balance}
+```
+
+#### 2f. Tests — add to `backend/tests/`
+
+- `test_xp_service.py`: grant_welcome_xp idempotent, spend_xp insufficient guard, earn_xp accumulates
+- `test_forge_service.py`: level-up fires at correct thresholds (3, 9, 27, 108), no overshoot past L4
+
+---
+
+### PHASE 3 — FRONTEND
+
+All components on `Develop`. Run `tsc --noEmit` + `next lint` before each commit.
+
+#### 3a. `frontend/lib/api.ts` — add 4 functions
+
+```typescript
+export async function getXPBalance(): Promise<number>
+export async function spendXP(amount: number, action: string): Promise<number>
+export async function completeForgeSession(payload: {
+  skill_name: string
+  skill_id?: string
+  duration_minutes: number
+}): Promise<ForgeSessionResult>
+// ForgeSessionResult: {xp_earned, new_xp_balance, level_before, level_after,
+//                      leveled_up, sessions_toward_next, sessions_needed}
+```
+
+Add types to `frontend/types/xp.ts` (new file).
+
+#### 3b. `frontend/components/diary/DiaryPanel.tsx` (new component, <280 lines)
+
+Slide-in panel rendered inside Mission Control layout (flex sibling, `width: 0 → 290px` CSS transition).
+
+**Two zones:**
+
+Zone 1 — Journal:
+- Label: "TODAY'S THOUGHTS"
+- `<textarea>` placeholder: "Vent, reflect, celebrate — what's going on with your search today?"
+- No character limit, plain text
+
+Zone 2 — Skill cart:
+- Label: "SKILL CART · Skills to forge this week"
+- List of cart items: `{skill_name, level_from, level_to, company}` — with × remove button
+- "Add from gaps →" quick-add buttons (passed as props from parent, derived from current company's top gaps)
+- Cart state lives in parent (Zustand store or lifted state in home/page.tsx)
+
+Submit button: "Log entry · earn +30 XP"
+- Calls `POST /diary` with `{entry_text, cart_skills: cartSkills}`
+- On success: show "+30 XP" toast, clear journal textarea (keep cart — user may log again)
+
+Past entries (below submit):
+- Show last 3 entries, each truncated to 2 lines with expand
+- Show XP tags (teal pills: "ML +50 XP") and cart tags (amber pills: "🛒 Machine Learning")
+
+#### 3c. `frontend/components/forge/ForgeModal.tsx` (new component, <280 lines)
+
+Full-screen dark overlay (`position: fixed, inset: 0` — this IS appropriate for a modal).
+Background: `#070711`. Rendered via React portal into `document.body`.
+
+Props:
+```typescript
+interface ForgeModalProps {
+  cartSkills: CartSkill[]        // [{skill_name, level_from, level_to, company}]
+  onClose: () => void
+  onXPEarned: (amount: number, newBalance: number) => void
+}
+```
+
+**Three screens** (internal state machine — `'queue' | 'session' | 'complete'`):
+
+Screen 1 — Queue (`'queue'`):
+- "TODAY'S FORGE QUEUE · N skills · N sessions"
+- Numbered list of skills with XP badge (+50 XP each)
+- "Begin session 1 of N" button → transitions to `'session'`
+
+Screen 2 — Session (`'session'`):
+- Cursor-following glow: `onMouseMove` → set CSS `transform: translate(x, y)` on glow div
+  ```typescript
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setGlowPos({ x: e.clientX - rect.left - 150, y: e.clientY - rect.top - 150 })
+  }
+  ```
+- Teal edge particles: 22 `<div>` elements, CSS `@keyframes` fade in/out, spawned on mount
+- Top bar: "SESSION N OF N" label + skill name + "X / Y XP earned today" badge + Exit button
+- Session progress dots (one per skill, filled as completed)
+- SVG ring timer: `r=84`, circumference=528, `strokeDashoffset` increases from 0 to 528 as time elapses
+- Duration picker: 25 / 40 / 60 min
+- Start / Pause button
+- Bottom bar: "Up next: [skill]" + "Log in diary" button
+- On session complete: call `completeForgeSession`, update XP balance, transition to between-session banner
+- Between-session banner: "+50 XP · [Skill] forged ✓" → "Next session" or "Exit to dashboard"
+
+Screen 3 — All done (`'complete'`):
+- XP summary grid (one card per skill: skill name + "+50 XP" + level change if leveled up)
+- "◆ Spend XP on CV" CTA → closes modal, opens CV card
+- "Log in diary" CTA → closes modal, opens DiaryPanel
+
+**Level-up moment:** when `leveled_up = true` from API response, show a brief overlay on the between-session banner: "[Skill] reached L[N]!" before continuing.
+
+#### 3d. `frontend/app/(dashboard)/home/page.tsx` — Mission Control restructure
+
+**New layout order (top to bottom):**
+1. Target subtitle + "Mission control" `<h1>`
+2. **Forge strip** (was at bottom — now immediately below heading):
+   - Stats: streak · sessions · `◆ {xp_balance} XP` · score/100
+   - Subtitle line: "Since last CV: +N score · N diary entries · N days"
+   - Right side buttons (stacked): "Enter Forge ↗" (teal) + "Diary + cart" (ghost, below)
+3. Company tabs (Airbnb | Accenture | 3M | ...)
+4. Hero job card (company-specific, amber accent border)
+5. 3-column grid: Skill gaps | Pipeline | CV unlock
+6. Achievements pill row
+
+**Company tab behaviour:** selecting a tab re-fetches or filters all data on the page for that company's focused job. All 5 sections update: gaps label, pipeline filter, CV%, hero card, forge label.
+
+**Skill gaps card changes:**
+- Each gap row gets two buttons: "▶ Forge" (opens ForgeModal) + "+ Cart" (adds to cartSkills state)
+- Cart button shows filled/green state if skill already in cart
+
+**CV unlock card changes:**
+- "Rewrite CV line" (◆ 100 XP): calls `spendXP(100, 'rewrite_cv_line')` → on success shows toast "CV line rewriting..." → triggers CV rewrite endpoint
+- "Download tailored CV" (◆ 50 XP): calls `spendXP(50, 'download_cv')` → on success triggers PDF download
+- Both: deduct immediately, show toast "{action} unlocked · −N XP · Balance: ◆ N"
+- If insufficient XP: toast "Not enough XP — forge a session to earn more"
+
+**XP balance display:**
+- Sidebar: XP balance fetched via `getXPBalance()` on mount, stored in Zustand (`useXPStore`)
+- Forge strip: reads from same Zustand store
+- Updates optimistically on earn/spend
+
+**State management additions to Zustand:**
+```typescript
+// frontend/store/xpStore.ts (new)
+interface XPStore {
+  balance: number
+  setBalance: (n: number) => void
+  addBalance: (n: number) => void
+  subtractBalance: (n: number) => void
+}
+
+// frontend/store/cartStore.ts (new)
+interface CartStore {
+  skills: CartSkill[]
+  addSkill: (skill: CartSkill) => void
+  removeSkill: (skillName: string) => void
+  clearCart: () => void
+}
+```
+
+**Toast component:** use existing shadcn `toast` / `useToast` — do not add a new library.
+
+---
+
+### BUILD ORDER (strict — do not skip steps)
+
+```
+Step 1 — Schema (Supabase SQL editor)
+  → verify all 4 columns/tables exist before continuing
+
+Step 2 — Backend services
+  → xp_service.py
+  → forge_service.py
+  → xp.py router (register in main.py)
+
+Step 3 — Backend integrations
+  → cv/upload.py welcome XP hook
+  → diary.py cart_skills extension + XP earn
+
+Step 4 — Backend tests
+  → test_xp_service.py
+  → test_forge_service.py
+  → pytest backend/tests — must be green
+
+Step 5 — Frontend types + API
+  → frontend/types/xp.ts
+  → frontend/lib/api.ts additions
+
+Step 6 — Frontend stores
+  → frontend/store/xpStore.ts
+  → frontend/store/cartStore.ts
+
+Step 7 — DiaryPanel component
+  → frontend/components/diary/DiaryPanel.tsx
+
+Step 8 — ForgeModal component
+  → frontend/components/forge/ForgeModal.tsx
+
+Step 9 — Mission Control page restructure
+  → frontend/app/(dashboard)/home/page.tsx
+
+Step 10 — Verify
+  → tsc --noEmit (zero errors)
+  → next lint (zero warnings)
+  → manual smoke test: add 2 skills to cart → enter forge → complete session → check XP balance updated → spend XP on CV download → check balance deducted → submit diary entry with cart → check +30 XP
+
+Step 11 — Commit + push to Develop
+  → feat: XP economy + forge multi-session + mission control redesign
+```
 
 ---
 
