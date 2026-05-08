@@ -153,12 +153,16 @@ export function SettingsModal({ open, onClose, profile }: {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Following tab state
-  const [followSearch, setFollowSearch] = useState("")
+  const [companyInput, setCompanyInput] = useState("")
+  const [companyDropdown, setCompanyDropdown] = useState(false)
+  const [companyFocused, setCompanyFocused] = useState(false)
 
   const roleInputRef = useRef<HTMLInputElement>(null)
   const roleCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const locationInputRef = useRef<HTMLInputElement>(null)
   const locationCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const companyInputRef = useRef<HTMLInputElement>(null)
+  const companyCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pending = useRef<ProfileUpdate>({})
@@ -211,6 +215,31 @@ export function SettingsModal({ open, onClose, profile }: {
     mutationFn: (companyName: string) => users.unfollowCompany(token!, companyName),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
+
+  const { data: companySuggestions = [] } = useQuery({
+    queryKey: ["companySuggestions", companyInput],
+    queryFn: () => jobs.searchCompanies(companyInput),
+    enabled: companyInput.trim().length >= 2,
+    staleTime: 60 * 1000,
+  })
+
+  const filteredSuggestions = companySuggestions.filter(
+    (name) => !(followingData?.companies ?? []).some((c) => c.company_name.toLowerCase() === name.toLowerCase())
+  )
+
+  const followMutation = useMutation({
+    mutationFn: (companyName: string) => users.followCompany(token!, companyName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
+      setCompanyInput("")
+      setCompanyDropdown(false)
+    },
+  })
+
+  function selectCompany(name: string) {
+    if (companyCloseTimer.current) clearTimeout(companyCloseTimer.current)
+    followMutation.mutate(name)
+  }
 
   function schedule(updates: ProfileUpdate) {
     pending.current = { ...pending.current, ...updates }
@@ -301,12 +330,7 @@ export function SettingsModal({ open, onClose, profile }: {
     locationInputRef.current?.focus()
   }
 
-  const filteredFollowing = useMemo(() => {
-    const needle = followSearch.trim().toLowerCase()
-    const companies = followingData?.companies ?? []
-    if (!needle) return companies
-    return companies.filter((c) => c.company_name.toLowerCase().includes(needle))
-  }, [followingData, followSearch])
+  const followedCompanies = followingData?.companies ?? []
 
   const statusNode = saveStatus === "saving" ? (
     <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Saving…</span>
@@ -582,25 +606,71 @@ export function SettingsModal({ open, onClose, profile }: {
             {/* ── FOLLOWING TAB ── */}
             {activeTab === "Following" && (
               <>
-                <div style={{ marginTop: 16, marginBottom: 16 }}>
-                  <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 14 }}>
-                    Companies you&apos;re tracking — follow from the{" "}
-                    <Link href="/market" onClick={flushAndClose} style={{ color: "var(--tm-accent)", textDecoration: "none" }}>
-                      Market page
-                    </Link>
+                {/* Company search combobox — same pattern as Target Roles */}
+                <div style={{ ...ROW_STYLE, marginTop: 16 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={ROW_LABEL}>Followed Companies</div>
+                      <div style={ROW_DESC}>Companies whose jobs you track in Market</div>
+                    </div>
+                    {followedCompanies.length > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
+                        {followedCompanies.length} following
+                      </span>
+                    )}
                   </div>
-                  <input
-                    type="text" value={followSearch}
-                    onChange={(e) => setFollowSearch(e.target.value)}
-                    placeholder="Search followed companies…"
-                    style={INPUT_STYLE}
-                    onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-                    onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      ref={companyInputRef}
+                      type="text"
+                      value={companyInput}
+                      role="combobox"
+                      aria-expanded={companyDropdown && filteredSuggestions.length > 0}
+                      aria-controls="sm-company-listbox"
+                      aria-autocomplete="list"
+                      aria-label="Search companies to follow"
+                      onChange={(e) => { setCompanyInput(e.target.value); setCompanyDropdown(true) }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); if (filteredSuggestions[0]) selectCompany(filteredSuggestions[0]) }
+                        if (e.key === "Escape") setCompanyDropdown(false)
+                      }}
+                      onFocus={(e) => { setCompanyFocused(true); setCompanyDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
+                      onBlur={(e) => { companyCloseTimer.current = setTimeout(() => setCompanyDropdown(false), 150); setCompanyFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
+                      placeholder="Search companies…"
+                      autoComplete="off"
+                      style={{ ...INPUT_STYLE, borderColor: companyFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)" }}
+                    />
+                    {companyDropdown && filteredSuggestions.length > 0 && (
+                      <div
+                        id="sm-company-listbox"
+                        role="listbox"
+                        aria-label="Company suggestions"
+                        onMouseDown={() => { if (companyCloseTimer.current) clearTimeout(companyCloseTimer.current) }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                      >
+                        {filteredSuggestions.map((name) => (
+                          <button
+                            key={name}
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            onClick={() => selectCompany(name)}
+                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                          >
+                            <CompanyAvatar name={name} />
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Followed companies list */}
                 {followingLoading ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
                     {[1, 2, 3].map((i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
                         <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)", flexShrink: 0 }} />
@@ -608,29 +678,17 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     ))}
                   </div>
-                ) : filteredFollowing.length === 0 ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: "48px 0", textAlign: "center" }}>
-                    <div style={{ fontSize: 32, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                      {followSearch ? `No companies matching "${followSearch}"` : "No companies followed yet"}
-                    </div>
-                    {!followSearch && (
-                      <Link href="/market" onClick={flushAndClose} style={{
-                        fontSize: 12, color: "var(--tm-accent)", textDecoration: "none",
-                        padding: "6px 16px", borderRadius: "var(--tm-radius-sm)",
-                        border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)",
-                        transition: "all 150ms",
-                      }}>
-                        Browse companies in Market →
-                      </Link>
-                    )}
+                ) : followedCompanies.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
+                    <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No companies followed yet — search above to add</div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    {filteredFollowing.map((company) => (
+                  <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
+                    {followedCompanies.map((company) => (
                       <div key={company.company_name} style={{
                         display: "flex", alignItems: "center", gap: 12,
-                        padding: "12px 0", borderBottom: "1px solid var(--tm-border-soft)",
+                        padding: "10px 0", borderBottom: "1px solid var(--tm-border-soft)",
                       }}>
                         <CompanyAvatar name={company.company_name} />
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -638,11 +696,7 @@ export function SettingsModal({ open, onClose, profile }: {
                             {company.company_name}
                           </div>
                         </div>
-                        <Link
-                          href="/market"
-                          onClick={flushAndClose}
-                          style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none", flexShrink: 0 }}
-                        >
+                        <Link href="/market" onClick={flushAndClose} style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none", flexShrink: 0 }}>
                           View jobs →
                         </Link>
                         <button
@@ -650,12 +704,7 @@ export function SettingsModal({ open, onClose, profile }: {
                           onClick={() => unfollowMutation.mutate(company.company_name)}
                           disabled={unfollowMutation.isPending}
                           aria-label={`Unfollow ${company.company_name}`}
-                          style={{
-                            width: 28, height: 28, borderRadius: 6, border: "1px solid var(--tm-border-soft)",
-                            background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-                            transition: "all 150ms",
-                          }}
+                          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: "all 150ms" }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-danger)"; e.currentTarget.style.color = "var(--tm-danger)" }}
                           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-faint)" }}
                         >×</button>

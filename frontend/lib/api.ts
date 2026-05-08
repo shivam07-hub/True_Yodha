@@ -677,6 +677,9 @@ export interface UserSkillDemandResponse {
 }
 
 export const jobs = {
+  searchCompanies: (q: string, limit = 10) =>
+    request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
   analytics: (
     roleDomain?: string | null,
     locationFilters?: JobLocationFilters,

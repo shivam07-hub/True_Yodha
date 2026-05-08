@@ -967,66 +967,6 @@ export default function CVPage() {
           {/* RIGHT — Version history + CV viewer */}
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-            {hasCv && (
-              <section style={{
-                padding: "14px 20px 12px",
-                borderBottom: "1px solid var(--tm-border-soft)",
-                flexShrink: 0,
-                background: "rgba(255,255,255,0.02)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                  <div className="tm-label-caps">Evidence Since Last CV</div>
-                  <span style={{
-                    fontSize: 10, color: evidenceData?.eligible ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                    background: evidenceData?.eligible ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-                    padding: "2px 8px", borderRadius: 999,
-                    border: `1px solid ${evidenceData?.eligible ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                  }}>
-                    {evidenceData?.evidence_count ?? 0}/{evidenceData?.required_count ?? 7} days
-                  </span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6, marginBottom: 10 }}>
-                  {[
-                    { label: "Milestone days", value: evidenceData?.evidence_count ?? 0 },
-                    { label: "Diary entries", value: evidenceData?.diary_entries_count ?? 0 },
-                    { label: "Skill upgrades", value: evidenceData?.skill_upgrades_count ?? 0 },
-                    { label: "Score move", value: evidenceData?.score_delta == null ? "0" : `${evidenceData.score_delta >= 0 ? "+" : ""}${Math.round(evidenceData.score_delta)}` },
-                  ].map((item) => (
-                    <div key={item.label} style={{ padding: "8px 10px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-                      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 16, color: "var(--tm-text)", fontWeight: 700 }}>{item.value}</div>
-                      <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {evidenceLoading ? (
-                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Loading evidence...</div>
-                ) : evidenceData?.evidence.length ? (
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-                    {evidenceData.evidence.slice(-7).map((item) => (
-                      <div key={`${item.date}-${item.skill}-${item.task}`} style={{
-                        flexShrink: 0, width: 180,
-                        padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
-                        border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)",
-                      }}>
-                        <div style={{ fontSize: 11, color: "var(--tm-accent)", fontWeight: 600, marginBottom: 3 }}>{item.skill}</div>
-                        <div style={{ fontSize: 11, color: "var(--tm-text-muted)", lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.task}</div>
-                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 4 }}>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                    Complete milestone days in Progress to unlock the next draft.
-                  </div>
-                )}
-                {!!evidenceData?.missing_detail_prompts.length && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-warning)" }}>
-                    {evidenceData.missing_detail_prompts[0]}
-                  </div>
-                )}
-              </section>
-            )}
-
             {/* CV text viewer */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 32px 20px", position: "relative" }}>
               <div style={{

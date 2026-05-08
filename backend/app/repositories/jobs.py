@@ -339,6 +339,26 @@ class JobsRepository:
         _entity_skills_cache[cache_key] = (now, result)
         return result
 
+    def search_companies(self, q: str, limit: int = 10) -> list[str]:
+        result = (
+            self._db.table("jobs")
+            .select("company_name")
+            .ilike("company_name", f"%{q.strip()}%")
+            .not_.is_("company_name", "null")
+            .limit(limit * 20)
+            .execute()
+        )
+        seen: set[str] = set()
+        companies: list[str] = []
+        for row in result.data or []:
+            name = (row.get("company_name") or "").strip()
+            if name and name not in seen:
+                seen.add(name)
+                companies.append(name)
+                if len(companies) >= limit:
+                    break
+        return sorted(companies)
+
     def search_jobs_by_filters(
         self,
         company: str,

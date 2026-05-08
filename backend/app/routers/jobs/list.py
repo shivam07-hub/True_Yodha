@@ -16,6 +16,14 @@ from app.schemas.jobs import JobSearchItem
 router = APIRouter()
 
 
+@router.get("/companies/search")
+async def search_companies(
+    q: Annotated[str, Query(min_length=2, max_length=100)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 10,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> list[str]:
+    return repo.search_companies(q, limit=limit)
+
 
 @router.get("/analytics/me", response_model=MarketAnalyticsSummaryResponse)
 async def get_my_analytics(
