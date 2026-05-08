@@ -66,7 +66,12 @@ class LLMProvider:
     def __init__(self, providers: list[_ProviderEntry]) -> None:
         self._providers = providers
 
-    async def complete(self, messages: list[dict], max_tokens: int = 4096) -> str:
+    async def complete(
+        self,
+        messages: list[dict],
+        max_tokens: int = 4096,
+        temperature: float | None = None,
+    ) -> str:
         """
         Try each provider in order. Return the first non-empty response.
         Raise LLMProviderError if all providers fail or return empty content.
@@ -75,6 +80,8 @@ class LLMProvider:
             logger.info("LLM provider: trying %s", model)
             try:
                 kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=messages)
+                if temperature is not None:
+                    kwargs["temperature"] = temperature
                 if extra_body:
                     kwargs["extra_body"] = extra_body
                 response = await client.chat.completions.create(**kwargs)

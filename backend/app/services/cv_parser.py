@@ -34,17 +34,7 @@ import re
 from difflib import get_close_matches
 from functools import lru_cache
 
-from openai import AsyncOpenAI
-
-from app.config import settings
-from app.services.llm_provider import (
-    OR_PRIMARY_MODELS,
-    GROQ_FALLBACK_MODEL,
-    _OR_BASE,
-    _OR_HEADERS,
-    _GROQ_BASE,
-    _GEMINI_BASE,
-)
+from app.services.llm_provider import LLMProviderError, get_llm_provider
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
 # pymupdf (fitz) and python-docx are imported lazily inside the extract_* helpers
@@ -133,7 +123,7 @@ Return JSON only — no prose, no markdown fences. Shape:
 
 
 async def _llm_extract(cv_text: str) -> list[dict] | None:
-    """Try OR kimi (k2.6→k2.5) → Groq → OR gpt-4o-mini → Gemini.
+    """Delegate to the shared LLM provider chain with temperature=0 for JSON output.
 
     Returns:
         list[dict]  — skills extracted (may be empty if the LLM found none)
@@ -141,67 +131,24 @@ async def _llm_extract(cv_text: str) -> list[dict] | None:
                       unparseable output; caller should treat as infrastructure
                       failure, not as "no skills in CV"
     """
-    # (client, model_id, extra_body | None)
-    providers: list[tuple[AsyncOpenAI, str, dict | None]] = []
-    if settings.openrouter_api_key:
-        or_client = AsyncOpenAI(
-            api_key=settings.openrouter_api_key,
-            base_url=_OR_BASE,
-            default_headers=_OR_HEADERS,
-        )
-        # Primary + secondary: OR handles kimi-k2.6 → kimi-k2.5 natively
-        providers.append((or_client, OR_PRIMARY_MODELS[0], {"models": OR_PRIMARY_MODELS}))
-    if settings.groq_api_key:
-        # Tertiary: Groq direct
-        providers.append((
-            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
-    if settings.google_api_key:
-        # Quinary: Gemini direct
-        providers.append((
-            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
-            "gemini-2.0-flash-lite",
-            None,
-        ))
-
-    if not providers:
-        logger.error("No LLM configured for CV extraction — set OPENROUTER_API_KEY or GROQ_API_KEY")
+    truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": (
+            f"CV text:\n---\n{truncated}\n---\n\n"
+            "Extract the candidate's skills per the rules. Return JSON only."
+        )},
+    ]
+    try:
+        raw = await get_llm_provider().complete(messages, max_tokens=2048, temperature=0)
+    except LLMProviderError:
+        logger.error("All CV extraction providers failed")
         return None
 
-    truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
-    user_prompt = (
-        f"CV text:\n---\n{truncated}\n---\n\n"
-        "Extract the candidate's skills per the rules. Return JSON only."
-    )
-
-    for client, model, extra_body in providers:
-        logger.info("CV extraction using model: %s", model)
-        try:
-            kwargs: dict = dict(
-                model=model,
-                max_tokens=2048,
-                temperature=0,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user",   "content": user_prompt},
-                ],
-            )
-            if extra_body:
-                kwargs["extra_body"] = extra_body
-            resp = await client.chat.completions.create(**kwargs)
-            content = resp.choices[0].message.content or ""
-            parsed = _parse_llm_json(content)
-            if parsed is not None:
-                # Provider responded with valid JSON — trust the result even if empty
-                return parsed
-            logger.warning("CV extraction: %s returned unparseable response — trying next provider", model)
-        except Exception as exc:
-            logger.warning("CV extraction failed with %s: %s — trying next provider", model, exc)
-
-    logger.error("All CV extraction providers failed")
-    return None
+    parsed = _parse_llm_json(raw)
+    if parsed is None:
+        logger.warning("CV extraction: provider responded but returned unparseable JSON")
+    return parsed
 
 
 def _parse_llm_json(text: str) -> list[dict] | None:

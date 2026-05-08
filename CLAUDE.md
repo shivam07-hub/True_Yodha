@@ -18,6 +18,7 @@
 - Never hardcode API keys — use `.env` files, never commit `.env`
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
+- **Newsletter articles: collaborate before drafting.** From 2026-05-08 onwards, do NOT write a full newsletter article (Substack mini, MDX hub piece, or LinkedIn long post) without first agreeing with Shivam on (a) the angle/insights, (b) which dashboards or images to embed, (c) the heading. Two-line confirmation pass minimum. Apply to every newsletter task site (`/Users/incognito/Myro Newsletter/`, `/frontend/content/newsletter/`, anywhere we draft newsletter content). See VOICE-NOTES.md for the full protocol.
 
 ---
 
@@ -127,7 +128,7 @@ Stage timers in `CVUploadProcessing` now match real ~29s window (7s → 20s). Fo
 ### Backlog (priority order)
 
 1. **Smoke test steps 4–10** — tracker → save job → diary → Next Mission card → mark complete → score recompute loop.
-2. **cv_parser.py + diary_processor.py → LLMProvider** — still on raw API calls; migrate to unified fallback chain.
+2. ✅ **cv_parser.py → LLMProvider** — `_llm_extract()` now delegates to `get_llm_provider().complete()`; private provider constants removed. (`diary_processor.py` never existed — backlog description was stale.)
 3. **Phase 4 — Cross-repo taxonomy contract** — checksum check on boot + contract test asserting `public.jobs` shape matches `csv_importer.py` output.
 4. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote directly to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
 5. **Newsletter Issue 002 distribution** — images, internal links, schedule email + social.

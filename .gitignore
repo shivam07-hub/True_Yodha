@@ -83,3 +83,6 @@ reference/
 # Taxonomy root copies — canonical copy lives in backend/
 lightcast_skills_taxonomy.json
 backend/lightcast_skills_taxonomy copy.json
+
+# Newsletter drafts — local working folder
+Myro Newsletter/
