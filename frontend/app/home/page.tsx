@@ -7,7 +7,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
-import { JourneyStrip } from "@/components/common/journey-strip"
+import { LoopBar } from "@/components/common/loop-bar"
+import { YourMoveCard } from "@/components/home/YourMoveCard"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
@@ -20,6 +21,7 @@ import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreak } from "@/lib/forge-helpers"
+import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
@@ -58,6 +60,8 @@ function HomePageInner() {
   const [confidence] = useState(3)
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
+  const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
+  useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
   const urlJobId = searchParams.get("jobId")
 
   const { data: scoreData } = useQuery({ queryKey: dataKeys.scores(), queryFn: () => scores.me(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
@@ -88,6 +92,10 @@ function HomePageInner() {
   const jobPathQuery = useQuery({ queryKey: dataKeys.jobPath(activeJob?.job_id ?? null), queryFn: () => jobs.path(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id && !!appsByJobId[activeJob.job_id], staleTime: 5 * 60 * 1000 })
 
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
+  const hasApplied = apps.some(a => a.status !== "pending")
+  const topGapSkill = gapSkills[0]?.skill ?? null
   const ACHIEVEMENTS = [
     { label: "CV Analysed", done: !!scoreData, icon: "◈" },
     { label: "Score Computed", done: !!scoreData, icon: "◉" },
@@ -124,12 +132,37 @@ function HomePageInner() {
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 8px var(--tm-accent-glow)", display: "inline-block" }} />
             Target: {targetRoles} · {targetLoc}
           </div>
-          <h1 style={{ margin: "6px 0 0", fontSize: 36, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--tm-text)" }}>Mission Control</h1>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
+            <h1 style={{ margin: 0, fontSize: 36, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--tm-text)" }}>Mission Control</h1>
+            <button
+              onClick={refreshMatches}
+              disabled={isRefreshing}
+              style={{ padding: "7px 14px", borderRadius: 6, background: "transparent", border: "1px solid var(--tm-border)", color: isRefreshing ? "var(--tm-text-faint)" : "var(--tm-text-muted)", fontSize: 12, fontWeight: 600, cursor: isRefreshing ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.5 : 1, flexShrink: 0, transition: "all 120ms var(--tm-ease)" }}
+              onMouseEnter={e => { if (!isRefreshing) { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" } }}
+              onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}
+            >
+              {isRefreshing ? "…" : "⟳ Refresh matches"}
+            </button>
+          </div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.06em", marginTop: 6 }}>
             {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()} · {topJobs.length} active targets{apps.filter(a => a.status === "interviewing").length > 0 ? ` · ${apps.filter(a => a.status === "interviewing").length} in interview` : ""}
           </div>
-          <div style={{ marginTop: 10 }}><JourneyStrip /></div>
+          {refreshNotice && (
+            <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", marginTop: 4 }}>{refreshNotice}</div>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <LoopBar hasCv={hasCv} hasJob={topJobs.length > 0} loggedToday={loggedToday} hasApplied={hasApplied} />
+          </div>
         </div>
+
+        <YourMoveCard
+          hasCv={hasCv}
+          hasJob={topJobs.length > 0}
+          loggedToday={loggedToday}
+          topGapSkill={topGapSkill}
+          onForge={() => setForgeOpen(true)}
+          onDiary={() => { setDrawerOpen(true); openDiary() }}
+        />
 
         <ForgeStrip streak={streak} sessions={entries.length} xpBalance={xpBalance} score={score} evidenceData={evidenceData ?? null} onEnterForge={() => setForgeOpen(true)} onOpenDiary={() => { setDrawerOpen(true); openDiary() }} cartCount={cartSkills.length} />
 
