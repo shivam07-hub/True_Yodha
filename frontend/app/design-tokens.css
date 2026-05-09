@@ -238,8 +238,9 @@
 
 /* ── Smooth accent swap (color-only, no layout) ────────────── */
 /* Accent-swap transitions — composite/paint properties only, no layout.
-   box-shadow intentionally excluded: scoped to .tm-btn and .tm-card-interactive
-   to avoid a mass paint across all elements on accent toggle. */
+   box-shadow intentionally excluded: scoped to .tm-card-interactive (and
+   the Button primitive's solid variant) to avoid a mass paint across all
+   elements on accent toggle. */
 :root,
 :root * {
   transition:
@@ -366,47 +367,12 @@ body::after {
   border-radius: 2px;
 }
 
-.tm-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 1.125rem;
-  border-radius: var(--tm-radius);
-  font-weight: 500;
-  font-size: var(--tm-fs-meta);
-  cursor: pointer;
-  transition: background var(--tm-dur) var(--tm-ease),
-              color var(--tm-dur) var(--tm-ease),
-              border-color var(--tm-dur) var(--tm-ease),
-              box-shadow var(--tm-dur) var(--tm-ease);
-}
-.tm-btn-primary {
-  background: var(--tm-accent);
-  color: var(--tm-accent-fg);
-  border: 1px solid var(--tm-accent);
-}
-.tm-btn-primary:hover { background: var(--tm-accent-hover); border-color: var(--tm-accent-hover); box-shadow: var(--tm-shadow-glow); }
-.tm-btn-primary:active { background: var(--tm-accent-pressed); border-color: var(--tm-accent-pressed); }
-
-.tm-btn-ghost {
-  background: transparent;
-  color: var(--tm-accent);
-  border: 1px solid var(--tm-border);
-}
-.tm-btn-ghost:hover { border-color: var(--tm-accent); background: var(--tm-accent-wash); }
-
-.tm-btn-subtle {
-  background: transparent;
-  color: var(--tm-text-muted);
-  border: 1px solid transparent;
-}
-.tm-btn-subtle:hover { color: var(--tm-accent); background: var(--tm-accent-wash); }
-
-.tm-btn:focus-visible {
-  outline: 2px solid var(--tm-accent-ring);
-  outline-offset: 2px;
-}
+/* ── Buttons ──────────────────────────────────────────────────
+   The CTA system lives in the <Button> primitive at
+   `components/ui/button.tsx`, governed by `docs/CTA_DESIGN_SPEC.md`.
+   Legacy `.tm-btn*` utilities were retired in Phase 1C of the CTA
+   consolidation. Do not reintroduce them — extend the Button CVA
+   with new variants instead. */
 
 /* ── Card ─────────────────────────────────────────────────── */
 .tm-card {
