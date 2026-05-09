@@ -6,6 +6,7 @@ import type { GapSkill, UserSkillsByDomain } from "@/lib/api"
 interface OrganicSkillGraphProps {
   userSkills: UserSkillsByDomain
   gapSkills?: GapSkill[]
+  selectedDomain?: string | null
 }
 
 interface PhysNode {
@@ -54,9 +55,11 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
-export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGraphProps) {
+export function OrganicSkillGraph({ userSkills, gapSkills = [], selectedDomain = null }: OrganicSkillGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const selectedDomainRef = useRef<string | null>(selectedDomain)
+  useEffect(() => { selectedDomainRef.current = selectedDomain }, [selectedDomain])
 
   const topology = useMemo(() => {
     const nodes: Omit<PhysNode, "x"|"y"|"vx"|"vy">[] = []
@@ -234,6 +237,20 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
     function draw() {
       ctx!.clearRect(0, 0, W, H)
       const rgb = accentRgb
+      const sel = selectedDomainRef.current
+      const focusOpacity = (n: PhysNode) => {
+        if (!sel) return 1
+        if (n.isGap) return 0.35
+        return n.domain === sel ? 1 : 0.18
+      }
+      const edgeFocusOpacity = (a: PhysNode, b: PhysNode) => {
+        if (!sel) return 1
+        const aIn = !a.isGap && a.domain === sel
+        const bIn = !b.isGap && b.domain === sel
+        if (aIn && bIn) return 1
+        if (aIn || bIn) return 0.45
+        return 0.12
+      }
 
       hovIdx = -1
       if (mx >= 0) {
@@ -249,15 +266,16 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
         const a = ns[e.a], b = ns[e.b]
         if (!a || !b) continue
         const isHL = hovIdx === e.a || hovIdx === e.b
+        const fo = edgeFocusOpacity(a, b)
         ctx!.beginPath()
         ctx!.moveTo(a.x, a.y)
         ctx!.lineTo(b.x, b.y)
         if (e.isGap) {
           ctx!.setLineDash([3, 6])
-          ctx!.strokeStyle = `rgba(91,156,255,${isHL ? 0.55 : 0.1})`
+          ctx!.strokeStyle = `rgba(91,156,255,${(isHL ? 0.55 : 0.1) * fo})`
         } else {
           ctx!.setLineDash([])
-          ctx!.strokeStyle = `rgba(${rgb},${isHL ? 0.5 : 0.09})`
+          ctx!.strokeStyle = `rgba(${rgb},${(isHL ? 0.5 : 0.09) * fo})`
         }
         ctx!.lineWidth = isHL ? 1.3 : 0.7
         ctx!.stroke()
@@ -268,26 +286,27 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
       for (let i = 0; i < ns.length; i++) {
         const n = ns[i]
         const isHL = hovIdx === i
+        const fo = focusOpacity(n)
         // subtle pulse on owned high-level skills
         const pulse = n.isGap || n.level < 3 ? 0 : Math.sin(frame * 0.04 + i * 1.3) * 1.2
 
         if (n.isGap) {
           // hollow circle — skill to unlock
           ctx!.shadowBlur = isHL ? 18 : 5
-          ctx!.shadowColor = `rgba(91,156,255,${isHL ? 0.7 : 0.25})`
+          ctx!.shadowColor = `rgba(91,156,255,${(isHL ? 0.7 : 0.25) * fo})`
           ctx!.beginPath()
           ctx!.arc(n.x, n.y, n.r, 0, Math.PI * 2)
-          ctx!.strokeStyle = `rgba(91,156,255,${isHL ? 0.85 : 0.4})`
+          ctx!.strokeStyle = `rgba(91,156,255,${(isHL ? 0.85 : 0.4) * fo})`
           ctx!.lineWidth = isHL ? 1.8 : 1.1
           ctx!.stroke()
           ctx!.shadowBlur = 0
         } else {
           // filled glowing dot — skill you have
-          const op = n.hasProof ? (isHL ? 1 : 0.88) : (isHL ? 0.8 : 0.45)
+          const op = (n.hasProof ? (isHL ? 1 : 0.88) : (isHL ? 0.8 : 0.45)) * fo
           const r = n.r + (isHL ? 1.5 : pulse * 0.4)
 
           ctx!.shadowBlur = isHL ? 28 : n.level >= 4 ? 14 : 8
-          ctx!.shadowColor = `rgba(${rgb},${isHL ? 1 : n.hasProof ? 0.6 : 0.3})`
+          ctx!.shadowColor = `rgba(${rgb},${(isHL ? 1 : n.hasProof ? 0.6 : 0.3) * fo})`
           ctx!.beginPath()
           ctx!.arc(n.x, n.y, r, 0, Math.PI * 2)
           ctx!.fillStyle = `rgba(${rgb},${op})`
@@ -297,7 +316,7 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
           if (isHL) {
             ctx!.beginPath()
             ctx!.arc(n.x, n.y, r + 5, 0, Math.PI * 2)
-            ctx!.strokeStyle = `rgba(${rgb},0.25)`
+            ctx!.strokeStyle = `rgba(${rgb},${0.25 * fo})`
             ctx!.lineWidth = 1
             ctx!.stroke()
           }
@@ -324,7 +343,7 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
           const short = (n.label.split(" ")[0] ?? n.label).slice(0, 12)
           ctx!.font = `400 9px 'SF Mono', monospace`
           ctx!.textAlign = "center"
-          ctx!.fillStyle = `rgba(${rgb},0.3)`
+          ctx!.fillStyle = `rgba(${rgb},${0.3 * fo})`
           ctx!.fillText(short, n.x, n.y - n.r - 4)
         }
       }

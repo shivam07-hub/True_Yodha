@@ -116,7 +116,65 @@ export default function SkillsPage() {
           })}
         </div>
 
-        {/* Main visualization */}
+        {/*
+          Domain Inspector — lives BETWEEN Domain Strip and the visualisation
+          canvas (Constitution rule 1: Causal Proximity, rule 4: Progressive
+          Not Appended). Always mounted; collapses to zero height when no
+          domain is selected so the transition is smooth in both directions
+          (Constitution rule 5: No Invisible State Change).
+        */}
+        <div
+          aria-hidden={!activeDomain}
+          style={{
+            display: "grid",
+            gridTemplateRows: activeDomain && activeDomainSkills.length > 0 ? "1fr" : "0fr",
+            opacity: activeDomain && activeDomainSkills.length > 0 ? 1 : 0,
+            marginBottom: activeDomain && activeDomainSkills.length > 0 ? 16 : 0,
+            transition: "grid-template-rows 320ms var(--tm-ease), opacity 240ms var(--tm-ease), margin-bottom 320ms var(--tm-ease)",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div style={{ overflow: "hidden", minHeight: 0 }}>
+            {activeDomain && activeDomainSkills.length > 0 && (
+              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius)", padding: "20px 24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Domain Inspector</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{activeDomain}</div>
+                  </div>
+                  <button onClick={() => setActiveDomain(null)} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text-faint)", cursor: "pointer", padding: "5px 12px", fontSize: 12, fontFamily: "inherit" }}>
+                    ✕ Close
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                  {activeDomainSkills.map(skill => (
+                    <div key={skill.key} style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>{skill.proficiency_title}</div>
+                      <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${(skill.level / 5) * 100}%`, background: skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)", borderRadius: 99 }} />
+                      </div>
+                      {skill.evidence_text ? (
+                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
+                      ) : (
+                        <div style={{ fontSize: 10, color: "var(--tm-warning)", marginTop: 6, fontStyle: "italic" }}>No proof · keyword-inferred</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/*
+          Constellation / Radar canvas — receives selectedDomain so non-selected
+          nodes dim, keeping a single frame of truth (Constitution rule 2).
+        */}
         <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden", position: "relative", zIndex: 1 }}>
           {skillsLoading ? (
             <div style={{ height: 560, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: 14 }}>
@@ -144,7 +202,7 @@ export default function SkillsPage() {
             </div>
           ) : view === "tree" ? (
             <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
-              <OrganicSkillGraph userSkills={skills} gapSkills={scoreData?.gap_skills ?? []} />
+              <OrganicSkillGraph userSkills={skills} gapSkills={scoreData?.gap_skills ?? []} selectedDomain={activeDomain} />
             </div>
           ) : (
             <div style={{ padding: "28px 32px" }}>
@@ -152,40 +210,6 @@ export default function SkillsPage() {
             </div>
           )}
         </div>
-
-        {/* Domain drill-down */}
-        {activeDomain && activeDomainSkills.length > 0 && (
-          <div style={{ marginTop: 16, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius)", padding: "20px 24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>DOMAIN DRILL-DOWN</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{activeDomain}</div>
-              </div>
-              <button onClick={() => setActiveDomain(null)} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text-faint)", cursor: "pointer", padding: "5px 12px", fontSize: 12, fontFamily: "inherit" }}>
-                ✕ Close
-              </button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-              {activeDomainSkills.map(skill => (
-                <div key={skill.key} style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>{skill.proficiency_title}</div>
-                  <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(skill.level / 5) * 100}%`, background: skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)", borderRadius: 99 }} />
-                  </div>
-                  {skill.evidence_text ? (
-                    <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
-                  ) : (
-                    <div style={{ fontSize: 10, color: "var(--tm-warning)", marginTop: 6, fontStyle: "italic" }}>No proof · keyword-inferred</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
       </div>
     </AppShell>
