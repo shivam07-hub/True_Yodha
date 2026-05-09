@@ -65,3 +65,15 @@ class SkillLevelCorrectionResponse(BaseModel):
     taxonomy_key: str
     new_level: int
     total_score: float | None
+
+
+class SkillAdviceRequest(BaseModel):
+    taxonomy_key: str
+    current_level: int
+    evidence_text: str
+
+
+class SkillAdviceResponse(BaseModel):
+    advice: str | None
+    xp_spent: int
+    new_xp_balance: int

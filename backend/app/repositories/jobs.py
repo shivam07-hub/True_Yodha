@@ -10,7 +10,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
-from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, group_job_skill_rows
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
 
@@ -205,8 +205,9 @@ class MarketAnalyticsCompiler:
 
 
 class JobsRepository:
-    def __init__(self, db: Client) -> None:
+    def __init__(self, db: Client, admin_db: Client | None = None) -> None:
         self._db = db
+        self._admin_db = admin_db or db  # reference-data reads bypass user-token RLS
         self._analytics_compiler = MarketAnalyticsCompiler()
 
     @property
@@ -407,15 +408,20 @@ class JobsRepository:
         filtered_rows = rows
         if skill_lower:
             candidate_ids = {row["job_id"] for row in rows}
-            sk_rows = fetch_job_skill_rows(
+            # Use chunked path (not RPC) so display_name is available.
+            # Entity skills panel shows display_name; match against both fields for resilience.
+            sk_rows = fetch_job_skill_rows_for_ids(
                 self._db,
-                columns="job_id, skills(taxonomy_key)",
-                job_ids=list(candidate_ids),
+                list(candidate_ids),
+                columns="job_id, skills(taxonomy_key, display_name)",
             )
             matching_ids = {
                 row["job_id"]
                 for row in sk_rows
-                if skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
+                if skill_lower in (
+                    ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower(),
+                    ((row.get("skills") or {}).get("display_name") or "").strip().lower(),
+                )
             }
             filtered_rows = [row for row in rows if row["job_id"] in matching_ids]
 
@@ -753,7 +759,7 @@ class JobsRepository:
             return None
 
         rows = (
-            self._db.table("job_skills")
+            self._admin_db.table("job_skills")
             .select("is_primary, skills(taxonomy_key)")
             .eq("job_id", job_id)
             .execute()
@@ -839,9 +845,10 @@ def get_public_jobs_repository() -> JobsRepository:
 def get_token_jobs_repository(
     current_user: dict = Depends(get_current_user),
 ) -> JobsRepository:
-    # NOTE: methods joining `jobs` (matches, applications, skill-gap) require
-    # RLS to allow `authenticated` reads on public.jobs. Verify in Supabase dashboard.
-    return JobsRepository(get_supabase_for_token(current_user["token"]))
+    return JobsRepository(
+        get_supabase_for_token(current_user["token"]),
+        admin_db=get_supabase_admin(),
+    )
 
 
 def get_admin_jobs_repository() -> JobsRepository:

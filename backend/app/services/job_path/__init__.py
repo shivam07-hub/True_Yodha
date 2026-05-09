@@ -10,7 +10,6 @@ from app.services.job_path._content import CONTENT_DIR, content_bundle
 from app.services.job_path.cv_generator import generate_job_cv
 from app.services.job_path.llm_polish import AI_POLISH_LIMIT
 from app.services.job_path.milestones import (
-    build_rolling_milestones,
     compute_readiness,
     cv_confidence_for_proof_count,
     select_follow_up_playbook,
@@ -29,7 +28,6 @@ __all__ = [
     "AI_POLISH_LIMIT",
     "CONTENT_DIR",
     "QualityGateResult",
-    "build_rolling_milestones",
     "content_bundle",
     "compute_readiness",
     "cv_confidence_for_proof_count",

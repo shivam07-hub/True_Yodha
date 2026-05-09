@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, status
+from supabase import Client
 
+from app.database import get_supabase_for_token
 from app.deps import get_current_user
-from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     JobCVGenerateRequest,
     JobCVGenerateResponse,
@@ -10,20 +11,24 @@ from app.schemas import (
     JobPathResponse,
     JobPathTargetsRequest,
 )
-from app.services import jobs_workflow
+from app.services import job_path as job_path_service
 from app.services.llm_provider import LLMProvider, get_llm_provider
 
 router = APIRouter()
+
+
+def _get_db(current_user: dict = Depends(get_current_user)) -> Client:
+    return get_supabase_for_token(current_user["token"])
 
 
 @router.get("/applications/{job_id}/path", response_model=JobPathResponse)
 async def get_application_path(
     job_id: str,
     current_user: dict = Depends(get_current_user),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
+    db: Client = Depends(_get_db),
 ) -> JobPathResponse:
     return JobPathResponse(
-        **jobs_workflow.get_application_path(repo, current_user["user_id"], job_id)
+        **job_path_service.get_application_path(db, current_user["user_id"], job_id)
     )
 
 
@@ -32,11 +37,11 @@ async def replace_application_targets(
     job_id: str,
     body: JobPathTargetsRequest,
     current_user: dict = Depends(get_current_user),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
+    db: Client = Depends(_get_db),
 ) -> JobPathResponse:
     return JobPathResponse(
-        **jobs_workflow.replace_skill_targets(
-            repo,
+        **job_path_service.replace_skill_targets(
+            db,
             current_user["user_id"],
             job_id,
             [target.model_dump() for target in body.targets],
@@ -50,10 +55,10 @@ async def update_application_milestone(
     milestone_id: str,
     body: JobPathMilestoneUpdate,
     current_user: dict = Depends(get_current_user),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
+    db: Client = Depends(_get_db),
 ) -> JobPathMilestoneResponse:
     return JobPathMilestoneResponse(
-        **jobs_workflow.update_milestone(repo, current_user["user_id"], job_id, milestone_id, body)
+        **job_path_service.update_milestone(db, current_user["user_id"], job_id, milestone_id, body)
     )
 
 
@@ -62,15 +67,15 @@ async def generate_application_cv(
     job_id: str,
     body: JobCVGenerateRequest,
     current_user: dict = Depends(get_current_user),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
+    db: Client = Depends(_get_db),
     llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> JobCVGenerateResponse:
     return JobCVGenerateResponse(
-        **await jobs_workflow.generate_job_cv(
-            repo=repo,
-            user_id=current_user["user_id"],
-            job_id=job_id,
+        **await job_path_service.generate_job_cv(
+            db,
+            current_user["user_id"],
+            job_id,
             ai_polish=body.ai_polish,
-            llm_provider=llm_provider,
+            provider=llm_provider,
         )
     )

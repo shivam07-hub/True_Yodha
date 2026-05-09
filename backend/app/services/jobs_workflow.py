@@ -6,7 +6,7 @@ from typing import Any
 
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, job_matcher, job_path as job_path_service, llm_ranker
+from app.services import job_importer, job_matcher, llm_ranker
 from app.services.llm_provider import LLMProvider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring import fetch_aspiration_skills
@@ -232,40 +232,3 @@ def save_imported_job(repo: JobsRepository, user_id: str, body: Any) -> dict[str
     return job_importer.save_imported_job(repo.client, user_id, body)
 
 
-def get_application_path(repo: JobsRepository, user_id: str, job_id: str) -> dict[str, Any]:
-    return job_path_service.get_application_path(repo.client, user_id, job_id)
-
-
-def replace_skill_targets(
-    repo: JobsRepository,
-    user_id: str,
-    job_id: str,
-    targets: list[dict[str, Any]],
-) -> dict[str, Any]:
-    return job_path_service.replace_skill_targets(repo.client, user_id, job_id, targets)
-
-
-def update_milestone(
-    repo: JobsRepository,
-    user_id: str,
-    job_id: str,
-    milestone_id: str,
-    body: Any,
-) -> dict[str, Any]:
-    return job_path_service.update_milestone(repo.client, user_id, job_id, milestone_id, body)
-
-
-async def generate_job_cv(
-    repo: JobsRepository,
-    user_id: str,
-    job_id: str,
-    ai_polish: bool,
-    llm_provider: LLMProvider,
-) -> dict[str, Any]:
-    return await job_path_service.generate_job_cv(
-        repo.client,
-        user_id,
-        job_id,
-        ai_polish=ai_polish,
-        provider=llm_provider,
-    )

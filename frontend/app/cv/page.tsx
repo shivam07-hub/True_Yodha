@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { Button } from "@/components/ui/button"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
 import {
@@ -18,6 +19,7 @@ import { diary, jobs, scores, uploadCV, cv, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useXPStore } from "@/store/xpStore"
 
 const STATUS_CONFIG = {
   strong:  { color: "var(--tm-success)", label: "Strong",  bg: "var(--tm-success-wash)" },
@@ -108,11 +110,14 @@ function cvExample(skillName: string, currentLevel: number): string {
 }
 
 function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkillItem; delay?: number; highlighted: boolean; onHover: (s: UserSkillItem | null) => void }) {
-  const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
+  const [clickState, setClickState] = useState<0 | 1 | 2>(0)
   const [showLevelPicker, setShowLevelPicker] = useState(false)
   const [pickedLevel, setPickedLevel] = useState<number | null>(null)
   const [correctionDone, setCorrectionDone] = useState(false)
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null)
+  const [adviceLoading, setAdviceLoading] = useState(false)
   const { token } = useAuth()
+  const { setBalance: setXPBalance } = useXPStore()
   const queryClient = useQueryClient()
   const router = useRouter()
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -125,7 +130,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
     if (showLevelPicker) return
-    setClickState((s) => (s === 3 ? 0 : (s + 1) as 0 | 1 | 2 | 3))
+    setClickState((s) => (s === 2 ? 0 : (s + 1) as 0 | 1 | 2))
   }
 
   const trackUpgrade = useMutation({
@@ -159,22 +164,21 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   return (
     <div
       style={{
+        position: "relative",
         borderRadius: "var(--tm-radius)",
         padding: "12px 14px",
-        background: highlighted ? "var(--tm-accent-wash)" : clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
-        border: highlighted
-          ? "1px solid var(--tm-accent-ring)"
-          : clickState > 0
-          ? `1px solid ${cfg.color}`
-          : "1px solid var(--tm-border-soft)",
-        borderLeft: highlighted ? "2px solid var(--tm-accent)" : undefined,
-        transition: "all var(--tm-dur) var(--tm-ease)",
+        background: clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
+        border: clickState > 0 ? `1px solid ${cfg.color}` : "1px solid var(--tm-border-soft)",
+        borderLeft: `2px solid ${highlighted ? "var(--tm-accent)" : clickState > 0 ? cfg.color : "transparent"}`,
+        transition: "border-left-color var(--tm-dur-fast) var(--tm-ease)",
         cursor: "pointer",
       }}
       onClick={handleClick}
       onMouseEnter={() => { hoverTimer.current = setTimeout(() => onHover(skill), 80) }}
       onMouseLeave={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); onHover(null) }}
     >
+      {/* Highlight overlay — opacity transition (compositor) instead of background paint */}
+      <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: "var(--tm-accent-wash)", opacity: highlighted ? 1 : 0, transition: "opacity var(--tm-dur-fast) var(--tm-ease)", pointerEvents: "none" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{
           width: 8, height: 8, borderRadius: "50%",
@@ -215,39 +219,16 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: 999,
-          width: `${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5) * 100}%`,
+          width: "100%",
+          transformOrigin: "left center",
+          transform: `scaleX(${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5)})`,
           background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-wash))",
-          transition: `width ${0.8 + delay * 0.001}s var(--tm-ease)`,
+          transition: `transform ${0.8 + delay * 0.001}s var(--tm-ease)`,
         }} />
       </div>
 
-      {/* State 1 — CV source evidence */}
+      {/* State 1 — How to reach next level + Journey 2 + Journey 3 */}
       {clickState === 1 && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 6,
-          }}>
-            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
-              Extracted from your CV
-            </span>
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to level up →</span>
-          </div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "rgba(255,255,255,0.02)",
-            border: `1px solid ${cfg.color}30`,
-            fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.6,
-          }}>
-            {skill.evidence_text
-              ? "↗ Hover this row to see the exact line highlighted in your CV"
-              : `${skill.display_name} was inferred from context — no direct quote captured.`}
-          </div>
-        </div>
-      )}
-
-      {/* State 2 — How to reach next level + Journey 2 + Journey 3 */}
-      {clickState === 2 && (
         <div style={{ marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -258,7 +239,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
             </span>
             <span
               style={{ fontSize: 10, color: "var(--tm-text-faint)", cursor: "pointer" }}
-              onClick={(e) => { e.stopPropagation(); setClickState(3) }}
+              onClick={(e) => { e.stopPropagation(); setClickState(2) }}
             >
               tap again for CV example →
             </span>
@@ -276,23 +257,23 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
           {/* Journey 2 + Journey 3 CTAs */}
           {!isMaxLevel && !showLevelPicker && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); trackUpgrade.mutate() }}
-                disabled={trackUpgrade.isPending}
-                className="tm-btn tm-btn-primary"
-                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+                loading={trackUpgrade.isPending}
+                className="whitespace-nowrap"
               >
-                {trackUpgrade.isPending ? "Saving…" : `Track upgrade in diary →`}
-              </button>
-              <button
-                type="button"
+                Track upgrade in diary →
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); setShowLevelPicker(true) }}
-                className="tm-btn tm-btn-ghost"
-                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+                className="whitespace-nowrap"
               >
                 Fix my level
-              </button>
+              </Button>
             </div>
           )}
 
@@ -330,23 +311,22 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); if (pickedLevel) correctLevel.mutate(pickedLevel) }}
-                  disabled={!pickedLevel || correctLevel.isPending}
-                  className="tm-btn tm-btn-primary"
-                  style={{ fontSize: 11, height: 30, padding: "0 12px", opacity: !pickedLevel ? 0.5 : 1 }}
+                  disabled={!pickedLevel}
+                  loading={correctLevel.isPending}
                 >
-                  {correctLevel.isPending ? "Saving…" : "Confirm correction"}
-                </button>
-                <button
-                  type="button"
+                  Confirm correction
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); setShowLevelPicker(false); setPickedLevel(null) }}
-                  className="tm-btn tm-btn-ghost"
-                  style={{ fontSize: 11, height: 30, padding: "0 12px" }}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
               {correctLevel.isError && (
                 <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>Could not save correction. Try again.</div>
@@ -356,31 +336,100 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
         </div>
       )}
 
-      {/* State 3 — CV example bullet */}
-      {clickState === 3 && (
+      {/* State 2 — AI-personalised coaching */}
+      {clickState === 2 && (
         <div style={{ marginTop: 10 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             marginBottom: 6,
           }}>
             <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
-              CV bullet · L{skill.level + 1} signal
+              {skill.evidence_text ? `How to reach L${skill.level + 1} · from your CV` : `CV bullet · L${skill.level + 1} signal`}
             </span>
             <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to close ↺</span>
           </div>
-          <div style={{
-            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-accent-wash)",
-            border: "1px solid var(--tm-accent-ring)",
-            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
-            fontStyle: "italic",
-          }}>
-            {cvExample(skill.display_name, skill.level)}
-          </div>
+
+          {/* AI advice — lazy-loads on first open when evidence exists */}
+          {skill.evidence_text && !aiAdvice && !adviceLoading && token && (
+            <button
+              onClick={async () => {
+                setAdviceLoading(true)
+                try {
+                  const res = await users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text!)
+                  setAiAdvice(res.advice ?? null)
+                  setXPBalance(res.new_xp_balance)
+                } catch {
+                  setAiAdvice(null)
+                } finally {
+                  setAdviceLoading(false)
+                }
+              }}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}
+            >
+              <span>✦ Generate personalised coaching for {skill.display_name} →</span>
+              <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "var(--tm-font-mono)", flexShrink: 0, marginLeft: 12 }}>−20 XP ◆</span>
+            </button>
+          )}
+
+          {adviceLoading && (
+            <div style={{
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+              fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic",
+            }}>
+              Analysing your CV evidence…
+            </div>
+          )}
+
+          {aiAdvice && (
+            <div style={{
+              padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-accent-ring)",
+              fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.75,
+              whiteSpace: "pre-wrap",
+            }}>
+              {aiAdvice}
+            </div>
+          )}
+
+          {/* Fallback static bullet when no evidence */}
+          {!skill.evidence_text && (
+            <div style={{
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+              fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, fontStyle: "italic",
+            }}>
+              {cvExample(skill.display_name, skill.level)}
+            </div>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+function isElementInView(el: HTMLElement, container: HTMLElement | null): boolean {
+  if (!container) return false
+  const { top, bottom } = el.getBoundingClientRect()
+  const { top: cTop, bottom: cBottom } = container.getBoundingClientRect()
+  return top >= cTop && bottom <= cBottom
+}
+
+function cvMentionPos(skill: UserSkillItem, cvTextLower: string): number {
+  const evidence = (skill.evidence_text ?? "").trim()
+  if (evidence) {
+    const pos = cvTextLower.indexOf(evidence.slice(0, 60).toLowerCase())
+    if (pos !== -1) return pos
+  }
+  const namePos = cvTextLower.indexOf(skill.display_name.toLowerCase())
+  if (namePos !== -1) return namePos
+  return Number.MAX_SAFE_INTEGER
 }
 
 function ClusterSection({ cluster, skills, hoveredSkillKey, onHover }: { cluster: string; skills: UserSkillItem[]; hoveredSkillKey: string | null; onHover: (s: UserSkillItem | null) => void }) {
@@ -471,7 +520,11 @@ export default function CVPage() {
   useEffect(() => {
     if (!hoveredSkill) return
     const el = cvPanelRef.current?.querySelector<HTMLElement>('[data-hl="true"]')
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+    // highlight in-place only — no scroll, scrollIntoView while scanning the skill
+    // list causes the entire right panel to jump, which is visually jarring
+    if (el && !isElementInView(el, cvPanelRef.current)) {
+      el.scrollIntoView({ behavior: "instant", block: "nearest" })
+    }
   }, [hoveredSkill])
 
   useEffect(() => {
@@ -660,7 +713,19 @@ export default function CVPage() {
     soft:      ["communication", "leadership", "collaboration", "soft", "interpersonal", "teamwork", "presentation", "writing", "people"],
   }
 
-  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {}).sort(([, a], [, b]) => b.length - a.length)
+  const cvTextLower = (cvProfile?.cv_raw_text ?? "").toLowerCase()
+  const clusterFirstPos = (skills: UserSkillItem[]) =>
+    skills.reduce((min, s) => Math.min(min, cvMentionPos(s, cvTextLower)), Number.MAX_SAFE_INTEGER)
+
+  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {})
+    .map(([cluster, skills]) => {
+      const ordered = cvTextLower
+        ? [...skills].sort((a, b) => cvMentionPos(a, cvTextLower) - cvMentionPos(b, cvTextLower))
+        : skills
+      return [cluster, ordered] as [string, UserSkillItem[]]
+    })
+    .sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
+
   const clusterEntries = catFilter === "all"
     ? allClusterEntries
     : (() => {
@@ -670,7 +735,7 @@ export default function CVPage() {
           const matchingDomain = domainEntries
             .filter(([domain]) => keywords.some((kw) => domain.toLowerCase().includes(kw)))
           if (matchingDomain.length > 0) {
-            return matchingDomain.sort(([, a], [, b]) => b.length - a.length)
+            return matchingDomain.sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
           }
         }
         const keywords = domainKeywords[catFilter] ?? []
@@ -740,37 +805,25 @@ export default function CVPage() {
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               {hasCv ? (
                 <>
-                  <button
+                  <Button
+                    variant="solid"
+                    size="md"
                     onClick={() => {
                       resetDraftFlow()
                       setShowDraftGuide(true)
                     }}
-                    disabled={isGeneratingWithPuter || saveGeneratedDraft.isPending}
-                    className="tm-btn tm-btn-primary"
-                    style={{
-                      height: 36,
-                      fontSize: "var(--tm-fs-meta)",
-                      opacity: isGeneratingWithPuter || saveGeneratedDraft.isPending ? 0.7 : 1,
-                    }}
+                    loading={isGeneratingWithPuter || saveGeneratedDraft.isPending}
                   >
-                    {saveGeneratedDraft.isPending ? "Saving..." : isGeneratingWithPuter ? "Generating..." : "Generate Next CV Draft"}
-                  </button>
-                  <button
-                    onClick={() => setShowUpload((v) => !v)}
-                    className="tm-btn tm-btn-ghost"
-                    style={{ height: 36, fontSize: 12 }}
-                  >
+                    Generate Next CV Draft
+                  </Button>
+                  <Button variant="outline" size="md" onClick={() => setShowUpload((v) => !v)}>
                     Rework CV Baseline
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
-                  onClick={() => setShowUpload((v) => !v)}
-                  className="tm-btn tm-btn-primary"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)" }}
-                >
+                <Button variant="solid" size="md" onClick={() => setShowUpload((v) => !v)}>
                   Upload baseline CV
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -801,14 +854,14 @@ export default function CVPage() {
                   Your latest deep-focus reflection is now anchored in your evidence stream. Use the timeline and draft tools below to shape sharper CV pointers.
                 </p>
               </div>
-              <button
-                type="button"
-                className="tm-btn tm-btn-ghost"
-                style={{ height: 30, fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowForgeBanner(false)}
+                className="whitespace-nowrap shrink-0"
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           )}
 
@@ -875,24 +928,24 @@ export default function CVPage() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  size="md"
                   onClick={() => generateJobCv.mutate({ aiPolish: false })}
-                  disabled={generateJobCv.isPending}
-                  className="tm-btn tm-btn-primary"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                  loading={generateJobCv.isPending}
+                  className="whitespace-nowrap"
                 >
-                  {generateJobCv.isPending ? "Generating..." : "Generate job CV"}
-                </button>
-                <button
-                  type="button"
+                  Generate job CV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
                   onClick={() => generateJobCv.mutate({ aiPolish: true })}
                   disabled={generateJobCv.isPending}
-                  className="tm-btn tm-btn-ghost"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                  className="whitespace-nowrap"
                 >
                   AI polish
-                </button>
+                </Button>
               </div>
             </div>
             {jobPathQuery.data && (
@@ -1137,44 +1190,34 @@ export default function CVPage() {
               background: "rgba(255,255,255,0.02)",
             }}
           >
-            <button
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => setShowDraftGuide(false)}
-              className="tm-btn tm-btn-ghost"
-              style={{ height: 36, fontSize: 12 }}
             >
               Close
-            </button>
+            </Button>
             {draftStage === "guide" && (
-              <button
+              <Button
+                variant="solid"
+                size="md"
                 onClick={handleGenerateWithPuter}
-                disabled={!isPuterReady || !evidenceData?.eligible || isGeneratingWithPuter}
-                className="tm-btn tm-btn-primary"
-                style={{
-                  height: 36,
-                  fontSize: "var(--tm-fs-meta)",
-                  opacity: !isPuterReady || !evidenceData?.eligible || isGeneratingWithPuter ? 0.55 : 1,
-                }}
+                disabled={!isPuterReady || !evidenceData?.eligible}
+                loading={isGeneratingWithPuter}
               >
-                {isGeneratingWithPuter
-                  ? "Generating..."
-                  : isPuterSignedIn
-                  ? "Continue with OpenAI"
-                  : "Continue and Login"}
-              </button>
+                {isPuterSignedIn ? "Continue with OpenAI" : "Continue and Login"}
+              </Button>
             )}
             {draftStage === "review" && (
-              <button
+              <Button
+                variant="solid"
+                size="md"
                 onClick={() => saveGeneratedDraft.mutate(draftText)}
-                disabled={saveGeneratedDraft.isPending || draftText.trim().length < 120}
-                className="tm-btn tm-btn-primary"
-                style={{
-                  height: 36,
-                  fontSize: "var(--tm-fs-meta)",
-                  opacity: saveGeneratedDraft.isPending || draftText.trim().length < 120 ? 0.55 : 1,
-                }}
+                disabled={draftText.trim().length < 120}
+                loading={saveGeneratedDraft.isPending}
               >
-                {saveGeneratedDraft.isPending ? "Saving..." : "Save as CV version"}
-              </button>
+                Save as CV version
+              </Button>
             )}
           </div>
         </DialogContent>

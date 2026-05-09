@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
+import { ChevronDown, ChevronUp, ExternalLink, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
+import { Button } from "@/components/ui/button"
 import { jobs, scores, type JobComputeStatusResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -67,17 +68,16 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
 
       {job.llm_explanation && (
         <div style={{ marginTop: 12 }}>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowExplanation((value) => !value)}
             aria-expanded={showExplanation}
             aria-controls={explanationId}
-            className="tm-btn tm-btn-ghost"
-            style={{ height: 30, padding: "0 10px", fontSize: 12 }}
           >
-            {showExplanation ? <ChevronUp style={{ width: 13, height: 13 }} /> : <ChevronDown style={{ width: 13, height: 13 }} />}
+            {showExplanation ? <ChevronUp /> : <ChevronDown />}
             {showExplanation ? "Hide explanation" : "Show explanation"}
-          </button>
+          </Button>
           {showExplanation && (
             <p id={explanationId} style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
               {job.llm_explanation}
@@ -94,13 +94,9 @@ function JobCard({ job, onTrack }: { job: JobMatch; onTrack: (jobId: string) => 
       )}
 
       <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          onClick={() => onTrack(job.job_id)}
-          className="tm-btn tm-btn-ghost"
-          style={{ height: 30, padding: "0 12px", fontSize: 13 }}
-        >
+        <Button variant="outline" size="sm" onClick={() => onTrack(job.job_id)}>
           + Track
-        </button>
+        </Button>
         {job.source_url && (
           <a
             href={job.source_url}
@@ -323,18 +319,19 @@ export default function JobsPage() {
                   {matches.data?.total ?? 0} recommendations from latest market batch
                 </p>
               </div>
-              <button
+              <Button
+                variant="outline"
+                size="md"
                 onClick={() => {
                   setRefreshNotice(null)
                   compute.mutate()
                 }}
-                disabled={!token || compute.isPending || isRefreshingMatches}
-                className="tm-btn tm-btn-ghost"
-                style={{ opacity: !token || compute.isPending || isRefreshingMatches ? 0.5 : 1 }}
+                disabled={!token}
+                loading={compute.isPending || isRefreshingMatches}
               >
-                {compute.isPending || isRefreshingMatches ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> : <Sparkles style={{ width: 14, height: 14 }} />}
+                <Sparkles />
                 Refresh matches
-              </button>
+              </Button>
             </div>
             {refreshNotice && (
               <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
@@ -352,13 +349,14 @@ export default function JobsPage() {
                 <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text)" }}>
                   New jobs added to the feed since your last match — your results may be outdated.
                 </span>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => { setRefreshNotice(null); compute.mutate() }}
-                  className="tm-btn tm-btn-ghost"
-                  style={{ fontSize: 12, padding: "4px 10px", flexShrink: 0, borderColor: "var(--tm-warning)", color: "var(--tm-warning)" }}
+                  className="shrink-0 !text-[var(--tm-warning)] !border-[var(--tm-warning)] hover:!bg-[var(--tm-warning-wash)]"
                 >
                   Refresh now
-                </button>
+                </Button>
               </div>
             )}
 
@@ -390,9 +388,9 @@ export default function JobsPage() {
                 ))}
               </select>
               {(selectedCity || selectedMode) && (
-                <button className="tm-btn tm-btn-ghost" style={{ height: 34, padding: "0 12px", fontSize: 12 }} onClick={() => { setSelectedCity(""); setSelectedMode("") }}>
+                <Button variant="outline" size="sm" onClick={() => { setSelectedCity(""); setSelectedMode("") }}>
                   Clear location
-                </button>
+                </Button>
               )}
             </div>
           </div>

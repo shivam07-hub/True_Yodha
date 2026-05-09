@@ -79,9 +79,6 @@ class _FakeDiaryRepository:
     def list_user_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
         return self.milestones
 
-    def list_job_application_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
-        return []
-
     def upsert_user_milestone(self, payload: dict[str, Any]) -> None:
         self.upserted_milestone = payload
 

@@ -28,35 +28,12 @@ def _personal_row(**overrides: Any) -> dict[str, Any]:
     return row
 
 
-def _job_row(**overrides: Any) -> dict[str, Any]:
-    now = datetime.now(timezone.utc)
-    row = {
-        "id": "j1",
-        "milestone_date": date(2026, 4, 27),
-        "skill": "SQL",
-        "title": "Build a query",
-        "action": "Write a complex JOIN query for the reporting pipeline",
-        "proof_prompt": None,
-        "impact_prompt": None,
-        "proof": None,
-        "impact": None,
-        "confidence": 0.6,
-        "completed_at": None,
-        "created_at": now,
-        "updated_at": now,
-    }
-    row.update(overrides)
-    return row
-
-
 class _FakeDiaryRepository:
     def __init__(
         self,
         personal: list[dict[str, Any]] | None = None,
-        job: list[dict[str, Any]] | None = None,
     ) -> None:
         self._personal = personal or []
-        self._job = job or []
 
     @property
     def client(self) -> object:
@@ -64,9 +41,6 @@ class _FakeDiaryRepository:
 
     def list_user_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
         return self._personal
-
-    def list_job_application_milestones(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
-        return self._job
 
     # Other methods not needed for this test
     def get_total_score(self, _user_id: str) -> float | None:
@@ -131,34 +105,3 @@ def test_personal_milestones_have_source_type_personal() -> None:
     assert milestones[0]["source_type"] == "personal"
 
 
-def test_job_milestones_have_source_type_job() -> None:
-    repo = _FakeDiaryRepository(job=[_job_row()])
-    _override(repo)
-
-    try:
-        with TestClient(app) as client:
-            response = client.get("/diary/milestones")
-    finally:
-        _clear()
-
-    assert response.status_code == 200
-    milestones = response.json()["milestones"]
-    assert len(milestones) == 1
-    assert milestones[0]["source_type"] == "job"
-
-
-def test_mixed_list_has_correct_source_types() -> None:
-    repo = _FakeDiaryRepository(personal=[_personal_row()], job=[_job_row()])
-    _override(repo)
-
-    try:
-        with TestClient(app) as client:
-            response = client.get("/diary/milestones")
-    finally:
-        _clear()
-
-    assert response.status_code == 200
-    milestones = response.json()["milestones"]
-    assert len(milestones) == 2
-    source_types = {m["source_type"] for m in milestones}
-    assert source_types == {"personal", "job"}

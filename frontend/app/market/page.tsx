@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch, SkillCountItem } from "@/lib/api"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { cacheKey, userCacheKey, withLocalCache } from "@/lib/local-cache"
@@ -171,6 +172,10 @@ export default function MarketPage() {
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles],
   )
+  const targetCompanies: string[] = useMemo(
+    () => (followingData?.companies ?? []).map((c) => c.company_name),
+    [followingData],
+  )
 
   // Auto-select first (highest priority) target role on initial load
   useEffect(() => {
@@ -237,7 +242,6 @@ export default function MarketPage() {
     ),
     queryFn: () =>
       jobs.search(drillSkill!.company, {
-        roleDomain: activeRoleFilter || undefined,
         skill: drillSkill!.skill,
         locationCity: selectedCity || undefined,
         locationCountry: selectedCountry || undefined,
@@ -310,7 +314,50 @@ export default function MarketPage() {
           </div>
         </div>
 
-        <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
+        {/* Unified empty state — shown when logged in but CV or target roles missing */}
+        {token && !readyToFetch && (
+          <div style={{
+            background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius)", padding: "20px 24px", marginBottom: 20,
+          }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 14, fontWeight: 700, opacity: 0.75 }}>
+              2 steps to unlock Intel
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { done: hasCv,               label: "Upload your CV",          action: { text: "Upload →", href: "/cv" } },
+                { done: targetRoles.length > 0, label: "Add your target roles", action: { text: "Open Settings →", onClick: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) } },
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                    background: step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-wash)",
+                    border: `1px solid ${step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-ring)"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: step.done ? "#fff" : "var(--tm-accent)",
+                  }}>
+                    {step.done ? "✓" : i + 1}
+                  </div>
+                  <div style={{ fontSize: 14, color: step.done ? "var(--tm-text-faint)" : "var(--tm-text)", textDecoration: step.done ? "line-through" : "none", flex: 1 }}>
+                    {step.label}
+                  </div>
+                  {!step.done && (
+                    "href" in step.action && step.action.href ? (
+                      <Button variant="inline" render={<Link href={step.action.href} />}>
+                        {step.action.text}
+                      </Button>
+                    ) : (
+                      <Button variant="inline" onClick={step.action.onClick}>
+                        {step.action.text}
+                      </Button>
+                    )
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Role Filter — pill tabs for authenticated users, dropdown fallback for public */}
         {token ? (
@@ -347,17 +394,7 @@ export default function MarketPage() {
                 )
               })}
             </div>
-          ) : (
-            <div style={{ marginBottom: 14, fontSize: 14, color: "var(--tm-text-faint)" }}>
-              No target roles set —{" "}
-              <button
-                onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
-                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textDecoration: "underline" }}
-              >
-                Add target roles in Settings →
-              </button>
-            </div>
-          )
+          ) : null
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
@@ -384,6 +421,44 @@ export default function MarketPage() {
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {token && targetCompanies.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
+              Target Companies
+            </div>
+            {targetCompanies.map((name) => {
+              const entity = companies.find((c) => c.name === name)
+              const active = selected?.name === name
+              return (
+                <button
+                  key={name}
+                  onClick={() => {
+                    if (active) { setSelected(null) } else {
+                      setView("companies")
+                      setSelected(entity ?? { name, roles: 0, skills: [], type: "company" as const })
+                      setDrillSkill(null)
+                      setDrillPage(1)
+                      setExpandedDesc(null)
+                      setCompanySearch("")
+                      setSelectedJobFit(null)
+                    }
+                  }}
+                  style={{
+                    padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
+                    background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
+                    border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                    color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                    cursor: "pointer",
+                    transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                  }}
+                >
+                  {name}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -452,7 +527,9 @@ export default function MarketPage() {
             ))}
           </select>
           {(selectedCity || selectedCountry || selectedMode) && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setSelectedCity("")
                 setSelectedCountry("")
@@ -463,11 +540,9 @@ export default function MarketPage() {
                 setExpandedDesc(null)
                 setSelectedJobFit(null)
               }}
-              className="tm-btn tm-btn-ghost"
-              style={{ height: 34, fontSize: 14, padding: "0 12px" }}
             >
               Clear location
-            </button>
+            </Button>
           )}
         </div>
 

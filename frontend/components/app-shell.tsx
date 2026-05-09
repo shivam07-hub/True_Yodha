@@ -5,18 +5,18 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { scores, users, cv } from "@/lib/api"
+import { users, cv } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
+import { useXPStore } from "@/store/xpStore"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",   icon: "◉",  hideLabel: false, nudge: false },
-  { href: "/tracker", label: "Track",      desc: "Jobs & applications",   icon: "◆",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",   icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
 ]
@@ -339,7 +339,7 @@ function CvVersionsWidget() {
   )
 }
 
-function Sidebar({ score, profile, signOut }: { score: number | null; profile: SidebarProfile | null; signOut: () => void }) {
+function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -382,7 +382,7 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
         </div>
       </Link>
 
-      {/* Myro Score pill */}
+      {/* XP pill */}
       <div style={{
         margin: "10px 8px", padding: "10px 12px",
         borderRadius: "var(--tm-radius)",
@@ -397,10 +397,10 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
           color: "var(--tm-text)", lineHeight: 1,
           filter: "drop-shadow(0 0 6px var(--tm-accent-glow))",
         }}>
-          {score !== null ? Math.round(score) : "—"}
+          ◆ {xpBalance}
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
-          <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>Myro Score</div>
+          <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>XP</div>
         </div>
       </div>
 
@@ -534,13 +534,7 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
-
-  const { data: scoreData } = useQuery({
-    queryKey: dataKeys.scores(),
-    queryFn: () => scores.me(token!),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
+  const { balance: xpBalance } = useXPStore()
 
   const { data: profileData } = useQuery({
     queryKey: dataKeys.profile(),
@@ -555,7 +549,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <ParticleBg />
       <Sidebar
-        score={scoreData?.total_score ?? null}
+        xpBalance={xpBalance}
         profile={{
           full_name: profileData?.full_name ?? null,
           email: profileData?.email ?? "",

@@ -6,6 +6,8 @@ from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
+    SkillAdviceRequest,
+    SkillAdviceResponse,
     SkillLevelCorrectionRequest,
     SkillLevelCorrectionResponse,
     UpdateProfileRequest,
@@ -13,6 +15,9 @@ from app.schemas import (
     UserSkillsByDomainResponse,
 )
 from app.services.scoring_engine import compute_and_persist_score, fetch_aspiration_skills
+from app.services.skill_advice import generate_skill_advice
+from app.services.llm_provider import LLMProvider, get_llm_provider
+from app.services.xp_service import spend_xp
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -87,6 +92,26 @@ async def correct_skill_level(
         new_level=body.level,
         total_score=score_row.get("total_score"),
     )
+
+
+_SKILL_ADVICE_XP_COST = 20
+
+
+@router.post("/me/skills/level-up-advice", response_model=SkillAdviceResponse)
+async def get_skill_level_up_advice(
+    body: SkillAdviceRequest,
+    current_user: dict = Depends(get_current_user),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
+) -> SkillAdviceResponse:
+    user_id = current_user["user_id"]
+    new_balance = await spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
+    advice = await generate_skill_advice(
+        skill=body.taxonomy_key,
+        current_level=body.current_level,
+        evidence_text=body.evidence_text,
+        provider=llm_provider,
+    )
+    return SkillAdviceResponse(advice=advice, xp_spent=_SKILL_ADVICE_XP_COST, new_xp_balance=new_balance)
 
 
 @router.put("/me/profile", response_model=UserProfileResponse)

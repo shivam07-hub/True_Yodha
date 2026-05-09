@@ -1,6 +1,6 @@
 # Mirror — Career Intelligence Platform
 
-Upload your CV → skills extracted against Lightcast taxonomy → top job matches by skill overlap + LLM ranking → Mirror Score across 10 domains → 7-day action plan to close skill gaps.
+Upload your CV → skills extracted against Skill taxonomy → top job matches by skill overlap + LLM ranking → Mirror Score across 10 domains → 7-day action plan to close skill gaps.
 
 ---
 

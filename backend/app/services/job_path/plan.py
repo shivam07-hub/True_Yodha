@@ -19,7 +19,6 @@ from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_jo
 from app.services.job_path._helpers import _key, _now_iso, _single_or_none
 from app.services.job_path.llm_polish import _latest_polished_cv  # noqa: F401  (kept for back-compat re-export)
 from app.services.job_path.milestones import (
-    build_rolling_milestones,
     compute_readiness,
     cv_confidence_for_proof_count,
     select_follow_up_playbook,
@@ -186,41 +185,6 @@ def _validate_targets(job: dict[str, Any], targets: list[Any]) -> list[dict[str,
     return normalized
 
 
-def _seed_milestones(db: Client, user_id: str, job: dict[str, Any], targets: list[dict[str, Any]]) -> None:
-    job_id = job["job_id"]
-    (
-        db.table("job_application_milestones")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("job_id", job_id)
-        .gte("milestone_date", date.today().isoformat())
-        .is_("completed_at", "null")
-        .execute()
-    )
-    milestones = build_rolling_milestones(
-        user_id=user_id,
-        job_id=job_id,
-        job_title=job.get("job_title") or "this role",
-        company=job.get("company_name"),
-        targets=targets,
-    )
-    rows = [
-        {
-            "user_id": user_id,
-            "job_id": job_id,
-            **milestone,
-            "confidence": 0.6,
-            "updated_at": _now_iso(),
-        }
-        for milestone in milestones
-    ]
-    if rows:
-        db.table("job_application_milestones").upsert(
-            rows,
-            on_conflict="user_id,job_id,milestone_date",
-        ).execute()
-
-
 def replace_skill_targets(db: Client, user_id: str, job_id: str, targets: list[Any]) -> dict[str, Any]:
     job = _get_job(db, job_id)
     _ensure_application(db, user_id, job_id)
@@ -242,7 +206,6 @@ def replace_skill_targets(db: Client, user_id: str, job_id: str, targets: list[A
             rows,
             on_conflict="user_id,job_id,skill",
         ).execute()
-    _seed_milestones(db, user_id, job, normalized)
     return get_application_path(db, user_id, job_id)
 
 

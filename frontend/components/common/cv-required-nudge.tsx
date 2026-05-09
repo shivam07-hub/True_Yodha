@@ -1,6 +1,7 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 type CVRequiredNudgeProps = {
   variant?: "banner" | "block"
@@ -10,8 +11,6 @@ type CVRequiredNudgeProps = {
 }
 
 export function CVRequiredNudge({ variant = "banner", feature = "personalised insights", hasCv, className }: CVRequiredNudgeProps) {
-  const router = useRouter()
-
   if (hasCv) return null
 
   if (variant === "banner") {
@@ -32,14 +31,14 @@ export function CVRequiredNudge({ variant = "banner", feature = "personalised in
         <span style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
           Add your CV to unlock <span style={{ color: "var(--tm-text)", fontWeight: 500 }}>{feature}</span>.
         </span>
-        <button
-          type="button"
-          onClick={() => router.push("/cv")}
-          className="tm-btn tm-btn-primary"
-          style={{ height: 30, padding: "0 14px", fontSize: 12, flexShrink: 0 }}
+        <Button
+          variant="solid"
+          size="sm"
+          render={<Link href="/cv" />}
+          className="flex-shrink-0"
         >
           Upload CV →
-        </button>
+        </Button>
       </div>
     )
   }
@@ -76,14 +75,9 @@ export function CVRequiredNudge({ variant = "banner", feature = "personalised in
           Takes about 30 seconds. You can swap or remove it any time.
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => router.push("/cv")}
-        className="tm-btn tm-btn-primary"
-        style={{ height: 36, padding: "0 20px", fontSize: 13 }}
-      >
+      <Button variant="solid" size="md" render={<Link href="/cv" />}>
         Upload CV →
-      </button>
+      </Button>
     </div>
   )
 }
