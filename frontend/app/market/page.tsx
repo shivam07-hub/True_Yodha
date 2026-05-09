@@ -242,7 +242,6 @@ export default function MarketPage() {
     ),
     queryFn: () =>
       jobs.search(drillSkill!.company, {
-        roleDomain: activeRoleFilter || undefined,
         skill: drillSkill!.skill,
         locationCity: selectedCity || undefined,
         locationCountry: selectedCountry || undefined,
