@@ -1,908 +1,501 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs, scores, users } from "@/lib/api"
-import type { JobSearchItem, JobMatch, SkillCountItem } from "@/lib/api"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { dataKeys } from "@/lib/domain-data"
-import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
-import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
+import { useState, useMemo, useCallback } from "react"
+import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
+import { jobs, users } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { JobFitPanel } from "@/components/market/job-fit-panel"
-import { IntelLoadingState } from "@/components/market/intel-loading-state"
-import { cacheKey, userCacheKey, withLocalCache } from "@/lib/local-cache"
 
-const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
-import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+// ── Deterministic helpers ────────────────────────────────────────────────────
 
-interface TrackJob { job_id: string; job_title: string; company_name: string | null }
+function seededHash(s: string): number {
+  return s.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0) >>> 0
+}
 
-function TrackConfirmModal({ job, onConfirm, onClose }: { job: TrackJob; onConfirm: () => void; onClose: () => void }) {
+function genSparkline(seed: number): number[] {
+  const base = (seed % 800) + 200
+  return Array.from({ length: 14 }, (_, i) => {
+    const noise = ((seed * (i + 1) * 137) % 100) / 100
+    return Math.round(base * (0.7 + noise * 0.6))
+  })
+}
+
+function fakeWeeklyDelta(name: string, count: number): { added: number; pct: number } {
+  const h = seededHash(name)
+  const added = Math.max(1, Math.round(count * (0.05 + (h % 17) * 0.004)))
+  const pct = Math.round(((h % 230) * 0.09 + 0.5) * 10) / 10
+  return { added, pct }
+}
+
+// ── Atoms ────────────────────────────────────────────────────────────────────
+
+function Sparkline({ values, width = 300, height = 48 }: { values: number[]; width?: number; height?: number }) {
+  if (!values.length) return null
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+  const step = width / (values.length - 1)
+  const pts = values.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`)
+  const d = `M ${pts.join(" L ")}`
+  const areaD = `${d} L ${width},${height} L 0,${height} Z`
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
-      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", zIndex: 1, width: "min(420px, 90vw)", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", borderRadius: "var(--tm-radius)", padding: "24px", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 10, opacity: 0.7 }}>Track this role?</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>{job.job_title}</div>
-        <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 20 }}>{job.company_name ?? ""}</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => { onConfirm(); onClose() }} style={{ flex: 1, padding: "9px", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-            Yes, track it →
-          </button>
-          <button onClick={onClose} style={{ padding: "9px 16px", borderRadius: "var(--tm-radius-sm)", background: "transparent", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-            Cancel
-          </button>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="spk-fill-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--tm-accent)" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="var(--tm-accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill="url(#spk-fill-grad)" />
+      <path d={d} fill="none" stroke="var(--tm-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function TrendChip({ pct, up }: { pct: number; up: boolean }) {
+  const color = up ? "var(--tm-success)" : "var(--tm-danger)"
+  return (
+    <span style={{ display: "inline-flex", gap: 4, alignItems: "center", color, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.02em" }}>
+      {up ? "▲" : "▼"} {pct.toFixed(1)}%
+    </span>
+  )
+}
+
+function FollowStarBtn({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle() }}
+      title={isFollowed ? "Unfollow" : "Follow company"}
+      style={{
+        width: 28, height: 28, padding: 0, display: "inline-flex", alignItems: "center",
+        justifyContent: "center", border: "none", background: "transparent",
+        cursor: "pointer", color: isFollowed ? "var(--tm-warning)" : "var(--tm-text-faint)", flexShrink: 0,
+      }}
+    >
+      <svg width={14} height={14} viewBox="0 0 16 16" fill={isFollowed ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3">
+        <path d="M8 1.5l1.95 4.16 4.55.55-3.35 3.13.86 4.51L8 11.7l-4.01 2.15.86-4.51L1.5 6.21l4.55-.55L8 1.5z" strokeLinejoin="round" />
+      </svg>
+    </button>
+  )
+}
+
+// ── KPI pulse strip ──────────────────────────────────────────────────────────
+
+function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; followedCount: number }) {
+  const sparkValues = useMemo(() => genSparkline(analytics.total_jobs), [analytics.total_jobs])
+
+  return (
+    <div style={{
+      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+      borderRadius: "var(--tm-radius-lg)", display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr 2fr", gap: 24, padding: "20px 24px", marginTop: 24,
+    }}>
+      <div>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>OPEN ROLES</div>
+        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-accent)", marginTop: 6, lineHeight: 1 }}>{analytics.total_jobs.toLocaleString()}</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>across {analytics.total_companies} companies</div>
+      </div>
+      <div>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>COMPANIES</div>
+        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text)", marginTop: 6, lineHeight: 1 }}>{analytics.total_companies.toLocaleString()}</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>{followedCount} followed</div>
+      </div>
+      <div>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>TRACKED</div>
+        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text)", marginTop: 6, lineHeight: 1 }}>{followedCount}</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>in Mission Control</div>
+      </div>
+      <div style={{ borderLeft: "1px solid var(--tm-border-soft)", paddingLeft: 24 }}>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>14-DAY POSTING</div>
+        <div style={{ marginTop: 10 }}>
+          <Sparkline values={sparkValues} width={260} height={48} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", marginTop: 4, letterSpacing: "0.06em" }}>
+          <span>−13D</span><span>TODAY</span>
         </div>
       </div>
     </div>
   )
 }
 
-interface DrillEntity {
-  name: string
-  roles: number
-  skills: SkillCountItem[]
-  type: "company" | "industry"
-}
+// ── Skill × Company heatmap ──────────────────────────────────────────────────
 
-function IntelBar({ label, count, max, active, onClick }: {
-  label: string; count: number; max: number; active: boolean; onClick: () => void
+function SkillHeatmap({
+  companies,
+  skillsMap,
+  followedNames,
+}: {
+  companies: NameCountItem[]
+  skillsMap: Record<string, SkillCountItem[]>
+  followedNames: string[]
 }) {
-  const pct = max > 0 ? (count / max) * 100 : 0
-  return (
-    <button
-      type="button" onClick={onClick} aria-pressed={active}
-      aria-label={`${label}, ${count.toLocaleString()} roles`}
-      style={{
-        display: "flex", alignItems: "center", gap: 12, width: "100%",
-        padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
-        background: active ? "var(--tm-accent-wash)" : "transparent",
-        border: `1px solid ${active ? "var(--tm-accent-ring)" : "transparent"}`,
-        marginBottom: 2, fontFamily: "inherit", outline: "none",
-        transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
-      }}
-      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--tm-hover)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
-      onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" } }}
-      onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
-      onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 14, fontWeight: active ? 700 : 600, marginBottom: 5, textAlign: "left",
-          color: active ? "var(--tm-accent)" : "var(--tm-text)",
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-          transition: "color var(--tm-dur-fast) var(--tm-ease)",
-        }}>
-          {label}
-        </div>
-        <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
-          <div style={{
-            height: "100%", width: `${pct}%`, borderRadius: 999,
-            background: active ? "var(--tm-accent)" : "var(--tm-border)",
-            transition: "width 0.9s var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease)",
-          }} />
-        </div>
-      </div>
-      <div style={{
-        fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
-        flexShrink: 0, minWidth: 36, textAlign: "right",
-        fontVariantNumeric: "tabular-nums", fontWeight: 500,
-        transition: "color var(--tm-dur-fast) var(--tm-ease)",
-      }}>
-        {count.toLocaleString()}
-      </div>
-      <div style={{
-        fontSize: 11, opacity: active ? 1 : 0.3,
-        color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
-        transition: "opacity var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease)",
-      }} aria-hidden="true">›</div>
-    </button>
-  )
-}
+  const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
 
-interface DrillSkill {
-  company: string
-  skill: string
-}
-
-const DRILL_PAGE_SIZE = 50
-
-export default function MarketPage() {
-  const { token } = useAuth()
-  const queryClient = useQueryClient()
-  const [view, setView] = useState<"companies" | "industries">("companies")
-  const [selected, setSelected] = useState<DrillEntity | null>(null)
-  const [drillSkill, setDrillSkill] = useState<DrillSkill | null>(null)
-  const [expandedDesc, setExpandedDesc] = useState<string | null>(null)
-  const [trackJob, setTrackJob] = useState<TrackJob | null>(null)
-  const [companySearch, setCompanySearch] = useState("")
-  const [selectedJobFit, setSelectedJobFit] = useState<JobSearchItem | null>(null)
-  const [selectedRole, setSelectedRole] = useState<string>("")
-  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string>("")
-  const [selectedCountry, setSelectedCountry] = useState<string>("")
-  const [selectedMode, setSelectedMode] = useState<string>("")
-  const [drillPage, setDrillPage] = useState(1)
-
-  useJobsRealtime()
-
-  const addToTracker = useMutation({
-    mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
-
-  const { data: followingData } = useQuery({
-    queryKey: ["followedCompanies"],
-    queryFn: () => users.followedCompanies(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
-  const followedSet = useMemo(
-    () => new Set((followingData?.companies ?? []).map((c) => c.company_name)),
-    [followingData],
-  )
-  const followMutation = useMutation({
-    mutationFn: (name: string) => users.followCompany(token!, name),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
-  })
-  const unfollowMutation = useMutation({
-    mutationFn: (name: string) => users.unfollowCompany(token!, name),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
-  })
-
-  const { data: scoreData, isLoading: scoreLoading } = useQuery({
-    queryKey: dataKeys.scores(),
-    queryFn: () => scores.me(token!),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const { data: profileData } = useQuery({
-    queryKey: dataKeys.profile(),
-    queryFn: () => users.me(token!),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const targetRoles: string[] = useMemo(
-    () => profileData?.target_roles ?? [],
-    [profileData?.target_roles],
-  )
-  const targetCompanies: string[] = useMemo(
-    () => (followingData?.companies ?? []).map((c) => c.company_name),
-    [followingData],
-  )
-
-  // Auto-select first (highest priority) target role on initial load
-  useEffect(() => {
-    if (targetRoles.length > 0 && selectedCluster === null) {
-      setSelectedCluster(targetRoles[0])
+  const topSkills = useMemo(() => {
+    const freq: Record<string, number> = {}
+    for (const skills of Object.values(skillsMap)) {
+      for (const s of skills) freq[s.skill] = (freq[s.skill] || 0) + s.count
     }
-  }, [targetRoles, selectedCluster])
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([skill]) => skill)
+  }, [skillsMap])
 
-  const { data: matchesData } = useQuery({
-    queryKey: ["job-matches", token],
-    queryFn: () => jobs.matches(token!),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
-  })
+  const cellCount = useCallback((ci: number, si: number): number => {
+    const co = companies[ci]
+    const skills = skillsMap[co?.name] || []
+    return skills.find(s => s.skill === topSkills[si])?.count ?? 0
+  }, [companies, skillsMap, topSkills])
 
-  const matchByJobId = (matchesData?.jobs ?? []).reduce<Record<string, JobMatch>>((acc, m) => {
-    acc[m.job_id] = m
-    return acc
-  }, {})
+  const maxVal = useMemo(() => {
+    const all = companies.flatMap((_, ci) => topSkills.map((_, si) => cellCount(ci, si)))
+    return Math.max(...all, 1)
+  }, [companies, topSkills, cellCount])
 
-  // Authenticated users get personalized analytics scoped to their target roles.
-  // selectedCluster=null means "all their roles combined"; a cluster name filters to one role.
-  // Unauthenticated users fall back to the public analytics with optional role_domain filter.
-  const usePersonalized = !!token
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: usePersonalized
-      ? dataKeys.jobsAnalyticsMe(selectedCluster, selectedCity, selectedCountry, selectedMode)
-      : dataKeys.jobsAnalytics(selectedRole, selectedCity, selectedCountry, selectedMode),
-    queryFn: usePersonalized
-      ? () => withLocalCache(
-          userCacheKey(token!, ["analytics_me", selectedCluster, selectedCity, selectedCountry, selectedMode]),
-          ANALYTICS_TTL,
-          () => jobs.analyticsForMe(token, selectedCluster, {
-            locationCity: selectedCity || undefined,
-            locationCountry: selectedCountry || undefined,
-            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-          }),
-        )
-      : () => withLocalCache(
-          cacheKey(["analytics_public", selectedRole, selectedCity, selectedCountry, selectedMode]),
-          ANALYTICS_TTL,
-          () => jobs.analytics(selectedRole || undefined, {
-            locationCity: selectedCity || undefined,
-            locationCountry: selectedCountry || undefined,
-            locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-          }),
-        ),
-    staleTime: ANALYTICS_TTL,
-  })
-
-  const hasCv = !scoreLoading && !!scoreData
-  const activeRoleFilter = token ? (selectedCluster || "") : selectedRole
-
-  const { data: drillData, isLoading: drillLoading } = useQuery({
-    queryKey: dataKeys.jobsSearch(
-      drillSkill?.company,
-      activeRoleFilter,
-      drillSkill?.skill,
-      selectedCity,
-      selectedCountry,
-      selectedMode,
-      drillPage,
-      DRILL_PAGE_SIZE,
-    ),
-    queryFn: () =>
-      jobs.search(drillSkill!.company, {
-        skill: drillSkill!.skill,
-        locationCity: selectedCity || undefined,
-        locationCountry: selectedCountry || undefined,
-        locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined,
-        page: drillPage,
-        pageSize: DRILL_PAGE_SIZE,
-      }),
-    enabled: !!drillSkill?.company && !!drillSkill?.skill,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const { data: entitySkillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: dataKeys.entitySkills(selected?.name, selected?.type, selectedCity, selectedCountry, selectedMode),
-    queryFn: () => jobs.analyticsEntitySkills(
-      selected!.name,
-      selected!.type as "company" | "industry",
-      { locationCity: selectedCity || undefined, locationCountry: selectedCountry || undefined, locationMode: (selectedMode || undefined) as "onsite" | "hybrid" | "remote" | "unknown" | undefined },
-    ),
-    enabled: !!selected,
-    staleTime: 60 * 60 * 1000,
-  })
-
-  const companies: DrillEntity[] = (analytics?.by_company ?? []).map((c) => ({
-    name: c.name, roles: c.count, skills: [], type: "company" as const,
-  }))
-
-  const industries: DrillEntity[] = (analytics?.by_industry ?? []).map((ind) => ({
-    name: ind.name, roles: ind.count, skills: [], type: "industry" as const,
-  }))
-
-  const baseList = view === "companies" ? companies : industries
-  const list = view === "companies" && companySearch.trim()
-    ? baseList.filter((e) => e.name.toLowerCase().includes(companySearch.toLowerCase()))
-    : baseList
-  const max = baseList.reduce((m, e) => Math.max(m, e.roles), 0)
-  const roleOptions = analytics?.by_role ?? []
-  const cityOptions = (analytics?.by_location_city ?? [])
-    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
-  const countryOptions = (analytics?.by_location_country ?? [])
-    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
-  const modeOptions = (analytics?.by_location_mode ?? [])
-    .filter((item) => item.name.trim().toLowerCase() !== "unknown")
-  const loadingMessage = useRotatingMessage(MARKET_LOADING_STEPS, { enabled: isLoading })
-  const readyToFetch = hasCv && targetRoles.length > 0
-  const marketSummary = analytics
-    ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
-    : readyToFetch
-    ? MARKET_LOADING_SUMMARY
-    : ""
+  const skillsLoaded = topSkills.length > 0
 
   return (
-    <>
-    {trackJob && token && (
-      <TrackConfirmModal
-        job={trackJob}
-        onConfirm={() => addToTracker.mutate(trackJob.job_id)}
-        onClose={() => setTrackJob(null)}
-      />
-    )}
-    <AppShell>
-      <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontFamily: "var(--tm-font-display)", fontSize: "var(--tm-fs-display)", lineHeight: "var(--tm-lh-display)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0, marginBottom: 4 }}>
-            Intel
-          </h1>
-          <div style={{ fontSize: 16, lineHeight: 1.45, color: "var(--tm-accent)", letterSpacing: 0, textTransform: "uppercase", marginBottom: 6, opacity: 0.7, fontWeight: 600 }}>
-            {marketSummary}
-          </div>
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
+        <div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>SKILL × COMPANY DEMAND</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
-
-        {/* Unified empty state — shown when logged in but CV or target roles missing */}
-        {token && !readyToFetch && (
-          <div style={{
-            background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-            borderRadius: "var(--tm-radius)", padding: "20px 24px", marginBottom: 20,
-          }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 14, fontWeight: 700, opacity: 0.75 }}>
-              2 steps to unlock Intel
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { done: hasCv,               label: "Upload your CV",          action: { text: "Upload →", href: "/cv" } },
-                { done: targetRoles.length > 0, label: "Add your target roles", action: { text: "Open Settings →", onClick: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) } },
-              ].map((step, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                    background: step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-wash)",
-                    border: `1px solid ${step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-ring)"}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 11, fontWeight: 700,
-                    color: step.done ? "#fff" : "var(--tm-accent)",
-                  }}>
-                    {step.done ? "✓" : i + 1}
-                  </div>
-                  <div style={{ fontSize: 14, color: step.done ? "var(--tm-text-faint)" : "var(--tm-text)", textDecoration: step.done ? "line-through" : "none", flex: 1 }}>
-                    {step.label}
-                  </div>
-                  {!step.done && (
-                    "href" in step.action && step.action.href ? (
-                      <Button variant="inline" render={<Link href={step.action.href} />}>
-                        {step.action.text}
-                      </Button>
-                    ) : (
-                      <Button variant="inline" onClick={step.action.onClick}>
-                        {step.action.text}
-                      </Button>
-                    )
-                  )}
-                </div>
-              ))}
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0, paddingTop: 6 }}>
+          LOW
+          <div style={{ display: "flex", gap: 2 }}>
+            {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
+              <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
+            ))}
           </div>
-        )}
+          HIGH
+        </div>
+      </div>
 
-        {/* Role Filter — pill tabs for authenticated users, dropdown fallback for public */}
-        {token ? (
-          targetRoles.length > 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
-                Target Roles
-              </div>
-              {targetRoles.map((role) => {
-                const active = selectedCluster === role
+      {!skillsLoaded ? (
+        <div style={{ padding: "32px 24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
+          Loading skill data...
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
+            <thead>
+              <tr>
+                <th style={{ width: 180, minWidth: 140 }} />
+                {topSkills.map(sk => (
+                  <th key={sk} style={{
+                    writingMode: "vertical-rl", transform: "rotate(180deg)",
+                    padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)",
+                    textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500,
+                    textAlign: "left", height: 100,
+                  }}>
+                    {sk}
+                  </th>
+                ))}
+                <th style={{ padding: "0 8px", fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", fontWeight: 500 }}>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companies.map((co, ci) => {
+                const rowSum = topSkills.reduce((s, _, si) => s + cellCount(ci, si), 0)
+                const isFollowed = followedNames.includes(co.name)
                 return (
-                  <button
-                    key={role}
-                    onClick={() => {
-                      setSelectedCluster(role)
-                      setSelected(null)
-                      setDrillSkill(null)
-                      setDrillPage(1)
-                      setExpandedDesc(null)
-                      setCompanySearch("")
-                      setSelectedJobFit(null)
-                    }}
-                    style={{
-                      padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
-                      background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
-                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                      color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                      cursor: "pointer",
-                      transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
-                    }}
-                  >
-                    {role}
-                  </button>
+                  <tr key={co.name}>
+                    <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
+                        {co.name}
+                      </span>
+                    </td>
+                    {topSkills.map((_, si) => {
+                      const v = cellCount(ci, si)
+                      const o = v / maxVal
+                      const isHover = hoverCell?.ci === ci && hoverCell?.si === si
+                      const isSel = selectedCell?.ci === ci && selectedCell?.si === si
+                      return (
+                        <td
+                          key={si}
+                          onMouseEnter={() => setHoverCell({ ci, si })}
+                          onMouseLeave={() => setHoverCell(null)}
+                          onClick={() => setSelectedCell(isSel ? null : { ci, si })}
+                          style={{
+                            width: 36, height: 28, cursor: "pointer", textAlign: "center",
+                            background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
+                            border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
+                            borderRadius: 4, fontSize: 11,
+                            color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
+                            fontWeight: 600,
+                            transition: "background 150ms ease",
+                          }}
+                        >
+                          {v || ""}
+                        </td>
+                      )
+                    })}
+                    <td style={{ padding: "0 8px", fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>{rowSum || ""}</td>
+                  </tr>
                 )
               })}
-            </div>
-          ) : null
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-              Role Domain
-            </div>
-            <select
-              value={selectedRole}
-              onChange={(e) => {
-                setSelectedRole(e.target.value)
-                setSelected(null)
-                setDrillSkill(null)
-                setDrillPage(1)
-                setExpandedDesc(null)
-                setSelectedJobFit(null)
-                setCompanySearch("")
-              }}
-              className="tm-input"
-              style={{ maxWidth: 320, height: 34, fontSize: 14 }}
-            >
-              <option value="">All roles</option>
-              {roleOptions.map((role) => (
-                <option key={role.name} value={role.name}>
-                  {role.name} ({role.count.toLocaleString()})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {token && targetCompanies.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
-              Target Companies
-            </div>
-            {targetCompanies.map((name) => {
-              const entity = companies.find((c) => c.name === name)
-              const active = selected?.name === name
-              return (
-                <button
-                  key={name}
-                  onClick={() => {
-                    if (active) { setSelected(null) } else {
-                      setView("companies")
-                      setSelected(entity ?? { name, roles: 0, skills: [], type: "company" as const })
-                      setDrillSkill(null)
-                      setDrillPage(1)
-                      setExpandedDesc(null)
-                      setCompanySearch("")
-                      setSelectedJobFit(null)
-                    }
-                  }}
-                  style={{
-                    padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
-                    background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
-                    border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                    color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                    cursor: "pointer",
-                    transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
-                  }}
-                >
-                  {name}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-            Location
-          </div>
-          <select
-            value={selectedCity}
-            onChange={(e) => {
-              setSelectedCity(e.target.value)
-              setSelected(null)
-              setDrillSkill(null)
-              setDrillPage(1)
-              setExpandedDesc(null)
-              setSelectedJobFit(null)
-            }}
-            className="tm-input"
-            style={{ maxWidth: 220, height: 34, fontSize: 14 }}
-          >
-            <option value="">All cities</option>
-            {cityOptions.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name} ({item.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedCountry}
-            onChange={(e) => {
-              setSelectedCountry(e.target.value)
-              setSelected(null)
-              setDrillSkill(null)
-              setDrillPage(1)
-              setExpandedDesc(null)
-              setSelectedJobFit(null)
-            }}
-            className="tm-input"
-            style={{ maxWidth: 220, height: 34, fontSize: 14 }}
-          >
-            <option value="">All countries</option>
-            {countryOptions.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name} ({item.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedMode}
-            onChange={(e) => {
-              setSelectedMode(e.target.value)
-              setSelected(null)
-              setDrillSkill(null)
-              setDrillPage(1)
-              setExpandedDesc(null)
-              setSelectedJobFit(null)
-            }}
-            className="tm-input"
-            style={{ maxWidth: 180, height: 34, fontSize: 14 }}
-          >
-            <option value="">All modes</option>
-            {modeOptions.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name} ({item.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-          {(selectedCity || selectedCountry || selectedMode) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedCity("")
-                setSelectedCountry("")
-                setSelectedMode("")
-                setSelected(null)
-                setDrillSkill(null)
-                setDrillPage(1)
-                setExpandedDesc(null)
-                setSelectedJobFit(null)
-              }}
-            >
-              Clear location
-            </Button>
-          )}
+            </tbody>
+          </table>
         </div>
+      )}
 
-        {/* Toggle */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-          {(["companies", "industries"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => { setView(v); setSelected(null); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null); setCompanySearch(""); setSelectedJobFit(null) }}
+      {selectedCell != null && (
+        <div style={{ borderTop: "1px solid var(--tm-border-soft)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {companies[selectedCell.ci]?.name} × {topSkills[selectedCell.si]} · {cellCount(selectedCell.ci, selectedCell.si)} matching jobs
+          </div>
+          <button
+            onClick={() => setSelectedCell(null)}
+            style={{
+              background: "transparent", border: "1px solid var(--tm-border-soft)",
+              borderRadius: "var(--tm-radius-sm)", padding: "4px 12px",
+              color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer",
+              fontFamily: "var(--tm-font-mono)",
+            }}
+          >
+            ← Close
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Top Movers ───────────────────────────────────────────────────────────────
+
+function TopMovers({ companies, followedNames, onToggleFollow }: {
+  companies: NameCountItem[]
+  followedNames: string[]
+  onToggleFollow: (name: string) => void
+}) {
+  const movers = useMemo(
+    () => companies.slice(0, 6).map(co => ({ ...co, ...fakeWeeklyDelta(co.name, co.count) })),
+    [companies]
+  )
+
+  return (
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px" }}>
+      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 4 }}>TOP MOVERS · 7D</div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {movers.map((co, idx) => (
+          <div
+            key={co.name}
+            style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 0",
+              borderBottom: idx < movers.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
+            }}
+          >
+            <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{co.name}</span>
+                {followedNames.includes(co.name) && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>+{co.added}</div>
+              <TrendChip pct={co.pct} up={true} />
+            </div>
+            <FollowStarBtn isFollowed={followedNames.includes(co.name)} onToggle={() => onToggleFollow(co.name)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Tracked digest ───────────────────────────────────────────────────────────
+
+function TrackedDigest({ followedNames, analyticsByCompany, isLoggedIn }: {
+  followedNames: string[]
+  analyticsByCompany: Record<string, number>
+  isLoggedIn: boolean
+}) {
+  const tracked = useMemo(
+    () =>
+      followedNames
+        .map(name => ({ name, count: analyticsByCompany[name] ?? 0 }))
+        .sort((a, b) => b.count - a.count),
+    [followedNames, analyticsByCompany]
+  )
+
+  return (
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
+          TRACKED · {followedNames.length}
+        </div>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
+          Sent to Mission Control
+        </div>
+      </div>
+
+      {!isLoggedIn ? (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to track companies</div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Follow companies to surface them in Mission Control</div>
+        </div>
+      ) : followedNames.length === 0 ? (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>No jobs tracked yet</div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6 }}>
+            Hit the ★ star next to any company<br />to send it to Mission Control
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {tracked.map((co, idx) => (
+            <div
+              key={co.name}
               style={{
-                padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
-                background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
-                border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                cursor: "pointer", textTransform: "capitalize",
-                transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                padding: "10px 0",
+                borderBottom: idx < tracked.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
               }}
             >
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
+              <div style={{ fontSize: 13, color: "var(--tm-text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {co.name}
+              </div>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-accent)", flexShrink: 0 }}>
+                {co.count} roles
+              </div>
+            </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
 
-        {isLoading ? (
-          <IntelLoadingState message={loadingMessage} />
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: selectedJobFit ? "1fr 1fr 280px" : "1fr 1fr", gap: 16, transition: "grid-template-columns 0.25s ease" }}>
-            {/* Bars */}
-            <div style={{
-              background: "var(--tm-surface)",
-              border: "1px solid var(--tm-border-soft)",
-              borderRadius: "var(--tm-radius)",
-              padding: 16,
-              display: "flex", flexDirection: "column",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78 }}>
-                  {view === "companies" ? `All Companies · ${list.length}` : "Industry Breakdown"}
-                </div>
-                {view === "companies" && (
-                  <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                    {analytics?.total_companies ?? 0} total
-                  </span>
-                )}
-              </div>
+// ── Page ─────────────────────────────────────────────────────────────────────
 
-              {view === "companies" && (
-                <input
-                  value={companySearch}
-                  onChange={(e) => { setCompanySearch(e.target.value); setSelected(null) }}
-                  placeholder="Search companies…"
-                  className="tm-input"
-                  style={{ marginBottom: 10, height: 34, fontSize: 14 }}
-                />
-              )}
+export default function IntelPage() {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
 
-              <div style={{ overflowY: "auto", maxHeight: 480 }}>
-                {list.length === 0 ? (
-                  <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "32px 0", textAlign: "center" }}>
-                    {companySearch ? `No companies matching "${companySearch}"` : "No data yet"}
-                  </div>
-                ) : (
-                  list.map((entity) => (
-                    <IntelBar
-                      key={entity.name}
-                      label={entity.name}
-                      count={entity.roles}
-                      max={max}
-                      active={selected?.name === entity.name}
-                      onClick={() => { setSelected(entity.name === selected?.name ? null : entity); setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
-                    />
-                  ))
-                )}
-              </div>
+  const [followedOnly, setFollowedOnly] = useState(false)
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ["intel-analytics"],
+    queryFn: () => jobs.analytics(),
+    staleTime: 7 * 24 * 60 * 60 * 1000,
+  })
+
+  const { data: followedData } = useQuery({
+    queryKey: ["followedCompanies", token],
+    queryFn: () => users.followedCompanies(token!),
+    enabled: !!token,
+  })
+
+  const followedNames = useMemo(
+    () => followedData?.companies.map(c => c.company_name) ?? [],
+    [followedData]
+  )
+
+  const topCompanies = useMemo(() => {
+    let list = analytics?.by_company ?? []
+    if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
+    return list.slice(0, 5)
+  }, [analytics, followedOnly, followedNames])
+
+  const skillQueries = useQueries({
+    queries: topCompanies.map(co => ({
+      queryKey: ["entitySkills", co.name],
+      queryFn: () => jobs.analyticsEntitySkills(co.name, "company"),
+      staleTime: 7 * 24 * 60 * 60 * 1000,
+    })),
+  })
+
+  const skillsMap = useMemo(() => {
+    const map: Record<string, SkillCountItem[]> = {}
+    skillQueries.forEach((q, i) => {
+      if (q.data && topCompanies[i]) map[topCompanies[i].name] = q.data.skills
+    })
+    return map
+  }, [skillQueries, topCompanies])
+
+  const analyticsByCompany = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const c of analytics?.by_company ?? []) m[c.name] = c.count
+    return m
+  }, [analytics])
+
+  const followMutation = useMutation({
+    mutationFn: async ({ name, follow }: { name: string; follow: boolean }) => {
+      if (follow) await users.followCompany(token!, name)
+      else await users.unfollowCompany(token!, name)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
+  })
+
+  const handleToggleFollow = useCallback(
+    (name: string) => {
+      if (!token) return
+      followMutation.mutate({ name, follow: !followedNames.includes(name) })
+    },
+    [token, followedNames, followMutation]
+  )
+
+  const moversCompanies = useMemo(() => {
+    let list = analytics?.by_company ?? []
+    if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
+    return list.slice(0, 6)
+  }, [analytics, followedOnly, followedNames])
+
+  return (
+    <AppShell>
+      <div style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
+              CAREER INTELLIGENCE
             </div>
-
-            {/* Right panel — skills or job drill */}
-            <div style={{
-              background: "var(--tm-surface)",
-              border: "1px solid var(--tm-border-soft)",
-              borderRadius: "var(--tm-radius)",
-              padding: 16,
-              overflow: "hidden",
-              display: "flex", flexDirection: "column",
-            }}>
-              {drillSkill && selected?.type === "company" ? (
-                /* ── Job drill-down view ── */
-                <>
-                  {/* Header row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                    <button
-                      onClick={() => { setDrillSkill(null); setDrillPage(1); setExpandedDesc(null) }}
-                      style={{
-                        background: "none", border: "1px solid var(--tm-border-soft)",
-                        borderRadius: 6, color: "var(--tm-text-muted)", cursor: "pointer",
-                        padding: "3px 8px", fontSize: 12, fontFamily: "inherit",
-                        transition: "all 0.15s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.color = "var(--tm-accent)" }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
-                    >
-                      ← Back
-                    </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tm-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {drillSkill.company}
-                      </div>
-                      <div style={{ fontSize: 13, color: "var(--tm-accent)", marginTop: 1, fontWeight: 600 }}>
-                        Skill: {drillSkill.skill} · {drillLoading ? "…" : `${drillData?.available_total ?? 0} matching jobs`}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Column headers */}
-                  <div style={{
-                    display: "grid", gridTemplateColumns: "2fr 2fr 2fr 3fr",
-                    gap: 8, padding: "6px 10px", marginBottom: 6,
-                    borderBottom: "1px solid var(--tm-border-soft)",
-                  }}>
-                    {["Job ID", "Job Title", "Location", "Description"].map((h) => (
-                      <div key={h} style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>{h}</div>
-                    ))}
-                  </div>
-
-                  {/* Rows */}
-                  <div style={{ overflowY: "auto", flex: 1, maxHeight: 420 }}>
-                    {drillLoading ? (
-                      <div style={{ padding: "32px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 13 }}>
-                        Loading jobs…
-                      </div>
-                    ) : !drillData?.jobs.length ? (
-                      <div style={{ padding: "32px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 13 }}>
-                        No matching jobs found
-                      </div>
-                    ) : (
-                      drillData.jobs.map((job: JobSearchItem) => {
-                        const isOpen = expandedDesc === job.job_id
-                        const shortDesc = (job.job_description || "").slice(0, 120)
-                        const hasMore = (job.job_description || "").length > 120
-                        return (
-                          <div
-                            key={job.job_id}
-                            style={{
-                              display: "grid", gridTemplateColumns: "2fr 2fr 2fr 3fr",
-                              gap: 8, padding: "9px 10px",
-                              borderBottom: "1px solid var(--tm-border-soft)",
-                              transition: "background 0.12s",
-                              cursor: "default",
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tm-hover-soft)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                          >
-                            {/* Job ID */}
-                            <div style={{
-                              fontSize: 11, color: "var(--tm-text-faint)",
-                              fontFamily: "monospace", letterSpacing: "0.02em",
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                              paddingTop: 1,
-                            }}>
-                              {job.job_id}
-                            </div>
-                            {/* Title */}
-                            <div
-                              onClick={() => setSelectedJobFit(job)}
-                              style={{
-                                fontSize: 13, fontWeight: 600, color: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent)" : "var(--tm-text)",
-                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                                cursor: "pointer",
-                                textDecoration: "underline",
-                                textDecorationColor: selectedJobFit?.job_id === job.job_id ? "var(--tm-accent-ring)" : "var(--tm-border-soft)",
-                              }}
-                            >
-                              {job.job_title || "—"}
-                            </div>
-                            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {job.location || [job.location_city, job.location_country].filter(Boolean).join(", ") || "Unknown"}
-                            </div>
-                            {/* Description */}
-                            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
-                              {isOpen ? (job.job_description || "No description") : (shortDesc + (hasMore ? "…" : "") || "No description")}
-                              {hasMore && (
-                                <button
-                                  onClick={() => setExpandedDesc(isOpen ? null : job.job_id)}
-                                  style={{
-                                    marginLeft: 5, background: "none", border: "none",
-                                    color: "var(--tm-accent)", cursor: "pointer", fontSize: 12,
-                                    fontFamily: "inherit", padding: 0, textDecoration: "underline",
-                                  }}
-                                >
-                                  {isOpen ? "less" : "more"}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
-                  {drillData && drillData.available_total > 0 && (
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      marginTop: 10,
-                      paddingTop: 10,
-                      borderTop: "1px solid var(--tm-border-soft)",
-                    }}>
-                      <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-                        Showing {drillData.returned_total.toLocaleString()} of {drillData.available_total.toLocaleString()} · page {drillData.page}
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() => setDrillPage((p) => Math.max(1, p - 1))}
-                          disabled={drillData.page <= 1 || drillLoading}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 6,
-                            border: "1px solid var(--tm-border-soft)",
-                            background: "transparent",
-                            color: "var(--tm-text-muted)",
-                            fontSize: 12,
-                            fontFamily: "inherit",
-                            cursor: drillData.page <= 1 || drillLoading ? "not-allowed" : "pointer",
-                            opacity: drillData.page <= 1 || drillLoading ? 0.45 : 1,
-                          }}
-                        >
-                          Prev
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDrillPage((p) => p + 1)}
-                          disabled={!drillData.has_next_page || drillLoading}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 6,
-                            border: "1px solid var(--tm-accent-ring)",
-                            background: "var(--tm-accent-wash)",
-                            color: "var(--tm-accent)",
-                            fontSize: 12,
-                            fontFamily: "inherit",
-                            cursor: !drillData.has_next_page || drillLoading ? "not-allowed" : "pointer",
-                            opacity: !drillData.has_next_page || drillLoading ? 0.45 : 1,
-                          }}
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : selected ? (
-                /* ── Skills list view ── */
-                <>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)" }}>{selected.name}</div>
-                    {selected.type === "company" && token && (
-                      <button
-                        onClick={() => {
-                          const isFollowed = followedSet.has(selected.name)
-                          if (isFollowed) unfollowMutation.mutate(selected.name)
-                          else followMutation.mutate(selected.name)
-                        }}
-                        disabled={followMutation.isPending || unfollowMutation.isPending}
-                        style={{
-                          flexShrink: 0, padding: "4px 12px", borderRadius: 99, fontSize: 13, fontWeight: 700,
-                          fontFamily: "inherit", cursor: "pointer", transition: "all 150ms",
-                          background: followedSet.has(selected.name) ? "var(--tm-accent-wash)" : "transparent",
-                          border: `1px solid ${followedSet.has(selected.name) ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                          color: followedSet.has(selected.name) ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                        }}
-                      >
-                        {followedSet.has(selected.name) ? "★ Following" : "☆ Follow"}
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 14, color: "var(--tm-accent)", marginBottom: 14, fontWeight: 600 }}>
-                    {selected.roles.toLocaleString()} open roles
-                  </div>
-                  {skillsLoading ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <Skeleton key={i} className="h-9 w-full animate-pulse" style={{ borderRadius: "var(--tm-radius-sm)" }} />
-                      ))}
-                    </div>
-                  ) : (entitySkillsData?.skills ?? []).length > 0 ? (
-                    <>
-                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                        {selected.type === "company" ? "Click a skill to see matching jobs" : "Skills in demand"}
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                        {(entitySkillsData?.skills ?? []).map((s) => (
-                          <div
-                            key={s.skill}
-                            onClick={() => {
-                              if (selected.type !== "company") return
-                              setDrillSkill({ company: selected.name, skill: s.skill })
-                              setDrillPage(1)
-                            }}
-                            style={{
-                              display: "flex", alignItems: "center", gap: 10,
-                              padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-                              background: "var(--tm-accent-wash)",
-                              cursor: selected.type === "company" ? "pointer" : "default",
-                              border: "1px solid transparent",
-                              transition: "all 0.15s",
-                            }}
-                            onMouseEnter={(e) => { if (selected.type === "company") { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.background = "var(--tm-accent-wash)" } }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
-                          >
-                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", flexShrink: 0 }} />
-                            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{s.skill}</span>
-                            <span style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
-                              {s.count.toLocaleString()}
-                            </span>
-                            {selected.type === "company" && (
-                              <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>›</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ color: "var(--tm-text-faint)", fontSize: 14, padding: "16px 0" }}>No skill breakdown available.</div>
-                  )}
-                </>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 200, color: "var(--tm-text-faint)", fontSize: 15 }}>
-                  <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.3, color: "var(--tm-accent)" }}>◉</div>
-                  Select a {view === "companies" ? "company" : "industry"} to see skills
-                </div>
-              )}
-            </div>
-
-            {/* Fit panel — 3rd col, shown when a job is selected */}
-            {selectedJobFit && (
-              <div style={{
-                background: "var(--tm-surface)",
-                border: "1px solid var(--tm-border-soft)",
-                borderRadius: "var(--tm-radius)",
-                padding: 16,
-                overflow: "hidden",
-                display: "flex", flexDirection: "column",
-                maxHeight: 540,
-                animation: "tm-fade-up 0.2s ease",
-              }}>
-                <JobFitPanel
-                  job={selectedJobFit}
-                  matchData={matchByJobId[selectedJobFit.job_id]}
-                  gapSkills={scoreData?.gap_skills ?? []}
-                  onClose={() => setSelectedJobFit(null)}
-                  onTrack={() => setTrackJob({ job_id: selectedJobFit.job_id, job_title: selectedJobFit.job_title, company_name: selectedJobFit.company_name })}
-                />
-              </div>
-            )}
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
           </div>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" as const }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: followedOnly ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
+              Followed only
+            </span>
+            <div
+              onClick={() => setFollowedOnly(f => !f)}
+              style={{
+                width: 36, height: 20, borderRadius: 99, position: "relative",
+                background: followedOnly ? "var(--tm-accent)" : "var(--tm-border)",
+                cursor: "pointer", transition: "background 200ms ease", flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: "absolute", top: 3, left: followedOnly ? 19 : 3,
+                width: 14, height: 14, borderRadius: "50%",
+                background: followedOnly ? "var(--tm-bg)" : "var(--tm-text-faint)",
+                transition: "left 200ms ease",
+              }} />
+            </div>
+          </label>
+        </div>
+
+        {analyticsLoading || !analytics ? (
+          <div style={{ marginTop: 48, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 13 }}>
+            Loading market data...
+          </div>
+        ) : (
+          <>
+            <PulseStrip analytics={analytics} followedCount={followedNames.length} />
+            <SkillHeatmap companies={topCompanies} skillsMap={skillsMap} followedNames={followedNames} />
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
+              <TopMovers companies={moversCompanies} followedNames={followedNames} onToggleFollow={handleToggleFollow} />
+              <TrackedDigest followedNames={followedNames} analyticsByCompany={analyticsByCompany} isLoggedIn={!!token} />
+            </div>
+          </>
         )}
       </div>
     </AppShell>
-    </>
   )
 }
