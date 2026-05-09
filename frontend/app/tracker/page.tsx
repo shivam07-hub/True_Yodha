@@ -964,12 +964,14 @@ export default function TrackerPage() {
     queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
     enabled: !!token,
+    staleTime: 5 * 60 * 1000,
   })
 
   const scoresQuery = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
+    staleTime: 5 * 60 * 1000,
   })
 
   const hasCv = !scoresQuery.isLoading && !!scoresQuery.data

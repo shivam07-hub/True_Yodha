@@ -80,17 +80,6 @@ class DiaryRepository:
         )
         return result.data or []
 
-    def list_job_application_milestones(self, user_id: str, limit: int) -> list[dict[str, Any]]:
-        result = (
-            self._db.table("job_application_milestones")
-            .select("id, job_id, milestone_date, skill, title, action, proof, impact, confidence, completed_at, created_at, updated_at")
-            .eq("user_id", user_id)
-            .order("milestone_date", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        return result.data or []
-
     def upsert_user_milestone(self, payload: dict[str, Any]) -> None:
         self._db.table("user_milestones").upsert(
             payload,

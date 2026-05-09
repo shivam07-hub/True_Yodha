@@ -139,35 +139,8 @@ def list_progress_milestones(
     user_id: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    personal_rows = diary_repo.list_user_milestones(user_id, limit)
-    job_rows = diary_repo.list_job_application_milestones(user_id, limit)
-
-    normalized_personal_rows = [
-        {**row, "source_type": "personal"} for row in personal_rows
-    ]
-
-    normalized_job_rows: list[dict[str, Any]] = []
-    for row in job_rows:
-        normalized_job_rows.append(
-            {
-                "id": row["id"],
-                "job_id": row.get("job_id"),
-                "milestone_date": row["milestone_date"],
-                "skill": row.get("skill"),
-                "task": row.get("action") or row.get("title") or "",
-                "proof": row.get("proof"),
-                "impact": row.get("impact"),
-                "confidence": row.get("confidence") or 0.6,
-                "completed_at": row.get("completed_at"),
-                "created_at": row.get("created_at"),
-                "updated_at": row.get("updated_at"),
-                "source_type": "job",
-            }
-        )
-
-    combined = normalized_personal_rows + normalized_job_rows
-    combined.sort(key=lambda item: str(item.get("milestone_date") or ""), reverse=True)
-    return combined[:limit]
+    rows = diary_repo.list_user_milestones(user_id, limit)
+    return [{**row, "source_type": "personal"} for row in rows]
 
 
 def upsert_personal_milestone(

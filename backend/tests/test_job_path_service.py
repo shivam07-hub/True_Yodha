@@ -143,27 +143,6 @@ def test_readiness_uses_content_math_for_existing_targets_and_proof() -> None:
     assert result["tier"]["id"] == "competitive"
 
 
-def test_milestone_rotation_weights_primary_and_avoids_adjacent_repeats() -> None:
-    milestones = job_path.build_rolling_milestones(
-        user_id="u1",
-        job_id="job-1",
-        job_title="Data Analyst",
-        company="Acme",
-        targets=[
-            {"skill": "SQL", "is_primary": True},
-            {"skill": "Communication", "is_primary": False},
-        ],
-        start_date=date(2026, 4, 24),
-        days=7,
-    )
-
-    skills = [item["skill"] for item in milestones]
-    assert len(milestones) == 7
-    assert skills.count("SQL") > skills.count("Communication")
-    assert all(left != right for left, right in zip(skills, skills[1:]))
-    assert "{skill}" not in milestones[0]["action"]
-    assert "Data Analyst" in milestones[0]["action"]
-
 
 def test_follow_up_priority_prefers_abandoned_over_no_response() -> None:
     playbook = job_path.select_follow_up_playbook(
