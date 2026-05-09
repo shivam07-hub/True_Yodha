@@ -8,7 +8,6 @@ import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { LoopBar } from "@/components/common/loop-bar"
-import { YourMoveCard } from "@/components/home/YourMoveCard"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
@@ -114,7 +113,6 @@ function HomePageInner() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
   const hasApplied = apps.some(a => a.status !== "pending")
-  const topGapSkill = gapSkills[0]?.skill ?? null
   const ACHIEVEMENTS = [
     { label: "CV Analysed", done: !!scoreData, icon: "◈" },
     { label: "Score Computed", done: !!scoreData, icon: "◉" },
