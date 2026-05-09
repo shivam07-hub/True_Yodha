@@ -163,22 +163,21 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   return (
     <div
       style={{
+        position: "relative",
         borderRadius: "var(--tm-radius)",
         padding: "12px 14px",
-        background: highlighted ? "var(--tm-accent-wash)" : clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
-        border: highlighted
-          ? "1px solid var(--tm-accent-ring)"
-          : clickState > 0
-          ? `1px solid ${cfg.color}`
-          : "1px solid var(--tm-border-soft)",
-        borderLeft: `2px solid ${highlighted ? "var(--tm-accent)" : "transparent"}`,
-        transition: "background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
+        background: clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
+        border: clickState > 0 ? `1px solid ${cfg.color}` : "1px solid var(--tm-border-soft)",
+        borderLeft: `2px solid ${highlighted ? "var(--tm-accent)" : clickState > 0 ? cfg.color : "transparent"}`,
+        transition: "border-left-color var(--tm-dur-fast) var(--tm-ease)",
         cursor: "pointer",
       }}
       onClick={handleClick}
       onMouseEnter={() => { hoverTimer.current = setTimeout(() => onHover(skill), 80) }}
       onMouseLeave={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); onHover(null) }}
     >
+      {/* Highlight overlay — opacity transition (compositor) instead of background paint */}
+      <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: "var(--tm-accent-wash)", opacity: highlighted ? 1 : 0, transition: "opacity var(--tm-dur-fast) var(--tm-ease)", pointerEvents: "none" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{
           width: 8, height: 8, borderRadius: "50%",
@@ -415,6 +414,13 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   )
 }
 
+function isElementInView(el: HTMLElement, container: HTMLElement | null): boolean {
+  if (!container) return false
+  const { top, bottom } = el.getBoundingClientRect()
+  const { top: cTop, bottom: cBottom } = container.getBoundingClientRect()
+  return top >= cTop && bottom <= cBottom
+}
+
 function cvMentionPos(skill: UserSkillItem, cvTextLower: string): number {
   const evidence = (skill.evidence_text ?? "").trim()
   if (evidence) {
@@ -514,7 +520,11 @@ export default function CVPage() {
   useEffect(() => {
     if (!hoveredSkill) return
     const el = cvPanelRef.current?.querySelector<HTMLElement>('[data-hl="true"]')
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+    // highlight in-place only — no scroll, scrollIntoView while scanning the skill
+    // list causes the entire right panel to jump, which is visually jarring
+    if (el && !isElementInView(el, cvPanelRef.current)) {
+      el.scrollIntoView({ behavior: "instant", block: "nearest" })
+    }
   }, [hoveredSkill])
 
   useEffect(() => {

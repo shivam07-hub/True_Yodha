@@ -31,15 +31,13 @@ interface HeroCardProps {
   job: JobMatch
   status: ApplicationStatus
   skillGapData?: SkillGapResponse
-  expanded: boolean
-  onToggle: () => void
   onStatus: (s: ApplicationStatus) => void
   cartSkillNames: Set<string>
   onSkillToggle: (skill: SkillGapItem) => void
   onForge: () => void
 }
 
-export function HeroCard({ job, status, skillGapData, expanded, onToggle, onStatus, cartSkillNames, onSkillToggle, onForge }: HeroCardProps) {
+export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, onSkillToggle, onForge }: HeroCardProps) {
   const fit = Math.min(100, Math.round(job.overlap_score))
   const color = fitColor(fit)
 
@@ -163,20 +161,6 @@ export function HeroCard({ job, status, skillGapData, expanded, onToggle, onStat
             → Apply with tailored CV
           </button>
         )}
-        <button
-          onClick={onToggle}
-          style={{
-            padding: "8px 14px", borderRadius: 99, cursor: "pointer",
-            background: "transparent", border: "1px solid var(--tm-border)",
-            color: "var(--tm-text-muted)", fontSize: 11.5,
-            fontFamily: "var(--tm-font-mono)", fontWeight: 500,
-            transition: "border-color 120ms var(--tm-ease)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
-        >
-          {expanded ? "▾ Collapse" : "▾ Expand detail"}
-        </button>
         {job.source_url && (
           <a
             href={job.source_url}
@@ -190,7 +174,7 @@ export function HeroCard({ job, status, skillGapData, expanded, onToggle, onStat
       </div>
 
       {/* Expanded block */}
-      {expanded && (
+      {(
         <div style={{ borderTop: "1px dashed var(--tm-border)", marginTop: 6, paddingTop: 18 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
 

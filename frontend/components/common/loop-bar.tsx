@@ -49,7 +49,7 @@ export function LoopBar({ hasCv, hasJob, loggedToday, hasApplied }: LoopBarProps
   return (
     <div
       aria-label="Your job-search loop"
-      style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "nowrap", overflow: "hidden" }}
+      style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap", overflowX: "auto", scrollbarWidth: "none" }}
     >
       {NODES.map((node, i) => {
         const isNext = node.id === next
@@ -60,8 +60,8 @@ export function LoopBar({ hasCv, hasJob, loggedToday, hasApplied }: LoopBarProps
             width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
             background: isNext ? "var(--tm-accent)" : isDone ? "var(--tm-success, #22c55e)" : "var(--tm-border)",
             boxShadow: isNext ? "0 0 8px var(--tm-accent-glow)" : "none",
-            animation: isNext ? "loop-pulse 2s ease infinite" : "none",
-            transition: "background 0.3s, box-shadow 0.3s",
+            animation: isNext ? "loop-pulse 2s ease-out infinite" : "none",
+            transition: "background 0.2s, box-shadow 0.2s",
           }} />
         )
 

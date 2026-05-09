@@ -54,7 +54,6 @@ function HomePageInner() {
 
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
   const [forgeOpen, setForgeOpen] = useState(false)
-  const [expanded, setExpanded] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [proofText, setProofText] = useState("")
   const [confidence] = useState(3)
@@ -72,7 +71,7 @@ function HomePageInner() {
   const { data: evidenceData } = useQuery({ queryKey: dataKeys.cvEvidence(), queryFn: () => cv.evidence(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
 
   const topJobs = jobsData?.jobs?.slice(0, 5) ?? []
-  const apps = applications ?? []
+  const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
   const score = scoreData?.total_score ?? 0
@@ -175,15 +174,6 @@ function HomePageInner() {
           </div>
         </div>
 
-        <YourMoveCard
-          hasCv={hasCv}
-          hasJob={topJobs.length > 0}
-          loggedToday={loggedToday}
-          topGapSkill={topGapSkill}
-          onForge={() => setForgeOpen(true)}
-          onDiary={() => { setDrawerOpen(true); openDiary() }}
-        />
-
         <ForgeStrip streak={streak} sessions={entries.length} xpBalance={xpBalance} score={score} evidenceData={evidenceData ?? null} onEnterForge={() => setForgeOpen(true)} onOpenDiary={() => { setDrawerOpen(true); openDiary() }} cartCount={cartSkills.length} />
 
         <CVRequiredNudge hasCv={hasCv} feature="job matching" />
@@ -215,7 +205,7 @@ function HomePageInner() {
               }
 
               return (
-                <button key={j.job_id} onClick={() => { setActiveJobId(j.job_id); setExpanded(true) }} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow, opacity }}>
+                <button key={j.job_id} onClick={() => setActiveJobId(j.job_id)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow, opacity }}>
                   {j.company ?? "Company"}
                   <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
                   {hasMilestoneDot && (
@@ -230,23 +220,13 @@ function HomePageInner() {
 
         {/* Hero + columns */}
         {activeJob ? (
-          expanded ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, alignItems: "start" }}>
-              <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} expanded={expanded} onToggle={() => setExpanded(v => !v)} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} onForge={() => setForgeOpen(true)} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} />
-                <CVCol job={activeJob} onSpendXP={handleSpendXP} />
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, alignItems: "start" }}>
+            <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} onForge={() => setForgeOpen(true)} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} />
+              <CVCol job={activeJob} onSpendXP={handleSpendXP} />
             </div>
-          ) : (
-            <>
-              <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} expanded={expanded} onToggle={() => setExpanded(v => !v)} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} onForge={() => setForgeOpen(true)} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-                <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} />
-                <CVCol job={activeJob} onSpendXP={handleSpendXP} />
-              </div>
-            </>
-          )
+          </div>
         ) : (
           <div style={{ padding: "28px", textAlign: "center", borderRadius: 10, border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No active job targeted yet</div>
