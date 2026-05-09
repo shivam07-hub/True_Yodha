@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
@@ -15,11 +15,10 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 export default function SkillsPage() {
   const { token, ready } = useAuth()
-  const queryClient = useQueryClient()
   const [view, setView] = useState<"tree" | "radar">("tree")
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
-  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+  const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,

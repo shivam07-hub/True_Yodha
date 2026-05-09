@@ -48,7 +48,7 @@ function HomePageInner() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const { toast, show: showToast } = useToast()
-  const { balance: xpBalance, setBalance: setXPBalance, addBalance } = useXPStore()
+  const { setBalance: setXPBalance, addBalance } = useXPStore()
   const { skills: cartSkills, addSkill, removeSkill, clearCart } = useCartStore()
 
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
