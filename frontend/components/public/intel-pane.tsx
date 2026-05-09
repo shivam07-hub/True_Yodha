@@ -186,9 +186,6 @@ export function IntelPane() {
         <h1 style={{ fontFamily: "var(--tm-font-display)", fontSize: "var(--tm-fs-display)", lineHeight: "var(--tm-lh-display)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0, marginBottom: 6 }}>
           Live Career Intel
         </h1>
-        <p style={{ fontSize: 17, lineHeight: 1.55, color: "var(--tm-text-muted)", maxWidth: 720 }}>
-          Live hiring signals · tap any {view === "companies" ? "company" : "industry"} to reveal skills in demand
-        </p>
       </div>
 
       {analytics && (

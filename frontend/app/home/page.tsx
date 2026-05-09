@@ -162,7 +162,7 @@ function HomePageInner() {
   const { balance: xpBalance, setBalance: setXPBalance, addBalance } = useXPStore()
   const { skills: cartSkills, addSkill, removeSkill, clearCart } = useCartStore()
 
-  const [activeJobIdx, setActiveJobIdx] = useState(0)
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
   const [forgeOpen, setForgeOpen] = useState(false)
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
 
@@ -208,12 +208,15 @@ function HomePageInner() {
   const streak = computeStreak(entries)
   const score = scoreData?.total_score ?? 0
   const hasCv = !!scoreData
-  const targetRoles = profile?.target_roles?.join(", ") ?? "Set your target role"
+  const allTargetRoles = profile?.target_roles ?? []
+  const targetRoles = allTargetRoles.length === 0
+    ? "Set your target role"
+    : allTargetRoles.slice(0, 2).join(", ") + (allTargetRoles.length > 2 ? ` +${allTargetRoles.length - 2} more` : "")
   const targetLoc = profile?.target_location ?? "Set location"
 
   const activeJob = urlJobId
     ? (topJobs.find((j) => j.job_id === urlJobId) ?? null)
-    : (topJobs[activeJobIdx] ?? null)
+    : (topJobs.find((j) => j.job_id === activeJobId) ?? topJobs[0] ?? null)
 
   useEffect(() => {
     if (!token) return
@@ -286,7 +289,7 @@ function HomePageInner() {
 
         {/* 1 — Header */}
         <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 2 }}>
+          <div title={`${allTargetRoles.join(", ")} · ${targetLoc}`} style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             Target: {targetRoles} · {targetLoc}
           </div>
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
@@ -312,18 +315,21 @@ function HomePageInner() {
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "10px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", flexShrink: 0 }}>Active focus →</span>
-              {topJobs.map((j, i) => (
-                <button key={j.job_id} onClick={() => setActiveJobIdx(i)} style={{
+              {topJobs.map((j) => {
+                const isActive = j.job_id === (activeJobId ?? topJobs[0]?.job_id)
+                return (
+                <button key={j.job_id} onClick={() => setActiveJobId(j.job_id)} style={{
                   padding: "5px 14px", borderRadius: 99, cursor: "pointer", flexShrink: 0,
-                  background: i === activeJobIdx ? "var(--tm-accent)" : "rgba(255,255,255,0.03)",
-                  border: `1.5px solid ${i === activeJobIdx ? "var(--tm-accent)" : "var(--tm-border)"}`,
-                  color: i === activeJobIdx ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
+                  background: isActive ? "var(--tm-accent)" : "rgba(255,255,255,0.03)",
+                  border: `1.5px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border)"}`,
+                  color: isActive ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
                   fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                   transition: "all 200ms var(--tm-ease)",
                 }}>
                   {j.company ?? "Company"}
                 </button>
-              ))}
+                )
+              })}
               <Link href="/market" style={{ padding: "5px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11, color: "var(--tm-text-faint)", cursor: "pointer", textDecoration: "none" }}>
                 + Add target
               </Link>
@@ -399,7 +405,7 @@ function HomePageInner() {
               </div>
             ) : (
               <>
-                {gapSkills.slice(0, 3).map((gap) => (
+                {gapSkills.slice(0, 5).map((gap) => (
                   <div key={gap.skill} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 10, color: gap.user_level === 0 ? "var(--tm-danger)" : "var(--tm-warning)" }}>●</span>
@@ -522,7 +528,11 @@ function HomePageInner() {
 
         {/* 6 — Achievements pill row */}
         {earnedAchievements.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingTop: 4 }}>
+          <div>
+          <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 6 }}>
+            Milestones · {earnedAchievements.length} / {ACHIEVEMENTS.length}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {earnedAchievements.map((a) => (
               <span key={a.label} style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
@@ -533,6 +543,7 @@ function HomePageInner() {
                 {a.icon} {a.label}
               </span>
             ))}
+          </div>
           </div>
         )}
       </div>

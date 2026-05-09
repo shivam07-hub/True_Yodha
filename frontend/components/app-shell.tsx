@@ -378,7 +378,7 @@ function Sidebar({ score, profile, signOut }: { score: number | null; profile: S
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
           <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 24, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
-          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 13, letterSpacing: 0 }}>Career Intelligence</div>
+          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 11, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Career Intelligence</div>
         </div>
       </Link>
 

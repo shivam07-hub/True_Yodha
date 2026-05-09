@@ -1345,11 +1345,13 @@ export default function TrackerPage() {
                 border: "1px solid var(--tm-border-soft)",
               }}>
                 <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>
+                  {hasCv ? "Finding your matches…" : "Upload your CV to see matches"}
+                </div>
                 <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
                   {hasCv
-                    ? "No role matches generated yet. Click Refresh. If still empty, update target roles in Intel."
-                    : "Upload your CV then click Refresh."}
+                    ? "We scan thousands of live roles for your skill set. If nothing appears, refresh or update your target roles in Intel."
+                    : "Your job matches appear here once your CV is analysed — we scan thousands of live roles for your skill set."}
                 </div>
               </div>
             ) : (

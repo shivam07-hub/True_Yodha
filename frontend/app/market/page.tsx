@@ -281,9 +281,12 @@ export default function MarketPage() {
   const modeOptions = (analytics?.by_location_mode ?? [])
     .filter((item) => item.name.trim().toLowerCase() !== "unknown")
   const loadingMessage = useRotatingMessage(MARKET_LOADING_STEPS, { enabled: isLoading })
+  const readyToFetch = hasCv && targetRoles.length > 0
   const marketSummary = analytics
     ? `${analytics.total_jobs.toLocaleString()} jobs in ${analytics.total_companies.toLocaleString()} companies across ${analytics.total_industries.toLocaleString()} industry groups${selectedRole ? ` · role: ${selectedRole}` : ""}${selectedCity ? ` · city: ${selectedCity}` : ""}${selectedCountry ? ` · country: ${selectedCountry}` : ""}${selectedMode ? ` · mode: ${selectedMode}` : ""}`
-    : MARKET_LOADING_SUMMARY
+    : readyToFetch
+    ? MARKET_LOADING_SUMMARY
+    : ""
 
   return (
     <>
