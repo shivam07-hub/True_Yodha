@@ -155,9 +155,10 @@ class TestParseCv:
 
     @pytest.mark.asyncio
     async def test_llm_extract_returns_none_when_no_api_key(self, monkeypatch) -> None:
-        monkeypatch.setattr(cv_parser.settings, "openrouter_api_key", "")
-        monkeypatch.setattr(cv_parser.settings, "groq_api_key", "")
-        monkeypatch.setattr(cv_parser.settings, "google_api_key", "")
+        from app.services import llm_provider
+        monkeypatch.setattr(llm_provider.settings, "openrouter_api_key", "")
+        monkeypatch.setattr(llm_provider.settings, "groq_api_key", "")
+        monkeypatch.setattr(llm_provider.settings, "google_api_key", "")
         out = await cv_parser._llm_extract("some CV text")
         assert out is None
 
