@@ -243,6 +243,15 @@ export const users = {
         body: JSON.stringify({ level }),
       },
     ),
+  skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string) =>
+    request<{ advice: string | null }>(
+      "/users/me/skills/level-up-advice",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ taxonomy_key: taxonomyKey, current_level: currentLevel, evidence_text: evidenceText }),
+      },
+    ),
   followedCompanies: (token: string) =>
     request<FollowedCompaniesResponse>("/users/me/following/companies", {
       headers: { Authorization: `Bearer ${token}` },

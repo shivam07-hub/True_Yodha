@@ -112,6 +112,8 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   const [showLevelPicker, setShowLevelPicker] = useState(false)
   const [pickedLevel, setPickedLevel] = useState<number | null>(null)
   const [correctionDone, setCorrectionDone] = useState(false)
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null)
+  const [adviceLoading, setAdviceLoading] = useState(false)
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -333,7 +335,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
         </div>
       )}
 
-      {/* State 2 — CV example bullet */}
+      {/* State 2 — AI-personalised coaching */}
       {clickState === 2 && (
         <div style={{ marginTop: 10 }}>
           <div style={{
@@ -341,19 +343,67 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
             marginBottom: 6,
           }}>
             <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
-              CV bullet · L{skill.level + 1} signal
+              {skill.evidence_text ? `How to reach L${skill.level + 1} · from your CV` : `CV bullet · L${skill.level + 1} signal`}
             </span>
             <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to close ↺</span>
           </div>
-          <div style={{
-            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-accent-wash)",
-            border: "1px solid var(--tm-accent-ring)",
-            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
-            fontStyle: "italic",
-          }}>
-            {cvExample(skill.display_name, skill.level)}
-          </div>
+
+          {/* AI advice — lazy-loads on first open when evidence exists */}
+          {skill.evidence_text && !aiAdvice && !adviceLoading && token && (
+            <button
+              onClick={async () => {
+                setAdviceLoading(true)
+                try {
+                  const res = await users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text!)
+                  setAiAdvice(res.advice ?? null)
+                } catch {
+                  setAiAdvice(null)
+                } finally {
+                  setAdviceLoading(false)
+                }
+              }}
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+              }}
+            >
+              ✦ Generate personalised coaching for {skill.display_name} →
+            </button>
+          )}
+
+          {adviceLoading && (
+            <div style={{
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
+              fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic",
+            }}>
+              Analysing your CV evidence…
+            </div>
+          )}
+
+          {aiAdvice && (
+            <div style={{
+              padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
+              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-accent-ring)",
+              fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.75,
+              whiteSpace: "pre-wrap",
+            }}>
+              {aiAdvice}
+            </div>
+          )}
+
+          {/* Fallback static bullet when no evidence */}
+          {!skill.evidence_text && (
+            <div style={{
+              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
+              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+              fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, fontStyle: "italic",
+            }}>
+              {cvExample(skill.display_name, skill.level)}
+            </div>
+          )}
         </div>
       )}
     </div>

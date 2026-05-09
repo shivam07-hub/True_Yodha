@@ -68,6 +68,8 @@ from app.schemas.users import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
     FollowedCompany,
+    SkillAdviceRequest,
+    SkillAdviceResponse,
     SkillLevelCorrectionRequest,
     SkillLevelCorrectionResponse,
     UpdateProfileRequest,
@@ -97,6 +99,7 @@ __all__ = [
     "SkillResponse", "SkillsListResponse",
     "UpdateProfileRequest", "UserProfileResponse",
     "UserSkillItem", "UserSkillsByDomainResponse",
+    "SkillAdviceRequest", "SkillAdviceResponse",
     "SkillLevelCorrectionRequest", "SkillLevelCorrectionResponse",
     "FollowCompanyRequest", "FollowedCompany", "FollowedCompaniesResponse",
 ]
