@@ -130,8 +130,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 ## OPEN BACKLOG
 
 1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
-2. **Newsletter Issue 002 distribution** — images, internal links, schedule email + social.
-3. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
+2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
 4. **P2-A Journey strip** — compact 7-step breadcrumb (Find job → See gap → Forge → Log → Graph → Tailor CV → Apply) between Mission Control heading and ForgeStrip. New component `components/common/journey-strip.tsx` (<80 lines).
 5. **P2-F Intel unified empty state** — replace `CVRequiredNudge` + roles nudge with single "2 steps to unlock Intel" card. File: `app/market/page.tsx`.
 
