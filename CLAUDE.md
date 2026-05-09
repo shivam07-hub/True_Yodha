@@ -136,18 +136,31 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-09)
+## LAST SESSION SUMMARY (2026-05-10)
 
 ```
-Full bug sprint + architecture cleanup + P2-A/P2-F.
+Design system foundations + CTA consolidation Phase 1A & 1B.
 
-Shipped:
-  - All P0/P1/P2 bug fixes (intel subheading, loading guard, sidebar clip,
-    job_id tabs, roles truncation, domain labels, gap×5, milestones label,
-    tracker empty state copy, diary auto-open, tracker staleTime)
-  - Architecture: deleted 7-day plan (build_rolling_milestones + seeding),
-    removed 4 jobs_workflow pass-throughs, deleted dead frontend
-    (next-mission-card, diary-skill-cart dead exports)
-  - P2-A: JourneyStrip component (components/common/journey-strip.tsx)
-  - P2-F: Unified "2 steps to unlock Intel" empty state in market/page.tsx
+Shipped (committed to Develop):
+  - docs/DESIGN_CONSTITUTION.md, docs/UBIQUITOUS_LANGUAGE.md,
+    docs/CTA_DESIGN_SPEC.md
+  - Skills page: Domain Inspector moved between strip and canvas;
+    canvas dims non-selected domain nodes
+  - Button primitive rewritten (solid/outline/ghost/inline,
+    sm/md/lg/icon-sm/icon-md, loading prop, --tm-* tokens only)
+  - Phase 1A: 6 Upload-CV CTAs migrated to <Button>
+  - HomeColumns SkillGapCol → "Skills to build", filter changed
+    to user_level === 0 to remove duplication with matched panel;
+    color shifted from danger to warning amber
+
+Shipped this session (not yet committed):
+  - Phase 1B: 26 remaining .tm-btn consumers migrated to <Button>
+    across forge-focus-overlay (8), cv/page (12), jobs/page (5),
+    market/page (1)
+
+Queued next:
+  - Phase 1C: delete .tm-btn* utilities from design-tokens.css
+  - Phase 2: <Cta intent emphasis> wrapper on top of Button
+  - Skills page: rename activeDomain→selectedDomain (Option A)
+    or extract DomainStrip/DomainInspector (Option B)
 ```

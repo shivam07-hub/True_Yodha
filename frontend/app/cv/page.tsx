@@ -257,23 +257,23 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
           {/* Journey 2 + Journey 3 CTAs */}
           {!isMaxLevel && !showLevelPicker && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); trackUpgrade.mutate() }}
-                disabled={trackUpgrade.isPending}
-                className="tm-btn tm-btn-primary"
-                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+                loading={trackUpgrade.isPending}
+                className="whitespace-nowrap"
               >
-                {trackUpgrade.isPending ? "Saving…" : `Track upgrade in diary →`}
-              </button>
-              <button
-                type="button"
+                Track upgrade in diary →
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); setShowLevelPicker(true) }}
-                className="tm-btn tm-btn-ghost"
-                style={{ fontSize: 11, height: 30, padding: "0 12px", whiteSpace: "nowrap" }}
+                className="whitespace-nowrap"
               >
                 Fix my level
-              </button>
+              </Button>
             </div>
           )}
 
@@ -311,23 +311,22 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); if (pickedLevel) correctLevel.mutate(pickedLevel) }}
-                  disabled={!pickedLevel || correctLevel.isPending}
-                  className="tm-btn tm-btn-primary"
-                  style={{ fontSize: 11, height: 30, padding: "0 12px", opacity: !pickedLevel ? 0.5 : 1 }}
+                  disabled={!pickedLevel}
+                  loading={correctLevel.isPending}
                 >
-                  {correctLevel.isPending ? "Saving…" : "Confirm correction"}
-                </button>
-                <button
-                  type="button"
+                  Confirm correction
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); setShowLevelPicker(false); setPickedLevel(null) }}
-                  className="tm-btn tm-btn-ghost"
-                  style={{ fontSize: 11, height: 30, padding: "0 12px" }}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
               {correctLevel.isError && (
                 <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>Could not save correction. Try again.</div>
@@ -806,28 +805,20 @@ export default function CVPage() {
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               {hasCv ? (
                 <>
-                  <button
+                  <Button
+                    variant="solid"
+                    size="md"
                     onClick={() => {
                       resetDraftFlow()
                       setShowDraftGuide(true)
                     }}
-                    disabled={isGeneratingWithPuter || saveGeneratedDraft.isPending}
-                    className="tm-btn tm-btn-primary"
-                    style={{
-                      height: 36,
-                      fontSize: "var(--tm-fs-meta)",
-                      opacity: isGeneratingWithPuter || saveGeneratedDraft.isPending ? 0.7 : 1,
-                    }}
+                    loading={isGeneratingWithPuter || saveGeneratedDraft.isPending}
                   >
-                    {saveGeneratedDraft.isPending ? "Saving..." : isGeneratingWithPuter ? "Generating..." : "Generate Next CV Draft"}
-                  </button>
-                  <button
-                    onClick={() => setShowUpload((v) => !v)}
-                    className="tm-btn tm-btn-ghost"
-                    style={{ height: 36, fontSize: 12 }}
-                  >
+                    Generate Next CV Draft
+                  </Button>
+                  <Button variant="outline" size="md" onClick={() => setShowUpload((v) => !v)}>
                     Rework CV Baseline
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <Button variant="solid" size="md" onClick={() => setShowUpload((v) => !v)}>
@@ -863,14 +854,14 @@ export default function CVPage() {
                   Your latest deep-focus reflection is now anchored in your evidence stream. Use the timeline and draft tools below to shape sharper CV pointers.
                 </p>
               </div>
-              <button
-                type="button"
-                className="tm-btn tm-btn-ghost"
-                style={{ height: 30, fontSize: 11, whiteSpace: "nowrap", flexShrink: 0 }}
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowForgeBanner(false)}
+                className="whitespace-nowrap shrink-0"
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           )}
 
@@ -937,24 +928,24 @@ export default function CVPage() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  size="md"
                   onClick={() => generateJobCv.mutate({ aiPolish: false })}
-                  disabled={generateJobCv.isPending}
-                  className="tm-btn tm-btn-primary"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                  loading={generateJobCv.isPending}
+                  className="whitespace-nowrap"
                 >
-                  {generateJobCv.isPending ? "Generating..." : "Generate job CV"}
-                </button>
-                <button
-                  type="button"
+                  Generate job CV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
                   onClick={() => generateJobCv.mutate({ aiPolish: true })}
                   disabled={generateJobCv.isPending}
-                  className="tm-btn tm-btn-ghost"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)", whiteSpace: "nowrap" }}
+                  className="whitespace-nowrap"
                 >
                   AI polish
-                </button>
+                </Button>
               </div>
             </div>
             {jobPathQuery.data && (
@@ -1199,44 +1190,34 @@ export default function CVPage() {
               background: "rgba(255,255,255,0.02)",
             }}
           >
-            <button
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => setShowDraftGuide(false)}
-              className="tm-btn tm-btn-ghost"
-              style={{ height: 36, fontSize: 12 }}
             >
               Close
-            </button>
+            </Button>
             {draftStage === "guide" && (
-              <button
+              <Button
+                variant="solid"
+                size="md"
                 onClick={handleGenerateWithPuter}
-                disabled={!isPuterReady || !evidenceData?.eligible || isGeneratingWithPuter}
-                className="tm-btn tm-btn-primary"
-                style={{
-                  height: 36,
-                  fontSize: "var(--tm-fs-meta)",
-                  opacity: !isPuterReady || !evidenceData?.eligible || isGeneratingWithPuter ? 0.55 : 1,
-                }}
+                disabled={!isPuterReady || !evidenceData?.eligible}
+                loading={isGeneratingWithPuter}
               >
-                {isGeneratingWithPuter
-                  ? "Generating..."
-                  : isPuterSignedIn
-                  ? "Continue with OpenAI"
-                  : "Continue and Login"}
-              </button>
+                {isPuterSignedIn ? "Continue with OpenAI" : "Continue and Login"}
+              </Button>
             )}
             {draftStage === "review" && (
-              <button
+              <Button
+                variant="solid"
+                size="md"
                 onClick={() => saveGeneratedDraft.mutate(draftText)}
-                disabled={saveGeneratedDraft.isPending || draftText.trim().length < 120}
-                className="tm-btn tm-btn-primary"
-                style={{
-                  height: 36,
-                  fontSize: "var(--tm-fs-meta)",
-                  opacity: saveGeneratedDraft.isPending || draftText.trim().length < 120 ? 0.55 : 1,
-                }}
+                disabled={draftText.trim().length < 120}
+                loading={saveGeneratedDraft.isPending}
               >
-                {saveGeneratedDraft.isPending ? "Saving..." : "Save as CV version"}
-              </button>
+                Save as CV version
+              </Button>
             )}
           </div>
         </DialogContent>

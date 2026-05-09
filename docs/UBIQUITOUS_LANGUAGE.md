@@ -79,6 +79,9 @@ tracked as PRs that update both this file and every symbol it names.
 | **Forge Session** | One unit of skill practice; advances level after N sessions |
 | **Gap** | A skill the user lacks but a target job requires |
 | **Proof** | Evidence text from CV that supports a claimed skill |
+| **Matched Skills** | Skills the user has at level ≥ 1, regardless of whether they meet the job's required level. Rendered as "Skills you already match". |
+| **Skills to Build** | Skills the user has zero proficiency in (`user_level === 0`) for a given job. The growth list — moves the user from L0 → L1+. Rendered as "Skills to build". |
+| **Level-up Skills** | Skills where `0 < user_level < required_level` — already on Matched Skills, never on Skills to Build (they aren't "new"). |
 | **Cart** | Ephemeral skill selection during diary entry (Zustand, not DB) |
 | **XP** | Permanent currency; never resets; earned via forge sessions and diary entries |
 | **CV** | Curriculum vitae; the user's source-of-truth document |
@@ -94,6 +97,8 @@ tracked as PRs that update both this file and every symbol it names.
 | Stats strip | Domain Strip | "Stats" is generic; "Domain" names what it actually shows |
 | Active domain (sticky) | Selected domain | `active` should mean transient; we want sticky semantics |
 | Skill graph | Constellation | "Graph" overloads with charts and graphs in general; "Constellation" is the product metaphor |
+| Skill gaps to close (right panel) | Skills to Build | "Gaps to close" lumps together "you don't have it" and "you have it but need to level up". Two intents → one name. The level-up case lives on Matched Skills; only true L0 skills go here. |
+| Missing skills | Skills to Build | "Missing" reads like an absence to fix; "to Build" reads like an opportunity. Same data, better framing. |
 | Toggle | View Switcher (when picking a view) | "Toggle" is a binary on/off; switcher implies discrete choice |
 | Drill | Drill into (verb only) | Reserve as verb to keep "Inspector" as the noun |
 

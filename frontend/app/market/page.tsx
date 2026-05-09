@@ -527,7 +527,9 @@ export default function MarketPage() {
             ))}
           </select>
           {(selectedCity || selectedCountry || selectedMode) && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setSelectedCity("")
                 setSelectedCountry("")
@@ -538,11 +540,9 @@ export default function MarketPage() {
                 setExpandedDesc(null)
                 setSelectedJobFit(null)
               }}
-              className="tm-btn tm-btn-ghost"
-              style={{ height: 34, fontSize: 14, padding: "0 12px" }}
             >
               Clear location
-            </button>
+            </Button>
           )}
         </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const DURATIONS = [
@@ -177,14 +178,14 @@ export function ForgeFocusOverlay({
                 Keep cursor motion flowing through the field while you stay anchored to one skill.
               </p>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => onOpenChange(false)}
-              className="tm-btn tm-btn-ghost"
-              style={{ height: 36, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}
+              className="whitespace-nowrap shrink-0"
             >
               Exit Forge
-            </button>
+            </Button>
           </div>
 
           <div style={{ flex: 1, display: "grid", placeItems: "center", minHeight: 0 }}>
@@ -280,12 +281,12 @@ export function ForgeFocusOverlay({
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" className="tm-btn tm-btn-primary" style={{ height: 36, fontSize: 12 }} onClick={() => setRunning((value) => !value)}>
+                  <Button variant="solid" size="md" onClick={() => setRunning((value) => !value)}>
                     {running ? "Pause" : "Start"}
-                  </button>
-                  <button type="button" className="tm-btn tm-btn-ghost" style={{ height: 36, fontSize: 12 }} onClick={restart}>
+                  </Button>
+                  <Button variant="outline" size="md" onClick={restart}>
                     Reset
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -328,18 +329,17 @@ export function ForgeFocusOverlay({
                   <p style={{ margin: 0, fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</p>
                 )}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button type="button" className="tm-btn tm-btn-ghost" style={{ height: 36, fontSize: 12 }} onClick={restart}>
+                  <Button variant="outline" size="md" onClick={restart}>
                     Restart Session
-                  </button>
-                  <button
-                    type="button"
-                    className="tm-btn tm-btn-primary"
-                    style={{ height: 36, fontSize: 12, opacity: saving ? 0.7 : 1 }}
+                  </Button>
+                  <Button
+                    variant="solid"
+                    size="md"
                     onClick={completeSession}
-                    disabled={saving}
+                    loading={saving}
                   >
-                    {saving ? "Saving..." : "Claim XP"}
-                  </button>
+                    Claim XP
+                  </Button>
                 </div>
               </div>
             )}
@@ -372,24 +372,23 @@ export function ForgeFocusOverlay({
                 )}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <a className="tm-btn tm-btn-primary" style={{ height: 36, fontSize: 12, textDecoration: "none" }} href={cvHref}>
+                    <Button variant="solid" size="md" render={<a href={cvHref} />}>
                       Build CV Pointer
-                    </a>
+                    </Button>
                     {hasJobContext && onGenerateJobCv && (
-                      <button
-                        type="button"
-                        className="tm-btn tm-btn-ghost"
-                        style={{ height: 36, fontSize: 12, opacity: jobCvPending ? 0.7 : 1 }}
+                      <Button
+                        variant="outline"
+                        size="md"
                         onClick={generateJobCv}
-                        disabled={jobCvPending}
+                        loading={jobCvPending}
                       >
-                        {jobCvPending ? "Generating..." : "Generate Job CV"}
-                      </button>
+                        Generate Job CV
+                      </Button>
                     )}
                   </div>
-                  <button type="button" className="tm-btn tm-btn-ghost" style={{ height: 36, fontSize: 12 }} onClick={restart}>
+                  <Button variant="outline" size="md" onClick={restart}>
                     Start Another Session
-                  </button>
+                  </Button>
                 </div>
                 <p style={{ margin: 0, fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
                   Sessions completed in this run: <span style={{ fontVariantNumeric: "tabular-nums" }}>{sessions}</span>
