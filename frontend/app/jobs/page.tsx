@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, ChevronUp, ExternalLink, Loader2, Search, Sparkles } from "lucide-react"
+import { ChevronDown, ChevronUp, ExternalLink, Search, Sparkles } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { jobs, scores, type JobComputeStatusResponse, type JobMatch } from "@/lib/api"
