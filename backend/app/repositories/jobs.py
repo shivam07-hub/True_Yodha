@@ -10,7 +10,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
-from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, group_job_skill_rows
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
 
@@ -408,15 +408,20 @@ class JobsRepository:
         filtered_rows = rows
         if skill_lower:
             candidate_ids = {row["job_id"] for row in rows}
-            sk_rows = fetch_job_skill_rows(
+            # Use chunked path (not RPC) so display_name is available.
+            # Entity skills panel shows display_name; match against both fields for resilience.
+            sk_rows = fetch_job_skill_rows_for_ids(
                 self._db,
-                columns="job_id, skills(taxonomy_key)",
-                job_ids=list(candidate_ids),
+                list(candidate_ids),
+                columns="job_id, skills(taxonomy_key, display_name)",
             )
             matching_ids = {
                 row["job_id"]
                 for row in sk_rows
-                if skill_lower == ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower()
+                if skill_lower in (
+                    ((row.get("skills") or {}).get("taxonomy_key") or "").strip().lower(),
+                    ((row.get("skills") or {}).get("display_name") or "").strip().lower(),
+                )
             }
             filtered_rows = [row for row in rows if row["job_id"] in matching_ids]
 

@@ -73,7 +73,7 @@ def fetch_job_skill_rows_via_rpc(
     return _adapt_rpc_rows(result.data or [])
 
 
-def _fetch_job_skill_rows_chunked(
+def fetch_job_skill_rows_for_ids(
     db: Client,
     job_ids: list[str],
     *,
@@ -134,7 +134,7 @@ def fetch_job_skill_rows(
                 else:
                     logger.warning("fetch_job_skills RPC failed (%s), falling back to chunked .in_()", exc)
 
-        return _fetch_job_skill_rows_chunked(
+        return fetch_job_skill_rows_for_ids(
             db, job_ids, only_primary=only_primary, columns=columns, page_size=page_size
         )
 
