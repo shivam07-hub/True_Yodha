@@ -910,11 +910,11 @@ export interface MilestonePayload {
 }
 
 export const diary = {
-  createEntry: (token: string, entryText: string, logDate?: string) =>
+  createEntry: (token: string, entryText: string, logDate?: string, cartSkills?: Record<string, unknown>[]) =>
     request<DiaryEntry>("/diary/entry", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ entry_text: entryText, log_date: logDate }),
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_text: entryText, log_date: logDate, cart_skills: cartSkills ?? [] }),
     }),
   history: (token: string, limit = 30) =>
     request<DiaryHistoryResponse>(`/diary/history?limit=${limit}`, {

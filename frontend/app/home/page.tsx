@@ -12,7 +12,7 @@ import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 import type { DiaryEntry } from "@/lib/forge-helpers"
-import { daysAgo, computeStreak, computeTotalXP } from "@/lib/forge-helpers"
+import { daysAgo, computeStreak } from "@/lib/forge-helpers"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
@@ -205,7 +205,6 @@ function HomePageInner() {
   const pipelineApps = apps.slice(0, 4)
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
-  const totalXP = computeTotalXP(entries)
   const score = scoreData?.total_score ?? 0
   const hasCv = !!scoreData
   const targetRoles = profile?.target_roles?.join(", ") ?? "Set your target role"
@@ -215,12 +214,6 @@ function HomePageInner() {
     ? (topJobs.find((j) => j.job_id === urlJobId) ?? null)
     : (topJobs[activeJobIdx] ?? null)
 
-  // XP: seed store from totalXP until backend endpoint lands
-  useEffect(() => {
-    if (totalXP > 0 && xpBalance === 0) setXPBalance(totalXP)
-  }, [totalXP, xpBalance, setXPBalance])
-
-  // Try to fetch real XP balance from new endpoint (graceful fallback)
   useEffect(() => {
     if (!token) return
     xp.balance(token).then((r) => setXPBalance(r.balance)).catch(() => {})
@@ -247,7 +240,8 @@ function HomePageInner() {
 
   // ── Diary submit ──────────────────────────────────────────────────────────
   const saveEntry = useMutation({
-    mutationFn: (text: string) => diary.createEntry(token!, text),
+    mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) =>
+      diary.createEntry(token!, text, undefined, cart.map((s) => ({ ...s }))),
     onSuccess: () => {
       addBalance(30)
       clearCart()
@@ -258,28 +252,14 @@ function HomePageInner() {
   })
 
   async function handleDiarySubmit(text: string, cart: CartSkill[]) {
-    void cart // cart_skills endpoint pending Phase 2 backend
-    await saveEntry.mutateAsync(text)
+    await saveEntry.mutateAsync({ text, cart })
   }
 
   // ── Forge session complete ────────────────────────────────────────────────
   async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> {
     if (!token) throw new Error("Sign in first.")
-    try {
-      const result = await xp.completeForge(token, payload)
-      return result
-    } catch {
-      // Phase 2 backend not deployed — simulate XP gain via diary entry
-      const text = `Forge session complete (${payload.duration_minutes} min). Skill: ${payload.skill_name}.`
-      const entry = await diary.createEntry(token, text)
-      const gained = entry.skills_delta.reduce((s, d) => s + d.xp_added, 0) || 50
-      queryClient.invalidateQueries({ queryKey: dataKeys.diary() })
-      return {
-        xp_earned: gained, new_xp_balance: xpBalance + gained,
-        level_before: 0, level_after: 0, leveled_up: false,
-        sessions_toward_next: 1, sessions_needed: null,
-      }
-    }
+    const result = await xp.completeForge(token, payload)
+    return result
   }
 
   if (!ready) return null
