@@ -131,8 +131,6 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
 2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
-4. **P2-A Journey strip** — compact 7-step breadcrumb (Find job → See gap → Forge → Log → Graph → Tailor CV → Apply) between Mission Control heading and ForgeStrip. New component `components/common/journey-strip.tsx` (<80 lines).
-5. **P2-F Intel unified empty state** — replace `CVRequiredNudge` + roles nudge with single "2 steps to unlock Intel" card. File: `app/market/page.tsx`.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
@@ -141,26 +139,15 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 ## LAST SESSION SUMMARY (2026-05-09)
 
 ```
-Bug sprint + UX uplift — all P0/P1 done, most P2 done.
+Full bug sprint + architecture cleanup + P2-A/P2-F.
 
-Shipped this session:
-  - Intel subheading removed (intel-pane.tsx)
-  - Intel "RUNNING THE AGENT" guard: only shows when hasCv && targetRoles.length > 0
-  - P1-C: sidebar subtitle font 13→11 + textOverflow ellipsis
-  - P2-B: activeJobIdx → activeJobId (stable on refetch)
-  - P2-C: target roles truncated to 2 + "+N more", title tooltip for full list
-  - P2-E: domain grid minmax 120→160px, title attribute on buttons
-  - P2-G: gap skills slice 3→5
-  - P2-H: "Milestones · N / N" label above achievements row
-  - P2-I: tracker empty state — warm B2C copy, not dev language
-  - CV Builder hover→highlight committed (diary_fix commit)
-  - P1-A diary auto-open + P2-D tracker cart unified (diary_fix commit)
-
-Previously shipped (same sprint):
-  - P0-A: welcome XP wiring in cv/upload.py (1844151)
-  - P0-B: SHA-256 CV content hash short-circuit (34eb76d)
-  - P0-C: cart_skills wired in diary.createEntry() (1844151)
-  - P1-B: forge fake diary fallback removed (1844151)
-
-Still open: P2-A journey strip, P2-F intel unified empty state
+Shipped:
+  - All P0/P1/P2 bug fixes (intel subheading, loading guard, sidebar clip,
+    job_id tabs, roles truncation, domain labels, gap×5, milestones label,
+    tracker empty state copy, diary auto-open, tracker staleTime)
+  - Architecture: deleted 7-day plan (build_rolling_milestones + seeding),
+    removed 4 jobs_workflow pass-throughs, deleted dead frontend
+    (next-mission-card, diary-skill-cart dead exports)
+  - P2-A: JourneyStrip component (components/common/journey-strip.tsx)
+  - P2-F: Unified "2 steps to unlock Intel" empty state in market/page.tsx
 ```
