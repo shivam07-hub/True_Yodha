@@ -188,62 +188,52 @@ export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroC
 
       {/* Expanded block */}
       {(
-        <div style={{ borderTop: "1px dashed var(--tm-border)", marginTop: 6, paddingTop: 18 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div style={{ borderTop: "1px dashed var(--tm-border)", marginTop: 16, paddingTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
 
-            {/* Left: Why this is a good fit */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--tm-text)" }}>Why this is a good fit</span>
-                <span style={{
-                  fontSize: 10, padding: "2px 7px", borderRadius: 99,
-                  background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent-ring)",
-                  color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em",
-                }}>LLM</span>
-              </div>
-              <div style={{
-                padding: "14px 16px", background: "rgba(0,245,212,0.03)",
-                border: "1px solid var(--tm-accent-ring)", borderRadius: 8, position: "relative",
-              }}>
-                <div style={{
-                  position: "absolute", left: 0, top: 12, bottom: 12, width: 2,
-                  background: "var(--tm-accent)",
-                  boxShadow: "0 0 6px var(--tm-accent-glow)",
-                  borderRadius: "0 99px 99px 0",
-                }} />
-                {job.llm_explanation ? (
-                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--tm-text-muted)", lineHeight: 1.6 }}>
-                    {job.llm_explanation}
-                  </p>
-                ) : (
-                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
-                    No explanation available.
-                  </p>
-                )}
-              </div>
+          {/* Why this is a good fit — full width */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: "var(--tm-text-muted)",
+                fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em",
+              }}>Why this is a good fit</span>
+              <span style={{
+                fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em",
+              }}>LLM</span>
             </div>
-
-            {/* Right: Skills you already match */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--tm-success)" }}>Skills you already match</span>
-                  <span style={{
-                    fontFamily: "var(--tm-font-mono)", fontSize: 10, padding: "2px 7px", borderRadius: 99,
-                    background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.25)",
-                    color: "var(--tm-success)",
-                  }}>
-                    {matchedSkills.length}
-                  </span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {[...matchedSkills].sort((a, b) => (b.user_level ?? 0) - (a.user_level ?? 0)).map(s => (
-                    <SkillRow key={s.skill} skill={s} inCart={false} onToggle={() => {}} />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <p style={{
+              margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65,
+              paddingLeft: 12, borderLeft: "2px solid var(--tm-accent)",
+            }}>
+              {job.llm_explanation ?? (
+                <span style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>No explanation available.</span>
+              )}
+            </p>
           </div>
+
+          {/* Skills you already match */}
+          {matchedSkills.length > 0 && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: "var(--tm-text-muted)",
+                  fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em",
+                }}>Skills you already match</span>
+                <span style={{
+                  fontFamily: "var(--tm-font-mono)", fontSize: 10, padding: "1px 6px", borderRadius: 4,
+                  background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.25)",
+                  color: "var(--tm-success)",
+                }}>{matchedSkills.length}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[...matchedSkills].sort((a, b) => (b.user_level ?? 0) - (a.user_level ?? 0)).map(s => (
+                  <SkillRow key={s.skill} skill={s} inCart={false} onToggle={() => {}} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
