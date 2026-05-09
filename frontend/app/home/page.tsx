@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useSearchParams } from "next/navigation"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
@@ -89,7 +89,27 @@ function HomePageInner() {
   useEffect(() => { if (!token) return; xp.balance(token).then(r => setXPBalance(r.balance)).catch(() => {}) }, [token, setXPBalance])
 
   const { data: skillGapData } = useQuery({ queryKey: dataKeys.skillGap(activeJob?.job_id ?? null), queryFn: () => jobs.skillGap(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id, staleTime: 10 * 60 * 1000 })
-  const jobPathQuery = useQuery({ queryKey: dataKeys.jobPath(activeJob?.job_id ?? null), queryFn: () => jobs.path(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id && !!appsByJobId[activeJob.job_id], staleTime: 5 * 60 * 1000 })
+
+  const trackedJobIds = useMemo(() => apps.map(a => a.job_id), [apps])
+  const jobPathQueries = useQueries({
+    queries: trackedJobIds.map(jobId => ({
+      queryKey: dataKeys.jobPath(jobId),
+      queryFn: () => jobs.path(token!, jobId),
+      enabled: !!token,
+      staleTime: 5 * 60 * 1000,
+    }))
+  })
+  const pendingMilestoneJobIds = useMemo(() => {
+    const s = new Set<string>()
+    jobPathQueries.forEach((q, i) => {
+      if (q.data?.today_milestone && !q.data.today_milestone.completed_at) s.add(trackedJobIds[i])
+    })
+    return s
+  }, [jobPathQueries, trackedJobIds])
+  const activeJobPath = useMemo(
+    () => jobPathQueries.find((_, i) => trackedJobIds[i] === activeJob?.job_id)?.data,
+    [jobPathQueries, trackedJobIds, activeJob?.job_id]
+  )
 
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -174,14 +194,37 @@ function HomePageInner() {
             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Active focus →</span>
             {topJobs.map(j => {
               const isActive = j.job_id === (activeJobId ?? topJobs[0]?.job_id)
+              const status = appsByJobId[j.job_id]
+              const fit = Math.round(j.overlap_score)
+              const hasMilestoneDot = pendingMilestoneJobIds.has(j.job_id) && !isActive
+
+              let bg = "rgba(255,255,255,0.025)"
+              let border = "1.5px solid var(--tm-border)"
+              let color = "var(--tm-text-muted)"
+              let opacity = fit < 50 && !status ? 0.4 : 1
+              let shadow = "none"
+
+              if (isActive) {
+                bg = "var(--tm-accent)"; border = "1.5px solid var(--tm-accent)"; color = "var(--tm-accent-fg)"; opacity = 1; shadow = "0 0 12px var(--tm-accent-glow)"
+              } else if (status === "interviewing" || status === "offer") {
+                bg = "var(--tm-success-wash)"; border = "1.5px solid rgba(74,222,128,0.5)"; color = "var(--tm-success)"; opacity = 1
+              } else if (status === "applied" || status === "responded") {
+                bg = "var(--tm-accent-wash)"; border = "1.5px solid var(--tm-accent-ring)"; color = "var(--tm-accent)"; opacity = 1
+              } else if (fit < 50) {
+                opacity = 0.4
+              }
+
               return (
-                <button key={j.job_id} onClick={() => { setActiveJobId(j.job_id); setExpanded(true) }} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: isActive ? "var(--tm-accent)" : "rgba(255,255,255,0.025)", border: `1.5px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border)"}`, color: isActive ? "var(--tm-accent-fg)" : "var(--tm-text-muted)", cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: isActive ? "0 0 12px var(--tm-accent-glow)" : "none" }}>
+                <button key={j.job_id} onClick={() => { setActiveJobId(j.job_id); setExpanded(true) }} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow, opacity }}>
                   {j.company ?? "Company"}
-                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {Math.round(j.overlap_score)}%</span>
+                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
+                  {hasMilestoneDot && (
+                    <span style={{ position: "absolute", top: -2, right: -2, width: 7, height: 7, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", border: "1.5px solid var(--tm-bg)" }} />
+                  )}
                 </button>
               )
             })}
-            <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none" }}>+ Add target</Link>
+            <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Add target</Link>
           </div>
         )}
 
@@ -221,7 +264,7 @@ function HomePageInner() {
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>Diary · cart · milestone</h2>
               <button onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
             </div>
-            <RightRail job={activeJob} jobPath={jobPathQuery.data} cartSkills={cartSkills} onRemoveCart={c => removeSkill(c.skill_name)} onSendBatch={handleSendBatch} achievements={ACHIEVEMENTS} proofText={proofText} savingProof={saveMilestoneProof.isPending} onProofChange={setProofText} onSaveProof={milestone => activeJob && saveMilestoneProof.mutate({ jobId: activeJob.job_id, milestoneId: milestone.id, proof: proofText })} generatingCv={generateJobCv.isPending} onGenerateCv={() => activeJob && generateJobCv.mutate({ aiPolish: false })} onPolishCv={() => activeJob && generateJobCv.mutate({ aiPolish: true })} />
+            <RightRail job={activeJob} jobPath={activeJobPath} cartSkills={cartSkills} onRemoveCart={c => removeSkill(c.skill_name)} onSendBatch={handleSendBatch} achievements={ACHIEVEMENTS} proofText={proofText} savingProof={saveMilestoneProof.isPending} onProofChange={setProofText} onSaveProof={milestone => activeJob && saveMilestoneProof.mutate({ jobId: activeJob.job_id, milestoneId: milestone.id, proof: proofText })} generatingCv={generateJobCv.isPending} onGenerateCv={() => activeJob && generateJobCv.mutate({ aiPolish: false })} onPolishCv={() => activeJob && generateJobCv.mutate({ aiPolish: true })} />
           </div>
         </>
       )}

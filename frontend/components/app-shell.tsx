@@ -16,7 +16,6 @@ import { MyroLogo } from "@/components/myro-logo"
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",   icon: "◉",  hideLabel: false, nudge: false },
-  { href: "/tracker", label: "Track",      desc: "Jobs & applications",   icon: "◆",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",   icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
 ]
