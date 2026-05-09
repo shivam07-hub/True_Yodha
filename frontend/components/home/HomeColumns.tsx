@@ -1,86 +1,42 @@
 "use client"
 
 import Link from "next/link"
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
-import { daysAgo } from "@/lib/forge-helpers"
+import type { ApplicationStatus, SkillGapItem, SkillGapResponse } from "@/lib/api"
+import { SkillRow } from "./SkillRow"
 
-// ── PipelineCol ───────────────────────────────────────────────────────────────
+// ── SkillGapCol ───────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "applied", label: "Applied" },
-  { value: "no_response", label: "No response" },
-  { value: "responded", label: "Responded" },
-  { value: "interviewing", label: "Interviewing" },
-  { value: "rejected", label: "Rejected" },
-  { value: "offer", label: "Offer 🎉" },
-  { value: "abandoned", label: "Abandoned" },
-]
-
-function statusColor(s: ApplicationStatus): string {
-  if (s === "applied" || s === "responded") return "var(--tm-accent)"
-  if (s === "interviewing" || s === "offer") return "var(--tm-success)"
-  if (s === "rejected" || s === "abandoned") return "var(--tm-danger)"
-  return "var(--tm-text-muted)"
+interface SkillGapColProps {
+  skillGapData?: SkillGapResponse
+  cartSkillNames: Set<string>
+  onSkillToggle: (skill: SkillGapItem) => void
 }
 
-interface PipelineColProps {
-  apps: ApplicationResponse[]
-  activeJobId: string
-  onPick: (jobId: string) => void
-  onStatus: (jobId: string, status: ApplicationStatus) => void
-}
-
-export function PipelineCol({ apps, activeJobId, onPick, onStatus }: PipelineColProps) {
+export function SkillGapCol({ skillGapData, cartSkillNames, onSkillToggle }: SkillGapColProps) {
+  const missingSkills = skillGapData?.skills.filter(s => s.missing) ?? []
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", fontWeight: 600 }}>Pipeline · all targets</span>
-        <Link href="/tracker" style={{ fontSize: 11.5, color: "var(--tm-text-muted)", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>All →</Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+        <span style={{ fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-danger)", textTransform: "uppercase", fontWeight: 700 }}>Skill gaps to close</span>
+        <span style={{
+          fontFamily: "var(--tm-font-mono)", fontSize: 10, padding: "2px 7px", borderRadius: 99,
+          background: "rgba(251,113,133,0.08)", border: "1px solid rgba(251,113,133,0.25)",
+          color: "var(--tm-danger)",
+        }}>
+          {skillGapData?.missing_count ?? 0} of {skillGapData?.total_required ?? 0}
+        </span>
       </div>
-      {apps.slice(0, 5).map(app => {
-        const isActive = app.job_id === activeJobId
-        return (
-          <div
-            key={app.id}
-            onClick={() => onPick(app.job_id)}
-            style={{
-              display: "grid", gridTemplateColumns: "1fr auto", gap: "6px 12px",
-              padding: "12px 6px", borderBottom: "1px solid var(--tm-border-soft)",
-              alignItems: "center", cursor: "pointer", borderRadius: 6,
-              background: isActive ? "rgba(0,245,212,0.06)" : "transparent",
-              transition: "all 120ms var(--tm-ease)",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>{app.company ?? app.title}</div>
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{app.title}</div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }} onClick={e => e.stopPropagation()}>
-              <select
-                value={app.status}
-                onChange={e => onStatus(app.job_id, e.target.value as ApplicationStatus)}
-                style={{
-                  fontSize: 11, fontWeight: 600, color: statusColor(app.status),
-                  background: "transparent", border: "none", cursor: "pointer",
-                  fontFamily: "var(--tm-font-mono)", padding: 0, outline: "none",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
-                }}
-              >
-                {STATUS_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value} style={{ background: "var(--tm-surface-2)", color: "var(--tm-text)", textTransform: "none", letterSpacing: 0 }}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-                {daysAgo(app.created_at)}
-              </span>
-            </div>
-          </div>
-        )
-      })}
-      {apps.length === 0 && <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>No applications yet</div>}
+      {missingSkills.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+          No gaps identified. Apply with confidence.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {missingSkills.map(s => (
+            <SkillRow key={s.skill} skill={s} inCart={cartSkillNames.has(s.skill)} onToggle={() => onSkillToggle(s)} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

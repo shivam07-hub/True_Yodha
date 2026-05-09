@@ -12,7 +12,7 @@ import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
-import { PipelineCol, CVCol } from "@/components/home/HomeColumns"
+import { SkillGapCol, CVCol } from "@/components/home/HomeColumns"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
@@ -206,10 +206,10 @@ function HomePageInner() {
 
         {/* Hero + columns */}
         {activeJob ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
             <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} onForge={() => setForgeOpen(true)} />
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })} />
+              <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
               <CVCol job={activeJob} onSpendXP={handleSpendXP} />
             </div>
           </div>

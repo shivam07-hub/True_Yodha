@@ -224,31 +224,8 @@ export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, 
               </div>
             </div>
 
-            {/* Right: Skill gaps + matches */}
+            {/* Right: Skills you already match */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--tm-danger)" }}>Skill gaps to close</span>
-                  <span style={{
-                    fontFamily: "var(--tm-font-mono)", fontSize: 10, padding: "2px 7px", borderRadius: 99,
-                    background: "rgba(251,113,133,0.08)", border: "1px solid rgba(251,113,133,0.25)",
-                    color: "var(--tm-danger)",
-                  }}>
-                    {skillGapData?.missing_count ?? 0} of {skillGapData?.total_required ?? 0}
-                  </span>
-                </div>
-                {missingSkills.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
-                    No gaps identified. Apply with confidence.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {missingSkills.map(s => (
-                      <SkillRow key={s.skill} skill={s} inCart={cartSkillNames.has(s.skill)} onToggle={() => onSkillToggle(s)} />
-                    ))}
-                  </div>
-                )}
-              </div>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--tm-success)" }}>Skills you already match</span>
