@@ -170,6 +170,10 @@ export default function MarketPage() {
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles],
   )
+  const targetCompanies: string[] = useMemo(
+    () => (followingData?.companies ?? []).map((c) => c.company_name),
+    [followingData],
+  )
 
   // Auto-select first (highest priority) target role on initial load
   useEffect(() => {
@@ -416,6 +420,44 @@ export default function MarketPage() {
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {token && targetCompanies.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginRight: 2 }}>
+              Target Companies
+            </div>
+            {targetCompanies.map((name) => {
+              const entity = companies.find((c) => c.name === name)
+              const active = selected?.name === name
+              return (
+                <button
+                  key={name}
+                  onClick={() => {
+                    if (active) { setSelected(null) } else {
+                      setView("companies")
+                      setSelected(entity ?? { name, roles: 0, skills: [], type: "company" as const })
+                      setDrillSkill(null)
+                      setDrillPage(1)
+                      setExpandedDesc(null)
+                      setCompanySearch("")
+                      setSelectedJobFit(null)
+                    }
+                  }}
+                  style={{
+                    padding: "7px 18px", borderRadius: 999, fontSize: 15, fontWeight: 600,
+                    background: active ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
+                    border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                    color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                    cursor: "pointer",
+                    transition: "all var(--tm-dur) var(--tm-ease)", fontFamily: "inherit",
+                  }}
+                >
+                  {name}
+                </button>
+              )
+            })}
           </div>
         )}
 

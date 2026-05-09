@@ -221,7 +221,7 @@ function HomePageInner() {
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, alignItems: "start" }}>
             <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} onForge={() => setForgeOpen(true)} />
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} />
+              <PipelineCol apps={apps} activeJobId={activeJob.job_id} onPick={id => setActiveJobId(id)} onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })} />
               <CVCol job={activeJob} onSpendXP={handleSpendXP} />
             </div>
           </div>

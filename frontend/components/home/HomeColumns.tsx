@@ -6,20 +6,32 @@ import { daysAgo } from "@/lib/forge-helpers"
 
 // ── PipelineCol ───────────────────────────────────────────────────────────────
 
+const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "applied", label: "Applied" },
+  { value: "no_response", label: "No response" },
+  { value: "responded", label: "Responded" },
+  { value: "interviewing", label: "Interviewing" },
+  { value: "rejected", label: "Rejected" },
+  { value: "offer", label: "Offer 🎉" },
+  { value: "abandoned", label: "Abandoned" },
+]
+
+function statusColor(s: ApplicationStatus): string {
+  if (s === "applied" || s === "responded") return "var(--tm-accent)"
+  if (s === "interviewing" || s === "offer") return "var(--tm-success)"
+  if (s === "rejected" || s === "abandoned") return "var(--tm-danger)"
+  return "var(--tm-text-muted)"
+}
+
 interface PipelineColProps {
   apps: ApplicationResponse[]
   activeJobId: string
   onPick: (jobId: string) => void
+  onStatus: (jobId: string, status: ApplicationStatus) => void
 }
 
-export function PipelineCol({ apps, activeJobId, onPick }: PipelineColProps) {
-  function stColor(status: ApplicationStatus): string {
-    if (status === "applied" || status === "responded") return "var(--tm-accent)"
-    if (status === "interviewing" || status === "offer") return "var(--tm-success)"
-    if (status === "rejected" || status === "abandoned") return "var(--tm-danger)"
-    return "var(--tm-text-faint)"
-  }
-
+export function PipelineCol({ apps, activeJobId, onPick, onStatus }: PipelineColProps) {
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -28,7 +40,6 @@ export function PipelineCol({ apps, activeJobId, onPick }: PipelineColProps) {
       </div>
       {apps.slice(0, 5).map(app => {
         const isActive = app.job_id === activeJobId
-        const c = stColor(app.status)
         return (
           <div
             key={app.id}
@@ -45,14 +56,23 @@ export function PipelineCol({ apps, activeJobId, onPick }: PipelineColProps) {
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>{app.company ?? app.title}</div>
               <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{app.title}</div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-              <span style={{
-                fontSize: 10, color: c, padding: "2px 9px", borderRadius: 99,
-                border: `1px solid ${c}55`, background: `${c}10`,
-                fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em", textTransform: "uppercase",
-              }}>
-                {app.status}
-              </span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }} onClick={e => e.stopPropagation()}>
+              <select
+                value={app.status}
+                onChange={e => onStatus(app.job_id, e.target.value as ApplicationStatus)}
+                style={{
+                  fontSize: 11, fontWeight: 600, color: statusColor(app.status),
+                  background: "transparent", border: "none", cursor: "pointer",
+                  fontFamily: "var(--tm-font-mono)", padding: 0, outline: "none",
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                }}
+              >
+                {STATUS_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: "var(--tm-surface-2)", color: "var(--tm-text)", textTransform: "none", letterSpacing: 0 }}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
               <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
                 {daysAgo(app.created_at)}
               </span>

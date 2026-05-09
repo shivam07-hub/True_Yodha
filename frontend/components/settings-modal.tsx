@@ -483,8 +483,33 @@ export function SettingsModal({ open, onClose, profile }: {
                   </div>
                 </div>
 
+                {/* Save button */}
+                <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                  {saveStatus === "error" && saveError && (
+                    <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
+                  )}
+                  <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
+                    style={{
+                      padding: "9px 24px", borderRadius: "var(--tm-radius-sm)", border: "none",
+                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
+                      color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+                      cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
+                      opacity: saveStatus === "saving" ? 0.65 : 1,
+                      transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
+                      minWidth: 100,
+                    }}
+                  >
+                    {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── FOLLOWING TAB ── */}
+            {activeTab === "Following" && (
+              <>
                 {/* Job search section */}
-                <div style={{ ...SECTION_HEADER, marginTop: 32 }}>Job Search</div>
+                <div style={SECTION_HEADER}>Job Search</div>
 
                 {/* Target roles */}
                 <div style={ROW_STYLE}>
@@ -581,41 +606,19 @@ export function SettingsModal({ open, onClose, profile }: {
                   </div>
                 </div>
 
-                {/* Save button */}
-                <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-                  {saveStatus === "error" && saveError && (
-                    <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
-                  )}
-                  <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
-                    style={{
-                      padding: "9px 24px", borderRadius: "var(--tm-radius-sm)", border: "none",
-                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
-                      color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-                      cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
-                      opacity: saveStatus === "saving" ? 0.65 : 1,
-                      transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
-                      minWidth: 100,
-                    }}
-                  >
-                    {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
-                  </button>
-                </div>
-              </>
-            )}
+                {/* Target companies section */}
+                <div style={{ ...SECTION_HEADER, marginTop: 32 }}>Target Companies</div>
 
-            {/* ── FOLLOWING TAB ── */}
-            {activeTab === "Following" && (
-              <>
                 {/* Company search combobox — same pattern as Target Roles */}
-                <div style={{ ...ROW_STYLE, marginTop: 16 }}>
+                <div style={{ ...ROW_STYLE, marginTop: 0 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div>
-                      <div style={ROW_LABEL}>Followed Companies</div>
+                      <div style={ROW_LABEL}>Target Companies</div>
                       <div style={ROW_DESC}>Companies whose jobs you track in Market</div>
                     </div>
                     {followedCompanies.length > 0 && (
                       <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
-                        {followedCompanies.length} following
+                        {followedCompanies.length} targeted
                       </span>
                     )}
                   </div>

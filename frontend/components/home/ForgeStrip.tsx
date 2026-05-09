@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 
 interface ForgeStripProps {
   streak: number
@@ -14,25 +13,6 @@ interface ForgeStripProps {
 }
 
 export function ForgeStrip({ streak, sessions, xpBalance, score, evidenceData, onEnterForge, onOpenDiary, cartCount }: ForgeStripProps) {
-  const prevBalanceRef = useRef(xpBalance)
-  const [delta, setDelta] = useState<number | null>(null)
-  const [deltaKey, setDeltaKey] = useState(0)
-
-  useEffect(() => {
-    const diff = xpBalance - prevBalanceRef.current
-    if (diff > 0) {
-      setDelta(diff)
-      setDeltaKey((k) => k + 1)
-      const t = setTimeout(() => setDelta(null), 900)
-      return () => clearTimeout(t)
-    }
-    prevBalanceRef.current = xpBalance
-  }, [xpBalance])
-
-  useEffect(() => {
-    prevBalanceRef.current = xpBalance
-  }, [deltaKey]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const sinceCvParts: string[] = []
   if (evidenceData) {
     if (evidenceData.score_delta != null) sinceCvParts.push(`+${Math.max(0, Math.round(evidenceData.score_delta))} score`)
@@ -43,7 +23,6 @@ export function ForgeStrip({ streak, sessions, xpBalance, score, evidenceData, o
   const stats = [
     { label: "STREAK", value: `${streak}`, unit: "d" },
     { label: "SESSIONS", value: `${sessions}`, unit: "" },
-    { label: "XP", value: `◆ ${xpBalance}`, unit: "", showDelta: true },
     { label: "SCORE", value: `${Math.round(score)}`, unit: "/100" },
   ]
 
@@ -54,12 +33,11 @@ export function ForgeStrip({ streak, sessions, xpBalance, score, evidenceData, o
       padding: "14px 18px", display: "flex", alignItems: "center", gap: 0,
     }}>
       <div style={{ flex: 1, display: "flex", alignItems: "stretch", gap: 0, minWidth: 0 }}>
-        {stats.map(({ label, value, unit, showDelta }, i) => (
+        {stats.map(({ label, value, unit }, i) => (
           <div key={label} style={{
             flex: 1, paddingRight: i < stats.length - 1 ? 16 : 0,
             marginRight: i < stats.length - 1 ? 16 : 0,
             borderRight: i < stats.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
-            position: "relative",
           }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1, letterSpacing: "-0.02em" }}>
               {value}<span style={{ fontSize: 12, fontWeight: 400, color: "var(--tm-text-faint)", marginLeft: 1 }}>{unit}</span>
@@ -68,20 +46,6 @@ export function ForgeStrip({ streak, sessions, xpBalance, score, evidenceData, o
             {label === "SCORE" && sinceCvParts.length > 0 && (
               <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Since last CV: {sinceCvParts.join(" · ")}
-              </div>
-            )}
-            {showDelta && delta !== null && (
-              <div
-                key={deltaKey}
-                style={{
-                  position: "absolute", top: -4, left: 0,
-                  fontFamily: "var(--tm-font-mono)", fontSize: 12, fontWeight: 700,
-                  color: "var(--tm-accent)",
-                  animation: "xp-float 0.9s ease-out forwards",
-                  pointerEvents: "none", whiteSpace: "nowrap",
-                }}
-              >
-                +{delta}
               </div>
             )}
           </div>

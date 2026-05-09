@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
-import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { dataKeys, invalidateScoreData } from "@/lib/domain-data"
@@ -52,8 +51,6 @@ export default function SkillsPage() {
   const rankedDomains = scoreData
     ? Object.entries(scoreData.domain_scores).sort((a, b) => b[1] - a[1])
     : []
-  const topDomains = rankedDomains.slice(0, 3)
-  const focusDomains = [...rankedDomains].slice(-3).sort((a, b) => a[1] - b[1])
 
   return (
     <AppShell>
@@ -66,7 +63,7 @@ export default function SkillsPage() {
             <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
             <p className="tm-meta text-pretty">
               {scoreData
-                ? `${scoreData.skills_assessed} skills assessed · ${scoreData.gap_skills.length} gaps identified`
+                ? `${scoreData.skills_assessed} skills · ${scoreData.gap_skills.length} gaps · ${proofCount} with proof · ${levellingCount} levelling`
                 : "Upload your CV to see your Myro Score"}
             </p>
           </div>
@@ -95,120 +92,9 @@ export default function SkillsPage() {
           )}
         </div>
 
-        {hasCv ? (
-          <div style={{ marginBottom: 24, position: "relative", zIndex: 1 }}>
-            <div className="tm-card">
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-                <div>
-                  <div className="tm-label-caps" style={{ marginBottom: 6 }}>Domain Highlights</div>
-                  <p className="tm-meta text-pretty" style={{ margin: 0 }}>
-                    Summary up top, detailed radar and drill-down in the visual explorer below.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setView("radar")}
-                  style={{
-                    padding: "7px 14px",
-                    borderRadius: "var(--tm-radius-sm)",
-                    background: "var(--tm-accent-wash)",
-                    border: "1px solid var(--tm-accent-ring)",
-                    color: "var(--tm-accent)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Open Domain Radar
-                </button>
-              </div>
-              {scoreData && Object.keys(scoreData.domain_scores).length > 0 ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-                  <div style={{ padding: "12px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.01)" }}>
-                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                      Strongest Domains
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {topDomains.map(([domain, score]) => (
-                        <div key={domain} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{domain}</span>
-                          <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 700, fontFamily: "var(--tm-font-mono)", fontVariantNumeric: "tabular-nums" }}>
-                            {Math.round(score)}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.01)" }}>
-                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                      Focus Next
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {focusDomains.map(([domain, score]) => (
-                        <div key={domain} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 13, color: "var(--tm-text)" }}>{domain}</span>
-                          <span style={{ fontSize: 12, color: "var(--tm-warning)", fontWeight: 700, fontFamily: "var(--tm-font-mono)", fontVariantNumeric: "tabular-nums" }}>
-                            {Math.round(score)}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : scoreLoading || recompute.isPending ? (
-                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    border: "2px solid var(--tm-border-soft)",
-                    borderTopColor: "var(--tm-accent)",
-                    animation: "spin 0.9s linear infinite",
-                  }} />
-                  <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                    {recompute.isPending ? "Computing scores…" : "Loading…"}
-                  </span>
-                </div>
-              ) : (
-                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                  <button
-                    onClick={() => recompute.mutate()}
-                    style={{
-                      padding: "7px 18px",
-                      borderRadius: "var(--tm-radius-sm)",
-                      background: "var(--tm-accent-wash)",
-                      border: "1px solid var(--tm-accent-ring)",
-                      color: "var(--tm-accent)",
-                      fontSize: 13, fontWeight: 500, cursor: "pointer",
-                      transition: "all var(--tm-dur) var(--tm-ease)",
-                    }}
-                  >
-                    {recompute.isError ? "Retry" : "Compute Scores"}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : !scoreLoading ? (
-          <div style={{ marginBottom: 24, position: "relative", zIndex: 1 }}>
-            <CVRequiredNudge variant="block" hasCv={hasCv} feature="your Myro Score" />
-          </div>
-        ) : null}
 
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12, position: "relative", zIndex: 1 }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6, opacity: 0.8 }}>
-              VISUAL EXPLORER
-            </div>
-            <h1 className="text-balance" style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
-              Skill Graph & Radar
-            </h1>
-            <p className="text-pretty" style={{ fontSize: 13, color: "var(--tm-text-faint)", marginTop: 4 }}>
-              {totalSkills} skills · {proofCount} with proof · {levellingCount} actively levelling
-            </p>
-          </div>
-
-          {/* View toggle */}
+        {/* View toggle */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16, position: "relative", zIndex: 1 }}>
           <div className="tm-segment-toggle">
             <button aria-pressed={view === "tree"} onClick={() => setView("tree")}>⬡ Skill Tree</button>
             <button aria-pressed={view === "radar"} onClick={() => setView("radar")}>◈ Domain Radar</button>
@@ -268,20 +154,6 @@ export default function SkillsPage() {
             </div>
           ) : view === "tree" ? (
             <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", padding: "0 14px 10px", display: "flex", gap: 20 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "var(--tm-accent)" }} />
-                  Skills you have
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #5B9CFF" }} />
-                  Skills to unlock
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ display: "inline-block", width: 16, height: 1.5, background: "rgba(91,156,255,0.75)", borderRadius: 99 }} />
-                  Unlock path
-                </span>
-              </div>
               <OrganicSkillGraph userSkills={skills} gapSkills={scoreData?.gap_skills ?? []} />
             </div>
           ) : (
@@ -325,15 +197,6 @@ export default function SkillsPage() {
           </div>
         )}
 
-        {/* Legend */}
-        <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,255,255,0.01)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", display: "flex", gap: 24, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
-          {["Proof logged from CV (dashed ← back to You)", "Unlock path (blue, what to learn next)", "Skill tree edge (faint)"].map((leg, i) => (
-            <div key={i} style={{ fontSize: 11, color: "var(--tm-text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 16, height: 1.5, display: "inline-block", background: i === 0 ? "var(--tm-accent)" : i === 1 ? "rgba(91,156,255,0.75)" : "rgba(255,255,255,0.2)", borderRadius: 99 }} />
-              {leg}
-            </div>
-          ))}
-        </div>
       </div>
     </AppShell>
   )

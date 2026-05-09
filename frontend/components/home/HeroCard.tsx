@@ -64,20 +64,51 @@ export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, 
           }}>
             Focused on: {job.company ?? ""}
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-            <h2 style={{
-              margin: 0, fontSize: 26, fontWeight: 600,
-              letterSpacing: "-0.02em", color: "var(--tm-text)", lineHeight: 1.15,
-            }}>
-              {job.title}
-            </h2>
+          <h2 style={{
+            margin: 0, fontSize: 26, fontWeight: 600,
+            letterSpacing: "-0.02em", color: "var(--tm-text)", lineHeight: 1.15,
+          }}>
+            {job.title}
+          </h2>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            fontFamily: "var(--tm-font-mono)", fontSize: 11,
+            color: "var(--tm-text-faint)", marginTop: 5, flexWrap: "wrap",
+          }}>
+            <span>{[job.company, job.location].filter(Boolean).join(" · ")}{job.llm_rank != null && ` · RANK · #${job.llm_rank}`}</span>
+            {job.job_id && (
+              <>
+                <span style={{ color: "var(--tm-border)" }}>·</span>
+                <span style={{
+                  padding: "1px 6px", borderRadius: 4,
+                  border: "1px dashed var(--tm-border)", color: "var(--tm-text-muted)",
+                  cursor: "copy", fontSize: 11,
+                }}
+                  onClick={() => navigator.clipboard.writeText(String(job.job_id))}
+                  title="Copy Job ID"
+                >
+                  {job.job_id}
+                </span>
+                {job.source_url && (
+                  <a
+                    href={job.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--tm-text-muted)", textDecoration: "none", fontSize: 11 }}
+                  >
+                    Open JD ↗
+                  </a>
+                )}
+              </>
+            )}
+            <span style={{ color: "var(--tm-border)" }}>·</span>
             <select
               value={status}
               onChange={(e) => onStatus(e.target.value as ApplicationStatus)}
               style={{
-                fontSize: 12, fontWeight: 600, color: statusColor(status),
+                fontSize: 11, fontWeight: 600, color: statusColor(status),
                 background: "transparent", border: "none", cursor: "pointer",
-                fontFamily: "inherit", padding: 0, outline: "none",
+                fontFamily: "var(--tm-font-mono)", padding: 0, outline: "none",
               }}
             >
               {STATUS_OPTIONS.map(o => (
@@ -86,13 +117,6 @@ export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, 
                 </option>
               ))}
             </select>
-          </div>
-          <div style={{
-            fontFamily: "var(--tm-font-mono)", fontSize: 11,
-            color: "var(--tm-text-faint)", marginTop: 5,
-          }}>
-            {[job.company, job.location].filter(Boolean).join(" · ")}
-            {job.llm_rank != null && ` · RANK · #${job.llm_rank}`}
           </div>
         </div>
 
@@ -161,16 +185,6 @@ export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, 
             → Apply with tailored CV
           </button>
         )}
-        {job.source_url && (
-          <a
-            href={job.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 11.5, color: "var(--tm-text-muted)", fontFamily: "var(--tm-font-mono)", textDecoration: "none" }}
-          >
-            JD ↗
-          </a>
-        )}
       </div>
 
       {/* Expanded block */}
@@ -206,29 +220,6 @@ export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, 
                   <p style={{ margin: 0, fontSize: 12.5, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
                     No explanation available.
                   </p>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--tm-text-faint)" }}>
-                  Job ID
-                </span>
-                <span style={{
-                  fontFamily: "var(--tm-font-mono)", fontSize: 11,
-                  padding: "2px 8px", borderRadius: 4,
-                  border: "1px dashed var(--tm-border)", color: "var(--tm-text-muted)",
-                  cursor: "copy",
-                }}>
-                  {job.job_id}
-                </span>
-                {job.source_url && (
-                  <a
-                    href={job.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: 11.5, color: "var(--tm-text-muted)", textDecoration: "none" }}
-                  >
-                    Open JD ↗
-                  </a>
                 )}
               </div>
             </div>
