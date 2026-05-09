@@ -760,19 +760,21 @@ class JobsRepository:
 
         rows = (
             self._admin_db.table("job_skills")
-            .select("is_primary, skills(taxonomy_key)")
+            .select("is_primary, required_level, skills(taxonomy_key)")
             .eq("job_id", job_id)
             .execute()
         ).data or []
 
-        main_skills, side_skills = [], []
+        skills: list[dict[str, Any]] = []
         for row in rows:
             key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
             if not key:
                 continue
-            (main_skills if row.get("is_primary") else side_skills).append(key)
+            is_primary = bool(row.get("is_primary"))
+            required_level = row.get("required_level") or (4 if is_primary else 2)
+            skills.append({"taxonomy_key": key, "is_primary": is_primary, "required_level": required_level})
 
-        return {**meta.data, "main_skills": main_skills, "side_skills": side_skills}
+        return {**meta.data, "skills": skills}
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

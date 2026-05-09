@@ -386,3 +386,51 @@ def test_fetch_job_skill_rows_disables_rpc_after_missing_signature_error() -> No
 
     assert rpc_call.call_count == 1
     assert chunked_call.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# get_job_skills — required_level
+# ---------------------------------------------------------------------------
+
+def test_get_job_skills_returns_required_level_from_db() -> None:
+    """required_level present in DB → returned as-is, no heuristic."""
+    meta_result = _Result({"job_id": "j1", "job_title": "Engineer", "company_name": "Acme"})
+    skill_result = _Result([
+        {"is_primary": True, "required_level": 3, "skills": {"taxonomy_key": "python"}},
+        {"is_primary": False, "required_level": 1, "skills": {"taxonomy_key": "excel"}},
+    ])
+
+    mock_db = Mock()
+    mock_db.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = meta_result
+    mock_admin_db = Mock()
+    mock_admin_db.table.return_value.select.return_value.eq.return_value.execute.return_value = skill_result
+
+    result = JobsRepository(mock_db, admin_db=mock_admin_db).get_job_skills("j1")
+
+    assert result is not None
+    by_key = {s["taxonomy_key"]: s for s in result["skills"]}
+    assert by_key["python"]["required_level"] == 3
+    assert by_key["python"]["is_primary"] is True
+    assert by_key["excel"]["required_level"] == 1
+    assert by_key["excel"]["is_primary"] is False
+
+
+def test_get_job_skills_required_level_fallback_when_null() -> None:
+    """required_level null in DB → primary→4, secondary→2 fallback."""
+    meta_result = _Result({"job_id": "j1", "job_title": "Engineer", "company_name": "Acme"})
+    skill_result = _Result([
+        {"is_primary": True, "required_level": None, "skills": {"taxonomy_key": "python"}},
+        {"is_primary": False, "required_level": None, "skills": {"taxonomy_key": "excel"}},
+    ])
+
+    mock_db = Mock()
+    mock_db.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = meta_result
+    mock_admin_db = Mock()
+    mock_admin_db.table.return_value.select.return_value.eq.return_value.execute.return_value = skill_result
+
+    result = JobsRepository(mock_db, admin_db=mock_admin_db).get_job_skills("j1")
+
+    assert result is not None
+    by_key = {s["taxonomy_key"]: s for s in result["skills"]}
+    assert by_key["python"]["required_level"] == 4
+    assert by_key["excel"]["required_level"] == 2
