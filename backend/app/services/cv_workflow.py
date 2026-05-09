@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -21,6 +22,7 @@ def _persist_baseline_cv(
     raw_text: str,
     skills_detected: list[dict],
     score_total: float,
+    content_hash: str,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     cv_repo.update_cv_profile(
@@ -42,6 +44,7 @@ def _persist_baseline_cv(
             "version_type": "baseline_upload",
             "title": "Uploaded baseline CV",
             "evidence_count": 0,
+            "content_hash": content_hash,
         }
     )
 
@@ -56,9 +59,24 @@ async def ingest_uploaded_cv(
     assert_not_rate_limited(cv_repo.client, user_id, "cv_history", "uploaded_at")
     scores_repo = ScoresRepository(cv_repo.client)
 
-    parsed = await cv_parser.parse_cv(file_bytes, file_type)
+    raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
+    content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
+
+    cached = cv_repo.find_by_content_hash(user_id, content_hash)
+    if cached:
+        _log.info("CV hash match for user=%s — returning cached score", user_id)
+        try:
+            await grant_welcome_xp(user_id)
+        except Exception as exc:
+            _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+        return {
+            "skills_detected": int(cached["skills_count"]),
+            "score": float(cached["mirror_score"]),
+            "redirect_to": "/onboarding/score",
+        }
+
+    parsed = await cv_parser.parse_cv_text(raw_text)
     skills_detected = parsed.get("skills_detected", [])
-    raw_text = parsed.get("raw_text", "")
     if parsed.get("provider_failed"):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -91,6 +109,7 @@ async def ingest_uploaded_cv(
         raw_text=raw_text,
         skills_detected=skills_detected,
         score_total=score_total,
+        content_hash=content_hash,
     )
     try:
         await grant_welcome_xp(user_id)
@@ -117,6 +136,16 @@ async def ingest_cv_text(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Please write at least a few sentences about yourself.",
         )
+
+    content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
+    cached = cv_repo.find_by_content_hash(user_id, content_hash)
+    if cached:
+        _log.info("CV text hash match for user=%s — returning cached score", user_id)
+        return {
+            "skills_detected": int(cached["skills_count"]),
+            "score": float(cached["mirror_score"]),
+            "redirect_to": "/onboarding/score",
+        }
 
     parsed = await cv_parser.parse_cv_text(raw_text)
     skills_detected = parsed.get("skills_detected", [])
@@ -152,6 +181,7 @@ async def ingest_cv_text(
         raw_text=raw_text,
         skills_detected=skills_detected,
         score_total=score_total,
+        content_hash=content_hash,
     )
     return {
         "skills_detected": len(skills_detected),

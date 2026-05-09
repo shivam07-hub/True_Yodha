@@ -63,6 +63,9 @@ class _FakeCVRepository:
         self.updated_profile: dict[str, Any] | None = None
         self.inserted_history: dict[str, Any] | None = None
 
+    def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
+        return None  # always miss — force full pipeline in tests
+
     def update_cv_profile(self, _user_id: str, payload: dict[str, Any]) -> None:
         self.updated_profile = payload
 
@@ -77,9 +80,12 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
     repo = _FakeCVRepository()
     captured: dict[str, Any] = {}
 
-    async def _fake_parse_cv(_file_bytes: bytes, _file_type: str) -> dict[str, Any]:
+    _raw = "Python backend engineer with shipped APIs."
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
+
+    async def _fake_parse_cv_text(_raw_text: str) -> dict[str, Any]:
         return {
-            "raw_text": "Python backend engineer with shipped APIs.",
+            "raw_text": _raw_text,
             "skills_detected": [{"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "Shipped APIs"}],
         }
 
@@ -93,8 +99,12 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
         captured["kwargs"] = kwargs
         return {"total_score": 68.4}
 
+    async def _noop_welcome_xp(_user_id: str) -> int:
+        return 1000
+
     monkeypatch.setattr(cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv", _fake_parse_cv)
+    monkeypatch.setattr(cv_workflow, "grant_welcome_xp", _noop_welcome_xp)
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
     monkeypatch.setattr(
         cv_workflow.scoring_engine,
         "compute_and_persist_score",

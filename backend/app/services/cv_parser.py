@@ -252,7 +252,16 @@ def _validate_and_normalize(raw_skills: list[dict]) -> list[dict]:
     return sorted(best_by_key.values(), key=lambda s: -s["xp_awarded"])[:_MAX_SKILLS]
 
 
-# ── Main entry point ──────────────────────────────────────────────────────────
+# ── Main entry points ─────────────────────────────────────────────────────────
+
+def extract_raw_text(file_bytes: bytes, file_type: str) -> str:
+    """Extract plain text from a CV file without running LLM analysis."""
+    if file_type == "pdf":
+        return _extract_text_pdf(file_bytes)
+    if file_type == "docx":
+        return _extract_text_docx(file_bytes)
+    raise ValueError(f"Unsupported file_type: {file_type!r}")
+
 
 async def parse_cv_text(raw_text: str) -> dict:
     """Parse free-form self-description text and return detected skill signals.

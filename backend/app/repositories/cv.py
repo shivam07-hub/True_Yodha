@@ -79,6 +79,18 @@ class CVRepository:
         )
         return result.data[0] if result.data else None
 
+    def find_by_content_hash(self, user_id: str, content_hash: str) -> dict[str, Any] | None:
+        result = (
+            self._db.table("cv_history")
+            .select("skills_count, mirror_score")
+            .eq("user_id", user_id)
+            .eq("content_hash", content_hash)
+            .order("uploaded_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
     def insert_cv_history(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         result = self._db.table("cv_history").insert(payload).execute()
         return result.data[0] if result.data else None

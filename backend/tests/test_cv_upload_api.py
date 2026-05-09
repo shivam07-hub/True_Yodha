@@ -10,6 +10,9 @@ class _FakeCVRepository:
     def __init__(self) -> None:
         self.client = object()
 
+    def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
+        return None  # always miss — force full pipeline in tests
+
     def update_cv_profile(self, _user_id: str, _payload: dict) -> None:  # pragma: no cover
         raise AssertionError("update_cv_profile should not be called when scoring fails")
 
@@ -26,16 +29,19 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
     monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
-    async def _fake_parse_cv(_file_bytes: bytes, _file_type: str) -> dict:
+    _raw = "Built APIs with Django and scaled backend systems."
+    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
+
+    async def _fake_parse_cv_text(_raw_text: str) -> dict:
         return {
             "skills_detected": [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": "Built APIs"}],
-            "raw_text": "Built APIs with Django and scaled backend systems.",
+            "raw_text": _raw_text,
         }
 
     def _fail_scoring(*_args, **_kwargs) -> dict:
         raise ValueError("No valid skills could be persisted for this user.")
 
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv", _fake_parse_cv)
+    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
     monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _fail_scoring)
 
     try:
