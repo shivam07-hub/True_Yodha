@@ -10,7 +10,6 @@ import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loadi
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { JobFitPanel } from "@/components/market/job-fit-panel"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { cacheKey, userCacheKey, withLocalCache } from "@/lib/local-cache"
@@ -310,7 +309,50 @@ export default function MarketPage() {
           </div>
         </div>
 
-        <CVRequiredNudge hasCv={hasCv} feature="personalised market intel" />
+        {/* Unified empty state — shown when logged in but CV or target roles missing */}
+        {token && !readyToFetch && (
+          <div style={{
+            background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius)", padding: "20px 24px", marginBottom: 20,
+          }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 14, fontWeight: 700, opacity: 0.75 }}>
+              2 steps to unlock Intel
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                { done: hasCv,               label: "Upload your CV",          action: { text: "Upload →", href: "/cv" } },
+                { done: targetRoles.length > 0, label: "Add your target roles", action: { text: "Open Settings →", onClick: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) } },
+              ].map((step, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                    background: step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-wash)",
+                    border: `1px solid ${step.done ? "var(--tm-success, #22c55e)" : "var(--tm-accent-ring)"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: step.done ? "#fff" : "var(--tm-accent)",
+                  }}>
+                    {step.done ? "✓" : i + 1}
+                  </div>
+                  <div style={{ fontSize: 14, color: step.done ? "var(--tm-text-faint)" : "var(--tm-text)", textDecoration: step.done ? "line-through" : "none", flex: 1 }}>
+                    {step.label}
+                  </div>
+                  {!step.done && (
+                    "href" in step.action ? (
+                      <a href={step.action.href} style={{ fontSize: 13, color: "var(--tm-accent)", textDecoration: "underline", cursor: "pointer" }}>
+                        {step.action.text}
+                      </a>
+                    ) : (
+                      <button onClick={step.action.onClick} style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 13, fontFamily: "inherit", textDecoration: "underline" }}>
+                        {step.action.text}
+                      </button>
+                    )
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Role Filter — pill tabs for authenticated users, dropdown fallback for public */}
         {token ? (
@@ -347,17 +389,7 @@ export default function MarketPage() {
                 )
               })}
             </div>
-          ) : (
-            <div style={{ marginBottom: 14, fontSize: 14, color: "var(--tm-text-faint)" }}>
-              No target roles set —{" "}
-              <button
-                onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
-                style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 14, fontFamily: "inherit", textDecoration: "underline" }}
-              >
-                Add target roles in Settings →
-              </button>
-            </div>
-          )
+          ) : null
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)" }}>

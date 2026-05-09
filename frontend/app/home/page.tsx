@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { JourneyStrip } from "@/components/common/journey-strip"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
@@ -295,6 +296,9 @@ function HomePageInner() {
           <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", margin: 0 }}>
             Mission Control
           </h1>
+          <div style={{ marginTop: 10 }}>
+            <JourneyStrip />
+          </div>
         </div>
 
         {/* 2 — Forge strip */}
