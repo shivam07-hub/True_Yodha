@@ -108,7 +108,7 @@ function cvExample(skillName: string, currentLevel: number): string {
 }
 
 function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkillItem; delay?: number; highlighted: boolean; onHover: (s: UserSkillItem | null) => void }) {
-  const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
+  const [clickState, setClickState] = useState<0 | 1 | 2>(0)
   const [showLevelPicker, setShowLevelPicker] = useState(false)
   const [pickedLevel, setPickedLevel] = useState<number | null>(null)
   const [correctionDone, setCorrectionDone] = useState(false)
@@ -125,7 +125,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
     if (showLevelPicker) return
-    setClickState((s) => (s === 3 ? 0 : (s + 1) as 0 | 1 | 2 | 3))
+    setClickState((s) => (s === 2 ? 0 : (s + 1) as 0 | 1 | 2))
   }
 
   const trackUpgrade = useMutation({
@@ -223,33 +223,8 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
         }} />
       </div>
 
-      {/* State 1 — CV source evidence */}
+      {/* State 1 — How to reach next level + Journey 2 + Journey 3 */}
       {clickState === 1 && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 6,
-          }}>
-            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
-              Extracted from your CV
-            </span>
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to level up →</span>
-          </div>
-          <div style={{
-            padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "rgba(255,255,255,0.02)",
-            border: `1px solid ${cfg.color}30`,
-            fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.6,
-          }}>
-            {skill.evidence_text
-              ? "↗ Hover this row to see the exact line highlighted in your CV"
-              : `${skill.display_name} was inferred from context — no direct quote captured.`}
-          </div>
-        </div>
-      )}
-
-      {/* State 2 — How to reach next level + Journey 2 + Journey 3 */}
-      {clickState === 2 && (
         <div style={{ marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -260,7 +235,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
             </span>
             <span
               style={{ fontSize: 10, color: "var(--tm-text-faint)", cursor: "pointer" }}
-              onClick={(e) => { e.stopPropagation(); setClickState(3) }}
+              onClick={(e) => { e.stopPropagation(); setClickState(2) }}
             >
               tap again for CV example →
             </span>
@@ -358,8 +333,8 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
         </div>
       )}
 
-      {/* State 3 — CV example bullet */}
-      {clickState === 3 && (
+      {/* State 2 — CV example bullet */}
+      {clickState === 2 && (
         <div style={{ marginTop: 10 }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
