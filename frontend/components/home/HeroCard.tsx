@@ -40,7 +40,8 @@ export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroC
   const color = fitColor(fit)
 
   const missingSkills = skillGapData?.skills.filter(s => s.missing) ?? []
-  const matchedSkills = skillGapData?.skills.filter(s => !s.missing) ?? []
+  // "already match" = user has the skill at any level (even if not yet at required level)
+  const matchedSkills = skillGapData?.skills.filter(s => (s.user_level ?? 0) > 0) ?? []
   const firstGap = missingSkills[0]?.skill ?? "next gap"
 
   return (
