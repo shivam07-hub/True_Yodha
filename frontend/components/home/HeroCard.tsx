@@ -1,7 +1,7 @@
 "use client"
 
 import { SkillRow } from "./SkillRow"
-import type { JobMatch, ApplicationStatus, SkillGapItem, SkillGapResponse } from "@/lib/api"
+import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
 
 const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "pending", label: "Pending" },
@@ -32,12 +32,10 @@ interface HeroCardProps {
   status: ApplicationStatus
   skillGapData?: SkillGapResponse
   onStatus: (s: ApplicationStatus) => void
-  cartSkillNames: Set<string>
-  onSkillToggle: (skill: SkillGapItem) => void
   onForge: () => void
 }
 
-export function HeroCard({ job, status, skillGapData, onStatus, cartSkillNames, onSkillToggle, onForge }: HeroCardProps) {
+export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroCardProps) {
   const fit = Math.min(100, Math.round(job.overlap_score))
   const color = fitColor(fit)
 

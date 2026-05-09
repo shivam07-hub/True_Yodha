@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import type { ApplicationStatus, SkillGapItem, SkillGapResponse } from "@/lib/api"
+import type { SkillGapItem, SkillGapResponse } from "@/lib/api"
 import { SkillRow } from "./SkillRow"
 
 // ── SkillGapCol ───────────────────────────────────────────────────────────────
