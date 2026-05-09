@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 interface YourMoveCardProps {
   hasCv: boolean
@@ -134,31 +135,13 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
           </div>
         )}
         {move.action.href ? (
-          <Link
-            href={move.action.href}
-            style={{
-              display: "inline-flex", alignItems: "center",
-              padding: "8px 16px", borderRadius: "var(--tm-radius-pill)",
-              background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
-              fontSize: 12, fontWeight: 700, textDecoration: "none",
-              boxShadow: "0 0 12px rgba(0,245,212,0.25)", whiteSpace: "nowrap",
-            }}
-          >
+          <Button variant="solid" size="md" render={<Link href={move.action.href} />}>
             {move.action.label}
-          </Link>
+          </Button>
         ) : (
-          <button
-            onClick={move.action.onClick}
-            style={{
-              padding: "8px 16px", borderRadius: "var(--tm-radius-pill)",
-              background: "var(--tm-accent)", border: "none",
-              color: "var(--tm-accent-fg)", fontSize: 12, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-              boxShadow: "0 0 12px rgba(0,245,212,0.25)", whiteSpace: "nowrap",
-            }}
-          >
+          <Button variant="solid" size="md" onClick={move.action.onClick}>
             {move.action.label}
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { Button } from "@/components/ui/button"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { scores, users } from "@/lib/api"
@@ -185,20 +186,9 @@ export default function SkillsPage() {
               <div style={{ fontSize: 40 }}>⬡</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped yet</div>
               <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV to generate your personal skill constellation</div>
-              <Link
-                href="/cv"
-                style={{
-                  padding: "7px 14px",
-                  borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-accent-ring)",
-                  color: "var(--tm-accent)",
-                  textDecoration: "none",
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <Button variant="solid" size="lg" render={<Link href="/cv" />}>
                 Upload CV
-              </Link>
+              </Button>
             </div>
           ) : view === "tree" ? (
             <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>

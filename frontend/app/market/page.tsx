@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, scores, users } from "@/lib/api"
 import type { JobSearchItem, JobMatch, SkillCountItem } from "@/lib/api"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS, MARKET_LOADING_SUMMARY } from "@/lib/market-loading-copy"
@@ -342,14 +344,14 @@ export default function MarketPage() {
                     {step.label}
                   </div>
                   {!step.done && (
-                    "href" in step.action ? (
-                      <a href={step.action.href} style={{ fontSize: 13, color: "var(--tm-accent)", textDecoration: "underline", cursor: "pointer" }}>
+                    "href" in step.action && step.action.href ? (
+                      <Button variant="inline" render={<Link href={step.action.href} />}>
                         {step.action.text}
-                      </a>
+                      </Button>
                     ) : (
-                      <button onClick={step.action.onClick} style={{ background: "none", border: "none", padding: 0, color: "var(--tm-accent)", cursor: "pointer", fontSize: 13, fontFamily: "inherit", textDecoration: "underline" }}>
+                      <Button variant="inline" onClick={step.action.onClick}>
                         {step.action.text}
-                      </button>
+                      </Button>
                     )
                   )}
                 </div>

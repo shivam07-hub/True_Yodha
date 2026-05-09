@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { Button } from "@/components/ui/button"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
 import {
@@ -829,13 +830,9 @@ export default function CVPage() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setShowUpload((v) => !v)}
-                  className="tm-btn tm-btn-primary"
-                  style={{ height: 36, fontSize: "var(--tm-fs-meta)" }}
-                >
+                <Button variant="solid" size="md" onClick={() => setShowUpload((v) => !v)}>
                   Upload baseline CV
-                </button>
+                </Button>
               )}
             </div>
           </div>
