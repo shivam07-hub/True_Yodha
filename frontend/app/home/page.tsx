@@ -7,12 +7,11 @@ import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/rea
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
-import { LoopBar } from "@/components/common/loop-bar"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
 import { RightRail } from "@/components/home/RightRail"
-import { ForgeStrip } from "@/components/home/ForgeStrip"
+import { MissionHeader } from "@/components/home/MissionHeader"
 import { PipelineCol, CVCol } from "@/components/home/HomeColumns"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
@@ -143,36 +142,25 @@ function HomePageInner() {
         </div>
       )}
       <div className="tm-page-enter" style={{ overflowY: "auto", height: "100%", padding: "var(--tm-page-py) var(--tm-page-px)", display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Header */}
-        <div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.12em", color: "var(--tm-accent)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 8px var(--tm-accent-glow)", display: "inline-block" }} />
-            Target: {targetRoles} · {targetLoc}
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
-            <h1 style={{ margin: 0, fontSize: 36, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1, color: "var(--tm-text)" }}>Mission Control</h1>
-            <button
-              onClick={refreshMatches}
-              disabled={isRefreshing}
-              style={{ padding: "7px 14px", borderRadius: 6, background: "transparent", border: "1px solid var(--tm-border)", color: isRefreshing ? "var(--tm-text-faint)" : "var(--tm-text-muted)", fontSize: 12, fontWeight: 600, cursor: isRefreshing ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.5 : 1, flexShrink: 0, transition: "all 120ms var(--tm-ease)" }}
-              onMouseEnter={e => { if (!isRefreshing) { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" } }}
-              onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}
-            >
-              {isRefreshing ? "…" : "⟳ Refresh matches"}
-            </button>
-          </div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.06em", marginTop: 6 }}>
-            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()} · {topJobs.length} active targets{apps.filter(a => a.status === "interviewing").length > 0 ? ` · ${apps.filter(a => a.status === "interviewing").length} in interview` : ""}
-          </div>
-          {refreshNotice && (
-            <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", marginTop: 4 }}>{refreshNotice}</div>
-          )}
-          <div style={{ marginTop: 10 }}>
-            <LoopBar hasCv={hasCv} hasJob={topJobs.length > 0} loggedToday={loggedToday} hasApplied={hasApplied} />
-          </div>
-        </div>
-
-        <ForgeStrip streak={streak} sessions={entries.length} score={score} evidenceData={evidenceData ?? null} onEnterForge={() => setForgeOpen(true)} onOpenDiary={() => { setDrawerOpen(true); openDiary() }} cartCount={cartSkills.length} />
+        <MissionHeader
+          targetRoles={targetRoles}
+          targetLoc={targetLoc}
+          firstName={profile?.full_name?.split(" ")[0] ?? null}
+          streak={streak}
+          sessions={entries.length}
+          score={score}
+          evidenceData={evidenceData ?? null}
+          hasCv={hasCv}
+          hasJob={topJobs.length > 0}
+          loggedToday={loggedToday}
+          hasApplied={hasApplied}
+          isRefreshing={isRefreshing}
+          refreshNotice={refreshNotice}
+          cartCount={cartSkills.length}
+          onRefreshMatches={refreshMatches}
+          onEnterForge={() => setForgeOpen(true)}
+          onOpenDiary={() => { setDrawerOpen(true); openDiary() }}
+        />
 
         <CVRequiredNudge hasCv={hasCv} feature="job matching" />
 
