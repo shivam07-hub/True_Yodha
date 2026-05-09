@@ -167,8 +167,8 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
           : clickState > 0
           ? `1px solid ${cfg.color}`
           : "1px solid var(--tm-border-soft)",
-        borderLeft: highlighted ? "2px solid var(--tm-accent)" : undefined,
-        transition: "all var(--tm-dur) var(--tm-ease)",
+        borderLeft: `2px solid ${highlighted ? "var(--tm-accent)" : "transparent"}`,
+        transition: "background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
         cursor: "pointer",
       }}
       onClick={handleClick}
@@ -215,9 +215,11 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
       <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: 999,
-          width: `${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5) * 100}%`,
+          width: "100%",
+          transformOrigin: "left center",
+          transform: `scaleX(${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5)})`,
           background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-wash))",
-          transition: `width ${0.8 + delay * 0.001}s var(--tm-ease)`,
+          transition: `transform ${0.8 + delay * 0.001}s var(--tm-ease)`,
         }} />
       </div>
 
@@ -381,6 +383,17 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
       )}
     </div>
   )
+}
+
+function cvMentionPos(skill: UserSkillItem, cvTextLower: string): number {
+  const evidence = (skill.evidence_text ?? "").trim()
+  if (evidence) {
+    const pos = cvTextLower.indexOf(evidence.slice(0, 60).toLowerCase())
+    if (pos !== -1) return pos
+  }
+  const namePos = cvTextLower.indexOf(skill.display_name.toLowerCase())
+  if (namePos !== -1) return namePos
+  return Number.MAX_SAFE_INTEGER
 }
 
 function ClusterSection({ cluster, skills, hoveredSkillKey, onHover }: { cluster: string; skills: UserSkillItem[]; hoveredSkillKey: string | null; onHover: (s: UserSkillItem | null) => void }) {
@@ -660,7 +673,19 @@ export default function CVPage() {
     soft:      ["communication", "leadership", "collaboration", "soft", "interpersonal", "teamwork", "presentation", "writing", "people"],
   }
 
-  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {}).sort(([, a], [, b]) => b.length - a.length)
+  const cvTextLower = (cvProfile?.cv_raw_text ?? "").toLowerCase()
+  const clusterFirstPos = (skills: UserSkillItem[]) =>
+    skills.reduce((min, s) => Math.min(min, cvMentionPos(s, cvTextLower)), Number.MAX_SAFE_INTEGER)
+
+  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {})
+    .map(([cluster, skills]) => {
+      const ordered = cvTextLower
+        ? [...skills].sort((a, b) => cvMentionPos(a, cvTextLower) - cvMentionPos(b, cvTextLower))
+        : skills
+      return [cluster, ordered] as [string, UserSkillItem[]]
+    })
+    .sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
+
   const clusterEntries = catFilter === "all"
     ? allClusterEntries
     : (() => {
@@ -670,7 +695,7 @@ export default function CVPage() {
           const matchingDomain = domainEntries
             .filter(([domain]) => keywords.some((kw) => domain.toLowerCase().includes(kw)))
           if (matchingDomain.length > 0) {
-            return matchingDomain.sort(([, a], [, b]) => b.length - a.length)
+            return matchingDomain.sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
           }
         }
         const keywords = domainKeywords[catFilter] ?? []
