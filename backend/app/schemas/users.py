@@ -75,3 +75,5 @@ class SkillAdviceRequest(BaseModel):
 
 class SkillAdviceResponse(BaseModel):
     advice: str | None
+    xp_spent: int
+    new_xp_balance: int

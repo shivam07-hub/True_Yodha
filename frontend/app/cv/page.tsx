@@ -18,6 +18,7 @@ import { diary, jobs, scores, uploadCV, cv, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useXPStore } from "@/store/xpStore"
 
 const STATUS_CONFIG = {
   strong:  { color: "var(--tm-success)", label: "Strong",  bg: "var(--tm-success-wash)" },
@@ -115,6 +116,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
   const [aiAdvice, setAiAdvice] = useState<string | null>(null)
   const [adviceLoading, setAdviceLoading] = useState(false)
   const { token } = useAuth()
+  const { setBalance: setXPBalance } = useXPStore()
   const queryClient = useQueryClient()
   const router = useRouter()
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -356,6 +358,7 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
                 try {
                   const res = await users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text!)
                   setAiAdvice(res.advice ?? null)
+                  setXPBalance(res.new_xp_balance)
                 } catch {
                   setAiAdvice(null)
                 } finally {
@@ -367,9 +370,11 @@ function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkill
                 background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
                 color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
               }}
             >
-              ✦ Generate personalised coaching for {skill.display_name} →
+              <span>✦ Generate personalised coaching for {skill.display_name} →</span>
+              <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "var(--tm-font-mono)", flexShrink: 0, marginLeft: 12 }}>−20 XP ◆</span>
             </button>
           )}
 

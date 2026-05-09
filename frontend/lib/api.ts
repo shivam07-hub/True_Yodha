@@ -244,7 +244,7 @@ export const users = {
       },
     ),
   skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string) =>
-    request<{ advice: string | null }>(
+    request<{ advice: string | null; xp_spent: number; new_xp_balance: number }>(
       "/users/me/skills/level-up-advice",
       {
         method: "POST",
