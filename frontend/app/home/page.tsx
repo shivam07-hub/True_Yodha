@@ -16,6 +16,7 @@ import { daysAgo, computeStreak } from "@/lib/forge-helpers"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
+import { useDiaryIntentStore } from "@/store/diaryIntentStore"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
 import Link from "next/link"
 
@@ -163,7 +164,7 @@ function HomePageInner() {
 
   const [activeJobIdx, setActiveJobIdx] = useState(0)
   const [forgeOpen, setForgeOpen] = useState(false)
-  const [diaryOpen, setDiaryOpen] = useState(false)
+  const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
 
   const urlJobId = searchParams.get("jobId")
 
@@ -301,7 +302,7 @@ function HomePageInner() {
           score={score}
           evidenceData={evidenceData ?? null}
           onEnterForge={() => setForgeOpen(true)}
-          onOpenDiary={() => setDiaryOpen(true)}
+          onOpenDiary={() => openDiary()}
         />
 
         <CVRequiredNudge hasCv={hasCv} feature="job matching" />
@@ -456,7 +457,10 @@ function HomePageInner() {
                   </div>
                   <div style={{ fontSize: 11, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{app.title}</div>
                   <button
-                    onClick={() => router.push(`/home?jobId=${app.job_id}`)}
+                    onClick={() => {
+                      router.push(`/home?jobId=${app.job_id}`)
+                      openDiary({ initialText: `📌 Update on ${app.company ?? "this role"}:`, jobId: app.job_id })
+                    }}
                     style={{ alignSelf: "flex-end", padding: "3px 10px", borderRadius: "var(--tm-radius-sm)", background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-text-faint)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
                   >
                     Log update →
@@ -540,14 +544,15 @@ function HomePageInner() {
           onClose={() => setForgeOpen(false)}
           onXPEarned={(amount, newBalance) => { addBalance(amount); setXPBalance(newBalance) }}
           onCompleteSession={handleForgeSession}
-          onOpenDiary={() => setDiaryOpen(true)}
+          onOpenDiary={() => openDiary()}
         />
       )}
 
       {/* Diary panel */}
       <DiaryPanel
         open={diaryOpen}
-        onClose={() => setDiaryOpen(false)}
+        onClose={closeDiary}
+        initialText={diaryInitialText}
         cartSkills={cartSkills}
         onAddSkill={addSkill}
         onRemoveSkill={removeSkill}

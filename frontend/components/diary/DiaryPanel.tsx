@@ -8,6 +8,7 @@ import type { DiaryEntry } from "@/lib/forge-helpers"
 interface DiaryPanelProps {
   open: boolean
   onClose: () => void
+  initialText?: string
   cartSkills: CartSkill[]
   onAddSkill: (skill: CartSkill) => void
   onRemoveSkill: (skillName: string) => void
@@ -20,6 +21,7 @@ interface DiaryPanelProps {
 export function DiaryPanel({
   open,
   onClose,
+  initialText,
   cartSkills,
   onAddSkill,
   onRemoveSkill,
@@ -32,11 +34,14 @@ export function DiaryPanel({
   const [submitting, setSubmitting] = useState(false)
   const [mounted, setMounted] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const initialTextRef = useRef(initialText)
+  initialTextRef.current = initialText
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    if (open && textareaRef.current) {
+    if (open) {
+      if (initialTextRef.current) setEntryText(initialTextRef.current)
       setTimeout(() => textareaRef.current?.focus(), 120)
     }
   }, [open])
