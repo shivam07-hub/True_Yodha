@@ -153,13 +153,18 @@ Shipped (committed to Develop):
     to user_level === 0 to remove duplication with matched panel;
     color shifted from danger to warning amber
 
-Shipped this session (not yet committed):
+Shipped (committed):
   - Phase 1B: 26 remaining .tm-btn consumers migrated to <Button>
     across forge-focus-overlay (8), cv/page (12), jobs/page (5),
     market/page (1)
 
+Shipped this session (not yet committed):
+  - Phase 1C: deleted .tm-btn / .tm-btn-primary / .tm-btn-ghost /
+    .tm-btn-subtle from design-tokens.css. Tombstone comment left
+    in place to prevent reintroduction. Phase 1 of CTA
+    consolidation is now complete.
+
 Queued next:
-  - Phase 1C: delete .tm-btn* utilities from design-tokens.css
   - Phase 2: <Cta intent emphasis> wrapper on top of Button
   - Skills page: rename activeDomain→selectedDomain (Option A)
     or extract DomainStrip/DomainInspector (Option B)

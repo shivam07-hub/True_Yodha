@@ -375,7 +375,7 @@ def test_fetch_job_skill_rows_disables_rpc_after_missing_signature_error() -> No
             "app.repositories.job_skills_read_model.fetch_job_skill_rows_via_rpc",
             side_effect=missing_exc,
         ) as rpc_call, patch(
-            "app.repositories.job_skills_read_model._fetch_job_skill_rows_chunked",
+            "app.repositories.job_skills_read_model.fetch_job_skill_rows_for_ids",
             return_value=[],
         ) as chunked_call:
             fetch_job_skill_rows(fake_db, job_ids=["j1"])
