@@ -172,7 +172,7 @@ function HomePageInner() {
           </div>
         </div>
 
-        <ForgeStrip streak={streak} sessions={entries.length} xpBalance={xpBalance} score={score} evidenceData={evidenceData ?? null} onEnterForge={() => setForgeOpen(true)} onOpenDiary={() => { setDrawerOpen(true); openDiary() }} cartCount={cartSkills.length} />
+        <ForgeStrip streak={streak} sessions={entries.length} score={score} evidenceData={evidenceData ?? null} onEnterForge={() => setForgeOpen(true)} onOpenDiary={() => { setDrawerOpen(true); openDiary() }} cartCount={cartSkills.length} />
 
         <CVRequiredNudge hasCv={hasCv} feature="job matching" />
 

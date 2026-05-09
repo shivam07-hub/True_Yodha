@@ -4,7 +4,6 @@
 interface ForgeStripProps {
   streak: number
   sessions: number
-  xpBalance: number
   score: number
   evidenceData: { evidence_count: number; diary_entries_count: number; score_delta: number | null } | null
   onEnterForge: () => void
@@ -12,7 +11,7 @@ interface ForgeStripProps {
   cartCount: number
 }
 
-export function ForgeStrip({ streak, sessions, xpBalance, score, evidenceData, onEnterForge, onOpenDiary, cartCount }: ForgeStripProps) {
+export function ForgeStrip({ streak, sessions, score, evidenceData, onEnterForge, onOpenDiary, cartCount }: ForgeStripProps) {
   const sinceCvParts: string[] = []
   if (evidenceData) {
     if (evidenceData.score_delta != null) sinceCvParts.push(`+${Math.max(0, Math.round(evidenceData.score_delta))} score`)

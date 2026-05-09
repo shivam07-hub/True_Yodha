@@ -2,13 +2,13 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
-import { dataKeys, invalidateScoreData } from "@/lib/domain-data"
+import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
@@ -26,11 +26,6 @@ export default function SkillsPage() {
     retry: false,
   })
 
-  const recompute = useMutation({
-    mutationFn: () => scores.compute(token!),
-    onSuccess: () => invalidateScoreData(queryClient),
-  })
-
   const { data: userSkills, isLoading: skillsLoading } = useQuery({
     queryKey: dataKeys.userSkills(),
     queryFn: () => users.mySkills(token!),
@@ -41,16 +36,12 @@ export default function SkillsPage() {
   if (!ready) return null
 
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
-  const hasCv = !scoreLoading && !!scoreData
   const skills = userSkills ?? EMPTY_SKILLS
   const totalSkills = Object.values(skills.by_domain).flat().length
   const levellingCount = Object.values(skills.by_domain).flat().filter(s => s.level > 0 && s.level < 5).length
   const proofCount = Object.values(skills.by_domain).flat().filter(s => s.evidence_text).length
 
   const activeDomainSkills = activeDomain ? (skills.by_domain[activeDomain] ?? []) : []
-  const rankedDomains = scoreData
-    ? Object.entries(scoreData.domain_scores).sort((a, b) => b[1] - a[1])
-    : []
 
   return (
     <AppShell>

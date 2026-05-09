@@ -139,7 +139,7 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [] }: OrganicSkillGr
     }
     readAccent()
 
-    const ns: PhysNode[] = topology.nodes.map((n, i) => ({
+    const ns: PhysNode[] = topology.nodes.map((n) => ({
       ...n, x: 0, y: 0,
       vx: (Math.random() - 0.5) * 3,
       vy: (Math.random() - 0.5) * 3,
