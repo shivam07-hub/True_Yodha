@@ -7,6 +7,7 @@ from app.schemas.cv import (
     CVUploadResponse,
 )
 from app.schemas.diary import (
+    CartSkillSnapshot,
     DiaryEntryRequest,
     DiaryEntryResponse,
     DiaryHistoryResponse,
@@ -14,6 +15,12 @@ from app.schemas.diary import (
     MilestoneRequest,
     MilestoneResponse,
     SkillDeltaItem,
+)
+from app.schemas.xp import (
+    ForgeCompleteRequest,
+    ForgeSessionResponse,
+    XPBalanceResponse,
+    XPSpendRequest,
 )
 from app.schemas.jobs import (
     ActionPlanDay,
@@ -72,8 +79,9 @@ from app.schemas.users import (
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
     "CVUploadResponse", "CVEvidenceItem", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse", "CVSaveDraftRequest",
-    "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
+    "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
+    "XPBalanceResponse", "XPSpendRequest", "ForgeCompleteRequest", "ForgeSessionResponse",
     "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ComputeJobMatchesResponse", "JobComputeStatusResponse",
     "JobPathTargetInput", "JobPathTargetsRequest", "JobPathSkillTarget",

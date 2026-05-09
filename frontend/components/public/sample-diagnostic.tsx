@@ -20,11 +20,11 @@ export function SampleDiagnostic() {
   const pct = (SCORE / 100) * 100
 
   return (
-    <section style={{ maxWidth: 680, margin: "0 auto", padding: "64px 24px 80px" }}>
+    <section style={{ maxWidth: 860, margin: "0 auto", padding: "80px 24px 96px" }}>
 
       {/* Section label */}
       <div style={{
-        fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+        fontSize: 13, fontWeight: 700, letterSpacing: 0,
         textTransform: "uppercase", color: "var(--tm-text-faint)",
         marginBottom: 20,
       }}>
@@ -33,18 +33,20 @@ export function SampleDiagnostic() {
 
       {/* Editorial header */}
       <h2 style={{
-        fontSize: "clamp(1.3rem, 3vw, 1.6rem)",
-        fontWeight: 700, letterSpacing: "-0.025em",
-        lineHeight: 1.2, color: "var(--tm-text)",
-        margin: "0 0 20px",
+        fontFamily: "var(--tm-font-display)",
+        fontSize: "var(--tm-fs-display)",
+        fontWeight: 600, letterSpacing: 0,
+        lineHeight: "var(--tm-lh-display)", color: "var(--tm-text)",
+        margin: "0 0 24px",
+        maxWidth: 720,
       }}>
         What Myro found when Meera uploaded her CV
       </h2>
 
       {/* Narrative */}
       <p style={{
-        fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)",
-        lineHeight: 1.75, margin: "0 0 32px", maxWidth: 560,
+        fontSize: 18, color: "var(--tm-text-muted)",
+        lineHeight: 1.7, margin: "0 0 36px", maxWidth: 700,
       }}>
         For four years, Meera has been the quiet engine at TCS — the analyst who turns
         complex client requirements into specs that engineering can actually ship. Now she
@@ -69,7 +71,7 @@ export function SampleDiagnostic() {
         }}>
           <div>
             <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+              fontSize: 13, fontWeight: 700, letterSpacing: 0,
               textTransform: "uppercase", color: "var(--tm-text-faint)",
               marginBottom: 6,
             }}>
@@ -78,7 +80,7 @@ export function SampleDiagnostic() {
             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
               <span style={{
                 fontSize: "2.25rem", fontWeight: 700,
-                letterSpacing: "-0.04em", color: "var(--tm-accent)",
+                letterSpacing: 0, color: "var(--tm-accent)",
                 lineHeight: 1,
               }}>
                 {SCORE}
@@ -86,7 +88,7 @@ export function SampleDiagnostic() {
               <span style={{ fontSize: 14, color: "var(--tm-text-faint)", fontWeight: 500 }}>/100</span>
             </div>
           </div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", maxWidth: 200, textAlign: "right", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 14, color: "var(--tm-text-faint)", maxWidth: 240, textAlign: "right", lineHeight: 1.5 }}>
             Approaching baseline for target role — strategic evidence needed to clear competitive thresholds.
           </div>
         </div>
@@ -103,14 +105,14 @@ export function SampleDiagnostic() {
         {/* Two columns */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           gap: 0,
         }}>
 
           {/* Gaps */}
-          <div style={{ padding: "20px 24px", borderRight: "1px solid var(--tm-border-soft)" }}>
+          <div style={{ padding: "24px 26px", borderRight: "1px solid var(--tm-border-soft)" }}>
             <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+              fontSize: 13, fontWeight: 700, letterSpacing: 0,
               textTransform: "uppercase", color: "var(--tm-warning)",
               marginBottom: 14,
             }}>
@@ -119,12 +121,12 @@ export function SampleDiagnostic() {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {GAPS.map((g) => (
                 <div key={g.skill}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>
                     {g.skill}
                   </div>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span style={{
-                      fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
+                      fontSize: 12, fontWeight: 700, letterSpacing: 0,
                       textTransform: "uppercase",
                       padding: "2px 7px", borderRadius: 4,
                       background: g.demand === "Very High" ? "var(--tm-warning-wash)" : "var(--tm-surface-2)",
@@ -133,7 +135,7 @@ export function SampleDiagnostic() {
                     }}>
                       {g.demand} demand
                     </span>
-                    <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>· {g.level}</span>
+                    <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>· {g.level}</span>
                   </div>
                 </div>
               ))}
@@ -141,9 +143,9 @@ export function SampleDiagnostic() {
           </div>
 
           {/* Strengths */}
-          <div style={{ padding: "20px 24px" }}>
+          <div style={{ padding: "24px 26px" }}>
             <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+              fontSize: 13, fontWeight: 700, letterSpacing: 0,
               textTransform: "uppercase", color: "var(--tm-success, #22c55e)",
               marginBottom: 14,
             }}>
@@ -152,10 +154,10 @@ export function SampleDiagnostic() {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {STRENGTHS.map((s) => (
                 <div key={s.skill}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>
                     {s.skill}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
                     {s.note}
                   </div>
                 </div>
@@ -168,7 +170,7 @@ export function SampleDiagnostic() {
 
       {/* Closing punch */}
       <p style={{
-        fontSize: "var(--tm-fs-body)", fontWeight: 500,
+        fontSize: 18, fontWeight: 600,
         color: "var(--tm-text)", lineHeight: 1.6,
         margin: "0 0 28px",
         borderLeft: "3px solid var(--tm-accent)",
@@ -182,9 +184,9 @@ export function SampleDiagnostic() {
         href="/signup"
         style={{
           display: "inline-flex", alignItems: "center",
-          padding: "0 24px", height: 44,
+          padding: "0 24px", height: 50,
           borderRadius: "var(--tm-radius-pill)",
-          fontSize: 14, fontWeight: 600,
+          fontSize: 16, fontWeight: 700,
           color: "var(--tm-accent-fg)",
           background: "var(--tm-accent)",
           border: "1px solid var(--tm-accent)",

@@ -2,6 +2,8 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, status
 
+import logging
+
 from app.deps import get_current_user
 from app.repositories.diary import DiaryRepository, get_token_diary_repository
 from app.schemas import (
@@ -14,8 +16,13 @@ from app.schemas import (
     SkillDeltaItem,
 )
 from app.services import progress
+from app.services.xp_service import earn_xp
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/diary", tags=["diary"])
+
+DIARY_XP = 30
 
 
 @router.post("/entry", response_model=DiaryEntryResponse, status_code=status.HTTP_201_CREATED)
@@ -31,8 +38,14 @@ async def create_or_update_entry(
         user_id=user_id,
         entry_text=body.entry_text,
         log_date=log_date,
+        cart_skills=[s.model_dump() for s in body.cart_skills],
     )
-    return _to_diary_response(row, score_before, score_after)
+    new_balance: int | None = None
+    try:
+        new_balance = await earn_xp(user_id, DIARY_XP)
+    except Exception as exc:
+        _log.warning("XP earn failed for diary entry user=%s: %s", user_id, exc)
+    return _to_diary_response(row, score_before, score_after, xp_earned=DIARY_XP, new_xp_balance=new_balance)
 
 
 @router.get("/history", response_model=DiaryHistoryResponse)
@@ -82,6 +95,8 @@ def _to_diary_response(
     row: dict,
     score_before: float | None = None,
     score_after: float | None = None,
+    xp_earned: int = 0,
+    new_xp_balance: int | None = None,
 ) -> DiaryEntryResponse:
     deltas = [SkillDeltaItem(**d) for d in (row.get("skills_delta") or [])]
     return DiaryEntryResponse(
@@ -91,6 +106,8 @@ def _to_diary_response(
         skills_delta=deltas,
         score_before=score_before,
         score_after=score_after,
+        xp_earned=xp_earned,
+        new_xp_balance=new_xp_balance,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

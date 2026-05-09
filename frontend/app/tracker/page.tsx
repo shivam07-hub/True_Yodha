@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
@@ -18,11 +19,13 @@ import {
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import {
-  buildDiarySelectionsHref,
   toggleDiarySelection,
   type DiarySkillSelection,
 } from "@/lib/diary-skill-cart"
 import { dataKeys, invalidateJobData, invalidateJobPathData } from "@/lib/domain-data"
+import { useDiaryIntentStore } from "@/store/diaryIntentStore"
+import { useCartStore } from "@/store/cartStore"
+import type { CartSkill } from "@/types/xp"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
@@ -470,16 +473,22 @@ function SkillActionButton({
   )
 }
 
+function diarySelectionToCartSkill(selection: DiarySkillSelection): CartSkill {
+  const levelFrom = typeof selection.level === "number" ? selection.level : 0
+  return { skill_name: selection.skill, level_from: levelFrom, level_to: levelFrom + 1 }
+}
+
 function DiaryCartPanel({
   selections,
   onRemove,
   onClear,
+  onSend,
 }: {
   selections: DiarySkillSelection[]
   onRemove: (selection: DiarySkillSelection) => void
   onClear: () => void
+  onSend: () => void
 }) {
-  const href = buildDiarySelectionsHref(selections)
 
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 20 }}>
@@ -541,13 +550,14 @@ function DiaryCartPanel({
           </div>
 
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <a
-              href={href}
+            <button
+              type="button"
+              onClick={onSend}
               className="tm-btn tm-btn-primary"
-              style={{ flex: 1, justifyContent: "center", textDecoration: "none" }}
+              style={{ flex: 1, justifyContent: "center" }}
             >
               Send {selections.length === 1 ? "1 skill" : `${selections.length} skills`} to diary
-            </a>
+            </button>
             <button
               type="button"
               onClick={onClear}
@@ -925,7 +935,10 @@ function JobPathPanel({
 
 export default function TrackerPage() {
   const { token, ready } = useAuth()
+  const router = useRouter()
   const queryClient = useQueryClient()
+  const { openDiary } = useDiaryIntentStore()
+  const { addSkill } = useCartStore()
   const computeStreamAbortRef = useRef<AbortController | null>(null)
   const [diarySelections, setDiarySelections] = useState<DiarySkillSelection[]>([])
   const [proofText, setProofText] = useState("")
@@ -1214,6 +1227,23 @@ export default function TrackerPage() {
     setDiarySelections((current) => toggleDiarySelection(current, selection))
   }
 
+  function handleSendToDiary() {
+    for (const selection of diarySelections) {
+      addSkill(diarySelectionToCartSkill(selection))
+    }
+    setDiarySelections([])
+    openDiary()
+    router.push('/home')
+  }
+
+  function handleStartForging() {
+    for (const t of jobPathQuery.data?.target_skills ?? []) {
+      addSkill({ skill_name: t.skill, level_from: 0, level_to: 1 })
+    }
+    openDiary()
+    router.push('/home')
+  }
+
   function handleTargetToggle(selection: DiarySkillSelection) {
     if (!selectedJobId) return
     const current = jobPathQuery.data?.target_skills ?? []
@@ -1315,11 +1345,13 @@ export default function TrackerPage() {
                 border: "1px solid var(--tm-border-soft)",
               }}>
                 <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>
+                  {hasCv ? "Finding your matches…" : "Upload your CV to see matches"}
+                </div>
                 <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
                   {hasCv
-                    ? "No role matches generated yet. Click Refresh. If still empty, update target roles in Intel."
-                    : "Upload your CV then click Refresh."}
+                    ? "We scan thousands of live roles for your skill set. If nothing appears, refresh or update your target roles in Intel."
+                    : "Your job matches appear here once your CV is analysed — we scan thousands of live roles for your skill set."}
                 </div>
               </div>
             ) : (
@@ -1349,6 +1381,7 @@ export default function TrackerPage() {
               selections={diarySelections}
               onRemove={handleDiaryToggle}
               onClear={() => setDiarySelections([])}
+              onSend={handleSendToDiary}
             />
 
             {selectedJobId && jobPathQuery.data && (
@@ -1411,22 +1444,23 @@ export default function TrackerPage() {
                     />
                   )}
                   {targetSkillKeys.size > 0 && (
-                    <a
-                      href={buildDiarySelectionsHref((jobPathQuery.data?.target_skills ?? []).map(t => ({ skill: t.skill, intent: "add" as const, source: "job-gap" as const })))}
+                    <button
+                      type="button"
+                      onClick={handleStartForging}
                       style={{
                         display: "flex", alignItems: "center", justifyContent: "center",
                         gap: 8, padding: "10px 14px", borderRadius: "var(--tm-radius-sm)",
                         background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
                         color: "var(--tm-accent)", fontSize: 13, fontWeight: 700,
-                        textDecoration: "none", marginTop: 8,
+                        cursor: "pointer", fontFamily: "inherit", width: "100%", marginTop: 8,
                         letterSpacing: "0.02em",
                         transition: "all 0.15s var(--tm-ease)",
                       }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,245,212,0.15)" }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "var(--tm-accent-wash)" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,245,212,0.15)" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)" }}
                     >
                       ▶ Start forging {targetSkillKeys.size} queued skill{targetSkillKeys.size > 1 ? "s" : ""}
-                    </a>
+                    </button>
                   )}
                   {skillGapQuery.isError && (
                     <div style={{ fontSize: 13, color: "var(--tm-danger)", opacity: 0.8 }}>Failed to load skill gap.</div>

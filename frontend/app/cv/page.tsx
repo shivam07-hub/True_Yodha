@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -107,7 +107,7 @@ function cvExample(skillName: string, currentLevel: number): string {
   }
 }
 
-function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; delay?: number; highlighted: boolean }) {
+function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkillItem; delay?: number; highlighted: boolean; onHover: (s: UserSkillItem | null) => void }) {
   const [clickState, setClickState] = useState<0 | 1 | 2 | 3>(0)
   const [showLevelPicker, setShowLevelPicker] = useState(false)
   const [pickedLevel, setPickedLevel] = useState<number | null>(null)
@@ -115,6 +115,7 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const router = useRouter()
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const statusKey = levelToStatus(skill.level)
   const cfg = STATUS_CONFIG[statusKey]
@@ -171,6 +172,8 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
         cursor: "pointer",
       }}
       onClick={handleClick}
+      onMouseEnter={() => { hoverTimer.current = setTimeout(() => onHover(skill), 80) }}
+      onMouseLeave={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); onHover(null) }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <div style={{
@@ -231,15 +234,14 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
             <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to level up →</span>
           </div>
           <div style={{
-            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "rgba(255,255,255,0.03)",
+            padding: "8px 12px", borderRadius: "var(--tm-radius-sm)",
+            background: "rgba(255,255,255,0.02)",
             border: `1px solid ${cfg.color}30`,
-            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
-            fontStyle: "italic",
+            fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.6,
           }}>
             {skill.evidence_text
-              ? `"${skill.evidence_text}"`
-              : `No direct quote captured — ${skill.display_name} was inferred from the overall context of your CV.`}
+              ? "↗ Hover this row to see the exact line highlighted in your CV"
+              : `${skill.display_name} was inferred from context — no direct quote captured.`}
           </div>
         </div>
       )}
@@ -381,7 +383,7 @@ function SkillRow({ skill, delay = 0, highlighted }: { skill: UserSkillItem; del
   )
 }
 
-function ClusterSection({ cluster, skills, highlighted }: { cluster: string; skills: UserSkillItem[]; highlighted: string | null }) {
+function ClusterSection({ cluster, skills, hoveredSkillKey, onHover }: { cluster: string; skills: UserSkillItem[]; hoveredSkillKey: string | null; onHover: (s: UserSkillItem | null) => void }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div className="tm-label-caps" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
@@ -394,7 +396,8 @@ function ClusterSection({ cluster, skills, highlighted }: { cluster: string; ski
             key={s.key}
             skill={s}
             delay={i * 60}
-            highlighted={highlighted ? s.display_name.toLowerCase().includes(highlighted.toLowerCase()) : false}
+            highlighted={s.key === hoveredSkillKey}
+            onHover={onHover}
           />
         ))}
       </div>
@@ -457,12 +460,19 @@ export default function CVPage() {
   const [isPuterSignedIn, setIsPuterSignedIn] = useState<boolean | null>(null)
   const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft" | "skill-audit">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
-  const [highlightedSkill] = useState<string | null>(null)
+  const [hoveredSkill, setHoveredSkill] = useState<UserSkillItem | null>(null)
+  const cvPanelRef = useRef<HTMLPreElement>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobCvText, setJobCvText] = useState<string | null>(null)
   const [jobCvNotice, setJobCvNotice] = useState<string | null>(null)
   const [showForgeBanner, setShowForgeBanner] = useState(false)
+
+  useEffect(() => {
+    if (!hoveredSkill) return
+    const el = cvPanelRef.current?.querySelector<HTMLElement>('[data-hl="true"]')
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [hoveredSkill])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -958,7 +968,8 @@ export default function CVPage() {
                   key={cluster}
                   cluster={cluster}
                   skills={skills}
-                  highlighted={highlightedSkill}
+                  hoveredSkillKey={hoveredSkill?.key ?? null}
+                  onHover={setHoveredSkill}
                 />
               ))
             )}
@@ -978,20 +989,31 @@ export default function CVPage() {
               {cvLoading ? (
                 <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>Loading…</p>
               ) : displayText ? (
-                <pre style={{
+                <pre ref={cvPanelRef} style={{
                   fontSize: 12.5, lineHeight: 1.8, color: "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-mono)", whiteSpace: "pre-wrap",
                   wordBreak: "break-word", position: "relative",
                 }}>
                   {displayText.split("\n").map((line, i) => {
-                    const isHighlighted = !!highlightedSkill && line.toLowerCase().includes(highlightedSkill.toLowerCase().split(" ")[0])
+                    let isHighlighted = false
+                    if (hoveredSkill) {
+                      const lower = line.toLowerCase()
+                      if (hoveredSkill.evidence_text) {
+                        const evidenceWords = hoveredSkill.evidence_text.toLowerCase().split(/\s+/).slice(0, 5).join(" ")
+                        if (evidenceWords.length > 3 && lower.includes(evidenceWords)) isHighlighted = true
+                      }
+                      if (!isHighlighted) {
+                        const keyword = hoveredSkill.display_name.toLowerCase().split(/[\s(]/)[0]
+                        if (keyword.length > 2 && lower.includes(keyword)) isHighlighted = true
+                      }
+                    }
                     return (
-                      <span key={i} style={{
+                      <span key={i} data-hl={isHighlighted ? "true" : undefined} style={{
                         display: "block",
                         background: isHighlighted ? "var(--tm-accent-wash)" : "transparent",
                         borderLeft: isHighlighted ? "2px solid var(--tm-accent)" : "2px solid transparent",
                         paddingLeft: 6, borderRadius: 2,
-                        transition: "all var(--tm-dur)",
+                        transition: "background var(--tm-dur), border-color var(--tm-dur)",
                         color: line.startsWith("─") ? "var(--tm-accent-wash)"
                           : (line.match(/^[A-Z ]+$/) && line.length > 3) ? "var(--tm-text)"
                           : "var(--tm-text-muted)",

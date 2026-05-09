@@ -28,10 +28,10 @@ import { SampleDiagnostic } from "@/components/public/sample-diagnostic"
 
 export default function HomePage() {
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
+    <div style={{ height: "100dvh", width: "100vw", maxWidth: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
       <ParticleBg />
       <PublicTopNav active="intel" showSignIn />
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
+      <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <AboutSection />
         {/* Intel pane — anchored for scroll-from-hero CTA */}
         <div
@@ -54,9 +54,9 @@ export default function HomePage() {
             href="/signup"
             style={{
               display: "inline-flex", alignItems: "center",
-              padding: "0 24px", height: 44,
+              padding: "0 24px", height: 50,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 14, fontWeight: 600,
+              fontSize: 16, fontWeight: 700,
               color: "var(--tm-accent-fg)",
               background: "var(--tm-accent)",
               border: "1px solid var(--tm-accent)",

@@ -2,9 +2,17 @@ from datetime import date, datetime
 from pydantic import BaseModel, field_validator
 
 
+class CartSkillSnapshot(BaseModel):
+    skill_name: str
+    level_from: int = 0
+    level_to: int = 0
+    company: str | None = None
+
+
 class DiaryEntryRequest(BaseModel):
     entry_text: str
-    log_date: date | None = None    # defaults to today if not provided
+    log_date: date | None = None
+    cart_skills: list[CartSkillSnapshot] = []
 
     @field_validator("entry_text")
     @classmethod
@@ -24,9 +32,11 @@ class DiaryEntryResponse(BaseModel):
     id: str
     log_date: date
     entry_text: str
-    skills_delta: list[SkillDeltaItem]  # skills updated from this entry
-    score_before: float | None          # Mirror Score before this entry
-    score_after: float | None           # Mirror Score after — shows user the delta
+    skills_delta: list[SkillDeltaItem]
+    score_before: float | None
+    score_after: float | None
+    xp_earned: int = 0
+    new_xp_balance: int | None = None
     created_at: datetime
     updated_at: datetime
 

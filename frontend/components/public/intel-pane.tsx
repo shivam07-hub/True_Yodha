@@ -60,7 +60,7 @@ function IntelBar({ label, count, max, active, onClick }: {
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 13, fontWeight: active ? 600 : 500, marginBottom: 5, textAlign: "left",
+          fontSize: 14, fontWeight: active ? 700 : 600, marginBottom: 5, textAlign: "left",
           color: active ? "var(--tm-accent)" : "var(--tm-text)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           transition: "color var(--tm-dur-fast) var(--tm-ease)",
@@ -76,7 +76,7 @@ function IntelBar({ label, count, max, active, onClick }: {
         </div>
       </div>
       <div style={{
-        fontSize: 12, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
         flexShrink: 0, minWidth: 36, textAlign: "right",
         fontVariantNumeric: "tabular-nums", fontWeight: 500,
         transition: "color var(--tm-dur-fast) var(--tm-ease)",
@@ -98,7 +98,7 @@ function SkillChip({ skill, count }: { skill: string; count: number }) {
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "4px 10px", borderRadius: 999, fontSize: 12,
+      padding: "5px 11px", borderRadius: 999, fontSize: 13,
       background: soft ? "var(--tm-hover)" : "var(--tm-accent-wash)",
       border: `1px solid ${soft ? "var(--tm-border-soft)" : "var(--tm-accent-ring)"}`,
       color: soft ? "var(--tm-text-muted)" : "var(--tm-accent)",
@@ -108,7 +108,7 @@ function SkillChip({ skill, count }: { skill: string; count: number }) {
         background: soft ? "var(--tm-text-faint)" : "var(--tm-accent)",
       }} />
       {skill}
-      <span style={{ color: "var(--tm-text-faint)", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ color: "var(--tm-text-faint)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
         {count.toLocaleString()}
       </span>
     </div>
@@ -182,20 +182,17 @@ export function IntelPane() {
 
   return (
     <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)" }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
-          Intel
+      <div style={{ marginBottom: 22 }}>
+        <h1 style={{ fontFamily: "var(--tm-font-display)", fontSize: "var(--tm-fs-display)", lineHeight: "var(--tm-lh-display)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0, marginBottom: 6 }}>
+          Live Career Intel
         </h1>
-        <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-          Live hiring signals · tap any {view === "companies" ? "company" : "industry"} to reveal skills in demand
-        </p>
       </div>
 
       {analytics && (
         <div style={{ padding: "14px 18px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 44, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
-          <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Market Signal</div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>
+          <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4, fontWeight: 700 }}>Market Signal</div>
+          <div style={{ fontSize: 16, lineHeight: 1.45, fontWeight: 600, color: "var(--tm-text)" }}>
             <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
             <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
             <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industry groups
@@ -205,7 +202,7 @@ export function IntelPane() {
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+        <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", fontWeight: 700 }}>
           Role Domain
         </div>
         <select
@@ -215,7 +212,7 @@ export function IntelPane() {
             setSelected(null)
           }}
           className="tm-input"
-          style={{ maxWidth: 320, height: 34, fontSize: 12 }}
+          style={{ maxWidth: 320, height: 40, fontSize: 14 }}
         >
           <option value="">All roles</option>
           {roleOptions.map((role) => (
@@ -232,7 +229,7 @@ export function IntelPane() {
             setSelected(null)
           }}
           className="tm-input"
-          style={{ maxWidth: 200, height: 34, fontSize: 12 }}
+          style={{ maxWidth: 200, height: 40, fontSize: 14 }}
         >
           <option value="">All cities</option>
           {cityOptions.map((item) => (
@@ -249,7 +246,7 @@ export function IntelPane() {
             setSelected(null)
           }}
           className="tm-input"
-          style={{ maxWidth: 200, height: 34, fontSize: 12 }}
+          style={{ maxWidth: 200, height: 40, fontSize: 14 }}
         >
           <option value="">All countries</option>
           {countryOptions.map((item) => (
@@ -266,7 +263,7 @@ export function IntelPane() {
             setSelected(null)
           }}
           className="tm-input"
-          style={{ maxWidth: 180, height: 34, fontSize: 12 }}
+          style={{ maxWidth: 180, height: 40, fontSize: 14 }}
         >
           <option value="">All modes</option>
           {modeOptions.map((item) => (
@@ -281,7 +278,7 @@ export function IntelPane() {
         {(["companies", "industries"] as const).map((v) => (
           <button key={v} onClick={() => { setView(v); setSelected(null) }}
             style={{
-              padding: "7px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500,
+              padding: "9px 20px", borderRadius: 999, fontSize: 15, fontWeight: 600,
               background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
               border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
               color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
@@ -303,10 +300,10 @@ export function IntelPane() {
           alignItems: "start",
         }}>
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 16 }}>
-            <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.6, marginBottom: 12 }}>
+            <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78, marginBottom: 12, fontWeight: 700 }}>
               {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
             </div>
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 10 }}>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 10 }}>
               {view === "companies"
                 ? `Showing ${list.length.toLocaleString()} scraped companies`
                 : `Showing ${list.length.toLocaleString()} industry groups`}{" "}
@@ -342,8 +339,8 @@ export function IntelPane() {
             {selected ? (
               <>
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{selected.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--tm-accent)" }}>{selected.roles.toLocaleString()} open roles</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>{selected.name}</div>
+                  <div style={{ fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>{selected.roles.toLocaleString()} open roles</div>
                 </div>
 
                 {skillsLoading ? (
@@ -356,12 +353,12 @@ export function IntelPane() {
                   const skills = entitySkillsData?.skills ?? []
                   const hard = skills.filter((s) => !issoft(s.skill))
                   const soft = skills.filter((s) => issoft(s.skill))
-                  if (skills.length === 0) return <div style={{ color: "var(--tm-text-faint)", fontSize: 13 }}>No skill data available.</div>
+                  if (skills.length === 0) return <div style={{ color: "var(--tm-text-faint)", fontSize: 14 }}>No skill data available.</div>
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                       {hard.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Hard Skills · job mentions</div>
+                          <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8, fontWeight: 700 }}>Hard Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                             {hard.slice(0, 12).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
@@ -372,7 +369,7 @@ export function IntelPane() {
                       )}
                       {soft.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>Soft Skills · job mentions</div>
+                          <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8, fontWeight: 700 }}>Soft Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                             {soft.slice(0, 8).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
@@ -388,10 +385,10 @@ export function IntelPane() {
                 justifyContent: "center", height: "100%", minHeight: isMobile ? 120 : 220,
                 color: "var(--tm-text-faint)",
               }}>
-                <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.18, color: "var(--tm-accent)" }}>◎</div>
-                <div style={{ fontSize: 13, color: "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.6 }}>
+                <div style={{ fontSize: 34, marginBottom: 12, opacity: 0.18, color: "var(--tm-accent)" }}>◎</div>
+                <div style={{ fontSize: 15, color: "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.6 }}>
                   Select a {view === "companies" ? "company" : "industry"}<br />
-                  <span style={{ fontSize: 12, opacity: 0.6 }}>to reveal skills in demand</span>
+                  <span style={{ fontSize: 14, opacity: 0.7 }}>to reveal skills in demand</span>
                 </div>
               </div>
             )}
@@ -401,10 +398,10 @@ export function IntelPane() {
 
       <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: "var(--tm-radius)", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", boxShadow: "var(--tm-shadow-1)" }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 3 }}>See how your skills stack up against this market</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Upload your CV → get your Myro Score in 60 seconds</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>See how your skills stack up against this market</div>
+          <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Upload your CV → get your Myro Score in 60 seconds</div>
         </div>
-        <Link href="/signup" style={{ flexShrink: 0, padding: "8px 18px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>
+        <Link href="/signup" style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
           Sign up to see your Myro Score →
         </Link>
       </div>

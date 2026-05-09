@@ -1,13 +1,19 @@
 import type { Metadata, Viewport } from "next"
-import { Space_Grotesk } from "next/font/google"
+import { Inter, Source_Serif_4 } from "next/font/google"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
+})
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700"],
 })
 
 export const metadata: Metadata = {
@@ -52,11 +58,11 @@ export const viewport: Viewport = {
  * Theme bootstrap — runs before paint to set accent + surface on <html>.
  * Prevents flashes of default mode on refresh.
  */
-const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent');var s=localStorage.getItem('tm.surface');var accent=(a==='forge'||a==='signal')?a:'forge';var surface=accent==='forge'?'light':'dark';localStorage.setItem('tm.accent',accent);localStorage.setItem('tm.surface',surface);document.documentElement.setAttribute('data-accent',accent);document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','forge');document.documentElement.setAttribute('data-surface','light');}})();`
+const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent');var s=localStorage.getItem('tm.surface');var accent=(a==='forge'||a==='signal')?a:'forge';var surface=(s==='light'||s==='dark')?s:(accent==='forge'?'light':'dark');localStorage.setItem('tm.accent',accent);localStorage.setItem('tm.surface',surface);document.documentElement.setAttribute('data-accent',accent);document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','forge');document.documentElement.setAttribute('data-surface','light');}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={spaceGrotesk.variable} data-accent="signal" data-surface="dark" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

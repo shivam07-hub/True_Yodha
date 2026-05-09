@@ -216,12 +216,12 @@ export default function SkillsPage() {
         </div>
 
         {/* Stats strip */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
           {Object.entries(skills.by_domain).map(([domain, items]) => {
             const avg = items.length > 0 ? Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20) : 0
             const isActive = activeDomain === domain
             return (
-              <button key={domain} onClick={() => setActiveDomain(isActive ? null : domain)}
+              <button key={domain} title={domain} onClick={() => setActiveDomain(isActive ? null : domain)}
                 style={{
                   padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
                   background: isActive ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",

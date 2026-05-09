@@ -5,66 +5,72 @@ import { MyroLogo } from "@/components/myro-logo"
 
 export function AboutSection() {
   return (
-    <section style={{ position: "relative", zIndex: 2 }}>
+    <section style={{ position: "relative", zIndex: 2, width: "100%", minWidth: 0, overflow: "hidden", background: "linear-gradient(180deg, var(--tm-bg) 0%, var(--tm-surface-2) 100%)" }}>
 
       {/* Hero */}
       <div style={{
-        maxWidth: 680,
+        maxWidth: 980,
+        width: "100%",
+        minWidth: 0,
         margin: "0 auto",
-        padding: "80px 24px 64px",
+        minHeight: "calc(100dvh - 64px)",
+        padding: "96px 24px 72px",
         textAlign: "center",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         gap: 0,
       }}>
         <div style={{
-          filter: "drop-shadow(0 0 16px var(--tm-accent-glow))",
-          marginBottom: 24,
+          filter: "drop-shadow(0 16px 28px var(--tm-accent-glow))",
+          marginBottom: 28,
         }}>
-          <MyroLogo size={56} />
+          <MyroLogo size={72} />
         </div>
 
         <h1 style={{
-          fontSize: "clamp(2.25rem, 5vw, 3rem)",
-          fontWeight: 700,
-          letterSpacing: "-0.03em",
-          lineHeight: 1.08,
+          fontFamily: "var(--tm-font-display)",
+          fontSize: "var(--tm-fs-hero)",
+          fontWeight: 600,
+          letterSpacing: 0,
+          lineHeight: "var(--tm-lh-hero)",
           color: "var(--tm-text)",
-          margin: "0 0 12px",
+          margin: "0 0 8px",
         }}>
           Myro
         </h1>
 
         <p style={{
-          fontSize: "clamp(1.1rem, 2vw, 1.35rem)",
-          fontWeight: 600,
+          fontSize: "var(--tm-fs-title)",
+          fontWeight: 700,
           color: "var(--tm-text)",
-          margin: "0 0 12px",
-          letterSpacing: "-0.02em",
-          lineHeight: 1.3,
+          margin: "0 0 18px",
+          letterSpacing: 0,
+          lineHeight: "var(--tm-lh-title)",
+          maxWidth: 760,
         }}>
-          Know the skills. Close the gap. Land the role.
+          Career intelligence for people who are done guessing.
         </p>
 
         <p style={{
-          fontSize: "var(--tm-fs-body)",
-          color: "var(--tm-text-faint)",
-          lineHeight: 1.65,
-          maxWidth: 520,
-          margin: "0 0 36px",
+          fontSize: 20,
+          color: "var(--tm-text-muted)",
+          lineHeight: 1.55,
+          maxWidth: 680,
+          margin: "0 0 40px",
         }}>
-          Upload your CV. See exactly where your skills stand against what the market wants — then get matched to roles you can realistically land today.
+          Upload your CV and see where your skills stand against live hiring demand, which gaps matter, and which roles are realistic now.
         </p>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 48 }}>
           <a
             href="#intel"
             style={{
               display: "inline-flex", alignItems: "center",
-              padding: "0 20px", height: 40,
+              padding: "0 24px", height: 50,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 14, fontWeight: 600,
+              fontSize: 16, fontWeight: 700,
               color: "var(--tm-accent-fg)",
               background: "var(--tm-accent)",
               border: "1px solid var(--tm-accent)",
@@ -87,9 +93,9 @@ export function AboutSection() {
             href="/login"
             style={{
               display: "inline-flex", alignItems: "center",
-              padding: "0 20px", height: 40,
+              padding: "0 22px", height: 50,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 14, fontWeight: 500,
+              fontSize: 16, fontWeight: 600,
               color: "var(--tm-text-muted)",
               background: "transparent",
               border: "1px solid var(--tm-border)",
@@ -108,6 +114,30 @@ export function AboutSection() {
             Sign in
           </Link>
         </div>
+
+        <div
+          aria-label="Myro evidence model"
+          style={{
+            width: "100%",
+            maxWidth: 820,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            borderTop: "1px solid var(--tm-border-soft)",
+            borderBottom: "1px solid var(--tm-border-soft)",
+            background: "var(--tm-surface)",
+          }}
+        >
+          {[
+            ["Career pages", "Live roles pulled from company sources."],
+            ["Skill demand", "Market language translated into readable signals."],
+            ["Next move", "A focused path from current proof to target role."],
+          ].map(([label, body]) => (
+            <div key={label} style={{ padding: "18px 22px", textAlign: "left" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tm-text)", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 14, lineHeight: 1.45, color: "var(--tm-text-faint)" }}>{body}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Bridge into Intel */}
@@ -118,9 +148,9 @@ export function AboutSection() {
         background: "var(--tm-surface-2)",
       }}>
         <p style={{
-          fontSize: 14, fontWeight: 500,
-          color: "var(--tm-text-faint)",
-          margin: 0, letterSpacing: "0.01em",
+          fontSize: 15, fontWeight: 600,
+          color: "var(--tm-text-muted)",
+          margin: 0, letterSpacing: 0,
         }}>
           Pulled directly from company career pages. Every day.
         </p>
