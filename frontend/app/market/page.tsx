@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
-import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, SkillHeatmapData } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 
