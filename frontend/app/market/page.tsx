@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
-import type { MarketAnalytics, NameCountItem, SkillCountItem } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -119,49 +119,183 @@ function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; 
   )
 }
 
+// ── Job drill-down panel ─────────────────────────────────────────────────────
+
+function LocationBadge({ mode }: { mode: string | null | undefined }) {
+  if (!mode || mode === "unknown") return null
+  const labels: Record<string, string> = { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" }
+  const colors: Record<string, string> = {
+    remote: "rgba(0,245,212,0.12)",
+    hybrid: "rgba(255,200,60,0.12)",
+    onsite: "rgba(180,180,200,0.12)",
+  }
+  return (
+    <span style={{
+      fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em",
+      padding: "2px 7px", borderRadius: 99, background: colors[mode] ?? "rgba(180,180,200,0.12)",
+      color: "var(--tm-text-muted)", textTransform: "uppercase",
+    }}>
+      {labels[mode] ?? mode}
+    </span>
+  )
+}
+
+function JobDrillPanel({
+  companyName,
+  skillName,
+  drillJobs,
+  isLoading,
+  savedJobIds,
+  onSave,
+  onClose,
+  isLoggedIn,
+}: {
+  companyName: string
+  skillName: string
+  drillJobs: JobSearchItem[]
+  isLoading: boolean
+  savedJobIds: Set<string>
+  onSave: (job: JobSearchItem) => void
+  onClose: () => void
+  isLoggedIn: boolean
+}) {
+  return (
+    <div style={{
+      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+      borderRadius: "var(--tm-radius-lg)", marginTop: 4, overflow: "hidden",
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 24px", borderBottom: "1px solid var(--tm-border-soft)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {companyName}
+          </span>
+          <span style={{ color: "var(--tm-text-faint)", fontSize: 11 }}>×</span>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {skillName}
+          </span>
+          {!isLoading && (
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", marginLeft: 4 }}>
+              · {drillJobs.length} jobs
+            </span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "transparent", border: "1px solid var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius-sm)", padding: "4px 12px",
+            color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer",
+            fontFamily: "var(--tm-font-mono)",
+          }}
+        >
+          ← Close
+        </button>
+      </div>
+
+      <div style={{ maxHeight: 320, overflowY: "auto" }}>
+        {isLoading ? (
+          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
+            Loading jobs...
+          </div>
+        ) : drillJobs.length === 0 ? (
+          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
+            No jobs found for this combination.
+          </div>
+        ) : (
+          drillJobs.map((job, idx) => {
+            const isSaved = savedJobIds.has(job.job_id)
+            return (
+              <div
+                key={job.job_id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 16, padding: "12px 24px",
+                  borderBottom: idx < drillJobs.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {job.job_title}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    {job.location_city && (
+                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                        {job.location_city}{job.location_country ? `, ${job.location_country}` : ""}
+                      </span>
+                    )}
+                    <LocationBadge mode={job.location_mode} />
+                  </div>
+                </div>
+                {isLoggedIn && (
+                  <button
+                    onClick={() => onSave(job)}
+                    disabled={isSaved}
+                    style={{
+                      flexShrink: 0, fontSize: 11, fontFamily: "var(--tm-font-mono)",
+                      letterSpacing: "0.06em", padding: "5px 14px", borderRadius: "var(--tm-radius-sm)",
+                      cursor: isSaved ? "default" : "pointer",
+                      background: isSaved ? "rgba(0,245,212,0.08)" : "transparent",
+                      border: `1px solid ${isSaved ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                      color: isSaved ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                      transition: "all 150ms ease",
+                    }}
+                  >
+                    {isSaved ? "Saved ✓" : "Save →"}
+                  </button>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Skill × Company heatmap ──────────────────────────────────────────────────
 
 function SkillHeatmap({
   companies,
   skillsMap,
+  skills,
+  skillLevels,
   followedNames,
+  selectedCell,
+  onCellSelect,
 }: {
   companies: NameCountItem[]
   skillsMap: Record<string, SkillCountItem[]>
+  skills: string[]
+  skillLevels: Record<string, number>
   followedNames: string[]
+  selectedCell: { ci: number; si: number } | null
+  onCellSelect: (ci: number, si: number) => void
 }) {
   const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
-  const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
-
-  const topSkills = useMemo(() => {
-    const freq: Record<string, number> = {}
-    for (const skills of Object.values(skillsMap)) {
-      for (const s of skills) freq[s.skill] = (freq[s.skill] || 0) + s.count
-    }
-    return Object.entries(freq)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([skill]) => skill)
-  }, [skillsMap])
 
   const cellCount = useCallback((ci: number, si: number): number => {
     const co = companies[ci]
-    const skills = skillsMap[co?.name] || []
-    return skills.find(s => s.skill === topSkills[si])?.count ?? 0
-  }, [companies, skillsMap, topSkills])
+    const companySkills = skillsMap[co?.name] || []
+    const targetSkill = skills[si]?.toLowerCase()
+    return companySkills.find(s => s.skill.toLowerCase() === targetSkill)?.count ?? 0
+  }, [companies, skillsMap, skills])
 
   const maxVal = useMemo(() => {
-    const all = companies.flatMap((_, ci) => topSkills.map((_, si) => cellCount(ci, si)))
+    const all = companies.flatMap((_, ci) => skills.map((_, si) => cellCount(ci, si)))
     return Math.max(...all, 1)
-  }, [companies, topSkills, cellCount])
+  }, [companies, skills, cellCount])
 
-  const skillsLoaded = topSkills.length > 0
+  if (!skills.length) return null
 
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
         <div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>SKILL × COMPANY DEMAND</div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
+            YOUR SKILLS × COMPANY DEMAND
+          </div>
           <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0, paddingTop: 6 }}>
@@ -175,93 +309,79 @@ function SkillHeatmap({
         </div>
       </div>
 
-      {!skillsLoaded ? (
-        <div style={{ padding: "32px 24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
-          Loading skill data...
-        </div>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
-            <thead>
-              <tr>
-                <th style={{ width: 180, minWidth: 140 }} />
-                {topSkills.map(sk => (
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
+          <thead>
+            <tr>
+              <th style={{ width: 180, minWidth: 140 }} />
+              {skills.map(sk => {
+                const level = skillLevels[sk.toLowerCase()] ?? 0
+                return (
                   <th key={sk} style={{
                     writingMode: "vertical-rl", transform: "rotate(180deg)",
                     padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)",
                     textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500,
-                    textAlign: "left", height: 100,
+                    textAlign: "left", height: 100, verticalAlign: "bottom",
                   }}>
-                    {sk}
-                  </th>
-                ))}
-                <th style={{ padding: "0 8px", fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", fontWeight: 500 }}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {companies.map((co, ci) => {
-                const rowSum = topSkills.reduce((s, _, si) => s + cellCount(ci, si), 0)
-                const isFollowed = followedNames.includes(co.name)
-                return (
-                  <tr key={co.name}>
-                    <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                        {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
-                        {co.name}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      <span style={{
+                        fontSize: 9, color: level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent",
+                        fontWeight: 700,
+                      }}>
+                        L{level}
                       </span>
-                    </td>
-                    {topSkills.map((_, si) => {
-                      const v = cellCount(ci, si)
-                      const o = v / maxVal
-                      const isHover = hoverCell?.ci === ci && hoverCell?.si === si
-                      const isSel = selectedCell?.ci === ci && selectedCell?.si === si
-                      return (
-                        <td
-                          key={si}
-                          onMouseEnter={() => setHoverCell({ ci, si })}
-                          onMouseLeave={() => setHoverCell(null)}
-                          onClick={() => setSelectedCell(isSel ? null : { ci, si })}
-                          style={{
-                            width: 36, height: 28, cursor: "pointer", textAlign: "center",
-                            background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
-                            border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
-                            borderRadius: 4, fontSize: 11,
-                            color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
-                            fontWeight: 600,
-                            transition: "background 150ms ease",
-                          }}
-                        >
-                          {v || ""}
-                        </td>
-                      )
-                    })}
-                    <td style={{ padding: "0 8px", fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>{rowSum || ""}</td>
-                  </tr>
+                      {sk}
+                    </div>
+                  </th>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {selectedCell != null && (
-        <div style={{ borderTop: "1px solid var(--tm-border-soft)", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            {companies[selectedCell.ci]?.name} × {topSkills[selectedCell.si]} · {cellCount(selectedCell.ci, selectedCell.si)} matching jobs
-          </div>
-          <button
-            onClick={() => setSelectedCell(null)}
-            style={{
-              background: "transparent", border: "1px solid var(--tm-border-soft)",
-              borderRadius: "var(--tm-radius-sm)", padding: "4px 12px",
-              color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer",
-              fontFamily: "var(--tm-font-mono)",
-            }}
-          >
-            ← Close
-          </button>
-        </div>
-      )}
+              <th style={{ padding: "0 8px", fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", fontWeight: 500 }}>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((co, ci) => {
+              const rowSum = skills.reduce((s, _, si) => s + cellCount(ci, si), 0)
+              const isFollowed = followedNames.includes(co.name)
+              return (
+                <tr key={co.name}>
+                  <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
+                      {co.name}
+                    </span>
+                  </td>
+                  {skills.map((_, si) => {
+                    const v = cellCount(ci, si)
+                    const o = v / maxVal
+                    const isHover = hoverCell?.ci === ci && hoverCell?.si === si
+                    const isSel = selectedCell?.ci === ci && selectedCell?.si === si
+                    return (
+                      <td
+                        key={si}
+                        onMouseEnter={() => setHoverCell({ ci, si })}
+                        onMouseLeave={() => setHoverCell(null)}
+                        onClick={() => onCellSelect(ci, si)}
+                        style={{
+                          width: 36, height: 28, cursor: "pointer", textAlign: "center",
+                          background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
+                          border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
+                          borderRadius: 4, fontSize: 11,
+                          color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
+                          fontWeight: 600,
+                          transition: "background 150ms ease",
+                        }}
+                      >
+                        {v || ""}
+                      </td>
+                    )
+                  })}
+                  <td style={{ padding: "0 8px", fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>{rowSum || ""}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -380,6 +500,8 @@ export default function IntelPage() {
   const queryClient = useQueryClient()
 
   const [followedOnly, setFollowedOnly] = useState(false)
+  const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
+  const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["intel-analytics"],
@@ -393,6 +515,13 @@ export default function IntelPage() {
     enabled: !!token,
   })
 
+  const { data: skillDemandData } = useQuery({
+    queryKey: ["mySkillDemand", token],
+    queryFn: () => jobs.mySkillDemand(token!),
+    enabled: !!token,
+    staleTime: 30 * 60 * 1000,
+  })
+
   const followedNames = useMemo(
     () => followedData?.companies.map(c => c.company_name) ?? [],
     [followedData]
@@ -401,7 +530,7 @@ export default function IntelPage() {
   const topCompanies = useMemo(() => {
     let list = analytics?.by_company ?? []
     if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
-    return list.slice(0, 5)
+    return list.slice(0, 10)
   }, [analytics, followedOnly, followedNames])
 
   const skillQueries = useQueries({
@@ -419,6 +548,59 @@ export default function IntelPage() {
     })
     return map
   }, [skillQueries, topCompanies])
+
+  // User's own skills as heatmap columns; fall back to global aggregation for logged-out
+  const heatmapSkills = useMemo(() => {
+    if (skillDemandData?.skills?.length) {
+      return skillDemandData.skills
+        .filter(s => s.weighted_demand > 0)
+        .sort((a, b) => b.weighted_demand - a.weighted_demand)
+        .slice(0, 8)
+        .map(s => s.display_name)
+    }
+    const freq: Record<string, number> = {}
+    for (const skillList of Object.values(skillsMap)) {
+      for (const s of skillList) freq[s.skill] = (freq[s.skill] || 0) + s.count
+    }
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([sk]) => sk)
+  }, [skillDemandData, skillsMap])
+
+  // skill display_name → current_level map for column header pips
+  const skillLevels = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const s of skillDemandData?.skills ?? []) {
+      map[s.display_name.toLowerCase()] = s.current_level
+    }
+    return map
+  }, [skillDemandData])
+
+  // Resolved cell info for drill-down
+  const resolvedCell = useMemo(() => {
+    if (!selectedCell) return null
+    const company = topCompanies[selectedCell.ci]
+    const skill = heatmapSkills[selectedCell.si]
+    if (!company || !skill) return null
+    return { companyName: company.name, skillName: skill }
+  }, [selectedCell, topCompanies, heatmapSkills])
+
+  const { data: drillData, isLoading: drillLoading } = useQuery({
+    queryKey: ["cellJobs", resolvedCell?.companyName, resolvedCell?.skillName],
+    queryFn: () => jobs.search(resolvedCell!.companyName, { skill: resolvedCell!.skillName, pageSize: 50 }),
+    enabled: !!resolvedCell,
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const drillJobs = drillData?.jobs ?? []
+
+  const saveMutation = useMutation({
+    mutationFn: (jobId: string) => jobs.saveJob(token!, jobId),
+    onSuccess: (_data, jobId) => {
+      setManualSaved(prev => new Set(Array.from(prev).concat(jobId)))
+      queryClient.invalidateQueries({ queryKey: ["applications"] })
+    },
+  })
+
+  const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
 
   const analyticsByCompany = useMemo(() => {
     const m: Record<string, number> = {}
@@ -441,6 +623,10 @@ export default function IntelPage() {
     },
     [token, followedNames, followMutation]
   )
+
+  const handleCellSelect = useCallback((ci: number, si: number) => {
+    setSelectedCell(prev => (prev?.ci === ci && prev?.si === si ? null : { ci, si }))
+  }, [])
 
   const moversCompanies = useMemo(() => {
     let list = analytics?.by_company ?? []
@@ -488,7 +674,27 @@ export default function IntelPage() {
         ) : (
           <>
             <PulseStrip analytics={analytics} followedCount={followedNames.length} />
-            <SkillHeatmap companies={topCompanies} skillsMap={skillsMap} followedNames={followedNames} />
+            <SkillHeatmap
+              companies={topCompanies}
+              skillsMap={skillsMap}
+              skills={heatmapSkills}
+              skillLevels={skillLevels}
+              followedNames={followedNames}
+              selectedCell={selectedCell}
+              onCellSelect={handleCellSelect}
+            />
+            {resolvedCell && (
+              <JobDrillPanel
+                companyName={resolvedCell.companyName}
+                skillName={resolvedCell.skillName}
+                drillJobs={drillJobs}
+                isLoading={drillLoading}
+                savedJobIds={savedJobIds}
+                onSave={job => saveMutation.mutate(job.job_id)}
+                onClose={() => setSelectedCell(null)}
+                isLoggedIn={!!token}
+              />
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
               <TopMovers companies={moversCompanies} followedNames={followedNames} onToggleFollow={handleToggleFollow} />
               <TrackedDigest followedNames={followedNames} analyticsByCompany={analyticsByCompany} isLoggedIn={!!token} />

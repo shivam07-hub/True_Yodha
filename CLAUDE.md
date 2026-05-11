@@ -131,6 +131,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
 2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
+3. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 

@@ -43,6 +43,7 @@ def to_application(row: dict) -> ApplicationResponse:
         company=job.get("company_name"),
         job_description=job.get("job_description"),
         status=row["status"],
+        source=row.get("source") or "system_match",
         applied_at=row.get("applied_at"),
         response_at=row.get("response_at"),
         checkin_sent_at=row.get("checkin_sent_at"),

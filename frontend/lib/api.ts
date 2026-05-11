@@ -525,6 +525,7 @@ export interface ApplicationResponse {
   company: string | null
   job_description?: string | null
   status: ApplicationStatus
+  source: string
   applied_at: string | null
   response_at: string | null
   checkin_sent_at: string | null
@@ -814,6 +815,11 @@ export const jobs = {
     ),
   applications: (token: string) =>
     request<ApplicationResponse[]>("/jobs/applications", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  saveJob: (token: string, jobId: string) =>
+    request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
   updateApplication: (
