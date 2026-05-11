@@ -132,41 +132,40 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
 2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
 3. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+4. **Intel page — job analytics loading screen** — analytics call takes >30s. Add step-by-step loading state (like landing page: "running agent → extracting skills → matching") instead of blank spinner.
+5. **Intel page — skill selector panel** — Replace bottom-right "Tracked" panel with a "Skills to track on heatmap" selector. Tracked skills = user's CV skills + skills the user has saved/wants to upskill. Heatmap then shows followed companies × followed skills (user-curated, not auto-derived from mySkillDemand).
+6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-10)
+## LAST SESSION SUMMARY (2026-05-11)
 
 ```
-Design system foundations + CTA consolidation Phase 1A & 1B.
+Intel page overhaul — heatmap fix + drill-down + Self Focus strip (PR1).
 
-Shipped (committed to Develop):
-  - docs/DESIGN_CONSTITUTION.md, docs/UBIQUITOUS_LANGUAGE.md,
-    docs/CTA_DESIGN_SPEC.md
-  - Skills page: Domain Inspector moved between strip and canvas;
-    canvas dims non-selected domain nodes
-  - Button primitive rewritten (solid/outline/ghost/inline,
-    sm/md/lg/icon-sm/icon-md, loading prop, --tm-* tokens only)
-  - Phase 1A: 6 Upload-CV CTAs migrated to <Button>
-  - HomeColumns SkillGapCol → "Skills to build", filter changed
-    to user_level === 0 to remove duplication with matched panel;
-    color shifted from danger to warning amber
+Shipped to Develop:
+  - Intel heatmap now shows user's OWN skills as columns (mySkillDemand API)
+    with L-level pips on column headers; falls back to global top skills for
+    logged-out users. Label changed to "YOUR SKILLS × COMPANY DEMAND".
+  - Root cause fixed: ENTITY_SKILL_LIMIT=20 was dropping niche user skills.
+    New endpoint GET /jobs/analytics/skill-heatmap does exact (company×skill)
+    counts with no top-N truncation.
+  - Cell click → JobDrillPanel: real jobs via jobs.search(company, skill).
+    Cards show job_id prefix, title, location, mode badge, 2-line description.
+    "Save →" button writes to job_applications with source='user_discovery'.
+  - Backend: POST /jobs/save/{job_id} endpoint. ApplicationResponse +
+    to_application wired with source field.
+    DB: ALTER TABLE job_applications ADD COLUMN source TEXT DEFAULT 'system_match'
+    (run manually in Supabase by Shivam).
+  - Home page: Self Focus strip below Active Focus — shows user-discovered jobs
+    filtered from applications where source='user_discovery'. Chips show
+    company, "Analyse → 50 XP" placeholder (PR2), ✕ remove button.
 
-Shipped (committed):
-  - Phase 1B: 26 remaining .tm-btn consumers migrated to <Button>
-    across forge-focus-overlay (8), cv/page (12), jobs/page (5),
-    market/page (1)
-
-Shipped this session (not yet committed):
-  - Phase 1C: deleted .tm-btn / .tm-btn-primary / .tm-btn-ghost /
-    .tm-btn-subtle from design-tokens.css. Tombstone comment left
-    in place to prevent reintroduction. Phase 1 of CTA
-    consolidation is now complete.
-
-Queued next:
-  - Phase 2: <Cta intent emphasis> wrapper on top of Button
-  - Skills page: rename activeDomain→selectedDomain (Option A)
-    or extract DomainStrip/DomainInspector (Option B)
+Open (next sessions):
+  - Backlog #4: Intel loading screen (>30s analytics call)
+  - Backlog #5: Skill selector panel replacing Tracked panel
+  - Backlog #6: PR2 — Run Analysis endpoint + XP deduction
+  - Backlog #3: user_job_matches design review
 ```
