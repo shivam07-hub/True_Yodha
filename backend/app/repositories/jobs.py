@@ -340,6 +340,52 @@ class JobsRepository:
         _entity_skills_cache[cache_key] = (now, result)
         return result
 
+    def fetch_skill_heatmap(
+        self,
+        companies: list[str],
+        skills: list[str],
+    ) -> dict[str, dict[str, int]]:
+        """Return exact job counts for (company × skill) intersections.
+
+        Bypasses ENTITY_SKILL_LIMIT so niche user skills are not dropped.
+        """
+        matrix: dict[str, dict[str, int]] = {c: {s: 0 for s in skills} for c in companies}
+        if not companies or not skills:
+            return matrix
+
+        job_rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, company_name",
+            query_builder=lambda q: q.in_("company_name", companies),
+        )
+        job_company: dict[str, str] = {
+            r["job_id"]: r["company_name"]
+            for r in job_rows
+            if r.get("job_id") and r.get("company_name")
+        }
+        if not job_company:
+            return matrix
+
+        skill_rows = fetch_job_skill_rows_for_ids(
+            self._db,
+            list(job_company.keys()),
+            columns="job_id, skills(taxonomy_key, display_name)",
+        )
+        skill_lower_map = {s.strip().lower(): s for s in skills}
+        for row in skill_rows:
+            job_id = row.get("job_id")
+            skill_data = row.get("skills") or {}
+            company = job_company.get(job_id)
+            if not company:
+                continue
+            key = (skill_data.get("display_name") or skill_data.get("taxonomy_key") or "").strip().lower()
+            canonical = skill_lower_map.get(key)
+            if canonical:
+                matrix[company][canonical] += 1
+
+        return matrix
+
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
         result = (
             self._db.table("jobs")

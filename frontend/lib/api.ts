@@ -646,6 +646,10 @@ export interface EntitySkillsData {
   skills: SkillCountItem[]
 }
 
+export interface SkillHeatmapData {
+  matrix: Record<string, Record<string, number>>
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -730,6 +734,13 @@ export const jobs = {
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  skillHeatmap: (companies: string[], skills: string[]) => {
+    const params = new URLSearchParams({
+      companies: companies.join(","),
+      skills: skills.join(","),
+    })
+    return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
   analyticsEntitySkills: (
     entity: string,

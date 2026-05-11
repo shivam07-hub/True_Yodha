@@ -323,3 +323,8 @@ class EntitySkillsResponse(BaseModel):
     entity: str
     type: str
     skills: list[SkillCountItem]
+
+
+
+class SkillHeatmapResponse(BaseModel):
+    matrix: dict[str, dict[str, int]]  # company_name -> skill_display_name -> job_count

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
-import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, SkillHeatmapData } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -211,22 +211,32 @@ function JobDrillPanel({
               <div
                 key={job.job_id}
                 style={{
-                  display: "flex", alignItems: "center", gap: 16, padding: "12px 24px",
+                  display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 24px",
                   borderBottom: idx < drillJobs.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0 }}>
+                      {job.job_id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {job.job_title}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    {job.location_city && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+                    {(job.location_city || job.location_country) && (
                       <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-                        {job.location_city}{job.location_country ? `, ${job.location_country}` : ""}
+                        {[job.location_city, job.location_country].filter(Boolean).join(", ")}
                       </span>
                     )}
                     <LocationBadge mode={job.location_mode} />
                   </div>
+                  {job.job_description && (
+                    <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {job.job_description}
+                    </div>
+                  )}
                 </div>
                 {isLoggedIn && (
                   <button
@@ -259,6 +269,7 @@ function JobDrillPanel({
 function SkillHeatmap({
   companies,
   skillsMap,
+  heatmapMatrix,
   skills,
   skillLevels,
   followedNames,
@@ -267,6 +278,7 @@ function SkillHeatmap({
 }: {
   companies: NameCountItem[]
   skillsMap: Record<string, SkillCountItem[]>
+  heatmapMatrix: Record<string, Record<string, number>> | null
   skills: string[]
   skillLevels: Record<string, number>
   followedNames: string[]
@@ -277,10 +289,14 @@ function SkillHeatmap({
 
   const cellCount = useCallback((ci: number, si: number): number => {
     const co = companies[ci]
-    const companySkills = skillsMap[co?.name] || []
-    const targetSkill = skills[si]?.toLowerCase()
-    return companySkills.find(s => s.skill.toLowerCase() === targetSkill)?.count ?? 0
-  }, [companies, skillsMap, skills])
+    const sk = skills[si]
+    if (!co || !sk) return 0
+    // Prefer exact heatmap matrix (user-skills endpoint, no top-N truncation)
+    if (heatmapMatrix) return heatmapMatrix[co.name]?.[sk] ?? 0
+    // Fallback: global entity skills (logged-out)
+    const companySkills = skillsMap[co.name] || []
+    return companySkills.find(s => s.skill.toLowerCase() === sk.toLowerCase())?.count ?? 0
+  }, [companies, skillsMap, heatmapMatrix, skills])
 
   const maxVal = useMemo(() => {
     const all = companies.flatMap((_, ci) => skills.map((_, si) => cellCount(ci, si)))
@@ -574,6 +590,16 @@ export default function IntelPage() {
     return map
   }, [skillDemandData])
 
+  // Exact (company × user-skill) counts — bypasses ENTITY_SKILL_LIMIT top-N truncation
+  const { data: heatmapData } = useQuery({
+    queryKey: ["skillHeatmap", topCompanies.map(c => c.name).join(","), heatmapSkills.join(",")],
+    queryFn: () => jobs.skillHeatmap(topCompanies.map(c => c.name), heatmapSkills),
+    enabled: !!token && heatmapSkills.length > 0 && topCompanies.length > 0,
+    staleTime: 30 * 60 * 1000,
+  })
+
+  const heatmapMatrix = heatmapData?.matrix ?? null
+
   // Resolved cell info for drill-down
   const resolvedCell = useMemo(() => {
     if (!selectedCell) return null
@@ -677,6 +703,7 @@ export default function IntelPage() {
             <SkillHeatmap
               companies={topCompanies}
               skillsMap={skillsMap}
+              heatmapMatrix={heatmapMatrix}
               skills={heatmapSkills}
               skillLevels={skillLevels}
               followedNames={followedNames}
