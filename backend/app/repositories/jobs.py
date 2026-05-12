@@ -16,8 +16,11 @@ from app.services.location_normalizer import normalize_location
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
+_SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
+_heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
+_search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _feed_ts_cache: tuple[float, str | None] = (0.0, None)
@@ -353,6 +356,12 @@ class JobsRepository:
         if not companies or not skills:
             return matrix
 
+        cache_key = (frozenset(companies), frozenset(skills))
+        now = time.monotonic()
+        cached = _heatmap_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
+
         job_rows = fetch_all_rows(
             self._db,
             table="jobs",
@@ -384,6 +393,7 @@ class JobsRepository:
             if canonical:
                 matrix[company][canonical] += 1
 
+        _heatmap_cache[cache_key] = (time.monotonic(), matrix)
         return matrix
 
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
@@ -421,6 +431,12 @@ class JobsRepository:
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
         skill_lower = skill.strip().lower()
+
+        cache_key = (company, skill_lower, role_domain, location_city, location_country, location_mode, scoped_page, scoped_page_size)
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _SEARCH_TTL:
+            return cached[1]
 
         def _query_builder(query: Any) -> Any:
             query = query.eq("company_name", company)
@@ -488,7 +504,7 @@ class JobsRepository:
         page_rows = filtered_rows[start:end] if start < available_total else []
         returned_total = len(page_rows)
 
-        return {
+        result = {
             "rows": page_rows,
             "available_total": available_total,
             "returned_total": returned_total,
@@ -496,6 +512,8 @@ class JobsRepository:
             "page_size": scoped_page_size,
             "has_next_page": (start + returned_total) < available_total,
         }
+        _search_cache[cache_key] = (time.monotonic(), result)
+        return result
 
     # ── user skills / demand ───────────────────────────────────────────────────
 

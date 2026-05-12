@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
-import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompaniesResponse } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -454,12 +454,16 @@ function SkillSelectorPanel({
   skills,
   selectedNames,
   onToggle,
+  onApplyUserSkills,
   isLoggedIn,
+  isApplied,
 }: {
   skills: UserSkillDemandItem[]
   selectedNames: Set<string>
   onToggle: (name: string) => void
+  onApplyUserSkills: () => void
   isLoggedIn: boolean
+  isApplied: boolean
 }) {
   const selectedCount = selectedNames.size
 
@@ -475,9 +479,23 @@ function SkillSelectorPanel({
           </div>
         )}
       </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
-        {isLoggedIn ? "Toggle skills shown as heatmap columns" : "Sign in to personalise the heatmap"}
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: isLoggedIn && skills.length > 0 && !isApplied ? 8 : 14, lineHeight: 1.5 }}>
+        {isLoggedIn ? (isApplied ? "Toggle skills shown as heatmap columns" : "Heatmap showing global skills") : "Sign in to personalise the heatmap"}
       </div>
+      {isLoggedIn && skills.length > 0 && !isApplied && (
+        <button
+          onClick={onApplyUserSkills}
+          style={{
+            alignSelf: "flex-start", marginBottom: 14,
+            fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.06em",
+            padding: "5px 14px", borderRadius: 99, cursor: "pointer",
+            background: "rgba(0,245,212,0.10)", border: "1px solid var(--tm-accent)",
+            color: "var(--tm-accent)", transition: "all 120ms ease",
+          }}
+        >
+          ↗ Switch to my CV skills
+        </button>
+      )}
 
       {!isLoggedIn ? (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
@@ -544,6 +562,9 @@ export default function IntelPage() {
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
+  // heatmapApplied: true only after user explicitly acts in Skill Lens
+  // Keeps heatmap on stable global-skills key until user opts in — prevents double-fire
+  const [heatmapApplied, setHeatmapApplied] = useState(false)
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["intel-analytics"],
@@ -583,6 +604,7 @@ export default function IntelPage() {
   }, [skillDemandData, skillsInitialized])
 
   const handleToggleSkill = useCallback((name: string) => {
+    setHeatmapApplied(true)
     setSelectedSkillNames(prev => {
       const next = new Set(prev)
       if (next.has(name)) {
@@ -593,6 +615,8 @@ export default function IntelPage() {
       return next
     })
   }, [])
+
+  const handleApplyUserSkills = useCallback(() => setHeatmapApplied(true), [])
 
   const topCompanies = useMemo(() => {
     let list = analytics?.by_company ?? []
@@ -616,23 +640,22 @@ export default function IntelPage() {
     return map
   }, [skillQueries, topCompanies])
 
-  // Heatmap columns = user-curated selection; falls back to auto top-8 before init, global for logged-out
+  // Heatmap columns: global top-8 (fires at ~750ms) until user explicitly acts in Skill Lens.
+  // heatmapApplied=true → switch to user-curated selectedSkillNames (re-keys once, then cached).
+  // This prevents double-fire: global key at 750ms + user-skills key at 6s.
   const heatmapSkills = useMemo(() => {
-    if (skillDemandData?.skills?.length) {
-      const base = skillDemandData.skills
-        .filter(s => s.weighted_demand > 0)
+    if (heatmapApplied && selectedSkillNames.size > 0 && skillDemandData?.skills?.length) {
+      return skillDemandData.skills
+        .filter(s => selectedSkillNames.has(s.display_name))
         .sort((a, b) => b.weighted_demand - a.weighted_demand)
-      if (selectedSkillNames.size > 0) {
-        return base.filter(s => selectedSkillNames.has(s.display_name)).map(s => s.display_name)
-      }
-      return base.slice(0, MAX_HEATMAP_SKILLS).map(s => s.display_name)
+        .map(s => s.display_name)
     }
     const freq: Record<string, number> = {}
     for (const skillList of Object.values(skillsMap)) {
       for (const s of skillList) freq[s.skill] = (freq[s.skill] || 0) + s.count
     }
     return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, MAX_HEATMAP_SKILLS).map(([sk]) => sk)
-  }, [skillDemandData, skillsMap, selectedSkillNames])
+  }, [heatmapApplied, selectedSkillNames, skillDemandData, skillsMap])
 
   // skill display_name → current_level map for column header pips
   const skillLevels = useMemo(() => {
@@ -685,6 +708,23 @@ export default function IntelPage() {
     mutationFn: async ({ name, follow }: { name: string; follow: boolean }) => {
       if (follow) await users.followCompany(token!, name)
       else await users.unfollowCompany(token!, name)
+    },
+    onMutate: async ({ name, follow }) => {
+      await queryClient.cancelQueries({ queryKey: ["followedCompanies", token] })
+      const previous = queryClient.getQueryData<FollowedCompaniesResponse>(["followedCompanies", token])
+      queryClient.setQueryData<FollowedCompaniesResponse>(["followedCompanies", token], old => {
+        if (!old) return old
+        const companies = follow
+          ? [...old.companies, { company_name: name, created_at: new Date().toISOString() }]
+          : old.companies.filter(c => c.company_name !== name)
+        return { companies, total: companies.length }
+      })
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["followedCompanies", token], context.previous)
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
@@ -775,7 +815,9 @@ export default function IntelPage() {
                 skills={skillDemandData?.skills ?? []}
                 selectedNames={selectedSkillNames}
                 onToggle={handleToggleSkill}
+                onApplyUserSkills={handleApplyUserSkills}
                 isLoggedIn={!!token}
+                isApplied={heatmapApplied}
               />
             </div>
           </>
