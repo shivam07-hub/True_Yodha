@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
-import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -446,63 +446,87 @@ function TopMovers({ companies, followedNames, onToggleFollow }: {
   )
 }
 
-// ── Tracked digest ───────────────────────────────────────────────────────────
+// ── Skill Selector Panel ─────────────────────────────────────────────────────
 
-function TrackedDigest({ followedNames, analyticsByCompany, isLoggedIn }: {
-  followedNames: string[]
-  analyticsByCompany: Record<string, number>
+const MAX_HEATMAP_SKILLS = 8
+
+function SkillSelectorPanel({
+  skills,
+  selectedNames,
+  onToggle,
+  isLoggedIn,
+}: {
+  skills: UserSkillDemandItem[]
+  selectedNames: Set<string>
+  onToggle: (name: string) => void
   isLoggedIn: boolean
 }) {
-  const tracked = useMemo(
-    () =>
-      followedNames
-        .map(name => ({ name, count: analyticsByCompany[name] ?? 0 }))
-        .sort((a, b) => b.count - a.count),
-    [followedNames, analyticsByCompany]
-  )
+  const selectedCount = selectedNames.size
 
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
-          TRACKED · {followedNames.length}
+          SKILL LENS
         </div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
-          Sent to Mission Control
-        </div>
+        {isLoggedIn && skills.length > 0 && (
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: selectedCount >= MAX_HEATMAP_SKILLS ? "var(--tm-warning)" : "var(--tm-accent)", fontWeight: 600 }}>
+            {selectedCount}/{MAX_HEATMAP_SKILLS}
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
+        {isLoggedIn ? "Toggle skills shown as heatmap columns" : "Sign in to personalise the heatmap"}
       </div>
 
       {!isLoggedIn ? (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to track companies</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Follow companies to surface them in Mission Control</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to use Skill Lens</div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Heatmap shows your CV skills when logged in</div>
         </div>
-      ) : followedNames.length === 0 ? (
+      ) : skills.length === 0 ? (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>No jobs tracked yet</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6 }}>
-            Hit the ★ star next to any company<br />to send it to Mission Control
-          </div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>No skills detected</div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Upload your CV to populate the heatmap with your skills</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {tracked.map((co, idx) => (
-            <div
-              key={co.name}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-                padding: "10px 0",
-                borderBottom: idx < tracked.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
-              }}
-            >
-              <div style={{ fontSize: 13, color: "var(--tm-text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {co.name}
-              </div>
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-accent)", flexShrink: 0 }}>
-                {co.count} roles
-              </div>
-            </div>
-          ))}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, overflowY: "auto", maxHeight: 260 }}>
+          {skills.map(skill => {
+            const selected = selectedNames.has(skill.display_name)
+            const atMax = !selected && selectedCount >= MAX_HEATMAP_SKILLS
+            return (
+              <button
+                key={skill.display_name}
+                onClick={() => !atMax && onToggle(skill.display_name)}
+                title={atMax ? "Max 8 selected — deselect one first" : `${skill.display_name} · ${skill.job_count_30d} jobs (30d)`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "5px 10px", borderRadius: 99,
+                  cursor: atMax ? "not-allowed" : "pointer",
+                  background: selected ? "rgba(0,245,212,0.10)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${selected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                  color: selected ? "var(--tm-accent)" : atMax ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
+                  fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em",
+                  opacity: atMax ? 0.45 : 1,
+                  transition: "all 120ms ease",
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  color: selected ? "rgba(0,245,212,0.7)" : skill.current_level >= 3 ? "var(--tm-text-muted)" : "var(--tm-text-faint)",
+                }}>
+                  L{skill.current_level}
+                </span>
+                {skill.display_name}
+                {skill.job_count_30d > 0 && (
+                  <span style={{ fontSize: 9, color: selected ? "rgba(0,245,212,0.5)" : "var(--tm-text-faint)", marginLeft: 1 }}>
+                    {skill.job_count_30d}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -518,6 +542,8 @@ export default function IntelPage() {
   const [followedOnly, setFollowedOnly] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
+  const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
+  const [skillsInitialized, setSkillsInitialized] = useState(false)
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["intel-analytics"],
@@ -543,6 +569,31 @@ export default function IntelPage() {
     [followedData]
   )
 
+  // Seed selectedSkillNames once from top-8 mySkillDemand on first load
+  useEffect(() => {
+    if (skillDemandData?.skills?.length && !skillsInitialized) {
+      const top8 = skillDemandData.skills
+        .filter(s => s.weighted_demand > 0)
+        .sort((a, b) => b.weighted_demand - a.weighted_demand)
+        .slice(0, MAX_HEATMAP_SKILLS)
+        .map(s => s.display_name)
+      setSelectedSkillNames(new Set(top8))
+      setSkillsInitialized(true)
+    }
+  }, [skillDemandData, skillsInitialized])
+
+  const handleToggleSkill = useCallback((name: string) => {
+    setSelectedSkillNames(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) {
+        if (next.size > 1) next.delete(name)
+      } else {
+        if (next.size < MAX_HEATMAP_SKILLS) next.add(name)
+      }
+      return next
+    })
+  }, [])
+
   const topCompanies = useMemo(() => {
     let list = analytics?.by_company ?? []
     if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
@@ -565,21 +616,23 @@ export default function IntelPage() {
     return map
   }, [skillQueries, topCompanies])
 
-  // User's own skills as heatmap columns; fall back to global aggregation for logged-out
+  // Heatmap columns = user-curated selection; falls back to auto top-8 before init, global for logged-out
   const heatmapSkills = useMemo(() => {
     if (skillDemandData?.skills?.length) {
-      return skillDemandData.skills
+      const base = skillDemandData.skills
         .filter(s => s.weighted_demand > 0)
         .sort((a, b) => b.weighted_demand - a.weighted_demand)
-        .slice(0, 8)
-        .map(s => s.display_name)
+      if (selectedSkillNames.size > 0) {
+        return base.filter(s => selectedSkillNames.has(s.display_name)).map(s => s.display_name)
+      }
+      return base.slice(0, MAX_HEATMAP_SKILLS).map(s => s.display_name)
     }
     const freq: Record<string, number> = {}
     for (const skillList of Object.values(skillsMap)) {
       for (const s of skillList) freq[s.skill] = (freq[s.skill] || 0) + s.count
     }
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([sk]) => sk)
-  }, [skillDemandData, skillsMap])
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, MAX_HEATMAP_SKILLS).map(([sk]) => sk)
+  }, [skillDemandData, skillsMap, selectedSkillNames])
 
   // skill display_name → current_level map for column header pips
   const skillLevels = useMemo(() => {
@@ -627,12 +680,6 @@ export default function IntelPage() {
   })
 
   const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
-
-  const analyticsByCompany = useMemo(() => {
-    const m: Record<string, number> = {}
-    for (const c of analytics?.by_company ?? []) m[c.name] = c.count
-    return m
-  }, [analytics])
 
   const followMutation = useMutation({
     mutationFn: async ({ name, follow }: { name: string; follow: boolean }) => {
@@ -724,7 +771,12 @@ export default function IntelPage() {
             )}
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
               <TopMovers companies={moversCompanies} followedNames={followedNames} onToggleFollow={handleToggleFollow} />
-              <TrackedDigest followedNames={followedNames} analyticsByCompany={analyticsByCompany} isLoggedIn={!!token} />
+              <SkillSelectorPanel
+                skills={skillDemandData?.skills ?? []}
+                selectedNames={selectedSkillNames}
+                onToggle={handleToggleSkill}
+                isLoggedIn={!!token}
+              />
             </div>
           </>
         )}
