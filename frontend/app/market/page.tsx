@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
+import { IntelLoadingState } from "@/components/market/intel-loading-state"
+import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
 import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompaniesResponse } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -409,21 +411,44 @@ function TopMovers({ companies, followedNames, onToggleFollow }: {
   followedNames: string[]
   onToggleFollow: (name: string) => void
 }) {
+  const [search, setSearch] = useState("")
+
   const movers = useMemo(
-    () => companies.slice(0, 6).map(co => ({ ...co, ...fakeWeeklyDelta(co.name, co.count) })),
+    () => companies.map(co => ({ ...co, ...fakeWeeklyDelta(co.name, co.count) })),
     [companies]
   )
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? movers.filter(co => co.name.toLowerCase().includes(q)) : movers
+  }, [movers, search])
+
   return (
-    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px" }}>
-      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 4 }}>TOP MOVERS · 7D</div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        {movers.map((co, idx) => (
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
+          TOP MOVERS · 7D
+          <span style={{ marginLeft: 8, color: "var(--tm-text-faint)", fontWeight: 400 }}>{filtered.length}</span>
+        </div>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search…"
+          style={{
+            background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius-sm)", padding: "4px 10px",
+            fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)",
+            outline: "none", width: 120,
+          }}
+        />
+      </div>
+      <div style={{ overflowY: "auto", maxHeight: 400 }}>
+        {filtered.map((co, idx) => (
           <div
             key={co.name}
             style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "14px 0",
-              borderBottom: idx < movers.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+              borderBottom: idx < filtered.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
             }}
           >
             <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
@@ -441,6 +466,11 @@ function TopMovers({ companies, followedNames, onToggleFollow }: {
             <FollowStarBtn isFollowed={followedNames.includes(co.name)} onToggle={() => onToggleFollow(co.name)} />
           </div>
         ))}
+        {filtered.length === 0 && (
+          <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
+            No match
+          </div>
+        )}
       </div>
     </div>
   )
@@ -559,6 +589,7 @@ export default function IntelPage() {
 
   const [followedOnly, setFollowedOnly] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
+  const [loadingStep, setLoadingStep] = useState(0)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
@@ -571,6 +602,12 @@ export default function IntelPage() {
     queryFn: () => jobs.analytics(),
     staleTime: 7 * 24 * 60 * 60 * 1000,
   })
+
+  useEffect(() => {
+    if (!analyticsLoading && analytics) return
+    const id = setInterval(() => setLoadingStep(s => (s + 1) % MARKET_LOADING_STEPS.length), 1500)
+    return () => clearInterval(id)
+  }, [analyticsLoading, analytics])
 
   const { data: followedData } = useQuery({
     queryKey: ["followedCompanies", token],
@@ -744,7 +781,7 @@ export default function IntelPage() {
   const moversCompanies = useMemo(() => {
     let list = analytics?.by_company ?? []
     if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
-    return list.slice(0, 6)
+    return list
   }, [analytics, followedOnly, followedNames])
 
   return (
@@ -781,9 +818,7 @@ export default function IntelPage() {
         </div>
 
         {analyticsLoading || !analytics ? (
-          <div style={{ marginTop: 48, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 13 }}>
-            Loading market data...
-          </div>
+          <IntelLoadingState message={MARKET_LOADING_STEPS[loadingStep]} />
         ) : (
           <>
             <PulseStrip analytics={analytics} followedCount={followedNames.length} />

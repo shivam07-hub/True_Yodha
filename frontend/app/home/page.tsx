@@ -126,6 +126,14 @@ function HomePageInner() {
   const saveEntry = useMutation({ mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) => diary.createEntry(token!, text, undefined, cart.map(s => ({ ...s }))), onSuccess: () => { addBalance(30); clearCart(); showToast("+30 XP · entry logged"); queryClient.invalidateQueries({ queryKey: dataKeys.diary() }); queryClient.invalidateQueries({ queryKey: dataKeys.scores() }) } })
   const updateStatus = useMutation({ mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) => jobs.updateApplication(token!, jobId, { status }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: dataKeys.applications() }) } })
   const removeSelfFocus = useMutation({ mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId), onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }) })
+  const [analysingJobId, setAnalysingJobId] = useState<string | null>(null)
+  const analyseMutation = useMutation({
+    mutationFn: (jobId: string) => jobs.analyseJob(token!, jobId),
+    onMutate: (jobId) => setAnalysingJobId(jobId),
+    onSettled: () => setAnalysingJobId(null),
+    onSuccess: (data) => { setXPBalance(data.new_xp_balance); showToast(`Analysed · ${data.overlap_score}% match · −50 XP`) },
+    onError: () => showToast("Not enough XP — forge a session to earn more"),
+  })
   const saveMilestoneProof = useMutation({ mutationFn: ({ jobId, milestoneId, proof }: { jobId: string; milestoneId: string; proof: string }) => jobs.updateMilestone(token!, jobId, milestoneId, { proof, confidence: confidence / 5, completed: true }), onSuccess: (_data, variables) => { setProofText(""); invalidateJobPathData(queryClient, variables.jobId) } })
   const generateJobCv = useMutation({ mutationFn: ({ aiPolish }: { aiPolish: boolean }) => jobs.generateJobCv(token!, activeJob!.job_id, aiPolish), onSuccess: () => invalidateJobPathData(queryClient, activeJob!.job_id) })
 
@@ -216,7 +224,21 @@ function HomePageInner() {
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
                   {a.company ?? a.title}
                 </span>
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", opacity: 0.6 }}>· Analyse → 50 XP</span>
+                <button
+                  onClick={() => analyseMutation.mutate(a.job_id)}
+                  disabled={analysingJobId === a.job_id}
+                  title="Run skill gap analysis (−50 XP)"
+                  style={{
+                    display: "inline-flex", alignItems: "center",
+                    fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
+                    padding: "2px 8px", borderRadius: 99, cursor: analysingJobId === a.job_id ? "default" : "pointer",
+                    background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent)",
+                    color: "var(--tm-accent)", transition: "opacity 120ms ease",
+                    opacity: analysingJobId === a.job_id ? 0.5 : 1,
+                  }}
+                >
+                  {analysingJobId === a.job_id ? "…" : "Analyse → 50 XP"}
+                </button>
                 <button
                   onClick={() => removeSelfFocus.mutate(a.job_id)}
                   title="Remove"

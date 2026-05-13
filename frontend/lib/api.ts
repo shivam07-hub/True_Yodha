@@ -852,6 +852,11 @@ export const jobs = {
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  analyseJob: (token: string, jobId: string) =>
+    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_xp_balance: number }>(
+      `/jobs/analyse/${jobId}`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
   path: (token: string, jobId: string) =>
     request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/path`, {
       headers: { Authorization: `Bearer ${token}` },
