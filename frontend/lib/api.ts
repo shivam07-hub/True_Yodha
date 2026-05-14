@@ -302,7 +302,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   followCompany: (token: string, companyName: string) =>
-    request<{ company_name: string }>("/users/me/following/companies", {
+    request<{ company_name: string; new_xp_balance: number | null }>("/users/me/following/companies", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ company_name: companyName }),
@@ -785,6 +785,10 @@ export const jobs = {
       companies: companies.join(","),
       skills: skills.join(","),
     })
+    return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
+  },
+  skillHeatmapRow: (company: string, skills: string[]) => {
+    const params = new URLSearchParams({ companies: company, skills: skills.join(",") })
     return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
   analyticsEntitySkills: (

@@ -81,3 +81,18 @@ async def spend_xp(user_id: str, amount: int, action: str) -> int:
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
     return new_balance
+
+
+async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int = -30) -> int:
+    """Deduct XP allowing balance down to `floor`. Raises 400 if floor would be breached."""
+    admin = get_supabase_admin()
+    current = await get_xp_balance(user_id)
+    new_balance = current - amount
+    if new_balance < floor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"XP floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
+        )
+    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
+    return new_balance

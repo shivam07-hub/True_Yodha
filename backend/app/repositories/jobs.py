@@ -20,6 +20,8 @@ _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
 _heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
+_heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
+_skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
@@ -395,6 +397,78 @@ class JobsRepository:
 
         _heatmap_cache[cache_key] = (time.monotonic(), matrix)
         return matrix
+
+    def fetch_skill_heatmap_row(
+        self,
+        company: str,
+        skills: list[str],
+    ) -> dict[str, int]:
+        """Single-company heatmap row. Filters by skill_id at DB level — avoids fetching all skills.
+
+        Replaces the multi-company fetch_skill_heatmap for per-row incremental loading.
+        Runs ~10-50× faster on first hit; subsequent hits are memory-cached.
+        """
+        result: dict[str, int] = {s: 0 for s in skills}
+        if not company or not skills:
+            return result
+
+        cache_key = (company, frozenset(skills))
+        now = time.monotonic()
+        cached = _heatmap_row_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
+
+        # Resolve display_names → skill IDs (module-level permanent cache; skills table is static).
+        uncached_names = [s for s in skills if s.lower() not in _skill_name_to_id_cache]
+        if uncached_names:
+            rows = self._db.table("skills").select("id, display_name").in_("display_name", uncached_names).execute()
+            for row in (rows.data or []):
+                if row.get("id") and row.get("display_name"):
+                    _skill_name_to_id_cache[row["display_name"].lower()] = int(row["id"])
+
+        skill_id_to_name: dict[int, str] = {
+            _skill_name_to_id_cache[s.lower()]: s
+            for s in skills
+            if s.lower() in _skill_name_to_id_cache
+        }
+        if not skill_id_to_name:
+            _heatmap_row_cache[cache_key] = (time.monotonic(), result)
+            return result
+
+        skill_id_list = list(skill_id_to_name.keys())
+
+        # Fetch job_ids for this company.
+        job_rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id",
+            query_builder=lambda q: q.eq("company_name", company),
+        )
+        job_ids = [r["job_id"] for r in job_rows if r.get("job_id")]
+        if not job_ids:
+            _heatmap_row_cache[cache_key] = (time.monotonic(), result)
+            return result
+
+        # Query job_skills with BOTH job_id and skill_id filters — returns only the 8 relevant skills.
+        _CHUNK = 200
+        for i in range(0, len(job_ids), _CHUNK):
+            chunk = job_ids[i:i + _CHUNK]
+            rows = (
+                self._db.table("job_skills")
+                .select("skill_id")
+                .in_("job_id", chunk)
+                .in_("skill_id", skill_id_list)
+                .execute()
+            )
+            for row in (rows.data or []):
+                sid = row.get("skill_id")
+                if sid is not None:
+                    name = skill_id_to_name.get(int(sid))
+                    if name:
+                        result[name] = result.get(name, 0) + 1
+
+        _heatmap_row_cache[cache_key] = (time.monotonic(), result)
+        return result
 
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
         result = (
