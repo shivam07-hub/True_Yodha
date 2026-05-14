@@ -105,6 +105,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | XP1 | XP is permanent — never resets. Wallet the user owns forever. |
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
+| PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
 
 ---
 
