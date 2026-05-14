@@ -288,7 +288,6 @@ function SkillHeatmap({
   rowDataMap,
   skills,
   skillLevels,
-  followedNames,
   selectedCell,
   onCellSelect,
 }: {
@@ -296,7 +295,6 @@ function SkillHeatmap({
   rowDataMap: Record<string, Record<string, number> | null>
   skills: string[]
   skillLevels: Record<string, number>
-  followedNames: string[]
   selectedCell: { ci: number; si: number } | null
   onCellSelect: (ci: number, si: number) => void
 }) {
@@ -807,7 +805,6 @@ export default function IntelPage() {
           rowDataMap={rowDataMap}
           skills={heatmapSkills}
           skillLevels={skillLevels}
-          followedNames={followedNames}
           selectedCell={selectedCell}
           onCellSelect={handleCellSelect}
         />
