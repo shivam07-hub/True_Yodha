@@ -20,15 +20,59 @@ function extractError(body: unknown, status: number): string {
   return `HTTP ${status}`
 }
 
-// Deduplicates concurrent refresh calls — Supabase rotates refresh tokens on each
-// use, so parallel 401s must share one refresh or the second invalidates the first.
+// Deduplicates concurrent refresh calls within a tab — Supabase rotates refresh
+// tokens on each use, so parallel 401s must share one refresh or the second
+// invalidates the first.
 let _refreshInFlight: Promise<string | null> | null = null
+
+// Cross-tab lock: prevents multiple tabs from racing to call /auth/refresh.
+// Key must stay in sync with ACCESS_TOKEN_KEY in lib/session.ts.
+const _CROSS_TAB_LOCK_KEY = "mirror_refresh_lock"
+const _ACCESS_TOKEN_STORAGE_KEY = "mirror_token"
+const _LOCK_TTL = 6000 // ms — must exceed worst-case refresh round-trip
+
+function _acquireRefreshLock(): boolean {
+  try {
+    const val = window.localStorage.getItem(_CROSS_TAB_LOCK_KEY)
+    if (val && Date.now() - parseInt(val, 10) < _LOCK_TTL) return false
+    window.localStorage.setItem(_CROSS_TAB_LOCK_KEY, String(Date.now()))
+    return true
+  } catch {
+    return true
+  }
+}
+
+function _releaseRefreshLock(): void {
+  try { window.localStorage.removeItem(_CROSS_TAB_LOCK_KEY) } catch {}
+}
+
+// Waits for another tab to write a fresh access token to localStorage.
+function _waitForCrossTabToken(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === _ACCESS_TOKEN_STORAGE_KEY && e.newValue) {
+        window.removeEventListener("storage", handler)
+        clearTimeout(timer)
+        resolve(e.newValue)
+      }
+    }
+    const timer = setTimeout(() => {
+      window.removeEventListener("storage", handler)
+      resolve(null)
+    }, _LOCK_TTL)
+    window.addEventListener("storage", handler)
+  })
+}
 
 async function tryRefreshToken(): Promise<string | null> {
   if (typeof window === "undefined") return null
   if (_refreshInFlight) return _refreshInFlight
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
+
+  // Another tab already holds the lock — wait for it to write the new token.
+  if (!_acquireRefreshLock()) return _waitForCrossTabToken()
+
   _refreshInFlight = (async () => {
     try {
       const res = await fetch(`${BASE}/auth/refresh`, {
@@ -44,6 +88,7 @@ async function tryRefreshToken(): Promise<string | null> {
     } catch {
       return null
     } finally {
+      _releaseRefreshLock()
       _refreshInFlight = null
     }
   })()
