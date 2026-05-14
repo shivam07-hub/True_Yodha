@@ -95,6 +95,20 @@ async def update_application(
     return to_application(data)
 
 
+@router.post("/save/{job_id}", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
+async def save_discovered_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> ApplicationResponse:
+    user_id = current_user["user_id"]
+    repo.upsert_application(user_id, job_id, {"status": "pending", "source": "user_discovery"})
+    data = repo.get_application_with_job(user_id, job_id)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+    return to_application(data)
+
+
 @router.delete("/tracker/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_tracker_job(
     job_id: str,

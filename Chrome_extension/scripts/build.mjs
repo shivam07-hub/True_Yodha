@@ -12,4 +12,4 @@ await cp(join(root, "public"), dist, { recursive: true })
 await cp(join(root, "src"), join(dist, "src"), { recursive: true })
 await cp(join(root, "src", "styles.css"), join(dist, "styles.css"))
 
-console.log("Mirko extension built in extension/dist")
+console.log("Myro extension built in Chrome_extension/dist")

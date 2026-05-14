@@ -20,26 +20,13 @@ async def get_skill_gap(
     user_skill_map = repo.get_user_skill_map(current_user["user_id"])
 
     gap_items: list[SkillGapItem] = []
-    for skill in job.get("main_skills") or []:
-        key = skill.strip()
-        if not key:
-            continue
+    for skill in job.get("skills") or []:
+        key = skill["taxonomy_key"]
+        is_primary = skill["is_primary"]
         user_level = user_skill_map.get(key.lower()) or 0
-        # required_level: use job_skills.required_level when scraper populates it; heuristic until then
-        required_level = 4
+        required_level = skill["required_level"]
         gap_items.append(SkillGapItem(
-            skill=key, is_primary=True,
-            user_level=user_level, required_level=required_level,
-            missing=user_level < required_level,
-        ))
-    for skill in job.get("side_skills") or []:
-        key = skill.strip()
-        if not key:
-            continue
-        user_level = user_skill_map.get(key.lower()) or 0
-        required_level = 2
-        gap_items.append(SkillGapItem(
-            skill=key, is_primary=False,
+            skill=key, is_primary=is_primary,
             user_level=user_level, required_level=required_level,
             missing=user_level < required_level,
         ))

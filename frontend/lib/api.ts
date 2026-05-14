@@ -525,6 +525,7 @@ export interface ApplicationResponse {
   company: string | null
   job_description?: string | null
   status: ApplicationStatus
+  source: string
   applied_at: string | null
   response_at: string | null
   checkin_sent_at: string | null
@@ -645,6 +646,10 @@ export interface EntitySkillsData {
   skills: SkillCountItem[]
 }
 
+export interface SkillHeatmapData {
+  matrix: Record<string, Record<string, number>>
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -729,6 +734,13 @@ export const jobs = {
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  skillHeatmap: (companies: string[], skills: string[]) => {
+    const params = new URLSearchParams({
+      companies: companies.join(","),
+      skills: skills.join(","),
+    })
+    return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
   analyticsEntitySkills: (
     entity: string,
@@ -816,6 +828,11 @@ export const jobs = {
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  saveJob: (token: string, jobId: string) =>
+    request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   updateApplication: (
     token: string,
     jobId: string,
@@ -835,6 +852,11 @@ export const jobs = {
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  analyseJob: (token: string, jobId: string) =>
+    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_xp_balance: number }>(
+      `/jobs/analyse/${jobId}`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
   path: (token: string, jobId: string) =>
     request<JobPathResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/path`, {
       headers: { Authorization: `Bearer ${token}` },

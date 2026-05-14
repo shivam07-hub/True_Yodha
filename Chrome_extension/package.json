@@ -1,10 +1,11 @@
 {
-  "name": "mirko-extension",
+  "name": "myro-extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "package": "npm run build && cd dist && zip -qr ../myro-extension.zip ."
   }
 }

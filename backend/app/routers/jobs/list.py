@@ -11,7 +11,7 @@ from app.schemas import (
     NameCountItem,
     SkillCountItem,
 )
-from app.schemas.jobs import JobSearchItem
+from app.schemas.jobs import JobSearchItem, SkillHeatmapResponse
 
 router = APIRouter()
 
@@ -57,6 +57,18 @@ async def get_my_analytics(
         by_location_country=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_country"]],
         by_location_mode=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_mode"]],
     )
+
+
+@router.get("/analytics/skill-heatmap", response_model=SkillHeatmapResponse)
+async def get_skill_heatmap(
+    companies: Annotated[str, Query(min_length=1)],
+    skills: Annotated[str, Query(min_length=1)],
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> SkillHeatmapResponse:
+    company_list = [c.strip() for c in companies.split(",") if c.strip()]
+    skill_list = [s.strip() for s in skills.split(",") if s.strip()]
+    matrix = repo.fetch_skill_heatmap(company_list, skill_list)
+    return SkillHeatmapResponse(matrix=matrix)
 
 
 @router.get("/analytics/skills", response_model=EntitySkillsResponse)

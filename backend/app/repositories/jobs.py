@@ -16,8 +16,11 @@ from app.services.location_normalizer import normalize_location
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
+_SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
+_heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
+_search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _feed_ts_cache: tuple[float, str | None] = (0.0, None)
@@ -340,6 +343,59 @@ class JobsRepository:
         _entity_skills_cache[cache_key] = (now, result)
         return result
 
+    def fetch_skill_heatmap(
+        self,
+        companies: list[str],
+        skills: list[str],
+    ) -> dict[str, dict[str, int]]:
+        """Return exact job counts for (company × skill) intersections.
+
+        Bypasses ENTITY_SKILL_LIMIT so niche user skills are not dropped.
+        """
+        matrix: dict[str, dict[str, int]] = {c: {s: 0 for s in skills} for c in companies}
+        if not companies or not skills:
+            return matrix
+
+        cache_key = (frozenset(companies), frozenset(skills))
+        now = time.monotonic()
+        cached = _heatmap_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
+            return cached[1]
+
+        job_rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, company_name",
+            query_builder=lambda q: q.in_("company_name", companies),
+        )
+        job_company: dict[str, str] = {
+            r["job_id"]: r["company_name"]
+            for r in job_rows
+            if r.get("job_id") and r.get("company_name")
+        }
+        if not job_company:
+            return matrix
+
+        skill_rows = fetch_job_skill_rows_for_ids(
+            self._db,
+            list(job_company.keys()),
+            columns="job_id, skills(taxonomy_key, display_name)",
+        )
+        skill_lower_map = {s.strip().lower(): s for s in skills}
+        for row in skill_rows:
+            job_id = row.get("job_id")
+            skill_data = row.get("skills") or {}
+            company = job_company.get(job_id)
+            if not company:
+                continue
+            key = (skill_data.get("display_name") or skill_data.get("taxonomy_key") or "").strip().lower()
+            canonical = skill_lower_map.get(key)
+            if canonical:
+                matrix[company][canonical] += 1
+
+        _heatmap_cache[cache_key] = (time.monotonic(), matrix)
+        return matrix
+
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
         result = (
             self._db.table("jobs")
@@ -375,6 +431,12 @@ class JobsRepository:
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
         skill_lower = skill.strip().lower()
+
+        cache_key = (company, skill_lower, role_domain, location_city, location_country, location_mode, scoped_page, scoped_page_size)
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _SEARCH_TTL:
+            return cached[1]
 
         def _query_builder(query: Any) -> Any:
             query = query.eq("company_name", company)
@@ -442,7 +504,7 @@ class JobsRepository:
         page_rows = filtered_rows[start:end] if start < available_total else []
         returned_total = len(page_rows)
 
-        return {
+        result = {
             "rows": page_rows,
             "available_total": available_total,
             "returned_total": returned_total,
@@ -450,6 +512,8 @@ class JobsRepository:
             "page_size": scoped_page_size,
             "has_next_page": (start + returned_total) < available_total,
         }
+        _search_cache[cache_key] = (time.monotonic(), result)
+        return result
 
     # ── user skills / demand ───────────────────────────────────────────────────
 
@@ -681,6 +745,12 @@ class JobsRepository:
                 _hydrate_location_fields(row["jobs"])
         return rows
 
+    def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
+        self._admin_db.table("user_job_matches").upsert(
+            {"user_id": user_id, "job_id": job_id, **data},
+            on_conflict="user_id,job_id,batch_week",
+        ).execute()
+
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:
         result = (
             self._db.table("user_skills")
@@ -760,19 +830,21 @@ class JobsRepository:
 
         rows = (
             self._admin_db.table("job_skills")
-            .select("is_primary, skills(taxonomy_key)")
+            .select("is_primary, required_level, skills(taxonomy_key)")
             .eq("job_id", job_id)
             .execute()
         ).data or []
 
-        main_skills, side_skills = [], []
+        skills: list[dict[str, Any]] = []
         for row in rows:
             key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
             if not key:
                 continue
-            (main_skills if row.get("is_primary") else side_skills).append(key)
+            is_primary = bool(row.get("is_primary"))
+            required_level = row.get("required_level") or (4 if is_primary else 2)
+            skills.append({"taxonomy_key": key, "is_primary": is_primary, "required_level": required_level})
 
-        return {**meta.data, "main_skills": main_skills, "side_skills": side_skills}
+        return {**meta.data, "skills": skills}
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

@@ -131,41 +131,125 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
 2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
+3. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+4. **Intel page — job analytics loading screen** — while mySkillDemand + heatmap load, show step-by-step progress states ("loading market data → mapping your skills → building heatmap") instead of blank spinner.
+5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
+6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
+7. **Intel page — TopMovers: all companies** — show all 145 companies in descending order (not just top 6), scrollable list, ★ follow on every row, search input. Zero new API calls (all data in `analytics.by_company`).
+
+8. **Process Transparency Layer** — Company review system. Full plan below.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
+**Shareability / Social — Phased:**
+- **v1 (next):** Public profile page (`/profile/{token}`) — live Mirror Score + blurred domain breakdown. Invitation-first (viewer prompted to get their own score). Job co-tracking: two users targeting same job/company see each other's readiness % → accountability loop. Reuses `job_applications` data.
+- **v2:** Skill peer matching — suggest users with complementary skill gaps (strong where you're weak).
+- **v3:** Mentor/mentee — higher Mirror Score users visible to lower-score users in same domain.
+
+**Defer to v3 — Mobile (Play Store):**
+- Extract `lib/api.ts` + `lib/session.ts` into platform-agnostic `packages/api-client/` (inject AsyncStorage adapter for RN, localStorage adapter for web)
+- Add `/v1/` prefix to all backend routes before mobile launch (versioning contract)
+- Mobile auth via Supabase React Native SDK (same backend, AsyncStorage token storage)
+- `device_tokens` table (user_id, fcm_token, platform) + `/push/register` endpoint → FCM/APNs for diary reminders + score update push notifications
+- React Native app (Expo) targets Android Play Store first, iOS second
+- Prerequisite: shareability (public profiles) must ship before mobile — it's the referral hook
+
 ---
 
-## LAST SESSION SUMMARY (2026-05-10)
+## PROCESS TRANSPARENCY LAYER — PLAN (2026-05-14)
+
+### Vision
+Myro becomes the verified source of truth for *candidate experience* — not "is this a good company to work at" (Glassdoor) but "is this company worth applying to." Reviews tied to verified `job_applications` rows. Company pages public + SEO-indexed once ≥1 review exists.
+
+### Funnel-First Build Order
+Build in engagement depth order — start where we already have data:
+
+1. **Company follower base** — `followed_companies` already exists. Surface how many users follow each company. This is the top of the funnel and requires zero new data.
+2. **Saved jobs with match + analysis** — users who have saved a job (`job_applications.status = 'pending'`) from a followed company. One step deeper — intent signal.
+3. **Active applications** — users progressing through the tracker (Applied → Screening → Interviewing → Final Round).
+4. **Completed applications** — terminal status (Ghosted / Rejected / Offer / Withdrew) → review prompt fires.
+5. **Company page** — aggregates reviews. Public once ≥1 review exists.
+
+### Tracker Status Redesign
+Replace current flat list with stages + outcomes:
+
+**Stages (active progress):**
+- `Saved` — interested, not yet applied (was: Pending)
+- `Applied` — submitted, awaiting response
+- `Screening` — HR / phone screen stage (was: Responded)
+- `Interviewing` — technical or panel rounds
+- `Final Round` — late stage, decision imminent *(new)*
+
+**Outcomes (terminal):**
+- `Ghosted` — company went silent (was: No response)
+- `Rejected` — formal rejection received
+- `Offer` 🎉 — offer received
+- `Withdrew` — user chose to exit (was: Abandoned)
+
+### 7-Day Inactivity Prompt
+- Trigger: application stuck in any Stage (not Outcome) for 7 days, per company per application
+- Prompt text: *"Been 7 days since we last heard from [company]"*
+- Options: **Ghosted me** (marks Ghosted → opens review flow) | **Update tracker** (opens status picker → if terminal, review flow follows)
+- Any status touch resets the 7-day clock for that application
+
+### Review Structure
+- Star rating (1–5)
+- Last stage — pre-filled from application data, user can correct
+- Written note — optional free text
+- One review per `job_applications` row (verified)
+
+### Company Page (`/companies/[slug]`)
+- Public + SEO-indexed only when ≥1 verified review exists
+- Shows: avg star rating, review count, ghost rate, stage-breakdown of drop-offs, individual reviews
+- Non-logged-in users can read; logged-in users can submit
+
+### DB — New Table
+```sql
+application_reviews (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users,
+  job_application_id UUID REFERENCES job_applications(id),
+  company_name TEXT NOT NULL,
+  star_rating SMALLINT CHECK (star_rating BETWEEN 1 AND 5),
+  last_stage TEXT NOT NULL,  -- one of the 5 stage values
+  outcome TEXT NOT NULL,     -- one of the 4 outcome values
+  written_note TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+)
+```
+
+---
+
+## LAST SESSION SUMMARY (2026-05-12)
 
 ```
-Design system foundations + CTA consolidation Phase 1A & 1B.
+Intel page — Skill Selector Panel + 4-layer perf fix (C1–C4).
 
-Shipped (committed to Develop):
-  - docs/DESIGN_CONSTITUTION.md, docs/UBIQUITOUS_LANGUAGE.md,
-    docs/CTA_DESIGN_SPEC.md
-  - Skills page: Domain Inspector moved between strip and canvas;
-    canvas dims non-selected domain nodes
-  - Button primitive rewritten (solid/outline/ghost/inline,
-    sm/md/lg/icon-sm/icon-md, loading prop, --tm-* tokens only)
-  - Phase 1A: 6 Upload-CV CTAs migrated to <Button>
-  - HomeColumns SkillGapCol → "Skills to build", filter changed
-    to user_level === 0 to remove duplication with matched panel;
-    color shifted from danger to warning amber
+Shipped to Develop:
+  - Backlog #5 DONE: TrackedDigest → SkillSelectorPanel. User toggles CV skills
+    as heatmap columns (max 8). Chips show L-level + 30d job count. "↗ Switch
+    to my CV skills" button appears until user opts in (see C4).
 
-Shipped (committed):
-  - Phase 1B: 26 remaining .tm-btn consumers migrated to <Button>
-    across forge-focus-overlay (8), cv/page (12), jobs/page (5),
-    market/page (1)
+  - C1 — Backend heatmap cache: _heatmap_cache dict added to
+    backend/app/repositories/jobs.py. Key=(frozenset(companies), frozenset(skills)),
+    TTL=7 days (_ANALYTICS_TTL). First load still 27-34s; subsequent loads ~200ms.
 
-Shipped this session (not yet committed):
-  - Phase 1C: deleted .tm-btn / .tm-btn-primary / .tm-btn-ghost /
-    .tm-btn-subtle from design-tokens.css. Tombstone comment left
-    in place to prevent reintroduction. Phase 1 of CTA
-    consolidation is now complete.
+  - C2 — Backend search cache: _search_cache dict added to same file.
+    Key=(company, skill, role_domain, location_*, page, page_size), TTL=1 day.
+    Repeat drill-down clicks on same cell → instant.
 
-Queued next:
-  - Phase 2: <Cta intent emphasis> wrapper on top of Button
-  - Skills page: rename activeDomain→selectedDomain (Option A)
-    or extract DomainStrip/DomainInspector (Option B)
+  - C3 — Optimistic follow mutation: followMutation now has onMutate that
+    immediately splices company into/out of queryClient cache. onError rolls back.
+    Star flips instantly — no 6-29s wait.
+
+  - C4 — Heatmap double-fire fix: introduced heatmapApplied state. Heatmap fires
+    ONCE at ~750ms with global top-8 skills (stable key). mySkillDemand arriving
+    at 6s no longer re-keys the query. Skill Lens shows user's CV skills; user
+    clicks "↗ Switch to my CV skills" to opt in → re-keys once (then cached).
+
+Open (next sessions):
+  - Backlog #4: Intel loading screen (step-by-step progress while heatmap loads)
+  - Backlog #6: PR2 — Run Analysis endpoint + XP deduction
+  - Backlog #7: TopMovers — all companies, scrollable, follow from list
+  - Backlog #3: user_job_matches design review (discuss with Shivam first)
 ```
