@@ -334,7 +334,6 @@ function HomePageInner() {
 
       {reviewJobId && (
         <ReviewModal
-          jobId={reviewJobId}
           company={apps.find(a => a.job_id === reviewJobId)?.company ?? null}
           onClose={() => setReviewJobId(null)}
           onSubmit={async (data) => { await jobs.submitReview(token!, reviewJobId, data); setReviewJobId(null); showToast("Review submitted") }}
