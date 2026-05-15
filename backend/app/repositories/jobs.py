@@ -889,6 +889,53 @@ class JobsRepository:
                 .execute()
             )
 
+    def get_stale_applications(self, user_id: str) -> list[dict[str, Any]]:
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        stages = ["saved", "applied", "screening", "interviewing", "final_round"]
+        result = (
+            self._db.table("job_applications")
+            .select("id, job_id, status, updated_at, jobs(job_title, company_name)")
+            .eq("user_id", user_id)
+            .in_("status", stages)
+            .lt("updated_at", cutoff)
+            .order("updated_at", desc=False)
+            .execute()
+        )
+        return result.data or []
+
+    def insert_application_review(
+        self,
+        *,
+        job_application_id: int,
+        user_id: str,
+        company_name: str,
+        star_rating: int,
+        last_stage: str,
+        outcome: str,
+        written_note: str | None,
+    ) -> dict[str, Any]:
+        try:
+            result = (
+                self._db.table("application_reviews")
+                .insert({
+                    "job_application_id": job_application_id,
+                    "user_id": user_id,
+                    "company_name": company_name,
+                    "star_rating": star_rating,
+                    "last_stage": last_stage,
+                    "outcome": outcome,
+                    "written_note": written_note,
+                })
+                .execute()
+            )
+        except Exception as exc:
+            if "unique" in str(exc).lower():
+                from fastapi import HTTPException
+                raise HTTPException(status_code=409, detail="Review already submitted for this application")
+            raise
+        return (result.data or [{}])[0]
+
     # ── skill gap ──────────────────────────────────────────────────────────────
 
     def get_job_skills(self, job_id: str) -> dict[str, Any] | None:

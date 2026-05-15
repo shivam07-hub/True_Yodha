@@ -2,11 +2,11 @@
   "version": "1.0",
   "notes": "Deterministic playbooks. No LLM by default. Triggered by application status + elapsed days. Each playbook has a short header, a checklist, and one next action.",
   "triggers": {
-    "no_response": "status == 'applied' AND days_since_applied >= 7 AND responded == false",
+    "no_response": "status == 'applied' AND days_since_applied >= 7",
     "rejection": "status == 'rejected'",
-    "interview": "status IN ('interviewing', 'interview_scheduled')",
+    "interview": "status IN ('interviewing', 'final_round')",
     "offer": "status == 'offer'",
-    "abandoned": "status == 'applied' AND days_since_applied >= 21 AND responded == false"
+    "abandoned": "status == 'applied' AND days_since_applied >= 21"
   },
   "playbooks": {
     "no_response": {
@@ -80,7 +80,7 @@
       ],
       "next_action": {
         "label": "Close and redirect",
-        "updates": { "status": "abandoned", "closed_at": "now" }
+        "updates": { "status": "withdrew", "closed_at": "now" }
       },
       "tone": "direct"
     }

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
+    APPLICATION_STATUSES,
     ApplicationResponse,
     ApplicationStatusUpdate,
     JobImportPreviewRequest,
@@ -58,34 +59,25 @@ async def update_application(
     current_user: dict = Depends(get_current_user),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
-    valid_statuses = {
-        "pending",
-        "applied",
-        "no_response",
-        "responded",
-        "interviewing",
-        "rejected",
-        "offer",
-        "abandoned",
-    }
-    if body.status not in valid_statuses:
+    if body.status not in APPLICATION_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {body.status}")
 
+    now = datetime.now(timezone.utc).isoformat()
     updates: dict = {"status": body.status}
     if body.notes is not None:
         updates["notes"] = body.notes
     if body.company_response is not None:
         updates["company_response"] = body.company_response
     if body.status == "applied":
-        updates["applied_at"] = datetime.now(timezone.utc).isoformat()
-    if body.status in {"responded", "interviewing", "rejected", "offer"}:
-        updates["response_at"] = datetime.now(timezone.utc).isoformat()
+        updates["applied_at"] = now
+    if body.status in {"screening", "interviewing", "final_round", "rejected", "offer"}:
+        updates["response_at"] = now
     if body.status == "offer":
-        updates["offer_received_at"] = datetime.now(timezone.utc).isoformat()
-    if body.status == "abandoned":
-        updates["closed_at"] = datetime.now(timezone.utc).isoformat()
+        updates["offer_received_at"] = now
+    if body.status in {"ghosted", "withdrew"}:
+        updates["closed_at"] = now
     if body.followed_up:
-        updates["followed_up_at"] = datetime.now(timezone.utc).isoformat()
+        updates["followed_up_at"] = now
 
     user_id = current_user["user_id"]
     repo.upsert_application(user_id, job_id, updates)
@@ -102,7 +94,7 @@ async def save_discovered_job(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     user_id = current_user["user_id"]
-    repo.upsert_application(user_id, job_id, {"status": "pending", "source": "user_discovery"})
+    repo.upsert_application(user_id, job_id, {"status": "saved", "source": "user_discovery"})
     data = repo.get_application_with_job(user_id, job_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")

@@ -74,11 +74,59 @@ class JobMatchesResponse(BaseModel):
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
 
 
+APPLICATION_STAGES = {"saved", "applied", "screening", "interviewing", "final_round"}
+APPLICATION_OUTCOMES = {"ghosted", "rejected", "offer", "withdrew"}
+APPLICATION_STATUSES = APPLICATION_STAGES | APPLICATION_OUTCOMES
+
+
 class ApplicationStatusUpdate(BaseModel):
-    status: str     # pending | applied | no_response | responded | interviewing | rejected | offer | abandoned
+    status: str     # saved | applied | screening | interviewing | final_round | ghosted | rejected | offer | withdrew
     notes: str | None = None
     company_response: str | None = None
     followed_up: bool | None = None
+
+
+class ApplicationReviewRequest(BaseModel):
+    star_rating: int            # 1–5
+    last_stage: str             # one of APPLICATION_STAGES
+    written_note: str | None = None
+
+
+class ApplicationReviewResponse(BaseModel):
+    id: str
+    job_application_id: int
+    company_name: str
+    star_rating: int
+    last_stage: str
+    outcome: str
+    written_note: str | None
+    created_at: datetime
+
+
+class StaleApplicationItem(BaseModel):
+    id: int
+    job_id: str
+    title: str
+    company: str | None
+    status: str
+    updated_at: datetime | None
+
+
+class CompanyReviewItem(BaseModel):
+    star_rating: int
+    last_stage: str
+    outcome: str
+    written_note: str | None
+    created_at: datetime
+
+
+class CompanyPageResponse(BaseModel):
+    company_name: str
+    avg_star_rating: float | None
+    review_count: int
+    ghost_rate: float | None        # 0.0–1.0, None if no reviews
+    stage_breakdown: dict[str, int]  # last_stage → count
+    reviews: list[CompanyReviewItem]
 
 
 class ComputeJobMatchesResponse(BaseModel):
