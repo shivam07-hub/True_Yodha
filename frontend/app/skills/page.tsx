@@ -5,7 +5,8 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
-import { OrganicSkillGraph } from "@/components/skills/organic-skill-graph"
+import { SkillNodeMap } from "@/components/skills/skill-node-map"
+import { ParticleLoading } from "@/components/ui/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
@@ -178,9 +179,7 @@ export default function SkillsPage() {
         */}
         <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden", position: "relative", zIndex: 1 }}>
           {skillsLoading ? (
-            <div style={{ height: 560, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--tm-text-faint)", fontSize: 14 }}>
-              Loading your skill constellation…
-            </div>
+            <ParticleLoading message="Loading your skill constellation…" height={560} />
           ) : totalSkills === 0 ? (
             <div style={{ height: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
               <div style={{ fontSize: 40 }}>⬡</div>
@@ -192,7 +191,12 @@ export default function SkillsPage() {
             </div>
           ) : view === "tree" ? (
             <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
-              <OrganicSkillGraph userSkills={skills} gapSkills={scoreData?.gap_skills ?? []} selectedDomain={activeDomain} />
+              <SkillNodeMap
+                userSkills={skills}
+                gapSkills={scoreData?.gap_skills ?? []}
+                selectedDomain={activeDomain}
+                onDomainClick={d => setActiveDomain(a => a === d ? null : d)}
+              />
             </div>
           ) : (
             <div style={{ padding: "28px 32px" }}>

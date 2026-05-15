@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
 import type { CompanyPage, CompanyReviewItem } from "@/lib/api"
+import { ParticleLoading } from "@/components/ui/particle-loading"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -171,8 +172,8 @@ export default function CompanyPageRoute() {
 
   if (isLoading) {
     return (
-      <div style={{ minHeight: "100vh", background: "var(--tm-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.1em", animation: "pulse 1.4s ease infinite" }}>LOADING</div>
+      <div style={{ minHeight: "100vh", background: "var(--tm-bg)" }}>
+        <ParticleLoading message="Loading company intelligence…" height={600} />
       </div>
     )
   }
