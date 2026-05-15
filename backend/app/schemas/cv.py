@@ -36,6 +36,7 @@ class CVGenerateDraftResponse(BaseModel):
     cv_text: str
     evidence_count: int
     score_delta: float | None
+    new_xp_balance: int | None = None
 
 
 class CVSaveDraftRequest(BaseModel):

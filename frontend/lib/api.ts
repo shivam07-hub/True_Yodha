@@ -369,6 +369,7 @@ export interface CVGenerateDraftResponse {
   cv_text: string
   evidence_count: number
   score_delta: number | null
+  new_xp_balance: number | null
 }
 
 export const cv = {
@@ -391,6 +392,18 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ cv_text: cvText }),
     }),
+  downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/download-pdf`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ cv_text: cvText }),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "PDF generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
 }
 
 export async function uploadCVText(token: string, text: string): Promise<CVUploadResponse> {

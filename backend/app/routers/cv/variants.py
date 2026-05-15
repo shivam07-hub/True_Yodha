@@ -11,6 +11,9 @@ from app.schemas import (
     CVSaveDraftRequest,
 )
 from app.services import cv_builder
+from app.services.xp_service import spend_xp
+
+_GENERATE_DRAFT_XP_COST = 50
 
 router = APIRouter()
 
@@ -34,12 +37,11 @@ async def generate_next_cv_draft(
     if not baseline_text:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload a baseline CV first.")
 
+    # Deduct XP before generation — raises 402 if insufficient
+    new_xp_balance = await spend_xp(user_id, _GENERATE_DRAFT_XP_COST, "generate_cv_draft")
+
+    # Include all available evidence regardless of count — XP is the gate now
     summary = _build_evidence_summary(cv_repo, user_id)
-    if not summary.eligible:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Complete {summary.required_count} milestone days before generating the next CV draft.",
-        )
 
     cv_text = cv_builder.build_cv_draft(
         baseline_text=baseline_text,
@@ -73,6 +75,7 @@ async def generate_next_cv_draft(
         cv_text=cv_text,
         evidence_count=summary.evidence_count,
         score_delta=summary.score_delta,
+        new_xp_balance=new_xp_balance,
     )
 
 

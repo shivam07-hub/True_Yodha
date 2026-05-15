@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import Script from "next/script"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
@@ -40,54 +39,6 @@ const LEVEL_TITLES: Record<number, string> = {
   1: "Scout", 2: "Trailblazer", 3: "Excavator", 4: "Cartographer", 5: "Legend",
 }
 
-function extractPuterDraftText(response: unknown): string {
-  if (typeof response === "string") return response.trim()
-  if (!response || typeof response !== "object") return ""
-  const responseRecord = response as Record<string, unknown>
-  if (typeof responseRecord.message === "string") return responseRecord.message.trim()
-  const message = responseRecord.message
-  if (message && typeof message === "object") {
-    const messageContent = (message as Record<string, unknown>).content
-    if (typeof messageContent === "string") return messageContent.trim()
-  }
-  return ""
-}
-
-function buildPuterDraftPrompt(
-  baselineText: string,
-  evidence: Array<{ skill: string; task: string; proof: string; impact: string; date: string; confidence: number }>,
-  versionNumber: number,
-  scoreDelta: number | null,
-): string {
-  const evidenceBlock = evidence.map((item, index) => (
-    `${index + 1}. Date: ${item.date}
-Skill: ${item.skill}
-Task: ${item.task || "Not provided"}
-Proof: ${item.proof || "Not provided"}
-Impact: ${item.impact || "Not provided"}
-Confidence: ${item.confidence}`
-  )).join("\n\n")
-  const scoreLine = scoreDelta == null ? "Not available" : `${scoreDelta >= 0 ? "+" : ""}${scoreDelta.toFixed(1)}`
-
-  return `You are an expert CV strategist helping a user produce CV Draft v${versionNumber}.
-
-You must follow these rules strictly:
-1. Use only facts from the baseline CV and evidence list below.
-2. Do not invent employers, dates, projects, tools, metrics, or outcomes.
-3. Keep the output in plain text CV format. No markdown fences.
-4. Preserve strong baseline content and integrate new evidence naturally into relevant sections.
-5. Add quantified outcome language only when it is present in the evidence.
-
-Score movement since last CV: ${scoreLine}
-
-Evidence since last CV:
-${evidenceBlock || "No evidence provided"}
-
-Baseline CV:
-${baselineText}
-
-Return only the updated CV draft text.`
-}
 
 function howToLevelUp(skillName: string, currentLevel: number): string {
   switch (currentLevel) {
@@ -495,6 +446,7 @@ export default function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const router = useRouter()
+  const { setBalance: setXPBalance } = useXPStore()
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -504,9 +456,6 @@ export default function CVPage() {
   const [draftStage, setDraftStage] = useState<"guide" | "generating" | "review">("guide")
   const [draftText, setDraftText] = useState("")
   const [draftFlowError, setDraftFlowError] = useState<string | null>(null)
-  const [isGeneratingWithPuter, setIsGeneratingWithPuter] = useState(false)
-  const [isPuterReady, setIsPuterReady] = useState(false)
-  const [isPuterSignedIn, setIsPuterSignedIn] = useState<boolean | null>(null)
   const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft" | "skill-audit">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
   const [hoveredSkill, setHoveredSkill] = useState<UserSkillItem | null>(null)
@@ -607,68 +556,43 @@ export default function CVPage() {
     onError: (err) => setError(err instanceof Error ? err.message : "Could not generate job CV"),
   })
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (!window.puter) return
-    setIsPuterReady(true)
-    try {
-      setIsPuterSignedIn(window.puter.auth.isSignedIn())
-    } catch {
-      setIsPuterSignedIn(null)
-    }
-  }, [showDraftGuide])
-
   function resetDraftFlow() {
     setDraftStage("guide")
     setDraftText("")
     setDraftFlowError(null)
   }
 
-  async function handleGenerateWithPuter() {
-    if (!token) return
-    if (!evidenceData?.eligible) {
-      setDraftFlowError(`Complete ${evidenceData?.required_count ?? 7} milestone days before generating the next draft.`)
-      return
-    }
-    const baselineText = (cvProfile?.cv_raw_text ?? "").trim()
-    if (!baselineText) {
-      setDraftFlowError("Upload a baseline CV first.")
-      return
-    }
-    if (!window.puter) {
-      setDraftFlowError("Puter did not load yet. Please wait a moment and try again.")
-      return
-    }
-
-    setIsGeneratingWithPuter(true)
-    setDraftFlowError(null)
-    setDraftStage("generating")
-
-    try {
-      if (!window.puter.auth.isSignedIn()) {
-        await window.puter.auth.signIn()
-      }
-      setIsPuterSignedIn(true)
-      const prompt = buildPuterDraftPrompt(
-        baselineText,
-        evidenceData.evidence,
-        evidenceData.next_version_number,
-        evidenceData.score_delta,
-      )
-      const response = await window.puter.ai.chat(prompt, { model: "openai/gpt-4.1" })
-      const nextDraftText = extractPuterDraftText(response)
-      if (!nextDraftText) {
-        throw new Error("Puter returned an empty draft. Please retry.")
-      }
-      setDraftText(nextDraftText)
+  const generateDraft = useMutation({
+    mutationFn: () => cv.generateDraft(token!),
+    onMutate: () => {
+      setDraftStage("generating")
+      setDraftFlowError(null)
+    },
+    onSuccess: (data) => {
+      setDraftText(data.cv_text)
       setDraftStage("review")
-    } catch (err) {
+      if (data.new_xp_balance !== null && data.new_xp_balance !== undefined) {
+        setXPBalance(data.new_xp_balance)
+      }
+    },
+    onError: (err) => {
       setDraftStage("guide")
-      setDraftFlowError(err instanceof Error ? err.message : "Could not generate draft through Puter.")
-    } finally {
-      setIsGeneratingWithPuter(false)
-    }
-  }
+      setDraftFlowError(err instanceof Error ? err.message : "Could not generate CV draft.")
+    },
+  })
+
+  const downloadPdf = useMutation({
+    mutationFn: (text: string) => cv.downloadPdf(token!, text),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "myro_cv.pdf"
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate PDF."),
+  })
 
   async function handleUpload(file: File) {
     if (!token) return
@@ -776,20 +700,6 @@ export default function CVPage() {
 
   return (
     <AppShell>
-      <Script
-        src="https://js.puter.com/v2/"
-        strategy="afterInteractive"
-        onLoad={() => {
-          setIsPuterReady(true)
-          if (window.puter) {
-            try {
-              setIsPuterSignedIn(window.puter.auth.isSignedIn())
-            } catch {
-              setIsPuterSignedIn(null)
-            }
-          }
-        }}
-      />
       <div className="tm-page-enter" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
         {/* Header */}
@@ -812,7 +722,7 @@ export default function CVPage() {
                       resetDraftFlow()
                       setShowDraftGuide(true)
                     }}
-                    loading={isGeneratingWithPuter || saveGeneratedDraft.isPending}
+                    loading={generateDraft.isPending || saveGeneratedDraft.isPending}
                   >
                     Generate Next CV Draft
                   </Button>
@@ -960,21 +870,32 @@ export default function CVPage() {
               </div>
             )}
             {jobCvText && (
-              <pre style={{
-                maxHeight: 220,
-                overflowY: "auto",
-                whiteSpace: "pre-wrap",
-                fontFamily: "var(--tm-font-mono)",
-                fontSize: "var(--tm-fs-meta)",
-                lineHeight: "var(--tm-lh-meta)",
-                color: "var(--tm-text-muted)",
-                border: "1px solid var(--tm-border-soft)",
-                borderRadius: "var(--tm-radius-sm)",
-                padding: 12,
-                background: "rgba(255,255,255,0.02)",
-              }}>
-                {jobCvText}
-              </pre>
+              <>
+                <pre style={{
+                  maxHeight: 220,
+                  overflowY: "auto",
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "var(--tm-font-mono)",
+                  fontSize: "var(--tm-fs-meta)",
+                  lineHeight: "var(--tm-lh-meta)",
+                  color: "var(--tm-text-muted)",
+                  border: "1px solid var(--tm-border-soft)",
+                  borderRadius: "var(--tm-radius-sm)",
+                  padding: 12,
+                  background: "rgba(255,255,255,0.02)",
+                }}>
+                  {jobCvText}
+                </pre>
+                <Button
+                  variant="solid"
+                  size="sm"
+                  onClick={() => downloadPdf.mutate(jobCvText)}
+                  loading={downloadPdf.isPending}
+                  className="whitespace-nowrap self-start"
+                >
+                  Download PDF
+                </Button>
+              </>
             )}
           </section>
         )}
@@ -1039,6 +960,20 @@ export default function CVPage() {
                 pointerEvents: "none", userSelect: "none", lineHeight: 1,
               }}>◈</div>
 
+              {displayText && (
+                <div style={{ marginBottom: 12 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadPdf.mutate(displayText)}
+                    loading={downloadPdf.isPending}
+                    className="whitespace-nowrap"
+                  >
+                    Download PDF
+                  </Button>
+                </div>
+              )}
+
               {cvLoading ? (
                 <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>Loading…</p>
               ) : displayText ? (
@@ -1101,16 +1036,16 @@ export default function CVPage() {
             <DialogHeader>
               <div className="tm-label-caps" style={{ marginBottom: 6 }}>Next CV Draft</div>
               <DialogTitle style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)" }}>
-                {draftStage === "review" ? "Review your generated draft" : "Login through OpenAI to generate new draft"}
+                {draftStage === "review" ? "Review your generated draft" : "Generate your next CV draft"}
               </DialogTitle>
               <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
                 {draftStage === "review"
-                  ? "Review the draft text below. You can edit it before saving as a new CV version."
+                  ? "Review the draft below. Edit freely before saving as a new CV version."
                   : evidenceLoading
-                  ? "Checking your progress evidence before generation."
-                  : evidenceData?.eligible
-                  ? `Ready for v${evidenceData.next_version_number}: ${evidenceData.evidence_count} milestone days recorded.`
-                  : `${evidenceData?.evidence_count ?? 0}/${evidenceData?.required_count ?? 7} milestone days recorded before the next draft unlocks.`}
+                  ? "Loading your progress evidence…"
+                  : evidenceData && evidenceData.evidence_count > 0
+                  ? `${evidenceData.evidence_count} milestone day${evidenceData.evidence_count !== 1 ? "s" : ""} of evidence will be woven into this draft.`
+                  : "No diary evidence yet — the draft will be built from your baseline CV. Log milestones to enrich future drafts."}
               </DialogDescription>
             </DialogHeader>
 
@@ -1127,11 +1062,11 @@ export default function CVPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Generating your draft in-browser with Puter and OpenAI. Please keep this window open.
+                Building your CV draft from proof… this takes a few seconds.
               </div>
             )}
 
-            {draftStage !== "review" && draftStage !== "generating" && (
+            {draftStage === "guide" && (
               <div
                 style={{
                   marginTop: 16,
@@ -1144,7 +1079,7 @@ export default function CVPage() {
                   lineHeight: 1.6,
                 }}
               >
-                This action uses your Puter account. Click Continue to sign in through OpenAI and generate the draft directly in your browser.
+                Costs <strong style={{ color: "var(--tm-accent)" }}>50 XP</strong>. Myro assembles your baseline CV with all logged evidence into a new draft. You can edit before saving.
               </div>
             )}
 
@@ -1201,23 +1136,34 @@ export default function CVPage() {
               <Button
                 variant="solid"
                 size="md"
-                onClick={handleGenerateWithPuter}
-                disabled={!isPuterReady || !evidenceData?.eligible}
-                loading={isGeneratingWithPuter}
+                onClick={() => generateDraft.mutate()}
+                disabled={generateDraft.isPending || !hasCv}
+                loading={generateDraft.isPending}
               >
-                {isPuterSignedIn ? "Continue with OpenAI" : "Continue and Login"}
+                Generate · 50 XP
               </Button>
             )}
             {draftStage === "review" && (
-              <Button
-                variant="solid"
-                size="md"
-                onClick={() => saveGeneratedDraft.mutate(draftText)}
-                disabled={draftText.trim().length < 120}
-                loading={saveGeneratedDraft.isPending}
-              >
-                Save as CV version
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => downloadPdf.mutate(draftText)}
+                  disabled={downloadPdf.isPending || draftText.trim().length < 60}
+                  loading={downloadPdf.isPending}
+                >
+                  Download PDF
+                </Button>
+                <Button
+                  variant="solid"
+                  size="md"
+                  onClick={() => saveGeneratedDraft.mutate(draftText)}
+                  disabled={draftText.trim().length < 120}
+                  loading={saveGeneratedDraft.isPending}
+                >
+                  Save as CV version
+                </Button>
+              </>
             )}
           </div>
         </DialogContent>
