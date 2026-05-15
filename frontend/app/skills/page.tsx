@@ -18,8 +18,6 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 export default function SkillsPage() {
   const { token, ready } = useAuth()
-  // DEACTIVATED: Skill Tree view hidden. See toggle comment below.
-  const [view] = useState<"radar">("radar")
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
   const { data: scoreData } = useQuery({
