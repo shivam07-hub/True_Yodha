@@ -554,14 +554,55 @@ export interface JobComputeStatusResponse {
 }
 
 export type ApplicationStatus =
-  | "pending"
+  | "saved"
   | "applied"
-  | "no_response"
-  | "responded"
+  | "screening"
   | "interviewing"
+  | "final_round"
+  | "ghosted"
   | "rejected"
   | "offer"
-  | "abandoned"
+  | "withdrew"
+
+export const APPLICATION_STAGES: ApplicationStatus[] = ["saved", "applied", "screening", "interviewing", "final_round"]
+export const APPLICATION_OUTCOMES: ApplicationStatus[] = ["ghosted", "rejected", "offer", "withdrew"]
+
+export interface ApplicationReview {
+  id: string
+  job_application_id: number
+  company_name: string
+  star_rating: number
+  last_stage: string
+  outcome: string
+  written_note: string | null
+  created_at: string
+}
+
+export interface StaleApplication {
+  id: number
+  job_id: string
+  title: string
+  company: string | null
+  status: ApplicationStatus
+  updated_at: string | null
+}
+
+export interface CompanyReviewItem {
+  star_rating: number
+  last_stage: string
+  outcome: string
+  written_note: string | null
+  created_at: string
+}
+
+export interface CompanyPage {
+  company_name: string
+  avg_star_rating: number | null
+  review_count: number
+  ghost_rate: number | null
+  stage_breakdown: Record<string, number>
+  reviews: CompanyReviewItem[]
+}
 
 export interface ApplicationResponse {
   id: number
@@ -876,6 +917,20 @@ export const jobs = {
   applications: (token: string) =>
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  staleApplications: (token: string) =>
+    request<StaleApplication[]>("/jobs/applications/stale", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  submitReview: (
+    token: string,
+    jobId: string,
+    data: { star_rating: number; last_stage: string; written_note?: string | null },
+  ) =>
+    request<ApplicationReview>(`/jobs/applications/${encodeURIComponent(jobId)}/review`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
     }),
   saveJob: (token: string, jobId: string) =>
     request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {

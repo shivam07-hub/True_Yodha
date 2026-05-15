@@ -3,21 +3,25 @@
 import { SkillRow } from "./SkillRow"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
 
-const STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
+const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+  { value: "saved", label: "Saved" },
   { value: "applied", label: "Applied" },
-  { value: "no_response", label: "No response" },
-  { value: "responded", label: "Responded" },
+  { value: "screening", label: "Screening" },
   { value: "interviewing", label: "Interviewing" },
+  { value: "final_round", label: "Final Round" },
+]
+
+const OUTCOME_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+  { value: "ghosted", label: "Ghosted" },
   { value: "rejected", label: "Rejected" },
   { value: "offer", label: "Offer 🎉" },
-  { value: "abandoned", label: "Abandoned" },
+  { value: "withdrew", label: "Withdrew" },
 ]
 
 function statusColor(s: ApplicationStatus): string {
-  if (s === "applied" || s === "responded") return "var(--tm-accent)"
-  if (s === "interviewing" || s === "offer") return "var(--tm-success)"
-  if (s === "rejected" || s === "abandoned") return "var(--tm-danger)"
+  if (s === "applied" || s === "screening") return "var(--tm-accent)"
+  if (s === "interviewing" || s === "final_round" || s === "offer") return "var(--tm-success)"
+  if (s === "rejected" || s === "ghosted" || s === "withdrew") return "var(--tm-danger)"
   return "var(--tm-text-muted)"
 }
 
@@ -110,11 +114,20 @@ export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroC
                 fontFamily: "var(--tm-font-mono)", padding: 0, outline: "none",
               }}
             >
-              {STATUS_OPTIONS.map(o => (
-                <option key={o.value} value={o.value} style={{ background: "var(--tm-surface-2)", color: "var(--tm-text)" }}>
-                  {o.label}
-                </option>
-              ))}
+              <optgroup label="Progress" style={{ background: "var(--tm-surface-2)", color: "var(--tm-text-faint)", fontSize: 10 }}>
+                {STAGE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: "var(--tm-surface-2)", color: "var(--tm-text)" }}>
+                    {o.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Outcome" style={{ background: "var(--tm-surface-2)", color: "var(--tm-text-faint)", fontSize: 10 }}>
+                {OUTCOME_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: "var(--tm-surface-2)", color: "var(--tm-text)" }}>
+                    {o.label}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </div>

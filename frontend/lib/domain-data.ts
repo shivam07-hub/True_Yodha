@@ -8,6 +8,7 @@ export const dataKeys = {
   userSkills: () => ["user-skills"] as const,
   jobs: () => ["jobs"] as const,
   applications: () => ["applications"] as const,
+  staleApplications: () => ["stale-applications"] as const,
   userSkillDemand: () => ["user-skill-demand"] as const,
   diary: () => ["diary"] as const,
   milestones: () => ["milestones"] as const,
