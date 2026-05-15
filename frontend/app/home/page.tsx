@@ -121,16 +121,16 @@ function HomePageInner() {
 
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
 
-  // Seed mini forge timer once when skills first become available
-  const seedKey = cartSkills[0]?.skill_name ?? gapSkills[0]?.skill ?? null
+  // Seed mini forge timer once when skills first become available.
+  // Fallback chain: cart → missing gap skill → any gap skill (all need skill data)
+  const anyGapSkill = skillGapData?.skills?.[0] ?? null
+  const seedKey = cartSkills[0]?.skill_name ?? gapSkills[0]?.skill ?? anyGapSkill?.skill ?? null
   useEffect(() => {
     if (!seedKey || sessionActive || dismissed) return
-    const seed = cartSkills[0] ?? {
-      skill_name: gapSkills[0].skill,
-      level_from: gapSkills[0].user_level ?? 0,
-      level_to: gapSkills[0].required_level ?? 1,
-      company: activeJob?.company,
-    }
+    const seed = cartSkills[0] ?? (gapSkills[0]
+      ? { skill_name: gapSkills[0].skill, level_from: gapSkills[0].user_level ?? 0, level_to: gapSkills[0].required_level ?? 1, company: activeJob?.company }
+      : { skill_name: anyGapSkill!.skill, level_from: anyGapSkill!.user_level ?? 0, level_to: anyGapSkill!.required_level ?? 1, company: activeJob?.company }
+    )
     startSession(seed)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedKey])
