@@ -152,7 +152,7 @@ function EmptyState({ name }: { name: string }) {
       }}>
         Track your application →
       </Link>
-      <Link href="/home" style={{ fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none" }}>← Back to Myro</Link>
+      <Link href="/market" style={{ fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none" }}>← Back to Intel</Link>
     </div>
   )
 }
@@ -196,7 +196,7 @@ export default function CompanyPageRoute() {
         <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "32px 32px 28px", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 0%, rgba(0,245,212,0.05), transparent 60%)", pointerEvents: "none" }} />
           <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
-            <Link href="/home" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
+            <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
             >
