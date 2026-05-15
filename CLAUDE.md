@@ -106,6 +106,11 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
 | PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
+| IH1 | **Intel heatmap = followed companies only.** User builds their own heatmap by starring companies. Empty state on first visit. No global defaults in heatmap. |
+| IH2 | **Follow cost: 10 XP. Floor: -30 XP. Cap: 10 companies.** XP burned on follow, never refunded on unfollow (XP1). Star disabled if cap hit OR next deduction would breach -30. |
+| IH3 | **Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others. |
+| IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
+| IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
 
 ---
 
@@ -130,13 +135,11 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
-1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
-2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
-3. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
-4. **Intel page — job analytics loading screen** — while mySkillDemand + heatmap load, show step-by-step progress states ("loading market data → mapping your skills → building heatmap") instead of blank spinner.
+1. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+4. ~~**Intel page — job analytics loading screen**~~ ✅ DONE 2026-05-15 — Progress banner (3-step) + skeleton shimmer rows. Never blank. Banner disappears when all resolve.
 5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
 6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
-7. **Intel page — TopMovers: all companies** — show all 145 companies in descending order (not just top 6), scrollable list, ★ follow on every row, search input. Zero new API calls (all data in `analytics.by_company`).
+7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
 
@@ -221,36 +224,47 @@ application_reviews (
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-12)
+## LAST SESSION SUMMARY (2026-05-15)
 
 ```
-Intel page — Skill Selector Panel + 4-layer perf fix (C1–C4).
+Auth logout fix + Intel page full redesign (heatmap architecture overhaul).
 
 Shipped to Develop:
-  - Backlog #5 DONE: TrackedDigest → SkillSelectorPanel. User toggles CV skills
-    as heatmap columns (max 8). Chips show L-level + 30d job count. "↗ Switch
-    to my CV skills" button appears until user opts in (see C4).
 
-  - C1 — Backend heatmap cache: _heatmap_cache dict added to
-    backend/app/repositories/jobs.py. Key=(frozenset(companies), frozenset(skills)),
-    TTL=7 days (_ANALYTICS_TTL). First load still 27-34s; subsequent loads ~200ms.
+  AUTH:
+  - Multi-tab logout fix: lib/api.ts — cross-tab localStorage lock prevents
+    parallel 401s from both calling /auth/refresh. Second tab waits for storage
+    event instead of racing → no Supabase token reuse invalidation.
+  - Supabase dashboard: JWT expiry extended to 7 days, refresh detection OFF.
 
-  - C2 — Backend search cache: _search_cache dict added to same file.
-    Key=(company, skill, role_domain, location_*, page, page_size), TTL=1 day.
-    Repeat drill-down clicks on same cell → instant.
+  INTEL PAGE — HEATMAP ARCHITECTURE REDESIGN (full rewrite of market/page.tsx):
+  Decision tree locked via /grill-me before building:
+    · Heatmap companies = followed only (user builds their own heatmap)
+    · First visit empty state with CTA pointing to TopMovers
+    · Follow costs 10 XP (burned, no refund). Floor: -30 XP (disabled below).
+    · Hard cap: 10 followed companies max (star disabled at cap)
+    · Row ordering: most recently starred first (created_at DESC from backend)
+    · Skill columns: CV skills always (mySkillDemand), Skill Lens toggles within
+    · Per-company independent useQueries — rows load in parallel, never invalidate each other
+    · Skeleton shimmer cells per row while data loads
+    · Progress banner (3-step: market data → skills → heatmap), disappears when done
+    · Hover-prefetch: hovering star in TopMovers fires prefetchQuery for that company row
+    · Star button shows "10" XP cost label; disabled states: cap OR floor
 
-  - C3 — Optimistic follow mutation: followMutation now has onMutate that
-    immediately splices company into/out of queryClient cache. onError rolls back.
-    Star flips instantly — no 6-29s wait.
-
-  - C4 — Heatmap double-fire fix: introduced heatmapApplied state. Heatmap fires
-    ONCE at ~750ms with global top-8 skills (stable key). mySkillDemand arriving
-    at 6s no longer re-keys the query. Skill Lens shows user's CV skills; user
-    clicks "↗ Switch to my CV skills" to opt in → re-keys once (then cached).
+  BACKEND FIXES:
+  - xp_service.py: spend_xp_to_floor(floor=-30) — XP can go negative to limit
+  - users.py router: follow_company now checks 10-cap, deducts 10 XP, returns new_xp_balance
+  - repositories/jobs.py: fetch_skill_heatmap_row — single-company method.
+    Filters skill_id at DB level (.in_("skill_id", skill_ids)) instead of
+    fetching all job_skills then filtering in Python. Kills the 23-46s query.
+    Expected: ~1-3s cold, ~150ms cached.
+  - routers/jobs/list.py: single-company requests routed to fast method.
+  - api.ts: followCompany returns new_xp_balance; new skillHeatmapRow fn.
 
 Open (next sessions):
-  - Backlog #4: Intel loading screen (step-by-step progress while heatmap loads)
+  - Backlog #4: ✅ DONE — loading screen shipped (progress banner + skeleton rows)
   - Backlog #6: PR2 — Run Analysis endpoint + XP deduction
-  - Backlog #7: TopMovers — all companies, scrollable, follow from list
-  - Backlog #3: user_job_matches design review (discuss with Shivam first)
+  - Backlog #7: ✅ DONE — TopMovers shows all companies, search, follow from list
+  - Backlog #3: user_job_matches design review (discuss Shivam first)
+  - Backlog #8: Process Transparency Layer
 ```

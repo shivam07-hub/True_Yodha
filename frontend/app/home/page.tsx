@@ -10,10 +10,11 @@ import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
+import { ReviewModal } from "@/components/home/ReviewModal"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
 import { SkillGapCol, CVCol } from "@/components/home/HomeColumns"
-import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
+import { cv, diary, jobs, scores, users, xp, APPLICATION_OUTCOMES } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
@@ -55,6 +56,8 @@ function HomePageInner() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [proofText, setProofText] = useState("")
   const [confidence] = useState(3)
+  const [reviewJobId, setReviewJobId] = useState<string | null>(null)
+  const [dismissedStale, setDismissedStale] = useState<Set<string>>(new Set())
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
   const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
@@ -67,6 +70,7 @@ function HomePageInner() {
   const { data: applications } = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const historyQuery = useQuery({ queryKey: dataKeys.diary(), queryFn: () => diary.history(token!), enabled: !!token })
   const { data: evidenceData } = useQuery({ queryKey: dataKeys.cvEvidence(), queryFn: () => cv.evidence(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: staleApps } = useQuery({ queryKey: dataKeys.staleApplications(), queryFn: () => jobs.staleApplications(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
   const topJobs = jobsData?.jobs?.slice(0, 5) ?? []
   const apps = useMemo(() => applications ?? [], [applications])
@@ -80,7 +84,7 @@ function HomePageInner() {
 
   const activeJob = urlJobId ? (topJobs.find(j => j.job_id === urlJobId) ?? null) : (topJobs.find(j => j.job_id === activeJobId) ?? topJobs[0] ?? null)
   const appsByJobId = useMemo(() => { const m: Record<string, ApplicationStatus> = {}; for (const a of apps) m[a.job_id] = a.status; return m }, [apps])
-  const activeJobStatus = activeJob ? (appsByJobId[activeJob.job_id] ?? "pending") : "pending"
+  const activeJobStatus = activeJob ? (appsByJobId[activeJob.job_id] ?? "saved") : "saved"
   const cartSkillNames = useMemo(() => new Set(cartSkills.map(c => c.skill_name)), [cartSkills])
 
   useEffect(() => { if (!token) return; xp.balance(token).then(r => setXPBalance(r.balance)).catch(() => {}) }, [token, setXPBalance])
@@ -111,7 +115,7 @@ function HomePageInner() {
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
   const todayStr = new Date().toISOString().slice(0, 10)
   const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
-  const hasApplied = apps.some(a => a.status !== "pending")
+  const hasApplied = apps.some(a => a.status !== "saved")
   const ACHIEVEMENTS = [
     { label: "CV Analysed", done: !!scoreData, icon: "◈" },
     { label: "Score Computed", done: !!scoreData, icon: "◉" },
@@ -124,7 +128,14 @@ function HomePageInner() {
   const selfFocusJobs = useMemo(() => apps.filter(a => a.source === "user_discovery"), [apps])
 
   const saveEntry = useMutation({ mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) => diary.createEntry(token!, text, undefined, cart.map(s => ({ ...s }))), onSuccess: () => { addBalance(30); clearCart(); showToast("+30 XP · entry logged"); queryClient.invalidateQueries({ queryKey: dataKeys.diary() }); queryClient.invalidateQueries({ queryKey: dataKeys.scores() }) } })
-  const updateStatus = useMutation({ mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) => jobs.updateApplication(token!, jobId, { status }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: dataKeys.applications() }) } })
+  const updateStatus = useMutation({
+    mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) => jobs.updateApplication(token!, jobId, { status }),
+    onSuccess: (_data, { jobId, status }) => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
+      if (APPLICATION_OUTCOMES.includes(status)) setReviewJobId(jobId)
+    },
+  })
   const removeSelfFocus = useMutation({ mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId), onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }) })
   const [analysingJobId, setAnalysingJobId] = useState<string | null>(null)
   const analyseMutation = useMutation({
@@ -193,9 +204,9 @@ function HomePageInner() {
 
               if (isActive) {
                 bg = "var(--tm-accent)"; border = "1.5px solid var(--tm-accent)"; color = "var(--tm-accent-fg)"; opacity = 1; shadow = "0 0 12px var(--tm-accent-glow)"
-              } else if (status === "interviewing" || status === "offer") {
+              } else if (status === "interviewing" || status === "final_round" || status === "offer") {
                 bg = "var(--tm-success-wash)"; border = "1.5px solid rgba(74,222,128,0.5)"; color = "var(--tm-success)"; opacity = 1
-              } else if (status === "applied" || status === "responded") {
+              } else if (status === "applied" || status === "screening") {
                 bg = "var(--tm-accent-wash)"; border = "1.5px solid var(--tm-accent-ring)"; color = "var(--tm-accent)"; opacity = 1
               } else if (fit < 50) {
                 opacity = 0.4
@@ -252,6 +263,38 @@ function HomePageInner() {
           </div>
         )}
 
+        {/* Stale applications prompt */}
+        {staleApps && staleApps.filter(a => !dismissedStale.has(a.job_id)).length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {staleApps.filter(a => !dismissedStale.has(a.job_id)).map(a => (
+              <div key={a.job_id} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 8, padding: "8px 14px", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "rgba(251,191,36,0.9)", marginRight: 4 }}>⏱</span>
+                <span style={{ fontSize: 13, color: "var(--tm-text-muted)", flex: 1 }}>
+                  Been 7 days since we last heard from <strong style={{ color: "var(--tm-text)" }}>{a.company ?? a.title}</strong>
+                </span>
+                <button
+                  onClick={() => updateStatus.mutate({ jobId: a.job_id, status: "ghosted" })}
+                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 99, background: "rgba(251,113,133,0.1)", border: "1px solid rgba(251,113,133,0.3)", color: "var(--tm-danger)", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Ghosted me
+                </button>
+                <button
+                  onClick={() => { setActiveJobId(a.job_id); setDismissedStale(prev => new Set(Array.from(prev).concat(a.job_id))) }}
+                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 99, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Update tracker
+                </button>
+                <button
+                  onClick={() => setDismissedStale(prev => new Set(Array.from(prev).concat(a.job_id)))}
+                  style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: "50%", background: "transparent", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, padding: 0 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Hero + columns */}
         {activeJob ? (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
@@ -288,6 +331,14 @@ function HomePageInner() {
       )}
 
       <DiaryPanel open={diaryOpen} onClose={closeDiary} initialText={diaryInitialText} cartSkills={cartSkills} onAddSkill={addSkill} onRemoveSkill={removeSkill} gapSkills={gapSkills.map(g => ({ skill: g.skill, user_level: g.user_level, required_level: g.required_level }))} activeCompany={activeJob?.company} onSubmit={handleDiarySubmit} recentEntries={entries} />
+
+      {reviewJobId && (
+        <ReviewModal
+          company={apps.find(a => a.job_id === reviewJobId)?.company ?? null}
+          onClose={() => setReviewJobId(null)}
+          onSubmit={async (data) => { await jobs.submitReview(token!, reviewJobId, data); setReviewJobId(null); showToast("Review submitted") }}
+        />
+      )}
     </AppShell>
   )
 }

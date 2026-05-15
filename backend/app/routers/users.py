@@ -17,7 +17,7 @@ from app.schemas import (
 from app.services.scoring_engine import compute_and_persist_score, fetch_aspiration_skills
 from app.services.skill_advice import generate_skill_advice
 from app.services.llm_provider import LLMProvider, get_llm_provider
-from app.services.xp_service import spend_xp
+from app.services.xp_service import spend_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -140,6 +140,10 @@ async def get_followed_companies(
     return FollowedCompaniesResponse(companies=rows, total=len(rows))
 
 
+_FOLLOW_XP_COST = 10
+_MAX_FOLLOWED = 10
+
+
 @router.post("/me/following/companies", status_code=status.HTTP_201_CREATED)
 async def follow_company(
     body: FollowCompanyRequest,
@@ -149,8 +153,22 @@ async def follow_company(
     name = body.company_name.strip()
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
+
+    existing = users_repo.get_followed_companies(current_user["user_id"])
+    already_following = any(r["company_name"] == name for r in existing)
+
+    if already_following:
+        return {"company_name": name, "new_xp_balance": None}
+
+    if len(existing) >= _MAX_FOLLOWED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Follow limit reached — max {_MAX_FOLLOWED} companies.",
+        )
+
+    new_balance = await spend_xp_to_floor(current_user["user_id"], _FOLLOW_XP_COST, "follow_company")
     users_repo.follow_company(current_user["user_id"], name)
-    return {"company_name": name}
+    return {"company_name": name, "new_xp_balance": new_balance}
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)

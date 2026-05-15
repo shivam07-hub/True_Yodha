@@ -1,15 +1,24 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
+import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
-import { jobs, users } from "@/lib/api"
+import { jobs, users, xp } from "@/lib/api"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
-import type { MarketAnalytics, NameCountItem, SkillCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompaniesResponse } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useXPStore } from "@/store/xpStore"
 
-// ── Deterministic helpers ────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const MAX_HEATMAP_SKILLS = 8
+const MAX_FOLLOWED = 10
+const XP_FLOOR = -30
+const FOLLOW_XP_COST = 10
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function seededHash(s: string): number {
   return s.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0) >>> 0
@@ -64,21 +73,88 @@ function TrendChip({ pct, up }: { pct: number; up: boolean }) {
   )
 }
 
-function FollowStarBtn({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: () => void }) {
+function FollowStarBtn({
+  isFollowed,
+  onToggle,
+  onHover,
+  disabled,
+  disabledReason,
+}: {
+  isFollowed: boolean
+  onToggle: () => void
+  onHover?: () => void
+  disabled?: boolean
+  disabledReason?: string
+}) {
   return (
     <button
-      onClick={(e) => { e.stopPropagation(); onToggle() }}
-      title={isFollowed ? "Unfollow" : "Follow company"}
+      onClick={(e) => { e.stopPropagation(); if (!disabled) onToggle() }}
+      onMouseEnter={onHover}
+      title={disabled ? disabledReason : isFollowed ? "Unfollow" : `Follow · ${FOLLOW_XP_COST} XP`}
       style={{
-        width: 28, height: 28, padding: 0, display: "inline-flex", alignItems: "center",
-        justifyContent: "center", border: "none", background: "transparent",
-        cursor: "pointer", color: isFollowed ? "var(--tm-warning)" : "var(--tm-text-faint)", flexShrink: 0,
+        width: 44, height: 28, padding: "0 6px", display: "inline-flex", alignItems: "center",
+        justifyContent: "center", gap: 3, border: "none", background: "transparent",
+        cursor: disabled ? "not-allowed" : "pointer",
+        color: isFollowed ? "var(--tm-warning)" : disabled ? "var(--tm-text-faint)" : "var(--tm-text-faint)",
+        opacity: disabled && !isFollowed ? 0.4 : 1,
+        flexShrink: 0,
       }}
     >
-      <svg width={14} height={14} viewBox="0 0 16 16" fill={isFollowed ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3">
+      <svg width={13} height={13} viewBox="0 0 16 16" fill={isFollowed ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3">
         <path d="M8 1.5l1.95 4.16 4.55.55-3.35 3.13.86 4.51L8 11.7l-4.01 2.15.86-4.51L1.5 6.21l4.55-.55L8 1.5z" strokeLinejoin="round" />
       </svg>
+      {!isFollowed && !disabled && (
+        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>
+          {FOLLOW_XP_COST}
+        </span>
+      )}
     </button>
+  )
+}
+
+// ── Progress banner ──────────────────────────────────────────────────────────
+
+function ProgressBanner({
+  analyticsReady,
+  skillsReady,
+  heatmapReady,
+  message,
+}: {
+  analyticsReady: boolean
+  skillsReady: boolean
+  heatmapReady: boolean
+  message: string
+}) {
+  const steps = [
+    { label: "Loading market data", done: analyticsReady },
+    { label: "Mapping your skills", done: skillsReady },
+    { label: "Building heatmap", done: heatmapReady },
+  ]
+  const allDone = steps.every(s => s.done)
+  if (allDone) return null
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 16, padding: "10px 16px",
+      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+      borderRadius: "var(--tm-radius-lg)", marginTop: 16,
+    }}>
+      <IntelLoadingState message={message} />
+      <div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
+        {steps.map(s => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: s.done ? "var(--tm-accent)" : "var(--tm-border)",
+              transition: "background 300ms ease",
+            }} />
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: s.done ? "var(--tm-accent)" : "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
+              {s.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -143,117 +219,47 @@ function LocationBadge({ mode }: { mode: string | null | undefined }) {
 }
 
 function JobDrillPanel({
-  companyName,
-  skillName,
-  drillJobs,
-  isLoading,
-  savedJobIds,
-  onSave,
-  onClose,
-  isLoggedIn,
+  companyName, skillName, drillJobs, isLoading, savedJobIds, onSave, onClose, isLoggedIn,
 }: {
-  companyName: string
-  skillName: string
-  drillJobs: JobSearchItem[]
-  isLoading: boolean
-  savedJobIds: Set<string>
-  onSave: (job: JobSearchItem) => void
-  onClose: () => void
-  isLoggedIn: boolean
+  companyName: string; skillName: string; drillJobs: JobSearchItem[]; isLoading: boolean
+  savedJobIds: Set<string>; onSave: (job: JobSearchItem) => void; onClose: () => void; isLoggedIn: boolean
 }) {
   return (
-    <div style={{
-      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-      borderRadius: "var(--tm-radius-lg)", marginTop: 4, overflow: "hidden",
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 24px", borderBottom: "1px solid var(--tm-border-soft)",
-      }}>
+    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 4, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            {companyName}
-          </span>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{companyName}</span>
           <span style={{ color: "var(--tm-text-faint)", fontSize: 11 }}>×</span>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            {skillName}
-          </span>
-          {!isLoading && (
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", marginLeft: 4 }}>
-              · {drillJobs.length} jobs
-            </span>
-          )}
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{skillName}</span>
+          {!isLoading && <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", marginLeft: 4 }}>· {drillJobs.length} jobs</span>}
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: "transparent", border: "1px solid var(--tm-border-soft)",
-            borderRadius: "var(--tm-radius-sm)", padding: "4px 12px",
-            color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer",
-            fontFamily: "var(--tm-font-mono)",
-          }}
-        >
+        <button onClick={onClose} style={{ background: "transparent", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 12px", color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--tm-font-mono)" }}>
           ← Close
         </button>
       </div>
-
       <div style={{ maxHeight: 320, overflowY: "auto" }}>
         {isLoading ? (
-          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
-            Loading jobs...
-          </div>
+          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>Loading jobs…</div>
         ) : drillJobs.length === 0 ? (
-          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>
-            No jobs found for this combination.
-          </div>
+          <div style={{ padding: "24px", color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 12 }}>No jobs found for this combination.</div>
         ) : (
           drillJobs.map((job, idx) => {
             const isSaved = savedJobIds.has(job.job_id)
             return (
-              <div
-                key={job.job_id}
-                style={{
-                  display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 24px",
-                  borderBottom: idx < drillJobs.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
-                }}
-              >
+              <div key={job.job_id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 24px", borderBottom: idx < drillJobs.length - 1 ? "1px solid var(--tm-border-soft)" : "none" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0 }}>
-                      {job.job_id.slice(0, 8).toUpperCase()}
-                    </span>
+                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0 }}>{job.job_id.slice(0, 8).toUpperCase()}</span>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {job.job_title}
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{job.job_title}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                    {(job.location_city || job.location_country) && (
-                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-                        {[job.location_city, job.location_country].filter(Boolean).join(", ")}
-                      </span>
-                    )}
+                    {(job.location_city || job.location_country) && <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{[job.location_city, job.location_country].filter(Boolean).join(", ")}</span>}
                     <LocationBadge mode={job.location_mode} />
                   </div>
-                  {job.job_description && (
-                    <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {job.job_description}
-                    </div>
-                  )}
+                  {job.job_description && <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{job.job_description}</div>}
                 </div>
                 {isLoggedIn && (
-                  <button
-                    onClick={() => onSave(job)}
-                    disabled={isSaved}
-                    style={{
-                      flexShrink: 0, fontSize: 11, fontFamily: "var(--tm-font-mono)",
-                      letterSpacing: "0.06em", padding: "5px 14px", borderRadius: "var(--tm-radius-sm)",
-                      cursor: isSaved ? "default" : "pointer",
-                      background: isSaved ? "rgba(0,245,212,0.08)" : "transparent",
-                      border: `1px solid ${isSaved ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                      color: isSaved ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                      transition: "all 150ms ease",
-                    }}
-                  >
+                  <button onClick={() => onSave(job)} disabled={isSaved} style={{ flexShrink: 0, fontSize: 11, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em", padding: "5px 14px", borderRadius: "var(--tm-radius-sm)", cursor: isSaved ? "default" : "pointer", background: isSaved ? "rgba(0,245,212,0.08)" : "transparent", border: `1px solid ${isSaved ? "var(--tm-accent)" : "var(--tm-border-soft)"}`, color: isSaved ? "var(--tm-accent)" : "var(--tm-text-muted)", transition: "all 150ms ease" }}>
                     {isSaved ? "Saved ✓" : "Save →"}
                   </button>
                 )}
@@ -266,44 +272,62 @@ function JobDrillPanel({
   )
 }
 
+// ── Shimmer cell ─────────────────────────────────────────────────────────────
+
+function ShimmerCell() {
+  return (
+    <td style={{ width: 36, height: 28 }}>
+      <div style={{ width: 28, height: 18, borderRadius: 4, background: "var(--tm-border-soft)", animation: "pulse 1.4s ease-in-out infinite", margin: "auto" }} />
+    </td>
+  )
+}
+
 // ── Skill × Company heatmap ──────────────────────────────────────────────────
 
 function SkillHeatmap({
   companies,
-  skillsMap,
-  heatmapMatrix,
+  rowDataMap,
   skills,
   skillLevels,
-  followedNames,
   selectedCell,
   onCellSelect,
 }: {
-  companies: NameCountItem[]
-  skillsMap: Record<string, SkillCountItem[]>
-  heatmapMatrix: Record<string, Record<string, number>> | null
+  companies: FollowedCompany[]
+  rowDataMap: Record<string, Record<string, number> | null>
   skills: string[]
   skillLevels: Record<string, number>
-  followedNames: string[]
   selectedCell: { ci: number; si: number } | null
   onCellSelect: (ci: number, si: number) => void
 }) {
   const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
 
-  const cellCount = useCallback((ci: number, si: number): number => {
-    const co = companies[ci]
-    const sk = skills[si]
-    if (!co || !sk) return 0
-    // Prefer exact heatmap matrix (user-skills endpoint, no top-N truncation)
-    if (heatmapMatrix) return heatmapMatrix[co.name]?.[sk] ?? 0
-    // Fallback: global entity skills (logged-out)
-    const companySkills = skillsMap[co.name] || []
-    return companySkills.find(s => s.skill.toLowerCase() === sk.toLowerCase())?.count ?? 0
-  }, [companies, skillsMap, heatmapMatrix, skills])
-
   const maxVal = useMemo(() => {
-    const all = companies.flatMap((_, ci) => skills.map((_, si) => cellCount(ci, si)))
-    return Math.max(...all, 1)
-  }, [companies, skills, cellCount])
+    let max = 1
+    for (const rowData of Object.values(rowDataMap)) {
+      if (!rowData) continue
+      for (const v of Object.values(rowData)) {
+        if (v > max) max = v
+      }
+    }
+    return max
+  }, [rowDataMap])
+
+  // Empty state
+  if (companies.length === 0) {
+    return (
+      <div style={{
+        background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+        borderRadius: "var(--tm-radius-lg)", marginTop: 14,
+        padding: "48px 24px", textAlign: "center",
+      }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 8 }}>Your heatmap is empty</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
+          Star companies from the list below to add them here.
+          Each follow costs {FOLLOW_XP_COST} XP — up to {MAX_FOLLOWED} companies.
+        </div>
+      </div>
+    )
+  }
 
   if (!skills.length) return null
 
@@ -311,9 +335,7 @@ function SkillHeatmap({
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
         <div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
-            YOUR SKILLS × COMPANY DEMAND
-          </div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
           <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0, paddingTop: 6 }}>
@@ -335,19 +357,9 @@ function SkillHeatmap({
               {skills.map(sk => {
                 const level = skillLevels[sk.toLowerCase()] ?? 0
                 return (
-                  <th key={sk} style={{
-                    writingMode: "vertical-rl", transform: "rotate(180deg)",
-                    padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)",
-                    textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500,
-                    textAlign: "left", height: 100, verticalAlign: "bottom",
-                  }}>
+                  <th key={sk} style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{
-                        fontSize: 9, color: level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent",
-                        fontWeight: 700,
-                      }}>
-                        L{level}
-                      </span>
+                      <span style={{ fontSize: 9, color: level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent", fontWeight: 700 }}>L{level}</span>
                       {sk}
                     </div>
                   </th>
@@ -358,42 +370,50 @@ function SkillHeatmap({
           </thead>
           <tbody>
             {companies.map((co, ci) => {
-              const rowSum = skills.reduce((s, _, si) => s + cellCount(ci, si), 0)
-              const isFollowed = followedNames.includes(co.name)
+              const rowData = rowDataMap[co.company_name]
+              const isLoading = rowData === null
+              const rowSum = rowData ? skills.reduce((s, sk) => s + (rowData[sk] ?? 0), 0) : null
               return (
-                <tr key={co.name}>
+                <tr key={co.company_name}>
                   <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
-                      {co.name}
+                      <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
+                      <Link href={`/companies/${encodeURIComponent(co.company_name)}`} style={{ color: "inherit", textDecoration: "none" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                        {co.company_name}
+                      </Link>
                     </span>
                   </td>
-                  {skills.map((_, si) => {
-                    const v = cellCount(ci, si)
-                    const o = v / maxVal
-                    const isHover = hoverCell?.ci === ci && hoverCell?.si === si
-                    const isSel = selectedCell?.ci === ci && selectedCell?.si === si
-                    return (
-                      <td
-                        key={si}
-                        onMouseEnter={() => setHoverCell({ ci, si })}
-                        onMouseLeave={() => setHoverCell(null)}
-                        onClick={() => onCellSelect(ci, si)}
-                        style={{
-                          width: 36, height: 28, cursor: "pointer", textAlign: "center",
-                          background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
-                          border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
-                          borderRadius: 4, fontSize: 11,
-                          color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
-                          fontWeight: 600,
-                          transition: "background 150ms ease",
-                        }}
-                      >
-                        {v || ""}
-                      </td>
-                    )
-                  })}
-                  <td style={{ padding: "0 8px", fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>{rowSum || ""}</td>
+                  {isLoading ? (
+                    skills.map((_, si) => <ShimmerCell key={si} />)
+                  ) : (
+                    skills.map((sk, si) => {
+                      const v = rowData?.[sk] ?? 0
+                      const o = v / maxVal
+                      const isHover = hoverCell?.ci === ci && hoverCell?.si === si
+                      const isSel = selectedCell?.ci === ci && selectedCell?.si === si
+                      return (
+                        <td
+                          key={si}
+                          onMouseEnter={() => setHoverCell({ ci, si })}
+                          onMouseLeave={() => setHoverCell(null)}
+                          onClick={() => onCellSelect(ci, si)}
+                          style={{
+                            width: 36, height: 28, cursor: "pointer", textAlign: "center",
+                            background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
+                            border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
+                            borderRadius: 4, fontSize: 11,
+                            color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
+                            fontWeight: 600, transition: "background 150ms ease",
+                          }}
+                        >
+                          {v || ""}
+                        </td>
+                      )
+                    })
+                  )}
+                  <td style={{ padding: "0 8px", fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>
+                    {isLoading ? <div style={{ width: 20, height: 10, borderRadius: 2, background: "var(--tm-border-soft)", animation: "pulse 1.4s ease-in-out infinite" }} /> : (rowSum || "")}
+                  </td>
                 </tr>
               )
             })}
@@ -406,10 +426,13 @@ function SkillHeatmap({
 
 // ── Top Movers ───────────────────────────────────────────────────────────────
 
-function TopMovers({ companies, followedNames, onToggleFollow }: {
+function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBalance, followedCount }: {
   companies: NameCountItem[]
   followedNames: string[]
   onToggleFollow: (name: string) => void
+  onHoverStar: (name: string) => void
+  xpBalance: number
+  followedCount: number
 }) {
   const [search, setSearch] = useState("")
 
@@ -434,42 +457,44 @@ function TopMovers({ companies, followedNames, onToggleFollow }: {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search…"
-          style={{
-            background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)",
-            borderRadius: "var(--tm-radius-sm)", padding: "4px 10px",
-            fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)",
-            outline: "none", width: 120,
-          }}
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 10px", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)", outline: "none", width: 120 }}
         />
       </div>
       <div style={{ overflowY: "auto", maxHeight: 400 }}>
-        {filtered.map((co, idx) => (
-          <div
-            key={co.name}
-            style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
-              borderBottom: idx < filtered.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
-            }}
-          >
-            <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{co.name}</span>
-                {followedNames.includes(co.name) && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
+        {filtered.map((co, idx) => {
+          const isFollowed = followedNames.includes(co.name)
+          const atCap = !isFollowed && followedCount >= MAX_FOLLOWED
+          const atFloor = !isFollowed && xpBalance - FOLLOW_XP_COST < XP_FLOOR
+          const disabled = atCap || atFloor
+          const disabledReason = atCap ? `Limit: ${MAX_FOLLOWED} companies` : `XP floor (${XP_FLOOR}) would be breached`
+          return (
+            <div key={co.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: idx < filtered.length - 1 ? "1px solid var(--tm-border-soft)" : "none" }}>
+              <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Link href={`/companies/${encodeURIComponent(co.name)}`} style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                    {co.name}
+                  </Link>
+                  {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
               </div>
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>+{co.added}</div>
+                <TrendChip pct={co.pct} up={true} />
+              </div>
+              <FollowStarBtn
+                isFollowed={isFollowed}
+                onToggle={() => onToggleFollow(co.name)}
+                onHover={() => !isFollowed && onHoverStar(co.name)}
+                disabled={disabled}
+                disabledReason={disabledReason}
+              />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>+{co.added}</div>
-              <TrendChip pct={co.pct} up={true} />
-            </div>
-            <FollowStarBtn isFollowed={followedNames.includes(co.name)} onToggle={() => onToggleFollow(co.name)} />
-          </div>
-        ))}
+          )
+        })}
         {filtered.length === 0 && (
-          <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-            No match
-          </div>
+          <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>No match</div>
         )}
       </div>
     </div>
@@ -478,55 +503,28 @@ function TopMovers({ companies, followedNames, onToggleFollow }: {
 
 // ── Skill Selector Panel ─────────────────────────────────────────────────────
 
-const MAX_HEATMAP_SKILLS = 8
-
 function SkillSelectorPanel({
-  skills,
-  selectedNames,
-  onToggle,
-  onApplyUserSkills,
-  isLoggedIn,
-  isApplied,
+  skills, selectedNames, onToggle, isLoggedIn,
 }: {
   skills: UserSkillDemandItem[]
   selectedNames: Set<string>
   onToggle: (name: string) => void
-  onApplyUserSkills: () => void
   isLoggedIn: boolean
-  isApplied: boolean
 }) {
   const selectedCount = selectedNames.size
-
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
-          SKILL LENS
-        </div>
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>SKILL LENS</div>
         {isLoggedIn && skills.length > 0 && (
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: selectedCount >= MAX_HEATMAP_SKILLS ? "var(--tm-warning)" : "var(--tm-accent)", fontWeight: 600 }}>
             {selectedCount}/{MAX_HEATMAP_SKILLS}
           </div>
         )}
       </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: isLoggedIn && skills.length > 0 && !isApplied ? 8 : 14, lineHeight: 1.5 }}>
-        {isLoggedIn ? (isApplied ? "Toggle skills shown as heatmap columns" : "Heatmap showing global skills") : "Sign in to personalise the heatmap"}
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
+        {isLoggedIn ? "Toggle which of your CV skills appear as heatmap columns" : "Sign in to personalise the heatmap"}
       </div>
-      {isLoggedIn && skills.length > 0 && !isApplied && (
-        <button
-          onClick={onApplyUserSkills}
-          style={{
-            alignSelf: "flex-start", marginBottom: 14,
-            fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.06em",
-            padding: "5px 14px", borderRadius: 99, cursor: "pointer",
-            background: "rgba(0,245,212,0.10)", border: "1px solid var(--tm-accent)",
-            color: "var(--tm-accent)", transition: "all 120ms ease",
-          }}
-        >
-          ↗ Switch to my CV skills
-        </button>
-      )}
-
       {!isLoggedIn ? (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to use Skill Lens</div>
@@ -548,30 +546,18 @@ function SkillSelectorPanel({
                 onClick={() => !atMax && onToggle(skill.display_name)}
                 title={atMax ? "Max 8 selected — deselect one first" : `${skill.display_name} · ${skill.job_count_30d} jobs (30d)`}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "5px 10px", borderRadius: 99,
+                  display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 99,
                   cursor: atMax ? "not-allowed" : "pointer",
                   background: selected ? "rgba(0,245,212,0.10)" : "rgba(255,255,255,0.03)",
                   border: `1px solid ${selected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
                   color: selected ? "var(--tm-accent)" : atMax ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em",
-                  opacity: atMax ? 0.45 : 1,
-                  transition: "all 120ms ease",
-                  flexShrink: 0,
+                  opacity: atMax ? 0.45 : 1, transition: "all 120ms ease", flexShrink: 0,
                 }}
               >
-                <span style={{
-                  fontSize: 9, fontWeight: 700,
-                  color: selected ? "rgba(0,245,212,0.7)" : skill.current_level >= 3 ? "var(--tm-text-muted)" : "var(--tm-text-faint)",
-                }}>
-                  L{skill.current_level}
-                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: selected ? "rgba(0,245,212,0.7)" : skill.current_level >= 3 ? "var(--tm-text-muted)" : "var(--tm-text-faint)" }}>L{skill.current_level}</span>
                 {skill.display_name}
-                {skill.job_count_30d > 0 && (
-                  <span style={{ fontSize: 9, color: selected ? "rgba(0,245,212,0.5)" : "var(--tm-text-faint)", marginLeft: 1 }}>
-                    {skill.job_count_30d}
-                  </span>
-                )}
+                {skill.job_count_30d > 0 && <span style={{ fontSize: 9, color: selected ? "rgba(0,245,212,0.5)" : "var(--tm-text-faint)", marginLeft: 1 }}>{skill.job_count_30d}</span>}
               </button>
             )
           })}
@@ -586,16 +572,25 @@ function SkillSelectorPanel({
 export default function IntelPage() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
 
-  const [followedOnly, setFollowedOnly] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
   const [loadingStep, setLoadingStep] = useState(0)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
-  // heatmapApplied: true only after user explicitly acts in Skill Lens
-  // Keeps heatmap on stable global-skills key until user opts in — prevents double-fire
-  const [heatmapApplied, setHeatmapApplied] = useState(false)
+
+  // Sync XP balance if not yet set from another page visit
+  useQuery({
+    queryKey: ["xpBalance", token],
+    queryFn: async () => {
+      const r = await xp.balance(token!)
+      setXPBalance(r.balance)
+      return r
+    },
+    enabled: !!token && xpBalance === 0,
+    staleTime: 60 * 1000,
+  })
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["intel-analytics"],
@@ -615,19 +610,25 @@ export default function IntelPage() {
     enabled: !!token,
   })
 
-  const { data: skillDemandData } = useQuery({
+  const { data: skillDemandData, isLoading: skillDemandLoading } = useQuery({
     queryKey: ["mySkillDemand", token],
     queryFn: () => jobs.mySkillDemand(token!),
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
   })
 
-  const followedNames = useMemo(
-    () => followedData?.companies.map(c => c.company_name) ?? [],
+  // followedCompanies sorted most-recently-starred first (already DESC from backend)
+  const followedCompanies = useMemo<FollowedCompany[]>(
+    () => followedData?.companies ?? [],
     [followedData]
   )
 
-  // Seed selectedSkillNames once from top-8 mySkillDemand on first load
+  const followedNames = useMemo(
+    () => followedCompanies.map(c => c.company_name),
+    [followedCompanies]
+  )
+
+  // Seed selected skills from top-8 mySkillDemand on first load
   useEffect(() => {
     if (skillDemandData?.skills?.length && !skillsInitialized) {
       const top8 = skillDemandData.skills
@@ -640,61 +641,16 @@ export default function IntelPage() {
     }
   }, [skillDemandData, skillsInitialized])
 
-  const handleToggleSkill = useCallback((name: string) => {
-    setHeatmapApplied(true)
-    setSelectedSkillNames(prev => {
-      const next = new Set(prev)
-      if (next.has(name)) {
-        if (next.size > 1) next.delete(name)
-      } else {
-        if (next.size < MAX_HEATMAP_SKILLS) next.add(name)
-      }
-      return next
-    })
-  }, [])
-
-  const handleApplyUserSkills = useCallback(() => setHeatmapApplied(true), [])
-
-  const topCompanies = useMemo(() => {
-    let list = analytics?.by_company ?? []
-    if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
-    return list.slice(0, 10)
-  }, [analytics, followedOnly, followedNames])
-
-  const skillQueries = useQueries({
-    queries: topCompanies.map(co => ({
-      queryKey: ["entitySkills", co.name],
-      queryFn: () => jobs.analyticsEntitySkills(co.name, "company"),
-      staleTime: 7 * 24 * 60 * 60 * 1000,
-    })),
-  })
-
-  const skillsMap = useMemo(() => {
-    const map: Record<string, SkillCountItem[]> = {}
-    skillQueries.forEach((q, i) => {
-      if (q.data && topCompanies[i]) map[topCompanies[i].name] = q.data.skills
-    })
-    return map
-  }, [skillQueries, topCompanies])
-
-  // Heatmap columns: global top-8 (fires at ~750ms) until user explicitly acts in Skill Lens.
-  // heatmapApplied=true → switch to user-curated selectedSkillNames (re-keys once, then cached).
-  // This prevents double-fire: global key at 750ms + user-skills key at 6s.
+  // Heatmap columns: always CV skills (user-curated via Skill Lens)
   const heatmapSkills = useMemo(() => {
-    if (heatmapApplied && selectedSkillNames.size > 0 && skillDemandData?.skills?.length) {
-      return skillDemandData.skills
-        .filter(s => selectedSkillNames.has(s.display_name))
-        .sort((a, b) => b.weighted_demand - a.weighted_demand)
-        .map(s => s.display_name)
-    }
-    const freq: Record<string, number> = {}
-    for (const skillList of Object.values(skillsMap)) {
-      for (const s of skillList) freq[s.skill] = (freq[s.skill] || 0) + s.count
-    }
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, MAX_HEATMAP_SKILLS).map(([sk]) => sk)
-  }, [heatmapApplied, selectedSkillNames, skillDemandData, skillsMap])
+    if (!skillDemandData?.skills?.length) return []
+    const base = skillDemandData.skills
+      .filter(s => selectedSkillNames.size === 0 || selectedSkillNames.has(s.display_name))
+      .sort((a, b) => b.weighted_demand - a.weighted_demand)
+      .slice(0, MAX_HEATMAP_SKILLS)
+    return base.map(s => s.display_name)
+  }, [selectedSkillNames, skillDemandData])
 
-  // skill display_name → current_level map for column header pips
   const skillLevels = useMemo(() => {
     const map: Record<string, number> = {}
     for (const s of skillDemandData?.skills ?? []) {
@@ -703,24 +659,36 @@ export default function IntelPage() {
     return map
   }, [skillDemandData])
 
-  // Exact (company × user-skill) counts — bypasses ENTITY_SKILL_LIMIT top-N truncation
-  const { data: heatmapData } = useQuery({
-    queryKey: ["skillHeatmap", topCompanies.map(c => c.name).join(","), heatmapSkills.join(",")],
-    queryFn: () => jobs.skillHeatmap(topCompanies.map(c => c.name), heatmapSkills),
-    enabled: !!token && heatmapSkills.length > 0 && topCompanies.length > 0,
-    staleTime: 30 * 60 * 1000,
+  // Per-company heatmap row queries — independent cache keys, never invalidate each other
+  const heatmapRowQueries = useQueries({
+    queries: followedCompanies.map(co => ({
+      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(",")],
+      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills),
+      enabled: heatmapSkills.length > 0,
+      staleTime: 30 * 60 * 1000,
+    })),
   })
 
-  const heatmapMatrix = heatmapData?.matrix ?? null
+  // company_name → skill→count (null while loading)
+  const rowDataMap = useMemo(() => {
+    const map: Record<string, Record<string, number> | null> = {}
+    followedCompanies.forEach((co, i) => {
+      const q = heatmapRowQueries[i]
+      map[co.company_name] = q?.data?.matrix?.[co.company_name] ?? null
+    })
+    return map
+  }, [followedCompanies, heatmapRowQueries])
 
-  // Resolved cell info for drill-down
+  const allRowsLoaded = heatmapRowQueries.length > 0 && heatmapRowQueries.every(q => !q.isLoading)
+
+  // Resolved cell for drill-down
   const resolvedCell = useMemo(() => {
     if (!selectedCell) return null
-    const company = topCompanies[selectedCell.ci]
+    const company = followedCompanies[selectedCell.ci]
     const skill = heatmapSkills[selectedCell.si]
     if (!company || !skill) return null
-    return { companyName: company.name, skillName: skill }
-  }, [selectedCell, topCompanies, heatmapSkills])
+    return { companyName: company.company_name, skillName: skill }
+  }, [selectedCell, followedCompanies, heatmapSkills])
 
   const { data: drillData, isLoading: drillLoading } = useQuery({
     queryKey: ["cellJobs", resolvedCell?.companyName, resolvedCell?.skillName],
@@ -728,8 +696,6 @@ export default function IntelPage() {
     enabled: !!resolvedCell,
     staleTime: 10 * 60 * 1000,
   })
-
-  const drillJobs = drillData?.jobs ?? []
 
   const saveMutation = useMutation({
     mutationFn: (jobId: string) => jobs.saveJob(token!, jobId),
@@ -739,12 +705,11 @@ export default function IntelPage() {
     },
   })
 
-  const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
-
   const followMutation = useMutation({
     mutationFn: async ({ name, follow }: { name: string; follow: boolean }) => {
-      if (follow) await users.followCompany(token!, name)
-      else await users.unfollowCompany(token!, name)
+      if (follow) return users.followCompany(token!, name)
+      await users.unfollowCompany(token!, name)
+      return null
     },
     onMutate: async ({ name, follow }) => {
       await queryClient.cancelQueries({ queryKey: ["followedCompanies", token] })
@@ -752,18 +717,23 @@ export default function IntelPage() {
       queryClient.setQueryData<FollowedCompaniesResponse>(["followedCompanies", token], old => {
         if (!old) return old
         const companies = follow
-          ? [...old.companies, { company_name: name, created_at: new Date().toISOString() }]
+          ? [{ company_name: name, created_at: new Date().toISOString() }, ...old.companies]
           : old.companies.filter(c => c.company_name !== name)
         return { companies, total: companies.length }
       })
       return { previous }
+    },
+    onSuccess: (data) => {
+      if (data && typeof data.new_xp_balance === "number") {
+        setXPBalance(data.new_xp_balance)
+      }
+      queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["followedCompanies", token], context.previous)
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
 
   const handleToggleFollow = useCallback(
@@ -774,89 +744,92 @@ export default function IntelPage() {
     [token, followedNames, followMutation]
   )
 
+  const handleHoverStar = useCallback(
+    (company: string) => {
+      if (heatmapSkills.length === 0) return
+      void queryClient.prefetchQuery({
+        queryKey: ["heatmapRow", company, heatmapSkills.join(",")],
+        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills),
+        staleTime: 30 * 60 * 1000,
+      })
+    },
+    [queryClient, heatmapSkills]
+  )
+
+  const handleToggleSkill = useCallback((name: string) => {
+    setSelectedSkillNames(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) { if (next.size > 1) next.delete(name) }
+      else if (next.size < MAX_HEATMAP_SKILLS) next.add(name)
+      return next
+    })
+  }, [])
+
   const handleCellSelect = useCallback((ci: number, si: number) => {
     setSelectedCell(prev => (prev?.ci === ci && prev?.si === si ? null : { ci, si }))
   }, [])
 
-  const moversCompanies = useMemo(() => {
-    let list = analytics?.by_company ?? []
-    if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
-    return list
-  }, [analytics, followedOnly, followedNames])
+  const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
+
+  const moversCompanies = useMemo(() => analytics?.by_company ?? [], [analytics])
 
   return (
     <AppShell>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
       <div style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
-              CAREER INTELLIGENCE
-            </div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
-          </div>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" as const }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: followedOnly ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
-              Followed only
-            </span>
-            <div
-              onClick={() => setFollowedOnly(f => !f)}
-              style={{
-                width: 36, height: 20, borderRadius: 99, position: "relative",
-                background: followedOnly ? "var(--tm-accent)" : "var(--tm-border)",
-                cursor: "pointer", transition: "background 200ms ease", flexShrink: 0,
-              }}
-            >
-              <div style={{
-                position: "absolute", top: 3, left: followedOnly ? 19 : 3,
-                width: 14, height: 14, borderRadius: "50%",
-                background: followedOnly ? "var(--tm-bg)" : "var(--tm-text-faint)",
-                transition: "left 200ms ease",
-              }} />
-            </div>
-          </label>
+        <div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
         </div>
 
-        {analyticsLoading || !analytics ? (
-          <IntelLoadingState message={MARKET_LOADING_STEPS[loadingStep]} />
-        ) : (
-          <>
-            <PulseStrip analytics={analytics} followedCount={followedNames.length} />
-            <SkillHeatmap
-              companies={topCompanies}
-              skillsMap={skillsMap}
-              heatmapMatrix={heatmapMatrix}
-              skills={heatmapSkills}
-              skillLevels={skillLevels}
-              followedNames={followedNames}
-              selectedCell={selectedCell}
-              onCellSelect={handleCellSelect}
-            />
-            {resolvedCell && (
-              <JobDrillPanel
-                companyName={resolvedCell.companyName}
-                skillName={resolvedCell.skillName}
-                drillJobs={drillJobs}
-                isLoading={drillLoading}
-                savedJobIds={savedJobIds}
-                onSave={job => saveMutation.mutate(job.job_id)}
-                onClose={() => setSelectedCell(null)}
-                isLoggedIn={!!token}
-              />
-            )}
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
-              <TopMovers companies={moversCompanies} followedNames={followedNames} onToggleFollow={handleToggleFollow} />
-              <SkillSelectorPanel
-                skills={skillDemandData?.skills ?? []}
-                selectedNames={selectedSkillNames}
-                onToggle={handleToggleSkill}
-                onApplyUserSkills={handleApplyUserSkills}
-                isLoggedIn={!!token}
-                isApplied={heatmapApplied}
-              />
-            </div>
-          </>
+        {/* Progress banner — visible only during initial load, never blocks content */}
+        <ProgressBanner
+          analyticsReady={!analyticsLoading && !!analytics}
+          skillsReady={!skillDemandLoading && !!skillDemandData}
+          heatmapReady={allRowsLoaded}
+          message={MARKET_LOADING_STEPS[loadingStep]}
+        />
+
+        {analytics && <PulseStrip analytics={analytics} followedCount={followedNames.length} />}
+
+        <SkillHeatmap
+          companies={followedCompanies}
+          rowDataMap={rowDataMap}
+          skills={heatmapSkills}
+          skillLevels={skillLevels}
+          selectedCell={selectedCell}
+          onCellSelect={handleCellSelect}
+        />
+
+        {resolvedCell && (
+          <JobDrillPanel
+            companyName={resolvedCell.companyName}
+            skillName={resolvedCell.skillName}
+            drillJobs={drillData?.jobs ?? []}
+            isLoading={drillLoading}
+            savedJobIds={savedJobIds}
+            onSave={job => saveMutation.mutate(job.job_id)}
+            onClose={() => setSelectedCell(null)}
+            isLoggedIn={!!token}
+          />
         )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
+          <TopMovers
+            companies={moversCompanies}
+            followedNames={followedNames}
+            onToggleFollow={handleToggleFollow}
+            onHoverStar={handleHoverStar}
+            xpBalance={xpBalance}
+            followedCount={followedCompanies.length}
+          />
+          <SkillSelectorPanel
+            skills={skillDemandData?.skills ?? []}
+            selectedNames={selectedSkillNames}
+            onToggle={handleToggleSkill}
+            isLoggedIn={!!token}
+          />
+        </div>
       </div>
     </AppShell>
   )

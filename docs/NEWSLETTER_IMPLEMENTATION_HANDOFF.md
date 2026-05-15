@@ -200,7 +200,7 @@ Update `frontend/next.config.js` (or `next.config.mjs`, whichever exists) to inc
   ```
   Convert the markdown body to MDX-compatible (escape any literal `<` not in JSX, etc.).
 - `True_Yodha/scripts/sync-newsletter.ts`:
-  - Reads from absolute path `/Users/incognito/Myro Newsletter/issues/` (configurable via `NEWSLETTER_SOURCE_DIR` env var; default to relative `../Myro Newsletter/issues/` from repo root).
+  - Reads from absolute path `/Users/incognito/True_Yodha/Myro Newsletter/issues/` (configurable via `NEWSLETTER_SOURCE_DIR` env var; default to relative `Myro Newsletter/issues/` from repo root).
   - Copies all `*.mdx` to `frontend/content/newsletter/issues/`.
   - Validates each file: frontmatter parses, slug matches filename, slug matches frontmatter, required fields present.
   - Removes any `.mdx` file in destination that no longer exists in source.
@@ -218,7 +218,7 @@ Update `frontend/next.config.js` (or `next.config.mjs`, whichever exists) to inc
   ```
   Add `tsx` to devDependencies.
 - `True_Yodha/.github/workflows/` (if exists) — add a step to run `newsletter:check`.
-- Embed the dashboard charts: copy or reference the relevant HTML from `Myro Newsletter/Dashboards on jobs table/` into the issue. Two options:
+- Embed the dashboard charts: copy or reference the relevant HTML from `/Users/incognito/True_Yodha/Myro Newsletter/Dashboards on jobs table/` into the issue. Two options:
   - (a) Create `frontend/components/newsletter/charts/` with React versions of dashboards 1–5 (preferred — server-rendered, lazy-loaded, no iframe SEO penalty).
   - (b) Inline as `<iframe srcDoc={...}>` in MDX (faster but worse for Lighthouse).
   Pick (a) if dashboard data is small enough; otherwise (b).

@@ -532,9 +532,12 @@ function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: 
   )
 }
 
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home"]
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
   const { balance: xpBalance } = useXPStore()
+  const pathname = usePathname()
 
   const { data: profileData } = useQuery({
     queryKey: dataKeys.profile(),
@@ -545,9 +548,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) return null
 
+  const showParticle = !SUPPRESS_PARTICLE_PATHS.some(p => pathname.startsWith(p))
+
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
-      <ParticleBg />
+      {showParticle && <ParticleBg />}
       <Sidebar
         xpBalance={xpBalance}
         profile={{

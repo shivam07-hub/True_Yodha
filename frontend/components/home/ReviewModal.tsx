@@ -1,0 +1,113 @@
+"use client"
+
+import { useState } from "react"
+
+const STAGE_LABELS: Record<string, string> = {
+  saved: "Saved",
+  applied: "Applied",
+  screening: "Screening",
+  interviewing: "Interviewing",
+  final_round: "Final Round",
+}
+
+interface ReviewModalProps {
+  company: string | null
+  onClose: () => void
+  onSubmit: (data: { star_rating: number; last_stage: string; written_note?: string | null }) => Promise<void>
+}
+
+export function ReviewModal({ company, onClose, onSubmit }: ReviewModalProps) {
+  const [stars, setStars] = useState(0)
+  const [hoveredStar, setHoveredStar] = useState(0)
+  const [lastStage, setLastStage] = useState("applied")
+  const [note, setNote] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit() {
+    if (stars === 0) { setError("Pick a star rating"); return }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onSubmit({ star_rating: stars, last_stage: lastStage, written_note: note.trim() || null })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submit failed")
+      setSubmitting(false)
+    }
+  }
+
+  const displayStar = hoveredStar || stars
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(5,10,24,0.7)", backdropFilter: "blur(4px)", zIndex: 60 }} />
+      <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 61, width: "min(480px,92vw)", background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: 14, padding: 28, display: "flex", flexDirection: "column", gap: 20, boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,245,212,0.06)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Leave a review</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>{company ?? "Company"}</div>
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+        </div>
+
+        {/* Stars */}
+        <div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>Overall experience</div>
+          <div style={{ display: "flex", gap: 6 }} onMouseLeave={() => setHoveredStar(0)}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <button
+                key={n}
+                onMouseEnter={() => setHoveredStar(n)}
+                onClick={() => setStars(n)}
+                style={{ fontSize: 28, background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: n <= displayStar ? "#FBBF24" : "var(--tm-border)", transition: "color 80ms ease" }}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Last stage */}
+        <div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>How far did you get?</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {Object.entries(STAGE_LABELS).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setLastStage(val)}
+                style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer", transition: "all 100ms ease", background: lastStage === val ? "var(--tm-accent)" : "rgba(255,255,255,0.03)", border: lastStage === val ? "1px solid var(--tm-accent)" : "1px solid var(--tm-border)", color: lastStage === val ? "var(--tm-accent-fg)" : "var(--tm-text-muted)" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Note */}
+        <div>
+          <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>Note <span style={{ opacity: 0.5 }}>(optional)</span></div>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            rows={3}
+            placeholder="What happened? Anything others should know..."
+            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid var(--tm-border)", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "var(--tm-text)", fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+
+        {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Skip</button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || stars === 0}
+            style={{ padding: "8px 20px", borderRadius: 8, background: stars > 0 ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none", color: stars > 0 ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", cursor: stars > 0 ? "pointer" : "default", fontSize: 13, fontWeight: 600, fontFamily: "inherit", opacity: submitting ? 0.6 : 1, transition: "all 120ms ease" }}
+          >
+            {submitting ? "Submitting…" : "Submit review"}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}

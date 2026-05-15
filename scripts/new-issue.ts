@@ -28,7 +28,7 @@ const THEME_LABELS: Record<Theme, string> = {
 }
 
 const ISSUE_DIR = process.env.NEWSLETTER_SOURCE_DIR
-  ?? path.resolve(__dirname, "..", "..", "Myro Newsletter", "issues")
+  ?? path.resolve(__dirname, "..", "Myro Newsletter", "issues")
 
 function toKebab(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")

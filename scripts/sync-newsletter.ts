@@ -17,9 +17,9 @@ const DRY_RUN = process.argv.includes("--dry-run")
 
 const REPO_ROOT = path.resolve(__dirname, "..")
 const SOURCE_DIR = process.env.NEWSLETTER_SOURCE_DIR
-  ?? path.resolve(REPO_ROOT, "..", "Myro Newsletter", "issues")
+  ?? path.resolve(REPO_ROOT, "Myro Newsletter", "issues")
 const DEST_DIR = path.resolve(REPO_ROOT, "frontend", "content", "newsletter", "issues")
-const CHART_SOURCE_DIR = path.resolve(REPO_ROOT, "..", "Myro Newsletter", "Dashboards on jobs table")
+const CHART_SOURCE_DIR = path.resolve(REPO_ROOT, "Myro Newsletter", "Dashboards on jobs table")
 const CHART_DEST_DIR = path.resolve(REPO_ROOT, "frontend", "public", "newsletter", "charts")
 
 const REQUIRED_FIELDS = ["title", "slug", "publishedAt", "theme", "primaryKeyword", "ctaRole", "summary"] as const

@@ -245,7 +245,7 @@ export default function JobsPage() {
   })
 
   const track = useMutation({
-    mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "pending" }),
+    mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "saved" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
   })
 

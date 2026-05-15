@@ -67,6 +67,9 @@ async def get_skill_heatmap(
 ) -> SkillHeatmapResponse:
     company_list = [c.strip() for c in companies.split(",") if c.strip()]
     skill_list = [s.strip() for s in skills.split(",") if s.strip()]
+    if len(company_list) == 1:
+        row = repo.fetch_skill_heatmap_row(company_list[0], skill_list)
+        return SkillHeatmapResponse(matrix={company_list[0]: row})
     matrix = repo.fetch_skill_heatmap(company_list, skill_list)
     return SkillHeatmapResponse(matrix=matrix)
 
