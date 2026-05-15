@@ -13,6 +13,9 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { useXPStore } from "@/store/xpStore"
+import { useForgeTimerStore } from "@/store/forgeTimerStore"
+import { ForgeFloatingTimer } from "@/components/forge/ForgeFloatingTimer"
+import { xp, diary } from "@/lib/api"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
@@ -343,6 +346,7 @@ function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: 
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const forgeRunning = useForgeTimerStore((s) => s.running)
 
   return (
     <nav
@@ -382,13 +386,15 @@ function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: 
         </div>
       </Link>
 
-      {/* XP pill */}
+      {/* XP pill — glows when forge session is running */}
       <div style={{
         margin: "10px 8px", padding: "10px 12px",
         borderRadius: "var(--tm-radius)",
-        background: "var(--tm-accent-wash)",
-        border: "1px solid var(--tm-accent-ring)",
+        background: forgeRunning ? "rgba(0,245,212,0.08)" : "var(--tm-accent-wash)",
+        border: `1px solid ${forgeRunning ? "var(--tm-accent)" : "var(--tm-accent-ring)"}`,
+        boxShadow: forgeRunning ? "0 0 14px rgba(0,245,212,0.2), inset 0 0 8px rgba(0,245,212,0.04)" : "none",
         display: "flex", alignItems: "center", gap: 10,
+        transition: "background 400ms ease, border-color 400ms ease, box-shadow 400ms ease",
       }}>
         <div style={{
           minWidth: 32, textAlign: "center",
@@ -536,8 +542,23 @@ const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
-  const { balance: xpBalance } = useXPStore()
+  const { balance: xpBalance, addBalance, setBalance: setXPBalance } = useXPStore()
   const pathname = usePathname()
+
+  async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
+    if (!token) throw new Error("Not authenticated")
+    return xp.completeForge(token, { ...payload, session_type: "ambient" })
+  }
+
+  async function handleAmbientReflection(text: string, skillName: string) {
+    if (!token) return
+    await diary.createEntry(token, text, undefined, [{ skill_name: skillName }])
+  }
+
+  function handleAmbientXPEarned(amount: number, newBalance: number) {
+    addBalance(amount)
+    setXPBalance(newBalance)
+  }
 
   const { data: profileData } = useQuery({
     queryKey: dataKeys.profile(),
@@ -569,6 +590,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      <ForgeFloatingTimer
+        onCompleteSession={handleAmbientForgeComplete}
+        onSaveReflection={handleAmbientReflection}
+        onXPEarned={handleAmbientXPEarned}
+      />
     </div>
   )
 }

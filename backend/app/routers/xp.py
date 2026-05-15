@@ -38,5 +38,6 @@ async def complete_forge_session(
         skill_name=body.skill_name,
         skill_id=body.skill_id,
         duration_minutes=body.duration_minutes,
+        session_type=body.session_type,
     )
     return ForgeSessionResponse(**result)

@@ -24,6 +24,7 @@ import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
+import { useForgeTimerStore } from "@/store/forgeTimerStore"
 import { useDiaryIntentStore } from "@/store/diaryIntentStore"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
 
@@ -60,6 +61,7 @@ function HomePageInner() {
   const [dismissedStale, setDismissedStale] = useState<Set<string>>(new Set())
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
+  const { sessionActive, dismissed, startSession, setRunning: setForgeTimerRunning } = useForgeTimerStore()
   const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
   useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
   const urlJobId = searchParams.get("jobId")
@@ -89,6 +91,11 @@ function HomePageInner() {
 
   useEffect(() => { if (!token) return; xp.balance(token).then(r => setXPBalance(r.balance)).catch(() => {}) }, [token, setXPBalance])
 
+  // Pause ambient timer when full ForgeModal opens
+  useEffect(() => {
+    if (forgeOpen) setForgeTimerRunning(false)
+  }, [forgeOpen, setForgeTimerRunning])
+
   const { data: skillGapData } = useQuery({ queryKey: dataKeys.skillGap(activeJob?.job_id ?? null), queryFn: () => jobs.skillGap(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id, staleTime: 10 * 60 * 1000 })
 
   const trackedJobIds = useMemo(() => apps.map(a => a.job_id), [apps])
@@ -113,6 +120,20 @@ function HomePageInner() {
   )
 
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
+
+  // Seed mini forge timer once when skills first become available
+  const seedKey = cartSkills[0]?.skill_name ?? gapSkills[0]?.skill ?? null
+  useEffect(() => {
+    if (!seedKey || sessionActive || dismissed) return
+    const seed = cartSkills[0] ?? {
+      skill_name: gapSkills[0].skill,
+      level_from: gapSkills[0].user_level ?? 0,
+      level_to: gapSkills[0].required_level ?? 1,
+      company: activeJob?.company,
+    }
+    startSession(seed)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedKey])
   const todayStr = new Date().toISOString().slice(0, 10)
   const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
   const hasApplied = apps.some(a => a.status !== "saved")
@@ -149,7 +170,7 @@ function HomePageInner() {
   const generateJobCv = useMutation({ mutationFn: ({ aiPolish }: { aiPolish: boolean }) => jobs.generateJobCv(token!, activeJob!.job_id, aiPolish), onSuccess: () => invalidateJobPathData(queryClient, activeJob!.job_id) })
 
   async function handleDiarySubmit(text: string, cart: CartSkill[]) { await saveEntry.mutateAsync({ text, cart }) }
-  async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, payload) }
+  async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, { ...payload, session_type: "focused" }) }
   async function handleSpendXP(amount: number, action: string) { if (!token) return; try { const r = await xp.spend(token, amount, action); setXPBalance(r.balance); showToast(`${action === "rewrite_cv_line" ? "CV line rewriting…" : "Download unlocked"} −${amount} XP`) } catch { showToast("Not enough XP — forge a session to earn more") } }
   function handleSkillToggle(skill: SkillGapItem) { if (cartSkills.find(c => c.skill_name === skill.skill)) { removeSkill(skill.skill) } else { addSkill({ skill_name: skill.skill, level_from: skill.user_level ?? 0, level_to: skill.required_level ?? 1 }) } }
   function handleSendBatch() { openDiary(); setDrawerOpen(false); router.push("/home") }

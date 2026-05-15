@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.services.forge_service import LEVEL_THRESHOLDS, complete_forge_session
+from app.services.forge_service import LEVEL_THRESHOLDS, XP_RATE_BY_TYPE, complete_forge_session
 
 
 def _make_admin(level: int = 0, sessions_count: int = 0, has_row: bool = True):
@@ -60,9 +60,17 @@ async def test_sessions_needed_reflects_next_threshold():
 
 
 @pytest.mark.asyncio
-async def test_xp_earned_always_50():
+async def test_xp_earned_uses_rate_by_session_type():
+    # focused: 3 XP/min × 25 min = 75
     result = await _run(MagicMock(), level=0, sessions_count=0)
-    assert result["xp_earned"] == 50
+    assert result["xp_earned"] == 25 * XP_RATE_BY_TYPE["focused"]
+    # ambient: 2 XP/min × 25 min = 50
+    with (
+        patch("app.services.forge_service.get_supabase_admin", return_value=_make_admin(0, 0)),
+        patch("app.services.forge_service.earn_xp", return_value=50),
+    ):
+        ambient = await complete_forge_session("user-1", "Python", None, 25, session_type="ambient")
+    assert ambient["xp_earned"] == 25 * XP_RATE_BY_TYPE["ambient"]
 
 
 @pytest.mark.asyncio

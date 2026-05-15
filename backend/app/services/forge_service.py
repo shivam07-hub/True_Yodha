@@ -15,7 +15,8 @@ _log = logging.getLogger(__name__)
 # Cumulative forge sessions needed to reach next level (level 4 = max)
 LEVEL_THRESHOLDS: dict[int, int] = {0: 3, 1: 9, 2: 27, 3: 108}
 
-XP_PER_SESSION = 50
+# XP per minute by session type
+XP_RATE_BY_TYPE: dict[str, int] = {"ambient": 2, "focused": 3}
 
 
 async def complete_forge_session(
@@ -23,6 +24,7 @@ async def complete_forge_session(
     skill_name: str,
     skill_id: str | None,
     duration_minutes: int,
+    session_type: str = "focused",
 ) -> dict:
     """
     Record a completed forge session. Returns session summary including
@@ -30,8 +32,10 @@ async def complete_forge_session(
     """
     admin = get_supabase_admin()
 
-    # 1. Earn XP
-    new_xp_balance = await earn_xp(user_id, XP_PER_SESSION)
+    # 1. Earn XP — rate depends on session_type
+    rate = XP_RATE_BY_TYPE.get(session_type, 3)
+    xp_earned = max(1, duration_minutes) * rate
+    new_xp_balance = await earn_xp(user_id, xp_earned)
 
     # 2. Fetch or create user_skills row
     skill_filter = (
@@ -90,7 +94,7 @@ async def complete_forge_session(
         "level_after": level_after,
         "sessions_toward_next": sessions_count,
         "duration_minutes": max(1, duration_minutes),
-        "xp_earned": XP_PER_SESSION,
+        "xp_earned": xp_earned,
     }
     if skill_id:
         try:
@@ -102,7 +106,7 @@ async def complete_forge_session(
     next_threshold = LEVEL_THRESHOLDS.get(level_after)
 
     return {
-        "xp_earned": XP_PER_SESSION,
+        "xp_earned": xp_earned,
         "new_xp_balance": new_xp_balance,
         "level_before": level_before,
         "level_after": level_after,

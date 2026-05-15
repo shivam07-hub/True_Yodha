@@ -1101,6 +1101,7 @@ export interface ForgeCompletePayload {
   skill_name: string
   skill_id?: string | null
   duration_minutes: number
+  session_type: "ambient" | "focused"
 }
 
 export const xp = {
