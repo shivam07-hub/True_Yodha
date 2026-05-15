@@ -145,14 +145,14 @@ function EmptyState({ name }: { name: string }) {
         <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>{name}</div>
         <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 320 }}>No verified reviews yet. Be the first to share your candidate experience.</div>
       </div>
-      <Link href="/signup" style={{
+      <Link href="/home" style={{
         padding: "10px 22px", borderRadius: 99, background: "var(--tm-accent)",
         color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none",
         fontFamily: "inherit",
       }}>
         Track your application →
       </Link>
-      <Link href="/" style={{ fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none" }}>← Back to Myro</Link>
+      <Link href="/home" style={{ fontSize: 12, color: "var(--tm-text-faint)", textDecoration: "none" }}>← Back to Myro</Link>
     </div>
   )
 }
@@ -196,7 +196,7 @@ export default function CompanyPageRoute() {
         <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "32px 32px 28px", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 0%, rgba(0,245,212,0.05), transparent 60%)", pointerEvents: "none" }} />
           <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
-            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
+            <Link href="/home" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
             >
@@ -277,7 +277,7 @@ export default function CompanyPageRoute() {
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>Applied to {data.company_name}?</div>
               <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Track your application. Leave a verified review when it closes.</div>
             </div>
-            <Link href="/signup" style={{
+            <Link href="/home" style={{
               flexShrink: 0, padding: "10px 22px", borderRadius: 99,
               background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
               fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit",
