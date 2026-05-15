@@ -1,6 +1,5 @@
 from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
 from app.schemas.cv import (
-    CVEvidenceItem,
     CVEvidenceSummaryResponse,
     CVGenerateDraftResponse,
     CVSaveDraftRequest,
@@ -88,7 +87,7 @@ from app.schemas.users import (
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
-    "CVUploadResponse", "CVEvidenceItem", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse", "CVSaveDraftRequest",
+    "CVUploadResponse", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse", "CVSaveDraftRequest",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
     "XPBalanceResponse", "XPSpendRequest", "ForgeCompleteRequest", "ForgeSessionResponse",

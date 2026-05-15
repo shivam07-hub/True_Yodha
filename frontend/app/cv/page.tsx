@@ -511,7 +511,7 @@ export default function CVPage() {
 
   const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
 
-  const { data: evidenceData, isLoading: evidenceLoading } = useQuery({
+  const { data: evidenceData } = useQuery({
     queryKey: dataKeys.cvEvidence(),
     queryFn: () => cv.evidence(token!),
     enabled: !!token && hasCv,
@@ -527,7 +527,7 @@ export default function CVPage() {
     onSuccess: (draft) => {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile() })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
-      setMessage(`Saved CV draft v${draft.version_number} from ${draft.evidence_count} milestone days.`)
+      setMessage(`Saved CV draft v${draft.version_number}.`)
       setSelectedVersionId(draft.version_id)
       router.replace(`/cv?v=${draft.version_id}`, { scroll: false })
       setShowDraftGuide(false)
@@ -1041,11 +1041,9 @@ export default function CVPage() {
               <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
                 {draftStage === "review"
                   ? "Review the draft below. Edit freely before saving as a new CV version."
-                  : evidenceLoading
-                  ? "Loading your progress evidence…"
                   : evidenceData && evidenceData.evidence_count > 0
                   ? `${evidenceData.evidence_count} milestone day${evidenceData.evidence_count !== 1 ? "s" : ""} of evidence will be woven into this draft.`
-                  : "No diary evidence yet — the draft will be built from your baseline CV. Log milestones to enrich future drafts."}
+                  : "Draft will be built from your baseline CV. Log milestones in diary to enrich future drafts."}
               </DialogDescription>
             </DialogHeader>
 
@@ -1103,7 +1101,7 @@ export default function CVPage() {
                   }}
                 />
                 <div style={{ marginTop: 8, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                  Save will create `generated_draft` version v{evidenceData?.next_version_number ?? "next"} in `cv_history`.
+                  Saving creates a new version in your CV history.
                 </div>
               </div>
             )}

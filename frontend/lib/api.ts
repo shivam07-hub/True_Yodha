@@ -340,18 +340,7 @@ export interface CVProfile {
   history: CVHistoryItem[]
 }
 
-export interface CVEvidenceItem {
-  skill: string
-  task: string
-  proof: string
-  impact: string
-  date: string
-  confidence: number
-}
-
 export interface CVEvidenceSummary {
-  eligible: boolean
-  required_count: number
   evidence_count: number
   diary_entries_count: number
   skill_upgrades_count: number
@@ -359,16 +348,12 @@ export interface CVEvidenceSummary {
   current_score: number | null
   last_cv_score: number | null
   next_version_number: number
-  evidence: CVEvidenceItem[]
-  missing_detail_prompts: string[]
 }
 
 export interface CVGenerateDraftResponse {
   version_id: number
   version_number: number
   cv_text: string
-  evidence_count: number
-  score_delta: number | null
   new_xp_balance: number | null
 }
 
