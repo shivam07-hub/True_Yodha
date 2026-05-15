@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
+import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
@@ -377,7 +378,9 @@ function SkillHeatmap({
                   <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
-                      {co.company_name}
+                      <Link href={`/companies/${encodeURIComponent(co.company_name)}`} style={{ color: "inherit", textDecoration: "none" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                        {co.company_name}
+                      </Link>
                     </span>
                   </td>
                   {isLoading ? (
@@ -469,7 +472,9 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
               <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{co.name}</span>
+                  <Link href={`/companies/${encodeURIComponent(co.name)}`} style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                    {co.name}
+                  </Link>
                   {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
@@ -569,7 +574,6 @@ export default function IntelPage() {
   const queryClient = useQueryClient()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
 
-  const [followedOnly, setFollowedOnly] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
   const [loadingStep, setLoadingStep] = useState(0)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
@@ -767,27 +771,15 @@ export default function IntelPage() {
 
   const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
 
-  const moversCompanies = useMemo(() => {
-    let list = analytics?.by_company ?? []
-    if (followedOnly) list = list.filter(c => followedNames.includes(c.name))
-    return list
-  }, [analytics, followedOnly, followedNames])
+  const moversCompanies = useMemo(() => analytics?.by_company ?? [], [analytics])
 
   return (
     <AppShell>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
       <div style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none" as const }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: followedOnly ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>Followed only</span>
-            <div onClick={() => setFollowedOnly(f => !f)} style={{ width: 36, height: 20, borderRadius: 99, position: "relative", background: followedOnly ? "var(--tm-accent)" : "var(--tm-border)", cursor: "pointer", transition: "background 200ms ease", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: followedOnly ? 19 : 3, width: 14, height: 14, borderRadius: "50%", background: followedOnly ? "var(--tm-bg)" : "var(--tm-text-faint)", transition: "left 200ms ease" }} />
-            </div>
-          </label>
+        <div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
         </div>
 
         {/* Progress banner — visible only during initial load, never blocks content */}
