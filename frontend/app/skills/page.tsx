@@ -5,7 +5,8 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
-import { SkillNodeMap } from "@/components/skills/skill-node-map"
+// DEACTIVATED — import when re-activating Skill Tree (see toggle comment in JSX)
+// import { SkillNodeMap } from "@/components/skills/skill-node-map"
 import { ParticleLoading } from "@/components/ui/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { scores, users } from "@/lib/api"
@@ -17,7 +18,8 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 export default function SkillsPage() {
   const { token, ready } = useAuth()
-  const [view, setView] = useState<"tree" | "radar">("tree")
+  // DEACTIVATED: Skill Tree view hidden. See toggle comment below.
+  const [view] = useState<"radar">("radar")
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
 
   const { data: scoreData } = useQuery({
@@ -85,13 +87,23 @@ export default function SkillsPage() {
         </div>
 
 
-        {/* View toggle */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16, position: "relative", zIndex: 1 }}>
+        {/*
+          DEACTIVATED — Skill Tree / Domain Radar toggle.
+
+          Skill Tree (SkillNodeMap / force-directed graph) is a duplicate
+          representation of Domain Radar with lower information quality.
+          It adds significant JS weight and blocks mobile load.
+
+          Re-activate when we have a clear idea of what the Skill Tree
+          should uniquely communicate that Domain Radar does not — e.g.
+          skill clustering by co-occurrence, career path arcs, or forge
+          session progression trails. Until then: radar only.
+
           <div className="tm-segment-toggle">
             <button aria-pressed={view === "tree"} onClick={() => setView("tree")}>⬡ Skill Tree</button>
             <button aria-pressed={view === "radar"} onClick={() => setView("radar")}>◈ Domain Radar</button>
           </div>
-        </div>
+        */}
 
         {/* Stats strip */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
@@ -189,7 +201,12 @@ export default function SkillsPage() {
                 Upload CV
               </Button>
             </div>
-          ) : view === "tree" ? (
+          ) :
+          /* DEACTIVATED — Skill Tree canvas. Keep SkillNodeMap import intact.
+             Re-activate alongside the toggle above when Skill Tree has a
+             distinct, high-value visual purpose vs Domain Radar.
+
+          view === "tree" ? (
             <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
               <SkillNodeMap
                 userSkills={skills}
@@ -198,7 +215,7 @@ export default function SkillsPage() {
                 onDomainClick={d => setActiveDomain(a => a === d ? null : d)}
               />
             </div>
-          ) : (
+          ) : */ (
             <div style={{ padding: "28px 32px" }}>
               <SkillsDomainRadar userSkills={skills} onDomainClick={d => setActiveDomain(a => a === d ? null : d)} activeDomain={activeDomain} />
             </div>
