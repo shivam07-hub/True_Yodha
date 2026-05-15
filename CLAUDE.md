@@ -135,9 +135,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
-1. **Drop `jobs.main_skills` / `jobs.side_skills`** — confirm ≥1 full scraper run wrote to `job_skills`, then `ALTER TABLE jobs DROP COLUMN main_skills, DROP COLUMN side_skills`.
-2. **Report as Inactive feature** — spec at `docs/REPORT_INACTIVE_FEATURE.md`. Needs `job_reports` table + scraper Phase 3 upload first.
-3. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+1. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
 4. ~~**Intel page — job analytics loading screen**~~ ✅ DONE 2026-05-15 — Progress banner (3-step) + skeleton shimmer rows. Never blank. Banner disappears when all resolve.
 5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
 6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
