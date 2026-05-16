@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
@@ -95,8 +95,8 @@ def _is_section_header(line: str) -> bool:
 
 
 def _is_contact_line(line: str) -> bool:
-    l = line.strip().lower()
-    return any(tok in l for tok in ("@", "linkedin", "+91", "+1", "github", "http"))
+    ln = line.strip().lower()
+    return any(tok in ln for tok in ("@", "linkedin", "+91", "+1", "github", "http"))
 
 
 def _looks_like_name(line: str, is_first: bool) -> bool:
