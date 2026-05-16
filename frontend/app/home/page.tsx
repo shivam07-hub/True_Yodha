@@ -230,7 +230,7 @@ function HomePageInner() {
         {/* Focus strip */}
         {topJobs.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Active focus →</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Myro Found →</span>
             {topJobs.map(j => {
               const isActive = j.job_id === activeJobId
               const status = appsByJobId[j.job_id]
@@ -267,7 +267,7 @@ function HomePageInner() {
         {/* Self Focus strip */}
         {selfFocusJobs.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Self focus →</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Self Found →</span>
             {selfFocusJobs.map(a => {
               const isAnalysed = analysedJobIds.has(a.job_id)
               const matchedJob = isAnalysed ? allMatchedJobs.find(j => j.job_id === a.job_id) : null

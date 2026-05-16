@@ -107,22 +107,22 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
           href="/signup"
           style={{
             display: "flex", alignItems: "center",
-            padding: "0 18px", height: 42,
+            padding: "0 16px", height: 42,
             borderRadius: "var(--tm-radius-pill)",
-            fontSize: 15, fontWeight: 700,
-            color: "var(--tm-accent-fg)",
-            background: "var(--tm-accent)",
-            border: "1px solid var(--tm-accent)",
+            fontSize: 15, fontWeight: 600,
+            color: "var(--tm-text-muted)",
+            background: "transparent",
+            border: "1px solid var(--tm-border-soft)",
             textDecoration: "none", whiteSpace: "nowrap",
-            transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
+            transition: "color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--tm-accent-hover)"
-            e.currentTarget.style.borderColor = "var(--tm-accent-hover)"
+            e.currentTarget.style.color = "var(--tm-accent)"
+            e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--tm-accent)"
-            e.currentTarget.style.borderColor = "var(--tm-accent)"
+            e.currentTarget.style.color = "var(--tm-text-muted)"
+            e.currentTarget.style.borderColor = "var(--tm-border-soft)"
           }}
         >
           Sign up
@@ -132,22 +132,22 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             href="/login"
             style={{
               display: "flex", alignItems: "center",
-              padding: "0 16px", height: 42,
+              padding: "0 18px", height: 42,
               borderRadius: "var(--tm-radius-pill)",
-              fontSize: 15, fontWeight: 600,
-              color: "var(--tm-text-muted)",
-              background: "transparent",
-              border: "1px solid var(--tm-border-soft)",
+              fontSize: 15, fontWeight: 700,
+              color: "var(--tm-accent-fg)",
+              background: "var(--tm-accent)",
+              border: "1px solid var(--tm-accent)",
               textDecoration: "none", whiteSpace: "nowrap",
-              transition: "color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
+              transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--tm-accent)"
-              e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+              e.currentTarget.style.background = "var(--tm-accent-hover)"
+              e.currentTarget.style.borderColor = "var(--tm-accent-hover)"
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--tm-text-muted)"
-              e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+              e.currentTarget.style.background = "var(--tm-accent)"
+              e.currentTarget.style.borderColor = "var(--tm-accent)"
             }}
           >
             Sign in →
