@@ -2,86 +2,21 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
-// DEACTIVATED — import when re-activating Skill Tree (see toggle comment in JSX)
-// import { SkillNodeMap } from "@/components/skills/skill-node-map"
 import { ParticleLoading } from "@/components/ui/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
-import { scores, users, diary } from "@/lib/api"
-import type { UserSkillsByDomain, UserSkillItem } from "@/lib/api"
+import { SkillCard } from "@/components/skills/skill-card"
+import { ScoreRing } from "@/components/skills/score-ring"
+import { WeaknessSpotlight } from "@/components/skills/weakness-spotlight"
+import type { WeakDomain } from "@/components/skills/weakness-spotlight"
+import { scores, users } from "@/lib/api"
+import type { UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
-
-function SkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
-  const [logged, setLogged] = useState(false)
-  const { mutate, isPending } = useMutation({
-    mutationFn: () =>
-      diary.createEntry(
-        token,
-        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to build further on ${skill.display_name} this week. Currently at ${skill.proficiency_title} (L${skill.level}). Goal: push to Level ${Math.min(skill.level + 1, 5)} through deliberate practice and real application.`,
-      ),
-    onSuccess: () => setLogged(true),
-  })
-
-  const levelPct = (skill.level / 5) * 100
-  const barColor = skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)"
-
-  return (
-    <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
-      </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{skill.proficiency_title}</div>
-      <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${levelPct}%`, background: barColor, borderRadius: 99 }} />
-      </div>
-      {skill.evidence_text ? (
-        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
-      ) : (
-        <div style={{ fontSize: 10, color: "var(--tm-warning)", fontStyle: "italic" }}>No proof · keyword-inferred</div>
-      )}
-      <button
-        onClick={() => !logged && mutate()}
-        disabled={isPending || logged}
-        style={{
-          marginTop: 4, padding: "6px 12px",
-          borderRadius: "var(--tm-radius-sm)",
-          fontSize: 11, fontWeight: 600,
-          background: logged ? "transparent" : "var(--tm-accent)",
-          color: logged ? "var(--tm-success)" : "var(--tm-accent-fg)",
-          border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-accent)"}`,
-          cursor: logged ? "default" : "pointer",
-          transition: "all 200ms var(--tm-ease)",
-          fontFamily: "inherit", width: "100%",
-        }}
-      >
-        {logged ? "✓ Logged to Forge" : isPending ? "Logging…" : "Log to Forge"}
-      </button>
-      <div style={{ display: "flex", gap: 12 }}>
-        <Link href="/cv"
-          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
-        >
-          CV →
-        </Link>
-        <Link
-          href={`/market?skill=${encodeURIComponent(skill.display_name)}`}
-          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
-        >
-          Intel →
-        </Link>
-      </div>
-    </div>
-  )
-}
 
 export default function SkillsPage() {
   const { token, ready } = useAuth()
@@ -116,6 +51,21 @@ export default function SkillsPage() {
 
   const activeDomainSkills = activeDomain ? (skills.by_domain[activeDomain] ?? []) : []
 
+  const weakestDomain: WeakDomain | null = (() => {
+    const entries = Object.entries(skills.by_domain)
+      .filter(([, items]) => items.length > 0)
+      .map(([domain, items]) => ({
+        domain,
+        avg: Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20),
+        skillCount: items.length,
+        noProofCount: items.filter(s => !s.evidence_text).length,
+        maxLevel: Math.max(...items.map(s => s.level)),
+      }))
+      .filter(d => d.avg < 60)
+      .sort((a, b) => a.avg !== b.avg ? a.avg - b.avg : b.skillCount - a.skillCount)
+    return entries[0] ?? null
+  })()
+
   return (
     <AppShell>
       <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)", position: "relative" }}>
@@ -133,29 +83,14 @@ export default function SkillsPage() {
           </div>
 
           {/* Hero Myro Score */}
-          {totalScore !== null && (
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{
-                fontFamily: "var(--tm-font-mono)",
-                fontSize: "var(--tm-fs-display)",
-                fontWeight: 600,
-                color: "var(--tm-text)",
-                letterSpacing: "var(--tm-tracking-tight)",
-                lineHeight: "var(--tm-lh-display)",
-                fontVariantNumeric: "tabular-nums",
-              }}>
-                {totalScore}
-                <span style={{
-                  fontSize: "var(--tm-fs-body)",
-                  color: "var(--tm-text-faint)",
-                  fontFamily: "var(--tm-font-sans)",
-                }}> /100</span>
-              </div>
-              <div className="tm-label-caps">Myro Score</div>
-            </div>
-          )}
+          {totalScore !== null && <ScoreRing score={totalScore} />}
         </div>
 
+
+        {/* Weakness Spotlight */}
+        {weakestDomain && token && (
+          <WeaknessSpotlight weakest={weakestDomain} token={token} />
+        )}
 
         {/*
           DEACTIVATED — Skill Tree / Domain Radar toggle.
@@ -175,25 +110,30 @@ export default function SkillsPage() {
           </div>
         */}
 
-        {/* Stats strip */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
+        {/* Domain strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 20, position: "relative", zIndex: 1 }}>
           {Object.entries(skills.by_domain).map(([domain, items]) => {
             const avg = items.length > 0 ? Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20) : 0
             const isActive = activeDomain === domain
+            const strengthColor = avg >= 70 ? "var(--tm-success)" : avg >= 50 ? "#d97706" : avg >= 30 ? "var(--tm-warning)" : "var(--tm-danger)"
+            const softBorder = `1px solid ${isActive ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`
             return (
-              <button key={domain} title={domain} onClick={() => setActiveDomain(isActive ? null : domain)}
+              <button key={domain} onClick={() => setActiveDomain(isActive ? null : domain)}
                 style={{
                   padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
                   background: isActive ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${isActive ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  borderTop: softBorder, borderRight: softBorder, borderBottom: softBorder,
+                  borderLeft: `3px solid ${isActive ? "var(--tm-accent)" : strengthColor}`,
                   textAlign: "left", fontFamily: "inherit",
                   transition: "all 200ms var(--tm-ease)",
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text)", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{domain}</div>
-                <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>{items.length} skills · {avg}%</div>
-                <div style={{ height: 2, background: "var(--tm-border)", borderRadius: 99, marginTop: 6, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${avg}%`, background: "var(--tm-accent)", borderRadius: 99, transition: "width 600ms var(--tm-ease)" }} />
+                <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text)", marginBottom: 4, lineHeight: 1.3 }}>{domain}</div>
+                <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>{items.length} skills · <span style={{ color: strengthColor, fontWeight: 600 }}>{avg}%</span></div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                  <span style={{ fontSize: 9, letterSpacing: "0.06em", color: isActive ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
+                    {isActive ? "← close" : "Explore →"}
+                  </span>
                 </div>
               </button>
             )
@@ -201,49 +141,11 @@ export default function SkillsPage() {
         </div>
 
         {/*
-          Domain Inspector — lives BETWEEN Domain Strip and the visualisation
-          canvas (Constitution rule 1: Causal Proximity, rule 4: Progressive
-          Not Appended). Always mounted; collapses to zero height when no
-          domain is selected so the transition is smooth in both directions
-          (Constitution rule 5: No Invisible State Change).
-        */}
-        <div
-          aria-hidden={!activeDomain}
-          style={{
-            display: "grid",
-            gridTemplateRows: activeDomain && activeDomainSkills.length > 0 ? "1fr" : "0fr",
-            opacity: activeDomain && activeDomainSkills.length > 0 ? 1 : 0,
-            marginBottom: activeDomain && activeDomainSkills.length > 0 ? 16 : 0,
-            transition: "grid-template-rows 320ms var(--tm-ease), opacity 240ms var(--tm-ease), margin-bottom 320ms var(--tm-ease)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <div style={{ overflow: "hidden", minHeight: 0 }}>
-            {activeDomain && activeDomainSkills.length > 0 && (
-              <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius)", padding: "20px 24px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Domain Inspector</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{activeDomain}</div>
-                  </div>
-                  <button onClick={() => setActiveDomain(null)} style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text-faint)", cursor: "pointer", padding: "5px 12px", fontSize: 12, fontFamily: "inherit" }}>
-                    ✕ Close
-                  </button>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-                  {activeDomainSkills.map(skill => (
-                    <SkillCard key={skill.key} skill={skill} token={token!} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/*
-          Constellation / Radar canvas — receives selectedDomain so non-selected
-          nodes dim, keeping a single frame of truth (Constitution rule 2).
+          Radar card — two-panel layout: [SVG radar | right panel].
+          Right panel has two states:
+            · Default: Domain Scores list (overview)
+            · activeDomain set: Domain Detail with SkillCards + actions
+          No page growth on domain select — the panel swaps in place.
         */}
         <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", overflow: "hidden", position: "relative", zIndex: 1 }}>
           {skillsLoading ? (
@@ -257,23 +159,70 @@ export default function SkillsPage() {
                 Upload CV
               </Button>
             </div>
-          ) :
-          /* DEACTIVATED — Skill Tree canvas. Keep SkillNodeMap import intact.
-             Re-activate alongside the toggle above when Skill Tree has a
-             distinct, high-value visual purpose vs Domain Radar.
-
-          view === "tree" ? (
-            <div style={{ padding: "18px 10px 10px", background: "var(--tm-surface-2)" }}>
-              <SkillNodeMap
+          ) : (
+            <div style={{ padding: "28px 32px", display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
+              {/* Left — SVG radar (SVG-only, no right panel inside) */}
+              <SkillsDomainRadar
                 userSkills={skills}
-                gapSkills={scoreData?.gap_skills ?? []}
-                selectedDomain={activeDomain}
                 onDomainClick={d => setActiveDomain(a => a === d ? null : d)}
+                activeDomain={activeDomain}
               />
-            </div>
-          ) : */ (
-            <div style={{ padding: "28px 32px" }}>
-              <SkillsDomainRadar userSkills={skills} onDomainClick={d => setActiveDomain(a => a === d ? null : d)} activeDomain={activeDomain} />
+
+              {/* Right panel — swaps between Domain Scores and Domain Detail */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                {activeDomain && activeDomainSkills.length > 0 ? (
+                  /* Domain Detail */
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4 }}>Domain Inspector</div>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>{activeDomain}</div>
+                        <div style={{ display: "flex", gap: 10, fontSize: 10, color: "var(--tm-text-faint)", flexWrap: "wrap" }}>
+                          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--tm-success)", marginRight: 4 }} />L3+ strong</span>
+                          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--tm-warning)", marginRight: 4 }} />L2 building</span>
+                          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--tm-danger)", marginRight: 4 }} />L0–1 early</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveDomain(null)}
+                        style={{ background: "none", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text-faint)", cursor: "pointer", padding: "4px 10px", fontSize: 11, fontFamily: "inherit", flexShrink: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto" }}>
+                      {activeDomainSkills.map(skill => (
+                        <SkillCard key={skill.key} skill={skill} token={token!} />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Domain Scores — default overview */
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
+                      Domain Scores
+                    </div>
+                    {Object.entries(skills.by_domain).map(([domain, items]) => {
+                      const pct = items.length ? Math.round(items.reduce((s, it) => s + it.level, 0) / items.length * 20) : 0
+                      const barColor = pct >= 70 ? "var(--tm-success)" : pct >= 40 ? "var(--tm-warning)" : "var(--tm-danger)"
+                      return (
+                        <div key={domain} onClick={() => setActiveDomain(domain)} style={{ cursor: "pointer" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{domain}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: barColor }}>{pct}%</span>
+                          </div>
+                          <div style={{ height: 3, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: barColor, transition: "width 600ms var(--tm-ease)" }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+                      Click a domain to explore its skills →
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

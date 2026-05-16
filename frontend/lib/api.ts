@@ -828,8 +828,11 @@ export const jobs = {
     })
     return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
-  skillHeatmapRow: (company: string, skills: string[]) => {
+  skillHeatmapRow: (company: string, skills: string[], locationFilters?: JobLocationFilters) => {
     const params = new URLSearchParams({ companies: company, skills: skills.join(",") })
+    if (locationFilters?.locationCity?.trim()) params.set("location_city", locationFilters.locationCity.trim())
+    if (locationFilters?.locationCountry?.trim()) params.set("location_country", locationFilters.locationCountry.trim())
+    if (locationFilters?.locationMode?.trim()) params.set("location_mode", locationFilters.locationMode.trim())
     return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
   analyticsEntitySkills: (

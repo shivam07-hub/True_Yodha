@@ -292,6 +292,10 @@ function SkillHeatmap({
   skillLevels,
   selectedCell,
   onCellSelect,
+  allSkills,
+  selectedSkillNames,
+  onToggleSkill,
+  isLoggedIn,
 }: {
   companies: FollowedCompany[]
   rowDataMap: Record<string, Record<string, number> | null>
@@ -299,6 +303,10 @@ function SkillHeatmap({
   skillLevels: Record<string, number>
   selectedCell: { ci: number; si: number } | null
   onCellSelect: (ci: number, si: number) => void
+  allSkills: UserSkillDemandItem[]
+  selectedSkillNames: Set<string>
+  onToggleSkill: (name: string) => void
+  isLoggedIn: boolean
 }) {
   const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
 
@@ -332,8 +340,12 @@ function SkillHeatmap({
 
   if (!skills.length) return null
 
+  const unselectedSkills = allSkills.filter(s => !selectedSkillNames.has(s.display_name))
+  const selectedCount = selectedSkillNames.size
+
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
+      {/* Header row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
@@ -349,6 +361,52 @@ function SkillHeatmap({
           HIGH
         </div>
       </div>
+
+      {/* Integrated Skill Lens — active columns + available skills to add */}
+      {isLoggedIn && allSkills.length > 0 && (
+        <div style={{ padding: "10px 24px 12px", borderBottom: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", flexShrink: 0 }}>LENS</span>
+          {/* Active (selected) skill chips */}
+          {skills.map(sk => (
+            <button
+              key={sk}
+              onClick={() => { if (selectedCount > 1) onToggleSkill(sk) }}
+              title={selectedCount <= 1 ? "Must keep at least one skill" : `Remove ${sk} from columns`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px",
+                borderRadius: 999, cursor: selectedCount > 1 ? "pointer" : "default",
+                background: "rgba(0,245,212,0.10)", border: "1px solid var(--tm-accent)",
+                color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", fontSize: 10,
+                letterSpacing: "0.04em", transition: "all 100ms ease",
+              }}
+            >
+              {sk}
+              {selectedCount > 1 && <span style={{ fontSize: 9, opacity: 0.6 }}>×</span>}
+            </button>
+          ))}
+          {/* Separator */}
+          {unselectedSkills.length > 0 && (
+            <span style={{ width: 1, height: 16, background: "var(--tm-border-soft)", flexShrink: 0 }} />
+          )}
+          {/* Inactive (unselected) skills — greyed out, click to add */}
+          {unselectedSkills.map(s => (
+            <button
+              key={s.display_name}
+              onClick={() => onToggleSkill(s.display_name)}
+              title={`Add ${s.display_name} as column`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px",
+                borderRadius: 999, cursor: "pointer",
+                background: "transparent", border: "1px solid var(--tm-border-soft)",
+                color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 10,
+                letterSpacing: "0.04em", opacity: 0.7, transition: "all 100ms ease",
+              }}
+            >
+              <span style={{ fontSize: 9 }}>+</span>{s.display_name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
@@ -374,8 +432,9 @@ function SkillHeatmap({
               const rowData = rowDataMap[co.company_name]
               const isLoading = rowData === null
               const rowSum = rowData ? skills.reduce((s, sk) => s + (rowData[sk] ?? 0), 0) : null
+              const isEmpty = !isLoading && rowSum === 0
               return (
-                <tr key={co.company_name}>
+                <tr key={co.company_name} style={{ opacity: isEmpty ? 0.5 : 1 }}>
                   <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
@@ -386,6 +445,10 @@ function SkillHeatmap({
                   </td>
                   {isLoading ? (
                     skills.map((_, si) => <ShimmerCell key={si} />)
+                  ) : isEmpty ? (
+                    <td colSpan={skills.length} style={{ paddingLeft: 8, fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em" }}>
+                      no roles match selected skills
+                    </td>
                   ) : (
                     skills.map((sk, si) => {
                       const v = rowData?.[sk] ?? 0
@@ -797,9 +860,9 @@ export default function IntelPage() {
         .map(s => s.display_name)
       if (paramSkill) {
         const rest = sorted.filter(s => s !== paramSkill)
-        setSelectedSkillNames(new Set([paramSkill, ...rest].slice(0, MAX_HEATMAP_SKILLS)))
+        setSelectedSkillNames(new Set([paramSkill, ...rest]))
       } else {
-        setSelectedSkillNames(new Set(sorted.slice(0, MAX_HEATMAP_SKILLS)))
+        setSelectedSkillNames(new Set(sorted))
       }
       setSkillsInitialized(true)
     }
@@ -818,7 +881,6 @@ export default function IntelPage() {
     const base = skillDemandData.skills
       .filter(s => selectedSkillNames.size === 0 || selectedSkillNames.has(s.display_name))
       .sort((a, b) => b.weighted_demand - a.weighted_demand)
-      .slice(0, MAX_HEATMAP_SKILLS)
       .map(s => s.display_name)
     // Pin param skill as first column when navigating from Skills page
     if (paramSkill && base.includes(paramSkill)) {
@@ -835,11 +897,11 @@ export default function IntelPage() {
     return map
   }, [skillDemandData])
 
-  // Per-company heatmap row queries — independent cache keys, never invalidate each other
+  // Per-company heatmap row queries — include location filters in cache key so they refetch on filter change
   const heatmapRowQueries = useQueries({
     queries: followedCompanies.map(co => ({
-      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(",")],
-      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills),
+      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
+      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills, locFilters),
       enabled: heatmapSkills.length > 0,
       staleTime: 30 * 60 * 1000,
     })),
@@ -924,19 +986,19 @@ export default function IntelPage() {
     (company: string) => {
       if (heatmapSkills.length === 0) return
       void queryClient.prefetchQuery({
-        queryKey: ["heatmapRow", company, heatmapSkills.join(",")],
-        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills),
+        queryKey: ["heatmapRow", company, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
+        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills, locFilters),
         staleTime: 30 * 60 * 1000,
       })
     },
-    [queryClient, heatmapSkills]
+    [queryClient, heatmapSkills, locationCity, locationCountry, locationMode, locFilters]
   )
 
   const handleToggleSkill = useCallback((name: string) => {
     setSelectedSkillNames(prev => {
       const next = new Set(prev)
       if (next.has(name)) { if (next.size > 1) next.delete(name) }
-      else if (next.size < MAX_HEATMAP_SKILLS) next.add(name)
+      else next.add(name)
       return next
     })
   }, [])
@@ -999,6 +1061,10 @@ export default function IntelPage() {
           skillLevels={skillLevels}
           selectedCell={selectedCell}
           onCellSelect={handleCellSelect}
+          allSkills={skillDemandData?.skills ?? []}
+          selectedSkillNames={selectedSkillNames}
+          onToggleSkill={handleToggleSkill}
+          isLoggedIn={!!token}
         />
 
         {resolvedCell && (
@@ -1014,7 +1080,7 @@ export default function IntelPage() {
           />
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
+        <div style={{ marginTop: 14 }}>
           <TopMovers
             companies={moversCompanies}
             followedNames={followedNames}
@@ -1022,12 +1088,6 @@ export default function IntelPage() {
             onHoverStar={handleHoverStar}
             xpBalance={xpBalance}
             followedCount={followedCompanies.length}
-          />
-          <SkillSelectorPanel
-            skills={skillDemandData?.skills ?? []}
-            selectedNames={selectedSkillNames}
-            onToggle={handleToggleSkill}
-            isLoggedIn={!!token}
           />
         </div>
       </div>

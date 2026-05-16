@@ -402,6 +402,9 @@ class JobsRepository:
         self,
         company: str,
         skills: list[str],
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
     ) -> dict[str, int]:
         """Single-company heatmap row. Filters by skill_id at DB level — avoids fetching all skills.
 
@@ -412,7 +415,7 @@ class JobsRepository:
         if not company or not skills:
             return result
 
-        cache_key = (company, frozenset(skills))
+        cache_key = (company, frozenset(skills), location_city, location_country, location_mode)
         now = time.monotonic()
         cached = _heatmap_row_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
@@ -437,12 +440,22 @@ class JobsRepository:
 
         skill_id_list = list(skill_id_to_name.keys())
 
-        # Fetch job_ids for this company.
+        # Fetch job_ids for this company, with optional location filters.
+        def _job_query(q):  # type: ignore[return]
+            q = q.eq("company_name", company)
+            if location_city:
+                q = q.eq("location_city", location_city)
+            if location_country:
+                q = q.eq("location_country", location_country)
+            if location_mode:
+                q = q.eq("location_mode", location_mode)
+            return q
+
         job_rows = fetch_all_rows(
             self._db,
             table="jobs",
             columns="job_id",
-            query_builder=lambda q: q.eq("company_name", company),
+            query_builder=_job_query,
         )
         job_ids = [r["job_id"] for r in job_rows if r.get("job_id")]
         if not job_ids:

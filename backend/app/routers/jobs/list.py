@@ -63,12 +63,20 @@ async def get_my_analytics(
 async def get_skill_heatmap(
     companies: Annotated[str, Query(min_length=1)],
     skills: Annotated[str, Query(min_length=1)],
+    location_city: str | None = None,
+    location_country: str | None = None,
+    location_mode: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> SkillHeatmapResponse:
     company_list = [c.strip() for c in companies.split(",") if c.strip()]
     skill_list = [s.strip() for s in skills.split(",") if s.strip()]
     if len(company_list) == 1:
-        row = repo.fetch_skill_heatmap_row(company_list[0], skill_list)
+        row = repo.fetch_skill_heatmap_row(
+            company_list[0], skill_list,
+            location_city=location_city,
+            location_country=location_country,
+            location_mode=location_mode,
+        )
         return SkillHeatmapResponse(matrix={company_list[0]: row})
     matrix = repo.fetch_skill_heatmap(company_list, skill_list)
     return SkillHeatmapResponse(matrix=matrix)
