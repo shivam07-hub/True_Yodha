@@ -13,9 +13,9 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { useXPStore } from "@/store/xpStore"
-import { useForgeTimerStore } from "@/store/forgeTimerStore"
-import { ForgeFloatingTimer } from "@/components/forge/ForgeFloatingTimer"
+import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
 import { xp, diary } from "@/lib/api"
+import type { ForgeSessionResult } from "@/types/xp"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
@@ -342,7 +342,129 @@ function CvVersionsWidget() {
   )
 }
 
-function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void }) {
+const SIDEBAR_FORGE_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
+
+function SidebarForgeTimer({
+  onXPEarned,
+  onCompleteSession,
+  onSaveReflection,
+}: {
+  onXPEarned: (amount: number, newBalance: number) => void
+  onCompleteSession: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
+  onSaveReflection: (text: string, skillName: string) => Promise<void>
+}) {
+  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, resetSession, dismiss } = useForgeTimerStore()
+  const [reflection, setReflection] = useState("")
+  const [claiming, setClaiming] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [running, tick])
+
+  if (!sessionActive || dismissed) return null
+
+  const isComplete = remaining === 0 && !running
+  const progress = 1 - remaining / FORGE_AMBIENT_DURATION
+  const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
+  const secs = String(remaining % 60).padStart(2, "0")
+  const canClaim = reflection.trim().length >= 1
+  const accent = isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-accent)"
+
+  async function handleClaim() {
+    if (!skillName || !canClaim || claiming) return
+    try {
+      setClaiming(true)
+      setClaimError(null)
+      const [result] = await Promise.all([
+        onCompleteSession({ skill_name: skillName, duration_minutes: FORGE_AMBIENT_DURATION / 60 }),
+        onSaveReflection(reflection.trim(), skillName),
+      ])
+      onXPEarned(result.xp_earned, result.new_xp_balance)
+      resetSession()
+      setReflection("")
+    } catch (e) {
+      setClaimError(e instanceof Error ? e.message : "Could not save session")
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  return (
+    <div style={{
+      margin: "0 8px 8px",
+      borderRadius: "var(--tm-radius)",
+      background: isComplete ? "rgba(74,222,128,0.05)" : "rgba(0,245,212,0.05)",
+      border: `1px solid ${isComplete ? "rgba(74,222,128,0.35)" : "var(--tm-accent-ring)"}`,
+      boxShadow: isComplete ? "0 0 12px rgba(74,222,128,0.12)" : running ? "0 0 10px rgba(0,245,212,0.1)" : "none",
+      transition: "box-shadow 400ms ease, border-color 400ms ease",
+      overflow: "hidden",
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px 6px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>◆ Forge</span>
+          {running && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px rgba(0,245,212,0.8)", animation: "loop-pulse 1.4s ease infinite" }} />}
+        </div>
+        <button onClick={dismiss} style={{ background: "transparent", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "2px 4px", fontFamily: "inherit" }}>✕</button>
+      </div>
+
+      {/* Countdown + controls */}
+      <div style={{ padding: "10px 10px 8px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 24, fontWeight: 300, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", color: accent, lineHeight: 1 }}>
+            {isComplete ? "✓ Done" : `${mins}:${secs}`}
+          </span>
+          {!isComplete && (
+            <button
+              onClick={() => setRunning(!running)}
+              style={{
+                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
+                border: running ? "1px solid rgba(255,255,255,0.12)" : "none",
+                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontSize: 10, transition: "all 150ms ease",
+              }}
+            >{running ? "⏸" : "▶"}</button>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 3, borderRadius: 99, background: "rgba(255,255,255,0.06)", marginBottom: 7, overflow: "hidden" }}>
+          <div style={{ height: "100%", borderRadius: 99, background: accent, width: `${progress * 100}%`, transition: running ? "width 1s linear" : "none", boxShadow: `0 0 6px ${isComplete ? "rgba(74,222,128,0.5)" : "rgba(0,245,212,0.4)"}` }} />
+        </div>
+
+        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tm-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{skillName}</div>
+        {!isComplete && <div style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 2 }}>+{SIDEBAR_FORGE_XP} XP on completion</div>}
+      </div>
+
+      {/* Completion flow */}
+      {isComplete && (
+        <div style={{ padding: "0 10px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
+          <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>What did you practice?</div>
+          <textarea
+            value={reflection}
+            onChange={(e) => { setReflection(e.target.value); setClaimError(null) }}
+            placeholder={`I practiced ${skillName} by…`}
+            rows={2}
+            style={{ width: "100%", resize: "none", borderRadius: "var(--tm-radius-sm, 8px)", border: `1px solid ${claimError ? "var(--tm-danger, #f87171)" : "var(--tm-border)"}`, background: "rgba(255,255,255,0.04)", color: "var(--tm-text)", padding: "6px 8px", fontSize: 11, lineHeight: 1.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+          />
+          {claimError && <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)" }}>{claimError}</div>}
+          <button
+            onClick={handleClaim}
+            disabled={!canClaim || claiming}
+            style={{ width: "100%", padding: "7px", borderRadius: "var(--tm-radius-pill, 999px)", background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none", color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)", fontSize: 11, fontWeight: 700, cursor: canClaim && !claiming ? "pointer" : "default", fontFamily: "inherit", transition: "all 200ms ease" }}
+          >{claiming ? "Saving…" : `Claim +${SIDEBAR_FORGE_XP} XP →`}</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflection, onForgeXPEarned }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeReflection: (text: string, skillName: string) => Promise<void>; onForgeXPEarned: (amount: number, newBalance: number) => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -409,6 +531,13 @@ function Sidebar({ xpBalance, profile, signOut }: { xpBalance: number; profile: 
           <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>XP</div>
         </div>
       </div>
+
+      {/* Inline forge timer — shows when session active */}
+      <SidebarForgeTimer
+        onCompleteSession={onForgeComplete}
+        onSaveReflection={onForgeReflection}
+        onXPEarned={onForgeXPEarned}
+      />
 
       {/* Nav items */}
       <div style={{ flex: 1, padding: "8px", display: "flex", flexDirection: "column", gap: 2 }}>
@@ -584,18 +713,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           linkedin_url: profileData?.linkedin_url ?? null,
         }}
         signOut={signOut}
+        onForgeComplete={handleAmbientForgeComplete}
+        onForgeReflection={handleAmbientReflection}
+        onForgeXPEarned={handleAmbientXPEarned}
       />
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
         <div className="tm-page-enter" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {children}
         </div>
       </main>
-
-      <ForgeFloatingTimer
-        onCompleteSession={handleAmbientForgeComplete}
-        onSaveReflection={handleAmbientReflection}
-        onXPEarned={handleAmbientXPEarned}
-      />
     </div>
   )
 }
