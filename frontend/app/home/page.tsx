@@ -331,7 +331,7 @@ function HomePageInner() {
             >
               ← All matches
             </button>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+            <div className="tm-home-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
               <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => setForgeOpen(true)} />
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
