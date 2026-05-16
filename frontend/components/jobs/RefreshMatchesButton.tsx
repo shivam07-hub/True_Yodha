@@ -78,7 +78,6 @@ export function RefreshMatchesButton({
   hidden,
   variant = "header",
 }: RefreshMatchesButtonProps) {
-  if (hidden) return null
   const kind = notice ? classifyNotice(notice) : null
   const styles = kind ? NOTICE_STYLES[kind] : null
 
@@ -91,6 +90,8 @@ export function RefreshMatchesButton({
       setFadeKey(k => k + 1)
     }
   }, [notice])
+
+  if (hidden) return null
 
   if (variant === "compact") {
     return (

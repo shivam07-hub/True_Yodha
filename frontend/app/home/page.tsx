@@ -74,8 +74,8 @@ function HomePageInner() {
   const { data: evidenceData } = useQuery({ queryKey: dataKeys.cvEvidence(), queryFn: () => cv.evidence(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: staleApps } = useQuery({ queryKey: dataKeys.staleApplications(), queryFn: () => jobs.staleApplications(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
-  const allMatchedJobs = jobsData?.jobs ?? []
-  const topJobs = allMatchedJobs.slice(0, 5)
+  const allMatchedJobs = useMemo(() => jobsData?.jobs ?? [], [jobsData])
+  const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
