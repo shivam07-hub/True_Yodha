@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/rea
 import { jobs, users, xp } from "@/lib/api"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
-import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
@@ -501,6 +501,121 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
   )
 }
 
+// ── Filters ──────────────────────────────────────────────────────────────────
+
+const LOCATION_SELECT_STYLE = {
+  background: "var(--tm-surface)",
+  border: "1px solid var(--tm-border-soft)",
+  borderRadius: "var(--tm-radius-sm)",
+  padding: "6px 32px 6px 12px",
+  fontFamily: "var(--tm-font-sans)",
+  fontSize: 13,
+  color: "var(--tm-text)",
+  cursor: "pointer",
+  outline: "none",
+  appearance: "none" as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 10px center",
+}
+
+function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, isLoggedIn }: {
+  targetRoles: string[]
+  chipCountMap: Record<string, number>
+  selectedCluster: string | null
+  onSelect: (cluster: string) => void
+  isLoggedIn: boolean
+}) {
+  const [hoveredRole, setHoveredRole] = useState<string | null>(null)
+
+  if (!isLoggedIn) return null
+
+  const isEmpty = targetRoles.length === 0
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>TARGET</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {isEmpty ? (
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px",
+              borderRadius: 999, cursor: "pointer",
+              background: "transparent",
+              border: "1px dashed var(--tm-border-soft)",
+              color: "var(--tm-text-faint)",
+              fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
+            }}
+          >
+            + Add target roles →
+          </button>
+        ) : (
+          targetRoles.map(role => {
+            const selected = selectedCluster === role
+            const hovered = hoveredRole === role && !selected
+            const count = chipCountMap[role]
+            return (
+              <button
+                key={role}
+                onClick={() => onSelect(role)}
+                onMouseEnter={() => setHoveredRole(role)}
+                onMouseLeave={() => setHoveredRole(null)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px",
+                  borderRadius: 999, cursor: "pointer",
+                  background: selected ? "rgba(0,245,212,0.08)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
+                  border: `1px solid ${selected ? "var(--tm-accent)" : hovered ? "rgba(255,255,255,0.18)" : "var(--tm-border-soft)"}`,
+                  color: selected ? "var(--tm-accent)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
+                  fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
+                }}
+              >
+                {role}
+                {count != null && (
+                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: selected ? "rgba(0,245,212,0.6)" : "var(--tm-text-faint)", fontWeight: 600 }}>
+                    {count.toLocaleString()}
+                  </span>
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LocationBar({ cities, countries, city, country, mode, onCity, onCountry, onMode }: {
+  cities: NameCountItem[]
+  countries: NameCountItem[]
+  city: string
+  country: string
+  mode: string
+  onCity: (v: string) => void
+  onCountry: (v: string) => void
+  onMode: (v: string) => void
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>LOCATION</span>
+      <select value={city} onChange={e => onCity(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 140 }}>
+        <option value="">All cities</option>
+        {cities.slice(0, 40).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+      </select>
+      <select value={country} onChange={e => onCountry(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 160 }}>
+        <option value="">All countries</option>
+        {countries.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+      </select>
+      <select value={mode} onChange={e => onMode(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 130 }}>
+        <option value="">All modes</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="onsite">On-site</option>
+      </select>
+    </div>
+  )
+}
+
 // ── Skill Selector Panel ─────────────────────────────────────────────────────
 
 function SkillSelectorPanel({
@@ -579,6 +694,10 @@ export default function IntelPage() {
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
+  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
+  const [locationCity, setLocationCity] = useState("")
+  const [locationCountry, setLocationCountry] = useState("")
+  const [locationMode, setLocationMode] = useState("")
 
   // Sync XP balance if not yet set from another page visit
   useQuery({
@@ -592,11 +711,48 @@ export default function IntelPage() {
     staleTime: 60 * 1000,
   })
 
+  // Profile — needed for target_roles
+  const { data: profileData } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+  const targetRoles: string[] = profileData?.target_roles ?? []
+
+  const locFilters = {
+    locationCity: locationCity || null,
+    locationCountry: locationCountry || null,
+    locationMode: (locationMode || null) as JobLocationFilters["locationMode"],
+  }
+
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["intel-analytics"],
-    queryFn: () => jobs.analytics(),
+    queryKey: ["intel-analytics", token ?? "", selectedCluster ?? "", locationCity, locationCountry, locationMode],
+    queryFn: () =>
+      token
+        ? jobs.analyticsForMe(token, selectedCluster || null, locFilters)
+        : jobs.analytics(undefined, locFilters),
     staleTime: 7 * 24 * 60 * 60 * 1000,
   })
+
+  // Per-chip counts — one lightweight call per target role
+  const chipCountQueries = useQueries({
+    queries: targetRoles.map(role => ({
+      queryKey: ["intel-chip-count", token ?? "", role, locationCity, locationCountry, locationMode],
+      queryFn: () => jobs.analyticsForMe(token!, role, locFilters),
+      enabled: !!token && targetRoles.length > 0,
+      staleTime: 30 * 60 * 1000,
+    })),
+  })
+
+  const chipCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    targetRoles.forEach((role, i) => {
+      const q = chipCountQueries[i]
+      if (q?.data?.total_jobs != null) map[role] = q.data.total_jobs
+    })
+    return map
+  }, [targetRoles, chipCountQueries])
 
   useEffect(() => {
     if (!analyticsLoading && analytics) return
@@ -640,6 +796,13 @@ export default function IntelPage() {
       setSkillsInitialized(true)
     }
   }, [skillDemandData, skillsInitialized])
+
+  // Auto-select first target role chip when profile loads
+  useEffect(() => {
+    if (targetRoles.length > 0 && !selectedCluster) {
+      setSelectedCluster(targetRoles[0])
+    }
+  }, [targetRoles, selectedCluster])
 
   // Heatmap columns: always CV skills (user-curated via Skill Lens)
   const heatmapSkills = useMemo(() => {
@@ -780,7 +943,31 @@ export default function IntelPage() {
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
+          {analytics && (
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", marginTop: 6, letterSpacing: "0.06em" }}>
+              {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
+            </div>
+          )}
         </div>
+
+        <TargetRoleBar
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          selectedCluster={selectedCluster}
+          onSelect={cluster => setSelectedCluster(prev => prev === cluster ? null : cluster)}
+          isLoggedIn={!!token}
+        />
+
+        <LocationBar
+          cities={analytics?.by_location_city ?? []}
+          countries={analytics?.by_location_country ?? []}
+          city={locationCity}
+          country={locationCountry}
+          mode={locationMode}
+          onCity={setLocationCity}
+          onCountry={setLocationCountry}
+          onMode={setLocationMode}
+        />
 
         {/* Progress banner — visible only during initial load, never blocks content */}
         <ProgressBanner
