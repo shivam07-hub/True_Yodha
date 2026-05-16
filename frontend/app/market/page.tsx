@@ -14,7 +14,6 @@ import { useXPStore } from "@/store/xpStore"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_HEATMAP_SKILLS = 8
 const MAX_FOLLOWED = 10
 const XP_FLOOR = -30
 const FOLLOW_XP_COST = 10
