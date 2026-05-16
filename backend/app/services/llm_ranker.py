@@ -45,6 +45,10 @@ def has_matches_this_week(db: Client, user_id: str, batch_week: date) -> bool:
     return bool(result.data)
 
 
+def is_cache_valid(db: Client, user_id: str, batch_week: date) -> bool:
+    return has_matches_this_week(db, user_id, batch_week)
+
+
 # ── Prompt building ───────────────────────────────────────────────────────────
 
 def build_prompt(user_skill_map: dict[str, int], top_jobs: list[dict]) -> str:

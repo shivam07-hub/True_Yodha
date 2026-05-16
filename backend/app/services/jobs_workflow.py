@@ -111,6 +111,16 @@ async def compute_job_matches(
     db = repo.client
     assert_not_rate_limited(db, user_id, "user_job_matches", "computed_at")
 
+    if llm_ranker.is_cache_valid(db, user_id, batch_week):
+        return {
+            "matches_written": 0,
+            "from_cache": True,
+            "exhausted": False,
+            "batch_week": batch_week,
+            "needs_onboarding": False,
+            "debug": {"cache_hit": True, "candidate_jobs_count": None},
+        }
+
     skill_rows = repo.get_user_skill_rows(user_id)
     if not skill_rows:
         return {
