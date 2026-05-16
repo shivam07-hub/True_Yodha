@@ -517,6 +517,7 @@ export interface ActionPlanDay {
 export interface ComputeJobMatchesResponse {
   matches_written: number
   from_cache: boolean
+  exhausted?: boolean
   batch_week: string
   needs_onboarding?: boolean
   status?: JobComputeStatus

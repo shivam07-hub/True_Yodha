@@ -796,14 +796,23 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
+    def get_existing_match_job_ids(self, user_id: str, batch_week: date) -> list[str]:
+        result = (
+            self._db.table("user_job_matches")
+            .select("job_id")
+            .eq("user_id", user_id)
+            .eq("batch_week", str(batch_week))
+            .execute()
+        )
+        return [r["job_id"] for r in (result.data or [])]
+
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date
     ) -> list[dict[str, Any]]:
-        # NOTE: join on `jobs` requires RLS to allow `authenticated` reads on public.jobs.
         result = (
             self._db.table("user_job_matches")
             .select(
-                "id, job_id, overlap_score, llm_rank, llm_explanation, is_recommended, "
+                "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "action_plan, batch_week, computed_at, matched_skills,"
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, apply_url, job_description)"

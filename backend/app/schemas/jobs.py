@@ -57,7 +57,7 @@ class JobMatchResponse(BaseModel):
     industry: str | None = None
     remote: bool
     overlap_score: float                # 0–100
-    llm_rank: int | None                # 1–3 within this week's batch
+    llm_rank: int | None                # 1–5 within this week's batch
     llm_explanation: str | None         # why this job fits (2–3 sentences)
     action_plan: list[ActionPlanDay]    # 7-day gap-closing plan
     batch_week: date                    # Monday this match was generated
@@ -130,8 +130,9 @@ class CompanyPageResponse(BaseModel):
 
 
 class ComputeJobMatchesResponse(BaseModel):
-    matches_written: int     # rows upserted to user_job_matches
-    from_cache: bool         # True if LLM was skipped (already computed this week)
+    matches_written: int
+    from_cache: bool = False
+    exhausted: bool = False  # True when job pool has no new candidates this week
     batch_week: date
     needs_onboarding: bool = False
     debug: dict[str, int | bool | None] | None = None
@@ -139,7 +140,7 @@ class ComputeJobMatchesResponse(BaseModel):
     already_running: bool = False
     job_id: str | None = None
     message: str | None = None
-    new_xp_balance: int | None = None  # set when XP was deducted (non-cached refresh)
+    new_xp_balance: int | None = None
 
 
 class JobComputeStatusResponse(BaseModel):

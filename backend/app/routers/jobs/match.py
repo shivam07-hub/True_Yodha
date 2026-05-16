@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
-from app.database import get_supabase_admin
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
@@ -16,13 +15,12 @@ from app.schemas import (
     UserSkillDemandResponse,
 )
 from app.services import job_match_compute_async, jobs_workflow, xp_service
-from app.services.llm_ranker import is_cache_valid
 
 from ._shared import last_monday, to_job_match
 
 router = APIRouter()
 
-REFRESH_XP_COST = 100
+REFRESH_XP_COST = 50
 
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
@@ -70,7 +68,8 @@ def _build_response(result: dict[str, Any], new_xp_balance: int | None = None) -
     batch_week = result.get("batch_week") or last_monday()
     return ComputeJobMatchesResponse(
         matches_written=int(result.get("matches_written") or 0),
-        from_cache=bool(result.get("from_cache") or False),
+        from_cache=False,
+        exhausted=bool(result.get("exhausted") or False),
         batch_week=batch_week,
         needs_onboarding=bool(result.get("needs_onboarding") or False),
         debug=result.get("debug"),
@@ -116,31 +115,23 @@ async def get_compute_status(
 @router.post("/refresh", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
 async def refresh_job_matches(
     current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ComputeJobMatchesResponse:
     user_id = current_user["user_id"]
     batch_week = last_monday()
 
-    # Cache short-circuit — no XP cost when results are already fresh this week
-    if is_cache_valid(get_supabase_admin(), user_id, batch_week):
-        return ComputeJobMatchesResponse(
-            matches_written=0,
-            from_cache=True,
-            batch_week=batch_week,
-            status="succeeded",
-            message="Using this week's cached matches.",
-        )
+    excluded_job_ids = repo.get_existing_match_job_ids(user_id, batch_week)
 
-    # Deduct XP before compute — raises 400 if insufficient
-    new_balance = await xp_service.spend_xp(user_id, REFRESH_XP_COST, "refresh_matches")
-
-    # No Redis — run inline (blocking)
     if not settings.redis_url.strip():
-        try:
-            result = await job_match_compute_async.compute_job_matches_inline(user_id, batch_week)
-        except HTTPException:
-            # Refund XP — compute didn't run (e.g. re-raised rate limit or other guard)
-            await xp_service.earn_xp(user_id, REFRESH_XP_COST)
-            raise
+        result = await job_match_compute_async.compute_job_matches_inline(
+            user_id, batch_week, excluded_job_ids=excluded_job_ids
+        )
+        new_balance = None
+        if result.get("matches_written", 0) > 0:
+            try:
+                new_balance = await xp_service.spend_xp(user_id, REFRESH_XP_COST, "refresh_matches")
+            except HTTPException:
+                raise
         return _build_response(result, new_xp_balance=new_balance)
 
     try:
@@ -150,8 +141,7 @@ async def refresh_job_matches(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
-
-    return _build_response(queued, new_xp_balance=new_balance)
+    return _build_response(queued)
 
 
 @router.get("/refresh/status", response_model=JobComputeStatusResponse)

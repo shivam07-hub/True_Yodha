@@ -9,7 +9,7 @@ from app.routers.jobs._shared import last_monday
 
 router = APIRouter()
 
-ANALYSE_XP_COST = 50
+ANALYSE_XP_COST = 10
 
 
 @router.post("/analyse/{job_id}", status_code=status.HTTP_201_CREATED)
@@ -43,7 +43,6 @@ async def analyse_job(
         "computed_at": datetime.now(timezone.utc).isoformat(),
         "llm_rank": None,
         "llm_explanation": None,
-        "is_recommended": False,
         "action_plan": [],
     })
 

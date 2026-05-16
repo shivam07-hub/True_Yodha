@@ -62,7 +62,7 @@ function HomePageInner() {
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
   const { sessionActive, dismissed, startSession, setRunning: setForgeTimerRunning } = useForgeTimerStore()
-  const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
+  const { isRefreshing, notice: refreshNotice, isExhausted: matchesExhausted, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
   useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
   const urlJobId = searchParams.get("jobId")
 
@@ -218,6 +218,7 @@ function HomePageInner() {
           hasApplied={hasApplied}
           isRefreshing={isRefreshing}
           refreshNotice={refreshNotice}
+          matchesExhausted={matchesExhausted}
           cartCount={cartSkills.length}
           onRefreshMatches={refreshMatches}
           onEnterForge={() => setForgeOpen(true)}

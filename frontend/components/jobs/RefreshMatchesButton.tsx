@@ -66,8 +66,7 @@ interface RefreshMatchesButtonProps {
   notice: string | null
   onRefresh: () => void
   disabled?: boolean
-  /** "header" = full button with cost badge (jobs page, home page top bar)
-   *  "compact" = ghost style, smaller (inside header top-bar) */
+  hidden?: boolean
   variant?: "header" | "compact"
 }
 
@@ -76,8 +75,10 @@ export function RefreshMatchesButton({
   notice,
   onRefresh,
   disabled,
+  hidden,
   variant = "header",
 }: RefreshMatchesButtonProps) {
+  if (hidden) return null
   const kind = notice ? classifyNotice(notice) : null
   const styles = kind ? NOTICE_STYLES[kind] : null
 
@@ -226,16 +227,6 @@ export function RefreshMatchesButton({
           }} />
           {notice}
         </div>
-      ) : !isRefreshing ? (
-        <span style={{
-          fontSize: 11,
-          fontFamily: "var(--tm-font-mono)",
-          color: "var(--tm-text-faint)",
-          letterSpacing: "0.04em",
-          opacity: 0.7,
-        }}>
-          free if already fresh this week
-        </span>
       ) : null}
 
     </div>

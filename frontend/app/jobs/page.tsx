@@ -23,7 +23,7 @@ export default function JobsPage() {
   const [selectedCity, setSelectedCity] = useState("")
   const [selectedMode, setSelectedMode] = useState("")
 
-  const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup } = useMatchRefresh(token, queryClient)
+  const { isRefreshing, notice: refreshNotice, isExhausted: matchesExhausted, refresh: refreshMatches, cleanup } = useMatchRefresh(token, queryClient)
 
   useEffect(() => () => cleanup(), []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -125,6 +125,7 @@ export default function JobsPage() {
               <RefreshMatchesButton
                 isRefreshing={isRefreshing}
                 notice={refreshNotice}
+                hidden={matchesExhausted}
                 onRefresh={refreshMatches}
                 disabled={!token}
               />
