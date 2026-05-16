@@ -10,12 +10,6 @@ function greeting(): string {
   return "Good evening"
 }
 
-const IconRefresh = () => (
-  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 8a6 6 0 0 1 10.5-3.9" /><path d="M14 2v3h-3" />
-    <path d="M14 8a6 6 0 0 1-10.5 3.9" /><path d="M2 14v-3h3" />
-  </svg>
-)
 const IconDiary = () => (
   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
     <rect x="3" y="2.5" width="10" height="11" rx="1.5" /><path d="M5 5.5h6M5 8h6M5 10.5h4" />
