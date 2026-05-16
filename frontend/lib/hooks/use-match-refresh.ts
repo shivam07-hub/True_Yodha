@@ -87,7 +87,7 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
       applyStatus({
         user_id: "current",
         batch_week: payload.batch_week,
-        status: "succeeded",
+        status: payload.status ?? "succeeded",
         job_id: payload.job_id ?? null,
         already_running: !!payload.already_running,
         matches_written: payload.matches_written,

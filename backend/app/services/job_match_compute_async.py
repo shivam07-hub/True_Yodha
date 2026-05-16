@@ -10,6 +10,8 @@ from redis import Redis
 from rq import Queue
 from rq.job import Job
 
+from fastapi import HTTPException
+
 from app.config import settings
 from app.repositories.jobs import get_admin_jobs_repository
 from app.services import jobs_workflow
@@ -247,6 +249,8 @@ async def compute_job_matches_inline(user_id: str, batch_week: date) -> dict[str
             "debug": payload.get("debug"),
             "message": "Matched jobs updated.",
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Inline jobs compute failed for user=%s week=%s", user_id, batch_week_str)
         return {

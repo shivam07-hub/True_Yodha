@@ -104,7 +104,12 @@ async def refresh_job_matches(
 
     # No Redis — run inline (blocking)
     if not settings.redis_url.strip():
-        result = await job_match_compute_async.compute_job_matches_inline(user_id, batch_week)
+        try:
+            result = await job_match_compute_async.compute_job_matches_inline(user_id, batch_week)
+        except HTTPException:
+            # Refund XP — compute didn't run (e.g. re-raised rate limit or other guard)
+            await xp_service.earn_xp(user_id, REFRESH_XP_COST)
+            raise
         return _build_response(result, new_xp_balance=new_balance)
 
     try:
