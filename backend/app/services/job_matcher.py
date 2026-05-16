@@ -70,7 +70,7 @@ def get_top_matches(
         main_hits = [s for s in main if s.lower() in user_lower]
         side_hits = [s for s in side if s.lower() in user_lower]
 
-        if len(main_hits) + len(side_hits) == 0:
+        if len(main_hits) + len(side_hits) < 3:
             continue
 
         max_possible = PRIMARY_WEIGHT * len(main) + SECONDARY_WEIGHT * len(side)

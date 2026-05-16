@@ -73,21 +73,23 @@ class TestBasic:
         assert _run(jobs, {"Python": 3}) == []
 
     def test_returns_at_most_top_n(self) -> None:
-        jobs = [_job(f"j{i}", f"Job {i}", f"Co{i}", ["Python"], []) for i in range(10)]
-        result = _run(jobs, {"Python": 3}, top_n=5)
+        jobs = [_job(f"j{i}", f"Job {i}", f"Co{i}", ["Python", "SQL", "Go"], []) for i in range(10)]
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=5)
         assert len(result) == 5
 
     def test_sorted_by_overlap_desc(self) -> None:
+        # j1 matches 3/4 skills (75%), j2 matches 3/3 (100%) — j2 should rank first
         jobs = [
-            _job("j1", "Partial", "Acme", ["Python", "SQL"], []),
-            _job("j2", "Full",    "Acme", ["Python"],        []),
+            _job("j1", "Partial", "Acme", ["Python", "SQL", "Go", "Java"], []),
+            _job("j2", "Full",    "Acme", ["Python", "SQL", "Go"],         []),
         ]
-        result = _run(jobs, {"Python": 3}, top_n=10)
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=10)
         assert result[0]["title"] == "Full"
 
     def test_matched_skills_field_populated(self) -> None:
-        jobs = [_job("j1", "Job", "Acme", ["Python", "SQL"], ["Docker"])]
-        result = _run(jobs, {"Python": 3, "Docker": 2}, top_n=1)
+        # Python(main) + Docker(side) + Bash(side) = 3 hits; SQL unmatched
+        jobs = [_job("j1", "Job", "Acme", ["Python", "SQL"], ["Docker", "Bash"])]
+        result = _run(jobs, {"Python": 3, "Docker": 2, "Bash": 1}, top_n=1)
         assert len(result) == 1
         matched = set(result[0]["matched_skills"])
         assert "Python" in matched
@@ -95,8 +97,8 @@ class TestBasic:
         assert "SQL" not in matched
 
     def test_returned_shape(self) -> None:
-        jobs = [_job("abc123", "DE", "TechCorp", ["Python"], [])]
-        result = _run(jobs, {"Python": 3}, top_n=1)
+        jobs = [_job("abc123", "DE", "TechCorp", ["Python", "SQL", "Go"], [])]
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=1)
         keys = {
             "job_id", "title", "company", "location", "industry",
             "apply_url", "description", "overlap_score", "matched_skills",
@@ -105,17 +107,18 @@ class TestBasic:
         assert result[0]["job_id"] == "abc123"
 
     def test_boosted_score_not_in_output(self) -> None:
-        jobs = [_job("j1", "Job", "Acme", ["Python"], [])]
-        result = _run(jobs, {"Python": 3})
+        jobs = [_job("j1", "Job", "Acme", ["Python", "SQL", "Go"], [])]
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1})
         assert "boosted_score" not in result[0]
 
     def test_zero_overlap_jobs_excluded(self) -> None:
         jobs = [
-            _job("j1", "Python Job", "Acme",  ["Python"], []),
-            _job("j2", "Java Job",   "Other", ["Java"],   []),
+            _job("j1", "Python Job", "Acme",  ["Python", "SQL", "Go"],      []),
+            _job("j2", "Java Job",   "Other", ["Java", "Kotlin", "Scala"],  []),
         ]
-        result = _run(jobs, {"Python": 3})
-        assert all(r["job_id"] != "j2" for r in result)
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1})
+        assert len(result) == 1
+        assert result[0]["job_id"] == "j1"
 
 
 # ── Aspiration rerank ─────────────────────────────────────────────────────────
@@ -123,10 +126,10 @@ class TestBasic:
 class TestAspirationRerank:
     def test_role_boost_applied_when_title_matches(self) -> None:
         jobs = [
-            _job("j1", "Data Engineer India", "Acme",  ["Python"], []),
-            _job("j2", "Sales Executive",     "Other", ["Python"], []),
+            _job("j1", "Data Engineer India", "Acme",  ["Python", "SQL", "Go"], []),
+            _job("j2", "Sales Executive",     "Other", ["Python", "SQL", "Go"], []),
         ]
-        result = _run(jobs, {"Python": 3}, target_roles=["Data Engineer"], top_n=2)
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, target_roles=["Data Engineer"], top_n=2)
         assert result[0]["job_id"] == "j1"
 
 
@@ -135,16 +138,16 @@ class TestAspirationRerank:
 
 class TestCompanyCap:
     def test_single_company_capped_at_30_percent(self) -> None:
-        accenture_jobs = [_job(f"acc{i}", f"Role {i}", "Accenture", ["Python"], []) for i in range(8)]
+        accenture_jobs = [_job(f"acc{i}", f"Role {i}", "Accenture", ["Python", "SQL", "Go"], []) for i in range(8)]
         other_jobs = [
-            _job("oth1", "DE Role", "Wipro",   ["Python"], []),
-            _job("oth2", "PM Role", "Infosys", ["Python"], []),
+            _job("oth1", "DE Role", "Wipro",   ["Python", "SQL", "Go"], []),
+            _job("oth2", "PM Role", "Infosys", ["Python", "SQL", "Go"], []),
         ]
-        result = _run(accenture_jobs + other_jobs, {"Python": 3}, top_n=10)
+        result = _run(accenture_jobs + other_jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=10)
         accenture_count = sum(1 for r in result if r["company"] == "Accenture")
         assert accenture_count <= 3
 
     def test_cap_does_not_reduce_variety_when_companies_diverse(self) -> None:
-        jobs = [_job(f"j{i}", f"Job {i}", f"Co{i}", ["Python"], []) for i in range(10)]
-        result = _run(jobs, {"Python": 3}, top_n=10)
+        jobs = [_job(f"j{i}", f"Job {i}", f"Co{i}", ["Python", "SQL", "Go"], []) for i in range(10)]
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=10)
         assert len(result) == 10
