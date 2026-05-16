@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
@@ -688,6 +689,8 @@ export default function IntelPage() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
+  const searchParams = useSearchParams()
+  const paramSkill = searchParams.get("skill")
 
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
   const [loadingStep, setLoadingStep] = useState(0)
@@ -784,18 +787,23 @@ export default function IntelPage() {
     [followedCompanies]
   )
 
-  // Seed selected skills from top-8 mySkillDemand on first load
+  // Seed selected skills from top-8 mySkillDemand on first load.
+  // If ?skill= param present (navigating from Skills page), pin that skill first.
   useEffect(() => {
     if (skillDemandData?.skills?.length && !skillsInitialized) {
-      const top8 = skillDemandData.skills
+      const sorted = skillDemandData.skills
         .filter(s => s.weighted_demand > 0)
         .sort((a, b) => b.weighted_demand - a.weighted_demand)
-        .slice(0, MAX_HEATMAP_SKILLS)
         .map(s => s.display_name)
-      setSelectedSkillNames(new Set(top8))
+      if (paramSkill) {
+        const rest = sorted.filter(s => s !== paramSkill)
+        setSelectedSkillNames(new Set([paramSkill, ...rest].slice(0, MAX_HEATMAP_SKILLS)))
+      } else {
+        setSelectedSkillNames(new Set(sorted.slice(0, MAX_HEATMAP_SKILLS)))
+      }
       setSkillsInitialized(true)
     }
-  }, [skillDemandData, skillsInitialized])
+  }, [skillDemandData, skillsInitialized, paramSkill])
 
   // Auto-select first target role chip when profile loads
   useEffect(() => {
@@ -811,8 +819,13 @@ export default function IntelPage() {
       .filter(s => selectedSkillNames.size === 0 || selectedSkillNames.has(s.display_name))
       .sort((a, b) => b.weighted_demand - a.weighted_demand)
       .slice(0, MAX_HEATMAP_SKILLS)
-    return base.map(s => s.display_name)
-  }, [selectedSkillNames, skillDemandData])
+      .map(s => s.display_name)
+    // Pin param skill as first column when navigating from Skills page
+    if (paramSkill && base.includes(paramSkill)) {
+      return [paramSkill, ...base.filter(s => s !== paramSkill)]
+    }
+    return base
+  }, [selectedSkillNames, skillDemandData, paramSkill])
 
   const skillLevels = useMemo(() => {
     const map: Record<string, number> = {}

@@ -2,19 +2,86 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 // DEACTIVATED — import when re-activating Skill Tree (see toggle comment in JSX)
 // import { SkillNodeMap } from "@/components/skills/skill-node-map"
 import { ParticleLoading } from "@/components/ui/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
-import { scores, users } from "@/lib/api"
-import type { UserSkillsByDomain } from "@/lib/api"
+import { scores, users, diary } from "@/lib/api"
+import type { UserSkillsByDomain, UserSkillItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
+
+function SkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
+  const [logged, setLogged] = useState(false)
+  const { mutate, isPending } = useMutation({
+    mutationFn: () =>
+      diary.createEntry(
+        token,
+        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to build further on ${skill.display_name} this week. Currently at ${skill.proficiency_title} (L${skill.level}). Goal: push to Level ${Math.min(skill.level + 1, 5)} through deliberate practice and real application.`,
+      ),
+    onSuccess: () => setLogged(true),
+  })
+
+  const levelPct = (skill.level / 5) * 100
+  const barColor = skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)"
+
+  return (
+    <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
+      </div>
+      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{skill.proficiency_title}</div>
+      <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${levelPct}%`, background: barColor, borderRadius: 99 }} />
+      </div>
+      {skill.evidence_text ? (
+        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
+      ) : (
+        <div style={{ fontSize: 10, color: "var(--tm-warning)", fontStyle: "italic" }}>No proof · keyword-inferred</div>
+      )}
+      <button
+        onClick={() => !logged && mutate()}
+        disabled={isPending || logged}
+        style={{
+          marginTop: 4, padding: "6px 12px",
+          borderRadius: "var(--tm-radius-sm)",
+          fontSize: 11, fontWeight: 600,
+          background: logged ? "transparent" : "var(--tm-accent)",
+          color: logged ? "var(--tm-success)" : "var(--tm-accent-fg)",
+          border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-accent)"}`,
+          cursor: logged ? "default" : "pointer",
+          transition: "all 200ms var(--tm-ease)",
+          fontFamily: "inherit", width: "100%",
+        }}
+      >
+        {logged ? "✓ Logged to Forge" : isPending ? "Logging…" : "Log to Forge"}
+      </button>
+      <div style={{ display: "flex", gap: 12 }}>
+        <Link href="/cv"
+          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
+        >
+          CV →
+        </Link>
+        <Link
+          href={`/market?skill=${encodeURIComponent(skill.display_name)}`}
+          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
+        >
+          Intel →
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 export default function SkillsPage() {
   const { token, ready } = useAuth()
@@ -38,9 +105,14 @@ export default function SkillsPage() {
 
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
   const skills = userSkills ?? EMPTY_SKILLS
-  const totalSkills = Object.values(skills.by_domain).flat().length
-  const levellingCount = Object.values(skills.by_domain).flat().filter(s => s.level > 0 && s.level < 5).length
-  const proofCount = Object.values(skills.by_domain).flat().filter(s => s.evidence_text).length
+  const allSkills = Object.values(skills.by_domain).flat()
+  const totalSkills = allSkills.length
+  const proofCount = allSkills.filter(s => s.evidence_text).length
+  const weakDomainCount = Object.entries(skills.by_domain).filter(([, items]) => {
+    if (!items.length) return false
+    const avg = items.reduce((s, it) => s + it.level, 0) / items.length
+    return (avg / 5) * 100 < 40
+  }).length
 
   const activeDomainSkills = activeDomain ? (skills.by_domain[activeDomain] ?? []) : []
 
@@ -55,7 +127,7 @@ export default function SkillsPage() {
             <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
             <p className="tm-meta text-pretty">
               {scoreData
-                ? `${scoreData.skills_assessed} skills · ${scoreData.gap_skills.length} gaps · ${proofCount} with proof · ${levellingCount} levelling`
+                ? `${totalSkills} skills · ${totalSkills - proofCount} need proof · ${weakDomainCount} domain${weakDomainCount === 1 ? "" : "s"} below 40%`
                 : "Upload your CV to see your Myro Score"}
             </p>
           </div>
@@ -159,23 +231,9 @@ export default function SkillsPage() {
                     ✕ Close
                   </button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
                   {activeDomainSkills.map(skill => (
-                    <div key={skill.key} style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>{skill.proficiency_title}</div>
-                      <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(skill.level / 5) * 100}%`, background: skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)", borderRadius: 99 }} />
-                      </div>
-                      {skill.evidence_text ? (
-                        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
-                      ) : (
-                        <div style={{ fontSize: 10, color: "var(--tm-warning)", marginTop: 6, fontStyle: "italic" }}>No proof · keyword-inferred</div>
-                      )}
-                    </div>
+                    <SkillCard key={skill.key} skill={skill} token={token!} />
                   ))}
                 </div>
               </div>
