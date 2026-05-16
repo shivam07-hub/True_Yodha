@@ -8,7 +8,6 @@ from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
 from app.services import job_importer, job_matcher, llm_ranker
 from app.services.llm_provider import LLMProvider
-from app.services.rate_limit import assert_not_rate_limited
 from app.services.scoring import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -108,7 +107,6 @@ async def compute_job_matches(
     llm_provider: LLMProvider,
 ) -> dict[str, Any]:
     db = repo.client
-    assert_not_rate_limited(db, user_id, "user_job_matches", "computed_at")
 
     if llm_ranker.is_cache_valid(db, user_id, batch_week):
         return {
