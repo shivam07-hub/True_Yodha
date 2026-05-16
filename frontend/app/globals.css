@@ -251,3 +251,54 @@
   .nl-reading-progress { animation: none; }
   .nl-page-enter { animation: none; }
 }
+
+/* ── Mobile shell layout ──────────────────────────────────────────
+   Desktop: sidebar visible, mobile bars hidden.
+   Mobile (≤768px): sidebar hidden, top bar + bottom nav fixed.
+   Both nav variants always in DOM — CSS controls visibility.
+   ───────────────────────────────────────────────────────────────── */
+.tm-sidebar-wrap { display: contents; }
+.tm-mobile-topbar { display: none; }
+.tm-mobile-bottomnav { display: none; }
+
+@media (max-width: 768px) {
+  .tm-sidebar-wrap { display: none; }
+
+  .tm-mobile-topbar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 16px 10px;
+    padding-top: env(safe-area-inset-top);
+    height: calc(52px + env(safe-area-inset-top));
+    background: var(--tm-surface);
+    border-bottom: 1px solid var(--tm-border-soft);
+  }
+
+  .tm-mobile-bottomnav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 10px;
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(64px + env(safe-area-inset-bottom));
+    background: var(--tm-surface);
+    border-top: 1px solid var(--tm-border-soft);
+  }
+
+  /* Push scrollable content clear of fixed bars */
+  .tm-main-scroll {
+    padding-top: calc(52px + env(safe-area-inset-top)) !important;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}

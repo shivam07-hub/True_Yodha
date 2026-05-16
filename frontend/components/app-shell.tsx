@@ -16,6 +16,8 @@ import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
 import { xp, diary } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
+import { useIsDesktop } from "@/lib/hooks/use-is-desktop"
+import { MobileTopBar, MobileBottomNav, MobileProfileSheet } from "@/components/mobile-shell"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
@@ -24,15 +26,15 @@ const NAV_ITEMS = [
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
 ]
 
-const FEEDBACK_ACTIONS = [
+export const FEEDBACK_ACTIONS = [
   { id: "bug",       icon: "⚠",  label: "Report a bug",       color: "var(--tm-warning)", bg: "var(--tm-warning-wash)", placeholder: "Describe what went wrong…"          },
   { id: "companies", icon: "＋", label: "Add more companies", color: "var(--tm-accent)",  bg: "var(--tm-accent-wash)",  placeholder: "Which companies should we track?"    },
   { id: "feedback",  icon: "◎",  label: "Leave feedback",     color: "var(--tm-success)", bg: "var(--tm-success-wash)", placeholder: "What can we improve?"                },
 ]
 
-type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
+export type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
 
-function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]; onClose: () => void }) {
+export function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]; onClose: () => void }) {
   const [text, setText] = useState("")
   const [sent, setSent] = useState(false)
   const submit = () => {
@@ -696,32 +698,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     staleTime: 10 * 60 * 1000,
   })
 
+  const isDesktop = useIsDesktop()
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+
   if (!ready) return null
 
-  const showParticle = !SUPPRESS_PARTICLE_PATHS.some(p => pathname.startsWith(p))
+  const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some(p => pathname.startsWith(p))
+
+  const profile = {
+    full_name: profileData?.full_name ?? null,
+    email: profileData?.email ?? "",
+    target_roles: profileData?.target_roles ?? [],
+    target_location: profileData?.target_location ?? null,
+    linkedin_url: profileData?.linkedin_url ?? null,
+  }
 
   return (
     <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
-      <Sidebar
+
+      <div className="tm-sidebar-wrap">
+        <Sidebar
+          xpBalance={xpBalance}
+          profile={profile}
+          signOut={signOut}
+          onForgeComplete={handleAmbientForgeComplete}
+          onForgeReflection={handleAmbientReflection}
+          onForgeXPEarned={handleAmbientXPEarned}
+        />
+      </div>
+
+      <MobileTopBar
         xpBalance={xpBalance}
-        profile={{
-          full_name: profileData?.full_name ?? null,
-          email: profileData?.email ?? "",
-          target_roles: profileData?.target_roles ?? [],
-          target_location: profileData?.target_location ?? null,
-          linkedin_url: profileData?.linkedin_url ?? null,
-        }}
-        signOut={signOut}
-        onForgeComplete={handleAmbientForgeComplete}
-        onForgeReflection={handleAmbientReflection}
-        onForgeXPEarned={handleAmbientXPEarned}
+        profile={profile}
+        onAvatarClick={() => setMobileSheetOpen(true)}
       />
+
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
-        <div className="tm-page-enter" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+        <div className="tm-page-enter tm-main-scroll" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {children}
         </div>
       </main>
+
+      <MobileBottomNav />
+
+      {mobileSheetOpen && (
+        <MobileProfileSheet
+          profile={profile}
+          onClose={() => setMobileSheetOpen(false)}
+          signOut={signOut}
+        />
+      )}
     </div>
   )
 }
