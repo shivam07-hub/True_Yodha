@@ -12,11 +12,11 @@ interface SkillGapColProps {
 }
 
 export function SkillGapCol({ skillGapData, cartSkillNames, onSkillToggle }: SkillGapColProps) {
-  // "Skills to build" = skills the user has zero proficiency in (user_level === 0).
-  // Skills the user already has at any level — even if below required — belong on the
-  // "Skills you already match" panel (HeroCard), so we filter them out here to avoid
-  // showing the same skill on both panels.
+  // skillGapData === undefined means still loading (query not yet resolved)
+  // "Skills to build" = skills user has zero proficiency in (user_level === 0)
+  const isLoading = skillGapData === undefined
   const toBuildSkills = skillGapData?.skills.filter(s => s.user_level === 0) ?? []
+
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
@@ -26,10 +26,29 @@ export function SkillGapCol({ skillGapData, cartSkillNames, onSkillToggle }: Ski
           background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
           color: "var(--tm-warning)",
         }}>
-          {toBuildSkills.length}
+          {isLoading ? "…" : toBuildSkills.length}
         </span>
       </div>
-      {toBuildSkills.length === 0 ? (
+
+      {isLoading ? (
+        // Loading skeleton — shown while switching company tabs
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[80, 65, 90, 72, 58, 85].map((w, i) => (
+            <div key={i} style={{
+              height: 38, borderRadius: 7,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--tm-border-soft)",
+              display: "flex", alignItems: "center", padding: "0 10px", gap: 10,
+              animation: "shimmer 1.4s ease infinite",
+              animationDelay: `${i * 80}ms`,
+            }}>
+              <div style={{ flex: 1, height: 10, borderRadius: 4, background: "rgba(255,255,255,0.06)", maxWidth: `${w}%` }} />
+              <div style={{ width: 48, height: 10, borderRadius: 4, background: "rgba(255,255,255,0.04)", flexShrink: 0 }} />
+              <div style={{ width: 68, height: 24, borderRadius: 99, background: "rgba(0,245,212,0.07)", border: "1px solid rgba(0,245,212,0.15)", flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
+      ) : toBuildSkills.length === 0 ? (
         <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
           Nothing new to learn — you already have at least L1 in every required skill.
         </div>

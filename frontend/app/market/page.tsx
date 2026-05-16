@@ -308,6 +308,8 @@ function SkillHeatmap({
   isLoggedIn: boolean
 }) {
   const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
+  const [hoveredCol, setHoveredCol] = useState<string | null>(null)
+  const [showSkillPicker, setShowSkillPicker] = useState(false)
 
   const maxVal = useMemo(() => {
     let max = 1
@@ -339,73 +341,90 @@ function SkillHeatmap({
 
   if (!skills.length) return null
 
-  const unselectedSkills = allSkills.filter(s => !selectedSkillNames.has(s.display_name))
   const selectedCount = selectedSkillNames.size
 
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
       {/* Header row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px" }}>
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
           <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0, paddingTop: 6 }}>
-          LOW
-          <div style={{ display: "flex", gap: 2 }}>
-            {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
-              <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
-            ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: 4 }}>
+          {isLoggedIn && allSkills.length > 0 && (
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowSkillPicker(p => !p)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6,
+                  background: showSkillPicker ? "rgba(0,245,212,0.08)" : "transparent",
+                  border: `1px solid ${showSkillPicker ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                  color: showSkillPicker ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  fontFamily: "var(--tm-font-mono)", fontSize: 10, cursor: "pointer",
+                  letterSpacing: "0.06em", transition: "all 120ms ease",
+                }}
+              >
+                COLUMNS · {skills.length}
+                <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>▾</span>
+              </button>
+              {showSkillPicker && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowSkillPicker(false)} />
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", right: 0,
+                    background: "var(--tm-bg)", border: "1px solid var(--tm-border-soft)",
+                    borderRadius: 8, padding: "6px 0", minWidth: 220, zIndex: 100,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxHeight: 320, overflowY: "auto",
+                  }}>
+                    {allSkills.map(s => {
+                      const active = selectedSkillNames.has(s.display_name)
+                      const canToggle = !active || selectedCount > 1
+                      return (
+                        <button
+                          key={s.display_name}
+                          onClick={() => { if (canToggle) onToggleSkill(s.display_name) }}
+                          disabled={!canToggle}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10, width: "100%",
+                            padding: "7px 14px", background: "transparent", border: "none",
+                            cursor: canToggle ? "pointer" : "default",
+                            color: active ? "var(--tm-text)" : "var(--tm-text-faint)",
+                            fontFamily: "var(--tm-font-mono)", fontSize: 11, textAlign: "left",
+                            opacity: !canToggle ? 0.4 : 1, transition: "background 80ms",
+                          }}
+                          onMouseEnter={e => { if (canToggle) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)" }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                        >
+                          <span style={{
+                            width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                            background: active ? "var(--tm-accent)" : "transparent",
+                            border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {active && <span style={{ fontSize: 8, color: "var(--tm-bg)", fontWeight: 800 }}>✓</span>}
+                          </span>
+                          {s.display_name}
+                          <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--tm-text-faint)", fontWeight: 700 }}>L{s.current_level}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
+            LOW
+            <div style={{ display: "flex", gap: 2 }}>
+              {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
+                <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
+              ))}
+            </div>
+            HIGH
           </div>
-          HIGH
         </div>
       </div>
-
-      {/* Integrated Skill Lens — active columns + available skills to add */}
-      {isLoggedIn && allSkills.length > 0 && (
-        <div style={{ padding: "10px 24px 12px", borderBottom: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", flexShrink: 0 }}>LENS</span>
-          {/* Active (selected) skill chips */}
-          {skills.map(sk => (
-            <button
-              key={sk}
-              onClick={() => { if (selectedCount > 1) onToggleSkill(sk) }}
-              title={selectedCount <= 1 ? "Must keep at least one skill" : `Remove ${sk} from columns`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px",
-                borderRadius: 999, cursor: selectedCount > 1 ? "pointer" : "default",
-                background: "rgba(0,245,212,0.10)", border: "1px solid var(--tm-accent)",
-                color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", fontSize: 10,
-                letterSpacing: "0.04em", transition: "all 100ms ease",
-              }}
-            >
-              {sk}
-              {selectedCount > 1 && <span style={{ fontSize: 9, opacity: 0.6 }}>×</span>}
-            </button>
-          ))}
-          {/* Separator */}
-          {unselectedSkills.length > 0 && (
-            <span style={{ width: 1, height: 16, background: "var(--tm-border-soft)", flexShrink: 0 }} />
-          )}
-          {/* Inactive (unselected) skills — greyed out, click to add */}
-          {unselectedSkills.map(s => (
-            <button
-              key={s.display_name}
-              onClick={() => onToggleSkill(s.display_name)}
-              title={`Add ${s.display_name} as column`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px",
-                borderRadius: 999, cursor: "pointer",
-                background: "transparent", border: "1px solid var(--tm-border-soft)",
-                color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 10,
-                letterSpacing: "0.04em", opacity: 0.7, transition: "all 100ms ease",
-              }}
-            >
-              <span style={{ fontSize: 9 }}>+</span>{s.display_name}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
@@ -414,10 +433,28 @@ function SkillHeatmap({
               <th style={{ width: 180, minWidth: 140 }} />
               {skills.map(sk => {
                 const level = skillLevels[sk.toLowerCase()] ?? 0
+                const isHovered = hoveredCol === sk
+                const canRemove = selectedCount > 1
                 return (
-                  <th key={sk} style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom" }}>
+                  <th
+                    key={sk}
+                    onMouseEnter={() => setHoveredCol(sk)}
+                    onMouseLeave={() => setHoveredCol(null)}
+                    onClick={() => { if (canRemove) onToggleSkill(sk) }}
+                    title={canRemove ? `Click to hide ${sk}` : "Keep at least one column"}
+                    style={{
+                      writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0",
+                      fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
+                      fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom",
+                      cursor: canRemove ? "pointer" : "default",
+                      color: isHovered && canRemove ? "var(--tm-danger)" : "var(--tm-text-muted)",
+                      transition: "color 100ms ease",
+                    }}
+                  >
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 9, color: level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent", fontWeight: 700 }}>L{level}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
+                        {isHovered && canRemove ? "×" : `L${level}`}
+                      </span>
                       {sk}
                     </div>
                   </th>
