@@ -82,6 +82,37 @@ def _build_response(result: dict[str, Any], new_xp_balance: int | None = None) -
     )
 
 
+@router.post("/compute", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
+async def compute_job_matches_async(
+    current_user: dict = Depends(get_current_user),
+) -> ComputeJobMatchesResponse:
+    user_id = current_user["user_id"]
+    batch_week = last_monday()
+    try:
+        queued = job_match_compute_async.enqueue_compute_job(user_id, batch_week)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    return _build_response(queued)
+
+
+@router.get("/compute/status", response_model=JobComputeStatusResponse)
+async def get_compute_status(
+    current_user: dict = Depends(get_current_user),
+) -> JobComputeStatusResponse:
+    batch_week = last_monday()
+    try:
+        status_payload = job_match_compute_async.get_status(current_user["user_id"], batch_week)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    return JobComputeStatusResponse(**status_payload)
+
+
 @router.post("/refresh", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
 async def refresh_job_matches(
     current_user: dict = Depends(get_current_user),
