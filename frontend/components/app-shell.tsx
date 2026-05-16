@@ -17,7 +17,7 @@ import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "
 import { xp, diary } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
 import { useIsDesktop } from "@/lib/hooks/use-is-desktop"
-import { MobileTopBar, MobileBottomNav, MobileProfileSheet } from "@/components/mobile-shell"
+import { MobileTopBar, MobileBottomNav, MobileProfileSheet, AppShellSkeleton } from "@/components/mobile-shell"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
@@ -701,7 +701,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isDesktop = useIsDesktop()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
-  if (!ready) return null
+  if (!ready) return <AppShellSkeleton />
 
   const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some(p => pathname.startsWith(p))
 

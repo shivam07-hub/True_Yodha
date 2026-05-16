@@ -8,6 +8,59 @@ import { SettingsModal } from "@/components/settings-modal"
 import { FEEDBACK_ACTIONS, FeedbackModal } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
 
+const SHIMMER: React.CSSProperties = {
+  background: "var(--tm-surface-2)",
+  borderRadius: 6,
+  animation: "pulse 1.6s ease-in-out infinite",
+}
+
+export function AppShellSkeleton() {
+  return (
+    <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--tm-bg)" }}>
+
+      {/* Desktop: sidebar skeleton */}
+      <div className="tm-sidebar-wrap" style={{
+        width: 220, flexShrink: 0,
+        background: "var(--tm-surface)",
+        borderRight: "1px solid var(--tm-border-soft)",
+        padding: 16, display: "flex", flexDirection: "column", gap: 12,
+      }}>
+        <div style={{ ...SHIMMER, height: 44 }} />
+        <div style={{ ...SHIMMER, height: 52 }} />
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ ...SHIMMER, height: 40, opacity: 1 - i * 0.15, animationDelay: `${i * 100}ms` }} />
+        ))}
+      </div>
+
+      {/* Mobile: top bar skeleton */}
+      <header className="tm-mobile-topbar" style={{ background: "var(--tm-surface)" }}>
+        <div style={{ ...SHIMMER, width: 72, height: 24 }} />
+        <div style={{ ...SHIMMER, width: 68, height: 28, borderRadius: 99 }} />
+        <div style={{ ...SHIMMER, width: 32, height: 32, borderRadius: "50%" }} />
+      </header>
+
+      {/* Content shimmer */}
+      <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="tm-main-scroll" style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+          {[80, 48, 48, 48, 32].map((h, i) => (
+            <div key={i} style={{ ...SHIMMER, height: h, opacity: 1 - i * 0.1, animationDelay: `${i * 80}ms` }} />
+          ))}
+        </div>
+      </main>
+
+      {/* Mobile: bottom nav skeleton */}
+      <nav className="tm-mobile-bottomnav" style={{ background: "var(--tm-surface)" }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div style={{ ...SHIMMER, width: 20, height: 20, animationDelay: `${i * 80}ms` }} />
+            <div style={{ ...SHIMMER, width: 32, height: 8, animationDelay: `${i * 80}ms` }} />
+          </div>
+        ))}
+      </nav>
+    </div>
+  )
+}
+
 const MOBILE_NAV = [
   { href: "/home",   label: "Dashboard", icon: null },
   { href: "/market", label: "Intel",     icon: "◉" },
