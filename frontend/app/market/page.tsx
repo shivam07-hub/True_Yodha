@@ -682,70 +682,6 @@ function LocationBar({ cities, countries, city, country, mode, onCity, onCountry
 
 // ── Skill Selector Panel ─────────────────────────────────────────────────────
 
-function SkillSelectorPanel({
-  skills, selectedNames, onToggle, isLoggedIn,
-}: {
-  skills: UserSkillDemandItem[]
-  selectedNames: Set<string>
-  onToggle: (name: string) => void
-  isLoggedIn: boolean
-}) {
-  const selectedCount = selectedNames.size
-  return (
-    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>SKILL LENS</div>
-        {isLoggedIn && skills.length > 0 && (
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: selectedCount >= MAX_HEATMAP_SKILLS ? "var(--tm-warning)" : "var(--tm-accent)", fontWeight: 600 }}>
-            {selectedCount}/{MAX_HEATMAP_SKILLS}
-          </div>
-        )}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
-        {isLoggedIn ? "Toggle which of your CV skills appear as heatmap columns" : "Sign in to personalise the heatmap"}
-      </div>
-      {!isLoggedIn ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to use Skill Lens</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Heatmap shows your CV skills when logged in</div>
-        </div>
-      ) : skills.length === 0 ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>No skills detected</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Upload your CV to populate the heatmap with your skills</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, overflowY: "auto", maxHeight: 260 }}>
-          {skills.map(skill => {
-            const selected = selectedNames.has(skill.display_name)
-            const atMax = !selected && selectedCount >= MAX_HEATMAP_SKILLS
-            return (
-              <button
-                key={skill.display_name}
-                onClick={() => !atMax && onToggle(skill.display_name)}
-                title={atMax ? "Max 8 selected — deselect one first" : `${skill.display_name} · ${skill.job_count_30d} jobs (30d)`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 99,
-                  cursor: atMax ? "not-allowed" : "pointer",
-                  background: selected ? "rgba(0,245,212,0.10)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${selected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                  color: selected ? "var(--tm-accent)" : atMax ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
-                  fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em",
-                  opacity: atMax ? 0.45 : 1, transition: "all 120ms ease", flexShrink: 0,
-                }}
-              >
-                <span style={{ fontSize: 9, fontWeight: 700, color: selected ? "rgba(0,245,212,0.7)" : skill.current_level >= 3 ? "var(--tm-text-muted)" : "var(--tm-text-faint)" }}>L{skill.current_level}</span>
-                {skill.display_name}
-                {skill.job_count_30d > 0 && <span style={{ fontSize: 9, color: selected ? "rgba(0,245,212,0.5)" : "var(--tm-text-faint)", marginLeft: 1 }}>{skill.job_count_30d}</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function IntelPage() {
@@ -784,13 +720,19 @@ export default function IntelPage() {
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
-  const targetRoles: string[] = profileData?.target_roles ?? []
+  const targetRoles: string[] = useMemo(
+    () => profileData?.target_roles ?? [],
+    [profileData?.target_roles]
+  )
 
-  const locFilters = {
-    locationCity: locationCity || null,
-    locationCountry: locationCountry || null,
-    locationMode: (locationMode || null) as JobLocationFilters["locationMode"],
-  }
+  const locFilters = useMemo(
+    () => ({
+      locationCity: locationCity || null,
+      locationCountry: locationCountry || null,
+      locationMode: (locationMode || null) as JobLocationFilters["locationMode"],
+    }),
+    [locationCity, locationCountry, locationMode]
+  )
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["intel-analytics", token ?? "", selectedCluster ?? "", locationCity, locationCountry, locationMode],
