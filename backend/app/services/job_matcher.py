@@ -70,12 +70,12 @@ def get_top_matches(
         main_hits = [s for s in main if s.lower() in user_lower]
         side_hits = [s for s in side if s.lower() in user_lower]
 
+        if len(main_hits) + len(side_hits) < 3:
+            continue
+
         max_possible = PRIMARY_WEIGHT * len(main) + SECONDARY_WEIGHT * len(side)
         raw = (PRIMARY_WEIGHT * len(main_hits) + SECONDARY_WEIGHT * len(side_hits)) / max_possible
         score = round(raw * 100, 1)
-
-        if score == 0:
-            continue
 
         scored.append({
             "job_id": jid,

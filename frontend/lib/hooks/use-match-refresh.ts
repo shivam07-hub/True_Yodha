@@ -7,12 +7,13 @@ import { dataKeys } from "@/lib/domain-data"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
 import { useXPStore } from "@/store/xpStore"
 
-export const REFRESH_XP_COST = 100
+export const REFRESH_XP_COST = 50
 
 export function useMatchRefresh(token: string | null, queryClient: QueryClient) {
   const abortRef = useRef<AbortController | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [isExhausted, setIsExhausted] = useState(false)
   const { setBalance } = useXPStore()
 
   function stop() {
@@ -20,10 +21,10 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
     abortRef.current = null
   }
 
-  function applyStatus(p: JobComputeStatusResponse) {
+  function applyStatus(p: JobComputeStatusResponse & { exhausted?: boolean }) {
     if (p.status === "queued" || p.status === "running") {
       setIsRefreshing(true)
-      setNotice(p.message || (p.status === "queued" ? "Refresh queued. We'll update this list shortly." : "Refreshing matches in the background…"))
+      setNotice(p.message || (p.status === "queued" ? "Refresh queued. We'll update this list shortly." : "Refreshing matches…"))
       return
     }
     if (p.status === "failed") {
@@ -34,17 +35,16 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
     }
     if (p.status === "succeeded") {
       setIsRefreshing(false)
-      if (p.from_cache) {
-        setNotice("Using this week's cached matches.")
+      if (p.exhausted) {
+        setIsExhausted(true)
+        setNotice("No new matches")
       } else if ((p.matches_written ?? 0) > 0) {
-        setNotice(`Updated ${p.matches_written ?? 0} matched roles · −${REFRESH_XP_COST} XP`)
+        setNotice(`+${p.matches_written ?? 0} new matches · −${REFRESH_XP_COST} XP`)
       } else if (p.needs_onboarding) {
         setNotice("Upload your CV first to generate role matches.")
       } else {
-        const d = p.debug as { user_skills_count?: number | null; candidate_jobs_count?: number | null; top_jobs_count?: number | null } | null
-        setNotice(d
-          ? `No matches generated (skills=${d.user_skills_count ?? 0}, candidates=${d.candidate_jobs_count ?? 0}, ranked=${d.top_jobs_count ?? 0}). Try updating target roles in Intel, then refresh.`
-          : "No match set generated. Try updating target roles in Intel, then refresh.")
+        setNotice("No new matches")
+        setIsExhausted(true)
       }
       if (token) clearLocalCache(userCacheKey(token, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
@@ -75,12 +75,11 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
   const mutation = useMutation({
     mutationFn: () => jobs.refresh(token!),
     onSuccess: (payload) => {
-      // Sync XP balance when deducted (non-cached refresh)
       if (payload.new_xp_balance != null) setBalance(payload.new_xp_balance)
 
       if (payload.status === "queued" || payload.status === "running" || payload.already_running) {
         setIsRefreshing(true)
-        setNotice(payload.message || "Refreshing matches in the background…")
+        setNotice(payload.message || "Refreshing matches…")
         void stream()
         return
       }
@@ -92,6 +91,7 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
         already_running: !!payload.already_running,
         matches_written: payload.matches_written,
         from_cache: payload.from_cache,
+        exhausted: payload.exhausted,
         needs_onboarding: payload.needs_onboarding ?? false,
         debug: payload.debug ?? null,
         message: payload.message ?? null,
@@ -121,5 +121,5 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
     stop()
   }
 
-  return { isRefreshing: isRefreshing || mutation.isPending, notice, refresh, cleanup }
+  return { isRefreshing: isRefreshing || mutation.isPending, notice, isExhausted, refresh, cleanup }
 }

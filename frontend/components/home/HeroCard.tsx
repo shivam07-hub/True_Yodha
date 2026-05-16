@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { SkillRow } from "./SkillRow"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
 
@@ -39,14 +40,13 @@ interface HeroCardProps {
   onForge: () => void
 }
 
-export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroCardProps) {
+export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps) {
   const fit = Math.min(100, Math.round(job.overlap_score))
   const color = fitColor(fit)
 
   const missingSkills = skillGapData?.skills.filter(s => s.missing) ?? []
   // "already match" = user has the skill at any level (even if not yet at required level)
   const matchedSkills = skillGapData?.skills.filter(s => (s.user_level ?? 0) > 0) ?? []
-  const firstGap = missingSkills[0]?.skill ?? "next gap"
 
   return (
     <div style={{
@@ -170,33 +170,23 @@ export function HeroCard({ job, status, skillGapData, onStatus, onForge }: HeroC
         ))}
       </div>
 
-      {/* Actions row */}
+      {/* Actions row — CV CTA always visible, no Forge button on job card */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-        {missingSkills.length > 0 ? (
-          <button
-            onClick={onForge}
-            style={{
-              padding: "9px 18px", borderRadius: 99,
-              background: "var(--tm-accent)", border: "none",
-              color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-              boxShadow: "0 0 12px rgba(0,245,212,0.25)",
-            }}
-          >
-            ▶ Forge: {firstGap}
-          </button>
-        ) : (
-          <button
-            style={{
-              padding: "9px 18px", borderRadius: 99,
-              background: "var(--tm-accent)", border: "none",
-              color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            → Apply with tailored CV
-          </button>
-        )}
+        <Link
+          href="/cv"
+          style={{
+            display: "inline-flex", alignItems: "center",
+            padding: "9px 20px", borderRadius: 99,
+            background: "var(--tm-accent)", textDecoration: "none",
+            color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700,
+            boxShadow: "0 0 12px rgba(0,245,212,0.25)",
+            transition: "opacity 150ms",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
+        >
+          → Apply with tailored CV
+        </Link>
       </div>
 
       {/* Expanded block */}

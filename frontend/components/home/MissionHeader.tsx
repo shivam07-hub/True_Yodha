@@ -60,6 +60,7 @@ export interface MissionHeaderProps {
   hasApplied: boolean
   isRefreshing: boolean
   refreshNotice: string | null
+  matchesExhausted: boolean
   cartCount: number
   onRefreshMatches: () => void
   onEnterForge: () => void
@@ -70,7 +71,7 @@ export function MissionHeader({
   targetRoles, targetLoc, firstName,
   streak, sessions, score, evidenceData,
   hasCv, hasJob, loggedToday, hasApplied,
-  isRefreshing, refreshNotice, cartCount,
+  isRefreshing, refreshNotice, matchesExhausted, cartCount,
   onRefreshMatches, onEnterForge, onOpenDiary,
 }: MissionHeaderProps) {
   const dayStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()
@@ -116,6 +117,7 @@ export function MissionHeader({
               variant="compact"
               isRefreshing={isRefreshing}
               notice={refreshNotice}
+              hidden={matchesExhausted}
               onRefresh={onRefreshMatches}
             />
             <button style={GHOST_BTN} onClick={onOpenDiary} onMouseEnter={onGhostEnter} onMouseLeave={onGhostLeave}>

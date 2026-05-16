@@ -32,44 +32,21 @@ SYSTEM_PROMPT = (
 
 # ── Cache check ───────────────────────────────────────────────────────────────
 
-def is_cache_valid(db: Client, user_id: str, batch_week: date) -> bool:
-    """
-    Returns True if ranked matches exist for this week AND no skill change
-    happened after the last compute. Stale scores from partial job_skills
-    backfills or CV re-uploads are always recomputed.
-    """
-    match_result = (
+def has_matches_this_week(db: Client, user_id: str, batch_week: date) -> bool:
+    """Returns True if any matches exist for this user/week."""
+    result = (
         db.table("user_job_matches")
-        .select("computed_at")
+        .select("job_id")
         .eq("user_id", user_id)
         .eq("batch_week", str(batch_week))
-        .eq("is_recommended", True)
         .limit(1)
         .execute()
     )
-    if not match_result.data:
-        return False
+    return bool(result.data)
 
-    computed_at = match_result.data[0].get("computed_at")
-    if not computed_at:
-        return False
 
-    # Invalidate if any user skill was updated after the last match compute
-    skill_result = (
-        db.table("user_skills")
-        .select("last_updated")
-        .eq("user_id", user_id)
-        .order("last_updated", desc=True)
-        .limit(1)
-        .execute()
-    )
-    if skill_result.data:
-        last_skill_update = skill_result.data[0].get("last_updated") or ""
-        if last_skill_update > computed_at:
-            logger.info("Match cache stale for user %s — skills updated after last compute", user_id)
-            return False
-
-    return True
+def is_cache_valid(db: Client, user_id: str, batch_week: date) -> bool:
+    return has_matches_this_week(db, user_id, batch_week)
 
 
 # ── Prompt building ───────────────────────────────────────────────────────────
@@ -97,7 +74,7 @@ Return a JSON array of {len(top_jobs)} objects, best fit first:
 [
   {{
     "job_id": "<string>",
-    "rank": <1–{len(top_jobs)}>,
+    "rank": <1–5>,
     "explanation": "<2 sentences: why this job fits this candidate>",
     "action_plan": null
   }}
@@ -166,11 +143,7 @@ def persist_matches(
     top_jobs: list[dict],
     ranked: list[dict],
 ) -> int:
-    """
-    Upsert to user_job_matches.
-    Top 3 by LLM rank → is_recommended=True.
-    Returns count of rows written.
-    """
+    """Upsert to user_job_matches. All jobs get LLM rank + explanation. Returns count written."""
     rank_map: dict[str, dict] = {str(r["job_id"]): r for r in ranked}
     now = datetime.now(timezone.utc).isoformat()
 
@@ -178,15 +151,13 @@ def persist_matches(
     for job in top_jobs:
         jid = str(job["job_id"])
         llm_data = rank_map.get(jid, {})
-        llm_rank: int | None = llm_data.get("rank")
         rows.append({
             "user_id": user_id,
             "job_id": jid,
             "batch_week": str(batch_week),
             "overlap_score": job["overlap_score"],
-            "llm_rank": llm_rank,
+            "llm_rank": llm_data.get("rank"),
             "llm_explanation": llm_data.get("explanation"),
-            "is_recommended": isinstance(llm_rank, int) and llm_rank <= 3,
             "action_plan": llm_data.get("action_plan") or [],
             "matched_skills": job.get("matched_skills") or [],
             "computed_at": now,
@@ -210,16 +181,8 @@ async def rank_and_persist(
     top_jobs: list[dict],
     provider: LLMProvider,
 ) -> int:
-    """
-    Full ranking pipeline: LLM call → persist.
-    Returns count of rows written (0 if no jobs to rank).
-    Skips LLM call and returns 0 if cache is valid.
-    """
+    """Full ranking pipeline: LLM call → persist. Returns count of rows written."""
     if not top_jobs:
-        return 0
-
-    if is_cache_valid(db, user_id, batch_week):
-        logger.info("Job match cache valid for user %s week %s — skipping LLM", user_id, batch_week)
         return 0
 
     ranked = await call_llm(user_skill_map, top_jobs, provider)

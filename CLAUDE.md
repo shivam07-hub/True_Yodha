@@ -143,6 +143,34 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
 9. **Mobile — auth skeleton polish** — `AppShellSkeleton` shipped but `ready` resolves in ~1 frame (synchronous localStorage). If more polish needed: add staggered fade-in on skeleton → real content transition.
+10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
+
+---
+
+## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
+
+### Done ✅ (2026-05-16)
+- SkillCard component: "Log to Forge" button fires `diary.createEntry`, toggles to "✓ Logged to Forge"
+- "CV →" secondary link per skill card → `/cv`
+- "Intel →" secondary link per skill card → `/market?skill=<display_name>`
+- Stat line reframed: `"N skills · N need proof · N domains below 40%"` (removed misleading "0 gaps")
+- Intel page (`market/page.tsx`): reads `?skill=` param via `useSearchParams` → pins skill first in Skill Lens + first heatmap column
+- Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`
+
+### Phase 1 — Visual Polish ✅ DONE 2026-05-16
+- [x] Domain name truncation fix — `minmax(200px)`, wrap allowed, ellipsis removed. Radar SVG: first word shown + `<title>` native tooltip for full name
+- [x] Domain strip cards: 3px color-coded left border (`<30%` red · `30–50%` orange · `50–70%` amber · `>70%` green). Strength % colored to match. `"Explore →"` / `"← close"` affordance bottom-right
+- [x] Legend in domain inspector header: colored squares for L3+/L2/L0–1. Orange italic label = "No CV evidence yet". SkillCard jargon replaced: "No CV evidence — keyword inferred"
+
+### Phase 2 — Score Hero + Weakness Spotlight ✅ DONE 2026-05-16
+- [x] Score hero — `ScoreRing` SVG component: animated stroke-dashoffset on mount (900ms ease), 5 tiers (Building foundation → Emerging → Developing → Competent → Advanced), next milestone label. Replaces top-right mono number
+- [x] Weakness Spotlight — `WeaknessSpotlight` component: lowest avg% domain with most skills (among <60%). Shows domain name, %, skill count, no-proof count, max level. "Log to Forge" diary CTA + "CV →" link. Red left border accent. Sits between header and domain strip
+
+### Phase 3 — Radar → Domain Detail Transformation ✅ DONE 2026-05-16
+- [x] `DomainRadar` refactored to SVG-only. Spokes + dots dim (opacity 0.25) when another domain is active; active spoke brightens + dot grows to r=7
+- [x] Slide-in inspector between strip and radar removed. Inspector absorbed into radar card right panel
+- [x] Right panel two states: "Domain Scores" (default, clickable rows) → "Domain Detail" (SkillCards + actions, maxHeight:340 scroll). Zero layout shift on swap
+- [x] `SkillCard`, `ScoreRing`, `WeaknessSpotlight` extracted to `components/skills/`. Page down to 233 lines (under 300 limit)
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 

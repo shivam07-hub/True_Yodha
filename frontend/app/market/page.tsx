@@ -1,19 +1,19 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
-import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse } from "@/lib/api"
+import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_HEATMAP_SKILLS = 8
 const MAX_FOLLOWED = 10
 const XP_FLOOR = -30
 const FOLLOW_XP_COST = 10
@@ -291,6 +291,10 @@ function SkillHeatmap({
   skillLevels,
   selectedCell,
   onCellSelect,
+  allSkills,
+  selectedSkillNames,
+  onToggleSkill,
+  isLoggedIn,
 }: {
   companies: FollowedCompany[]
   rowDataMap: Record<string, Record<string, number> | null>
@@ -298,8 +302,14 @@ function SkillHeatmap({
   skillLevels: Record<string, number>
   selectedCell: { ci: number; si: number } | null
   onCellSelect: (ci: number, si: number) => void
+  allSkills: UserSkillDemandItem[]
+  selectedSkillNames: Set<string>
+  onToggleSkill: (name: string) => void
+  isLoggedIn: boolean
 }) {
   const [hoverCell, setHoverCell] = useState<{ ci: number; si: number } | null>(null)
+  const [hoveredCol, setHoveredCol] = useState<string | null>(null)
+  const [showSkillPicker, setShowSkillPicker] = useState(false)
 
   const maxVal = useMemo(() => {
     let max = 1
@@ -331,21 +341,88 @@ function SkillHeatmap({
 
   if (!skills.length) return null
 
+  const selectedCount = selectedSkillNames.size
+
   return (
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 4px" }}>
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px" }}>
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
           <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em", flexShrink: 0, paddingTop: 6 }}>
-          LOW
-          <div style={{ display: "flex", gap: 2 }}>
-            {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
-              <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
-            ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: 4 }}>
+          {isLoggedIn && allSkills.length > 0 && (
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowSkillPicker(p => !p)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6,
+                  background: showSkillPicker ? "rgba(0,245,212,0.08)" : "transparent",
+                  border: `1px solid ${showSkillPicker ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                  color: showSkillPicker ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  fontFamily: "var(--tm-font-mono)", fontSize: 10, cursor: "pointer",
+                  letterSpacing: "0.06em", transition: "all 120ms ease",
+                }}
+              >
+                COLUMNS · {skills.length}
+                <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>▾</span>
+              </button>
+              {showSkillPicker && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowSkillPicker(false)} />
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 6px)", right: 0,
+                    background: "var(--tm-bg)", border: "1px solid var(--tm-border-soft)",
+                    borderRadius: 8, padding: "6px 0", minWidth: 220, zIndex: 100,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxHeight: 320, overflowY: "auto",
+                  }}>
+                    {allSkills.map(s => {
+                      const active = selectedSkillNames.has(s.display_name)
+                      const canToggle = !active || selectedCount > 1
+                      return (
+                        <button
+                          key={s.display_name}
+                          onClick={() => { if (canToggle) onToggleSkill(s.display_name) }}
+                          disabled={!canToggle}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10, width: "100%",
+                            padding: "7px 14px", background: "transparent", border: "none",
+                            cursor: canToggle ? "pointer" : "default",
+                            color: active ? "var(--tm-text)" : "var(--tm-text-faint)",
+                            fontFamily: "var(--tm-font-mono)", fontSize: 11, textAlign: "left",
+                            opacity: !canToggle ? 0.4 : 1, transition: "background 80ms",
+                          }}
+                          onMouseEnter={e => { if (canToggle) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)" }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                        >
+                          <span style={{
+                            width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                            background: active ? "var(--tm-accent)" : "transparent",
+                            border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {active && <span style={{ fontSize: 8, color: "var(--tm-bg)", fontWeight: 800 }}>✓</span>}
+                          </span>
+                          {s.display_name}
+                          <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--tm-text-faint)", fontWeight: 700 }}>L{s.current_level}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
+            LOW
+            <div style={{ display: "flex", gap: 2 }}>
+              {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
+                <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
+              ))}
+            </div>
+            HIGH
           </div>
-          HIGH
         </div>
       </div>
 
@@ -356,10 +433,28 @@ function SkillHeatmap({
               <th style={{ width: 180, minWidth: 140 }} />
               {skills.map(sk => {
                 const level = skillLevels[sk.toLowerCase()] ?? 0
+                const isHovered = hoveredCol === sk
+                const canRemove = selectedCount > 1
                 return (
-                  <th key={sk} style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0", fontSize: 11, color: "var(--tm-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom" }}>
+                  <th
+                    key={sk}
+                    onMouseEnter={() => setHoveredCol(sk)}
+                    onMouseLeave={() => setHoveredCol(null)}
+                    onClick={() => { if (canRemove) onToggleSkill(sk) }}
+                    title={canRemove ? `Click to hide ${sk}` : "Keep at least one column"}
+                    style={{
+                      writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0",
+                      fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
+                      fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom",
+                      cursor: canRemove ? "pointer" : "default",
+                      color: isHovered && canRemove ? "var(--tm-danger)" : "var(--tm-text-muted)",
+                      transition: "color 100ms ease",
+                    }}
+                  >
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 9, color: level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent", fontWeight: 700 }}>L{level}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
+                        {isHovered && canRemove ? "×" : `L${level}`}
+                      </span>
                       {sk}
                     </div>
                   </th>
@@ -373,8 +468,9 @@ function SkillHeatmap({
               const rowData = rowDataMap[co.company_name]
               const isLoading = rowData === null
               const rowSum = rowData ? skills.reduce((s, sk) => s + (rowData[sk] ?? 0), 0) : null
+              const isEmpty = !isLoading && rowSum === 0
               return (
-                <tr key={co.company_name}>
+                <tr key={co.company_name} style={{ opacity: isEmpty ? 0.5 : 1 }}>
                   <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
@@ -385,6 +481,10 @@ function SkillHeatmap({
                   </td>
                   {isLoading ? (
                     skills.map((_, si) => <ShimmerCell key={si} />)
+                  ) : isEmpty ? (
+                    <td colSpan={skills.length} style={{ paddingLeft: 8, fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em" }}>
+                      no roles match selected skills
+                    </td>
                   ) : (
                     skills.map((sk, si) => {
                       const v = rowData?.[sk] ?? 0
@@ -501,84 +601,141 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
   )
 }
 
-// ── Skill Selector Panel ─────────────────────────────────────────────────────
+// ── Filters ──────────────────────────────────────────────────────────────────
 
-function SkillSelectorPanel({
-  skills, selectedNames, onToggle, isLoggedIn,
-}: {
-  skills: UserSkillDemandItem[]
-  selectedNames: Set<string>
-  onToggle: (name: string) => void
+const LOCATION_SELECT_STYLE = {
+  background: "var(--tm-surface)",
+  border: "1px solid var(--tm-border-soft)",
+  borderRadius: "var(--tm-radius-sm)",
+  padding: "6px 32px 6px 12px",
+  fontFamily: "var(--tm-font-sans)",
+  fontSize: 13,
+  color: "var(--tm-text)",
+  cursor: "pointer",
+  outline: "none",
+  appearance: "none" as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 10px center",
+}
+
+function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, isLoggedIn }: {
+  targetRoles: string[]
+  chipCountMap: Record<string, number>
+  selectedCluster: string | null
+  onSelect: (cluster: string) => void
   isLoggedIn: boolean
 }) {
-  const selectedCount = selectedNames.size
+  const [hoveredRole, setHoveredRole] = useState<string | null>(null)
+
+  if (!isLoggedIn) return null
+
+  const isEmpty = targetRoles.length === 0
+
   return (
-    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>SKILL LENS</div>
-        {isLoggedIn && skills.length > 0 && (
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: selectedCount >= MAX_HEATMAP_SKILLS ? "var(--tm-warning)" : "var(--tm-accent)", fontWeight: 600 }}>
-            {selectedCount}/{MAX_HEATMAP_SKILLS}
-          </div>
-        )}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 14, lineHeight: 1.5 }}>
-        {isLoggedIn ? "Toggle which of your CV skills appear as heatmap columns" : "Sign in to personalise the heatmap"}
-      </div>
-      {!isLoggedIn ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Sign in to use Skill Lens</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Heatmap shows your CV skills when logged in</div>
-        </div>
-      ) : skills.length === 0 ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "28px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>No skills detected</div>
-          <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Upload your CV to populate the heatmap with your skills</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, overflowY: "auto", maxHeight: 260 }}>
-          {skills.map(skill => {
-            const selected = selectedNames.has(skill.display_name)
-            const atMax = !selected && selectedCount >= MAX_HEATMAP_SKILLS
+    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>TARGET</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {isEmpty ? (
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px",
+              borderRadius: 999, cursor: "pointer",
+              background: "transparent",
+              border: "1px dashed var(--tm-border-soft)",
+              color: "var(--tm-text-faint)",
+              fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
+            }}
+          >
+            + Add target roles →
+          </button>
+        ) : (
+          targetRoles.map(role => {
+            const selected = selectedCluster === role
+            const hovered = hoveredRole === role && !selected
+            const count = chipCountMap[role]
             return (
               <button
-                key={skill.display_name}
-                onClick={() => !atMax && onToggle(skill.display_name)}
-                title={atMax ? "Max 8 selected — deselect one first" : `${skill.display_name} · ${skill.job_count_30d} jobs (30d)`}
+                key={role}
+                onClick={() => onSelect(role)}
+                onMouseEnter={() => setHoveredRole(role)}
+                onMouseLeave={() => setHoveredRole(null)}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 99,
-                  cursor: atMax ? "not-allowed" : "pointer",
-                  background: selected ? "rgba(0,245,212,0.10)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${selected ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                  color: selected ? "var(--tm-accent)" : atMax ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
-                  fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em",
-                  opacity: atMax ? 0.45 : 1, transition: "all 120ms ease", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px",
+                  borderRadius: 999, cursor: "pointer",
+                  background: selected ? "rgba(0,245,212,0.08)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
+                  border: `1px solid ${selected ? "var(--tm-accent)" : hovered ? "rgba(255,255,255,0.18)" : "var(--tm-border-soft)"}`,
+                  color: selected ? "var(--tm-accent)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
+                  fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
                 }}
               >
-                <span style={{ fontSize: 9, fontWeight: 700, color: selected ? "rgba(0,245,212,0.7)" : skill.current_level >= 3 ? "var(--tm-text-muted)" : "var(--tm-text-faint)" }}>L{skill.current_level}</span>
-                {skill.display_name}
-                {skill.job_count_30d > 0 && <span style={{ fontSize: 9, color: selected ? "rgba(0,245,212,0.5)" : "var(--tm-text-faint)", marginLeft: 1 }}>{skill.job_count_30d}</span>}
+                {role}
+                {count != null && (
+                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: selected ? "rgba(0,245,212,0.6)" : "var(--tm-text-faint)", fontWeight: 600 }}>
+                    {count.toLocaleString()}
+                  </span>
+                )}
               </button>
             )
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </div>
   )
 }
 
+function LocationBar({ cities, countries, city, country, mode, onCity, onCountry, onMode }: {
+  cities: NameCountItem[]
+  countries: NameCountItem[]
+  city: string
+  country: string
+  mode: string
+  onCity: (v: string) => void
+  onCountry: (v: string) => void
+  onMode: (v: string) => void
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>LOCATION</span>
+      <select value={city} onChange={e => onCity(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 140 }}>
+        <option value="">All cities</option>
+        {cities.slice(0, 40).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+      </select>
+      <select value={country} onChange={e => onCountry(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 160 }}>
+        <option value="">All countries</option>
+        {countries.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+      </select>
+      <select value={mode} onChange={e => onMode(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 130 }}>
+        <option value="">All modes</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="onsite">On-site</option>
+      </select>
+    </div>
+  )
+}
+
+// ── Skill Selector Panel ─────────────────────────────────────────────────────
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function IntelPage() {
+function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
+  const searchParams = useSearchParams()
+  const paramSkill = searchParams.get("skill")
 
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
   const [loadingStep, setLoadingStep] = useState(0)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
+  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
+  const [locationCity, setLocationCity] = useState("")
+  const [locationCountry, setLocationCountry] = useState("")
+  const [locationMode, setLocationMode] = useState("")
 
   // Sync XP balance if not yet set from another page visit
   useQuery({
@@ -592,11 +749,54 @@ export default function IntelPage() {
     staleTime: 60 * 1000,
   })
 
+  // Profile — needed for target_roles
+  const { data: profileData } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => users.me(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+  const targetRoles: string[] = useMemo(
+    () => profileData?.target_roles ?? [],
+    [profileData?.target_roles]
+  )
+
+  const locFilters = useMemo(
+    () => ({
+      locationCity: locationCity || null,
+      locationCountry: locationCountry || null,
+      locationMode: (locationMode || null) as JobLocationFilters["locationMode"],
+    }),
+    [locationCity, locationCountry, locationMode]
+  )
+
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["intel-analytics"],
-    queryFn: () => jobs.analytics(),
+    queryKey: ["intel-analytics", token ?? "", selectedCluster ?? "", locationCity, locationCountry, locationMode],
+    queryFn: () =>
+      token
+        ? jobs.analyticsForMe(token, selectedCluster || null, locFilters)
+        : jobs.analytics(undefined, locFilters),
     staleTime: 7 * 24 * 60 * 60 * 1000,
   })
+
+  // Per-chip counts — one lightweight call per target role
+  const chipCountQueries = useQueries({
+    queries: targetRoles.map(role => ({
+      queryKey: ["intel-chip-count", token ?? "", role, locationCity, locationCountry, locationMode],
+      queryFn: () => jobs.analyticsForMe(token!, role, locFilters),
+      enabled: !!token && targetRoles.length > 0,
+      staleTime: 30 * 60 * 1000,
+    })),
+  })
+
+  const chipCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    targetRoles.forEach((role, i) => {
+      const q = chipCountQueries[i]
+      if (q?.data?.total_jobs != null) map[role] = q.data.total_jobs
+    })
+    return map
+  }, [targetRoles, chipCountQueries])
 
   useEffect(() => {
     if (!analyticsLoading && analytics) return
@@ -628,18 +828,30 @@ export default function IntelPage() {
     [followedCompanies]
   )
 
-  // Seed selected skills from top-8 mySkillDemand on first load
+  // Seed selected skills from top-8 mySkillDemand on first load.
+  // If ?skill= param present (navigating from Skills page), pin that skill first.
   useEffect(() => {
     if (skillDemandData?.skills?.length && !skillsInitialized) {
-      const top8 = skillDemandData.skills
+      const sorted = skillDemandData.skills
         .filter(s => s.weighted_demand > 0)
         .sort((a, b) => b.weighted_demand - a.weighted_demand)
-        .slice(0, MAX_HEATMAP_SKILLS)
         .map(s => s.display_name)
-      setSelectedSkillNames(new Set(top8))
+      if (paramSkill) {
+        const rest = sorted.filter(s => s !== paramSkill)
+        setSelectedSkillNames(new Set([paramSkill, ...rest]))
+      } else {
+        setSelectedSkillNames(new Set(sorted))
+      }
       setSkillsInitialized(true)
     }
-  }, [skillDemandData, skillsInitialized])
+  }, [skillDemandData, skillsInitialized, paramSkill])
+
+  // Auto-select first target role chip when profile loads
+  useEffect(() => {
+    if (targetRoles.length > 0 && !selectedCluster) {
+      setSelectedCluster(targetRoles[0])
+    }
+  }, [targetRoles, selectedCluster])
 
   // Heatmap columns: always CV skills (user-curated via Skill Lens)
   const heatmapSkills = useMemo(() => {
@@ -647,9 +859,13 @@ export default function IntelPage() {
     const base = skillDemandData.skills
       .filter(s => selectedSkillNames.size === 0 || selectedSkillNames.has(s.display_name))
       .sort((a, b) => b.weighted_demand - a.weighted_demand)
-      .slice(0, MAX_HEATMAP_SKILLS)
-    return base.map(s => s.display_name)
-  }, [selectedSkillNames, skillDemandData])
+      .map(s => s.display_name)
+    // Pin param skill as first column when navigating from Skills page
+    if (paramSkill && base.includes(paramSkill)) {
+      return [paramSkill, ...base.filter(s => s !== paramSkill)]
+    }
+    return base
+  }, [selectedSkillNames, skillDemandData, paramSkill])
 
   const skillLevels = useMemo(() => {
     const map: Record<string, number> = {}
@@ -659,11 +875,11 @@ export default function IntelPage() {
     return map
   }, [skillDemandData])
 
-  // Per-company heatmap row queries — independent cache keys, never invalidate each other
+  // Per-company heatmap row queries — include location filters in cache key so they refetch on filter change
   const heatmapRowQueries = useQueries({
     queries: followedCompanies.map(co => ({
-      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(",")],
-      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills),
+      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
+      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills, locFilters),
       enabled: heatmapSkills.length > 0,
       staleTime: 30 * 60 * 1000,
     })),
@@ -748,19 +964,19 @@ export default function IntelPage() {
     (company: string) => {
       if (heatmapSkills.length === 0) return
       void queryClient.prefetchQuery({
-        queryKey: ["heatmapRow", company, heatmapSkills.join(",")],
-        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills),
+        queryKey: ["heatmapRow", company, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
+        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills, locFilters),
         staleTime: 30 * 60 * 1000,
       })
     },
-    [queryClient, heatmapSkills]
+    [queryClient, heatmapSkills, locationCity, locationCountry, locationMode, locFilters]
   )
 
   const handleToggleSkill = useCallback((name: string) => {
     setSelectedSkillNames(prev => {
       const next = new Set(prev)
       if (next.has(name)) { if (next.size > 1) next.delete(name) }
-      else if (next.size < MAX_HEATMAP_SKILLS) next.add(name)
+      else next.add(name)
       return next
     })
   }, [])
@@ -780,7 +996,31 @@ export default function IntelPage() {
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
+          {analytics && (
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", marginTop: 6, letterSpacing: "0.06em" }}>
+              {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
+            </div>
+          )}
         </div>
+
+        <TargetRoleBar
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          selectedCluster={selectedCluster}
+          onSelect={cluster => setSelectedCluster(prev => prev === cluster ? null : cluster)}
+          isLoggedIn={!!token}
+        />
+
+        <LocationBar
+          cities={analytics?.by_location_city ?? []}
+          countries={analytics?.by_location_country ?? []}
+          city={locationCity}
+          country={locationCountry}
+          mode={locationMode}
+          onCity={setLocationCity}
+          onCountry={setLocationCountry}
+          onMode={setLocationMode}
+        />
 
         {/* Progress banner — visible only during initial load, never blocks content */}
         <ProgressBanner
@@ -799,6 +1039,10 @@ export default function IntelPage() {
           skillLevels={skillLevels}
           selectedCell={selectedCell}
           onCellSelect={handleCellSelect}
+          allSkills={skillDemandData?.skills ?? []}
+          selectedSkillNames={selectedSkillNames}
+          onToggleSkill={handleToggleSkill}
+          isLoggedIn={!!token}
         />
 
         {resolvedCell && (
@@ -814,7 +1058,7 @@ export default function IntelPage() {
           />
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 14, marginTop: 14 }}>
+        <div style={{ marginTop: 14 }}>
           <TopMovers
             companies={moversCompanies}
             followedNames={followedNames}
@@ -823,14 +1067,16 @@ export default function IntelPage() {
             xpBalance={xpBalance}
             followedCount={followedCompanies.length}
           />
-          <SkillSelectorPanel
-            skills={skillDemandData?.skills ?? []}
-            selectedNames={selectedSkillNames}
-            onToggle={handleToggleSkill}
-            isLoggedIn={!!token}
-          />
         </div>
       </div>
     </AppShell>
+  )
+}
+
+export default function IntelPage() {
+  return (
+    <Suspense>
+      <IntelPageInner />
+    </Suspense>
   )
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from datetime import datetime, timezone
@@ -8,11 +9,38 @@ from fastapi import HTTPException, status
 
 from app.repositories.scores import ScoresRepository
 from app.repositories.cv import CVRepository
-from app.services import cv_parser, scoring_engine
+from app.services import cv_parser, jobs_workflow, scoring_engine
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.xp_service import grant_welcome_xp
 
 _log = logging.getLogger(__name__)
+
+
+async def _trigger_initial_match_compute(user_id: str) -> None:
+    """Fire-and-forget: compute first 5 matches after CV upload (no XP cost)."""
+    try:
+        from app.database import get_supabase_admin
+        from app.repositories.jobs import JobsRepository
+        from app.services.llm_provider import LLMProvider
+        from app.routers.jobs._shared import last_monday
+
+        admin_db = get_supabase_admin()
+        jobs_repo = JobsRepository(admin_db, admin_db)
+        batch_week = last_monday()
+
+        existing = jobs_repo.get_existing_match_job_ids(user_id, batch_week)
+        if existing:
+            return
+
+        await jobs_workflow.compute_job_matches(
+            repo=jobs_repo,
+            user_id=user_id,
+            batch_week=batch_week,
+            llm_provider=LLMProvider(),
+            excluded_job_ids=[],
+        )
+    except Exception as exc:
+        _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
 
 
 def _persist_baseline_cv(
@@ -115,6 +143,7 @@ async def ingest_uploaded_cv(
         await grant_welcome_xp(user_id)
     except Exception as exc:
         _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+    asyncio.create_task(_trigger_initial_match_compute(user_id))
     return {
         "skills_detected": len(skills_detected),
         "score": score_total,
@@ -183,6 +212,7 @@ async def ingest_cv_text(
         score_total=score_total,
         content_hash=content_hash,
     )
+    asyncio.create_task(_trigger_initial_match_compute(user_id))
     return {
         "skills_detected": len(skills_detected),
         "score": score_total,

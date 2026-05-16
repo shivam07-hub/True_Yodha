@@ -604,6 +604,19 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
+                  {location.trim() ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
+                        <span style={{ fontWeight: 500 }}>{location.trim()}</span>
+                        <button
+                          type="button" onClick={() => selectLocation("")} aria-label="Clear location"
+                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,245,212,0.15)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-accent)", fontSize: 12, lineHeight: 1 }}
+                        >×</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No location set — search above to add</div>
+                  )}
                 </div>
 
                 {/* Target companies section */}
@@ -687,29 +700,18 @@ export function SettingsModal({ open, onClose, profile }: {
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No companies followed yet — search above to add</div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                     {followedCompanies.map((company) => (
-                      <div key={company.company_name} style={{
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 0", borderBottom: "1px solid var(--tm-border-soft)",
-                      }}>
-                        <CompanyAvatar name={company.company_name} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {company.company_name}
-                          </div>
-                        </div>
-                        <Link href="/market" onClick={flushAndClose} style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none", flexShrink: 0 }}>
-                          View jobs →
+                      <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
+                        <Link href="/market" onClick={flushAndClose} style={{ fontWeight: 500, color: "var(--tm-accent)", textDecoration: "none" }}>
+                          {company.company_name}
                         </Link>
                         <button
                           type="button"
                           onClick={() => unfollowMutation.mutate(company.company_name)}
                           disabled={unfollowMutation.isPending}
                           aria-label={`Unfollow ${company.company_name}`}
-                          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: "all 150ms" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-danger)"; e.currentTarget.style.color = "var(--tm-danger)" }}
-                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-faint)" }}
+                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,245,212,0.15)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-accent)", fontSize: 12, lineHeight: 1 }}
                         >×</button>
                       </div>
                     ))}

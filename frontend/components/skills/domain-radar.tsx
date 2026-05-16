@@ -2,7 +2,7 @@
 
 import type { UserSkillsByDomain } from "@/lib/api"
 
-interface DomainRadarProps {
+export interface DomainRadarProps {
   userSkills: UserSkillsByDomain
   onDomainClick?: (domain: string) => void
   activeDomain?: string | null
@@ -18,6 +18,7 @@ function polarToCart(cx: number, cy: number, r: number, angleDeg: number) {
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
 }
 
+// SVG-only radar — right panel is owned by the parent page
 export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainRadarProps) {
   const domains = Object.keys(userSkills.by_domain)
   const n = domains.length
@@ -25,21 +26,17 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
 
   const angleStep = 360 / n
 
-  // Compute average level per domain (0–1 fraction)
   const scores = domains.map(d => {
     const items = userSkills.by_domain[d] ?? []
     if (!items.length) return 0
-    const avg = items.reduce((s, it) => s + it.level, 0) / items.length
-    return avg / LEVEL_MAX
+    return items.reduce((s, it) => s + it.level, 0) / items.length / LEVEL_MAX
   })
 
-  // Polygon points
   const polygonPts = domains.map((_, i) => {
     const pt = polarToCart(CX, CY, SVG_R * scores[i], i * angleStep)
     return `${pt.x},${pt.y}`
   }).join(" ")
 
-  // Ring polygons
   const rings = RING_FRACTIONS.map(frac =>
     domains.map((_, i) => {
       const pt = polarToCart(CX, CY, SVG_R * frac, i * angleStep)
@@ -48,115 +45,79 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
   )
 
   return (
-    <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
-      <svg width={280} height={280} viewBox="0 0 280 280" style={{ flexShrink: 0 }}>
-        <defs>
-          <filter id="radarGlow">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
+    <svg width={280} height={280} viewBox="0 0 280 280" style={{ flexShrink: 0 }}>
+      <defs>
+        <filter id="radarGlow">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
 
-        {/* Grid rings */}
-        {rings.map((pts, i) => (
-          <polygon key={i} points={pts} fill="none"
-            stroke="var(--tm-border)" strokeWidth="1" opacity={0.5 + i * 0.15}
-          />
-        ))}
-
-        {/* Spokes */}
-        {domains.map((_, i) => {
-          const outer = polarToCart(CX, CY, SVG_R, i * angleStep)
-          return (
-            <line key={i} x1={CX} y1={CY} x2={outer.x} y2={outer.y}
-              stroke="var(--tm-border)" strokeWidth="1" opacity="0.5"
-            />
-          )
-        })}
-
-        {/* Data polygon */}
-        <polygon points={polygonPts}
-          fill="var(--tm-accent)" fillOpacity="0.12"
-          stroke="var(--tm-accent)" strokeWidth="2"
-          filter="url(#radarGlow)"
-          style={{ transition: "all 400ms var(--tm-ease)" }}
+      {/* Grid rings */}
+      {rings.map((pts, i) => (
+        <polygon key={i} points={pts} fill="none"
+          stroke="var(--tm-border)" strokeWidth="1" opacity={0.5 + i * 0.15}
         />
+      ))}
 
-        {/* Data points */}
-        {domains.map((domain, i) => {
-          const pt = polarToCart(CX, CY, SVG_R * scores[i], i * angleStep)
-          const isActive = activeDomain === domain
-          return (
-            <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: "pointer" }}>
-              <circle cx={pt.x} cy={pt.y} r={isActive ? 6 : 4}
-                fill="var(--tm-accent)"
-                filter={isActive ? "url(#radarGlow)" : undefined}
-                style={{ transition: "r 200ms" }}
-              />
-            </g>
-          )
-        })}
+      {/* Spokes — active spoke brightens */}
+      {domains.map((domain, i) => {
+        const outer = polarToCart(CX, CY, SVG_R, i * angleStep)
+        const isActive = activeDomain === domain
+        return (
+          <line key={i} x1={CX} y1={CY} x2={outer.x} y2={outer.y}
+            stroke={isActive ? "var(--tm-accent)" : "var(--tm-border)"}
+            strokeWidth={isActive ? "1.5" : "1"}
+            opacity={activeDomain && !isActive ? 0.25 : 0.6}
+            style={{ transition: "opacity 250ms, stroke 250ms" }}
+          />
+        )
+      })}
 
-        {/* Labels */}
-        {domains.map((domain, i) => {
-          const labelR = SVG_R + 22
-          const pt = polarToCart(CX, CY, labelR, i * angleStep)
-          const isActive = activeDomain === domain
-          const shortLabel = domain.length > 10 ? domain.slice(0, 9) + "…" : domain
-          return (
-            <text key={domain} x={pt.x} y={pt.y + 4}
-              textAnchor="middle" fontSize="9"
-              fill={isActive ? "var(--tm-accent)" : "var(--tm-text-faint)"}
-              fontFamily="inherit"
-              onClick={() => onDomainClick?.(domain)}
-              style={{ cursor: "pointer", userSelect: "none" }}
-            >
-              {shortLabel}
-            </text>
-          )
-        })}
-      </svg>
+      {/* Data polygon */}
+      <polygon points={polygonPts}
+        fill="var(--tm-accent)" fillOpacity="0.12"
+        stroke="var(--tm-accent)" strokeWidth="2"
+        filter="url(#radarGlow)"
+        style={{ transition: "all 400ms var(--tm-ease)" }}
+      />
 
-      {/* Domain breakdown list */}
-      <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
-          Domain Scores
-        </div>
-        {domains.map((domain, i) => {
-          const pct = Math.round(scores[i] * 100)
-          const isActive = activeDomain === domain
-          return (
-            <div key={domain}
-              onClick={() => onDomainClick?.(domain)}
-              style={{ cursor: "pointer" }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)", fontWeight: isActive ? 600 : 400 }}>
-                  {domain}
-                </span>
-                <span style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: pct >= 70 ? "var(--tm-success)" : pct >= 40 ? "var(--tm-warning)" : "var(--tm-danger)"
-                }}>
-                  {pct}%
-                </span>
-              </div>
-              <div style={{ height: 3, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  width: `${pct}%`,
-                  borderRadius: 99,
-                  background: pct >= 70 ? "var(--tm-success)" : pct >= 40 ? "var(--tm-warning)" : "var(--tm-danger)",
-                  transition: "width 600ms var(--tm-ease)",
-                }} />
-              </div>
-            </div>
-          )
-        })}
-        <div style={{ marginTop: 8, fontSize: 11, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
-          Click a domain to drill into its clusters →
-        </div>
-      </div>
-    </div>
+      {/* Data points — inactive dims when a domain is selected */}
+      {domains.map((domain, i) => {
+        const pt = polarToCart(CX, CY, SVG_R * scores[i], i * angleStep)
+        const isActive = activeDomain === domain
+        return (
+          <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: "pointer" }}>
+            <circle cx={pt.x} cy={pt.y} r={isActive ? 7 : 4}
+              fill="var(--tm-accent)"
+              opacity={activeDomain && !isActive ? 0.3 : 1}
+              filter={isActive ? "url(#radarGlow)" : undefined}
+              style={{ transition: "r 200ms, opacity 250ms" }}
+            />
+          </g>
+        )
+      })}
+
+      {/* Labels — first word shown, full name in <title> tooltip */}
+      {domains.map((domain, i) => {
+        const labelR = SVG_R + 22
+        const pt = polarToCart(CX, CY, labelR, i * angleStep)
+        const isActive = activeDomain === domain
+        const firstWord = domain.split(" ")[0]
+        return (
+          <text key={domain} x={pt.x} y={pt.y + 4}
+            textAnchor="middle" fontSize="9"
+            fill={isActive ? "var(--tm-accent)" : activeDomain ? "var(--tm-text-faint)" : "var(--tm-text-faint)"}
+            fontFamily="inherit"
+            opacity={activeDomain && !isActive ? 0.4 : 1}
+            onClick={() => onDomainClick?.(domain)}
+            style={{ cursor: "pointer", userSelect: "none", transition: "opacity 250ms" }}
+          >
+            <title>{domain}</title>
+            {firstWord}
+          </text>
+        )
+      })}
+    </svg>
   )
 }
