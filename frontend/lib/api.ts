@@ -340,18 +340,7 @@ export interface CVProfile {
   history: CVHistoryItem[]
 }
 
-export interface CVEvidenceItem {
-  skill: string
-  task: string
-  proof: string
-  impact: string
-  date: string
-  confidence: number
-}
-
 export interface CVEvidenceSummary {
-  eligible: boolean
-  required_count: number
   evidence_count: number
   diary_entries_count: number
   skill_upgrades_count: number
@@ -359,16 +348,13 @@ export interface CVEvidenceSummary {
   current_score: number | null
   last_cv_score: number | null
   next_version_number: number
-  evidence: CVEvidenceItem[]
-  missing_detail_prompts: string[]
 }
 
 export interface CVGenerateDraftResponse {
   version_id: number
   version_number: number
   cv_text: string
-  evidence_count: number
-  score_delta: number | null
+  new_xp_balance: number | null
 }
 
 export const cv = {
@@ -391,6 +377,18 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ cv_text: cvText }),
     }),
+  downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/download-pdf`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ cv_text: cvText }),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "PDF generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
 }
 
 export async function uploadCVText(token: string, text: string): Promise<CVUploadResponse> {
@@ -525,6 +523,7 @@ export interface ComputeJobMatchesResponse {
   already_running?: boolean
   job_id?: string | null
   message?: string | null
+  new_xp_balance?: number | null
   debug?: {
     cache_hit: boolean
     user_skills_count: number | null
@@ -892,22 +891,22 @@ export const jobs = {
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  compute: (token: string) =>
-    request<ComputeJobMatchesResponse>("/jobs/compute", {
+  refresh: (token: string) =>
+    request<ComputeJobMatchesResponse>("/jobs/refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
-  computeStatus: (token: string) =>
-    request<JobComputeStatusResponse>("/jobs/compute/status", {
+  refreshStatus: (token: string) =>
+    request<JobComputeStatusResponse>("/jobs/refresh/status", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  computeStatusStream: (
+  refreshStatusStream: (
     token: string,
     onStatus: (status: JobComputeStatusResponse) => void,
     signal?: AbortSignal,
   ) =>
     streamSSE<JobComputeStatusResponse>(
-      "/jobs/compute/status/stream",
+      "/jobs/refresh/status/stream",
       token,
       (message) => {
         if (message.event === "status") onStatus(message.data)
@@ -1103,6 +1102,7 @@ export interface ForgeCompletePayload {
   skill_name: string
   skill_id?: string | null
   duration_minutes: number
+  session_type: "ambient" | "focused"
 }
 
 export const xp = {

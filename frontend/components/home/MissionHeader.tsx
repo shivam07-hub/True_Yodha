@@ -1,6 +1,7 @@
 "use client"
 
 import { WaveBg, SegmentedSteps } from "./MissionHeaderParts"
+import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -9,12 +10,6 @@ function greeting(): string {
   return "Good evening"
 }
 
-const IconRefresh = () => (
-  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 8a6 6 0 0 1 10.5-3.9" /><path d="M14 2v3h-3" />
-    <path d="M14 8a6 6 0 0 1-10.5 3.9" /><path d="M2 14v-3h3" />
-  </svg>
-)
 const IconDiary = () => (
   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
     <rect x="3" y="2.5" width="10" height="11" rx="1.5" /><path d="M5 5.5h6M5 8h6M5 10.5h4" />
@@ -116,10 +111,13 @@ export function MissionHeader({
             <span style={{ color: "var(--tm-text-muted)" }}>{targetRoles}</span>
             {targetLoc && <><span style={{ opacity: 0.4 }}>·</span><span style={{ color: "var(--tm-text-muted)" }}>{targetLoc}</span></>}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={GHOST_BTN} onClick={onRefreshMatches} disabled={isRefreshing} onMouseEnter={onGhostEnter} onMouseLeave={onGhostLeave}>
-              <IconRefresh />{isRefreshing ? "Refreshing…" : "Refresh matches"}
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <RefreshMatchesButton
+              variant="compact"
+              isRefreshing={isRefreshing}
+              notice={refreshNotice}
+              onRefresh={onRefreshMatches}
+            />
             <button style={GHOST_BTN} onClick={onOpenDiary} onMouseEnter={onGhostEnter} onMouseLeave={onGhostLeave}>
               <IconDiary />Diary + cart
               {cartCount > 0 && (
@@ -161,7 +159,7 @@ export function MissionHeader({
               >
                 Enter Forge <IconArrowUR />
               </button>
-              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-text-muted)" }}>+50 XP for completing Forge</span>
+              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-text-muted)" }}>+75 XP for completing Forge</span>
             </div>
             {refreshNotice && <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>{refreshNotice}</div>}
           </div>

@@ -14,6 +14,7 @@ import { ReviewModal } from "@/components/home/ReviewModal"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
 import { SkillGapCol, CVCol } from "@/components/home/HomeColumns"
+import { JobCard } from "@/components/jobs/JobCard"
 import { cv, diary, jobs, scores, users, xp, APPLICATION_OUTCOMES } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
@@ -24,6 +25,7 @@ import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
+import { useForgeTimerStore } from "@/store/forgeTimerStore"
 import { useDiaryIntentStore } from "@/store/diaryIntentStore"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
 
@@ -60,19 +62,21 @@ function HomePageInner() {
   const [dismissedStale, setDismissedStale] = useState<Set<string>>(new Set())
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
+  const { sessionActive, dismissed, startSession, setRunning: setForgeTimerRunning } = useForgeTimerStore()
   const { isRefreshing, notice: refreshNotice, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
   useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
   const urlJobId = searchParams.get("jobId")
 
   const { data: scoreData } = useQuery({ queryKey: dataKeys.scores(), queryFn: () => scores.me(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => users.me(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
-  const { data: jobsData } = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => withLocalCache(userCacheKey(token!, ["matches"]), MATCHES_TTL, () => jobs.matches(token!)), enabled: !!token, staleTime: MATCHES_TTL })
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => withLocalCache(userCacheKey(token!, ["matches"]), MATCHES_TTL, () => jobs.matches(token!)), enabled: !!token, staleTime: MATCHES_TTL })
   const { data: applications } = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const historyQuery = useQuery({ queryKey: dataKeys.diary(), queryFn: () => diary.history(token!), enabled: !!token })
   const { data: evidenceData } = useQuery({ queryKey: dataKeys.cvEvidence(), queryFn: () => cv.evidence(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: staleApps } = useQuery({ queryKey: dataKeys.staleApplications(), queryFn: () => jobs.staleApplications(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
-  const topJobs = jobsData?.jobs?.slice(0, 5) ?? []
+  const allMatchedJobs = jobsData?.jobs ?? []
+  const topJobs = allMatchedJobs.slice(0, 5)
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
@@ -82,12 +86,19 @@ function HomePageInner() {
   const targetRoles = allTargetRoles.length === 0 ? "Set your target role" : allTargetRoles.slice(0, 2).join(", ") + (allTargetRoles.length > 2 ? ` +${allTargetRoles.length - 2} more` : "")
   const targetLoc = profile?.target_location ?? "Set location"
 
-  const activeJob = urlJobId ? (topJobs.find(j => j.job_id === urlJobId) ?? null) : (topJobs.find(j => j.job_id === activeJobId) ?? topJobs[0] ?? null)
+  const activeJob = urlJobId
+    ? (allMatchedJobs.find(j => j.job_id === urlJobId) ?? null)
+    : (activeJobId ? (allMatchedJobs.find(j => j.job_id === activeJobId) ?? null) : null)
   const appsByJobId = useMemo(() => { const m: Record<string, ApplicationStatus> = {}; for (const a of apps) m[a.job_id] = a.status; return m }, [apps])
   const activeJobStatus = activeJob ? (appsByJobId[activeJob.job_id] ?? "saved") : "saved"
   const cartSkillNames = useMemo(() => new Set(cartSkills.map(c => c.skill_name)), [cartSkills])
 
   useEffect(() => { if (!token) return; xp.balance(token).then(r => setXPBalance(r.balance)).catch(() => {}) }, [token, setXPBalance])
+
+  // Pause ambient timer when full ForgeModal opens
+  useEffect(() => {
+    if (forgeOpen) setForgeTimerRunning(false)
+  }, [forgeOpen, setForgeTimerRunning])
 
   const { data: skillGapData } = useQuery({ queryKey: dataKeys.skillGap(activeJob?.job_id ?? null), queryFn: () => jobs.skillGap(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id, staleTime: 10 * 60 * 1000 })
 
@@ -113,6 +124,20 @@ function HomePageInner() {
   )
 
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
+
+  // Seed mini forge timer once when skills first become available.
+  // Fallback chain: cart → missing gap skill → any gap skill (all need skill data)
+  const anyGapSkill = skillGapData?.skills?.[0] ?? null
+  const seedKey = cartSkills[0]?.skill_name ?? gapSkills[0]?.skill ?? anyGapSkill?.skill ?? null
+  useEffect(() => {
+    if (!seedKey || sessionActive || dismissed) return
+    const seed = cartSkills[0] ?? (gapSkills[0]
+      ? { skill_name: gapSkills[0].skill, level_from: gapSkills[0].user_level ?? 0, level_to: gapSkills[0].required_level ?? 1, company: activeJob?.company }
+      : { skill_name: anyGapSkill!.skill, level_from: anyGapSkill!.user_level ?? 0, level_to: anyGapSkill!.required_level ?? 1, company: activeJob?.company }
+    )
+    startSession(seed)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedKey])
   const todayStr = new Date().toISOString().slice(0, 10)
   const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
   const hasApplied = apps.some(a => a.status !== "saved")
@@ -149,7 +174,7 @@ function HomePageInner() {
   const generateJobCv = useMutation({ mutationFn: ({ aiPolish }: { aiPolish: boolean }) => jobs.generateJobCv(token!, activeJob!.job_id, aiPolish), onSuccess: () => invalidateJobPathData(queryClient, activeJob!.job_id) })
 
   async function handleDiarySubmit(text: string, cart: CartSkill[]) { await saveEntry.mutateAsync({ text, cart }) }
-  async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, payload) }
+  async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, { ...payload, session_type: "focused" }) }
   async function handleSpendXP(amount: number, action: string) { if (!token) return; try { const r = await xp.spend(token, amount, action); setXPBalance(r.balance); showToast(`${action === "rewrite_cv_line" ? "CV line rewriting…" : "Download unlocked"} −${amount} XP`) } catch { showToast("Not enough XP — forge a session to earn more") } }
   function handleSkillToggle(skill: SkillGapItem) { if (cartSkills.find(c => c.skill_name === skill.skill)) { removeSkill(skill.skill) } else { addSkill({ skill_name: skill.skill, level_from: skill.user_level ?? 0, level_to: skill.required_level ?? 1 }) } }
   function handleSendBatch() { openDiary(); setDrawerOpen(false); router.push("/home") }
@@ -191,7 +216,7 @@ function HomePageInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Active focus →</span>
             {topJobs.map(j => {
-              const isActive = j.job_id === (activeJobId ?? topJobs[0]?.job_id)
+              const isActive = j.job_id === activeJobId
               const status = appsByJobId[j.job_id]
               const fit = Math.round(j.overlap_score)
               const hasMilestoneDot = pendingMilestoneJobIds.has(j.job_id) && !isActive
@@ -295,19 +320,56 @@ function HomePageInner() {
           </div>
         )}
 
-        {/* Hero + columns */}
+        {/* Main content: job detail OR matched jobs grid */}
         {activeJob ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
-            <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => setForgeOpen(true)} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
-              <CVCol job={activeJob} onSpendXP={handleSpendXP} />
+          <>
+            <button
+              onClick={() => setActiveJobId(null)}
+              style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--tm-text-faint)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)" }}
+              onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
+            >
+              ← All matches
+            </button>
+            <div className="tm-home-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+              <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => setForgeOpen(true)} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
+                <CVCol job={activeJob} onSpendXP={handleSpendXP} />
+              </div>
             </div>
+          </>
+        ) : jobsLoading ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ height: 140, borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)", animation: "pulse 2s infinite" }} />
+            ))}
           </div>
+        ) : allMatchedJobs.length > 0 ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, opacity: 0.7 }}>Matched Jobs</div>
+                <p style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>{allMatchedJobs.length} recommendations · click a job to see skill gap + CV tools</p>
+              </div>
+              <Link href="/jobs" style={{ fontSize: 13, color: "var(--tm-accent)", textDecoration: "none", whiteSpace: "nowrap" }}>View all →</Link>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+              {allMatchedJobs.map(job => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  isTracked={!!appsByJobId[job.job_id]}
+                  onTrack={jobId => updateStatus.mutate({ jobId, status: "saved" })}
+                  onSelect={jobId => setActiveJobId(jobId)}
+                />
+              ))}
+            </div>
+          </>
         ) : (
           <div style={{ padding: "28px", textAlign: "center", borderRadius: 10, border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No active job targeted yet</div>
-            <Link href="/market" style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none" }}>Browse Intel →</Link>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No matches yet — upload your CV then refresh</div>
+            <Link href="/jobs" style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none" }}>Go to Matched Jobs →</Link>
           </div>
         )}
       </div>

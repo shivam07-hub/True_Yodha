@@ -142,6 +142,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
+9. **Mobile — auth skeleton polish** — `AppShellSkeleton` shipped but `ready` resolves in ~1 frame (synchronous localStorage). If more polish needed: add staggered fade-in on skeleton → real content transition.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
@@ -224,8 +225,45 @@ application_reviews (
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-15)
+## LAST SESSION SUMMARY (2026-05-16)
 
+```
+Mobile performance overhaul — responsive AppShell, canvas guards, layout fixes.
+
+Shipped to Develop:
+
+  MOBILE LAYOUT (C1):
+  - AppShell: pure CSS @media(≤768px) — sidebar hidden, bottom 4-tab nav + slim
+    top bar (logo, XP pill, avatar) appear. Desktop layout completely untouched.
+  - mobile-shell.tsx: MobileTopBar, MobileBottomNav, MobileProfileSheet (bottom
+    sheet with settings/feedback/sign-out).
+  - use-is-desktop.ts: hook — pointer:fine + min-width:769px. Gates ParticleBg.
+  - layout.tsx: viewportFit:"cover" + env(safe-area-inset-*) for iPhone home bar.
+
+  MOBILE PERFORMANCE (C4, C6):
+  - globals.css @media(≤768px): backdrop-filter:none — kills GPU blur on mobile.
+  - .tm-home-cols: 2-col job detail grid → 1-col on mobile.
+
+  AUTH SKELETON (C5):
+  - AppShellSkeleton in mobile-shell.tsx — shimmer layout shown while auth
+    resolves instead of blank screen. Matches desktop sidebar + mobile bars.
+
+  KEY FILES:
+  - frontend/components/mobile-shell.tsx (NEW — 274 lines)
+  - frontend/lib/hooks/use-is-desktop.ts (NEW)
+  - frontend/components/app-shell.tsx (exports FEEDBACK_ACTIONS, FeedbackModal,
+    SidebarProfile; wires mobile components; isDesktop gates particle bg)
+  - frontend/app/globals.css (mobile shell CSS block)
+  - frontend/app/layout.tsx (viewportFit)
+
+Open (next sessions):
+  - Backlog #6: PR2 Run Analysis endpoint + 50 XP deduction
+  - Backlog #3: user_job_matches design review (discuss Shivam first)
+  - Backlog #8: Process Transparency Layer
+  - Backlog #9: Auth skeleton staggered fade-in polish (minor)
+```
+---
+## PREV SESSION SUMMARY (2026-05-15)
 ```
 Auth logout fix + Intel page full redesign (heatmap architecture overhaul).
 

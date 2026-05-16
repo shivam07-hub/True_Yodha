@@ -139,6 +139,7 @@ class ComputeJobMatchesResponse(BaseModel):
     already_running: bool = False
     job_id: str | None = None
     message: str | None = None
+    new_xp_balance: int | None = None  # set when XP was deducted (non-cached refresh)
 
 
 class JobComputeStatusResponse(BaseModel):

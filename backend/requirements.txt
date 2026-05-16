@@ -47,5 +47,8 @@ pytest-asyncio==0.23.6
 # ── Linting ─────────────────────────────────────────────────────
 ruff==0.4.4
 
+# ── PDF generation ──────────────────────────────────────────────
+reportlab>=4.2.0                 # CV PDF export
+
 # ── Internal tools ──────────────────────────────────────────────
 streamlit==1.35.0                # tagger_ui.py — browser-based HITL tagger

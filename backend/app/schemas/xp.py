@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -14,6 +16,7 @@ class ForgeCompleteRequest(BaseModel):
     skill_name: str = Field(min_length=1)
     skill_id: str | None = None
     duration_minutes: int = Field(default=25, ge=1, le=180)
+    session_type: Literal["ambient", "focused"] = "focused"
 
 
 class ForgeSessionResponse(BaseModel):

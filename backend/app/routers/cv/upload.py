@@ -5,7 +5,6 @@ from app.deps import get_current_user
 from app.repositories.cv import CVRepository, get_token_cv_repository
 from app.schemas import CVUploadResponse
 from app.services import cv_workflow
-from app.services.xp_service import grant_welcome_xp
 
 router = APIRouter()
 
@@ -43,7 +42,6 @@ async def upload_cv(
         file_bytes=file_bytes,
         file_type=file_type,
     )
-    await grant_welcome_xp(current_user["user_id"])
     return CVUploadResponse(**payload)
 
 
@@ -59,5 +57,4 @@ async def submit_cv_text(
         user_id=current_user["user_id"],
         raw_text=raw_text,
     )
-    await grant_welcome_xp(current_user["user_id"])
     return CVUploadResponse(**payload)

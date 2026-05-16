@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
 import { StepScore } from "@/components/onboarding/step-score"
-import { uploadCV, uploadCVText, jobs, scores, users } from "@/lib/api"
+import { uploadCV, uploadCVText, scores, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { MyroLogo } from "@/components/myro-logo"
@@ -62,7 +62,7 @@ export default function OnboardingPage() {
       // 3. CV upload already persisted the score — fetch it directly.
       // scores.compute is not needed here; it was already run inside cv_workflow.
       const result = await scores.me(token)
-      void jobs.compute(token).catch(() => null)
+      // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
       setScoreData(result)
       setStep("score")
     } catch (err) {
