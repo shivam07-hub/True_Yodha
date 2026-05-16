@@ -13,7 +13,7 @@ import { HeroCard } from "@/components/home/HeroCard"
 import { ReviewModal } from "@/components/home/ReviewModal"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
-import { SkillGapCol, CVCol } from "@/components/home/HomeColumns"
+import { SkillGapCol } from "@/components/home/HomeColumns"
 import { cv, diary, jobs, scores, users, xp, APPLICATION_OUTCOMES } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
@@ -190,7 +190,6 @@ function HomePageInner() {
 
   async function handleDiarySubmit(text: string, cart: CartSkill[]) { await saveEntry.mutateAsync({ text, cart }) }
   async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, { ...payload, session_type: "focused" }) }
-  async function handleSpendXP(amount: number, action: string) { if (!token) return; try { const r = await xp.spend(token, amount, action); setXPBalance(r.balance); showToast(`${action === "rewrite_cv_line" ? "CV line rewriting…" : "Download unlocked"} −${amount} XP`) } catch { showToast("Not enough XP — forge a session to earn more") } }
   function handleSkillToggle(skill: SkillGapItem) { if (cartSkills.find(c => c.skill_name === skill.skill)) { removeSkill(skill.skill) } else { addSkill({ skill_name: skill.skill, level_from: skill.user_level ?? 0, level_to: skill.required_level ?? 1 }) } }
   function handleSendBatch() { openDiary(); setDrawerOpen(false); router.push("/home") }
 
@@ -380,7 +379,6 @@ function HomePageInner() {
               <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => setForgeOpen(true)} />
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
-                <CVCol job={activeJob} onSpendXP={handleSpendXP} />
               </div>
             </div>
           </>

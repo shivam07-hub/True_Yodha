@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { JobMatch } from "@/lib/api"
@@ -96,6 +97,19 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
         >
           {isTracked ? "Tracked" : "+ Track"}
         </Button>
+        <Link
+          href={`/cv?jobId=${job.job_id}`}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 13, fontWeight: 600,
+            color: "var(--tm-accent)", textDecoration: "none",
+            transition: "opacity var(--tm-dur) var(--tm-ease)",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1" }}
+        >
+          Open CV Builder →
+        </Link>
         {job.source_url && (
           <a
             href={job.source_url}
