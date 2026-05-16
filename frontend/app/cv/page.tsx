@@ -604,9 +604,7 @@ export default function CVPage() {
       const result = await uploadCV(token, file)
       // Score is already computed and persisted inside cv_workflow.ingest_uploaded_cv —
       // no separate scores.compute call needed here.
-      void jobs.compute(token)
-        .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.jobs() }))
-        .catch(() => null)
+      // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
       // Force-refetch CV profile before the modal closes so the text viewer
       // shows the new CV immediately (invalidateQueries alone only marks stale).
       await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile() })

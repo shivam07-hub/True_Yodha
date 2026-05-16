@@ -5,11 +5,15 @@ import { useMutation, type QueryClient } from "@tanstack/react-query"
 import { jobs, type JobComputeStatusResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
+import { useXPStore } from "@/store/xpStore"
+
+export const REFRESH_XP_COST = 100
 
 export function useMatchRefresh(token: string | null, queryClient: QueryClient) {
   const abortRef = useRef<AbortController | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const { setBalance } = useXPStore()
 
   function stop() {
     abortRef.current?.abort()
@@ -33,7 +37,7 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
       if (p.from_cache) {
         setNotice("Using this week's cached matches.")
       } else if ((p.matches_written ?? 0) > 0) {
-        setNotice(`Updated ${p.matches_written ?? 0} matched roles.`)
+        setNotice(`Updated ${p.matches_written ?? 0} matched roles · −${REFRESH_XP_COST} XP`)
       } else if (p.needs_onboarding) {
         setNotice("Upload your CV first to generate role matches.")
       } else {
@@ -59,7 +63,7 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
     const controller = new AbortController()
     abortRef.current = controller
     try {
-      await jobs.computeStatusStream(token, applyStatus, controller.signal)
+      await jobs.refreshStatusStream(token, applyStatus, controller.signal)
     } catch (error) {
       if (controller.signal.aborted) return
       setIsRefreshing(false)
@@ -69,8 +73,11 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
   }
 
   const mutation = useMutation({
-    mutationFn: () => jobs.compute(token!),
+    mutationFn: () => jobs.refresh(token!),
     onSuccess: (payload) => {
+      // Sync XP balance when deducted (non-cached refresh)
+      if (payload.new_xp_balance != null) setBalance(payload.new_xp_balance)
+
       if (payload.status === "queued" || payload.status === "running" || payload.already_running) {
         setIsRefreshing(true)
         setNotice(payload.message || "Refreshing matches in the background…")
@@ -94,9 +101,14 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
         finished_at: null,
       })
     },
-    onError: () => {
+    onError: (error: Error) => {
       setIsRefreshing(false)
-      setNotice("Refresh failed. Please try again.")
+      const msg = error.message || ""
+      if (msg.includes("Insufficient XP")) {
+        setNotice(`Not enough XP — refresh costs ${REFRESH_XP_COST} XP. Complete a Forge session to earn more.`)
+      } else {
+        setNotice("Refresh failed. Please try again.")
+      }
     },
   })
 

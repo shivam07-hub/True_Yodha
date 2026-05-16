@@ -523,6 +523,7 @@ export interface ComputeJobMatchesResponse {
   already_running?: boolean
   job_id?: string | null
   message?: string | null
+  new_xp_balance?: number | null
   debug?: {
     cache_hit: boolean
     user_skills_count: number | null
@@ -890,22 +891,22 @@ export const jobs = {
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  compute: (token: string) =>
-    request<ComputeJobMatchesResponse>("/jobs/compute", {
+  refresh: (token: string) =>
+    request<ComputeJobMatchesResponse>("/jobs/refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
-  computeStatus: (token: string) =>
-    request<JobComputeStatusResponse>("/jobs/compute/status", {
+  refreshStatus: (token: string) =>
+    request<JobComputeStatusResponse>("/jobs/refresh/status", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  computeStatusStream: (
+  refreshStatusStream: (
     token: string,
     onStatus: (status: JobComputeStatusResponse) => void,
     signal?: AbortSignal,
   ) =>
     streamSSE<JobComputeStatusResponse>(
-      "/jobs/compute/status/stream",
+      "/jobs/refresh/status/stream",
       token,
       (message) => {
         if (message.event === "status") onStatus(message.data)

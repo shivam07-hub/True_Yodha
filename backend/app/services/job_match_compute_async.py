@@ -224,3 +224,34 @@ def process_compute_job(user_id: str, batch_week: str) -> dict[str, Any]:
         return error_payload
     finally:
         conn.delete(lock_key)
+
+
+async def compute_job_matches_inline(user_id: str, batch_week: date) -> dict[str, Any]:
+    """Run compute directly in the FastAPI event loop — used when REDIS_URL is not set."""
+    batch_week_str = _batch_week_value(batch_week)
+    try:
+        repo = get_admin_jobs_repository()
+        llm_provider = get_llm_provider()
+        payload = await jobs_workflow.compute_job_matches(
+            repo=repo,
+            user_id=user_id,
+            batch_week=batch_week,
+            llm_provider=llm_provider,
+        )
+        return {
+            **_base_status(user_id, batch_week_str),
+            "status": STATUS_SUCCEEDED,
+            "matches_written": int(payload.get("matches_written", 0)),
+            "from_cache": bool(payload.get("from_cache", False)),
+            "needs_onboarding": bool(payload.get("needs_onboarding", False)),
+            "debug": payload.get("debug"),
+            "message": "Matched jobs updated.",
+        }
+    except Exception as exc:
+        logger.exception("Inline jobs compute failed for user=%s week=%s", user_id, batch_week_str)
+        return {
+            **_base_status(user_id, batch_week_str),
+            "status": STATUS_FAILED,
+            "message": "Matched jobs compute failed.",
+            "error": str(exc),
+        }

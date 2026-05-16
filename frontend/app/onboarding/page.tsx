@@ -62,7 +62,7 @@ export default function OnboardingPage() {
       // 3. CV upload already persisted the score — fetch it directly.
       // scores.compute is not needed here; it was already run inside cv_workflow.
       const result = await scores.me(token)
-      void jobs.compute(token).catch(() => null)
+      // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
       setScoreData(result)
       setStep("score")
     } catch (err) {

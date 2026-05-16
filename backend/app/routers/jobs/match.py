@@ -5,6 +5,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
+from app.config import settings
+from app.database import get_supabase_admin
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
@@ -13,11 +15,14 @@ from app.schemas import (
     JobMatchesResponse,
     UserSkillDemandResponse,
 )
-from app.services import job_match_compute_async, jobs_workflow
+from app.services import job_match_compute_async, jobs_workflow, xp_service
+from app.services.llm_ranker import is_cache_valid
 
 from ._shared import last_monday, to_job_match
 
 router = APIRouter()
+
+REFRESH_XP_COST = 100
 
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
@@ -61,12 +66,47 @@ async def get_job_matches(
     )
 
 
-@router.post("/compute", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
-async def compute_job_matches(
+def _build_response(result: dict[str, Any], new_xp_balance: int | None = None) -> ComputeJobMatchesResponse:
+    batch_week = result.get("batch_week") or last_monday()
+    return ComputeJobMatchesResponse(
+        matches_written=int(result.get("matches_written") or 0),
+        from_cache=bool(result.get("from_cache") or False),
+        batch_week=batch_week,
+        needs_onboarding=bool(result.get("needs_onboarding") or False),
+        debug=result.get("debug"),
+        status=str(result.get("status") or "succeeded"),  # type: ignore[arg-type]
+        already_running=bool(result.get("already_running") or False),
+        job_id=result.get("job_id"),
+        message=result.get("message"),
+        new_xp_balance=new_xp_balance,
+    )
+
+
+@router.post("/refresh", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
+async def refresh_job_matches(
     current_user: dict = Depends(get_current_user),
 ) -> ComputeJobMatchesResponse:
     user_id = current_user["user_id"]
     batch_week = last_monday()
+
+    # Cache short-circuit — no XP cost when results are already fresh this week
+    if is_cache_valid(get_supabase_admin(), user_id, batch_week):
+        return ComputeJobMatchesResponse(
+            matches_written=0,
+            from_cache=True,
+            batch_week=batch_week,
+            status="succeeded",
+            message="Using this week's cached matches.",
+        )
+
+    # Deduct XP before compute — raises 400 if insufficient
+    new_balance = await xp_service.spend_xp(user_id, REFRESH_XP_COST, "refresh_matches")
+
+    # No Redis — run inline (blocking)
+    if not settings.redis_url.strip():
+        result = await job_match_compute_async.compute_job_matches_inline(user_id, batch_week)
+        return _build_response(result, new_xp_balance=new_balance)
+
     try:
         queued = job_match_compute_async.enqueue_compute_job(user_id, batch_week)
     except RuntimeError as exc:
@@ -75,21 +115,11 @@ async def compute_job_matches(
             detail=str(exc),
         ) from exc
 
-    return ComputeJobMatchesResponse(
-        matches_written=int(queued.get("matches_written") or 0),
-        from_cache=bool(queued.get("from_cache") or False),
-        batch_week=batch_week,
-        needs_onboarding=bool(queued.get("needs_onboarding") or False),
-        debug=queued.get("debug"),
-        status=str(queued.get("status") or "queued"),  # type: ignore[arg-type]
-        already_running=bool(queued.get("already_running") or False),
-        job_id=queued.get("job_id"),
-        message=queued.get("message"),
-    )
+    return _build_response(queued, new_xp_balance=new_balance)
 
 
-@router.get("/compute/status", response_model=JobComputeStatusResponse)
-async def get_compute_status(
+@router.get("/refresh/status", response_model=JobComputeStatusResponse)
+async def get_refresh_status(
     current_user: dict = Depends(get_current_user),
 ) -> JobComputeStatusResponse:
     batch_week = last_monday()
@@ -107,8 +137,8 @@ def _status_event_payload(payload: dict[str, Any]) -> str:
     return json.dumps(payload, default=str)
 
 
-@router.get("/compute/status/stream")
-async def stream_compute_status(
+@router.get("/refresh/status/stream")
+async def stream_refresh_status(
     request: Request,
     current_user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
@@ -141,7 +171,6 @@ async def stream_compute_status(
                 if payload.get("status") in job_match_compute_async.TERMINAL_STATUSES:
                     break
 
-            # comment ping keeps proxies from buffering/closing idle streams
             yield ": keep-alive\n\n"
             await asyncio.sleep(1)
 

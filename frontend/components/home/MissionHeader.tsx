@@ -1,6 +1,7 @@
 "use client"
 
 import { WaveBg, SegmentedSteps } from "./MissionHeaderParts"
+import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -69,6 +70,8 @@ export interface MissionHeaderProps {
   onRefreshMatches: () => void
   onEnterForge: () => void
   onOpenDiary: () => void
+  /** XP forge notice forwarded from home page — shows below forge CTA */
+  xpForgeNotice?: string | null
 }
 
 export function MissionHeader({
@@ -116,10 +119,13 @@ export function MissionHeader({
             <span style={{ color: "var(--tm-text-muted)" }}>{targetRoles}</span>
             {targetLoc && <><span style={{ opacity: 0.4 }}>·</span><span style={{ color: "var(--tm-text-muted)" }}>{targetLoc}</span></>}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={GHOST_BTN} onClick={onRefreshMatches} disabled={isRefreshing} onMouseEnter={onGhostEnter} onMouseLeave={onGhostLeave}>
-              <IconRefresh />{isRefreshing ? "Refreshing…" : "Refresh matches"}
-            </button>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <RefreshMatchesButton
+              variant="compact"
+              isRefreshing={isRefreshing}
+              notice={refreshNotice}
+              onRefresh={onRefreshMatches}
+            />
             <button style={GHOST_BTN} onClick={onOpenDiary} onMouseEnter={onGhostEnter} onMouseLeave={onGhostLeave}>
               <IconDiary />Diary + cart
               {cartCount > 0 && (
