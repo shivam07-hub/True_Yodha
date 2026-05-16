@@ -64,8 +64,6 @@ export interface MissionHeaderProps {
   onRefreshMatches: () => void
   onEnterForge: () => void
   onOpenDiary: () => void
-  /** XP forge notice forwarded from home page — shows below forge CTA */
-  xpForgeNotice?: string | null
 }
 
 export function MissionHeader({

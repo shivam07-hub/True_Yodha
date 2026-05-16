@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
@@ -13,7 +13,6 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
-import { useState } from "react"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
