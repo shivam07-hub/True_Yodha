@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, Suspense } from "react"
+import { useState, useEffect, useMemo, useRef, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
@@ -14,7 +14,6 @@ import { ReviewModal } from "@/components/home/ReviewModal"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
 import { SkillGapCol, CVCol } from "@/components/home/HomeColumns"
-import { JobCard } from "@/components/jobs/JobCard"
 import { cv, diary, jobs, scores, users, xp, APPLICATION_OUTCOMES } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
@@ -27,7 +26,7 @@ import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
 import { useForgeTimerStore } from "@/store/forgeTimerStore"
 import { useDiaryIntentStore } from "@/store/diaryIntentStore"
-import { userCacheKey, withLocalCache } from "@/lib/local-cache"
+import { userCacheKey, withLocalCache, clearLocalCache } from "@/lib/local-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -151,6 +150,15 @@ function HomePageInner() {
   ]
 
   const selfFocusJobs = useMemo(() => apps.filter(a => a.source === "user_discovery"), [apps])
+  const analysedJobIds = useMemo(() => new Set(allMatchedJobs.map(j => j.job_id)), [allMatchedJobs])
+
+  const hasAutoOpened = useRef(false)
+  useEffect(() => {
+    if (hasAutoOpened.current || urlJobId || !topJobs[0]?.job_id) return
+    hasAutoOpened.current = true
+    setActiveJobId(topJobs[0].job_id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topJobs[0]?.job_id, urlJobId])
 
   const saveEntry = useMutation({ mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) => diary.createEntry(token!, text, undefined, cart.map(s => ({ ...s }))), onSuccess: () => { addBalance(30); clearCart(); showToast("+30 XP · entry logged"); queryClient.invalidateQueries({ queryKey: dataKeys.diary() }); queryClient.invalidateQueries({ queryKey: dataKeys.scores() }) } })
   const updateStatus = useMutation({
@@ -167,7 +175,14 @@ function HomePageInner() {
     mutationFn: (jobId: string) => jobs.analyseJob(token!, jobId),
     onMutate: (jobId) => setAnalysingJobId(jobId),
     onSettled: () => setAnalysingJobId(null),
-    onSuccess: (data) => { setXPBalance(data.new_xp_balance); showToast(`Analysed · ${data.overlap_score}% match · −50 XP`) },
+    onSuccess: (data, jobId) => {
+      setXPBalance(data.new_xp_balance)
+      showToast(`Analysed · ${data.overlap_score}% match · −50 XP`)
+      clearLocalCache(userCacheKey(token!, ["matches"]))
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
+      setActiveJobId(jobId)
+    },
     onError: () => showToast("Not enough XP — forge a session to earn more"),
   })
   const saveMilestoneProof = useMutation({ mutationFn: ({ jobId, milestoneId, proof }: { jobId: string; milestoneId: string; proof: string }) => jobs.updateMilestone(token!, jobId, milestoneId, { proof, confidence: confidence / 5, completed: true }), onSuccess: (_data, variables) => { setProofText(""); invalidateJobPathData(queryClient, variables.jobId) } })
@@ -224,21 +239,18 @@ function HomePageInner() {
               let bg = "rgba(255,255,255,0.025)"
               let border = "1.5px solid var(--tm-border)"
               let color = "var(--tm-text-muted)"
-              let opacity = fit < 50 && !status ? 0.4 : 1
               let shadow = "none"
 
               if (isActive) {
-                bg = "var(--tm-accent)"; border = "1.5px solid var(--tm-accent)"; color = "var(--tm-accent-fg)"; opacity = 1; shadow = "0 0 12px var(--tm-accent-glow)"
+                bg = "var(--tm-accent)"; border = "1.5px solid var(--tm-accent)"; color = "var(--tm-accent-fg)"; shadow = "0 0 12px var(--tm-accent-glow)"
               } else if (status === "interviewing" || status === "final_round" || status === "offer") {
-                bg = "var(--tm-success-wash)"; border = "1.5px solid rgba(74,222,128,0.5)"; color = "var(--tm-success)"; opacity = 1
+                bg = "var(--tm-success-wash)"; border = "1.5px solid rgba(74,222,128,0.5)"; color = "var(--tm-success)"
               } else if (status === "applied" || status === "screening") {
-                bg = "var(--tm-accent-wash)"; border = "1.5px solid var(--tm-accent-ring)"; color = "var(--tm-accent)"; opacity = 1
-              } else if (fit < 50) {
-                opacity = 0.4
+                bg = "var(--tm-accent-wash)"; border = "1.5px solid var(--tm-accent-ring)"; color = "var(--tm-accent)"
               }
 
               return (
-                <button key={j.job_id} onClick={() => setActiveJobId(j.job_id)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow, opacity }}>
+                <button key={j.job_id} onClick={() => setActiveJobId(j.job_id)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow }}>
                   {j.company ?? "Company"}
                   <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
                   {hasMilestoneDot && (
@@ -247,7 +259,7 @@ function HomePageInner() {
                 </button>
               )
             })}
-            <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Add target</Link>
+            <Link href="/jobs" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Add target</Link>
           </div>
         )}
 
@@ -255,35 +267,67 @@ function HomePageInner() {
         {selfFocusJobs.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Self focus →</span>
-            {selfFocusJobs.map(a => (
-              <div key={a.job_id} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 14px", borderRadius: 99, fontSize: 13, fontWeight: 500, background: "rgba(255,255,255,0.025)", border: "1.5px solid var(--tm-border)", color: "var(--tm-text-muted)" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
-                  {a.company ?? a.title}
-                </span>
-                <button
-                  onClick={() => analyseMutation.mutate(a.job_id)}
-                  disabled={analysingJobId === a.job_id}
-                  title="Run skill gap analysis (−50 XP)"
-                  style={{
-                    display: "inline-flex", alignItems: "center",
-                    fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
-                    padding: "2px 8px", borderRadius: 99, cursor: analysingJobId === a.job_id ? "default" : "pointer",
-                    background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent)",
-                    color: "var(--tm-accent)", transition: "opacity 120ms ease",
-                    opacity: analysingJobId === a.job_id ? 0.5 : 1,
-                  }}
-                >
-                  {analysingJobId === a.job_id ? "…" : "Analyse → 50 XP"}
-                </button>
-                <button
-                  onClick={() => removeSelfFocus.mutate(a.job_id)}
-                  title="Remove"
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 11, padding: 0, marginLeft: 2 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+            {selfFocusJobs.map(a => {
+              const isAnalysed = analysedJobIds.has(a.job_id)
+              const matchedJob = isAnalysed ? allMatchedJobs.find(j => j.job_id === a.job_id) : null
+              const isActive = a.job_id === activeJobId
+
+              if (isAnalysed && matchedJob) {
+                const fit = Math.round(matchedJob.overlap_score)
+                return (
+                  <div key={a.job_id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <button
+                      onClick={() => setActiveJobId(a.job_id)}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "6px 10px 6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+                        fontFamily: "inherit", cursor: "pointer", transition: "all 120ms var(--tm-ease)",
+                        background: isActive ? "var(--tm-accent)" : "rgba(0,245,212,0.06)",
+                        border: isActive ? "1.5px solid var(--tm-accent)" : "1.5px solid var(--tm-accent-ring)",
+                        color: isActive ? "var(--tm-accent-fg)" : "var(--tm-accent)",
+                        boxShadow: isActive ? "0 0 12px var(--tm-accent-glow)" : "none",
+                      }}
+                    >
+                      {a.company ?? a.title}
+                      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
+                    </button>
+                    <button
+                      onClick={() => removeSelfFocus.mutate(a.job_id)}
+                      title="Remove"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 11, padding: 0 }}
+                    >✕</button>
+                  </div>
+                )
+              }
+
+              return (
+                <div key={a.job_id} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 14px", borderRadius: 99, fontSize: 13, fontWeight: 500, background: "rgba(255,255,255,0.025)", border: "1.5px solid var(--tm-border)", color: "var(--tm-text-muted)" }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
+                    {a.company ?? a.title}
+                  </span>
+                  <button
+                    onClick={() => analyseMutation.mutate(a.job_id)}
+                    disabled={analysingJobId === a.job_id}
+                    title="Run skill gap analysis (−50 XP)"
+                    style={{
+                      display: "inline-flex", alignItems: "center",
+                      fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
+                      padding: "2px 8px", borderRadius: 99, cursor: analysingJobId === a.job_id ? "default" : "pointer",
+                      background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent)",
+                      color: "var(--tm-accent)", transition: "opacity 120ms ease",
+                      opacity: analysingJobId === a.job_id ? 0.5 : 1,
+                    }}
+                  >
+                    {analysingJobId === a.job_id ? "…" : "Analyse → 50 XP"}
+                  </button>
+                  <button
+                    onClick={() => removeSelfFocus.mutate(a.job_id)}
+                    title="Remove"
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 11, padding: 0, marginLeft: 2 }}
+                  >✕</button>
+                </div>
+              )
+            })}
             <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Find more</Link>
           </div>
         )}
@@ -339,39 +383,17 @@ function HomePageInner() {
               </div>
             </div>
           </>
-        ) : jobsLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ height: 140, borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)", animation: "pulse 2s infinite" }} />
-            ))}
+        ) : topJobs.length > 0 ? (
+          <div style={{ padding: "32px 28px", textAlign: "center", borderRadius: 10, border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Select a role above to see skill gap + CV tools</div>
+            <Link href="/jobs" style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none" }}>View all matched jobs →</Link>
           </div>
-        ) : allMatchedJobs.length > 0 ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4, opacity: 0.7 }}>Matched Jobs</div>
-                <p style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>{allMatchedJobs.length} recommendations · click a job to see skill gap + CV tools</p>
-              </div>
-              <Link href="/jobs" style={{ fontSize: 13, color: "var(--tm-accent)", textDecoration: "none", whiteSpace: "nowrap" }}>View all →</Link>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-              {allMatchedJobs.map(job => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  isTracked={!!appsByJobId[job.job_id]}
-                  onTrack={jobId => updateStatus.mutate({ jobId, status: "saved" })}
-                  onSelect={jobId => setActiveJobId(jobId)}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          <div style={{ padding: "28px", textAlign: "center", borderRadius: 10, border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+        ) : !jobsLoading ? (
+          <div style={{ padding: "32px 28px", textAlign: "center", borderRadius: 10, border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No matches yet — upload your CV then refresh</div>
             <Link href="/jobs" style={{ fontSize: 12, color: "var(--tm-accent)", textDecoration: "none" }}>Go to Matched Jobs →</Link>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Drawer */}

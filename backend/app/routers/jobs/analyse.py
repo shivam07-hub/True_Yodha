@@ -1,10 +1,11 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import xp_service
+from app.routers.jobs._shared import last_monday
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ async def analyse_job(
     overlap_score = round(len(matched_keys) / total * 100) if total else 0
 
     repo.upsert_job_match(user_id, job_id, {
-        "batch_week": str(date.today()),
+        "batch_week": str(last_monday()),
         "overlap_score": overlap_score,
         "matched_skills": matched_keys,
         "computed_at": datetime.now(timezone.utc).isoformat(),
