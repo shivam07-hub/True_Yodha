@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
@@ -683,7 +683,7 @@ function LocationBar({ cities, countries, city, country, mode, onCity, onCountry
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function IntelPage() {
+function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
@@ -1033,5 +1033,13 @@ export default function IntelPage() {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+export default function IntelPage() {
+  return (
+    <Suspense>
+      <IntelPageInner />
+    </Suspense>
   )
 }
