@@ -155,9 +155,12 @@ def test_follow_up_priority_prefers_abandoned_over_no_response() -> None:
     assert playbook["id"] == "abandoned"
 
 
-def test_follow_up_uses_explicit_no_response_status() -> None:
+def test_follow_up_uses_explicit_ghosted_status() -> None:
+    # PTL v1 (2026-05-17) — status vocabulary moved from {no_response, abandoned}
+    # to {ghosted, withdrew}. select_follow_up_playbook still keys playbooks by
+    # the old IDs internally; ghosted → "no_response" playbook is the new mapping.
     playbook = job_path.select_follow_up_playbook(
-        status="no_response",
+        status="ghosted",
         applied_at=datetime.now(timezone.utc),
         response_at=None,
     )

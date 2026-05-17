@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status as http_status
 
 from app.deps import get_current_user
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
@@ -21,6 +21,19 @@ async def get_stale_applications(
             company=(r.get("jobs") or {}).get("company_name"),
             status=r["status"],
             updated_at=r.get("updated_at"),
+            last_stage_changed_at=r.get("last_stage_changed_at"),
         )
         for r in rows
     ]
+
+
+@router.post("/applications/{job_id}/dismiss-stale", status_code=http_status.HTTP_204_NO_CONTENT)
+async def dismiss_stale(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    """Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()."""
+    updated = repo.dismiss_stale_application(current_user["user_id"], job_id)
+    if not updated:
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Application not found.")

@@ -613,6 +613,8 @@ export interface ApplicationResponse {
   offer_received_at?: string | null
   notes: string | null
   created_at: string
+  last_stage_changed_at?: string | null
+  is_first_offer?: boolean
 }
 
 export interface JobPathTarget {
@@ -947,6 +949,49 @@ export const jobs = {
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismissStale: (token: string, jobId: string) =>
+    request<void>(`/jobs/applications/${encodeURIComponent(jobId)}/dismiss-stale`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  importPreview: (
+    token: string,
+    body: { role_name: string; company_name?: string | null; location?: string | null; job_description: string; source_url?: string | null },
+  ) =>
+    request<{
+      role_name: string
+      company_name: string | null
+      location: string | null
+      job_description: string
+      primary_skills: Array<{ label: string; taxonomy_key: string | null; confidence: number }>
+      secondary_skills: Array<{ label: string; taxonomy_key: string | null; confidence: number }>
+      emerging_skills: Array<{ label: string; skill_type: string; source: string }>
+      warnings: string[]
+    }>("/jobs/import/preview", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  importJob: (
+    token: string,
+    body: {
+      role_name: string
+      company_name?: string | null
+      location?: string | null
+      job_description: string
+      source_url?: string | null
+      source_platform?: string | null
+      primary_skills: string[]
+      secondary_skills: string[]
+      emerging_skills?: Array<{ label: string; skill_type: string; source: string }>
+      status?: ApplicationStatus
+    },
+  ) =>
+    request<ApplicationResponse>("/jobs/import", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ emerging_skills: [], ...body }),
     }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {

@@ -12,14 +12,15 @@ const STAGE_LABELS: Record<string, string> = {
 
 interface ReviewModalProps {
   company: string | null
+  defaultStage?: string
   onClose: () => void
   onSubmit: (data: { star_rating: number; last_stage: string; written_note?: string | null }) => Promise<void>
 }
 
-export function ReviewModal({ company, onClose, onSubmit }: ReviewModalProps) {
+export function ReviewModal({ company, defaultStage, onClose, onSubmit }: ReviewModalProps) {
   const [stars, setStars] = useState(0)
   const [hoveredStar, setHoveredStar] = useState(0)
-  const [lastStage, setLastStage] = useState("applied")
+  const [lastStage, setLastStage] = useState(defaultStage && STAGE_LABELS[defaultStage] ? defaultStage : "applied")
   const [note, setNote] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +51,6 @@ export function ReviewModal({ company, onClose, onSubmit }: ReviewModalProps) {
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
         </div>
 
-        {/* Stars */}
         <div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>Overall experience</div>
           <div style={{ display: "flex", gap: 6 }} onMouseLeave={() => setHoveredStar(0)}>
@@ -67,7 +67,6 @@ export function ReviewModal({ company, onClose, onSubmit }: ReviewModalProps) {
           </div>
         </div>
 
-        {/* Last stage */}
         <div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>How far did you get?</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -83,7 +82,6 @@ export function ReviewModal({ company, onClose, onSubmit }: ReviewModalProps) {
           </div>
         </div>
 
-        {/* Note */}
         <div>
           <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 8 }}>Note <span style={{ opacity: 0.5 }}>(optional)</span></div>
           <textarea

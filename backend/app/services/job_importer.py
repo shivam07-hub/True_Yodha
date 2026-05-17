@@ -7,6 +7,7 @@ from typing import Any
 
 from supabase import Client
 
+from app.schemas.jobs import APPLICATION_STATUSES
 from app.services.taxonomy_loader import get_all_skills
 
 _NON_WORD = re.compile(r"[^a-z0-9+#. ]+")
@@ -222,8 +223,11 @@ def save_imported_job(db: Client, user_id: str, body: Any) -> dict[str, Any]:
             on_conflict="job_id,normalized_label,skill_type",
         ).execute()
 
+    status = getattr(body, "status", None) or "saved"
+    if status not in APPLICATION_STATUSES:
+        status = "saved"
     db.table("job_applications").upsert(
-        {"user_id": user_id, "job_id": job_id, "status": "pending"},
+        {"user_id": user_id, "job_id": job_id, "status": status},
         on_conflict="user_id,job_id",
     ).execute()
 
@@ -244,7 +248,7 @@ def save_imported_job(db: Client, user_id: str, body: Any) -> dict[str, Any]:
         "title": job.get("job_title") or body.role_name.strip(),
         "company": job.get("company_name") or body.company_name,
         "job_description": job.get("job_description") or body.job_description.strip(),
-        "status": row.get("status", "pending"),
+        "status": row.get("status", status),
         "applied_at": row.get("applied_at"),
         "response_at": row.get("response_at"),
         "checkin_sent_at": row.get("checkin_sent_at"),

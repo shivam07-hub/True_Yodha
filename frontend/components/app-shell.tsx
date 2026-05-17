@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { users, cv } from "@/lib/api"
+import { users, cv, jobs as jobsApi } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
@@ -20,10 +20,11 @@ import { useIsDesktop } from "@/lib/hooks/use-is-desktop"
 import { MobileTopBar, MobileBottomNav, MobileProfileSheet, AppShellSkeleton } from "@/components/mobile-shell"
 
 const NAV_ITEMS = [
-  { href: "/home",    label: "Dashboard",  desc: "Mission control",       icon: null, hideLabel: true,  nudge: true  },
-  { href: "/market",  label: "Intel",      desc: "Market intelligence",   icon: "◉",  hideLabel: false, nudge: false },
-  { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",   icon: "⬡",  hideLabel: false, nudge: false },
-  { href: "/cv",      label: "CV Builder", desc: "Your skill profile",    icon: "◈",  hideLabel: false, nudge: false },
+  { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
+  { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
+  { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
+  { href: "/tracker", label: "Tracker",    desc: "Application pipeline",   icon: "▤",  hideLabel: false, nudge: false, stalePill: true },
 ]
 
 export const FEEDBACK_ACTIONS = [
@@ -260,6 +261,32 @@ function UserFooter({
         </div>
       )}
     </>
+  )
+}
+
+function StaleBadge() {
+  const { token } = useAuth()
+  const { data } = useQuery({
+    queryKey: dataKeys.staleApplications(),
+    queryFn: () => jobsApi.staleApplications(token!),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  })
+  const n = data?.length ?? 0
+  if (n === 0) return null
+  return (
+    <span
+      title={`${n} application${n > 1 ? "s" : ""} stuck for 7+ days`}
+      style={{
+        position: "absolute", top: -3, right: -3,
+        minWidth: 14, height: 14, borderRadius: 99,
+        background: "var(--tm-danger)", color: "white",
+        fontSize: 9, fontFamily: "var(--tm-font-mono)",
+        display: "grid", placeItems: "center", padding: "0 4px",
+      }}
+    >
+      {n > 9 ? "9+" : n}
+    </span>
   )
 }
 
@@ -627,6 +654,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
                   }}>
                     {item.icon}
                   </span>
+                  {item.stalePill && <StaleBadge />}
                 </span>
 
                 <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>

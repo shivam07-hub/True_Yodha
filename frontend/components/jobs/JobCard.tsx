@@ -95,7 +95,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
           onClick={() => onTrack(job.job_id)}
           disabled={isTracked}
         >
-          {isTracked ? "Tracked" : "+ Track"}
+          {isTracked ? "Saved" : "+ Save"}
         </Button>
         <Link
           href={`/cv?jobId=${job.job_id}`}

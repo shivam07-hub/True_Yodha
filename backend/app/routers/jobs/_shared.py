@@ -50,4 +50,5 @@ def to_application(row: dict) -> ApplicationResponse:
         offer_received_at=row.get("offer_received_at"),
         notes=row.get("notes"),
         created_at=row["created_at"],
+        last_stage_changed_at=row.get("last_stage_changed_at"),
     )

@@ -38,9 +38,9 @@ def _ensure_application(db: Client, user_id: str, job_id: str) -> dict[str, Any]
     if row:
         return row
     inserted = db.table("job_applications").insert(
-        {"user_id": user_id, "job_id": job_id, "status": "pending"}
+        {"user_id": user_id, "job_id": job_id, "status": "saved"}
     ).execute()
-    return inserted.data[0] if inserted.data else {"user_id": user_id, "job_id": job_id, "status": "pending"}
+    return inserted.data[0] if inserted.data else {"user_id": user_id, "job_id": job_id, "status": "saved"}
 
 
 def _user_skill_levels(db: Client, user_id: str) -> dict[str, int]:
@@ -139,7 +139,7 @@ def get_application_path(db: Client, user_id: str, job_id: str) -> dict[str, Any
     today = date.today().isoformat()
     today_milestone = next((row for row in milestones if str(row.get("milestone_date"))[:10] == today), None)
     follow_up = select_follow_up_playbook(
-        status=application.get("status") or "pending",
+        status=application.get("status") or "saved",
         applied_at=application.get("applied_at"),
         response_at=application.get("response_at"),
     )
@@ -154,7 +154,7 @@ def get_application_path(db: Client, user_id: str, job_id: str) -> dict[str, Any
         "today_milestone": _milestone_response(today_milestone) if today_milestone else None,
         "cv": _cv_summary(_latest_cv_variant(db, user_id, job_id)),
         "follow_up": follow_up,
-        "status": application.get("status") or "pending",
+        "status": application.get("status") or "saved",
         "applied_at": application.get("applied_at"),
     }
 

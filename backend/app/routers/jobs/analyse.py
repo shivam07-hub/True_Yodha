@@ -11,7 +11,7 @@ from app.routers.jobs._shared import last_monday
 
 router = APIRouter()
 
-ANALYSE_XP_COST = 50
+ANALYSE_XP_COST = 10
 
 _SYSTEM_PROMPT = (
     "You are a senior career advisor. Given a candidate's skill profile and a job posting, "

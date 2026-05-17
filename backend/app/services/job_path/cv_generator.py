@@ -143,7 +143,7 @@ def _ensure_application_minimal(db: Client, user_id: str, job_id: str) -> None:
     if existing:
         return
     db.table("job_applications").insert(
-        {"user_id": user_id, "job_id": job_id, "status": "pending"}
+        {"user_id": user_id, "job_id": job_id, "status": "saved"}
     ).execute()
 
 
