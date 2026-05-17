@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
@@ -403,4 +403,10 @@ function CVPage() {
   )
 }
 
-export default CVPage
+export default function CVPageWithSuspense() {
+  return (
+    <Suspense fallback={null}>
+      <CVPage />
+    </Suspense>
+  )
+}
