@@ -18,6 +18,7 @@
 - Never hardcode API keys — use `.env` files, never commit `.env`
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
+- **Long-term fixes only.** When hitting errors, identify root cause — never patch symptoms with try/except, type casts, `|| undefined`, or workarounds. If trade-offs are unclear, discuss with Shivam before writing code.
 - **Newsletter articles: collaborate before drafting.** Do NOT write a full newsletter article without first agreeing with Shivam on angle, dashboards/images, and heading. Two-line confirmation pass minimum. See VOICE-NOTES.md for protocol.
 
 ---

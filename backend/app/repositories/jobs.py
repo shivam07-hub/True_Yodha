@@ -826,7 +826,7 @@ class JobsRepository:
             self._db.table("user_job_matches")
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
-                "action_plan, batch_week, computed_at, matched_skills,"
+                "batch_week, computed_at, matched_skills,"
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, apply_url, job_description)"
             )
@@ -844,7 +844,7 @@ class JobsRepository:
     def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
         self._admin_db.table("user_job_matches").upsert(
             {"user_id": user_id, "job_id": job_id, **data},
-            on_conflict="user_id,job_id,batch_week",
+            on_conflict="user_id,job_id",
         ).execute()
 
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:

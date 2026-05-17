@@ -493,7 +493,6 @@ export interface JobMatch {
   overlap_score: number
   llm_rank: number | null
   llm_explanation: string | null
-  action_plan: ActionPlanDay[]
   batch_week: string
   source_url: string | null
   matched_skills: string[]
@@ -506,12 +505,6 @@ export interface JobMatchesResponse {
   total: number
   feed_updated_at: string | null
   matches_computed_at: string | null
-}
-
-export interface ActionPlanDay {
-  day: number
-  focus: string
-  tasks: string[]
 }
 
 export interface ComputeJobMatchesResponse {

@@ -4,12 +4,6 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 
-class ActionPlanDay(BaseModel):
-    day: int
-    focus: str              # skill display name
-    tasks: list[str]        # 1–3 concrete tasks for that day
-
-
 class SkillGapItem(BaseModel):
     skill: str
     is_primary: bool
@@ -59,7 +53,6 @@ class JobMatchResponse(BaseModel):
     overlap_score: float                # 0–100
     llm_rank: int | None                # 1–5 within this week's batch
     llm_explanation: str | None         # why this job fits (2–3 sentences)
-    action_plan: list[ActionPlanDay]    # 7-day gap-closing plan
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
