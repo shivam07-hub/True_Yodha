@@ -357,6 +357,52 @@ export interface CVGenerateDraftResponse {
   new_xp_balance: number | null
 }
 
+export interface CVEducationItem {
+  institution: string
+  degree: string
+  dates: string
+  grade: string
+  location: string
+}
+
+export interface CVExperienceItem {
+  company: string
+  role: string
+  dates: string
+  location: string
+  bullets: string[]
+}
+
+export interface CVProjectItem {
+  name: string
+  dates: string
+  bullets: string[]
+}
+
+export interface CVStructured {
+  summary: string | null
+  education: CVEducationItem[]
+  experience: CVExperienceItem[]
+  projects: CVProjectItem[]
+  skills_line: string | null
+  certs: string[]
+}
+
+export type CVVersionKind = "deterministic" | "polished" | "edited"
+
+export interface JobCVVersion {
+  id: number
+  job_version_number: number
+  parent_version_id: number | null
+  version_kind: CVVersionKind
+  title: string | null
+  hidden_items: string[]
+  edited_items: Record<string, string>
+  deterministic_text: string
+  polished_text: string | null
+  created_at: string
+}
+
 export const cv = {
   me: (token: string) =>
     request<CVProfile>("/cv/me", {
@@ -366,9 +412,8 @@ export const cv = {
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  generateDraft: (token: string) =>
-    request<CVGenerateDraftResponse>("/cv/generate-draft", {
-      method: "POST",
+  structured: (token: string) =>
+    request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   saveDraft: (token: string, cvText: string) =>
@@ -377,6 +422,35 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ cv_text: cvText }),
     }),
+  versions: {
+    list: (token: string, jobId: string) =>
+      request<{ versions: JobCVVersion[] }>(`/jobs/${jobId}/cv-versions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    create: (token: string, jobId: string, hiddenItems: string[], title?: string) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden_items: hiddenItems, title }),
+      }),
+    polish: (token: string, jobId: string, versionId: number) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/polish`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    edit: (
+      token: string,
+      jobId: string,
+      versionId: number,
+      editedItems: Record<string, string>,
+      title?: string,
+    ) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/edit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ edited_items: editedItems, title }),
+      }),
+  },
   downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",

@@ -9,6 +9,7 @@ import { ParticleLoading } from "@/components/ui/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { ScoreRing } from "@/components/skills/score-ring"
 import { DomainAccordionRow } from "@/components/skills/domain-accordion-row"
+import { SkillAuditView } from "@/components/skills/skill-audit-view"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -18,6 +19,7 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 type SortMode = "gap" | "alpha" | "skills"
 type ShowFilter = "all" | "at-risk" | "building" | "strong"
+type ViewMode = "domains" | "audit"
 
 function domainAvg(items: ReturnType<typeof Object.values<ReturnType<typeof Object.values>[0]>>[0]) {
   if (!items.length) return 0
@@ -36,6 +38,7 @@ export default function SkillsPage() {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("gap")
   const [show, setShow] = useState<ShowFilter>("all")
+  const [view, setView] = useState<ViewMode>("domains")
 
   const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
@@ -114,29 +117,39 @@ export default function SkillsPage() {
 
         {/* Sort/Filter bar */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-          <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SORT</span>
+          <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>VIEW</span>
           <div style={{ display: "flex", gap: 6 }}>
-            <PillBtn active={sort === "gap"} onClick={() => setSort("gap")}>Gap first</PillBtn>
-            <PillBtn active={sort === "alpha"} onClick={() => setSort("alpha")}>A → Z</PillBtn>
-            <PillBtn active={sort === "skills"} onClick={() => setSort("skills")}>Most skills</PillBtn>
+            <PillBtn active={view === "domains"} onClick={() => setView("domains")}>Domains</PillBtn>
+            <PillBtn active={view === "audit"} onClick={() => setView("audit")}>◈ Audit</PillBtn>
           </div>
-          <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)" }} />
-          <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SHOW</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <PillBtn active={show === "all"} onClick={() => setShow("all")}>All {counts.all}</PillBtn>
-            <PillBtn active={show === "at-risk"} onClick={() => setShow("at-risk")}>
-              <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-danger)", marginRight: 5, verticalAlign: "middle" }} />
-              At risk {counts["at-risk"]}
-            </PillBtn>
-            <PillBtn active={show === "building"} onClick={() => setShow("building")}>
-              <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#d97706", marginRight: 5, verticalAlign: "middle" }} />
-              Building {counts.building}
-            </PillBtn>
-            <PillBtn active={show === "strong"} onClick={() => setShow("strong")}>
-              <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-success)", marginRight: 5, verticalAlign: "middle" }} />
-              Strong {counts.strong}
-            </PillBtn>
-          </div>
+          {view === "domains" && (
+            <>
+              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)" }} />
+              <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SORT</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <PillBtn active={sort === "gap"} onClick={() => setSort("gap")}>Gap first</PillBtn>
+                <PillBtn active={sort === "alpha"} onClick={() => setSort("alpha")}>A → Z</PillBtn>
+                <PillBtn active={sort === "skills"} onClick={() => setSort("skills")}>Most skills</PillBtn>
+              </div>
+              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)" }} />
+              <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SHOW</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <PillBtn active={show === "all"} onClick={() => setShow("all")}>All {counts.all}</PillBtn>
+                <PillBtn active={show === "at-risk"} onClick={() => setShow("at-risk")}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-danger)", marginRight: 5, verticalAlign: "middle" }} />
+                  At risk {counts["at-risk"]}
+                </PillBtn>
+                <PillBtn active={show === "building"} onClick={() => setShow("building")}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#d97706", marginRight: 5, verticalAlign: "middle" }} />
+                  Building {counts.building}
+                </PillBtn>
+                <PillBtn active={show === "strong"} onClick={() => setShow("strong")}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-success)", marginRight: 5, verticalAlign: "middle" }} />
+                  Strong {counts.strong}
+                </PillBtn>
+              </div>
+            </>
+          )}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <Link href="/cv" style={{
               fontSize: 12, fontWeight: 600, color: "var(--tm-text-faint)", textDecoration: "none",
@@ -160,7 +173,7 @@ export default function SkillsPage() {
         {/* Two-column layout */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
 
-          {/* Left — domain accordion */}
+          {/* Left — domain accordion OR audit view */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {skillsLoading ? (
               <ParticleLoading message="Loading your skill constellation…" height={400} />
@@ -171,6 +184,8 @@ export default function SkillsPage() {
                 <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV to generate your skill constellation</div>
                 <Button variant="solid" size="lg" render={<Link href="/cv" />}>Upload CV</Button>
               </div>
+            ) : view === "audit" ? (
+              <SkillAuditView allSkills={allSkills} />
             ) : filteredSorted.map(({ domain, items, avg }) => (
               <DomainAccordionRow
                 key={domain}

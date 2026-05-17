@@ -51,6 +51,7 @@ def _persist_baseline_cv(
     skills_detected: list[dict],
     score_total: float,
     content_hash: str,
+    cv_structured: dict | None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     cv_repo.update_cv_profile(
@@ -61,20 +62,21 @@ def _persist_baseline_cv(
             "onboarding_complete": True,
         },
     )
-    cv_repo.insert_cv_history(
-        {
-            "user_id": user_id,
-            "skills_count": len(skills_detected),
-            "mirror_score": score_total,
-            "uploaded_at": now,
-            "cv_raw_text": raw_text,
-            "version_number": cv_repo.next_version_number(user_id),
-            "version_type": "baseline_upload",
-            "title": "Uploaded baseline CV",
-            "evidence_count": 0,
-            "content_hash": content_hash,
-        }
-    )
+    history_row: dict = {
+        "user_id": user_id,
+        "skills_count": len(skills_detected),
+        "mirror_score": score_total,
+        "uploaded_at": now,
+        "cv_raw_text": raw_text,
+        "version_number": cv_repo.next_version_number(user_id),
+        "version_type": "baseline_upload",
+        "title": "Uploaded baseline CV",
+        "evidence_count": 0,
+        "content_hash": content_hash,
+    }
+    if cv_structured is not None:
+        history_row["cv_structured"] = cv_structured
+    cv_repo.insert_cv_history(history_row)
 
 
 async def ingest_uploaded_cv(
@@ -138,6 +140,7 @@ async def ingest_uploaded_cv(
         skills_detected=skills_detected,
         score_total=score_total,
         content_hash=content_hash,
+        cv_structured=parsed.get("cv_structured"),
     )
     try:
         await grant_welcome_xp(user_id)
@@ -149,6 +152,38 @@ async def ingest_uploaded_cv(
         "score": score_total,
         "redirect_to": "/onboarding/score",
     }
+
+
+async def get_or_backfill_cv_structured(
+    cv_repo: CVRepository, user_id: str
+) -> dict | None:
+    """Return the latest cv_structured for the user, lazily backfilling it from cv_raw_text if needed.
+
+    Returns:
+        dict — validated structured payload
+        None — no baseline CV uploaded yet (caller should 404)
+    Raises HTTP 503 only if the LLM provider chain fails AND backfill is needed.
+    """
+    latest = cv_repo.latest_cv_version(user_id)
+    if not latest:
+        return None
+
+    structured = latest.get("cv_structured")
+    if isinstance(structured, dict) and structured:
+        return structured
+
+    raw_text = latest.get("cv_raw_text") or cv_repo.get_cv_raw_text(user_id) or ""
+    if not raw_text:
+        return None
+
+    reparsed = await cv_parser.reparse_structured_only(raw_text)
+    if reparsed is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not parse CV structure right now. Please try again in a minute.",
+        )
+    cv_repo.update_cv_history_structured(int(latest["id"]), reparsed)
+    return reparsed
 
 
 async def ingest_cv_text(
@@ -211,6 +246,7 @@ async def ingest_cv_text(
         skills_detected=skills_detected,
         score_total=score_total,
         content_hash=content_hash,
+        cv_structured=parsed.get("cv_structured"),
     )
     asyncio.create_task(_trigger_initial_match_compute(user_id))
     return {

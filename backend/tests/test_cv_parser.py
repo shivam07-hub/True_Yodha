@@ -21,29 +21,52 @@ from app.services.cv_parser import (
 # ── _parse_llm_json ────────────────────────────────────────────────────────────
 
 class TestParseLlmJson:
+    """`_parse_llm_json` now returns `(skills, structured)` — structured may be None for legacy responses."""
+
     def test_plain_array(self) -> None:
-        assert _parse_llm_json('[{"taxonomy_key": "Python"}]') == [{"taxonomy_key": "Python"}]
+        skills, structured = _parse_llm_json('[{"taxonomy_key": "Python"}]')
+        assert skills == [{"taxonomy_key": "Python"}]
+        assert structured is None
 
     def test_object_with_skills_key(self) -> None:
-        assert _parse_llm_json('{"skills": [{"name": "SQL"}]}') == [{"name": "SQL"}]
+        skills, structured = _parse_llm_json('{"skills": [{"name": "SQL"}]}')
+        assert skills == [{"name": "SQL"}]
+        assert structured is None
+
+    def test_object_with_skills_and_structured(self) -> None:
+        payload = (
+            '{"skills": [{"taxonomy_key": "Python (Programming Language)", "signal_type": "impact"}], '
+            '"structured": {"summary": "five years of Python", "experience": [], "education": [], '
+            '"projects": [], "skills_line": null, "certs": []}}'
+        )
+        skills, structured = _parse_llm_json(payload)
+        assert skills and skills[0]["taxonomy_key"] == "Python (Programming Language)"
+        assert structured is not None
+        assert structured["summary"] == "five years of Python"
+        assert structured["experience"] == []
 
     def test_fenced_json(self) -> None:
         text = 'Here you go:\n```json\n{"skills": [{"name": "Go"}]}\n```'
-        assert _parse_llm_json(text) == [{"name": "Go"}]
+        skills, structured = _parse_llm_json(text)
+        assert skills == [{"name": "Go"}]
+        assert structured is None
 
     def test_prose_with_trailing_json(self) -> None:
         text = 'I analysed the CV. [{"taxonomy_key": "Scala"}] hope that helps.'
-        assert _parse_llm_json(text) == [{"taxonomy_key": "Scala"}]
+        skills, structured = _parse_llm_json(text)
+        assert skills == [{"taxonomy_key": "Scala"}]
+        assert structured is None
 
     def test_empty_skills_list_returns_empty_list(self) -> None:
-        # Provider responded cleanly but found nothing — distinct from parse failure
-        assert _parse_llm_json('{"skills": []}') == []
+        skills, structured = _parse_llm_json('{"skills": []}')
+        assert skills == []
+        assert structured is None
 
     def test_invalid_json_returns_none(self) -> None:
-        assert _parse_llm_json("not json at all") is None
+        assert _parse_llm_json("not json at all") == (None, None)
 
     def test_empty_string_returns_none(self) -> None:
-        assert _parse_llm_json("") is None
+        assert _parse_llm_json("") == (None, None)
 
 
 # ── _validate_and_normalize ────────────────────────────────────────────────────
@@ -133,11 +156,12 @@ class TestParseCv:
         fake_text = "Senior Data Engineer with 5 years of Python. " * 10
         monkeypatch.setattr(cv_parser, "_extract_text_pdf", lambda b: fake_text)
 
-        async def fake_extract(cv_text: str) -> list[dict] | None:
-            return [
+        async def fake_extract(cv_text: str):
+            skills = [
                 {"taxonomy_key": "Python (Programming Language)", "signal_type": "impact", "evidence": "5y"},
                 {"taxonomy_key": "Not A Real Skill",              "signal_type": "mention"},
             ]
+            return skills, None
 
         monkeypatch.setattr(cv_parser, "_llm_extract", fake_extract)
         out = await parse_cv(b"fake-pdf-bytes", "pdf")
@@ -145,6 +169,7 @@ class TestParseCv:
         assert len(out["skills_detected"]) == 1
         assert out["skills_detected"][0]["taxonomy_key"] == "Python (Programming Language)"
         assert out["skills_detected"][0]["xp_awarded"] == _SIGNAL_XP["impact"]
+        assert out["cv_structured"] is None
 
     @pytest.mark.asyncio
     async def test_pdf_returns_provider_failed_false_on_short_text(self, monkeypatch) -> None:
@@ -159,26 +184,45 @@ class TestParseCv:
         monkeypatch.setattr(llm_provider.settings, "openrouter_api_key", "")
         monkeypatch.setattr(llm_provider.settings, "groq_api_key", "")
         monkeypatch.setattr(llm_provider.settings, "google_api_key", "")
-        out = await cv_parser._llm_extract("some CV text")
-        assert out is None
+        skills, structured = await cv_parser._llm_extract("some CV text")
+        assert skills is None
+        assert structured is None
 
     @pytest.mark.asyncio
     async def test_llm_extract_returns_empty_list_when_provider_responds_with_no_skills(self, monkeypatch) -> None:
         async def _empty_provider(cv_text: str):  # noqa: ANN001
-            return []
+            return [], None
         monkeypatch.setattr(cv_parser, "_llm_extract", _empty_provider)
         out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
         assert out["skills_detected"] == []
         assert out["provider_failed"] is False
+        assert out["cv_structured"] is None
 
     @pytest.mark.asyncio
     async def test_parse_cv_text_provider_failed_propagates(self, monkeypatch) -> None:
         async def _failing_extract(cv_text: str):  # noqa: ANN001
-            return None
+            return None, None
         monkeypatch.setattr(cv_parser, "_llm_extract", _failing_extract)
         out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
         assert out["provider_failed"] is True
         assert out["skills_detected"] == []
+        assert out["cv_structured"] is None
+
+    @pytest.mark.asyncio
+    async def test_parse_cv_text_propagates_structured_payload(self, monkeypatch) -> None:
+        structured_payload = {
+            "summary": "ten years building distributed systems",
+            "experience": [{"company": "Acme", "role": "Engineer", "dates": "2020-now", "bullets": ["Built things"]}],
+            "education": [],
+            "projects": [],
+            "skills_line": "Python, SQL",
+            "certs": [],
+        }
+        async def _ok_provider(cv_text: str):  # noqa: ANN001
+            return [{"taxonomy_key": "Python (Programming Language)", "signal_type": "impact"}], structured_payload
+        monkeypatch.setattr(cv_parser, "_llm_extract", _ok_provider)
+        out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
+        assert out["cv_structured"] == structured_payload
 
 
 # ── _is_plausible_professional_text ───────────────────────────────────────────

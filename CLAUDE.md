@@ -320,7 +320,84 @@ Open (next sessions):
   - Shareability v1: public profile /profile/{token}
 ```
 ---
-## LAST SESSION SUMMARY (2026-05-17)
+## LAST SESSION SUMMARY (2026-05-17 · CV Builder v2)
+```
+CV Builder rebuilt as Git-commit-style playground. /skills absorbs deprecated CV-left lenses.
+
+Locked via /grill-me + /frontend-design (T2 Layered Cards):
+  - Q2  drop Tech/Domain/Soft pivot
+  - Q3  /skills view-mode toggle: Domains | Audit (reuses SkillAuditView)
+  - Q4  level correction + AI advice migrate into SkillCard
+  - Q5  Path A parser-first
+  - Q6  LLM-extend single prompt → skills + structured payload
+  - Q7  cv_history.cv_structured JSONB
+  - Q8  lazy backfill on /cv visit (reparse_structured_only)
+  - Q9  bullet-level Exp/Proj · section-level Edu/Skills/Certs/Summary
+  - Q10 per-job state on job_cv_variants.hidden_items
+  - Q11 Save = NEW row, monotonic job_version_number
+  - Q12 unlimited versions, Q13 default = latest, Q14 jobId required
+  - Q15 live preview (client-side renderDeterministic) + explicit Save
+  - Q16 job-match badges (lowercase substring · target skills from /skill-gap)
+  - Q17 kill Generate-Job-CV + Generate-Next-CV-Draft on /cv. AI polish per-version.
+  - Q18 picker dropdown · auto title v{n}·timestamp · no-delete (immutable) ·
+        Git-commit model: polish + edit create NEW versions, parent_version_id chain
+  - Q18e baseline immutable, only polished bullets editable
+
+Schema (database/migrations/20260517_cv_builder_v2.sql):
+  - cv_history.cv_structured JSONB
+  - job_cv_variants: + job_version_number, parent_version_id, hidden_items JSONB,
+    edited_items JSONB, title, version_kind ('deterministic'|'polished'|'edited')
+  - dropped UNIQUE(snapshot_hash), added UNIQUE(user_id, job_id, job_version_number)
+  - existing rows backfilled (job_version_number via row_number() partitioned)
+
+Backend (250 tests pass):
+  - cv_parser.py: _SYSTEM_PROMPT now returns {skills, structured}.
+    _parse_llm_json returns (skills, structured) tuple. _validate_structured
+    coerces LLM output into stable shape. parse_cv / parse_cv_text return
+    cv_structured key. New reparse_structured_only() for lazy backfill.
+  - cv_workflow.py: persists cv_structured on ingest. get_or_backfill_cv_structured()
+    lazy-fills NULL on /cv visit.
+  - services/cv_compose.py NEW: djb2 stable item_id + render_deterministic().
+    Backend mirror of frontend lib/cv-compose.ts.
+  - routers/cv/structured.py NEW: GET /cv/structured.
+  - routers/jobs/cv_versions.py NEW: list / create / polish / edit endpoints
+    under /jobs/{job_id}/cv-versions/. Each Save / Polish / Edit = new row.
+    Polish reuses llm_polish._call_ai_polish on parent.deterministic_text.
+    Edit applies edited_items diff to parent.polished_text → new row.
+  - repositories/cv.py: update_cv_history_structured() for lazy backfill.
+
+Frontend (tsc + lint green):
+  - lib/cv-compose.ts NEW: djb2 itemId + collectItems + renderDeterministic.
+    Mirror of backend cv_compose.py.
+  - lib/api.ts: CVStructured / JobCVVersion types + cv.structured + cv.versions
+    {list, create, polish, edit}. Old cv.generateDraft removed from /cv-page
+    scope (home/page.tsx jobs.generateJobCv kept — different surface).
+  - lib/domain-data.ts: cvStructured(), cvVersions(jobId) keys.
+  - components/skills/skill-audit-view.tsx NEW (moved from cv/page.tsx).
+  - components/skills/skill-card.tsx: + expand panel with L0–L5 picker
+    (users.correctSkillLevel) + ★ Level-up advice (users.skillLevelUpAdvice).
+  - app/skills/page.tsx: VIEW pill `Domains | ◈ Audit` (replaces accordion when
+    Audit). Sort/Show pills hidden in Audit mode.
+  - app/cv/page.tsx FULL REWRITE (~360 lines): 3 modes — no-CV nudge, baseline+
+    no-jobId (read-only + "Pick a target job →" CTA), playground+versions.
+  - components/cv/cv-playground.tsx NEW: SectionShell + BulletRow + MatchBadge
+    + EyeToggle. Bullet-level toggle on Exp/Proj. Section-level toggle on
+    Summary/Edu/Skills/Certs. Live opacity+strikethrough on hidden items.
+  - components/cv/version-picker.tsx NEW: dropdown showing parent chain +
+    per-row actions (★ Polish · ✎ Edit polished · 📄 PDF).
+  - Edit modal: textarea, save creates new child version via cv.versions.edit.
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - home/page.tsx jobs.generateJobCv: still wired, consider killing in cleanup pass
+  - cv/variants.py legacy generate-draft + save-draft routes still exist —
+    no callers; safe to delete in cleanup pass
+  - Intel page perf candidates
+  - Shareability v1: /profile/{token}
+```
+
+---
+## PREV SESSION SUMMARY (2026-05-17 · CV upgrade loop + user_job_matches)
 ```
 CV upgrade loop closed + user_job_matches design overhaul.
 

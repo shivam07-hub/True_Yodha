@@ -1,584 +1,112 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
-import { StepCV } from "@/components/onboarding/step-cv"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { diary, jobs, scores, uploadCV, cv, users } from "@/lib/api"
-import type { UserSkillItem } from "@/lib/api"
-import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
+import { CVPlayground } from "@/components/cv/cv-playground"
+import { VersionPicker } from "@/components/cv/version-picker"
+import { cv, jobs, uploadCV } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { renderDeterministic } from "@/lib/cv-compose"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useXPStore } from "@/store/xpStore"
 
-const STATUS_CONFIG = {
-  strong:  { color: "var(--tm-success)", label: "Strong",  bg: "var(--tm-success-wash)" },
-  exceeds: { color: "var(--tm-success)", label: "Exceeds", bg: "var(--tm-success-wash)" },
-  close:   { color: "var(--tm-warning)", label: "Close",   bg: "var(--tm-warning-wash)" },
-  gap:     { color: "var(--tm-warning)", label: "Gap",     bg: "var(--tm-warning-wash)" },
-  missing: { color: "var(--tm-danger)",  label: "Missing", bg: "var(--tm-danger-wash)"  },
-}
-
-function levelToStatus(level: number): keyof typeof STATUS_CONFIG {
-  if (level >= 4) return "strong"
-  if (level === 3) return "close"
-  if (level === 2) return "gap"
-  return "missing"
-}
-
-const LEVEL_TITLES: Record<number, string> = {
-  1: "Scout", 2: "Trailblazer", 3: "Excavator", 4: "Cartographer", 5: "Legend",
-}
-
-
-function howToLevelUp(skillName: string, currentLevel: number): string {
-  switch (currentLevel) {
-    case 1: return `Apply ${skillName} in a real project that produces tangible outcomes. Freelance, volunteer, or client work all count — the key is moving beyond tutorials into something shipped. Tie it to a result: users, revenue, or a live product.`
-    case 2: return `Deploy ${skillName} inside an organisation's operating lifecycle at scale. You need measurable business impact — process improved by X%, cost reduced by $Y, system serving Z users. The outcome must be quantifiable and repeatable, not just "used in a project".`
-    case 3: return `Reach architect-level breadth across your entire skill cluster — not just ${skillName} in isolation. Make the architectural decisions, set the standards, and mentor others in the full domain. Coverage of adjacent skills in the same cluster is required.`
-    case 4: return `Become industry-recognised. Publish, speak at conferences, or ship something notable enough that others adopt your approach to ${skillName}. You also need L4 mastery in at least two other skill clusters simultaneously.`
-    default: return `You are already at the top level for ${skillName}. Maintain thought leadership: open-source contributions, publications, or standards-body involvement.`
-  }
-}
-
-function cvExample(skillName: string, currentLevel: number): string {
-  switch (currentLevel) {
-    case 1: return `"Built a ${skillName}-powered [feature/tool] for [Project Name], which [attracted X users / generated £Y revenue / improved Z metric] within [timeframe]." — Replace the bracketed parts with your specifics. The key signal: something was shipped and someone used it.`
-    case 2: return `"Led end-to-end implementation of ${skillName} across [Company]'s [system/product], reducing [metric] by X% and enabling [business outcome] for [scale, e.g. 50k+ users or £Xm revenue]." — Show ownership, scale, and a number.`
-    case 3: return `"Architected the ${skillName} standards and practices adopted across [Team/Org] — defined the framework used by [N] engineers, reduced [metric] by X%, and eliminated [problem] at scale." — You own the map, not just a path through it.`
-    case 4: return `"Published [research / talk / framework] on ${skillName} adopted by [N] teams industry-wide. Recognised as [award / keynote speaker / standards contributor] at [event / organisation]." — Others follow your lead.`
-    default: return `You are already at the highest level. Consider contributing to open-source, publishing benchmarks, or advising standards bodies in the ${skillName} domain.`
-  }
-}
-
-function SkillRow({ skill, delay = 0, highlighted, onHover }: { skill: UserSkillItem; delay?: number; highlighted: boolean; onHover: (s: UserSkillItem | null) => void }) {
-  const [clickState, setClickState] = useState<0 | 1 | 2>(0)
-  const [showLevelPicker, setShowLevelPicker] = useState(false)
-  const [pickedLevel, setPickedLevel] = useState<number | null>(null)
-  const [correctionDone, setCorrectionDone] = useState(false)
-  const [aiAdvice, setAiAdvice] = useState<string | null>(null)
-  const [adviceLoading, setAdviceLoading] = useState(false)
-  const { token } = useAuth()
-  const { setBalance: setXPBalance } = useXPStore()
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const statusKey = levelToStatus(skill.level)
-  const cfg = STATUS_CONFIG[statusKey]
-  const isMaxLevel = skill.level >= 5
-  const nextLevelTitle = LEVEL_TITLES[skill.level + 1]
-
-  function handleClick(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (showLevelPicker) return
-    setClickState((s) => (s === 2 ? 0 : (s + 1) as 0 | 1 | 2))
-  }
-
-  const trackUpgrade = useMutation({
-    mutationFn: () => {
-      const today = new Date().toISOString().slice(0, 10)
-      return diary.saveMilestone(token!, {
-        milestone_date: today,
-        skill: skill.display_name,
-        task: `Level up ${skill.display_name} from L${skill.level} to L${skill.level + 1}`,
-        confidence: 0.6,
-        completed: false,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.milestones() })
-      router.push("/diary")
-    },
-  })
-
-  const correctLevel = useMutation({
-    mutationFn: (newLevel: number) => users.correctSkillLevel(token!, skill.key, newLevel),
-    onSuccess: (data) => {
-      setCorrectionDone(true)
-      setShowLevelPicker(false)
-      setPickedLevel(data.new_level)
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-    },
-  })
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        borderRadius: "var(--tm-radius)",
-        padding: "12px 14px",
-        background: clickState > 0 ? cfg.bg : "rgba(255,255,255,0.02)",
-        border: clickState > 0 ? `1px solid ${cfg.color}` : "1px solid var(--tm-border-soft)",
-        borderLeft: `2px solid ${highlighted ? "var(--tm-accent)" : clickState > 0 ? cfg.color : "transparent"}`,
-        transition: "border-left-color var(--tm-dur-fast) var(--tm-ease)",
-        cursor: "pointer",
-      }}
-      onClick={handleClick}
-      onMouseEnter={() => { hoverTimer.current = setTimeout(() => onHover(skill), 80) }}
-      onMouseLeave={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); onHover(null) }}
-    >
-      {/* Highlight overlay — opacity transition (compositor) instead of background paint */}
-      <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: "var(--tm-accent-wash)", opacity: highlighted ? 1 : 0, transition: "opacity var(--tm-dur-fast) var(--tm-ease)", pointerEvents: "none" }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <div style={{
-          width: 8, height: 8, borderRadius: "50%",
-          background: cfg.color, flexShrink: 0,
-          boxShadow: `0 0 6px ${cfg.color}`,
-        }} />
-        <span style={{ flex: 1, fontSize: "var(--tm-fs-meta)", fontWeight: 500, color: "var(--tm-text)" }}>
-          {skill.display_name}
-        </span>
-        {clickState === 0 && !correctionDone && (
-          <span style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.05em" }}>
-            tap to explore ↓
-          </span>
-        )}
-        {correctionDone && pickedLevel !== null && (
-          <span style={{ fontSize: 10, color: "var(--tm-success)", fontWeight: 600 }}>
-            Corrected to L{pickedLevel} ✓
-          </span>
-        )}
-        <span style={{
-          fontSize: 11, padding: "2px 8px", borderRadius: 999,
-          background: cfg.bg, color: cfg.color,
-          border: `1px solid ${cfg.color}`, opacity: 0.9, flexShrink: 0,
-        }}>
-          L{correctionDone && pickedLevel !== null ? pickedLevel : skill.level} · {cfg.label}
-        </span>
-        {!skill.evidence_text && (
-          <span style={{
-            fontSize: 10, padding: "2px 7px", borderRadius: 999, flexShrink: 0,
-            background: "rgba(255,179,71,0.1)", color: "var(--tm-warning, #FFB347)",
-            border: "1px solid rgba(255,179,71,0.3)", fontWeight: 600,
-          }}>
-            Proof weak
-          </span>
-        )}
-      </div>
-
-      <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
-        <div style={{
-          height: "100%", borderRadius: 999,
-          width: "100%",
-          transformOrigin: "left center",
-          transform: `scaleX(${((correctionDone && pickedLevel !== null ? pickedLevel : skill.level) / 5)})`,
-          background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-wash))",
-          transition: `transform ${0.8 + delay * 0.001}s var(--tm-ease)`,
-        }} />
-      </div>
-
-      {/* State 1 — How to reach next level + Journey 2 + Journey 3 */}
-      {clickState === 1 && (
-        <div style={{ marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 6,
-          }}>
-            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: cfg.color, fontWeight: 600 }}>
-              {isMaxLevel ? "Max Level" : `How to reach ${nextLevelTitle} (L${skill.level + 1})`}
-            </span>
-            <span
-              style={{ fontSize: 10, color: "var(--tm-text-faint)", cursor: "pointer" }}
-              onClick={(e) => { e.stopPropagation(); setClickState(2) }}
-            >
-              tap again for CV example →
-            </span>
-          </div>
-          <div style={{
-            padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-            background: "rgba(255,255,255,0.03)",
-            border: `1px solid ${cfg.color}30`,
-            fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7,
-            marginBottom: 10,
-          }}>
-            {howToLevelUp(skill.display_name, skill.level)}
-          </div>
-
-          {/* Journey 2 + Journey 3 CTAs */}
-          {!isMaxLevel && !showLevelPicker && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Button
-                variant="solid"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); trackUpgrade.mutate() }}
-                loading={trackUpgrade.isPending}
-                className="whitespace-nowrap"
-              >
-                Track upgrade in diary →
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); setShowLevelPicker(true) }}
-                className="whitespace-nowrap"
-              >
-                Fix my level
-              </Button>
-            </div>
-          )}
-
-          {/* Journey 3 — inline level picker */}
-          {showLevelPicker && (
-            <div
-              style={{
-                marginTop: 8, padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-                border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)",
-                display: "flex", flexDirection: "column", gap: 8,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 600 }}>
-                My actual level for {skill.display_name}:
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {[1, 2, 3, 4, 5].map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setPickedLevel(lvl) }}
-                    style={{
-                      width: 36, height: 36, borderRadius: "var(--tm-radius-sm)",
-                      border: pickedLevel === lvl ? "2px solid var(--tm-accent)" : "1px solid var(--tm-border)",
-                      background: pickedLevel === lvl ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                      color: pickedLevel === lvl ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                      fontSize: 13, fontWeight: 700, cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all var(--tm-dur) var(--tm-ease)",
-                    }}
-                  >
-                    L{lvl}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Button
-                  variant="solid"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); if (pickedLevel) correctLevel.mutate(pickedLevel) }}
-                  disabled={!pickedLevel}
-                  loading={correctLevel.isPending}
-                >
-                  Confirm correction
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); setShowLevelPicker(false); setPickedLevel(null) }}
-                >
-                  Cancel
-                </Button>
-              </div>
-              {correctLevel.isError && (
-                <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>Could not save correction. Try again.</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* State 2 — AI-personalised coaching */}
-      {clickState === 2 && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: 6,
-          }}>
-            <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 600 }}>
-              {skill.evidence_text ? `How to reach L${skill.level + 1} · from your CV` : `CV bullet · L${skill.level + 1} signal`}
-            </span>
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>tap again to close ↺</span>
-          </div>
-
-          {/* AI advice — lazy-loads on first open when evidence exists */}
-          {skill.evidence_text && !aiAdvice && !adviceLoading && token && (
-            <button
-              onClick={async () => {
-                setAdviceLoading(true)
-                try {
-                  const res = await users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text!)
-                  setAiAdvice(res.advice ?? null)
-                  setXPBalance(res.new_xp_balance)
-                } catch {
-                  setAiAdvice(null)
-                } finally {
-                  setAdviceLoading(false)
-                }
-              }}
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)", fontSize: 12, fontWeight: 600,
-                cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}
-            >
-              <span>✦ Generate personalised coaching for {skill.display_name} →</span>
-              <span style={{ fontSize: 11, opacity: 0.7, fontFamily: "var(--tm-font-mono)", flexShrink: 0, marginLeft: 12 }}>−20 XP ◆</span>
-            </button>
-          )}
-
-          {adviceLoading && (
-            <div style={{
-              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)",
-              fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic",
-            }}>
-              Analysing your CV evidence…
-            </div>
-          )}
-
-          {aiAdvice && (
-            <div style={{
-              padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
-              background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-accent-ring)",
-              fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.75,
-              whiteSpace: "pre-wrap",
-            }}>
-              {aiAdvice}
-            </div>
-          )}
-
-          {/* Fallback static bullet when no evidence */}
-          {!skill.evidence_text && (
-            <div style={{
-              padding: "10px 12px", borderRadius: "var(--tm-radius-sm)",
-              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-              fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.7, fontStyle: "italic",
-            }}>
-              {cvExample(skill.display_name, skill.level)}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function isElementInView(el: HTMLElement, container: HTMLElement | null): boolean {
-  if (!container) return false
-  const { top, bottom } = el.getBoundingClientRect()
-  const { top: cTop, bottom: cBottom } = container.getBoundingClientRect()
-  return top >= cTop && bottom <= cBottom
-}
-
-function cvMentionPos(skill: UserSkillItem, cvTextLower: string): number {
-  const evidence = (skill.evidence_text ?? "").trim()
-  if (evidence) {
-    const pos = cvTextLower.indexOf(evidence.slice(0, 60).toLowerCase())
-    if (pos !== -1) return pos
-  }
-  const namePos = cvTextLower.indexOf(skill.display_name.toLowerCase())
-  if (namePos !== -1) return namePos
-  return Number.MAX_SAFE_INTEGER
-}
-
-function ClusterSection({ cluster, skills, hoveredSkillKey, onHover }: { cluster: string; skills: UserSkillItem[]; hoveredSkillKey: string | null; onHover: (s: UserSkillItem | null) => void }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div className="tm-label-caps" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-        <span>{cluster}</span>
-        <span style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>{skills.length} skills</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {skills.map((s, i) => (
-          <SkillRow
-            key={s.key}
-            skill={s}
-            delay={i * 60}
-            highlighted={s.key === hoveredSkillKey}
-            onHover={onHover}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
-  const weak = allSkills.filter(s => !s.evidence_text)
-  const strong = allSkills.filter(s => !!s.evidence_text)
-  const LEVEL_LABEL = ["", "Awareness", "Working", "Practitioner", "Expert", "Authority"]
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {weak.length > 0 && (
-        <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-warning, #FFB347)", marginBottom: 6, marginTop: 4 }}>
-          Proof weak · {weak.length} skills — keyword-inferred only
-        </div>
-      )}
-      {weak.map(s => (
-        <div key={s.key} style={{ display: "grid", gridTemplateColumns: "1fr 60px auto", gap: 10, padding: "7px 10px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,179,71,0.04)", border: "1px solid rgba(255,179,71,0.15)", alignItems: "center" }}>
-          <div style={{ fontSize: 12, color: "var(--tm-text)" }}>{s.display_name}</div>
-          <div style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)" }}>L{s.level} · {LEVEL_LABEL[s.level]}</div>
-          <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: "rgba(255,179,71,0.1)", color: "var(--tm-warning, #FFB347)", border: "1px solid rgba(255,179,71,0.3)", whiteSpace: "nowrap" }}>Proof weak</span>
-        </div>
-      ))}
-      {strong.length > 0 && (
-        <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-success)", marginTop: 14, marginBottom: 6 }}>
-          Proof logged · {strong.length} skills
-        </div>
-      )}
-      {strong.map(s => (
-        <div key={s.key} style={{ display: "grid", gridTemplateColumns: "1fr 60px 1fr", gap: 10, padding: "7px 10px", borderRadius: "var(--tm-radius-sm)", background: "rgba(74,222,128,0.03)", border: "1px solid rgba(74,222,128,0.1)", alignItems: "start" }}>
-          <div style={{ fontSize: 12, color: "var(--tm-text)" }}>{s.display_name}</div>
-          <div style={{ fontSize: 11, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text-faint)", paddingTop: 1 }}>L{s.level} · {LEVEL_LABEL[s.level]}</div>
-          <div style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.5, fontStyle: "italic" }}>&quot;{s.evidence_text?.slice(0, 80)}{(s.evidence_text?.length ?? 0) > 80 ? "…" : ""}&quot;</div>
-        </div>
-      ))}
-      {allSkills.length === 0 && (
-        <div style={{ padding: "24px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 13 }}>Upload a CV to see skill audit</div>
-      )}
-    </div>
-  )
-}
-
-export default function CVPage() {
+function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
-  const router = useRouter()
-  const { setBalance: setXPBalance } = useXPStore()
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get("jobId")
+
+  const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [showUpload, setShowUpload] = useState(false)
-  const [showDraftGuide, setShowDraftGuide] = useState(false)
-  const [draftStage, setDraftStage] = useState<"guide" | "generating" | "review">("guide")
-  const [draftText, setDraftText] = useState("")
-  const [draftFlowError, setDraftFlowError] = useState<string | null>(null)
-  const [catFilter, setCatFilter] = useState<"all" | "technical" | "domain" | "soft" | "skill-audit">("all")
-  const [statusFilter, setStatusFilter] = useState<"all" | "strong" | "gap" | "critical">("all")
-  const [hoveredSkill, setHoveredSkill] = useState<UserSkillItem | null>(null)
-  const cvPanelRef = useRef<HTMLPreElement>(null)
+  const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
-  const [jobId, setJobId] = useState<string | null>(null)
-  const [jobCvText, setJobCvText] = useState<string | null>(null)
-  const [jobCvNotice, setJobCvNotice] = useState<string | null>(null)
-  const [showForgeBanner, setShowForgeBanner] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
+  const [editDraft, setEditDraft] = useState("")
 
-  useEffect(() => {
-    if (!hoveredSkill) return
-    const el = cvPanelRef.current?.querySelector<HTMLElement>('[data-hl="true"]')
-    // highlight in-place only — no scroll, scrollIntoView while scanning the skill
-    // list causes the entire right panel to jump, which is visually jarring
-    if (el && !isElementInView(el, cvPanelRef.current)) {
-      el.scrollIntoView({ behavior: "instant", block: "nearest" })
-    }
-  }, [hoveredSkill])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const params = new URLSearchParams(window.location.search)
-    setJobId(params.get("jobId"))
-    setShowForgeBanner(params.get("source") === "forge")
-    const vParam = params.get("v")
-    if (vParam) setSelectedVersionId(Number(vParam))
-  }, [])
-
-  const { data: cvProfile, isLoading: cvLoading } = useQuery({
+  const cvProfile = useQuery({
     queryKey: dataKeys.cvProfile(),
     queryFn: () => cv.me(token!),
     enabled: !!token,
   })
+  const hasBaseline = !!cvProfile.data?.cv_raw_text || (cvProfile.data?.history?.length ?? 0) > 0
 
-  const { data: skillsData, isLoading: skillsLoading } = useQuery({
-    queryKey: dataKeys.userSkills(),
-    queryFn: () => users.mySkills(token!),
-    enabled: !!token,
+  const structuredQuery = useQuery({
+    queryKey: dataKeys.cvStructured(),
+    queryFn: () => cv.structured(token!),
+    enabled: !!token && hasBaseline,
+    retry: false,
+    staleTime: 10 * 60 * 1000,
   })
 
-  const { data: scoreData } = useQuery({
-    queryKey: dataKeys.scores(),
-    queryFn: () => scores.me(token!),
-    enabled: !!token,
+  const versionsQuery = useQuery({
+    queryKey: dataKeys.cvVersions(jobId),
+    queryFn: () => cv.versions.list(token!, jobId!),
+    enabled: !!token && !!jobId && hasBaseline,
+    staleTime: 30 * 1000,
   })
+  const versions = useMemo(() => versionsQuery.data?.versions ?? [], [versionsQuery.data])
 
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobs.path(token!, jobId!),
     enabled: !!token && !!jobId,
+    staleTime: 5 * 60 * 1000,
   })
 
-  const hasCv = !!cvProfile?.cv_raw_text || (cvProfile?.history?.length ?? 0) > 0
-
-  const { data: evidenceData } = useQuery({
-    queryKey: dataKeys.cvEvidence(),
-    queryFn: () => cv.evidence(token!),
-    enabled: !!token && hasCv,
+  const skillGapQuery = useQuery({
+    queryKey: dataKeys.skillGap(jobId),
+    queryFn: () => jobs.skillGap(token!, jobId!),
+    enabled: !!token && !!jobId,
+    staleTime: 5 * 60 * 1000,
   })
 
-  const saveGeneratedDraft = useMutation({
-    mutationFn: (nextDraftText: string) => cv.saveDraft(token!, nextDraftText),
-    onMutate: () => {
-      setError(null)
-      setMessage(null)
-      setDraftFlowError(null)
+  // Hydrate hiddenItems from latest version on first load
+  useEffect(() => {
+    if (!versions.length) return
+    const latest = versions[0]
+    setSelectedVersionId(prev => prev ?? latest.id)
+    setHiddenItems(new Set(latest.hidden_items))
+  }, [versions])
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+
+  const saveVersion = useMutation({
+    mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems)),
+    onSuccess: (v) => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      setSelectedVersionId(v.id)
     },
-    onSuccess: (draft) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
-      setMessage(`Saved CV draft v${draft.version_number}.`)
-      setSelectedVersionId(draft.version_id)
-      router.replace(`/cv?v=${draft.version_id}`, { scroll: false })
-      setShowDraftGuide(false)
-      setDraftStage("guide")
-      setDraftText("")
-    },
-    onError: (err) => setDraftFlowError(err instanceof Error ? err.message : "Could not save CV draft"),
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not save version."),
   })
 
-  const generateJobCv = useMutation({
-    mutationFn: ({ aiPolish }: { aiPolish: boolean }) => jobs.generateJobCv(token!, jobId!, aiPolish),
-    onSuccess: (result, variables) => {
-      setJobCvText(result.polished_text ?? result.cv_text)
-      if (variables.aiPolish && result.limit_reached) {
-        setJobCvNotice("AI polish limit reached. Showing the best cached job CV.")
-      } else if (variables.aiPolish && result.polish_unavailable) {
-        setJobCvNotice("Polish unavailable, using the proof-backed CV.")
-      } else if (variables.aiPolish && result.polished_text) {
-        const remaining = Math.max(0, result.ai_polish_limit - result.ai_polish_used)
-        setJobCvNotice(`Polished CV ready. ${remaining} polish calls left today.`)
-      } else {
-        setJobCvNotice("Job CV ready.")
-      }
-      invalidateJobPathData(queryClient, jobId)
+  const polishVersion = useMutation({
+    mutationFn: (versionId: number) => cv.versions.polish(token!, jobId!, versionId),
+    onSuccess: (v) => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      setSelectedVersionId(v.id)
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate job CV"),
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not polish version."),
   })
 
-  function resetDraftFlow() {
-    setDraftStage("guide")
-    setDraftText("")
-    setDraftFlowError(null)
-  }
-
-  const generateDraft = useMutation({
-    mutationFn: () => cv.generateDraft(token!),
-    onMutate: () => {
-      setDraftStage("generating")
-      setDraftFlowError(null)
+  const editVersion = useMutation({
+    mutationFn: ({ versionId, edits }: { versionId: number; edits: Record<string, string> }) =>
+      cv.versions.edit(token!, jobId!, versionId, edits),
+    onSuccess: (v) => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      setSelectedVersionId(v.id)
+      setEditOpen(false)
+      setEditTarget(null)
+      setEditDraft("")
     },
-    onSuccess: (data) => {
-      setDraftText(data.cv_text)
-      setDraftStage("review")
-      if (data.new_xp_balance !== null && data.new_xp_balance !== undefined) {
-        setXPBalance(data.new_xp_balance)
-      }
-    },
-    onError: (err) => {
-      setDraftStage("guide")
-      setDraftFlowError(err instanceof Error ? err.message : "Could not generate CV draft.")
-    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
   })
 
   const downloadPdf = useMutation({
@@ -596,30 +124,16 @@ export default function CVPage() {
 
   async function handleUpload(file: File) {
     if (!token) return
-    setUploading(true)
-    setUploadResult(null)
-    setError(null)
-    setMessage(null)
+    setUploading(true); setUploadResult(null); setError(null)
     try {
       const result = await uploadCV(token, file)
-      // Score is already computed and persisted inside cv_workflow.ingest_uploaded_cv —
-      // no separate scores.compute call needed here.
-      // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
-      // Force-refetch CV profile before the modal closes so the text viewer
-      // shows the new CV immediately (invalidateQueries alone only marks stale).
       await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
-      setMessage(`${result.skills_detected} skills detected · Score: ${result.score}`)
-      setSelectedVersionId(null)
-      // Show success state briefly before closing
-      setTimeout(() => {
-        setShowUpload(false)
-        setUploadResult(null)
-      }, 2000)
+      setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload CV")
     } finally {
@@ -627,620 +141,266 @@ export default function CVPage() {
     }
   }
 
+  function toggleItem(iid: string) {
+    setHiddenItems(prev => {
+      const next = new Set(prev)
+      if (next.has(iid)) next.delete(iid)
+      else next.add(iid)
+      return next
+    })
+  }
+
+  function openEdit(versionId: number) {
+    const v = versions.find(x => x.id === versionId)
+    if (!v?.polished_text) return
+    setEditTarget({ versionId, text: v.polished_text })
+    setEditDraft(v.polished_text)
+    setEditOpen(true)
+  }
+
+  function submitEdit() {
+    if (!editTarget) return
+    const original = editTarget.text
+    const next = editDraft
+    if (original === next) { setEditOpen(false); return }
+    // Whole-document replacement key. Backend applies as string replace.
+    editVersion.mutate({ versionId: editTarget.versionId, edits: { [original]: next } })
+  }
+
+  const livePreview = useMemo(() => {
+    if (!structuredQuery.data) return ""
+    return renderDeterministic(structuredQuery.data, hiddenItems)
+  }, [structuredQuery.data, hiddenItems])
+
+  const currentSelected = versions.find(v => v.id === selectedVersionId) ?? versions[0] ?? null
+  const playgroundDirty = !currentSelected
+    || Array.from(hiddenItems).sort().join(",") !== [...currentSelected.hidden_items].sort().join(",")
+
   if (!ready) return null
-
-  const domainKeywords: Record<string, string[]> = {
-    technical: ["engineering", "programming", "software", "data", "cloud", "devops", "infrastructure", "database", "api", "security", "systems", "network", "code"],
-    domain:    ["finance", "analytics", "product", "strategy", "business", "marketing", "operations", "management", "research", "science"],
-    soft:      ["communication", "leadership", "collaboration", "soft", "interpersonal", "teamwork", "presentation", "writing", "people"],
-  }
-
-  const cvTextLower = (cvProfile?.cv_raw_text ?? "").toLowerCase()
-  const clusterFirstPos = (skills: UserSkillItem[]) =>
-    skills.reduce((min, s) => Math.min(min, cvMentionPos(s, cvTextLower)), Number.MAX_SAFE_INTEGER)
-
-  const allClusterEntries = Object.entries(skillsData?.by_cluster ?? {})
-    .map(([cluster, skills]) => {
-      const ordered = cvTextLower
-        ? [...skills].sort((a, b) => cvMentionPos(a, cvTextLower) - cvMentionPos(b, cvTextLower))
-        : skills
-      return [cluster, ordered] as [string, UserSkillItem[]]
-    })
-    .sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
-
-  const clusterEntries = catFilter === "all"
-    ? allClusterEntries
-    : (() => {
-        const domainEntries = Object.entries(skillsData?.by_domain ?? {})
-        if (domainEntries.length > 0) {
-          const keywords = domainKeywords[catFilter] ?? []
-          const matchingDomain = domainEntries
-            .filter(([domain]) => keywords.some((kw) => domain.toLowerCase().includes(kw)))
-          if (matchingDomain.length > 0) {
-            return matchingDomain.sort(([, a], [, b]) => clusterFirstPos(a) - clusterFirstPos(b))
-          }
-        }
-        const keywords = domainKeywords[catFilter] ?? []
-        return allClusterEntries.filter(([cluster]) =>
-          keywords.some((kw) => cluster.toLowerCase().includes(kw))
-        )
-      })()
-
-  const totalSkills = allClusterEntries.reduce((n, [, s]) => n + s.length, 0)
-
-  function matchesStatus(level: number): boolean {
-    if (statusFilter === "strong")   return level >= 4
-    if (statusFilter === "gap")      return level >= 2 && level < 4
-    if (statusFilter === "critical") return level < 2
-    return true
-  }
-
-  const filteredClusterEntries = statusFilter === "all"
-    ? clusterEntries
-    : clusterEntries
-        .map(([cluster, skills]) => [cluster, skills.filter((s) => matchesStatus(s.level))] as [string, typeof skills])
-        .filter(([, skills]) => skills.length > 0)
-
-  const counts = clusterEntries.reduce((acc, [, skills]) => {
-    skills.forEach((s) => {
-      if (s.level >= 4) acc.strong++
-      else if (s.level >= 2) acc.gap++
-      else acc.critical++
-    })
-    return acc
-  }, { strong: 0, gap: 0, critical: 0 })
-
-  // Determine text to show in viewer
-  const selectedVersion = selectedVersionId !== null
-    ? cvProfile?.history?.find((v) => v.id === selectedVersionId) ?? null
-    : null
-  const displayText = selectedVersion?.cv_raw_text ?? cvProfile?.cv_raw_text ?? null
 
   return (
     <AppShell>
-      <div className="tm-page-enter" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      <div className="tm-page-enter" style={{ padding: "24px 32px 48px", minHeight: "100vh" }}>
 
         {/* Header */}
-        <div style={{ padding: "24px 32px 16px", flexShrink: 0 }}>
-          <div className="tm-label-caps" style={{ marginBottom: 6 }}>app/CV_Builder</div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
-            <div>
-              <h1 className="tm-title" style={{ marginBottom: 3, fontSize: "var(--tm-fs-heading)" }}>Build your next CV from proof</h1>
-              <p className="tm-meta" style={{ fontSize: 12 }}>
-                {hasCv ? "Baseline saved · progress evidence becomes the next draft" : "Upload your baseline once to start"}
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              {hasCv ? (
-                <>
-                  <Button
-                    variant="solid"
-                    size="md"
-                    onClick={() => {
-                      resetDraftFlow()
-                      setShowDraftGuide(true)
-                    }}
-                    loading={generateDraft.isPending || saveGeneratedDraft.isPending}
-                  >
-                    Generate Next CV Draft
-                  </Button>
-                  <Button variant="outline" size="md" onClick={() => setShowUpload((v) => !v)}>
-                    Rework CV Baseline
-                  </Button>
-                </>
-              ) : (
-                <Button variant="solid" size="md" onClick={() => setShowUpload((v) => !v)}>
-                  Upload baseline CV
-                </Button>
-              )}
-            </div>
+        <div style={{ marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div className="tm-label-caps" style={{ marginBottom: 4 }}>app/CV_Builder</div>
+            <h1 className="tm-title" style={{ fontSize: "var(--tm-fs-heading)", marginBottom: 4 }}>
+              {jobId ? "Tailor your CV for this job" : "Your baseline CV"}
+            </h1>
+            <p className="tm-meta" style={{ fontSize: 12 }}>
+              {hasBaseline
+                ? jobId
+                  ? "Pick what stays. Save a commit. Polish with AI. Edit polished bullets."
+                  : "Pick a target job to start tailoring — every save creates an immutable version."
+                : "Upload your baseline CV to start."}
+            </p>
           </div>
-          {(message || error) && (
-            <div role={error ? "alert" : "status"} style={{ marginTop: 8, fontSize: 12, color: error ? "var(--tm-danger)" : "var(--tm-accent)" }}>
-              {error ?? message}
-            </div>
-          )}
-          {showForgeBanner && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: "10px 12px",
-                borderRadius: "var(--tm-radius-sm)",
-                border: "1px solid var(--tm-accent-ring)",
-                background: "var(--tm-accent-wash)",
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div className="tm-label-caps text-balance" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>
-                  From Forge Session
-                </div>
-                <p className="text-pretty" style={{ margin: 0, fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.65 }}>
-                  Your latest deep-focus reflection is now anchored in your evidence stream. Use the timeline and draft tools below to shape sharper CV pointers.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowForgeBanner(false)}
-                className="whitespace-nowrap shrink-0"
-              >
-                Dismiss
+          <div style={{ display: "flex", gap: 8 }}>
+            {hasBaseline && (
+              <Button variant="outline" size="md" onClick={() => setShowUpload(true)}>
+                Rework CV Baseline
               </Button>
-            </div>
-          )}
-
-          {/* Summary stats */}
-          <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
-            {[
-              { label: "Strong",   key: "strong",   count: counts.strong,   color: "var(--tm-success)", wash: "var(--tm-success-wash)" },
-              { label: "Gaps",     key: "gap",      count: counts.gap,       color: "var(--tm-warning)", wash: "var(--tm-warning-wash)" },
-              { label: "Critical", key: "critical", count: counts.critical,  color: "var(--tm-danger)",  wash: "var(--tm-danger-wash)"  },
-            ].map(({ label, key, count, color, wash }) => {
-              const active = statusFilter === key
-              return (
-                <button
-                  key={label}
-                  onClick={() => setStatusFilter(active ? "all" : key as typeof statusFilter)}
-                  style={{
-                    padding: "6px 14px", borderRadius: "var(--tm-radius-sm)",
-                    background: active ? color : wash,
-                    border: `1px solid ${color}`,
-                    display: "flex", alignItems: "center", gap: 8,
-                    cursor: "pointer", fontFamily: "inherit",
-                    boxShadow: active ? `0 0 10px ${color}40` : "none",
-                    transition: "all var(--tm-dur) var(--tm-ease)",
-                    outline: "none",
-                  }}
-                >
-                  <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 700, color: active ? "var(--tm-bg)" : color, lineHeight: 1 }}>{count}</span>
-                  <span style={{ fontSize: 12, color: active ? "var(--tm-bg)" : "inherit" }}>{label}</span>
-                </button>
-              )
-            })}
-            {scoreData && (
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>Myro Score:</span>
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: "var(--tm-fs-body)", fontWeight: 600, color: "var(--tm-text)" }}>
-                  {Math.round(scoreData.total_score)}
-                </span>
-                <span style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>/100 · {totalSkills} skills</span>
-              </div>
+            )}
+            {!hasBaseline && (
+              <Button variant="solid" size="md" onClick={() => setShowUpload(true)}>
+                Upload baseline CV
+              </Button>
             )}
           </div>
-
         </div>
 
-        {jobId && (
-          <section style={{
-            margin: "0 32px 16px",
-            padding: "14px 16px",
-            borderRadius: "var(--tm-radius)",
-            border: "1px solid var(--tm-border-soft)",
-            background: "var(--tm-surface)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-accent)" }}>Job CV</div>
-                <div style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)", fontWeight: 600 }}>
-                  {jobPathQuery.data?.job_title ?? "Tracked job"}
-                </div>
-                <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                  {jobPathQuery.data?.company ?? ""}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <Button
-                  variant="solid"
-                  size="md"
-                  onClick={() => generateJobCv.mutate({ aiPolish: false })}
-                  loading={generateJobCv.isPending}
-                  className="whitespace-nowrap"
-                >
-                  Generate job CV
-                </Button>
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => generateJobCv.mutate({ aiPolish: true })}
-                  disabled={generateJobCv.isPending}
-                  className="whitespace-nowrap"
-                >
-                  AI polish
-                </Button>
-              </div>
-            </div>
-            {jobPathQuery.data && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span className="tm-pill">{jobPathQuery.data.readiness_pct}% ready</span>
-                <span className="tm-pill">{String(jobPathQuery.data.cv?.confidence?.badge_text ?? "Starter")}</span>
-              </div>
-            )}
-            {jobCvNotice && (
-              <div style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-faint)" }}>
-                {jobCvNotice}
-              </div>
-            )}
-            {jobCvText && (
-              <>
-                <pre style={{
-                  maxHeight: 220,
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "var(--tm-font-mono)",
-                  fontSize: "var(--tm-fs-meta)",
-                  lineHeight: "var(--tm-lh-meta)",
-                  color: "var(--tm-text-muted)",
-                  border: "1px solid var(--tm-border-soft)",
-                  borderRadius: "var(--tm-radius-sm)",
-                  padding: 12,
-                  background: "rgba(255,255,255,0.02)",
-                }}>
-                  {jobCvText}
-                </pre>
-                <Button
-                  variant="solid"
-                  size="sm"
-                  onClick={() => downloadPdf.mutate(jobCvText)}
-                  loading={downloadPdf.isPending}
-                  className="whitespace-nowrap self-start"
-                >
-                  Download PDF
-                </Button>
-              </>
-            )}
-          </section>
+        {error && (
+          <div role="alert" style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12, color: "var(--tm-danger)", border: "1px solid var(--tm-danger)", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)" }}>
+            {error}
+          </div>
         )}
 
-        {/* Split body */}
-        <div style={{
-          flex: 1,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          overflow: "hidden",
-          borderTop: "1px solid var(--tm-border-soft)",
-        }}>
-          {/* LEFT — Skill mapping */}
-          <div style={{ overflowY: "auto", padding: "16px 20px 24px 32px", borderRight: "1px solid var(--tm-border-soft)" }}>
-            <div style={{ display: "flex", gap: 5, marginBottom: 14, flexWrap: "wrap" }}>
-              {(["all", "technical", "domain", "soft", "skill-audit"] as const).map((c) => (
-                <button key={c} onClick={() => setCatFilter(c)} style={{
-                  padding: "5px 12px", borderRadius: 999,
-                  fontSize: "var(--tm-fs-meta)", fontWeight: 500,
-                  background: catFilter === c ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${catFilter === c ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                  color: catFilter === c ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                  cursor: "pointer", textTransform: "capitalize",
-                  transition: "all var(--tm-dur) var(--tm-ease)",
-                  fontFamily: "inherit",
-                }}>{c === "skill-audit" ? "◈ Skill Audit" : c}</button>
-              ))}
-            </div>
+        {/* Mode 1 — no baseline */}
+        {!hasBaseline && (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--tm-text-faint)", border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)" }}>
+            <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.6 }}>◈</div>
+            <div style={{ fontSize: 16, color: "var(--tm-text)" }}>No CV uploaded yet</div>
+            <div style={{ fontSize: 12, marginTop: 8 }}>Upload to extract skills, see your Myro Score, and start tailoring per job.</div>
+          </div>
+        )}
 
-            {skillsLoading ? (
-              <div style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", padding: "32px 0", textAlign: "center" }}>
-                Loading skills…
+        {/* Mode 2 — baseline but no jobId */}
+        {hasBaseline && !jobId && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{
+              padding: 16, borderRadius: "var(--tm-radius-lg)",
+              border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)",
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap",
+            }}>
+              <div>
+                <div className="tm-label-caps" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>Tailoring is per-job</div>
+                <div style={{ fontSize: 13, color: "var(--tm-text)" }}>
+                  Pick a target job to start the playground. Every saved version is immutable, like a Git commit.
+                </div>
               </div>
-            ) : catFilter === "skill-audit" ? (
-              <SkillAuditView allSkills={Object.values(skillsData?.by_cluster ?? {}).flat()} />
-            ) : filteredClusterEntries.length === 0 ? (
-              <div style={{ padding: "32px", textAlign: "center", color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>
-                <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.3 }}>◈</div>
-                {clusterEntries.length === 0 ? "Upload a CV to see extracted skills" : `No ${statusFilter} skills in this view`}
+              <Button variant="solid" size="md" render={<Link href="/home" />}>Pick a target job →</Button>
+            </div>
+            <pre style={{
+              margin: 0, padding: "20px 22px",
+              background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+              borderRadius: "var(--tm-radius-lg)",
+              fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
+              color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
+            }}>{cvProfile.data?.cv_raw_text ?? "—"}</pre>
+          </div>
+        )}
+
+        {/* Mode 3 — playground + version picker */}
+        {hasBaseline && jobId && (
+          <>
+            {structuredQuery.isLoading && (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
+                Parsing your CV into sections…
               </div>
-            ) : (
-              filteredClusterEntries.map(([cluster, skills]) => (
-                <ClusterSection
-                  key={cluster}
-                  cluster={cluster}
-                  skills={skills}
-                  hoveredSkillKey={hoveredSkill?.key ?? null}
-                  onHover={setHoveredSkill}
-                />
-              ))
             )}
-          </div>
-
-          {/* RIGHT — Version history + CV viewer */}
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-            {/* CV text viewer */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 32px 20px", position: "relative" }}>
-              <div style={{
-                position: "absolute", right: 24, top: 20,
-                fontSize: 81, color: "var(--tm-accent-wash)",
-                pointerEvents: "none", userSelect: "none", lineHeight: 1,
-              }}>◈</div>
-
-              {displayText && (
-                <div style={{ marginBottom: 12 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadPdf.mutate(displayText)}
-                    loading={downloadPdf.isPending}
-                    className="whitespace-nowrap"
-                  >
-                    Download PDF
-                  </Button>
+            {structuredQuery.isError && (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-danger)", fontSize: 12 }}>
+                Couldn&apos;t load your CV structure. Try refreshing in a minute.
+              </div>
+            )}
+            {structuredQuery.data && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+                <div>
+                  <CVPlayground
+                    cv={structuredQuery.data}
+                    hiddenItems={hiddenItems}
+                    onToggle={toggleItem}
+                    targetSkills={skillGapQuery.data?.skills ?? []}
+                    jobTitle={jobPathQuery.data?.job_title}
+                    companyName={jobPathQuery.data?.company ?? undefined}
+                  />
+                  <div style={{
+                    position: "sticky", bottom: 0, marginTop: 12,
+                    padding: "12px 14px", borderRadius: "var(--tm-radius-lg)",
+                    background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                  }}>
+                    <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
+                      {hiddenItems.size} hidden · {playgroundDirty ? "unsaved changes" : "in sync with selected version"}
+                    </span>
+                    <Button
+                      variant="solid" size="md"
+                      onClick={() => saveVersion.mutate()}
+                      disabled={!playgroundDirty || saveVersion.isPending}
+                      loading={saveVersion.isPending}
+                    >
+                      Save Version
+                    </Button>
+                  </div>
                 </div>
-              )}
 
-              {cvLoading ? (
-                <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)" }}>Loading…</p>
-              ) : displayText ? (
-                <pre ref={cvPanelRef} style={{
-                  fontSize: 12.5, lineHeight: 1.8, color: "var(--tm-text-muted)",
-                  fontFamily: "var(--tm-font-mono)", whiteSpace: "pre-wrap",
-                  wordBreak: "break-word", position: "relative",
-                }}>
-                  {displayText.split("\n").map((line, i) => {
-                    let isHighlighted = false
-                    if (hoveredSkill) {
-                      const lower = line.toLowerCase()
-                      if (hoveredSkill.evidence_text) {
-                        const evidenceWords = hoveredSkill.evidence_text.toLowerCase().split(/\s+/).slice(0, 5).join(" ")
-                        if (evidenceWords.length > 3 && lower.includes(evidenceWords)) isHighlighted = true
-                      }
-                      if (!isHighlighted) {
-                        const keyword = hoveredSkill.display_name.toLowerCase().split(/[\s(]/)[0]
-                        if (keyword.length > 2 && lower.includes(keyword)) isHighlighted = true
-                      }
-                    }
-                    return (
-                      <span key={i} data-hl={isHighlighted ? "true" : undefined} style={{
-                        display: "block",
-                        background: isHighlighted ? "var(--tm-accent-wash)" : "transparent",
-                        borderLeft: isHighlighted ? "2px solid var(--tm-accent)" : "2px solid transparent",
-                        paddingLeft: 6, borderRadius: 2,
-                        transition: "background var(--tm-dur), border-color var(--tm-dur)",
-                        color: line.startsWith("─") ? "var(--tm-accent-wash)"
-                          : (line.match(/^[A-Z ]+$/) && line.length > 3) ? "var(--tm-text)"
-                          : "var(--tm-text-muted)",
-                        fontWeight: (line.match(/^[A-Z ]+$/) && line.length > 3) ? 600 : 400,
-                      }}>
-                        {line || " "}
-                      </span>
-                    )
-                  })}
-                </pre>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--tm-text-faint)", textAlign: "center", gap: 12 }}>
-                  <div style={{ fontSize: 49, opacity: 0.2 }}>◈</div>
-                  <p style={{ fontSize: "var(--tm-fs-meta)" }}>No CV uploaded yet.</p>
-                  <p style={{ fontSize: 12 }}>Use the button above to upload.</p>
+                <div style={{ position: "sticky", top: 16 }}>
+                  {/* Live preview when dirty, else show selected version */}
+                  {playgroundDirty ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="tm-label-caps" style={{ color: "var(--tm-warning)" }}>Live preview · unsaved</div>
+                      <pre style={{
+                        margin: 0, padding: "20px 22px",
+                        background: "var(--tm-surface)", border: "1px dashed var(--tm-warning)",
+                        borderRadius: "var(--tm-radius-lg)",
+                        fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
+                        color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
+                        minHeight: 360,
+                      }}>{livePreview}</pre>
+                    </div>
+                  ) : (
+                    <VersionPicker
+                      versions={versions}
+                      selectedId={selectedVersionId}
+                      onSelect={(id) => {
+                        setSelectedVersionId(id)
+                        const v = versions.find(x => x.id === id)
+                        if (v) setHiddenItems(new Set(v.hidden_items))
+                      }}
+                      onCreate={() => saveVersion.mutate()}
+                      onPolish={(id) => polishVersion.mutate(id)}
+                      onEdit={openEdit}
+                      onDownload={(text) => downloadPdf.mutate(text)}
+                      isCreating={saveVersion.isPending}
+                      isPolishing={polishVersion.isPending}
+                      canCreate={playgroundDirty || versions.length === 0}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      <Dialog
-        open={showDraftGuide}
-        onOpenChange={(open) => {
-          setShowDraftGuide(open)
-          if (!open) resetDraftFlow()
-        }}
-      >
-        <DialogContent className="max-w-3xl p-0" showCloseButton={false}>
-          <div style={{ padding: 24 }}>
-            <DialogHeader>
-              <div className="tm-label-caps" style={{ marginBottom: 6 }}>Next CV Draft</div>
-              <DialogTitle style={{ fontSize: "var(--tm-fs-heading)", color: "var(--tm-text)" }}>
-                {draftStage === "review" ? "Review your generated draft" : "Generate your next CV draft"}
-              </DialogTitle>
-              <DialogDescription style={{ fontSize: 12, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
-                {draftStage === "review"
-                  ? "Review the draft below. Edit freely before saving as a new CV version."
-                  : evidenceData && evidenceData.evidence_count > 0
-                  ? `${evidenceData.evidence_count} milestone day${evidenceData.evidence_count !== 1 ? "s" : ""} of evidence will be woven into this draft.`
-                  : "Draft will be built from your baseline CV. Log milestones in diary to enrich future drafts."}
-              </DialogDescription>
-            </DialogHeader>
-
-            {draftStage === "generating" && (
-              <div
-                style={{
-                  marginTop: 16,
-                  borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-accent-ring)",
-                  background: "var(--tm-accent-wash)",
-                  padding: "12px 14px",
-                  fontSize: 12,
-                  color: "var(--tm-text)",
-                  lineHeight: 1.6,
-                }}
-              >
-                Building your CV draft from proof… this takes a few seconds.
-              </div>
-            )}
-
-            {draftStage === "guide" && (
-              <div
-                style={{
-                  marginTop: 16,
-                  borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-border-soft)",
-                  background: "rgba(255,255,255,0.03)",
-                  padding: "12px 14px",
-                  fontSize: 12,
-                  color: "var(--tm-text-muted)",
-                  lineHeight: 1.6,
-                }}
-              >
-                Costs <strong style={{ color: "var(--tm-accent)" }}>50 XP</strong>. Myro assembles your baseline CV with all logged evidence into a new draft. You can edit before saving.
-              </div>
-            )}
-
-            {draftStage === "review" && (
-              <div style={{ marginTop: 16 }}>
-                <textarea
-                  value={draftText}
-                  onChange={(e) => setDraftText(e.target.value)}
-                  style={{
-                    width: "100%",
-                    minHeight: 360,
-                    resize: "vertical",
-                    borderRadius: "var(--tm-radius-sm)",
-                    border: "1px solid var(--tm-border-soft)",
-                    background: "rgba(255,255,255,0.02)",
-                    color: "var(--tm-text)",
-                    padding: "12px 14px",
-                    fontSize: 12,
-                    lineHeight: 1.7,
-                    fontFamily: "var(--tm-font-mono)",
-                  }}
-                />
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                  Saving creates a new version in your CV history.
-                </div>
-              </div>
-            )}
-
-            {(draftFlowError || error) && (
-              <div style={{ marginTop: 12, fontSize: 12, color: "var(--tm-danger)" }}>
-                {draftFlowError ?? error}
-              </div>
-            )}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              padding: 16,
-              borderTop: "1px solid var(--tm-border-soft)",
-              background: "rgba(255,255,255,0.02)",
-            }}
-          >
-            <Button
-              variant="outline"
-              size="md"
-              onClick={() => setShowDraftGuide(false)}
+      {/* Upload modal */}
+      <Dialog open={showUpload} onOpenChange={setShowUpload}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{hasBaseline ? "Replace your baseline CV" : "Upload your baseline CV"}</DialogTitle>
+            <DialogDescription>
+              {hasBaseline
+                ? "This becomes your new baseline. Existing per-job versions stay intact."
+                : "We extract skills, map them to the Lightcast taxonomy, and parse your CV into sections."}
+            </DialogDescription>
+          </DialogHeader>
+          {uploading || uploadResult ? (
+            <CVUploadProcessing success={!!uploadResult} result={uploadResult ?? undefined} />
+          ) : (
+            <label
+              htmlFor="cv-upload-input"
+              style={{
+                display: "block", padding: "32px 20px", textAlign: "center",
+                border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)",
+                cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13,
+              }}
             >
-              Close
-            </Button>
-            {draftStage === "guide" && (
-              <Button
-                variant="solid"
-                size="md"
-                onClick={() => generateDraft.mutate()}
-                disabled={generateDraft.isPending || !hasCv}
-                loading={generateDraft.isPending}
-              >
-                Generate · 50 XP
-              </Button>
-            )}
-            {draftStage === "review" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() => downloadPdf.mutate(draftText)}
-                  disabled={downloadPdf.isPending || draftText.trim().length < 60}
-                  loading={downloadPdf.isPending}
-                >
-                  Download PDF
-                </Button>
-                <Button
-                  variant="solid"
-                  size="md"
-                  onClick={() => saveGeneratedDraft.mutate(draftText)}
-                  disabled={draftText.trim().length < 120}
-                  loading={saveGeneratedDraft.isPending}
-                >
-                  Save as CV version
-                </Button>
-              </>
-            )}
-          </div>
+              Drop a PDF or DOCX here, or click to choose a file.
+              <input
+                id="cv-upload-input"
+                type="file"
+                accept=".pdf,.docx"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
+                style={{ display: "none" }}
+              />
+            </label>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Upload modal overlay */}
-      {showUpload && (
-        <div
-          onClick={() => { if (!uploading && !uploadResult) setShowUpload(false) }}
-          style={{
-            position: "fixed", inset: 0, zIndex: 50,
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(6px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 24,
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
+      {/* Edit polished modal */}
+      <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditTarget(null) } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit polished CV</DialogTitle>
+            <DialogDescription>
+              Edits create a new immutable version. Baseline stays untouched.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            value={editDraft}
+            onChange={(e) => setEditDraft(e.target.value)}
+            spellCheck
             style={{
-              width: "100%", maxWidth: 560,
-              borderRadius: "var(--tm-radius)",
-              background: "var(--tm-surface)",
-              border: "1px solid var(--tm-accent-ring)",
-              boxShadow: "0 0 48px var(--tm-accent-glow), 0 24px 64px rgba(0,0,0,0.6)",
-              position: "relative",
-              padding: 28,
+              width: "100%", minHeight: 320, padding: 12,
+              fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.7,
+              background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+              color: "var(--tm-text)", borderRadius: "var(--tm-radius-sm)",
+              resize: "vertical",
             }}
-          >
-            {/* Close — hidden while processing */}
-            <button
-              onClick={() => setShowUpload(false)}
-              disabled={uploading || !!uploadResult}
-              aria-label="Close upload panel"
-              style={{
-                position: "absolute", top: 12, right: 12,
-                width: 28, height: 28, borderRadius: "50%",
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid var(--tm-border-soft)",
-                color: "var(--tm-text-faint)",
-                fontSize: 14, cursor: uploading || uploadResult ? "default" : "pointer",
-                display: uploading || uploadResult ? "none" : "flex",
-                alignItems: "center", justifyContent: "center",
-                fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "var(--tm-danger-wash)"
-                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-danger)"
-                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-danger)"
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"
-                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--tm-text-faint)"
-                ;(e.currentTarget as HTMLButtonElement).style.borderColor = "var(--tm-border-soft)"
-              }}
-            >
-              ✕
-            </button>
-
-            <div className="tm-label-caps" style={{ marginBottom: 6 }}>
-              {hasCv ? "Rework CV Baseline" : "Upload Baseline CV"}
-            </div>
-            <h2 style={{ fontSize: "var(--tm-fs-heading)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 20 }}>
-              {hasCv ? "Replace the baseline only if the original CV was wrong" : "Upload your baseline CV"}
-            </h2>
-
-            {error && (
-              <p role="alert" style={{ marginBottom: 12, fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{error}</p>
-            )}
-
-            {(uploading || uploadResult) ? (
-              <CVUploadProcessing
-                success={!!uploadResult}
-                result={uploadResult ?? undefined}
-              />
-            ) : (
-              <StepCV onNext={handleUpload} />
-            )}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+            <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="solid" size="md" onClick={submitEdit} loading={editVersion.isPending}>
+              Save as new version
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }
+
+export default CVPage
