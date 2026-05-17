@@ -136,10 +136,10 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
-1. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+1. ~~**`user_job_matches` design review**~~ ✅ DONE 2026-05-17 — Unique key changed to `(user_id, job_id)`, `action_plan` dropped, endpoint rebuilt.
 4. ~~**Intel page — job analytics loading screen**~~ ✅ DONE 2026-05-15 — Progress banner (3-step) + skeleton shimmer rows. Never blank. Banner disappears when all resolve.
 5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
-6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
+6. ~~**Intel page — PR2: Run Analysis**~~ ✅ DONE 2026-05-17 — `POST /jobs/analyse/{job_id}`: 50 XP, weighted overlap compute, LLM explanation, upserts to `user_job_matches`. Frontend already wired.
 7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
@@ -286,10 +286,54 @@ Shipped to Develop:
   - frontend/app/layout.tsx (viewportFit)
 
 Open (next sessions):
-  - Backlog #6: PR2 Run Analysis endpoint + 50 XP deduction
-  - Backlog #3: user_job_matches design review (discuss Shivam first)
   - Backlog #8: Process Transparency Layer
   - Backlog #9: Auth skeleton staggered fade-in polish (minor)
+  - Intel page perf candidates (heatmap cache, search cache, optimistic follow)
+  - Shareability v1: public profile /profile/{token}
+```
+---
+## LAST SESSION SUMMARY (2026-05-17)
+```
+CV upgrade loop closed + user_job_matches design overhaul.
+
+Shipped to Develop:
+
+  CV UPGRADE LOOP (Candidates 3+4):
+  - CVCol box deleted from HomeColumns.tsx — removed "Rewrite CV line" (100 XP)
+    and "Download tailored CV" (50 XP) buttons entirely.
+  - handleSpendXP removed from home/page.tsx (no more callers).
+  - "Open CV Builder →" link added to JobCard.tsx → /cv?jobId={job.job_id}
+    CV page already reads jobId param — flow works end-to-end.
+
+  USER_JOB_MATCHES REDESIGN:
+  - DB migration: deduplicated rows, unique key (user_id, job_id, batch_week)
+    → (user_id, job_id). action_plan column dropped.
+  - llm_ranker.py: action_plan removed from prompt + persist_matches + fallback.
+  - schemas/jobs.py: ActionPlanDay class deleted, action_plan removed from
+    JobMatchResponse.
+  - schemas/__init__.py: ActionPlanDay removed from imports + __all__.
+  - routers/jobs/_shared.py: ActionPlanDay removed, to_job_match cleaned.
+  - repositories/jobs.py: on_conflict → "user_id,job_id"; action_plan removed
+    from SELECT query.
+  - routers/jobs/analyse.py: full rewrite — 50 XP cost (was 10), weighted
+    overlap formula (PRIMARY_WEIGHT=2/SECONDARY_WEIGHT=1, no 3-match threshold),
+    LLM explanation via provider chain, upsert without action_plan.
+  - lib/api.ts: ActionPlanDay interface deleted, action_plan removed from JobMatch.
+
+  PERMANENT RULES ADDED:
+  - Long-term fixes only — no quick patches. Saved to CLAUDE.md + memory.
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - Backlog #9: Auth skeleton fade-in polish (minor)
+  - Intel page perf candidates
+  - Shareability v1: /profile/{token}
+```
+---
+## PREV SESSION SUMMARY (2026-05-16)
+```
+Skill Intelligence page redesign (Phases 1–3) + mobile layout overhaul.
+(See SKILL INTELLIGENCE PAGE — REDESIGN TRACKER above for full detail.)
 ```
 ---
 ## PREV SESSION SUMMARY (2026-05-15)
