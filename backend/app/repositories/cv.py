@@ -95,6 +95,14 @@ class CVRepository:
         result = self._db.table("cv_history").insert(payload).execute()
         return result.data[0] if result.data else None
 
+    def update_cv_history_structured(
+        self, history_id: int, cv_structured: dict[str, Any]
+    ) -> None:
+        """Persist a lazy-backfilled cv_structured payload onto an existing history row."""
+        self._db.table("cv_history").update(
+            {"cv_structured": cv_structured}
+        ).eq("id", history_id).execute()
+
     # ── evidence summary reads ────────────────────────────────────────────────
 
     def list_milestones(self, user_id: str, limit: int = 120) -> list[dict[str, Any]]:

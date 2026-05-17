@@ -4,12 +4,6 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 
-class ActionPlanDay(BaseModel):
-    day: int
-    focus: str              # skill display name
-    tasks: list[str]        # 1–3 concrete tasks for that day
-
-
 class SkillGapItem(BaseModel):
     skill: str
     is_primary: bool
@@ -59,7 +53,6 @@ class JobMatchResponse(BaseModel):
     overlap_score: float                # 0–100
     llm_rank: int | None                # 1–5 within this week's batch
     llm_explanation: str | None         # why this job fits (2–3 sentences)
-    action_plan: list[ActionPlanDay]    # 7-day gap-closing plan
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
@@ -110,6 +103,7 @@ class StaleApplicationItem(BaseModel):
     company: str | None
     status: str
     updated_at: datetime | None
+    last_stage_changed_at: datetime | None = None
 
 
 class CompanyReviewItem(BaseModel):
@@ -176,6 +170,8 @@ class ApplicationResponse(BaseModel):
     offer_received_at: datetime | None = None
     notes: str | None
     created_at: datetime
+    last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
+    is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
 
 
 class JobPathTargetInput(BaseModel):
@@ -305,6 +301,7 @@ class JobImportRequest(BaseModel):
     secondary_skills: list[str] = []
     emerging_skills: list[EmergingSkillInput] = []
     capture_method: str = "visible_page"
+    status: str = "saved"  # one of APPLICATION_STATUSES; manual web add sends "applied", extension defaults to saved
 
 
 class NameCountItem(BaseModel):

@@ -104,10 +104,10 @@ def select_follow_up_playbook(
     playbooks = _load_json("follow_up_playbooks.json")["playbooks"]
     priority = [
         ("offer", status == "offer"),
-        ("interview", status in {"interviewing", "interview_scheduled"}),
+        ("interview", status in {"interviewing", "final_round", "screening"}),
         ("rejection", status == "rejected"),
-        ("abandoned", status in {"abandoned"} or (status == "applied" and days_since_applied >= 21 and response_dt is None)),
-        ("no_response", status == "no_response" or (status == "applied" and days_since_applied >= 7 and response_dt is None)),
+        ("abandoned", status == "withdrew" or (status == "applied" and days_since_applied >= 21 and response_dt is None)),
+        ("no_response", status == "ghosted" or (status == "applied" and days_since_applied >= 7 and response_dt is None)),
     ]
     for key, matched in priority:
         if matched:

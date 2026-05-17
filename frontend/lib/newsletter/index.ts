@@ -7,12 +7,14 @@ export type IssuePillar = "ai-careers" | "career-trajectories" | "career-switchi
 
 export interface IssueFrontmatter {
   title: string
+  seoTitle?: string
   slug: string
   publishedAt: string
   theme: IssueTheme
   primaryKeyword: string
   ctaRole: string
   ogImage?: string
+  ogImageAlt?: string
   summary: string
   pillar?: IssuePillar
   issueNumber?: number

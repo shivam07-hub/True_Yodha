@@ -2,13 +2,23 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import { diary } from "@/lib/api"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { useXPStore } from "@/store/xpStore"
+
+const LEVEL_TITLE = ["None", "Awareness", "Working", "Practitioner", "Expert", "Authority"]
 
 export function SkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const [logged, setLogged] = useState(false)
-  const { mutate, isPending } = useMutation({
+  const [expanded, setExpanded] = useState(false)
+  const [advice, setAdvice] = useState<string | null>(null)
+  const [pickedLevel, setPickedLevel] = useState<number | null>(null)
+  const queryClient = useQueryClient()
+  const { setBalance } = useXPStore()
+
+  const logToForge = useMutation({
     mutationFn: () =>
       diary.createEntry(
         token,
@@ -17,12 +27,29 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
     onSuccess: () => setLogged(true),
   })
 
+  const correctLevel = useMutation({
+    mutationFn: (level: number) => users.correctSkillLevel(token, skill.key, level),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+    },
+  })
+
+  const askAdvice = useMutation({
+    mutationFn: () => users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? ""),
+    onSuccess: (data) => {
+      if (data.advice) setAdvice(data.advice)
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+    },
+  })
+
   const levelPct = (skill.level / 5) * 100
   const barColor = skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)"
+  const effectiveLevel = pickedLevel ?? skill.level
 
   return (
     <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
         <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
       </div>
@@ -35,9 +62,10 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
       ) : (
         <div style={{ fontSize: 10, color: "var(--tm-warning)", fontStyle: "italic" }}>No CV evidence — keyword inferred</div>
       )}
+
       <button
-        onClick={() => !logged && mutate()}
-        disabled={isPending || logged}
+        onClick={() => !logged && logToForge.mutate()}
+        disabled={logToForge.isPending || logged}
         style={{
           marginTop: 4, padding: "6px 12px",
           borderRadius: "var(--tm-radius-sm)",
@@ -50,8 +78,95 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
           fontFamily: "inherit", width: "100%",
         }}
       >
-        {logged ? "✓ Logged to Forge" : isPending ? "Logging…" : "Log to Forge"}
+        {logged ? "✓ Logged to Forge" : logToForge.isPending ? "Logging…" : "Log to Forge"}
       </button>
+
+      <button
+        onClick={() => setExpanded(p => !p)}
+        style={{
+          padding: "4px 8px", border: "none", background: "transparent",
+          color: "var(--tm-text-faint)", fontSize: 10, cursor: "pointer",
+          textAlign: "left", fontFamily: "inherit",
+        }}
+      >
+        {expanded ? "▾ Hide tools" : "▸ Correct level · Get advice"}
+      </button>
+
+      {expanded && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4, borderTop: "1px dashed var(--tm-border-soft)" }}>
+          {/* Level correction */}
+          <div>
+            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+              Correct level
+            </div>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {[0, 1, 2, 3, 4, 5].map(lvl => {
+                const isActive = effectiveLevel === lvl
+                return (
+                  <button
+                    key={lvl}
+                    onClick={() => setPickedLevel(lvl)}
+                    title={`L${lvl} · ${LEVEL_TITLE[lvl]}`}
+                    style={{
+                      width: 22, height: 22, borderRadius: "50%",
+                      border: `1px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                      background: isActive ? "var(--tm-accent-wash)" : "transparent",
+                      color: isActive ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                      fontSize: 10, fontFamily: "var(--tm-font-mono)", cursor: "pointer",
+                      fontWeight: isActive ? 700 : 500,
+                    }}
+                  >{lvl}</button>
+                )
+              })}
+              {pickedLevel !== null && pickedLevel !== skill.level && (
+                <button
+                  onClick={() => correctLevel.mutate(pickedLevel)}
+                  disabled={correctLevel.isPending}
+                  style={{
+                    marginLeft: 8, padding: "4px 10px", borderRadius: "var(--tm-radius-sm)",
+                    background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+                    border: "1px solid var(--tm-accent)", fontSize: 10, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >{correctLevel.isPending ? "…" : "Save"}</button>
+              )}
+              {correctLevel.isSuccess && (
+                <span style={{ marginLeft: 8, fontSize: 10, color: "var(--tm-success)" }}>✓ saved</span>
+              )}
+            </div>
+          </div>
+
+          {/* AI advice */}
+          <div>
+            <button
+              onClick={() => askAdvice.mutate()}
+              disabled={askAdvice.isPending}
+              style={{
+                padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
+                background: "transparent", color: "var(--tm-accent)",
+                border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {askAdvice.isPending ? "Thinking…" : "★ How do I level up?"}
+            </button>
+            {advice && (
+              <div style={{
+                marginTop: 6, padding: "8px 10px", fontSize: 11,
+                color: "var(--tm-text-muted)", lineHeight: 1.55,
+                background: "rgba(0,245,212,0.04)", border: "1px solid var(--tm-accent-ring)",
+                borderRadius: "var(--tm-radius-sm)",
+              }}>{advice}</div>
+            )}
+            {askAdvice.isError && (
+              <div style={{ marginTop: 6, fontSize: 10, color: "var(--tm-danger)" }}>
+                Couldn&apos;t fetch advice — try again.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 12 }}>
         <Link href="/cv"
           style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}

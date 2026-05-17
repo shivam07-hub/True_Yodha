@@ -826,7 +826,7 @@ class JobsRepository:
             self._db.table("user_job_matches")
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
-                "action_plan, batch_week, computed_at, matched_skills,"
+                "batch_week, computed_at, matched_skills,"
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, apply_url, job_description)"
             )
@@ -844,7 +844,7 @@ class JobsRepository:
     def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
         self._admin_db.table("user_job_matches").upsert(
             {"user_id": user_id, "job_id": job_id, **data},
-            on_conflict="user_id,job_id,batch_week",
+            on_conflict="user_id,job_id",
         ).execute()
 
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:
@@ -912,19 +912,52 @@ class JobsRepository:
             )
 
     def get_stale_applications(self, user_id: str) -> list[dict[str, Any]]:
+        # Q7: filter on dedicated last_stage_changed_at column so notes/followed_up
+        # edits don't mask company silence. Dismiss also bumps this column → 7-day snooze.
         from datetime import datetime, timedelta, timezone
         cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         stages = ["saved", "applied", "screening", "interviewing", "final_round"]
         result = (
             self._db.table("job_applications")
-            .select("id, job_id, status, updated_at, jobs(job_title, company_name)")
+            .select("id, job_id, status, last_stage_changed_at, updated_at, jobs(job_title, company_name)")
             .eq("user_id", user_id)
             .in_("status", stages)
-            .lt("updated_at", cutoff)
-            .order("updated_at", desc=False)
+            .lt("last_stage_changed_at", cutoff)
+            .order("last_stage_changed_at", desc=False)
             .execute()
         )
         return result.data or []
+
+    def dismiss_stale_application(self, user_id: str, job_id: str) -> bool:
+        # Q7: dismiss = bump last_stage_changed_at = now() → effectively snoozes 7 days.
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        result = (
+            self._db.table("job_applications")
+            .update({"last_stage_changed_at": now})
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .execute()
+        )
+        return bool(result.data)
+
+    def mark_first_offer_if_unset(self, user_id: str, timestamp_iso: str) -> bool:
+        # Q6: set first_offer_at exactly once per user. Returns True only when this
+        # call was the one that wrote it (drives the one-time sparkle on the tracker card).
+        existing = (
+            self._db.table("user_profiles")
+            .select("first_offer_at")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        existing_data = existing.data if existing else None
+        if existing_data and existing_data.get("first_offer_at"):
+            return False
+        self._db.table("user_profiles").update(
+            {"first_offer_at": timestamp_iso}
+        ).eq("user_id", user_id).execute()
+        return True
 
     def insert_application_review(
         self,

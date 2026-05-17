@@ -14,6 +14,8 @@ export const dataKeys = {
   milestones: () => ["milestones"] as const,
   cvProfile: () => ["cv-profile"] as const,
   cvEvidence: () => ["cv-evidence"] as const,
+  cvStructured: () => ["cv-structured"] as const,
+  cvVersions: (jobId: JobId) => ["cv-versions", jobId] as const,
   jobPath: (jobId: JobId) => ["job-path", jobId] as const,
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
   jobsAnalytics: (

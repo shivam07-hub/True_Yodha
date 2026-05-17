@@ -6,7 +6,16 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://truemirror.vercel.app/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Fri, 08 May 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 17 May 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>Razorpay, PhonePe, Paytm, CRED and Intuit show where fintech hiring is focused</title>
+      <link>https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india</link>
+      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india</guid>
+      <description>A fresh look at 257 fintech jobs across Razorpay, PhonePe, Paytm, CRED and Intuit. Free skill-gap analysis inside.</description>
+      <pubDate>Sun, 17 May 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>Hiring Map May 2026: 5 Surprises in 30,000+ India Jobs</title>

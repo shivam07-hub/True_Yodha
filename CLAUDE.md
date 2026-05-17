@@ -18,6 +18,7 @@
 - Never hardcode API keys — use `.env` files, never commit `.env`
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
+- **Long-term fixes only.** When hitting errors, identify root cause — never patch symptoms with try/except, type casts, `|| undefined`, or workarounds. If trade-offs are unclear, discuss with Shivam before writing code.
 - **Newsletter articles: collaborate before drafting.** Do NOT write a full newsletter article without first agreeing with Shivam on angle, dashboards/images, and heading. Two-line confirmation pass minimum. See VOICE-NOTES.md for protocol.
 
 ---
@@ -135,13 +136,14 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
-1. **`user_job_matches` design review** — Shivam wants clarification + design changes to this table. Discuss before next session touching match compute or Active Focus.
+1. ~~**`user_job_matches` design review**~~ ✅ DONE 2026-05-17 — Unique key changed to `(user_id, job_id)`, `action_plan` dropped, endpoint rebuilt.
 4. ~~**Intel page — job analytics loading screen**~~ ✅ DONE 2026-05-15 — Progress banner (3-step) + skeleton shimmer rows. Never blank. Banner disappears when all resolve.
 5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
-6. **Intel page — PR2: Run Analysis** — `POST /jobs/analyse/{job_id}` endpoint, deducts 50 XP, runs skill gap for single job, writes to `user_job_matches`. Wire "Analyse → 50 XP" button in Self Focus strip on home page.
+6. ~~**Intel page — PR2: Run Analysis**~~ ✅ DONE 2026-05-17 — `POST /jobs/analyse/{job_id}`: 50 XP, weighted overlap compute, LLM explanation, upserts to `user_job_matches`. Frontend already wired.
 7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
+   - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
 9. **Mobile — auth skeleton polish** — `AppShellSkeleton` shipped but `ready` resolves in ~1 frame (synchronous localStorage). If more polish needed: add staggered fade-in on skeleton → real content transition.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
@@ -251,6 +253,33 @@ application_reviews (
 )
 ```
 
+### v1 Scope Locked (2026-05-17 grill-me session)
+
+**Direction:** Editorial Dossier — extends existing `var(--tm-*)` aesthetic. No new Shadcn primitives. Reuses existing `ReviewModal`.
+
+**Decisions locked Q1–Q9:**
+- Q1: Move stale banner + review trigger to `/tracker`. Keep Self-Focus row on `/home`. Mental model: `/home` = today's work; `/tracker` = where everything is.
+- Q2: Tabs `Active | Verdicts` on `/tracker`. Verdicts = single chronological list with outcome chip + `Review pending →` chip on unreviewed rows.
+- Q3: Mobile = stage-pill carousel filter (`Saved 4 · Applied 7 · …`) with URL state `?stage=`. Status change = bottom sheet picker (reuse `MobileProfileSheet` pattern). Add `/tracker` to sidebar + mobile bottom nav (5 slots).
+- Q4: **No DnD library.** Click-to-change picker only — popover on desktop, sheet on mobile. Same idiom both viewports. Skip `@dnd-kit`.
+- Q5: One-time SQL migration of legacy statuses (`pending→saved`, `Responded→screening`, `No response→ghosted`, `Abandoned→withdrew`) + fix the four writer call-sites still emitting `"pending"` (`job_importer.py:226, 247`; `cv_generator.py:146`; `plan.py:41, 43, 142, 157`). Optional defensive `CHECK` constraint.
+- Q6: Offer = gold-leaf rule + serif stamp on card. **One-time** subtle sparkle (~1.2s, 8–12 gold/teal dots) on first-ever offer per user, anchored on the card. Track via new `user_profiles.first_offer_at TIMESTAMPTZ` column.
+- Q7: Clock resets on **any status change** (forward, backward, to outcome). Dismiss (✕) **snoozes 7 days** by bumping a new `job_applications.last_stage_changed_at TIMESTAMPTZ` column. Stale query switches from `updated_at` to this new column. New endpoint: `POST /jobs/applications/{job_id}/dismiss-stale`.
+- Q8: `+ Track` on `/jobs` lands in **Saved**. Rename label `+ Track → + Save`. Post-save toast: `Saved. View in Tracker →`.
+- Q9: **Full manual add with JD parsing** — reuses existing `/jobs/import/preview` + `/jobs/import` endpoints. Two-step modal: details → confirm extracted skills. Adds `status` field to `JobImportRequest` (default `"saved"`, manual modal sends `"applied"`). Analyse cost is **10 XP** (`ANALYSE_XP_COST = 10` already in `analyse.py:14` — last session summary line "50 XP cost (was 10)" is stale).
+
+**v2 deferred (Process Transparency Layer):**
+- Inline edit of manual-add company/role/JD after save (v1 = delete + re-add)
+- CSV / bulk manual import
+- Skill chip autocomplete on `+ add` in Step 2 of manual modal (v1 = plain text)
+- Offer-specific review modal copy ("Tell others how you got here") — v1 uses generic copy across all 4 outcomes
+- Optional defensive `CHECK` constraint on `job_applications.status` (nice-to-have)
+- Two-column dismiss/stage-change split (v1 = single `last_stage_changed_at` column bumped by both; v2 = separate `stale_dismissed_at` if a downstream consumer ever needs purity)
+- Edit/delete own reviews independently of the application row
+- Manual drag-to-reorder within a tracker column (v1 = deterministic sort by `last_stage_changed_at`)
+- Soft-delete with restore window (only if data shows users regret deletes)
+- Bulk delete / multi-select on tracker
+
 ---
 
 ## LAST SESSION SUMMARY (2026-05-16)
@@ -285,10 +314,131 @@ Shipped to Develop:
   - frontend/app/layout.tsx (viewportFit)
 
 Open (next sessions):
-  - Backlog #6: PR2 Run Analysis endpoint + 50 XP deduction
-  - Backlog #3: user_job_matches design review (discuss Shivam first)
   - Backlog #8: Process Transparency Layer
   - Backlog #9: Auth skeleton staggered fade-in polish (minor)
+  - Intel page perf candidates (heatmap cache, search cache, optimistic follow)
+  - Shareability v1: public profile /profile/{token}
+```
+---
+## LAST SESSION SUMMARY (2026-05-17 · CV Builder v2)
+```
+CV Builder rebuilt as Git-commit-style playground. /skills absorbs deprecated CV-left lenses.
+
+Locked via /grill-me + /frontend-design (T2 Layered Cards):
+  - Q2  drop Tech/Domain/Soft pivot
+  - Q3  /skills view-mode toggle: Domains | Audit (reuses SkillAuditView)
+  - Q4  level correction + AI advice migrate into SkillCard
+  - Q5  Path A parser-first
+  - Q6  LLM-extend single prompt → skills + structured payload
+  - Q7  cv_history.cv_structured JSONB
+  - Q8  lazy backfill on /cv visit (reparse_structured_only)
+  - Q9  bullet-level Exp/Proj · section-level Edu/Skills/Certs/Summary
+  - Q10 per-job state on job_cv_variants.hidden_items
+  - Q11 Save = NEW row, monotonic job_version_number
+  - Q12 unlimited versions, Q13 default = latest, Q14 jobId required
+  - Q15 live preview (client-side renderDeterministic) + explicit Save
+  - Q16 job-match badges (lowercase substring · target skills from /skill-gap)
+  - Q17 kill Generate-Job-CV + Generate-Next-CV-Draft on /cv. AI polish per-version.
+  - Q18 picker dropdown · auto title v{n}·timestamp · no-delete (immutable) ·
+        Git-commit model: polish + edit create NEW versions, parent_version_id chain
+  - Q18e baseline immutable, only polished bullets editable
+
+Schema (database/migrations/20260517_cv_builder_v2.sql):
+  - cv_history.cv_structured JSONB
+  - job_cv_variants: + job_version_number, parent_version_id, hidden_items JSONB,
+    edited_items JSONB, title, version_kind ('deterministic'|'polished'|'edited')
+  - dropped UNIQUE(snapshot_hash), added UNIQUE(user_id, job_id, job_version_number)
+  - existing rows backfilled (job_version_number via row_number() partitioned)
+
+Backend (250 tests pass):
+  - cv_parser.py: _SYSTEM_PROMPT now returns {skills, structured}.
+    _parse_llm_json returns (skills, structured) tuple. _validate_structured
+    coerces LLM output into stable shape. parse_cv / parse_cv_text return
+    cv_structured key. New reparse_structured_only() for lazy backfill.
+  - cv_workflow.py: persists cv_structured on ingest. get_or_backfill_cv_structured()
+    lazy-fills NULL on /cv visit.
+  - services/cv_compose.py NEW: djb2 stable item_id + render_deterministic().
+    Backend mirror of frontend lib/cv-compose.ts.
+  - routers/cv/structured.py NEW: GET /cv/structured.
+  - routers/jobs/cv_versions.py NEW: list / create / polish / edit endpoints
+    under /jobs/{job_id}/cv-versions/. Each Save / Polish / Edit = new row.
+    Polish reuses llm_polish._call_ai_polish on parent.deterministic_text.
+    Edit applies edited_items diff to parent.polished_text → new row.
+  - repositories/cv.py: update_cv_history_structured() for lazy backfill.
+
+Frontend (tsc + lint green):
+  - lib/cv-compose.ts NEW: djb2 itemId + collectItems + renderDeterministic.
+    Mirror of backend cv_compose.py.
+  - lib/api.ts: CVStructured / JobCVVersion types + cv.structured + cv.versions
+    {list, create, polish, edit}. Old cv.generateDraft removed from /cv-page
+    scope (home/page.tsx jobs.generateJobCv kept — different surface).
+  - lib/domain-data.ts: cvStructured(), cvVersions(jobId) keys.
+  - components/skills/skill-audit-view.tsx NEW (moved from cv/page.tsx).
+  - components/skills/skill-card.tsx: + expand panel with L0–L5 picker
+    (users.correctSkillLevel) + ★ Level-up advice (users.skillLevelUpAdvice).
+  - app/skills/page.tsx: VIEW pill `Domains | ◈ Audit` (replaces accordion when
+    Audit). Sort/Show pills hidden in Audit mode.
+  - app/cv/page.tsx FULL REWRITE (~360 lines): 3 modes — no-CV nudge, baseline+
+    no-jobId (read-only + "Pick a target job →" CTA), playground+versions.
+  - components/cv/cv-playground.tsx NEW: SectionShell + BulletRow + MatchBadge
+    + EyeToggle. Bullet-level toggle on Exp/Proj. Section-level toggle on
+    Summary/Edu/Skills/Certs. Live opacity+strikethrough on hidden items.
+  - components/cv/version-picker.tsx NEW: dropdown showing parent chain +
+    per-row actions (★ Polish · ✎ Edit polished · 📄 PDF).
+  - Edit modal: textarea, save creates new child version via cv.versions.edit.
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - home/page.tsx jobs.generateJobCv: still wired, consider killing in cleanup pass
+  - cv/variants.py legacy generate-draft + save-draft routes still exist —
+    no callers; safe to delete in cleanup pass
+  - Intel page perf candidates
+  - Shareability v1: /profile/{token}
+```
+
+---
+## PREV SESSION SUMMARY (2026-05-17 · CV upgrade loop + user_job_matches)
+```
+CV upgrade loop closed + user_job_matches design overhaul.
+
+Shipped to Develop:
+
+  CV UPGRADE LOOP (Candidates 3+4):
+  - CVCol box deleted from HomeColumns.tsx — removed "Rewrite CV line" (100 XP)
+    and "Download tailored CV" (50 XP) buttons entirely.
+  - handleSpendXP removed from home/page.tsx (no more callers).
+  - "Open CV Builder →" link added to JobCard.tsx → /cv?jobId={job.job_id}
+    CV page already reads jobId param — flow works end-to-end.
+
+  USER_JOB_MATCHES REDESIGN:
+  - DB migration: deduplicated rows, unique key (user_id, job_id, batch_week)
+    → (user_id, job_id). action_plan column dropped.
+  - llm_ranker.py: action_plan removed from prompt + persist_matches + fallback.
+  - schemas/jobs.py: ActionPlanDay class deleted, action_plan removed from
+    JobMatchResponse.
+  - schemas/__init__.py: ActionPlanDay removed from imports + __all__.
+  - routers/jobs/_shared.py: ActionPlanDay removed, to_job_match cleaned.
+  - repositories/jobs.py: on_conflict → "user_id,job_id"; action_plan removed
+    from SELECT query.
+  - routers/jobs/analyse.py: full rewrite — 50 XP cost (was 10), weighted
+    overlap formula (PRIMARY_WEIGHT=2/SECONDARY_WEIGHT=1, no 3-match threshold),
+    LLM explanation via provider chain, upsert without action_plan.
+  - lib/api.ts: ActionPlanDay interface deleted, action_plan removed from JobMatch.
+
+  PERMANENT RULES ADDED:
+  - Long-term fixes only — no quick patches. Saved to CLAUDE.md + memory.
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - Backlog #9: Auth skeleton fade-in polish (minor)
+  - Intel page perf candidates
+  - Shareability v1: /profile/{token}
+```
+---
+## PREV SESSION SUMMARY (2026-05-16)
+```
+Skill Intelligence page redesign (Phases 1–3) + mobile layout overhaul.
+(See SKILL INTELLIGENCE PAGE — REDESIGN TRACKER above for full detail.)
 ```
 ---
 ## PREV SESSION SUMMARY (2026-05-15)

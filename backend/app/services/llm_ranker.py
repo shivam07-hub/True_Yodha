@@ -75,14 +75,12 @@ Return a JSON array of {len(top_jobs)} objects, best fit first:
   {{
     "job_id": "<string>",
     "rank": <1–5>,
-    "explanation": "<2 sentences: why this job fits this candidate>",
-    "action_plan": null
+    "explanation": "<2 sentences: why this job fits this candidate>"
   }}
 ]
 
 Rules:
 - explanation: 2 sentences max, specific to this candidate's actual skill profile
-- action_plan: always null
 - Return valid JSON only — no text outside the array"""
 
 
@@ -158,7 +156,6 @@ def persist_matches(
             "overlap_score": job["overlap_score"],
             "llm_rank": llm_data.get("rank"),
             "llm_explanation": llm_data.get("explanation"),
-            "action_plan": llm_data.get("action_plan") or [],
             "matched_skills": job.get("matched_skills") or [],
             "computed_at": now,
         })
@@ -190,7 +187,7 @@ async def rank_and_persist(
     if ranked is None:
         logger.warning("LLM ranking failed for user %s — storing overlap scores only", user_id)
         ranked = [
-            {"job_id": j["job_id"], "rank": i + 1, "explanation": None, "action_plan": None}
+            {"job_id": j["job_id"], "rank": i + 1, "explanation": None}
             for i, j in enumerate(top_jobs)
         ]
 

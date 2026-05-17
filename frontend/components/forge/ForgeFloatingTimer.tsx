@@ -99,8 +99,9 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
         <button
           onClick={() => setMinimized(false)}
           title="Expand Forge timer"
+          className="fft-anchor"
           style={{
-            position: "fixed", bottom: 24, right: 24, zIndex: 200,
+            zIndex: 200,
             display: "flex", alignItems: "center", gap: 8,
             padding: "6px 12px 6px 8px", borderRadius: 999,
             background: "rgba(7,7,17,0.95)",
@@ -137,8 +138,10 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
 
   // ── Expanded card ─────────────────────────────────────────────────────────────
   return createPortal(
-    <div style={{
-      position: "fixed", bottom: 24, right: 24, zIndex: 200, width: 264,
+    <div className="fft-anchor" style={{
+      zIndex: 200, width: 264,
+      maxHeight: "calc(100dvh - 48px)",
+      display: "flex", flexDirection: "column",
       background: "rgba(7,7,17,0.97)",
       border: `1px solid ${isComplete ? "rgba(74,222,128,0.4)" : "var(--tm-accent-ring)"}`,
       borderRadius: "var(--tm-radius-lg, 16px)", backdropFilter: "blur(20px)",
@@ -165,8 +168,8 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
         </div>
       </div>
 
-      {/* Ring + skill info */}
-      <div style={{ padding: "16px 16px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      {/* Ring + skill info — scrollable when viewport short */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 16px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <div style={{ position: "relative" }}>
           <svg width={88} height={88} viewBox="0 0 88 88" style={{ transform: "rotate(-90deg)" }}>
             <circle cx={44} cy={44} r={RING_R} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={3} />
@@ -276,6 +279,17 @@ const iconBtnStyle: React.CSSProperties = {
 }
 
 const FFT_STYLES = `
+  .fft-anchor {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+  }
+  @media (max-width: 768px) {
+    .fft-anchor {
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      right: 12px;
+    }
+  }
   @keyframes fft-entrance {
     0%   { opacity: 0; transform: translateY(16px) scale(0.93); }
     60%  { transform: translateY(-3px) scale(1.01); }

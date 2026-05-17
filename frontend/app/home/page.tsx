@@ -10,11 +10,10 @@ import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { ForgeModal } from "@/components/forge/ForgeModal"
 import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
-import { ReviewModal } from "@/components/home/ReviewModal"
 import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
 import { SkillGapCol } from "@/components/home/HomeColumns"
-import { cv, diary, jobs, scores, users, xp, APPLICATION_OUTCOMES } from "@/lib/api"
+import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
@@ -57,8 +56,7 @@ function HomePageInner() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [proofText, setProofText] = useState("")
   const [confidence] = useState(3)
-  const [reviewJobId, setReviewJobId] = useState<string | null>(null)
-  const [dismissedStale, setDismissedStale] = useState<Set<string>>(new Set())
+  // Stale banner + ReviewModal moved to /tracker (PTL v1 — Q1, Q11). Self-Focus stays here.
 
   const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
   const { sessionActive, dismissed, startSession, setRunning: setForgeTimerRunning } = useForgeTimerStore()
@@ -72,7 +70,6 @@ function HomePageInner() {
   const { data: applications } = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobs.applications(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const historyQuery = useQuery({ queryKey: dataKeys.diary(), queryFn: () => diary.history(token!), enabled: !!token })
   const { data: evidenceData } = useQuery({ queryKey: dataKeys.cvEvidence(), queryFn: () => cv.evidence(token!), enabled: !!token, staleTime: 5 * 60 * 1000 })
-  const { data: staleApps } = useQuery({ queryKey: dataKeys.staleApplications(), queryFn: () => jobs.staleApplications(token!), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
   const allMatchedJobs = useMemo(() => jobsData?.jobs ?? [], [jobsData])
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
@@ -163,10 +160,9 @@ function HomePageInner() {
   const saveEntry = useMutation({ mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) => diary.createEntry(token!, text, undefined, cart.map(s => ({ ...s }))), onSuccess: () => { addBalance(30); clearCart(); showToast("+30 XP · entry logged"); queryClient.invalidateQueries({ queryKey: dataKeys.diary() }); queryClient.invalidateQueries({ queryKey: dataKeys.scores() }) } })
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) => jobs.updateApplication(token!, jobId, { status }),
-    onSuccess: (_data, { jobId, status }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
       queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
-      if (APPLICATION_OUTCOMES.includes(status)) setReviewJobId(jobId)
     },
   })
   const removeSelfFocus = useMutation({ mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId), onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }) })
@@ -177,7 +173,7 @@ function HomePageInner() {
     onSettled: () => setAnalysingJobId(null),
     onSuccess: (data, jobId) => {
       setXPBalance(data.new_xp_balance)
-      showToast(`Analysed · ${data.overlap_score}% match · −50 XP`)
+      showToast(`Analysed · ${data.overlap_score}% match · −10 XP`)
       clearLocalCache(userCacheKey(token!, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
@@ -308,7 +304,7 @@ function HomePageInner() {
                   <button
                     onClick={() => analyseMutation.mutate(a.job_id)}
                     disabled={analysingJobId === a.job_id}
-                    title="Run skill gap analysis (−50 XP)"
+                    title="Run skill gap analysis (−10 XP)"
                     style={{
                       display: "inline-flex", alignItems: "center",
                       fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
@@ -318,7 +314,7 @@ function HomePageInner() {
                       opacity: analysingJobId === a.job_id ? 0.5 : 1,
                     }}
                   >
-                    {analysingJobId === a.job_id ? "…" : "Analyse → 50 XP"}
+                    {analysingJobId === a.job_id ? "…" : "Analyse → 10 XP"}
                   </button>
                   <button
                     onClick={() => removeSelfFocus.mutate(a.job_id)}
@@ -332,37 +328,7 @@ function HomePageInner() {
           </div>
         )}
 
-        {/* Stale applications prompt */}
-        {staleApps && staleApps.filter(a => !dismissedStale.has(a.job_id)).length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {staleApps.filter(a => !dismissedStale.has(a.job_id)).map(a => (
-              <div key={a.job_id} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 8, padding: "8px 14px", flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "rgba(251,191,36,0.9)", marginRight: 4 }}>⏱</span>
-                <span style={{ fontSize: 13, color: "var(--tm-text-muted)", flex: 1 }}>
-                  Been 7 days since we last heard from <strong style={{ color: "var(--tm-text)" }}>{a.company ?? a.title}</strong>
-                </span>
-                <button
-                  onClick={() => updateStatus.mutate({ jobId: a.job_id, status: "ghosted" })}
-                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 99, background: "rgba(251,113,133,0.1)", border: "1px solid rgba(251,113,133,0.3)", color: "var(--tm-danger)", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Ghosted me
-                </button>
-                <button
-                  onClick={() => { setActiveJobId(a.job_id); setDismissedStale(prev => new Set(Array.from(prev).concat(a.job_id))) }}
-                  style={{ fontSize: 12, padding: "4px 10px", borderRadius: 99, background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  Update tracker
-                </button>
-                <button
-                  onClick={() => setDismissedStale(prev => new Set(Array.from(prev).concat(a.job_id)))}
-                  style={{ display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: "50%", background: "transparent", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, padding: 0 }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Stale banner moved to /tracker (PTL v1, Q1+Q11). */}
 
         {/* Main content: job detail OR matched jobs grid */}
         {activeJob ? (
@@ -415,13 +381,7 @@ function HomePageInner() {
 
       <DiaryPanel open={diaryOpen} onClose={closeDiary} initialText={diaryInitialText} cartSkills={cartSkills} onAddSkill={addSkill} onRemoveSkill={removeSkill} gapSkills={gapSkills.map(g => ({ skill: g.skill, user_level: g.user_level, required_level: g.required_level }))} activeCompany={activeJob?.company} onSubmit={handleDiarySubmit} recentEntries={entries} />
 
-      {reviewJobId && (
-        <ReviewModal
-          company={apps.find(a => a.job_id === reviewJobId)?.company ?? null}
-          onClose={() => setReviewJobId(null)}
-          onSubmit={async (data) => { await jobs.submitReview(token!, reviewJobId, data); setReviewJobId(null); showToast("Review submitted") }}
-        />
-      )}
+      {/* ReviewModal trigger moved to /tracker (PTL v1, Q1). */}
     </AppShell>
   )
 }

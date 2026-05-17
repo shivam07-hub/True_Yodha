@@ -31,30 +31,41 @@ const BASE = "https://www.himyro.com"
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) return {}
-  const title = `${issue.title} | Myro Weekly`
+  const title = issue.seoTitle ? `${issue.seoTitle} | Myro` : `${issue.title} | Myro Weekly`
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const absoluteOgImage = issue.ogImage
     ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`
+    : undefined
+  const ogImages = absoluteOgImage
+    ? [{ url: absoluteOgImage, width: 1200, height: 630, alt: issue.ogImageAlt ?? issue.title }]
     : undefined
   const isoDate = new Date(issue.publishedAt).toISOString()
   return {
     title,
     description: issue.summary,
     alternates: { canonical: canonicalUrl },
-    robots: { index: true, follow: true },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+      },
+    },
     openGraph: {
       title,
       description: issue.summary,
       type: "article",
       url: canonicalUrl,
       publishedTime: isoDate,
-      ...(absoluteOgImage && { images: [absoluteOgImage] }),
+      ...(ogImages && { images: ogImages }),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: issue.summary,
-      ...(absoluteOgImage && { images: [absoluteOgImage] }),
+      ...(ogImages && { images: ogImages }),
     },
   }
 }
@@ -94,7 +105,7 @@ export default async function IssuePage({ params }: Props) {
     {
       "@context": "https://schema.org",
       "@type": "Article",
-      headline: issue.title,
+      headline: issue.seoTitle ?? issue.title,
       datePublished: isoDate,
       description: issue.summary,
       author: { "@type": "Person", name: authorName },

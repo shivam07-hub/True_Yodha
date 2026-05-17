@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.schemas import ActionPlanDay, ApplicationResponse, JobMatchResponse
+from app.schemas import ApplicationResponse, JobMatchResponse
 
 
 def last_monday() -> date:
@@ -10,7 +10,6 @@ def last_monday() -> date:
 
 def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     job = row.get("jobs") or {}
-    action_plan = [ActionPlanDay(**day) for day in (row.get("action_plan") or [])]
     return JobMatchResponse(
         id=row["id"],
         job_id=row["job_id"],
@@ -26,7 +25,6 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         overlap_score=row.get("overlap_score", 0),
         llm_rank=row.get("llm_rank"),
         llm_explanation=row.get("llm_explanation"),
-        action_plan=action_plan,
         batch_week=batch_week,
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
@@ -52,4 +50,5 @@ def to_application(row: dict) -> ApplicationResponse:
         offer_received_at=row.get("offer_received_at"),
         notes=row.get("notes"),
         created_at=row["created_at"],
+        last_stage_changed_at=row.get("last_stage_changed_at"),
     )

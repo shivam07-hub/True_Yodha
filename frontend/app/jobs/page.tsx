@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
@@ -22,6 +23,7 @@ export default function JobsPage() {
   const [search, setSearch] = useState("")
   const [selectedCity, setSelectedCity] = useState("")
   const [selectedMode, setSelectedMode] = useState("")
+  const [saveToast, setSaveToast] = useState(false)
 
   const { isRefreshing, notice: refreshNotice, isExhausted: matchesExhausted, refresh: refreshMatches, cleanup } = useMatchRefresh(token, queryClient)
 
@@ -56,7 +58,12 @@ export default function JobsPage() {
 
   const track = useMutation({
     mutationFn: (jobId: string) => jobs.updateApplication(token!, jobId, { status: "saved" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
+      setSaveToast(true)
+      setTimeout(() => setSaveToast(false), 4000)
+    },
   })
 
   const filtered = useMemo(() => {
@@ -210,6 +217,31 @@ export default function JobsPage() {
           )}
         </div>
       </div>
+
+      {saveToast && (
+        <div
+          aria-live="polite"
+          style={{
+            position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+            background: "var(--tm-surface)", color: "var(--tm-text)",
+            border: "1px solid var(--tm-accent-ring)",
+            padding: "8px 18px", borderRadius: 99,
+            fontSize: 13, fontFamily: "inherit",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            zIndex: 300, display: "flex", alignItems: "center", gap: 12,
+          }}
+        >
+          <span>Saved.</span>
+          <Link
+            href="/tracker?stage=saved"
+            style={{
+              color: "var(--tm-accent)", textDecoration: "none", fontWeight: 600,
+            }}
+          >
+            View in Tracker →
+          </Link>
+        </div>
+      )}
     </AppShell>
   )
 }

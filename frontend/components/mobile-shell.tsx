@@ -3,10 +3,14 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
 import { FEEDBACK_ACTIONS, FeedbackModal } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
+import { jobs as jobsApi } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 const SHIMMER: React.CSSProperties = {
   background: "var(--tm-surface-2)",
@@ -61,11 +65,12 @@ export function AppShellSkeleton() {
   )
 }
 
-const MOBILE_NAV = [
-  { href: "/home",   label: "Dashboard", icon: null },
-  { href: "/market", label: "Intel",     icon: "◉" },
-  { href: "/skills", label: "Skills",    icon: "⬡" },
-  { href: "/cv",     label: "CV",        icon: "◈" },
+const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stalePill?: boolean }> = [
+  { href: "/home",    label: "Dashboard", icon: null },
+  { href: "/market",  label: "Intel",     icon: "◉" },
+  { href: "/skills",  label: "Skills",    icon: "⬡" },
+  { href: "/cv",      label: "CV",        icon: "◈" },
+  { href: "/tracker", label: "Tracker",   icon: "▤", stalePill: true },
 ]
 
 export function MobileTopBar({ xpBalance, profile, onAvatarClick }: {
@@ -115,6 +120,31 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick }: {
   )
 }
 
+function MobileStaleBadge() {
+  const { token } = useAuth()
+  const { data } = useQuery({
+    queryKey: dataKeys.staleApplications(),
+    queryFn: () => jobsApi.staleApplications(token!),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  })
+  const n = data?.length ?? 0
+  if (n === 0) return null
+  return (
+    <span
+      style={{
+        position: "absolute", top: -4, right: -8,
+        minWidth: 13, height: 13, borderRadius: 99,
+        background: "var(--tm-danger)", color: "white",
+        fontSize: 9, fontFamily: "var(--tm-font-mono)",
+        display: "grid", placeItems: "center", padding: "0 3px",
+      }}
+    >
+      {n > 9 ? "9+" : n}
+    </span>
+  )
+}
+
 export function MobileBottomNav() {
   const pathname = usePathname()
 
@@ -134,22 +164,25 @@ export function MobileBottomNav() {
               color,
             }}
           >
-            {item.icon === null ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                style={{ filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none" }}>
-                <path
-                  d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
-                  fill="currentColor"
-                />
-              </svg>
-            ) : (
-              <span style={{
-                fontSize: 18, lineHeight: 1,
-                filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
-              }}>
-                {item.icon}
-              </span>
-            )}
+            <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {item.icon === null ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  style={{ filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none" }}>
+                  <path
+                    d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              ) : (
+                <span style={{
+                  fontSize: 18, lineHeight: 1,
+                  filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
+                }}>
+                  {item.icon}
+                </span>
+              )}
+              {item.stalePill && <MobileStaleBadge />}
+            </span>
             <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, letterSpacing: "0.01em" }}>
               {item.label}
             </span>

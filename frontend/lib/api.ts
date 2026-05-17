@@ -357,6 +357,52 @@ export interface CVGenerateDraftResponse {
   new_xp_balance: number | null
 }
 
+export interface CVEducationItem {
+  institution: string
+  degree: string
+  dates: string
+  grade: string
+  location: string
+}
+
+export interface CVExperienceItem {
+  company: string
+  role: string
+  dates: string
+  location: string
+  bullets: string[]
+}
+
+export interface CVProjectItem {
+  name: string
+  dates: string
+  bullets: string[]
+}
+
+export interface CVStructured {
+  summary: string | null
+  education: CVEducationItem[]
+  experience: CVExperienceItem[]
+  projects: CVProjectItem[]
+  skills_line: string | null
+  certs: string[]
+}
+
+export type CVVersionKind = "deterministic" | "polished" | "edited"
+
+export interface JobCVVersion {
+  id: number
+  job_version_number: number
+  parent_version_id: number | null
+  version_kind: CVVersionKind
+  title: string | null
+  hidden_items: string[]
+  edited_items: Record<string, string>
+  deterministic_text: string
+  polished_text: string | null
+  created_at: string
+}
+
 export const cv = {
   me: (token: string) =>
     request<CVProfile>("/cv/me", {
@@ -366,9 +412,8 @@ export const cv = {
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  generateDraft: (token: string) =>
-    request<CVGenerateDraftResponse>("/cv/generate-draft", {
-      method: "POST",
+  structured: (token: string) =>
+    request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   saveDraft: (token: string, cvText: string) =>
@@ -377,6 +422,35 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ cv_text: cvText }),
     }),
+  versions: {
+    list: (token: string, jobId: string) =>
+      request<{ versions: JobCVVersion[] }>(`/jobs/${jobId}/cv-versions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    create: (token: string, jobId: string, hiddenItems: string[], title?: string) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden_items: hiddenItems, title }),
+      }),
+    polish: (token: string, jobId: string, versionId: number) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/polish`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    edit: (
+      token: string,
+      jobId: string,
+      versionId: number,
+      editedItems: Record<string, string>,
+      title?: string,
+    ) =>
+      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/edit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ edited_items: editedItems, title }),
+      }),
+  },
   downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",
@@ -493,7 +567,6 @@ export interface JobMatch {
   overlap_score: number
   llm_rank: number | null
   llm_explanation: string | null
-  action_plan: ActionPlanDay[]
   batch_week: string
   source_url: string | null
   matched_skills: string[]
@@ -506,12 +579,6 @@ export interface JobMatchesResponse {
   total: number
   feed_updated_at: string | null
   matches_computed_at: string | null
-}
-
-export interface ActionPlanDay {
-  day: number
-  focus: string
-  tasks: string[]
 }
 
 export interface ComputeJobMatchesResponse {
@@ -620,6 +687,8 @@ export interface ApplicationResponse {
   offer_received_at?: string | null
   notes: string | null
   created_at: string
+  last_stage_changed_at?: string | null
+  is_first_offer?: boolean
 }
 
 export interface JobPathTarget {
@@ -954,6 +1023,49 @@ export const jobs = {
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismissStale: (token: string, jobId: string) =>
+    request<void>(`/jobs/applications/${encodeURIComponent(jobId)}/dismiss-stale`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  importPreview: (
+    token: string,
+    body: { role_name: string; company_name?: string | null; location?: string | null; job_description: string; source_url?: string | null },
+  ) =>
+    request<{
+      role_name: string
+      company_name: string | null
+      location: string | null
+      job_description: string
+      primary_skills: Array<{ label: string; taxonomy_key: string | null; confidence: number }>
+      secondary_skills: Array<{ label: string; taxonomy_key: string | null; confidence: number }>
+      emerging_skills: Array<{ label: string; skill_type: string; source: string }>
+      warnings: string[]
+    }>("/jobs/import/preview", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  importJob: (
+    token: string,
+    body: {
+      role_name: string
+      company_name?: string | null
+      location?: string | null
+      job_description: string
+      source_url?: string | null
+      source_platform?: string | null
+      primary_skills: string[]
+      secondary_skills: string[]
+      emerging_skills?: Array<{ label: string; skill_type: string; source: string }>
+      status?: ApplicationStatus
+    },
+  ) =>
+    request<ApplicationResponse>("/jobs/import", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ emerging_skills: [], ...body }),
     }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {

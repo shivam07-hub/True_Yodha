@@ -22,7 +22,6 @@ from app.schemas.xp import (
     XPSpendRequest,
 )
 from app.schemas.jobs import (
-    ActionPlanDay,
     APPLICATION_STAGES,
     APPLICATION_OUTCOMES,
     APPLICATION_STATUSES,
@@ -92,7 +91,7 @@ __all__ = [
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
     "XPBalanceResponse", "XPSpendRequest", "ForgeCompleteRequest", "ForgeSessionResponse",
     "APPLICATION_STAGES", "APPLICATION_OUTCOMES", "APPLICATION_STATUSES",
-    "ActionPlanDay", "JobMatchResponse", "JobMatchesResponse",
+    "JobMatchResponse", "JobMatchesResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ApplicationReviewRequest", "ApplicationReviewResponse",
     "CompanyPageResponse", "CompanyReviewItem", "StaleApplicationItem",
     "ComputeJobMatchesResponse", "JobComputeStatusResponse",

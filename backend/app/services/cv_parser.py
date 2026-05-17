@@ -100,9 +100,22 @@ def _extract_text_docx(file_bytes: bytes) -> str:
 
 # ── LLM extraction ────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, extract a comprehensive list of their professional skills using Lightcast Open Skills standardised skill names.
+_SYSTEM_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, return BOTH a comprehensive Lightcast-skill list AND a structured breakdown of the CV's sections.
 
-For each skill, include:
+Return JSON only — no prose, no markdown fences. Top-level shape:
+{
+  "skills":     [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}],
+  "structured": {
+    "summary":     "string | null",
+    "education":   [{"institution":"...","degree":"...","dates":"...","grade":"...","location":"..."}],
+    "experience":  [{"company":"...","role":"...","dates":"...","location":"...","bullets":["...", "..."]}],
+    "projects":    [{"name":"...","dates":"...","bullets":["...", "..."]}],
+    "skills_line": "string | null",
+    "certs":       ["...", "..."]
+  }
+}
+
+For each skill in "skills":
   - "taxonomy_key": the Lightcast skill name. Prefer canonical forms — e.g. "Python (Programming Language)" not just "Python", "SQL (Programming Language)" not "SQL", "Data Warehousing", "Stakeholder Management".
   - "signal_type": one of: "mention", "project", "impact", "leadership"
       mention    — named in a skills list only, no evidence of use
@@ -111,83 +124,160 @@ For each skill, include:
       leadership — led design, architecture, or team using this skill
   - "evidence": a short phrase or sentence from the CV that justifies the signal (≤200 chars)
 
-Rules:
+Skill rules:
   - Include hard skills, tools, methodologies, AND human skills when evidenced
   - Skip generic filler ("Innovation", "Collaboration" alone) unless there is concrete evidence tied to a project/outcome
   - If the CV mentions a skill in multiple contexts, use the HIGHEST signal_type
   - Return 20–50 skills. Extract only what is evidenced — do not invent skills
   - Use proper Lightcast capitalisation (e.g. "Apache Spark", "Amazon Web Services (AWS)")
 
-Return JSON only — no prose, no markdown fences. Shape:
-{"skills": [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}]}"""
+Structured-section rules:
+  - "summary": the opening paragraph / objective if present, else null
+  - "education": every degree row. Use empty string for missing fields, not omission. dates as printed (e.g. "March 2024", "Jun 2020")
+  - "experience": every role. Preserve role order top→bottom of CV. "bullets" = each "•" / "-" / numbered line under that role, verbatim, ≤300 chars each. No bullet-merging. If a role has no bullets, return [].
+  - "projects": only true "Projects" / "Personal Projects" sections. Do NOT duplicate role-level work as projects.
+  - "skills_line": the single skills paragraph (comma/pipe-separated list) verbatim, or null if no dedicated skills section
+  - "certs": each certification as a single string. Empty array if none.
+  - Do NOT invent fields, dates, or bullets. Extract only what is present in the CV text."""
 
 
-async def _llm_extract(cv_text: str) -> list[dict] | None:
-    """Delegate to the shared LLM provider chain with temperature=0 for JSON output.
+async def _llm_extract(cv_text: str) -> tuple[list[dict] | None, dict | None]:
+    """Single LLM call → (skills, cv_structured).
 
     Returns:
-        list[dict]  — skills extracted (may be empty if the LLM found none)
-        None        — every provider either threw an exception or returned
-                      unparseable output; caller should treat as infrastructure
-                      failure, not as "no skills in CV"
+        (list[dict], dict)  — both extracted cleanly
+        (list[dict], None)  — skills parsed but structured payload missing/invalid (degraded but usable)
+        (None, None)        — every provider failed or returned unparseable output
     """
     truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": (
             f"CV text:\n---\n{truncated}\n---\n\n"
-            "Extract the candidate's skills per the rules. Return JSON only."
+            "Return JSON only with top-level keys 'skills' and 'structured' per the rules."
         )},
     ]
     try:
-        raw = await get_llm_provider().complete(messages, max_tokens=2048, temperature=0)
+        raw = await get_llm_provider().complete(messages, max_tokens=4096, temperature=0)
     except LLMProviderError:
         logger.error("All CV extraction providers failed")
-        return None
+        return None, None
 
-    parsed = _parse_llm_json(raw)
-    if parsed is None:
+    skills, structured = _parse_llm_json(raw)
+    if skills is None:
         logger.warning("CV extraction: provider responded but returned unparseable JSON")
-    return parsed
+    elif structured is None:
+        logger.info("CV extraction: skills parsed but 'structured' payload missing")
+    return skills, structured
 
 
-def _parse_llm_json(text: str) -> list[dict] | None:
-    """Pull JSON out of an LLM response — tolerates code fences and prose.
+def _parse_llm_json(text: str) -> tuple[list[dict] | None, dict | None]:
+    """Pull skills + structured out of an LLM response — tolerates code fences.
 
     Returns:
-        list[dict]  — parsed skill list, may be empty (provider responded cleanly)
-        None        — could not locate or decode valid JSON (provider failure)
+        (list[dict], dict | None)  — skills parsed (possibly with structured payload)
+        (None, None)               — could not locate or decode valid JSON
     """
     if not text:
-        return None
+        return None, None
 
-    # Strip markdown code fences
     if "```" in text:
         match = re.search(r"```(?:json)?\s*(.+?)```", text, flags=re.DOTALL)
         if match:
             text = match.group(1).strip()
 
-    # Locate first JSON start
     start_obj = text.find("{")
     start_arr = text.find("[")
     starts = [s for s in (start_obj, start_arr) if s >= 0]
     if not starts:
-        return None
+        return None, None
 
     try:
         parsed, _ = json.JSONDecoder().raw_decode(text, min(starts))
     except json.JSONDecodeError:
         logger.warning("CV extractor: could not parse LLM response as JSON")
-        return None
+        return None, None
 
     if isinstance(parsed, list):
-        return parsed
+        # Legacy bare-list response — skills only, no structure.
+        return parsed, None
+
     if isinstance(parsed, dict):
-        # Expect {"skills": [...]} — but accept any list-valued field
-        for v in parsed.values():
-            if isinstance(v, list):
-                return v
-    return None
+        skills: list[dict] | None = None
+        structured: dict | None = None
+
+        if "skills" in parsed and isinstance(parsed["skills"], list):
+            skills = parsed["skills"]
+        else:
+            # Fallback: accept any list-valued field as skills (legacy clients).
+            for v in parsed.values():
+                if isinstance(v, list):
+                    skills = v
+                    break
+
+        if "structured" in parsed and isinstance(parsed["structured"], dict):
+            structured = _validate_structured(parsed["structured"])
+
+        return skills, structured
+
+    return None, None
+
+
+def _validate_structured(raw: dict) -> dict | None:
+    """Coerce LLM structured payload into a stable shape. Drops keys that don't fit."""
+    if not isinstance(raw, dict):
+        return None
+
+    def _list_of_dicts(v) -> list[dict]:
+        return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+
+    def _list_of_strs(v) -> list[str]:
+        return [str(x).strip() for x in v if isinstance(x, (str, int, float)) and str(x).strip()] if isinstance(v, list) else []
+
+    education = []
+    for row in _list_of_dicts(raw.get("education")):
+        education.append({
+            "institution": str(row.get("institution") or "").strip(),
+            "degree":      str(row.get("degree") or "").strip(),
+            "dates":       str(row.get("dates") or "").strip(),
+            "grade":       str(row.get("grade") or "").strip(),
+            "location":    str(row.get("location") or "").strip(),
+        })
+
+    experience = []
+    for row in _list_of_dicts(raw.get("experience")):
+        bullets = _list_of_strs(row.get("bullets"))
+        experience.append({
+            "company":  str(row.get("company") or "").strip(),
+            "role":     str(row.get("role") or "").strip(),
+            "dates":    str(row.get("dates") or "").strip(),
+            "location": str(row.get("location") or "").strip(),
+            "bullets":  [b[:300] for b in bullets],
+        })
+
+    projects = []
+    for row in _list_of_dicts(raw.get("projects")):
+        bullets = _list_of_strs(row.get("bullets"))
+        projects.append({
+            "name":    str(row.get("name") or "").strip(),
+            "dates":   str(row.get("dates") or "").strip(),
+            "bullets": [b[:300] for b in bullets],
+        })
+
+    summary = raw.get("summary")
+    summary = str(summary).strip() if isinstance(summary, str) and summary.strip() else None
+
+    skills_line = raw.get("skills_line")
+    skills_line = str(skills_line).strip() if isinstance(skills_line, str) and skills_line.strip() else None
+
+    return {
+        "summary":     summary,
+        "education":   education,
+        "experience":  experience,
+        "projects":    projects,
+        "skills_line": skills_line,
+        "certs":       _list_of_strs(raw.get("certs")),
+    }
 
 
 # ── Validation / Lightcast mapping ────────────────────────────────────────────
@@ -264,30 +354,36 @@ def extract_raw_text(file_bytes: bytes, file_type: str) -> str:
 
 
 async def parse_cv_text(raw_text: str) -> dict:
-    """Parse free-form self-description text and return detected skill signals.
+    """Parse free-form self-description text and return skill signals + structured sections.
 
     Result keys:
         skills_detected  — validated skill list (may be empty)
+        cv_structured    — {summary, education[], experience[], projects[], skills_line, certs[]} or None
         raw_text         — original input
         provider_failed  — True when every LLM provider errored or returned
                            unparseable output; False when at least one responded
                            with valid JSON (even if skills list is empty)
     """
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
-        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
+        return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
     if not _is_plausible_professional_text(raw_text):
         logger.info("CV text rejected as non-linguistic input (%d chars)", len(raw_text))
-        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
+        return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
-    raw_skills = await _llm_extract(raw_text)
+    raw_skills, structured = await _llm_extract(raw_text)
     provider_failed = raw_skills is None
     skills = _validate_and_normalize(raw_skills or [])
     logger.info(
-        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills (provider_failed=%s)",
-        len(raw_text), len(raw_skills or []), len(skills), provider_failed,
+        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills (structured=%s, provider_failed=%s)",
+        len(raw_text), len(raw_skills or []), len(skills), structured is not None, provider_failed,
     )
-    return {"skills_detected": skills, "raw_text": raw_text, "provider_failed": provider_failed}
+    return {
+        "skills_detected": skills,
+        "cv_structured":   structured,
+        "raw_text":        raw_text,
+        "provider_failed": provider_failed,
+    }
 
 
 async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
@@ -319,14 +415,87 @@ async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
 
     if len(raw_text) < _MIN_RAW_TEXT_LEN:
         logger.warning("CV extracted text is too short (%d chars) — likely scanned", len(raw_text))
-        return {"skills_detected": [], "raw_text": raw_text, "provider_failed": False}
+        return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
-    raw_skills = await _llm_extract(raw_text)
+    raw_skills, structured = await _llm_extract(raw_text)
     provider_failed = raw_skills is None
     skills = _validate_and_normalize(raw_skills or [])
     logger.info(
-        "CV parsed: %d chars → %d raw → %d validated Lightcast skills (provider_failed=%s)",
-        len(raw_text), len(raw_skills or []), len(skills), provider_failed,
+        "CV parsed: %d chars → %d raw → %d validated Lightcast skills (structured=%s, provider_failed=%s)",
+        len(raw_text), len(raw_skills or []), len(skills), structured is not None, provider_failed,
     )
 
-    return {"skills_detected": skills, "raw_text": raw_text, "provider_failed": provider_failed}
+    return {
+        "skills_detected": skills,
+        "cv_structured":   structured,
+        "raw_text":        raw_text,
+        "provider_failed": provider_failed,
+    }
+
+
+# ── Structured re-parse (lazy backfill) ───────────────────────────────────────
+
+_STRUCTURED_ONLY_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, return ONLY the structured section breakdown — no skills extraction.
+
+Return JSON only — no prose, no markdown fences. Shape:
+{
+  "summary":     "string | null",
+  "education":   [{"institution":"...","degree":"...","dates":"...","grade":"...","location":"..."}],
+  "experience":  [{"company":"...","role":"...","dates":"...","location":"...","bullets":["...", "..."]}],
+  "projects":    [{"name":"...","dates":"...","bullets":["...", "..."]}],
+  "skills_line": "string | null",
+  "certs":       ["...", "..."]
+}
+
+Rules:
+  - "summary": opening paragraph / objective if present, else null
+  - "education": every degree row. Use empty string for missing fields.
+  - "experience": every role. Preserve order. "bullets" = each "•" / "-" / numbered line under that role, verbatim, ≤300 chars each. No bullet-merging.
+  - "projects": only true "Projects" sections — do NOT duplicate role-level work.
+  - "skills_line": dedicated skills paragraph verbatim, or null
+  - "certs": each certification as a single string
+  - Do NOT invent fields, dates, or bullets."""
+
+
+async def reparse_structured_only(raw_text: str) -> dict | None:
+    """Re-parse existing cv_raw_text to fill cv_structured (lazy backfill).
+
+    Returns the validated structured payload or None on provider failure.
+    """
+    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+        return None
+
+    truncated = raw_text[:_CV_TEXT_CHAR_LIMIT]
+    messages = [
+        {"role": "system", "content": _STRUCTURED_ONLY_PROMPT},
+        {"role": "user", "content": (
+            f"CV text:\n---\n{truncated}\n---\n\n"
+            "Return JSON only with the structured sections per the rules."
+        )},
+    ]
+    try:
+        raw = await get_llm_provider().complete(messages, max_tokens=4096, temperature=0)
+    except LLMProviderError:
+        logger.error("Structured re-parse: all providers failed")
+        return None
+
+    if not raw:
+        return None
+
+    if "```" in raw:
+        match = re.search(r"```(?:json)?\s*(.+?)```", raw, flags=re.DOTALL)
+        if match:
+            raw = match.group(1).strip()
+
+    start = raw.find("{")
+    if start < 0:
+        return None
+    try:
+        parsed, _ = json.JSONDecoder().raw_decode(raw, start)
+    except json.JSONDecodeError:
+        logger.warning("Structured re-parse: unparseable JSON")
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+    return _validate_structured(parsed)

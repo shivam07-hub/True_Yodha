@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Fintech hiring India 2026 across Razorpay, PhonePe, Paytm, CRED and Intuit</title>
+  <desc id="desc">Myro newsletter image showing 257 roles across five fintech and payments companies.</desc>
+  <rect width="1200" height="630" fill="#fbfaf7"/>
+  <rect x="52" y="50" width="1096" height="530" rx="28" fill="#ffffff" stroke="#e7e0d4" stroke-width="2"/>
+  <rect x="52" y="50" width="1096" height="120" rx="28" fill="#0f172a"/>
+  <rect x="52" y="132" width="1096" height="38" fill="#0f172a"/>
+  <text x="92" y="112" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Myro Hiring Heatmap</text>
+  <text x="92" y="148" fill="#fbbf24" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600">Fintech hiring India 2026</text>
+
+  <text x="92" y="242" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800">257 roles captured</text>
+  <text x="92" y="298" fill="#374151" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="600">Razorpay, PhonePe, Paytm, CRED and Intuit</text>
+  <text x="92" y="344" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="25">Where fintech hiring is focused: product, sales, software, finance, platform, data and risk.</text>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="23" font-weight="700">
+    <rect x="92" y="400" width="210" height="58" rx="29" fill="#fff7ed" stroke="#fed7aa"/>
+    <text x="125" y="437" fill="#9a3412">Product</text>
+    <rect x="322" y="400" width="190" height="58" rx="29" fill="#ecfeff" stroke="#a5f3fc"/>
+    <text x="356" y="437" fill="#155e75">Sales</text>
+    <rect x="532" y="400" width="235" height="58" rx="29" fill="#eff6ff" stroke="#bfdbfe"/>
+    <text x="566" y="437" fill="#1d4ed8">Engineering</text>
+    <rect x="787" y="400" width="185" height="58" rx="29" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="822" y="437" fill="#166534">Finance</text>
+    <rect x="92" y="482" width="175" height="58" rx="29" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="127" y="519" fill="#334155">Platform</text>
+    <rect x="287" y="482" width="145" height="58" rx="29" fill="#f5f3ff" stroke="#ddd6fe"/>
+    <text x="328" y="519" fill="#6d28d9">Data</text>
+    <rect x="452" y="482" width="135" height="58" rx="29" fill="#fff1f2" stroke="#fecdd3"/>
+    <text x="490" y="519" fill="#be123c">Risk</text>
+  </g>
+
+  <line x1="830" y1="492" x2="1098" y2="492" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="830" y="535" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">himyro.com/newsletter</text>
+  <text x="830" y="562" fill="#6b7280" font-family="Inter, Arial, sans-serif" font-size="18">Career intelligence for focused searches</text>
+</svg>

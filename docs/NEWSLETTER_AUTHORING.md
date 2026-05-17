@@ -9,6 +9,7 @@ Single source of truth: `Myro Newsletter/issues/`. Never edit `frontend/content/
 ```yaml
 ---
 title: "AI Hiring April 2026: Banks Beat Big Tech"   # ≤60 chars, year + primary keyword
+seoTitle: "AI Hiring April 2026: Banks Beat Big Tech" # optional shorter browser/social title
 slug: "2026-04-ai-hiring-heatmap"                    # must match filename, see Slug rules below
 publishedAt: "2026-04-28"                            # ISO date, used for sort + RSS pubDate
 theme: "heatmap"                                     # see Theme values below
@@ -16,7 +17,8 @@ primaryKeyword: "AI hiring 2026"                     # target search query
 ctaRole: "AI Engineer"                               # populates <NewsletterCTA role="…">
 summary: "Real April 2026 hiring data: …"            # ≤155 chars, include the word "free"
 pillar: "ai-careers"                                 # see Pillar values below
-ogImage: "/og/2026-04-ai-hiring-heatmap.png"         # optional — absolute or root-relative path
+ogImage: "/newsletter/2026-04-ai-hiring-heatmap-og.png" # required for publish — 1200×630 PNG/JPG/WebP
+ogImageAlt: "AI hiring 2026 heatmap across Indian employers" # plain-text image description
 ---
 ```
 
@@ -31,6 +33,22 @@ ogImage: "/og/2026-04-ai-hiring-heatmap.png"         # optional — absolute or 
 
 ### Pillar values
 `ai-careers` · `career-trajectories` · `career-switching` · `in-demand-skills`
+
+---
+
+## OG image rules
+
+Every public newsletter issue should have a custom OG image before publish. It does not directly make the article rank higher, but it improves how the issue appears when shared, supports richer social cards, gives Google/Discover a large image candidate, and usually improves click-through from social, chat, and feed surfaces.
+
+- Size: `1200×630` px, 1.91:1 ratio.
+- Format: PNG, JPG, or WebP. Avoid SVG as the final `ogImage` because some social parsers do not render it reliably.
+- Path: save in `frontend/public/newsletter/` and reference as `/newsletter/{slug-or-issue}-og.png`.
+- Content: one number, one topic, one clear company/role signal. Do not paste the whole headline into the image.
+- Style: high contrast, readable at mobile preview size, Myro-branded, not clickbait.
+- Alt text: add `ogImageAlt` in frontmatter. Match the topic and primary keyword naturally.
+- Google large previews: newsletter pages set `max-image-preview:large`; keep OG images at least 1200 px wide.
+
+For Issue 003-style data pieces, the OG image should usually include: the total role count, the company set, and 3-5 role families.
 
 ---
 
@@ -97,7 +115,10 @@ Dashboard filenames: `dashboard1_volume_activity.html` · `dashboard2_industry_d
 ## Pre-publish checklist
 
 - [ ] `title` ≤60 chars, contains year + primary keyword
+- [ ] If the H1 is long, add `seoTitle` ≤55 chars with the primary keyword
 - [ ] `summary` ≤155 chars, contains the word "free"
+- [ ] `ogImage` points to a 1200×630 image in `frontend/public/newsletter/`
+- [ ] `ogImageAlt` is present and describes the image in plain language
 - [ ] `slug` matches filename
 - [ ] H1 not duplicated in MDX body (page renders it from frontmatter)
 - [ ] TL;DR present near top (featured-snippet bait)
