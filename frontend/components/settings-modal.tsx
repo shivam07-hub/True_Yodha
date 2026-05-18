@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { XP_POLICY } from "@/lib/xp-policy"
+import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import {
@@ -136,6 +138,7 @@ export function SettingsModal({ open, onClose, profile }: {
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const { setBalance } = useXPStore()
   const [activeTab, setActiveTab] = useState<Tab>("Account")
 
   // Account tab state
@@ -151,6 +154,7 @@ export function SettingsModal({ open, onClose, profile }: {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [rewardNotice, setRewardNotice] = useState<string | null>(null)
 
   // Following tab state
   const [companyInput, setCompanyInput] = useState("")
@@ -175,7 +179,7 @@ export function SettingsModal({ open, onClose, profile }: {
     setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
     setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
     setLocationDropdown(false); setLocationFocused(false)
-    setSaveStatus("idle"); setSaveError(null); pending.current = {}
+    setSaveStatus("idle"); setSaveError(null); setRewardNotice(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
   }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
@@ -191,7 +195,9 @@ export function SettingsModal({ open, onClose, profile }: {
       if (!token) throw new Error("Session not ready — please refresh.")
       return users.updateProfile(token, payload)
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} XP earned`)
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -229,7 +235,8 @@ export function SettingsModal({ open, onClose, profile }: {
 
   const followMutation = useMutation({
     mutationFn: (companyName: string) => users.followCompany(token!, companyName),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
       setCompanyInput("")
       setCompanyDropdown(false)
@@ -451,10 +458,16 @@ export function SettingsModal({ open, onClose, profile }: {
                 <div style={SECTION_HEADER}>Profile</div>
 
                 <div style={ROW_STYLE}>
-                  <div>
-                    <div style={ROW_LABEL}>Ninja Name</div>
-                    <div style={ROW_DESC}>Your display name across Myro</div>
-                  </div>
+                  <div style={ROW_LABEL}>Email</div>
+                  <input
+                    id="sm-email" type="email" value={profile?.email ?? ""} readOnly disabled
+                    aria-readonly="true"
+                    style={{ ...INPUT_STYLE, opacity: 0.55, cursor: "not-allowed" }}
+                  />
+                </div>
+
+                <div style={ROW_STYLE}>
+                  <div style={ROW_LABEL}>Ninja Name</div>
                   <input
                     id="sm-ninja-name" type="text" value={name}
                     onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
@@ -468,7 +481,7 @@ export function SettingsModal({ open, onClose, profile }: {
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <div style={ROW_LABEL}>LinkedIn</div>
-                    <div style={ROW_DESC}>Linked to your profile</div>
+                    <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} XP</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
@@ -485,6 +498,9 @@ export function SettingsModal({ open, onClose, profile }: {
 
                 {/* Save button */}
                 <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                  {rewardNotice && (
+                    <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
+                  )}
                   {saveStatus === "error" && saveError && (
                     <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
                   )}
@@ -554,7 +570,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
-                  {roles.length > 0 ? (
+                  {roles.length > 0 && (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
                       <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -565,8 +581,6 @@ export function SettingsModal({ open, onClose, profile }: {
                         {activeId ? <SortableRoleChip role={activeId} index={roles.indexOf(activeId)} onRemove={() => {}} isOverlay /> : null}
                       </DragOverlay>
                     </DndContext>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No target roles yet — search above to add</div>
                   )}
                 </div>
 
@@ -604,7 +618,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
-                  {location.trim() ? (
+                  {location.trim() && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
                         <span style={{ fontWeight: 500 }}>{location.trim()}</span>
@@ -614,8 +628,6 @@ export function SettingsModal({ open, onClose, profile }: {
                         >×</button>
                       </div>
                     </div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No location set — search above to add</div>
                   )}
                 </div>
 
@@ -627,7 +639,9 @@ export function SettingsModal({ open, onClose, profile }: {
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div>
                       <div style={ROW_LABEL}>Target Companies</div>
-                      <div style={ROW_DESC}>Companies whose jobs you track in Market</div>
+                      <div style={ROW_DESC}>
+                        Companies whose jobs you track in Market · -{XP_POLICY.followCompanyCost} XP each
+                      </div>
                     </div>
                     {followedCompanies.length > 0 && (
                       <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
@@ -676,7 +690,10 @@ export function SettingsModal({ open, onClose, profile }: {
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                           >
                             <CompanyAvatar name={name} />
-                            {name}
+                            <span style={{ flex: 1 }}>{name}</span>
+                            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-accent)", whiteSpace: "nowrap" }}>
+                              -{XP_POLICY.followCompanyCost} XP
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -697,7 +714,9 @@ export function SettingsModal({ open, onClose, profile }: {
                 ) : followedCompanies.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No companies followed yet — search above to add</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                      No companies followed yet. Following costs {XP_POLICY.followCompanyCost} XP.
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>

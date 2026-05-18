@@ -17,12 +17,3 @@ class CVEvidenceSummaryResponse(BaseModel):
     next_version_number: int
 
 
-class CVGenerateDraftResponse(BaseModel):
-    version_id: int
-    version_number: int
-    cv_text: str
-    new_xp_balance: int | None = None
-
-
-class CVSaveDraftRequest(BaseModel):
-    cv_text: str

@@ -234,6 +234,11 @@ export interface UserProfile {
   last_active_at: string
 }
 
+export interface ProfileUpdateResponse extends UserProfile {
+  xp_earned: number
+  new_xp_balance: number | null
+}
+
 export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
@@ -274,7 +279,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   updateProfile: (token: string, data: ProfileUpdate) =>
-    request<UserProfile>("/users/me/profile", {
+    request<ProfileUpdateResponse>("/users/me/profile", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
@@ -322,24 +327,6 @@ export interface CVUploadResponse {
   redirect_to: string
 }
 
-export interface CVHistoryItem {
-  id: number
-  skills_count: number
-  mirror_score: number
-  uploaded_at: string
-  cv_raw_text: string | null
-  version_number: number
-  version_type: "baseline_upload" | "generated_draft"
-  title: string | null
-  evidence_count: number
-}
-
-export interface CVProfile {
-  cv_raw_text: string | null
-  cv_parsed_at: string | null
-  history: CVHistoryItem[]
-}
-
 export interface CVEvidenceSummary {
   evidence_count: number
   diary_entries_count: number
@@ -348,13 +335,6 @@ export interface CVEvidenceSummary {
   current_score: number | null
   last_cv_score: number | null
   next_version_number: number
-}
-
-export interface CVGenerateDraftResponse {
-  version_id: number
-  version_number: number
-  cv_text: string
-  new_xp_balance: number | null
 }
 
 export interface CVEducationItem {
@@ -388,26 +368,25 @@ export interface CVStructured {
   certs: string[]
 }
 
-export type CVVersionKind = "deterministic" | "polished" | "edited"
+export type CVVersionKind = "baseline_upload" | "deterministic" | "polished" | "edited"
 
-export interface JobCVVersion {
+export interface CVVersion {
   id: number
-  job_version_number: number
+  user_version_number: number
+  kind: CVVersionKind
+  job_id: string | null
   parent_version_id: number | null
-  version_kind: CVVersionKind
+  baseline_version_id: number | null
   title: string | null
   hidden_items: string[]
   edited_items: Record<string, string>
-  deterministic_text: string
+  body_text: string
   polished_text: string | null
+  ai_polished: boolean
   created_at: string
 }
 
 export const cv = {
-  me: (token: string) =>
-    request<CVProfile>("/cv/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
@@ -416,36 +395,31 @@ export const cv = {
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  saveDraft: (token: string, cvText: string) =>
-    request<CVGenerateDraftResponse>("/cv/save-draft", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ cv_text: cvText }),
-    }),
   versions: {
-    list: (token: string, jobId: string) =>
-      request<{ versions: JobCVVersion[] }>(`/jobs/${jobId}/cv-versions`, {
+    list: (token: string, jobId?: string | null) => {
+      const q = jobId ? `?job_id=${encodeURIComponent(jobId)}` : ""
+      return request<{ versions: CVVersion[] }>(`/cv/versions${q}`, {
         headers: { Authorization: `Bearer ${token}` },
-      }),
+      })
+    },
     create: (token: string, jobId: string, hiddenItems: string[], title?: string) =>
-      request<JobCVVersion>(`/jobs/${jobId}/cv-versions`, {
+      request<CVVersion>("/cv/versions", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ hidden_items: hiddenItems, title }),
+        body: JSON.stringify({ job_id: jobId, hidden_items: hiddenItems, title }),
       }),
-    polish: (token: string, jobId: string, versionId: number) =>
-      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/polish`, {
+    polish: (token: string, versionId: number) =>
+      request<CVVersion>(`/cv/versions/${versionId}/polish`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }),
     edit: (
       token: string,
-      jobId: string,
       versionId: number,
       editedItems: Record<string, string>,
       title?: string,
     ) =>
-      request<JobCVVersion>(`/jobs/${jobId}/cv-versions/${versionId}/edit`, {
+      request<CVVersion>(`/cv/versions/${versionId}/edit`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ edited_items: editedItems, title }),
@@ -592,6 +566,7 @@ export interface ComputeJobMatchesResponse {
   job_id?: string | null
   message?: string | null
   new_xp_balance?: number | null
+  xp_spent?: number
   debug?: {
     cache_hit: boolean
     user_skills_count: number | null
@@ -615,6 +590,8 @@ export interface JobComputeStatusResponse {
   debug: Record<string, unknown> | null
   message: string | null
   error: string | null
+  new_xp_balance: number | null
+  xp_spent: number
   enqueued_at: string | null
   started_at: string | null
   finished_at: string | null
@@ -737,19 +714,6 @@ export interface JobPathResponse {
   applied_at: string | null
 }
 
-export interface JobCVGenerateResponse {
-  id: number
-  job_id: string
-  cv_text: string
-  polished_text: string | null
-  confidence: Record<string, string | number | boolean>
-  snapshot_hash: string
-  from_cache: boolean
-  ai_polish_used: number
-  ai_polish_limit: number
-  limit_reached: boolean
-  polish_unavailable: boolean
-}
 
 export interface NameCountItem {
   name: string
@@ -1096,12 +1060,6 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
-    }),
-  generateJobCv: (token: string, jobId: string, aiPolish = false) =>
-    request<JobCVGenerateResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/cv`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ai_polish: aiPolish }),
     }),
 }
 

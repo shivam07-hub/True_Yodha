@@ -12,10 +12,9 @@ export const dataKeys = {
   userSkillDemand: () => ["user-skill-demand"] as const,
   diary: () => ["diary"] as const,
   milestones: () => ["milestones"] as const,
-  cvProfile: () => ["cv-profile"] as const,
   cvEvidence: () => ["cv-evidence"] as const,
   cvStructured: () => ["cv-structured"] as const,
-  cvVersions: (jobId: JobId) => ["cv-versions", jobId] as const,
+  cvVersions: (jobId: JobId) => ["cv-versions", jobId ?? "all"] as const,
   jobPath: (jobId: JobId) => ["job-path", jobId] as const,
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
   jobsAnalytics: (
@@ -70,7 +69,8 @@ export function invalidateScoreData(queryClient: QueryClient): void {
 }
 
 export function invalidateCvData(queryClient: QueryClient): void {
-  queryClient.invalidateQueries({ queryKey: dataKeys.cvProfile() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+  queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
   queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
   queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
   invalidateScoreData(queryClient)

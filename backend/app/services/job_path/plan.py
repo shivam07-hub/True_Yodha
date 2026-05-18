@@ -17,7 +17,6 @@ from supabase import Client
 
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path._helpers import _key, _now_iso, _single_or_none
-from app.services.job_path.llm_polish import _latest_polished_cv  # noqa: F401  (kept for back-compat re-export)
 from app.services.job_path.milestones import (
     compute_readiness,
     cv_confidence_for_proof_count,
@@ -99,11 +98,11 @@ def _milestone_response(row: dict[str, Any]) -> dict[str, Any]:
 
 def _latest_cv_variant(db: Client, user_id: str, job_id: str) -> dict[str, Any] | None:
     return _single_or_none(
-        db.table("job_cv_variants")
+        db.table("cv_versions")
         .select("*")
         .eq("user_id", user_id)
         .eq("job_id", job_id)
-        .order("created_at", desc=True)
+        .order("user_version_number", desc=True)
         .limit(1)
     )
 

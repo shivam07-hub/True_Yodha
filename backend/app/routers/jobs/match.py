@@ -15,12 +15,13 @@ from app.schemas import (
     UserSkillDemandResponse,
 )
 from app.services import job_match_compute_async, jobs_workflow, xp_service
+from app.services.xp_policy import MATCH_REFRESH_XP_COST
 
 from ._shared import last_monday, to_job_match
 
 router = APIRouter()
 
-REFRESH_XP_COST = 50
+REFRESH_XP_COST = MATCH_REFRESH_XP_COST
 
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
@@ -78,6 +79,7 @@ def _build_response(result: dict[str, Any], new_xp_balance: int | None = None) -
         job_id=result.get("job_id"),
         message=result.get("message"),
         new_xp_balance=new_xp_balance,
+        xp_spent=int(result.get("xp_spent") or 0),
     )
 
 
@@ -121,6 +123,7 @@ async def refresh_job_matches(
     batch_week = last_monday()
 
     excluded_job_ids = repo.get_existing_match_job_ids(user_id, batch_week)
+    await xp_service.assert_can_spend_xp(user_id, REFRESH_XP_COST, "refresh_matches")
 
     if not settings.redis_url.strip():
         result = await job_match_compute_async.compute_job_matches_inline(
@@ -130,12 +133,18 @@ async def refresh_job_matches(
         if result.get("matches_written", 0) > 0:
             try:
                 new_balance = await xp_service.spend_xp(user_id, REFRESH_XP_COST, "refresh_matches")
+                result["xp_spent"] = REFRESH_XP_COST
             except HTTPException:
                 raise
         return _build_response(result, new_xp_balance=new_balance)
 
     try:
-        queued = job_match_compute_async.enqueue_compute_job(user_id, batch_week)
+        queued = job_match_compute_async.enqueue_compute_job(
+            user_id,
+            batch_week,
+            excluded_job_ids=excluded_job_ids,
+            charge_xp_amount=REFRESH_XP_COST,
+        )
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

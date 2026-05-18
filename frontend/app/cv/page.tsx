@@ -31,12 +31,31 @@ function CVPage() {
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
 
-  const cvProfile = useQuery({
-    queryKey: dataKeys.cvProfile(),
-    queryFn: () => cv.me(token!),
+  // Single source of truth: every baseline + (if jobId) every per-job row.
+  const versionsQuery = useQuery({
+    queryKey: dataKeys.cvVersions(jobId),
+    queryFn: () => cv.versions.list(token!, jobId),
     enabled: !!token,
+    staleTime: 30 * 1000,
   })
-  const hasBaseline = !!cvProfile.data?.cv_raw_text || (cvProfile.data?.history?.length ?? 0) > 0
+  const allVersions = useMemo(() => versionsQuery.data?.versions ?? [], [versionsQuery.data])
+
+  const baselines = useMemo(
+    () => allVersions.filter(v => v.kind === "baseline_upload"),
+    [allVersions],
+  )
+  const jobVersions = useMemo(
+    () => allVersions.filter(v => v.job_id === jobId && v.kind !== "baseline_upload"),
+    [allVersions, jobId],
+  )
+  const hasBaseline = baselines.length > 0
+  const currentBaseline = useMemo(
+    () => baselines.reduce<typeof baselines[number] | null>(
+      (best, v) => (best == null || v.user_version_number > best.user_version_number ? v : best),
+      null,
+    ),
+    [baselines],
+  )
 
   const structuredQuery = useQuery({
     queryKey: dataKeys.cvStructured(),
@@ -45,14 +64,6 @@ function CVPage() {
     retry: false,
     staleTime: 10 * 60 * 1000,
   })
-
-  const versionsQuery = useQuery({
-    queryKey: dataKeys.cvVersions(jobId),
-    queryFn: () => cv.versions.list(token!, jobId!),
-    enabled: !!token && !!jobId && hasBaseline,
-    staleTime: 30 * 1000,
-  })
-  const versions = useMemo(() => versionsQuery.data?.versions ?? [], [versionsQuery.data])
 
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
@@ -68,13 +79,13 @@ function CVPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Hydrate hiddenItems from latest version on first load
+  // Hydrate hiddenItems from latest job version on load.
   useEffect(() => {
-    if (!versions.length) return
-    const latest = versions[0]
+    if (!jobVersions.length) return
+    const latest = jobVersions[0]
     setSelectedVersionId(prev => prev ?? latest.id)
     setHiddenItems(new Set(latest.hidden_items))
-  }, [versions])
+  }, [jobVersions])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -88,7 +99,7 @@ function CVPage() {
   })
 
   const polishVersion = useMutation({
-    mutationFn: (versionId: number) => cv.versions.polish(token!, jobId!, versionId),
+    mutationFn: (versionId: number) => cv.versions.polish(token!, versionId),
     onSuccess: (v) => {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       setSelectedVersionId(v.id)
@@ -98,7 +109,7 @@ function CVPage() {
 
   const editVersion = useMutation({
     mutationFn: ({ versionId, edits }: { versionId: number; edits: Record<string, string> }) =>
-      cv.versions.edit(token!, jobId!, versionId, edits),
+      cv.versions.edit(token!, versionId, edits),
     onSuccess: (v) => {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       setSelectedVersionId(v.id)
@@ -127,7 +138,8 @@ function CVPage() {
     setUploading(true); setUploadResult(null); setError(null)
     try {
       const result = await uploadCV(token, file)
-      await queryClient.refetchQueries({ queryKey: dataKeys.cvProfile() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
@@ -151,7 +163,7 @@ function CVPage() {
   }
 
   function openEdit(versionId: number) {
-    const v = versions.find(x => x.id === versionId)
+    const v = jobVersions.find(x => x.id === versionId)
     if (!v?.polished_text) return
     setEditTarget({ versionId, text: v.polished_text })
     setEditDraft(v.polished_text)
@@ -163,7 +175,6 @@ function CVPage() {
     const original = editTarget.text
     const next = editDraft
     if (original === next) { setEditOpen(false); return }
-    // Whole-document replacement key. Backend applies as string replace.
     editVersion.mutate({ versionId: editTarget.versionId, edits: { [original]: next } })
   }
 
@@ -172,7 +183,7 @@ function CVPage() {
     return renderDeterministic(structuredQuery.data, hiddenItems)
   }, [structuredQuery.data, hiddenItems])
 
-  const currentSelected = versions.find(v => v.id === selectedVersionId) ?? versions[0] ?? null
+  const currentSelected = jobVersions.find(v => v.id === selectedVersionId) ?? jobVersions[0] ?? null
   const playgroundDirty = !currentSelected
     || Array.from(hiddenItems).sort().join(",") !== [...currentSelected.hidden_items].sort().join(",")
 
@@ -189,13 +200,11 @@ function CVPage() {
             <h1 className="tm-title" style={{ fontSize: "var(--tm-fs-heading)", marginBottom: 4 }}>
               {jobId ? "Tailor your CV for this job" : "Your baseline CV"}
             </h1>
-            <p className="tm-meta" style={{ fontSize: 12 }}>
-              {hasBaseline
-                ? jobId
-                  ? "Pick what stays. Save a commit. Polish with AI. Edit polished bullets."
-                  : "Pick a target job to start tailoring — every save creates an immutable version."
-                : "Upload your baseline CV to start."}
-            </p>
+            {hasBaseline && jobId && (
+              <p className="tm-meta" style={{ fontSize: 12 }}>
+                Pick what stays. Save a commit. Polish with AI. Edit polished bullets.
+              </p>
+            )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {hasBaseline && (
@@ -240,7 +249,7 @@ function CVPage() {
                   Pick a target job to start the playground. Every saved version is immutable, like a Git commit.
                 </div>
               </div>
-              <Button variant="solid" size="md" render={<Link href="/home" />}>Pick a target job →</Button>
+              <Button variant="solid" size="md" render={<Link href="/tracker?stage=saved" />}>Pick a target job →</Button>
             </div>
             <pre style={{
               margin: 0, padding: "20px 22px",
@@ -248,7 +257,7 @@ function CVPage() {
               borderRadius: "var(--tm-radius-lg)",
               fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
               color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-            }}>{cvProfile.data?.cv_raw_text ?? "—"}</pre>
+            }}>{currentBaseline?.body_text ?? "—"}</pre>
           </div>
         )}
 
@@ -297,7 +306,6 @@ function CVPage() {
                 </div>
 
                 <div style={{ position: "sticky", top: 16 }}>
-                  {/* Live preview when dirty, else show selected version */}
                   {playgroundDirty ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <div className="tm-label-caps" style={{ color: "var(--tm-warning)" }}>Live preview · unsaved</div>
@@ -312,11 +320,11 @@ function CVPage() {
                     </div>
                   ) : (
                     <VersionPicker
-                      versions={versions}
+                      versions={jobVersions}
                       selectedId={selectedVersionId}
                       onSelect={(id) => {
                         setSelectedVersionId(id)
-                        const v = versions.find(x => x.id === id)
+                        const v = jobVersions.find(x => x.id === id)
                         if (v) setHiddenItems(new Set(v.hidden_items))
                       }}
                       onCreate={() => saveVersion.mutate()}
@@ -325,7 +333,7 @@ function CVPage() {
                       onDownload={(text) => downloadPdf.mutate(text)}
                       isCreating={saveVersion.isPending}
                       isPolishing={polishVersion.isPending}
-                      canCreate={playgroundDirty || versions.length === 0}
+                      canCreate={playgroundDirty || jobVersions.length === 0}
                     />
                   )}
                 </div>

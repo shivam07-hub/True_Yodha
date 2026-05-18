@@ -10,10 +10,14 @@ class UserProfileResponse(BaseModel):
     target_roles: list[str]
     target_location: str | None
     cv_url: str | None
-    cv_parsed_at: datetime | None
     onboarding_complete: bool
     created_at: datetime
     last_active_at: datetime
+
+
+class UpdateProfileResponse(UserProfileResponse):
+    xp_earned: int = 0
+    new_xp_balance: int | None = None
 
 
 class UpdateProfileRequest(BaseModel):

@@ -76,7 +76,7 @@ All backend calls go through `frontend/lib/api.ts`:
 | `jobs.updateApplication(token, jobId, data)` | `PATCH /jobs/applications/:id` |
 | `users.mySkills(token)` | `GET /users/me/skills` |
 | `cv.upload(token, file)` | `POST /cv/upload` |
-| `cv.me(token)` | `GET /cv/me` |
+| `cv.versions.list(token, jobId?)` | `GET /cv/versions[?job_id=...]` |
 | `diary.today(token)` | `GET /diary/today` |
 | `diary.submit(token, data)` | `POST /diary` |
 

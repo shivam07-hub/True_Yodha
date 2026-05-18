@@ -1,18 +1,15 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from supabase import Client
 
 from app.database import get_supabase_for_token
 from app.deps import get_current_user
 from app.schemas import (
-    JobCVGenerateRequest,
-    JobCVGenerateResponse,
     JobPathMilestoneResponse,
     JobPathMilestoneUpdate,
     JobPathResponse,
     JobPathTargetsRequest,
 )
 from app.services import job_path as job_path_service
-from app.services.llm_provider import LLMProvider, get_llm_provider
 
 router = APIRouter()
 
@@ -59,23 +56,4 @@ async def update_application_milestone(
 ) -> JobPathMilestoneResponse:
     return JobPathMilestoneResponse(
         **job_path_service.update_milestone(db, current_user["user_id"], job_id, milestone_id, body)
-    )
-
-
-@router.post("/applications/{job_id}/cv", response_model=JobCVGenerateResponse, status_code=status.HTTP_201_CREATED)
-async def generate_application_cv(
-    job_id: str,
-    body: JobCVGenerateRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Client = Depends(_get_db),
-    llm_provider: LLMProvider = Depends(get_llm_provider),
-) -> JobCVGenerateResponse:
-    return JobCVGenerateResponse(
-        **await job_path_service.generate_job_cv(
-            db,
-            current_user["user_id"],
-            job_id,
-            ai_polish=body.ai_polish,
-            provider=llm_provider,
-        )
     )

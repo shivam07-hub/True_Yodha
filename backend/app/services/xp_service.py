@@ -10,6 +10,7 @@ import logging
 from fastapi import HTTPException, status
 
 from app.database import get_supabase_admin
+from app.services.xp_policy import LINKEDIN_PROFILE_XP, WELCOME_XP
 
 _log = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ async def grant_welcome_xp(user_id: str) -> int:
     result = (
         admin.rpc(
             "increment_xp_and_grant_welcome",
-            {"p_user_id": user_id, "p_amount": 1000},
+            {"p_user_id": user_id, "p_amount": WELCOME_XP},
         ).execute()
     )
     if result.data is not None:
@@ -52,11 +53,11 @@ async def grant_welcome_xp(user_id: str) -> int:
     # Fallback: direct UPDATE if RPC not yet deployed
     updated = (
         admin.table("user_profiles")
-        .update({"xp_balance": int(data.get("xp_balance", 0)) + 1000, "welcome_xp_granted": True})
+        .update({"xp_balance": int(data.get("xp_balance", 0)) + WELCOME_XP, "welcome_xp_granted": True})
         .eq("id", user_id)
         .execute()
     )
-    return int((updated.data or [{}])[0].get("xp_balance", 1000))
+    return int((updated.data or [{}])[0].get("xp_balance", WELCOME_XP))
 
 
 async def earn_xp(user_id: str, amount: int) -> int:
@@ -66,6 +67,35 @@ async def earn_xp(user_id: str, amount: int) -> int:
     new_balance = current + amount
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     return new_balance
+
+
+async def grant_linkedin_profile_xp(user_id: str) -> tuple[int, int]:
+    """Grant LinkedIn profile XP once. Returns (xp_earned, new_balance)."""
+    admin = get_supabase_admin()
+    check = (
+        admin.table("user_profiles")
+        .select("xp_balance, linkedin_xp_granted")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    data = check.data or {}
+    current = int(data.get("xp_balance", 0))
+    if data.get("linkedin_xp_granted"):
+        return 0, current
+
+    new_balance = current + LINKEDIN_PROFILE_XP
+    admin.table("user_profiles").update(
+        {"xp_balance": new_balance, "linkedin_xp_granted": True}
+    ).eq("id", user_id).execute()
+    _log.info(
+        "XP earn: user=%s action=linkedin_profile amount=%d balance=%d→%d",
+        user_id,
+        LINKEDIN_PROFILE_XP,
+        current,
+        new_balance,
+    )
+    return LINKEDIN_PROFILE_XP, new_balance
 
 
 async def spend_xp(user_id: str, amount: int, action: str) -> int:
@@ -81,6 +111,17 @@ async def spend_xp(user_id: str, amount: int, action: str) -> int:
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
     return new_balance
+
+
+async def assert_can_spend_xp(user_id: str, amount: int, action: str) -> int:
+    """Preflight an XP spend without mutating the wallet."""
+    current = await get_xp_balance(user_id)
+    if current < amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient XP — need {amount}, have {current}. Action: {action}",
+        )
+    return current
 
 
 async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int = -30) -> int:

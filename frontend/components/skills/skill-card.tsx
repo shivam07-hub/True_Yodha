@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
 const LEVEL_TITLE = ["None", "Awareness", "Working", "Practitioner", "Expert", "Authority"]
@@ -148,7 +149,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {askAdvice.isPending ? "Thinking…" : "★ How do I level up?"}
+              {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
             </button>
             {advice && (
               <div style={{
@@ -160,7 +161,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
             )}
             {askAdvice.isError && (
               <div style={{ marginTop: 6, fontSize: 10, color: "var(--tm-danger)" }}>
-                Couldn&apos;t fetch advice — try again.
+                Couldn&apos;t fetch advice. No XP was spent.
               </div>
             )}
           </div>

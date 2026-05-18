@@ -5,12 +5,29 @@ from fastapi import HTTPException, status
 _COOLDOWN_DAYS = 3
 
 
-def assert_not_rate_limited(db, user_id: str, table: str, ts_col: str) -> None:
-    """Raise HTTP 429 if user triggered an LLM call within the last 3 days."""
-    result = (
+def assert_not_rate_limited(
+    db,
+    user_id: str,
+    table: str,
+    ts_col: str,
+    *,
+    filters: dict[str, str] | None = None,
+) -> None:
+    """Raise HTTP 429 if user triggered an LLM call within the last 3 days.
+
+    `filters` lets callers scope the check to a subset of rows (e.g.
+    {"kind": "baseline_upload"} so a flurry of derivative writes doesn't
+    starve the next legitimate baseline upload).
+    """
+    query = (
         db.table(table)
         .select(ts_col)
         .eq("user_id", user_id)
+    )
+    for col, val in (filters or {}).items():
+        query = query.eq(col, val)
+    result = (
+        query
         .order(ts_col, desc=True)
         .limit(1)
         .execute()

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
+import { XP_POLICY } from "@/lib/xp-policy"
 
 const RING_R = 84
 const RING_CIRC = 2 * Math.PI * RING_R
@@ -54,6 +55,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
   const nextSkill = cartSkills[sessionIdx + 1] ?? null
   const totalXP = sessionsDone.reduce((s, r) => s + r.result.xp_earned, 0)
   const isTimerDone = remaining === 0 && !running
+  const queuedSessionXP = Math.round((DURATIONS[durIdx].seconds / 60) * XP_POLICY.forgeFocusedRate)
   const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
   const secs = String(remaining % 60).padStart(2, "0")
 
@@ -194,7 +196,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                       <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>L{skill.level_from} → L{skill.level_to}{skill.company ? ` · ${skill.company}` : ""}</div>
                     </div>
                     <div style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)", fontSize: 11, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", whiteSpace: "nowrap" }}>
-                      +50 XP
+                      +{queuedSessionXP} XP
                     </div>
                   </div>
                 ))}

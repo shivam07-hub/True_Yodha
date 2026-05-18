@@ -11,8 +11,8 @@ Fallback order (OR handles tiers 1–2 natively via `models` array; Python-level
 Scope: Myro cloud stack only. The scraper (skill_tagger.py / LM Studio) is intentionally
 separate — do not merge those stacks.
 
-Phase 3 callers: llm_ranker, llm_polish (cv_generator).
-Post-Phase-3 callers: cv_parser, diary processor.
+Callers: llm_ranker, llm_polish (per-job CV polish via /cv/versions),
+cv_parser, diary processor.
 """
 
 from __future__ import annotations

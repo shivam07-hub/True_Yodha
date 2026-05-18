@@ -135,6 +135,7 @@ class ComputeJobMatchesResponse(BaseModel):
     job_id: str | None = None
     message: str | None = None
     new_xp_balance: int | None = None
+    xp_spent: int = 0
 
 
 class JobComputeStatusResponse(BaseModel):
@@ -149,6 +150,8 @@ class JobComputeStatusResponse(BaseModel):
     debug: dict[str, Any] | None = None
     message: str | None = None
     error: str | None = None
+    new_xp_balance: int | None = None
+    xp_spent: int = 0
     enqueued_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -234,24 +237,6 @@ class JobPathResponse(BaseModel):
     follow_up: dict | None = None
     status: str
     applied_at: datetime | None = None
-
-
-class JobCVGenerateRequest(BaseModel):
-    ai_polish: bool = False
-
-
-class JobCVGenerateResponse(BaseModel):
-    id: int
-    job_id: str
-    cv_text: str
-    polished_text: str | None = None
-    confidence: dict
-    snapshot_hash: str
-    from_cache: bool
-    ai_polish_used: int
-    ai_polish_limit: int
-    limit_reached: bool = False
-    polish_unavailable: bool = False
 
 
 class SkillSuggestion(BaseModel):

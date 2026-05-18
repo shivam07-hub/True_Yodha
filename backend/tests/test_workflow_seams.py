@@ -61,7 +61,7 @@ class _FakeCVRepository:
     def __init__(self) -> None:
         self.client = object()
         self.updated_profile: dict[str, Any] | None = None
-        self.inserted_history: dict[str, Any] | None = None
+        self.created_spec: Any = None
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
         return None  # always miss — force full pipeline in tests
@@ -69,11 +69,15 @@ class _FakeCVRepository:
     def update_cv_profile(self, _user_id: str, payload: dict[str, Any]) -> None:
         self.updated_profile = payload
 
-    def insert_cv_history(self, payload: dict[str, Any]) -> None:
-        self.inserted_history = payload
+    def create(self, _user_id: str, spec: Any) -> dict[str, Any]:
+        self.created_spec = spec
+        return {"id": 1}
 
-    def next_version_number(self, _user_id: str) -> int:
-        return 2
+    def count_user_skills(self, _user_id: str) -> int:
+        return 1
+
+    def get_current_score(self, _user_id: str) -> float | None:
+        return 68.4
 
 
 def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any) -> None:
@@ -124,7 +128,8 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
     assert captured["kwargs"]["include_market_signals"] is False
     assert captured["kwargs"]["require_skills_assessed"] is True
     assert repo.updated_profile is not None
-    assert repo.inserted_history is not None
+    assert repo.created_spec is not None
+    assert repo.created_spec.kind == "baseline_upload"
     assert result["score"] == 68.4
 
 

@@ -52,6 +52,7 @@ Populated by: `python database/backfill_skills.py`
 | `email` | VARCHAR(255) UNIQUE | |
 | `full_name` | VARCHAR(255) | |
 | `linkedin_url` | VARCHAR(500) | |
+| `linkedin_xp_granted` | BOOLEAN | One-time +50 XP reward guard |
 | `target_roles` | TEXT[] | |
 | `target_location` | VARCHAR(200) | |
 | `cv_url` | VARCHAR(500) | |

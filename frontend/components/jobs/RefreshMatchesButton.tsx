@@ -135,7 +135,7 @@ export function RefreshMatchesButton({
               color: "rgba(0,245,212,0.5)",
               fontWeight: 400,
             }}>
-              −{REFRESH_XP_COST} XP
+              -{REFRESH_XP_COST} if new
             </span>
           )}
         </button>
@@ -196,7 +196,7 @@ export function RefreshMatchesButton({
               fontWeight: 400,
               lineHeight: 1,
             }}>
-              −{REFRESH_XP_COST}&thinsp;XP
+              -{REFRESH_XP_COST}&thinsp;XP if new
             </span>
           )}
         </Button>

@@ -1,6 +1,7 @@
 """
-Shared Supabase reads for the job_path package — used by both plan.py and
-cv_generator.py. Anything written through Supabase stays in its owning module.
+Shared Supabase reads for the job_path package — used by plan.py and the
+/cv/versions polish flow. Anything written through Supabase stays in its
+owning module.
 """
 
 from __future__ import annotations

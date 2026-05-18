@@ -77,3 +77,45 @@ def test_compute_status_reads_status_snapshot(monkeypatch) -> None:
     assert body["status"] == "running"
     assert body["already_running"] is True
     assert body["job_id"] == "job-abc"
+
+
+def test_refresh_preflights_xp_and_passes_charge_policy_to_queue(monkeypatch) -> None:
+    class _Repo:
+        def get_existing_match_job_ids(self, user_id, batch_week):
+            return ["job-1", "job-2"]
+
+    calls: dict[str, object] = {}
+
+    async def _can_spend(user_id: str, amount: int, action: str) -> int:
+        calls["preflight"] = (user_id, amount, action)
+        return 100
+
+    def _enqueue(user_id, batch_week, *, excluded_job_ids=None, charge_xp_amount=0):
+        calls["enqueue"] = (user_id, list(excluded_job_ids or []), charge_xp_amount)
+        return {
+            "status": "queued",
+            "already_running": False,
+            "job_id": "job-refresh",
+            "message": "Queued background jobs compute.",
+            "matches_written": None,
+            "from_cache": None,
+            "needs_onboarding": None,
+            "debug": None,
+        }
+
+    monkeypatch.setattr(match_router.settings, "redis_url", "redis://example.test/0")
+    monkeypatch.setattr(match_router.xp_service, "assert_can_spend_xp", _can_spend)
+    monkeypatch.setattr(match_router.job_match_compute_async, "enqueue_compute_job", _enqueue)
+
+    app.dependency_overrides[get_current_user] = _auth_override
+    app.dependency_overrides[match_router.get_token_jobs_repository] = lambda: _Repo()
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/refresh")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "queued"
+    assert calls["preflight"] == ("user-123", 50, "refresh_matches")
+    assert calls["enqueue"] == ("user-123", ["job-1", "job-2"], 50)

@@ -19,6 +19,7 @@
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
 - **Long-term fixes only.** When hitting errors, identify root cause — never patch symptoms with try/except, type casts, `|| undefined`, or workarounds. If trade-offs are unclear, discuss with Shivam before writing code.
+- **Design over words.** If the UI state already communicates a fact (disabled, error, loading, locked, success), do not pad with helper text restating it. A `disabled` input does not need "cannot be edited"; a red border does not need "this is an error". Helper text earns its place only when it (a) explains a flow the design can't, (b) discloses a non-visible constraint, or (c) is actionable. Default to stronger visual state — opacity, cursor, color, icon, motion — not microcopy.
 - **Newsletter articles: collaborate before drafting.** Do NOT write a full newsletter article without first agreeing with Shivam on angle, dashboards/images, and heading. Two-line confirmation pass minimum. See VOICE-NOTES.md for protocol.
 
 ---
@@ -106,6 +107,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | XP1 | XP is permanent — never resets. Wallet the user owns forever. |
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
+| XP10 | XP pricing modal is deferred. Pick it up only after XP fairness fixes and the single "How XP Works" modal are shipped. |
 | PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
 | IH1 | **Intel heatmap = followed companies only.** User builds their own heatmap by starring companies. Empty state on first visit. No global defaults in heatmap. |
 | IH2 | **Follow cost: 10 XP. Floor: -30 XP. Cap: 10 companies.** XP burned on follow, never refunded on unfollow (XP1). Star disabled if cap hit OR next deduction would breach -30. |
@@ -279,6 +281,37 @@ application_reviews (
 - Manual drag-to-reorder within a tracker column (v1 = deterministic sort by `last_stage_changed_at`)
 - Soft-delete with restore window (only if data shows users regret deletes)
 - Bulk delete / multi-select on tracker
+
+---
+
+## PARKED OPEN QUESTIONS (from graphify refresh 2026-05-18)
+
+Park-and-solve list. Pick up when working in the related area. Source = `graphify-out/GRAPH_REPORT.md`.
+
+### Cross-community bridge nodes (high betweenness — verify intentional coupling)
+
+1. **`compute_and_persist_score()` — betweenness 0.083.** Bridges `CV Upload & Initial Match` → `Tracker & Application Endpoints` → `Score Engine (Mirror/Domain)`. Solve when: touching scoring pipeline or post-CV-upload flow. Question: is this the right single source of truth (OQ4) or has accidental coupling crept in via tracker side-effects?
+2. **`ScoresRepository` — betweenness 0.057.** Bridges 5 communities (CV Upload, CV Compose Hub, Tracker, Job-Skills RPC, LLM Overlap). Solve when: refactoring repository layer or splitting scoring concerns.
+3. **`fetch_all_rows()` — betweenness 0.033.** Bridges `CV Compose Hub` → `Tracker Endpoints` → `Job-Skills RPC` → `Lightcast Backfill`. Solve when: query-pattern review (likely a fetch-all hotpath worth specializing).
+
+### INFERRED-edge audit (LLM-guessed connections — confirm or prune)
+
+4. **`JobsRepository` — 30 INFERRED edges.** Sample: `Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()`, `Fire-and-forget: compute first 5 matches after CV upload`. Solve when: touching `repositories/jobs.py` or stale-clock logic. Audit during Backlog #8 (Process Transparency Layer).
+5. **`ScoresRepository` — 47 INFERRED edges.** Largest INFERRED footprint. Solve when: scoring refactor.
+6. **`CVRepository` — 18 INFERRED edges.** Sample: `CVTextRequest`, `EducationItem`. Solve when: working on CV Builder v2 surface.
+7. **`generate_job_cv()` — 22 INFERRED edges.** Sample: `generate_application_cv()`, `_get_job()`. Solve when: deciding cleanup of legacy `generate-draft` route (already noted as cleanup pass candidate in 2026-05-17 session summary).
+
+### Refresh hygiene
+
+8. **Graphify doc/image refresh deferred.** AST-only update on 2026-05-18 skipped 306 docs + 38 images. DMMT screenshots, design references, and markdown notes still reflect May 13 snapshot. Solve when: budget allows full `--update`, OR when working on landing-page / DMMT-design surfaces, run scoped LLM pass on `frontend/Black_futuristist_frontend/project/uploads/` + repo-root markdown.
+
+### Architecture (deferred deepenings)
+
+10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+### UX systems audit
+
+9. **Loading-state audit across the entire frontend.** Shivam flagged 2026-05-18 that many surfaces fall straight to empty states instead of showing a loading state — the result feels "disappointing and depressing" because users can't tell whether the app is fetching or genuinely has nothing. Two loading templates already exist: `components/ui/particle-loading.tsx` (used only on `/skills` and `/companies/[slug]`) and `components/cv/upload-processing.tsx` (used only on `/cv` upload flow). Every other fetch surface either shows bare `"Loading…"` text, a one-off skeleton, or nothing. Next session: catalogue every `useQuery` / async surface, classify the load pattern it currently uses, decide a 3-tier loading system (skeleton for short fetches, particle for hero/full-screen, contextual inline for tiny loads), and ship a consistent treatment. Treat as foundational UX work — pairs naturally with the Category B verbal-scaffolding pass that's also queued.
 
 ---
 

@@ -5,9 +5,10 @@ import { useMutation, type QueryClient } from "@tanstack/react-query"
 import { jobs, type JobComputeStatusResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
+import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
-export const REFRESH_XP_COST = 50
+export const REFRESH_XP_COST = XP_POLICY.matchRefreshCost
 
 export function useMatchRefresh(token: string | null, queryClient: QueryClient) {
   const abortRef = useRef<AbortController | null>(null)
@@ -39,7 +40,9 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
         setIsExhausted(true)
         setNotice("No new matches")
       } else if ((p.matches_written ?? 0) > 0) {
-        setNotice(`+${p.matches_written ?? 0} new matches · −${REFRESH_XP_COST} XP`)
+        if (p.new_xp_balance != null) setBalance(p.new_xp_balance)
+        const spent = p.xp_spent ?? 0
+        setNotice(spent > 0 ? `+${p.matches_written ?? 0} new matches · -${spent} XP` : `+${p.matches_written ?? 0} new matches`)
       } else if (p.needs_onboarding) {
         setNotice("Upload your CV first to generate role matches.")
       } else {
@@ -96,6 +99,8 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
         debug: payload.debug ?? null,
         message: payload.message ?? null,
         error: null,
+        new_xp_balance: payload.new_xp_balance ?? null,
+        xp_spent: payload.xp_spent ?? 0,
         enqueued_at: null,
         started_at: null,
         finished_at: null,
@@ -105,7 +110,7 @@ export function useMatchRefresh(token: string | null, queryClient: QueryClient) 
       setIsRefreshing(false)
       const msg = error.message || ""
       if (msg.includes("Insufficient XP")) {
-        setNotice(`Not enough XP — refresh costs ${REFRESH_XP_COST} XP. Complete a Forge session to earn more.`)
+        setNotice(`Not enough XP. Refresh needs ${REFRESH_XP_COST} XP available, charged only if new matches are found.`)
       } else {
         setNotice("Refresh failed. Please try again.")
       }
