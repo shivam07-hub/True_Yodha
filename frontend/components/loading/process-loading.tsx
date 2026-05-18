@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import { useViewport } from "@/mobile"
 
 export interface ProcessLoadingStage {
   id: string
@@ -38,22 +39,7 @@ function inferStageIndex(message: string, stages: readonly ProcessLoadingStage[]
 
 function useAllowLoopingMotion(hostRef: RefObject<HTMLElement>) {
   const [isInView, setIsInView] = useState(true)
-  const [reduceMotion, setReduceMotion] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const sync = () => setReduceMotion(mediaQuery.matches)
-    sync()
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", sync)
-      return () => mediaQuery.removeEventListener("change", sync)
-    }
-
-    mediaQuery.addListener(sync)
-    return () => mediaQuery.removeListener(sync)
-  }, [])
+  const { reducedMotion: reduceMotion } = useViewport()
 
   useEffect(() => {
     if (typeof window === "undefined") return

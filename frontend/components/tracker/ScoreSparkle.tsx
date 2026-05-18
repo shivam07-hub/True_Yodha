@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useViewport } from "@/mobile"
 
 interface Props {
   trigger: number  // change this number to fire the sparkle
@@ -10,6 +11,7 @@ interface Particle { id: number; angle: number; distance: number; size: number; 
 
 export function ScoreSparkle({ trigger }: Props) {
   const [particles, setParticles] = useState<Particle[]>([])
+  const { reducedMotion: reduced } = useViewport()
 
   useEffect(() => {
     if (trigger === 0) return
@@ -30,9 +32,6 @@ export function ScoreSparkle({ trigger }: Props) {
   }, [trigger])
 
   if (particles.length === 0) return null
-
-  const reduced = typeof window !== "undefined"
-    && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
 
   return (
     <div

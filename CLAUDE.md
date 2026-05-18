@@ -146,7 +146,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
    - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
-9. **Mobile — enterprise polish + PWA (in progress 2026-05-18)** — Full plan below.
+9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
 ---
@@ -279,29 +279,17 @@ npm i -D eas-cli
 - ✅ Single breakpoint constant — `--tm-bp-mobile: 768px` in `app/design-tokens.css` + `BREAKPOINT_MOBILE_MAX` in `lib/viewport.ts`. `useIsDesktop` now imports from `lib/viewport.ts`.
 - ✅ CONTEXT.md updated — new section **Viewport Mode** defines the domain term, rules ("both nav variants always in DOM"), source of truth.
 
-**Deepening backlog (pick up in future sessions):**
+**Deepening backlog status:**
 
-1. **Deepen `useIsDesktop` → `useViewportMode()` + `<ViewportProvider>`** (medium effort)
-   - Today: every caller creates its own `MediaQueryList` listener. N callers = N listeners.
-   - Target: single subscriber in `ViewportProvider`, consumers read `mode === 'mobile'` via context.
-   - Benefit: locality (one listener), test surface (mock provider value), leverage (richer API — `mode`, `pointer`, `prefers-reduced-motion` all from one hook).
-   - Touch points: `app-shell.tsx:655`, `tracker/page.tsx:31`, future consumers.
+1. ✅ **DONE 2026-05-19** — `useViewportMode()` + `<ViewportProvider>` shipped as `useViewport()` in `frontend/mobile/provider.tsx`. Single matchMedia subscriber; exposes `{ mode, pointer, reducedMotion, isDesktop }`. All ad-hoc `matchMedia` calls migrated (ScoreSparkle, use-rotating-message, process-loading). Five listeners → one.
+2. ⏸ **DEFERRED** — `<ResponsiveStack>` layout primitive. Only 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`); pick up when a 4th lands or a new mobile-broken page adds another class hook.
+3. ✅ **DONE 2026-05-19** — `frontend/mobile/` module shipped. `shell.tsx`, `viewport.ts`, `provider.tsx`, `index.ts` barrel. Single import surface `from "@/mobile"`. CSS + manifest stayed in place (Next.js convention).
 
-2. **Extract `<ResponsiveStack>` layout primitive** (medium effort, biggest leverage)
-   - Today: "grid that collapses to single column on mobile" implemented 3+ times — `tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`. Each new mobile-broken page earns its own class hook + `@media` rule.
-   - Target: `<ResponsiveStack columns={[1.4, 1]} gap={32} stackAt="mobile">`. Component owns its own collapse.
-   - Deletion test passes: removing it concentrates the collapse logic that's currently scattered.
-   - Touch points: `components/home/MissionHeader.tsx:135`, `app/home/page.tsx:343`, `app/login/page.tsx:67`. Migrate one at a time.
+**New open task (post-#9 closure):**
+- **`packages/mobile-shared/` extraction.** With `frontend/mobile/` now consolidated, the next step is to lift it into a workspace package consumed by both `frontend/` (web PWA) and the future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
 
-3. **Name "Mobile Shell" as a module** (bigger move, do AFTER #1 + #2)
-   - Today: mobile concern scattered across `components/mobile-shell.tsx`, `globals.css` (~120 lines of `@media`), `lib/hooks/use-is-desktop.ts`, `lib/viewport.ts`, `public/manifest.webmanifest`, `app/layout.tsx` PWA meta.
-   - Target: consolidate under `frontend/mobile/` directory — `shell.tsx`, `viewport.ts`, `breakpoints.css`, `pwa.ts`, `skeleton.tsx`. Single import `from "@/mobile"`.
-   - Prerequisite for v2 native scaffold: enables `packages/mobile-shared/` extraction (web PWA + Expo native both consume the same shell primitives).
-
-**Friction signals to watch:**
-- Class-hook proliferation: any new page adding 4+ `tm-<page>-*` hooks is a signal #2 is overdue.
-- Multiple `MediaQueryList` listeners in DevTools: signal #1 is overdue.
-- "Where do I put this mobile-specific thing?" question on a new feature: signal #3 is overdue.
+**Friction signals to watch (for deferred #2):**
+- Class-hook proliferation: any new page adding 4+ `tm-<page>-*` hooks → ship `<ResponsiveStack>`.
 
 ---
 
@@ -427,7 +415,67 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-18 · Mobile PWA + Viewport seam)
+## LAST SESSION SUMMARY (2026-05-19 · Backlog #9 closed — viewport unified + mobile module)
+
+```
+Backlog #9 fully closed. Deepenings #1 + #3 shipped, #2 deferred (only 3
+collapse sites — no friction yet).
+
+DEEPENING #1 — ViewportProvider + useViewport:
+  - frontend/mobile/provider.tsx NEW: ViewportProvider wraps app in
+    providers.tsx. Single matchMedia subscriber tracks 3 queries
+    (mobile breakpoint, pointer:fine, prefers-reduced-motion) and
+    publishes one ViewportState = { mode, pointer, reducedMotion,
+    isDesktop } through React context.
+  - Mobile-safe defaults during SSR + first paint (isDesktop:false).
+  - 5 listeners → 1. Old useIsDesktop deleted entirely.
+
+MIGRATION:
+  - components/app-shell.tsx: const { isDesktop } = useViewport()
+  - app/tracker/page.tsx: const { isDesktop } = useViewport()
+  - components/tracker/ScoreSparkle.tsx: drops ad-hoc matchMedia,
+    reads reducedMotion from useViewport().
+  - lib/hooks/use-rotating-message.ts: same — drops its own listener +
+    state, reads from useViewport.
+  - components/loading/process-loading.tsx (useAllowLoopingMotion):
+    same — drops matchMedia + setReduceMotion useEffect.
+
+DEEPENING #3 — frontend/mobile/ module:
+  - frontend/mobile/viewport.ts (was lib/viewport.ts — moved +
+    added MEDIA_QUERY_REDUCED_MOTION, MEDIA_QUERY_POINTER_FINE,
+    PointerKind type)
+  - frontend/mobile/shell.tsx (was components/mobile-shell.tsx — git
+    mv, no content change)
+  - frontend/mobile/provider.tsx NEW
+  - frontend/mobile/index.ts NEW: single import surface
+    `import { ViewportProvider, useViewport, MobileTopBar, ... }
+    from "@/mobile"`.
+  - DELETED: lib/viewport.ts, lib/hooks/use-is-desktop.ts.
+  - CSS + manifest stayed in place (Next.js convention — globals.css
+    + public/manifest.webmanifest).
+
+VERIFY:
+  - tsc --noEmit: clean.
+  - next lint: 0 warnings, 0 errors.
+
+CLAUDE.md:
+  - Backlog #9 marked DONE 2026-05-19.
+  - Deepening backlog: #1 + #3 ✅; #2 deferred with friction trigger.
+  - New open task logged: packages/mobile-shared/ extraction
+    (prereq for v2 Expo native scaffold).
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - Cleanup pass: home/page.tsx jobs.generateJobCv, cv/variants.py
+    legacy generate-draft routes
+  - Shareability v1: /profile/{token}
+  - packages/mobile-shared/ extraction (blocked on shareability +
+    api-client/ extraction)
+```
+
+---
+
+## PREV SESSION SUMMARY (2026-05-18 · Mobile PWA + Viewport seam)
 
 ```
 Backlog #9 closed: enterprise mobile shell + PWA install + viewport seam.
