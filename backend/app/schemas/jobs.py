@@ -135,6 +135,7 @@ class ComputeJobMatchesResponse(BaseModel):
     job_id: str | None = None
     message: str | None = None
     new_xp_balance: int | None = None
+    xp_spent: int = 0
 
 
 class JobComputeStatusResponse(BaseModel):
@@ -149,6 +150,8 @@ class JobComputeStatusResponse(BaseModel):
     debug: dict[str, Any] | None = None
     message: str | None = None
     error: str | None = None
+    new_xp_balance: int | None = None
+    xp_spent: int = 0
     enqueued_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None

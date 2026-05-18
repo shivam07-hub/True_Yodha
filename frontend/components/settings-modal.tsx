@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { XP_POLICY } from "@/lib/xp-policy"
+import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import {
@@ -136,6 +138,7 @@ export function SettingsModal({ open, onClose, profile }: {
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const { setBalance } = useXPStore()
   const [activeTab, setActiveTab] = useState<Tab>("Account")
 
   // Account tab state
@@ -229,7 +232,8 @@ export function SettingsModal({ open, onClose, profile }: {
 
   const followMutation = useMutation({
     mutationFn: (companyName: string) => users.followCompany(token!, companyName),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
       setCompanyInput("")
       setCompanyDropdown(false)
@@ -452,8 +456,20 @@ export function SettingsModal({ open, onClose, profile }: {
 
                 <div style={ROW_STYLE}>
                   <div>
+                    <div style={ROW_LABEL}>Email</div>
+                    <div style={ROW_DESC}>Tied to your account · cannot be changed here</div>
+                  </div>
+                  <input
+                    id="sm-email" type="email" value={profile?.email ?? ""} readOnly disabled
+                    aria-readonly="true"
+                    style={{ ...INPUT_STYLE, opacity: 0.7, cursor: "not-allowed" }}
+                  />
+                </div>
+
+                <div style={ROW_STYLE}>
+                  <div>
                     <div style={ROW_LABEL}>Ninja Name</div>
-                    <div style={ROW_DESC}>Your display name across Myro</div>
+                    <div style={ROW_DESC}>Your display name across Myro · optional</div>
                   </div>
                   <input
                     id="sm-ninja-name" type="text" value={name}
@@ -627,7 +643,9 @@ export function SettingsModal({ open, onClose, profile }: {
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                     <div>
                       <div style={ROW_LABEL}>Target Companies</div>
-                      <div style={ROW_DESC}>Companies whose jobs you track in Market</div>
+                      <div style={ROW_DESC}>
+                        Companies whose jobs you track in Market · -{XP_POLICY.followCompanyCost} XP each
+                      </div>
                     </div>
                     {followedCompanies.length > 0 && (
                       <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
@@ -676,7 +694,10 @@ export function SettingsModal({ open, onClose, profile }: {
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                           >
                             <CompanyAvatar name={name} />
-                            {name}
+                            <span style={{ flex: 1 }}>{name}</span>
+                            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-accent)", whiteSpace: "nowrap" }}>
+                              -{XP_POLICY.followCompanyCost} XP
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -697,7 +718,9 @@ export function SettingsModal({ open, onClose, profile }: {
                 ) : followedCompanies.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
-                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>No companies followed yet — search above to add</div>
+                    <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
+                      No companies followed yet. Following costs {XP_POLICY.followCompanyCost} XP.
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>

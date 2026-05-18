@@ -14,7 +14,7 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.repositories.jobs import get_admin_jobs_repository
-from app.services import jobs_workflow
+from app.services import jobs_workflow, xp_service
 from app.services.llm_provider import get_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,8 @@ def _base_status(user_id: str, batch_week: date | str) -> dict[str, Any]:
         "debug": None,
         "message": None,
         "error": None,
+        "new_xp_balance": None,
+        "xp_spent": 0,
         "enqueued_at": None,
         "started_at": None,
         "finished_at": None,
@@ -112,7 +114,13 @@ def set_status(user_id: str, batch_week: date | str, payload: dict[str, Any]) ->
     return status
 
 
-def enqueue_compute_job(user_id: str, batch_week: date) -> dict[str, Any]:
+def enqueue_compute_job(
+    user_id: str,
+    batch_week: date,
+    *,
+    excluded_job_ids: list[str] | None = None,
+    charge_xp_amount: int = 0,
+) -> dict[str, Any]:
     batch_week_str = _batch_week_value(batch_week)
     conn = get_redis_connection()
     existing = get_status(user_id, batch_week_str)
@@ -140,6 +148,8 @@ def enqueue_compute_job(user_id: str, batch_week: date) -> dict[str, Any]:
             "app.services.job_match_compute_async.process_compute_job",
             user_id,
             batch_week_str,
+            excluded_job_ids or [],
+            max(0, int(charge_xp_amount or 0)),
             job_id=job_id,
             job_timeout=15 * 60,
             result_ttl=3600,
@@ -161,11 +171,18 @@ def enqueue_compute_job(user_id: str, batch_week: date) -> dict[str, Any]:
             "started_at": None,
             "finished_at": None,
             "error": None,
+            "excluded_job_ids": excluded_job_ids or [],
+            "charge_xp_amount": max(0, int(charge_xp_amount or 0)),
         },
     )
 
 
-def process_compute_job(user_id: str, batch_week: str) -> dict[str, Any]:
+def process_compute_job(
+    user_id: str,
+    batch_week: str,
+    excluded_job_ids: list[str] | None = None,
+    charge_xp_amount: int = 0,
+) -> dict[str, Any]:
     lock_key = _lock_key(user_id, batch_week)
     conn = get_redis_connection()
     started_at = _utc_now_iso()
@@ -190,8 +207,16 @@ def process_compute_job(user_id: str, batch_week: str) -> dict[str, Any]:
                 user_id=user_id,
                 batch_week=date.fromisoformat(batch_week),
                 llm_provider=llm_provider,
+                excluded_job_ids=excluded_job_ids or [],
             )
         )
+        xp_spent = 0
+        new_xp_balance = None
+        if int(payload.get("matches_written", 0)) > 0 and charge_xp_amount > 0:
+            new_xp_balance = asyncio.run(
+                xp_service.spend_xp(user_id, charge_xp_amount, "refresh_matches")
+            )
+            xp_spent = charge_xp_amount
         finished_at = _utc_now_iso()
         status_payload = set_status(
             user_id,
@@ -204,6 +229,8 @@ def process_compute_job(user_id: str, batch_week: str) -> dict[str, Any]:
                 "needs_onboarding": bool(payload.get("needs_onboarding", False)),
                 "debug": payload.get("debug"),
                 "message": "Matched jobs updated.",
+                "new_xp_balance": new_xp_balance,
+                "xp_spent": xp_spent,
                 "finished_at": finished_at,
                 "error": None,
             },

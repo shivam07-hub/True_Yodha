@@ -11,6 +11,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
+import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
@@ -493,7 +494,7 @@ function SidebarForgeTimer({
   )
 }
 
-function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflection, onForgeXPEarned }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeReflection: (text: string, skillName: string) => Promise<void>; onForgeXPEarned: (amount: number, newBalance: number) => void }) {
+function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflection, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeReflection: (text: string, skillName: string) => Promise<void>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -538,7 +539,11 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
       </Link>
 
       {/* XP pill — glows when forge session is running */}
-      <div style={{
+      <button
+        type="button"
+        onClick={onXPOpen}
+        aria-label="Open XP guide"
+        style={{
         margin: "10px 8px", padding: "10px 12px",
         borderRadius: "var(--tm-radius)",
         background: forgeRunning ? "rgba(0,245,212,0.08)" : "var(--tm-accent-wash)",
@@ -546,6 +551,9 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
         boxShadow: forgeRunning ? "0 0 14px rgba(0,245,212,0.2), inset 0 0 8px rgba(0,245,212,0.04)" : "none",
         display: "flex", alignItems: "center", gap: 10,
         transition: "background 400ms ease, border-color 400ms ease, box-shadow 400ms ease",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        textAlign: "left",
       }}>
         <div style={{
           minWidth: 32, textAlign: "center",
@@ -559,7 +567,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
           <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>XP</div>
         </div>
-      </div>
+      </button>
 
       {/* Inline forge timer — shows when session active */}
       <SidebarForgeTimer
@@ -728,6 +736,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isDesktop = useIsDesktop()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+  const [xpModalOpen, setXPModalOpen] = useState(false)
 
   if (!ready) return <AppShellSkeleton />
 
@@ -753,6 +762,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onForgeComplete={handleAmbientForgeComplete}
           onForgeReflection={handleAmbientReflection}
           onForgeXPEarned={handleAmbientXPEarned}
+          onXPOpen={() => setXPModalOpen(true)}
         />
       </div>
 
@@ -760,6 +770,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         xpBalance={xpBalance}
         profile={profile}
         onAvatarClick={() => setMobileSheetOpen(true)}
+        onXPOpen={() => setXPModalOpen(true)}
       />
 
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
@@ -777,6 +788,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           signOut={signOut}
         />
       )}
+
+      <XpExplainerModal
+        open={xpModalOpen}
+        onClose={() => setXPModalOpen(false)}
+        balance={xpBalance}
+      />
     </div>
   )
 }

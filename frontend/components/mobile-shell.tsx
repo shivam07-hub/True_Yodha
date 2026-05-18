@@ -73,10 +73,11 @@ const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stal
   { href: "/tracker", label: "Tracker",   icon: "▤", stalePill: true },
 ]
 
-export function MobileTopBar({ xpBalance, profile, onAvatarClick }: {
+export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
   xpBalance: number
   profile: SidebarProfile | null
   onAvatarClick: () => void
+  onXPOpen?: () => void
 }) {
   const initials = profile?.full_name
     ? profile.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
@@ -93,16 +94,21 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick }: {
         </span>
       </Link>
 
-      <div style={{
-        padding: "5px 11px", borderRadius: 99,
-        background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-        fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 700,
-        color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 5,
-      }}>
+      <button
+        type="button"
+        onClick={onXPOpen}
+        aria-label="Open XP guide"
+        style={{
+          padding: "5px 11px", borderRadius: 99,
+          background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+          fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 700,
+          color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 5,
+          cursor: "pointer",
+        }}>
         <span style={{ filter: "drop-shadow(0 0 4px var(--tm-accent-glow))" }}>◆</span>
         {xpBalance}
         <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontWeight: 400 }}>XP</span>
-      </div>
+      </button>
 
       <button
         onClick={onAvatarClick}

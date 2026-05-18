@@ -38,6 +38,8 @@ class _FakeUsersRepository:
         self.profile = profile
         self.records = records or []
         self.updates: list[tuple[str, dict[str, Any]]] = []
+        self.followed_companies: list[dict[str, Any]] = []
+        self.followed_writes: list[tuple[str, str]] = []
 
     def get_profile(self, _user_id: str) -> dict[str, Any] | None:
         return self.profile
@@ -49,6 +51,15 @@ class _FakeUsersRepository:
 
     def list_user_skill_records(self, _user_id: str) -> list[UserSkillRecord]:
         return self.records
+
+    def get_followed_companies(self, _user_id: str) -> list[dict[str, Any]]:
+        return self.followed_companies
+
+    def follow_company(self, user_id: str, company_name: str) -> None:
+        self.followed_writes.append((user_id, company_name))
+
+    def unfollow_company(self, _user_id: str, _company_name: str) -> None:
+        pass
 
 
 def test_get_me_reads_through_token_repository() -> None:
@@ -137,3 +148,90 @@ def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
     assert [item["key"] for item in body["by_domain"]["IT"]] == ["SQL", "Python"]
     assert body["by_cluster"]["Databases"][0]["level"] == 4
 
+
+def test_skill_advice_does_not_spend_xp_when_provider_returns_no_advice(monkeypatch) -> None:
+    async def _no_advice(**_kwargs: Any) -> None:
+        return None
+
+    async def _can_spend(*_args: Any, **_kwargs: Any) -> int:
+        return 100
+
+    async def _spend(*_args: Any, **_kwargs: Any) -> int:  # pragma: no cover
+        raise AssertionError("XP should not be spent without generated advice")
+
+    monkeypatch.setattr(users, "generate_skill_advice", _no_advice)
+    monkeypatch.setattr(users, "assert_can_spend_xp", _can_spend)
+    monkeypatch.setattr(users, "spend_xp", _spend)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_llm_provider] = lambda: object()
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/users/me/skills/level-up-advice",
+                json={"taxonomy_key": "SQL", "current_level": 2, "evidence_text": "Built SQL dashboards."},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert "No XP was spent" in response.json()["detail"]
+
+
+def test_skill_advice_spends_xp_after_advice_is_generated(monkeypatch) -> None:
+    calls: list[str] = []
+
+    async def _advice(**_kwargs: Any) -> str:
+        calls.append("generated")
+        return "Build one proof-backed SQL dashboard."
+
+    async def _can_spend(*_args: Any, **_kwargs: Any) -> int:
+        calls.append("preflight")
+        return 100
+
+    async def _spend(*_args: Any, **_kwargs: Any) -> int:
+        calls.append("spent")
+        return 80
+
+    monkeypatch.setattr(users, "generate_skill_advice", _advice)
+    monkeypatch.setattr(users, "assert_can_spend_xp", _can_spend)
+    monkeypatch.setattr(users, "spend_xp", _spend)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_llm_provider] = lambda: object()
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/users/me/skills/level-up-advice",
+                json={"taxonomy_key": "SQL", "current_level": 2, "evidence_text": "Built SQL dashboards."},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["new_xp_balance"] == 80
+    assert calls == ["preflight", "generated", "spent"]
+
+
+def test_follow_company_case_insensitive_duplicate_does_not_spend_xp(monkeypatch) -> None:
+    repo = _FakeUsersRepository()
+    repo.followed_companies = [
+        {"company_name": "Google", "created_at": datetime.now(timezone.utc)},
+    ]
+
+    async def _spend(*_args: Any, **_kwargs: Any) -> int:  # pragma: no cover
+        raise AssertionError("Duplicate follows should not spend XP")
+
+    monkeypatch.setattr(users, "spend_xp_to_floor", _spend)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/users/me/following/companies", json={"company_name": " google "})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert response.json() == {"company_name": "Google", "new_xp_balance": None}
+    assert repo.followed_writes == []

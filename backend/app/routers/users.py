@@ -17,7 +17,13 @@ from app.schemas import (
 from app.services.scoring_engine import compute_and_persist_score, fetch_aspiration_skills
 from app.services.skill_advice import generate_skill_advice
 from app.services.llm_provider import LLMProvider, get_llm_provider
-from app.services.xp_service import spend_xp, spend_xp_to_floor
+from app.services.xp_policy import (
+    FOLLOW_COMPANY_XP_COST,
+    FOLLOW_COMPANY_XP_FLOOR,
+    FOLLOWED_COMPANY_LIMIT,
+    SKILL_ADVICE_XP_COST,
+)
+from app.services.xp_service import assert_can_spend_xp, spend_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -94,7 +100,7 @@ async def correct_skill_level(
     )
 
 
-_SKILL_ADVICE_XP_COST = 20
+_SKILL_ADVICE_XP_COST = SKILL_ADVICE_XP_COST
 
 
 @router.post("/me/skills/level-up-advice", response_model=SkillAdviceResponse)
@@ -104,13 +110,24 @@ async def get_skill_level_up_advice(
     llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> SkillAdviceResponse:
     user_id = current_user["user_id"]
-    new_balance = await spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
+    if not body.evidence_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Skill advice needs CV evidence before XP can be spent.",
+        )
+    await assert_can_spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
     advice = await generate_skill_advice(
         skill=body.taxonomy_key,
         current_level=body.current_level,
         evidence_text=body.evidence_text,
         provider=llm_provider,
     )
+    if not advice:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Skill advice is unavailable right now. No XP was spent.",
+        )
+    new_balance = await spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
     return SkillAdviceResponse(advice=advice, xp_spent=_SKILL_ADVICE_XP_COST, new_xp_balance=new_balance)
 
 
@@ -140,8 +157,12 @@ async def get_followed_companies(
     return FollowedCompaniesResponse(companies=rows, total=len(rows))
 
 
-_FOLLOW_XP_COST = 10
-_MAX_FOLLOWED = 10
+_FOLLOW_XP_COST = FOLLOW_COMPANY_XP_COST
+_MAX_FOLLOWED = FOLLOWED_COMPANY_LIMIT
+
+
+def _company_key(name: str) -> str:
+    return " ".join(name.casefold().split())
 
 
 @router.post("/me/following/companies", status_code=status.HTTP_201_CREATED)
@@ -155,10 +176,11 @@ async def follow_company(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
 
     existing = users_repo.get_followed_companies(current_user["user_id"])
-    already_following = any(r["company_name"] == name for r in existing)
+    existing_by_key = {_company_key(r["company_name"]): r for r in existing}
+    already_following = existing_by_key.get(_company_key(name))
 
     if already_following:
-        return {"company_name": name, "new_xp_balance": None}
+        return {"company_name": already_following["company_name"], "new_xp_balance": None}
 
     if len(existing) >= _MAX_FOLLOWED:
         raise HTTPException(
@@ -166,7 +188,12 @@ async def follow_company(
             detail=f"Follow limit reached — max {_MAX_FOLLOWED} companies.",
         )
 
-    new_balance = await spend_xp_to_floor(current_user["user_id"], _FOLLOW_XP_COST, "follow_company")
+    new_balance = await spend_xp_to_floor(
+        current_user["user_id"],
+        _FOLLOW_XP_COST,
+        "follow_company",
+        floor=FOLLOW_COMPANY_XP_FLOOR,
+    )
     users_repo.follow_company(current_user["user_id"], name)
     return {"company_name": name, "new_xp_balance": new_balance}
 

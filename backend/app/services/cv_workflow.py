@@ -43,6 +43,13 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
         _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
 
 
+async def _grant_welcome_xp_safely(user_id: str) -> None:
+    try:
+        await grant_welcome_xp(user_id)
+    except Exception as exc:
+        _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+
+
 def _persist_baseline_cv(
     cv_repo: CVRepository,
     user_id: str,
@@ -95,10 +102,7 @@ async def ingest_uploaded_cv(
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
     if cached:
         _log.info("CV hash match for user=%s — returning cached score", user_id)
-        try:
-            await grant_welcome_xp(user_id)
-        except Exception as exc:
-            _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+        await _grant_welcome_xp_safely(user_id)
         return {
             "skills_detected": int(cached["skills_count"]),
             "score": float(cached["mirror_score"]),
@@ -142,10 +146,7 @@ async def ingest_uploaded_cv(
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
     )
-    try:
-        await grant_welcome_xp(user_id)
-    except Exception as exc:
-        _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+    await _grant_welcome_xp_safely(user_id)
     asyncio.create_task(_trigger_initial_match_compute(user_id))
     return {
         "skills_detected": len(skills_detected),
@@ -205,6 +206,7 @@ async def ingest_cv_text(
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
     if cached:
         _log.info("CV text hash match for user=%s — returning cached score", user_id)
+        await _grant_welcome_xp_safely(user_id)
         return {
             "skills_detected": int(cached["skills_count"]),
             "score": float(cached["mirror_score"]),
@@ -248,6 +250,7 @@ async def ingest_cv_text(
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
     )
+    await _grant_welcome_xp_safely(user_id)
     asyncio.create_task(_trigger_initial_match_compute(user_id))
     return {
         "skills_detected": len(skills_detected),

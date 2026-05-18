@@ -592,6 +592,7 @@ export interface ComputeJobMatchesResponse {
   job_id?: string | null
   message?: string | null
   new_xp_balance?: number | null
+  xp_spent?: number
   debug?: {
     cache_hit: boolean
     user_skills_count: number | null
@@ -615,6 +616,8 @@ export interface JobComputeStatusResponse {
   debug: Record<string, unknown> | null
   message: string | null
   error: string | null
+  new_xp_balance: number | null
+  xp_spent: number
   enqueued_at: string | null
   started_at: string | null
   finished_at: string | null

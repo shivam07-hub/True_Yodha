@@ -17,12 +17,13 @@ from app.schemas import (
 )
 from app.services import progress
 from app.services.xp_service import earn_xp
+from app.services.xp_policy import DIARY_ENTRY_XP
 
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/diary", tags=["diary"])
 
-DIARY_XP = 30
+DIARY_XP = DIARY_ENTRY_XP
 
 
 @router.post("/entry", response_model=DiaryEntryResponse, status_code=status.HTTP_201_CREATED)
