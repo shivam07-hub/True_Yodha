@@ -273,6 +273,36 @@ npm i -D eas-cli
 
 **Hard rule:** Do NOT add RN/Expo packages to `frontend/package.json`. Wrong package.json pollutes Next.js bundler + breaks Vercel. Native libs land in `mobile-native/package.json` only.
 
+### Architecture audit (post-ef8dd21, via /improve-codebase-architecture)
+
+**Shipped now (cheap, durable wins):**
+- ✅ Single breakpoint constant — `--tm-bp-mobile: 768px` in `app/design-tokens.css` + `BREAKPOINT_MOBILE_MAX` in `lib/viewport.ts`. `useIsDesktop` now imports from `lib/viewport.ts`.
+- ✅ CONTEXT.md updated — new section **Viewport Mode** defines the domain term, rules ("both nav variants always in DOM"), source of truth.
+
+**Deepening backlog (pick up in future sessions):**
+
+1. **Deepen `useIsDesktop` → `useViewportMode()` + `<ViewportProvider>`** (medium effort)
+   - Today: every caller creates its own `MediaQueryList` listener. N callers = N listeners.
+   - Target: single subscriber in `ViewportProvider`, consumers read `mode === 'mobile'` via context.
+   - Benefit: locality (one listener), test surface (mock provider value), leverage (richer API — `mode`, `pointer`, `prefers-reduced-motion` all from one hook).
+   - Touch points: `app-shell.tsx:655`, `tracker/page.tsx:31`, future consumers.
+
+2. **Extract `<ResponsiveStack>` layout primitive** (medium effort, biggest leverage)
+   - Today: "grid that collapses to single column on mobile" implemented 3+ times — `tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`. Each new mobile-broken page earns its own class hook + `@media` rule.
+   - Target: `<ResponsiveStack columns={[1.4, 1]} gap={32} stackAt="mobile">`. Component owns its own collapse.
+   - Deletion test passes: removing it concentrates the collapse logic that's currently scattered.
+   - Touch points: `components/home/MissionHeader.tsx:135`, `app/home/page.tsx:343`, `app/login/page.tsx:67`. Migrate one at a time.
+
+3. **Name "Mobile Shell" as a module** (bigger move, do AFTER #1 + #2)
+   - Today: mobile concern scattered across `components/mobile-shell.tsx`, `globals.css` (~120 lines of `@media`), `lib/hooks/use-is-desktop.ts`, `lib/viewport.ts`, `public/manifest.webmanifest`, `app/layout.tsx` PWA meta.
+   - Target: consolidate under `frontend/mobile/` directory — `shell.tsx`, `viewport.ts`, `breakpoints.css`, `pwa.ts`, `skeleton.tsx`. Single import `from "@/mobile"`.
+   - Prerequisite for v2 native scaffold: enables `packages/mobile-shared/` extraction (web PWA + Expo native both consume the same shell primitives).
+
+**Friction signals to watch:**
+- Class-hook proliferation: any new page adding 4+ `tm-<page>-*` hooks is a signal #2 is overdue.
+- Multiple `MediaQueryList` listeners in DevTools: signal #1 is overdue.
+- "Where do I put this mobile-specific thing?" question on a new feature: signal #3 is overdue.
+
 ---
 
 ## PROCESS TRANSPARENCY LAYER — PLAN (2026-05-14)
