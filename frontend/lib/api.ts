@@ -252,6 +252,8 @@ export interface UserSkillItem {
   level: number
   proficiency_title: string
   evidence_text: string | null
+  forge_sessions_count: number
+  forged_level_up_available: boolean
 }
 
 export interface UserSkillsByDomain {
@@ -293,13 +295,13 @@ export const users = {
         body: JSON.stringify({ level }),
       },
     ),
-  skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string) =>
+  skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string, freeUnlock = false) =>
     request<{ advice: string | null; xp_spent: number; new_xp_balance: number }>(
       "/users/me/skills/level-up-advice",
       {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ taxonomy_key: taxonomyKey, current_level: currentLevel, evidence_text: evidenceText }),
+        body: JSON.stringify({ taxonomy_key: taxonomyKey, current_level: currentLevel, evidence_text: evidenceText, free_unlock: freeUnlock }),
       },
     ),
   followedCompanies: (token: string) =>

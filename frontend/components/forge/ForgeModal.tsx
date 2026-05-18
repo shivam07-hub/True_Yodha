@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 import { XP_POLICY } from "@/lib/xp-policy"
+import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 
 const RING_R = 84
 const RING_CIRC = 2 * Math.PI * RING_R
@@ -49,15 +50,15 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
   const [mounted, setMounted] = useState(false)
 
   const duration = DURATIONS[durIdx].seconds
-  const progress = duration > 0 ? remaining / duration : 0
+  const progress = forgeProgressRatio(duration, remaining)
   const dashOffset = RING_CIRC * (1 - progress)
   const currentSkill = cartSkills[sessionIdx]
-  const nextSkill = cartSkills[sessionIdx + 1] ?? null
+  const hasForgeTarget = cartSkills.length > 0
   const totalXP = sessionsDone.reduce((s, r) => s + r.result.xp_earned, 0)
   const isTimerDone = remaining === 0 && !running
-  const queuedSessionXP = Math.round((DURATIONS[durIdx].seconds / 60) * XP_POLICY.forgeFocusedRate)
-  const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
-  const secs = String(remaining % 60).padStart(2, "0")
+  const readyXP = claimableForgeXP(duration, remaining, XP_POLICY.forgeFocusedRate)
+  const claimMinutes = claimableForgeMinutes(duration, remaining)
+  const canClaim = readyXP > 0
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -84,26 +85,22 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
   }
 
   async function completeSession() {
-    if (!currentSkill || saving) return
+    if (!currentSkill || !canClaim || saving) return
     try {
       setSaving(true)
       const result = await onCompleteSession({
         skill_name: currentSkill.skill_name,
-        duration_minutes: Math.max(1, Math.round(duration / 60)),
+        duration_minutes: claimMinutes,
       })
       setSessionsDone((prev) => [...prev, { skill: currentSkill, result }])
       onXPEarned(result.xp_earned, result.new_xp_balance)
       if (result.leveled_up) {
-        setLevelUpSkill(currentSkill.skill_name)
+        setLevelUpSkill("Forge")
         setTimeout(() => setLevelUpSkill(null), 2500)
       }
-      if (sessionIdx + 1 < cartSkills.length) {
-        setSessionIdx((s) => s + 1)
-        setRemaining(DURATIONS[durIdx].seconds)
-        setRunning(false)
-      } else {
-        setScreen("complete")
-      }
+      setSessionIdx((s) => cartSkills.length ? (s + 1) % cartSkills.length : 0)
+      setRemaining(DURATIONS[durIdx].seconds)
+      setRunning(true)
     } finally {
       setSaving(false)
     }
@@ -168,7 +165,6 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 52, color: "var(--tm-accent)", lineHeight: 1, marginBottom: 12, filter: "drop-shadow(0 0 16px rgba(0,245,212,0.6))" }}>◆</div>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, color: "var(--tm-accent)", letterSpacing: "0.15em", marginBottom: 8 }}>LEVEL UP</div>
-            <div style={{ fontSize: 15, color: "var(--tm-text)", opacity: 0.8 }}>{levelUpSkill}</div>
           </div>
         </div>
       )}
@@ -178,43 +174,32 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", gap: 32 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.18em", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              TODAY&apos;S FORGE QUEUE · {cartSkills.length} SKILL{cartSkills.length !== 1 ? "S" : ""} · {cartSkills.length} SESSION{cartSkills.length !== 1 ? "S" : ""}
+              FORGE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
             </div>
-            <div style={{ position: "relative", display: "inline-block", marginTop: 4 }}>
-              <div style={{ width: 1, background: "var(--tm-border-soft)", position: "absolute", left: 18, top: 28, bottom: 28 }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 0, textAlign: "left" }}>
-                {cartSkills.map((skill, i) => (
-                  <div key={skill.skill_name} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0" }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                      background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-accent)",
-                    }}>{i + 1}</div>
-                    <div>
-                      <div style={{ fontSize: 15, color: "var(--tm-text)", fontWeight: 600, marginBottom: 2 }}>{skill.skill_name}</div>
-                      <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>L{skill.level_from} → L{skill.level_to}{skill.company ? ` · ${skill.company}` : ""}</div>
-                    </div>
-                    <div style={{ marginLeft: "auto", padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)", fontSize: 11, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", whiteSpace: "nowrap" }}>
-                      +{queuedSessionXP} XP
-                    </div>
-                  </div>
-                ))}
+            <div style={{ width: 220, height: 220, borderRadius: "50%", border: "1px solid var(--tm-accent-ring)", display: "grid", placeItems: "center", margin: "24px auto 0", boxShadow: "0 0 48px rgba(0,245,212,0.14), inset 0 0 40px rgba(0,245,212,0.04)" }}>
+              <div>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 44, color: "var(--tm-accent)", fontWeight: 700, lineHeight: 1 }}>+0</div>
+                <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 8 }}>XP ready</div>
               </div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <button
-              onClick={() => setScreen("session")}
+              onClick={() => {
+                if (!hasForgeTarget) return
+                setScreen("session")
+                setRunning(true)
+              }}
+              disabled={!hasForgeTarget}
               style={{
                 padding: "14px 40px", borderRadius: "var(--tm-radius-pill)",
-                background: "var(--tm-accent)", border: "none",
-                color: "var(--tm-accent-fg)", fontSize: 15, fontWeight: 700,
-                cursor: "pointer", fontFamily: "inherit",
-                boxShadow: "0 0 28px rgba(0,245,212,0.35)",
+                background: hasForgeTarget ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none",
+                color: hasForgeTarget ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", fontSize: 15, fontWeight: 700,
+                cursor: hasForgeTarget ? "pointer" : "default", fontFamily: "inherit",
+                boxShadow: hasForgeTarget ? "0 0 28px rgba(0,245,212,0.35)" : "none",
               }}
             >
-              Begin session 1 of {cartSkills.length} ↗
+              Start forging ↗
             </button>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: "6px 12px" }}>
               Exit
@@ -229,9 +214,8 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--tm-text-faint)" }}>
-              SESSION {sessionIdx + 1} OF {cartSkills.length}
+              FORGE XP
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>{currentSkill.skill_name}</div>
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               {totalXP > 0 && (
                 <div style={{ padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)", fontSize: 11, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>
@@ -242,18 +226,6 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 Exit
               </button>
             </div>
-          </div>
-
-          {/* Session progress dots */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-            {cartSkills.map((_, i) => (
-              <div key={i} style={{
-                width: i === sessionIdx ? 20 : 8, height: 8, borderRadius: 999, transition: "all 400ms var(--tm-ease)",
-                background: i < sessionIdx ? "var(--tm-accent)" : i === sessionIdx ? "var(--tm-accent)" : "var(--tm-border-soft)",
-                opacity: i < sessionIdx ? 0.5 : 1,
-                boxShadow: i === sessionIdx ? "0 0 8px rgba(0,245,212,0.6)" : "none",
-              }} />
-            ))}
           </div>
 
           {/* SVG Ring */}
@@ -276,11 +248,11 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 )}
               </svg>
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center", padding: 24 }}>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "clamp(40px,8vw,80px)", fontWeight: 300, color: isTimerDone ? "var(--tm-success)" : "var(--tm-text)", letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-                  {isTimerDone ? "✓" : `${mins}:${secs}`}
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: "clamp(40px,8vw,80px)", fontWeight: 700, color: isTimerDone ? "var(--tm-success)" : "var(--tm-text)", letterSpacing: 0, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                  +{readyXP}
                 </div>
                 <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-                  {isTimerDone ? "Session done" : running ? currentSkill.skill_name : "Ready"}
+                  XP ready
                 </div>
               </div>
             </div>
@@ -289,52 +261,43 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           {/* Controls */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Duration picker */}
-            {!isTimerDone && (
-              <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-                {DURATIONS.map((d, i) => (
-                  <button key={d.label} onClick={() => changeDuration(i)} disabled={running} style={{
-                    padding: "4px 14px", borderRadius: 999, fontSize: 12, fontFamily: "inherit",
-                    cursor: running ? "default" : "pointer",
-                    background: i === durIdx ? "rgba(0,245,212,0.08)" : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${i === durIdx ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                    color: i === durIdx ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                    opacity: running && i !== durIdx ? 0.3 : 1,
-                  }}>{d.label}</button>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
-              {!isTimerDone && (
-                <button onClick={() => setRunning((r) => !r)} style={{
-                  padding: "12px 36px", borderRadius: "var(--tm-radius-pill)",
-                  background: "var(--tm-accent)", border: "none",
-                  color: "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit",
-                  boxShadow: "0 0 20px rgba(0,245,212,0.3)",
-                }}>
-                  {running ? "⏸ Pause" : "▶ Start"}
-                </button>
-              )}
-              {isTimerDone && (
-                <button onClick={completeSession} disabled={saving} style={{
-                  padding: "12px 40px", borderRadius: "var(--tm-radius-pill)",
-                  background: "var(--tm-accent)", border: "none",
-                  color: "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700,
-                  cursor: saving ? "default" : "pointer", fontFamily: "inherit",
-                  boxShadow: "0 0 20px rgba(0,245,212,0.3)",
-                  opacity: saving ? 0.7 : 1,
-                }}>
-                  {saving ? "Saving…" : sessionIdx + 1 < cartSkills.length ? "Log & continue →" : "Complete forge →"}
-                </button>
-              )}
+            <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+              {DURATIONS.map((d, i) => (
+                <button key={d.label} onClick={() => changeDuration(i)} disabled={running} style={{
+                  padding: "4px 14px", borderRadius: 999, fontSize: 12, fontFamily: "inherit",
+                  cursor: running ? "default" : "pointer",
+                  background: i === durIdx ? "rgba(0,245,212,0.08)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${i === durIdx ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  color: i === durIdx ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  opacity: running && i !== durIdx ? 0.3 : 1,
+                }}>{d.label}</button>
+              ))}
             </div>
 
-            {nextSkill && (
-              <div style={{ textAlign: "center", fontSize: 11, color: "var(--tm-text-faint)" }}>
-                Up next: <span style={{ color: "var(--tm-text-muted)" }}>{nextSkill.skill_name}</span>
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
+              <button onClick={() => setRunning((r) => !r)} style={{
+                padding: "12px 28px", borderRadius: "var(--tm-radius-pill)",
+                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)", border: running ? "1px solid rgba(255,255,255,0.1)" : "none",
+                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                boxShadow: running ? "none" : "0 0 20px rgba(0,245,212,0.3)",
+              }}>
+                {running ? "⏸ Pause" : "▶ Start"}
+              </button>
+              <button onClick={completeSession} disabled={!canClaim || saving} style={{
+                padding: "12px 34px", borderRadius: "var(--tm-radius-pill)",
+                background: canClaim && !saving ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: canClaim && !saving ? "none" : "1px solid rgba(255,255,255,0.08)",
+                color: canClaim && !saving ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", fontSize: 14, fontWeight: 700,
+                cursor: canClaim && !saving ? "pointer" : "default", fontFamily: "inherit",
+                boxShadow: canClaim && !saving ? "0 0 20px rgba(0,245,212,0.3)" : "none",
+                opacity: saving ? 0.7 : 1,
+              }}>
+                {saving ? "Saving…" : `Claim +${readyXP} XP`}
+              </button>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
+              {running ? "Building" : "Paused"} · {XP_POLICY.forgeFocusedRate} XP/min
+            </div>
           </div>
         </div>
       )}
@@ -352,13 +315,13 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, width: "100%", maxWidth: 480 }}>
-            {sessionsDone.map(({ skill, result }) => (
-              <div key={skill.skill_name} style={{
+            {sessionsDone.map(({ result }, idx) => (
+              <div key={idx} style={{
                 padding: "14px 16px", borderRadius: "var(--tm-radius)",
                 border: "1px solid var(--tm-accent-ring)",
                 background: "rgba(0,245,212,0.04)", display: "flex", flexDirection: "column", gap: 4,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>{skill.skill_name}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Forge claim</div>
                 <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-accent)" }}>+{result.xp_earned} XP</div>
                 {result.leveled_up && (
                   <div style={{ fontSize: 11, color: "var(--tm-success)" }}>◆ L{result.level_before} → L{result.level_after}</div>

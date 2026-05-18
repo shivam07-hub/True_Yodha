@@ -84,3 +84,18 @@ async def test_new_skill_row_created_when_missing():
     assert result["level_before"] == 0
     # insert called twice: user_skills row creation + forge_sessions log
     assert admin.table.return_value.insert.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_skill_name_is_resolved_to_canonical_skill_id_for_tracker_updates():
+    admin = _make_admin(level=0, sessions_count=0)
+    with (
+        patch("app.services.forge_service.get_supabase_admin", return_value=admin),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=42),
+        patch("app.services.forge_service.earn_xp", return_value=14),
+    ):
+        result = await complete_forge_session("user-1", "python", None, 7, session_type="ambient")
+
+    assert result["xp_earned"] == 14
+    update_chain = admin.table.return_value.update.return_value.eq.return_value.eq
+    update_chain.assert_called_with("skill_id", 42)

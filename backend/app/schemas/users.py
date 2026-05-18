@@ -33,6 +33,8 @@ class UserSkillItem(BaseModel):
     level: int
     proficiency_title: str
     evidence_text: str | None = None
+    forge_sessions_count: int = 0
+    forged_level_up_available: bool = False
 
 
 class UserSkillsByDomainResponse(BaseModel):
@@ -75,6 +77,7 @@ class SkillAdviceRequest(BaseModel):
     taxonomy_key: str
     current_level: int
     evidence_text: str
+    free_unlock: bool = False
 
 
 class SkillAdviceResponse(BaseModel):

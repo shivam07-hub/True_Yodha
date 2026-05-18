@@ -148,6 +148,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
 9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
+11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
 
 ---
 
@@ -217,7 +218,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 - Generate icons from existing `MyroLogo` (192×192, 512×512, maskable variants).
 
 **D. Empty/loading states**
-- `/market` heatmap loading: swap text spinner → `<ParticleLoading>` per loading-state audit memory.
+- ✅ DONE 2026-05-19 — `/market` heatmap loading now uses the shared process-loading language, and heatmap readiness treats no followed companies / no selected skills as resolved instead of hanging on "Building heatmap". `ParticleLoading` stays reserved for ambient full-region waits (`/skills`, `/companies/[slug]`).
 
 ### v2 scope — Native APK on Google Play (deferred, kicks off after 1000 PWA users per OQ note)
 
@@ -411,13 +412,50 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ### UX systems audit
 
-9. **Loading-state audit across the entire frontend.** Shivam flagged 2026-05-18 that many surfaces fall straight to empty states instead of showing a loading state — the result feels "disappointing and depressing" because users can't tell whether the app is fetching or genuinely has nothing. Two loading templates already exist: `components/ui/particle-loading.tsx` (used only on `/skills` and `/companies/[slug]`) and `components/cv/upload-processing.tsx` (used only on `/cv` upload flow). Every other fetch surface either shows bare `"Loading…"` text, a one-off skeleton, or nothing. Next session: catalogue every `useQuery` / async surface, classify the load pattern it currently uses, decide a 3-tier loading system (skeleton for short fetches, particle for hero/full-screen, contextual inline for tiny loads), and ship a consistent treatment. Treat as foundational UX work — pairs naturally with the Category B verbal-scaffolding pass that's also queued.
+9. ~~**Loading-state audit across the entire frontend.**~~ ✅ DONE 2026-05-19 — Closed as the foundational loading system, not as the separate verbal-scaffolding copy pass. Shivam's concern was that empty states felt "disappointing and depressing" because users could not tell fetching from genuine emptiness. Decision: keep a 3-tier system. **Shell skeleton** = `AppShellSkeleton` + `react-loading-skeleton` for auth/session chrome. **Process loading** = `components/loading/process-loading.tsx` + `components/loading/loading-page.tsx` + `app/loading.tsx` for route-level and multi-step work; adapters now include `IntelLoadingState` and onboarding CV analysis. **Ambient loading** = `components/ui/particle-loading.tsx` for immersive full-region waits (`/skills`, `/companies/[slug]`). Inline loading remains for tiny surfaces (`Button loading`, small row/card skeletons). Shipped with `/market` heatmap readiness fix and splash-screen token cleanup. Remaining UX copy/emotional tone work belongs to the Category B verbal-scaffolding pass, not this parked audit.
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Backlog #9 closed — viewport unified + mobile module)
+## LAST SESSION SUMMARY (2026-05-19 · Forge loop + Backlog #9 + loading-state audit closed)
 
 ```
+FORGE + DIARY LOOP — BACKLOG #11 SHIPPED:
+  - Nav/sidebar Forge now shows generic XP ready, not the hidden skill.
+    XP can be claimed after whole minutes accrue; claim auto-restarts
+    the Forge timer.
+  - Full Forge modal and floating timer use the same generic XP loop.
+    Skill queue remains hidden and continues feeding backend progression.
+  - forge_service resolves skill_name → canonical skill_id via taxonomy
+    before updating user_skills, so Skill Tracker advances correctly.
+  - /users/me/skills now includes forge_sessions_count +
+    forged_level_up_available.
+  - SkillCard shows "AI skill upgrade" for forged level-ups. The advice
+    endpoint verifies a forged level-up, uses recent diary notes + CV
+    evidence, and returns xp_spent=0.
+
+VERIFY:
+  - pytest backend/tests -q: 255 passed.
+  - npx tsc --noEmit: clean.
+  - npm run lint: 0 warnings, 0 errors.
+  - npx tsx --test tests/forge-progress.test.ts: 3 passed.
+
+LOADING-STATE AUDIT — PARKED Q #9 CLOSED:
+  - Closed as foundational system. Remaining "empty states feel
+    disappointing" copy/tone work moves with Category B verbal-scaffolding,
+    not this audit.
+  - Three-tier loading system locked:
+    1. Shell skeleton: AppShellSkeleton + react-loading-skeleton for
+       auth/session chrome.
+    2. Process loading: components/loading/process-loading.tsx,
+       components/loading/loading-page.tsx, app/loading.tsx. IntelLoadingState
+       and onboarding CV analysis now use this module.
+    3. Ambient loading: components/ui/particle-loading.tsx for immersive
+       full-region waits (/skills, /companies/[slug]).
+  - /market heatmap readiness fixed: no followed companies / no selected
+    skills now count as resolved instead of leaving "Building heatmap" stuck.
+  - SplashScreen now reads var(--tm-bg/text/text-faint) instead of hard-coded
+    dark colors.
+
 Backlog #9 fully closed. Deepenings #1 + #3 shipped, #2 deferred (only 3
 collapse sites — no friction yet).
 

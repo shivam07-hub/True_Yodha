@@ -19,6 +19,7 @@ interface ForgeTimerStore {
   setRunning: (r: boolean) => void
   setMinimized: (m: boolean) => void
   tick: () => void
+  restartSession: () => void
   resetSession: () => void
   dismiss: () => void
 }
@@ -41,7 +42,7 @@ export const useForgeTimerStore = create<ForgeTimerStore>((set) => ({
     skillLevelTo: skill.level_to ?? 1,
     skillCompany: skill.company,
     remaining: FORGE_AMBIENT_DURATION,
-    running: false,
+    running: true,
     minimized: false,
     dismissed: false,
   }),
@@ -55,6 +56,14 @@ export const useForgeTimerStore = create<ForgeTimerStore>((set) => ({
     if (next <= 0) return { remaining: 0, running: false }
     return { remaining: next }
   }),
+
+  restartSession: () => set((state) => ({
+    sessionActive: !!state.skillName,
+    remaining: FORGE_AMBIENT_DURATION,
+    running: !!state.skillName,
+    minimized: false,
+    dismissed: false,
+  })),
 
   resetSession: () => set({
     sessionActive: false,

@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { users, jobs as jobsApi } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
@@ -15,7 +16,7 @@ import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
-import { xp, diary } from "@/lib/api"
+import { xp } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
 import {
   AppShellSkeleton,
@@ -27,6 +28,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/xp",      label: "XP Guide",    desc: "Earn & spend XP",        icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
@@ -296,19 +298,16 @@ function StaleBadge() {
   )
 }
 
-const SIDEBAR_FORGE_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
+const SIDEBAR_FORGE_CAP_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
 
 function SidebarForgeTimer({
   onXPEarned,
   onCompleteSession,
-  onSaveReflection,
 }: {
   onXPEarned: (amount: number, newBalance: number) => void
   onCompleteSession: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
-  onSaveReflection: (text: string, skillName: string) => Promise<void>
 }) {
-  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, resetSession, dismiss } = useForgeTimerStore()
-  const [reflection, setReflection] = useState("")
+  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, restartSession, dismiss } = useForgeTimerStore()
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
 
@@ -321,10 +320,10 @@ function SidebarForgeTimer({
   if (!sessionActive || dismissed) return null
 
   const isComplete = remaining === 0 && !running
-  const progress = 1 - remaining / FORGE_AMBIENT_DURATION
-  const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
-  const secs = String(remaining % 60).padStart(2, "0")
-  const canClaim = reflection.trim().length >= 1
+  const progress = forgeProgressRatio(FORGE_AMBIENT_DURATION, remaining)
+  const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, FORGE_AMBIENT_RATE)
+  const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
+  const canClaim = readyXP > 0
   const accent = isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-accent)"
 
   async function handleClaim() {
@@ -332,15 +331,11 @@ function SidebarForgeTimer({
     try {
       setClaiming(true)
       setClaimError(null)
-      const [result] = await Promise.all([
-        onCompleteSession({ skill_name: skillName, duration_minutes: FORGE_AMBIENT_DURATION / 60 }),
-        onSaveReflection(reflection.trim(), skillName),
-      ])
+      const result = await onCompleteSession({ skill_name: skillName, duration_minutes: claimMinutes })
       onXPEarned(result.xp_earned, result.new_xp_balance)
-      resetSession()
-      setReflection("")
+      restartSession()
     } catch (e) {
-      setClaimError(e instanceof Error ? e.message : "Could not save session")
+      setClaimError(e instanceof Error ? e.message : "Could not claim XP")
     } finally {
       setClaiming(false)
     }
@@ -366,16 +361,21 @@ function SidebarForgeTimer({
       </div>
 
       {/* Countdown + controls */}
-      <div style={{ padding: "10px 10px 8px" }}>
+      <div style={{ padding: "10px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 24, fontWeight: 300, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", color: accent, lineHeight: 1 }}>
-            {isComplete ? "✓ Done" : `${mins}:${secs}`}
-          </span>
-          {!isComplete && (
+          <div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 24, fontWeight: 700, letterSpacing: 0, fontVariantNumeric: "tabular-nums", color: accent, lineHeight: 1 }}>
+              +{readyXP}
+            </div>
+            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 3 }}>
+              XP ready
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button
               onClick={() => setRunning(!running)}
               style={{
-                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
                 background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
                 border: running ? "1px solid rgba(255,255,255,0.12)" : "none",
                 color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
@@ -383,42 +383,36 @@ function SidebarForgeTimer({
                 cursor: "pointer", fontSize: 10, transition: "all 150ms ease",
               }}
             >{running ? "⏸" : "▶"}</button>
-          )}
+            <button
+              onClick={handleClaim}
+              disabled={!canClaim || claiming}
+              style={{
+                height: 28, padding: "0 10px", borderRadius: "var(--tm-radius-pill, 999px)",
+                background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
+                border: canClaim && !claiming ? "none" : "1px solid rgba(255,255,255,0.08)",
+                color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)",
+                fontSize: 10, fontWeight: 700,
+                cursor: canClaim && !claiming ? "pointer" : "default",
+                fontFamily: "inherit", transition: "all 200ms ease",
+              }}
+            >{claiming ? "…" : "Claim"}</button>
+          </div>
         </div>
 
         {/* Progress bar */}
         <div style={{ height: 3, borderRadius: 99, background: "rgba(255,255,255,0.06)", marginBottom: 7, overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 99, background: accent, width: `${progress * 100}%`, transition: running ? "width 1s linear" : "none", boxShadow: `0 0 6px ${isComplete ? "rgba(74,222,128,0.5)" : "rgba(0,245,212,0.4)"}` }} />
         </div>
-
-        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tm-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{skillName}</div>
-        {!isComplete && <div style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 2 }}>+{SIDEBAR_FORGE_XP} XP on completion</div>}
-      </div>
-
-      {/* Completion flow */}
-      {isComplete && (
-        <div style={{ padding: "0 10px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
-          <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>What did you practice?</div>
-          <textarea
-            value={reflection}
-            onChange={(e) => { setReflection(e.target.value); setClaimError(null) }}
-            placeholder={`I practiced ${skillName} by…`}
-            rows={2}
-            style={{ width: "100%", resize: "none", borderRadius: "var(--tm-radius-sm, 8px)", border: `1px solid ${claimError ? "var(--tm-danger, #f87171)" : "var(--tm-border)"}`, background: "rgba(255,255,255,0.04)", color: "var(--tm-text)", padding: "6px 8px", fontSize: 11, lineHeight: 1.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
-          />
-          {claimError && <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)" }}>{claimError}</div>}
-          <button
-            onClick={handleClaim}
-            disabled={!canClaim || claiming}
-            style={{ width: "100%", padding: "7px", borderRadius: "var(--tm-radius-pill, 999px)", background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none", color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)", fontSize: 11, fontWeight: 700, cursor: canClaim && !claiming ? "pointer" : "default", fontFamily: "inherit", transition: "all 200ms ease" }}
-          >{claiming ? "Saving…" : `Claim +${SIDEBAR_FORGE_XP} XP →`}</button>
+        <div style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 2 }}>
+          {running ? "Building" : "Paused"} · cap +{SIDEBAR_FORGE_CAP_XP} XP
         </div>
-      )}
+        {claimError && <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)", marginTop: 6 }}>{claimError}</div>}
+      </div>
     </div>
   )
 }
 
-function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflection, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeReflection: (text: string, skillName: string) => Promise<void>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
+function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -496,7 +490,6 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
       {/* Inline forge timer — shows when session active */}
       <SidebarForgeTimer
         onCompleteSession={onForgeComplete}
-        onSaveReflection={onForgeReflection}
         onXPEarned={onForgeXPEarned}
       />
 
@@ -628,7 +621,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
   )
 }
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
@@ -638,11 +631,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
     if (!token) throw new Error("Not authenticated")
     return xp.completeForge(token, { ...payload, session_type: "ambient" })
-  }
-
-  async function handleAmbientReflection(text: string, skillName: string) {
-    if (!token) return
-    await diary.createEntry(token, text, undefined, [{ skill_name: skillName }])
   }
 
   function handleAmbientXPEarned(amount: number, newBalance: number) {
@@ -683,7 +671,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           profile={profile}
           signOut={signOut}
           onForgeComplete={handleAmbientForgeComplete}
-          onForgeReflection={handleAmbientReflection}
           onForgeXPEarned={handleAmbientXPEarned}
           onXPOpen={() => setXPModalOpen(true)}
         />

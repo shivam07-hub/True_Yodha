@@ -161,7 +161,7 @@ export function MissionHeader({
               >
                 Enter Forge <IconArrowUR />
               </button>
-              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-text-muted)" }}>+75 XP for completing Forge</span>
+              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-text-muted)" }}>XP builds while Forge runs</span>
             </div>
             {refreshNotice && <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>{refreshNotice}</div>}
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
+import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 import type { ForgeSessionResult } from "@/types/xp"
 
 const RING_R = 38
@@ -14,16 +15,14 @@ const XP_LABEL = FORGE_AMBIENT_DURATION / 60 * FORGE_AMBIENT_RATE  // 50
 interface Props {
   onXPEarned: (amount: number, newBalance: number) => void
   onCompleteSession: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
-  onSaveReflection: (text: string, skillName: string) => Promise<void>
 }
 
-export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflection }: Props) {
+export function ForgeFloatingTimer({ onXPEarned, onCompleteSession }: Props) {
   const {
     sessionActive, skillName, dismissed, running, minimized, remaining,
-    setRunning, setMinimized, tick, resetSession, dismiss,
+    setRunning, setMinimized, tick, restartSession, dismiss,
   } = useForgeTimerStore()
 
-  const [reflection, setReflection] = useState("")
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -54,27 +53,23 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
   }, [remaining, running, sessionActive, setMinimized])
 
   const isComplete = remaining === 0 && !running && sessionActive
-  const progress = remaining / FORGE_AMBIENT_DURATION
+  const progress = forgeProgressRatio(FORGE_AMBIENT_DURATION, remaining)
   const fullDashOffset = RING_CIRC * (1 - progress)
   const miniDashOffset = MINI_CIRC * (1 - progress)
-  const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
-  const secs = String(remaining % 60).padStart(2, "0")
-  const canClaim = reflection.trim().length >= 1
+  const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, FORGE_AMBIENT_RATE)
+  const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
+  const canClaim = readyXP > 0
 
   async function handleClaim() {
     if (!skillName || !canClaim || claiming) return
     try {
       setClaiming(true)
       setClaimError(null)
-      const [result] = await Promise.all([
-        onCompleteSession({ skill_name: skillName, duration_minutes: FORGE_AMBIENT_DURATION / 60 }),
-        onSaveReflection(reflection.trim(), skillName),
-      ])
+      const result = await onCompleteSession({ skill_name: skillName, duration_minutes: claimMinutes })
       onXPEarned(result.xp_earned, result.new_xp_balance)
-      resetSession()
-      setReflection("")
+      restartSession()
     } catch (e) {
-      setClaimError(e instanceof Error ? e.message : "Could not save session")
+      setClaimError(e instanceof Error ? e.message : "Could not claim XP")
     } finally {
       setClaiming(false)
     }
@@ -123,13 +118,8 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
             />
           </svg>
           <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, fontWeight: 600, color: accentColor, letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums" }}>
-            {isComplete ? "Note →" : `${mins}:${secs}`}
+            +{readyXP} XP
           </span>
-          {!isComplete && (
-            <span style={{ fontSize: 10, color: "var(--tm-text-faint)", maxWidth: 72, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {skillName}
-            </span>
-          )}
         </button>
       </>,
       document.body
@@ -168,7 +158,7 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
         </div>
       </div>
 
-      {/* Ring + skill info — scrollable when viewport short */}
+      {/* Ring + XP state — scrollable when viewport short */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 16px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <div style={{ position: "relative" }}>
           <svg width={88} height={88} viewBox="0 0 88 88" style={{ transform: "rotate(-90deg)" }}>
@@ -186,83 +176,54 @@ export function ForgeFloatingTimer({ onXPEarned, onCompleteSession, onSaveReflec
             )}
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, fontWeight: 300, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", color: isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-text)", lineHeight: 1 }}>
-              {isComplete ? "✓" : `${mins}:${secs}`}
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, fontWeight: 700, letterSpacing: 0, fontVariantNumeric: "tabular-nums", color: isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-text)", lineHeight: 1 }}>
+              +{readyXP}
             </div>
             <div style={{ fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-              {isComplete ? "done" : running ? "forging" : "paused"}
+              XP ready
             </div>
           </div>
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 2 }}>Forging</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 232 }}>
-            {skillName}
-          </div>
+          <div style={{ fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 2 }}>Forging XP</div>
+          <div style={{ fontSize: 11, color: "var(--tm-text-faint)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{running ? "Building" : "Paused"} · cap +{XP_LABEL} XP</div>
         </div>
       </div>
 
       {/* Controls */}
       <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {!isComplete ? (
-          <>
-            <button
-              onClick={() => setRunning(!running)}
-              style={{
-                width: "100%", padding: "8px", borderRadius: "var(--tm-radius-pill, 999px)",
-                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
-                border: running ? "1px solid rgba(255,255,255,0.1)" : "none",
-                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
-                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                transition: "all 150ms ease",
-              }}
-            >
-              {running ? "⏸ Pause" : "▶ Start"}
-            </button>
-            <div style={{ textAlign: "center", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-              +{XP_LABEL} XP on completion · {FORGE_AMBIENT_RATE} XP/min
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
-              One line about what you practiced:
-            </div>
-            <textarea
-              value={reflection}
-              onChange={(e) => { setReflection(e.target.value); setClaimError(null) }}
-              placeholder={`I practiced ${skillName} by…`}
-              rows={2}
-              style={{
-                width: "100%", resize: "none", borderRadius: "var(--tm-radius-sm, 8px)",
-                border: `1px solid ${claimError ? "var(--tm-danger, #f87171)" : "var(--tm-border)"}`,
-                background: "rgba(255,255,255,0.04)",
-                color: "var(--tm-text)", padding: "8px 10px",
-                fontSize: 12, lineHeight: 1.5, fontFamily: "inherit",
-                outline: "none", boxSizing: "border-box",
-              }}
-            />
-            {claimError && (
-              <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)" }}>{claimError}</div>
-            )}
-            <button
-              onClick={handleClaim}
-              disabled={!canClaim || claiming}
-              style={{
-                width: "100%", padding: "8px", borderRadius: "var(--tm-radius-pill, 999px)",
-                background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-                border: "none",
-                color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)",
-                fontSize: 12, fontWeight: 700,
-                cursor: canClaim && !claiming ? "pointer" : "default",
-                fontFamily: "inherit", transition: "all 200ms ease",
-              }}
-            >
-              {claiming ? "Saving…" : `Claim +${XP_LABEL} XP →`}
-            </button>
-          </>
+        <button
+          onClick={() => setRunning(!running)}
+          style={{
+            width: "100%", padding: "8px", borderRadius: "var(--tm-radius-pill, 999px)",
+            background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
+            border: running ? "1px solid rgba(255,255,255,0.1)" : "none",
+            color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
+            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            transition: "all 150ms ease",
+          }}
+        >
+          {running ? "⏸ Pause" : "▶ Start"}
+        </button>
+        {claimError && (
+          <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)" }}>{claimError}</div>
         )}
+        <button
+          onClick={handleClaim}
+          disabled={!canClaim || claiming}
+          style={{
+            width: "100%", padding: "8px", borderRadius: "var(--tm-radius-pill, 999px)",
+            background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
+            border: "none",
+            color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)",
+            fontSize: 12, fontWeight: 700,
+            cursor: canClaim && !claiming ? "pointer" : "default",
+            fontFamily: "inherit", transition: "all 200ms ease",
+          }}
+        >
+          {claiming ? "Saving…" : `Claim +${readyXP} XP`}
+        </button>
       </div>
     </div>,
     document.body

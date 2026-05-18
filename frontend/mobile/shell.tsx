@@ -34,7 +34,7 @@ export function AppShellSkeleton() {
         }}>
           <Skeleton height={44} />
           <Skeleton height={52} />
-          {[0, 1, 2, 3].map(i => (
+          {[0, 1, 2, 3, 4].map(i => (
             <div key={i} style={{ opacity: 1 - i * 0.15 }}>
               <Skeleton height={40} />
             </div>

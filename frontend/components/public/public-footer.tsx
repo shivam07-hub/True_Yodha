@@ -36,6 +36,15 @@ export function PublicFooter() {
         Newsletter
       </Link>
       <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
+      <Link
+        href="/about"
+        style={linkStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
+      >
+        About
+      </Link>
+      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
       <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>© Myro 2026</span>
     </div>
   )
