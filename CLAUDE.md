@@ -114,6 +114,13 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | IH3 | **Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others. |
 | IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
 | IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
+| SH1 | **Ninja Name = vanity slug** as the public profile ID. `user_profiles.ninja_name TEXT UNIQUE NOT NULL`. Charset `^[a-z0-9-]{3,32}$`. The codename IS the share URL: `/profile/{ninja_name}`. Aligns with PV1 — user controls disclosure, no real-name leakage. |
+| SH2 | **Onboarding step is skippable with auto-generated default.** `silent-fox-9k2` pattern (adjective + noun + 4-char suffix). User can accept, retype, or skip → keep default. Zero abandonment risk. Editable later via Settings. |
+| SH3 | **Domain Map is the share artifact — fully public, never blurred.** The 12-domain radar from `/skills`, the Myro Score number, the tier label, and aggregate activity counters (forge/diary/tracker counts) are public. Skill names, skill levels, CV, tracker rows, and email NEVER leak through the public surface. |
+| SH4 | **Ghost radar is the conversion mechanic.** Logged-out viewer sees an outline-only radar beside (desktop) / below (mobile) the ninja's, with a single `+` icon center and tiny `unlock` label. Whole shape is a single clickable target → `/signup?ref={ninja_name}`. Logged-in viewer with own radar sees their radar overlaid instead of the ghost. |
+| SH5 | **Job overlap rows are the logged-in-only accountability surface.** Compact rows of jobs both users have saved (`job_applications.status IN saved/applied/screening/interviewing/final_round`). Max 3 rows, sorted by viewer's own match%. Hide section silently when no overlap. Symmetric — owner doesn't see viewers. |
+| SH6 | **Web Share API + auto-OG image** is the share affordance. Single `↗` icon on `/skills` top-right. One tap → native share sheet (WhatsApp first on India mobile). Link unfurls with PNG of the ninja's radar shape + score via `app/profile/[ninja]/opengraph-image.tsx`. Desktop fallback = copy-to-clipboard. No custom share modal. |
+| SH7 | **Referral attribution = cookie + permanent DB column.** `myro_ref` cookie 30d TTL set from `?ref=` query. Signup handler resolves cookie → `user_profiles.referred_by_user_id UUID REFERENCES auth.users(id)`. v2 XP credit = single trigger on `welcome_xp_granted` flipping TRUE AND `referred_by_user_id IS NOT NULL`. Self-referral guard. No referrals_log table in v1. |
 
 ---
 
@@ -149,6 +156,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
+
+12. **Shareability v1 — `/profile/{ninja_name}` public profile (NEXT SESSION).** Decisions SH1–SH7 locked. Full plan below.
 
 ---
 
@@ -291,6 +300,139 @@ npm i -D eas-cli
 
 **Friction signals to watch (for deferred #2):**
 - Class-hook proliferation: any new page adding 4+ `tm-<page>-*` hooks → ship `<ResponsiveStack>`.
+
+---
+
+## SHAREABILITY v1 — PLAN (Backlog #12, locked 2026-05-19 via grill-me)
+
+### Vision
+Every Myro user is a viral seed. The Domain Map (12-domain radar from `/skills`) is the magnetic share artifact. A logged-out viewer who lands on `/profile/{ninja_name}` sees the ninja's radar alongside their own *empty* radar — the ghost is the conversion CTA. The college fellowship program treats every fellow's `/profile/` link as the rollout vector for their cohort. Forward-compat: v2 adds XP-for-referral on each completed onboarding.
+
+### Decisions (SH1–SH7)
+See **DECISIONS LOCKED** table above.
+
+### DB — Migration `database/migrations/20260519_shareability_v1.sql`
+
+```sql
+BEGIN;
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS ninja_name TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS referred_by_user_id UUID REFERENCES auth.users(id);
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_ninja_name ON user_profiles(ninja_name);
+
+-- Backfill: every existing user gets a generated ninja_name via service fn.
+-- Run in app code (loop with retry-on-conflict) before NOT NULL.
+
+ALTER TABLE user_profiles
+  ALTER COLUMN ninja_name SET NOT NULL;
+
+-- Public read surface (no PII)
+CREATE OR REPLACE VIEW public_profile_v AS
+  SELECT
+    up.ninja_name,
+    ms.mirror_score,
+    ms.domain_scores,
+    ms.tier_label,
+    (SELECT COUNT(*) FROM forge_sessions WHERE user_id = up.id) AS forge_sessions_count,
+    (SELECT COUNT(*) FROM daily_logs    WHERE user_id = up.id) AS diary_count,
+    (SELECT COUNT(*) FROM job_applications WHERE user_id = up.id) AS tracker_count
+  FROM user_profiles up
+  LEFT JOIN mirror_scores ms ON ms.user_id = up.id;
+
+GRANT SELECT ON public_profile_v TO anon, authenticated;
+
+NOTIFY pgrst, 'reload schema';
+COMMIT;
+```
+
+### Backend — New + Modified
+
+**New: `backend/app/services/ninja_name.py`**
+- `generate() -> str` — picks `{adjective}-{noun}-{4charsuffix}` from curated wordlists. Suffix avoids collision; retry-on-conflict.
+- `is_valid(name: str) -> bool` — regex `^[a-z0-9-]{3,32}$` + reserved-words blocklist (`admin`, `signup`, `login`, `api`, `profile`, `xp`, `home`, etc).
+- `is_available(name: str, db) -> bool` — DB uniqueness check.
+
+**New: `backend/app/routers/profile/public.py`**
+- `GET /profile/{ninja_name}` — no auth. Returns `PublicProfile` (score, domain_scores, tier, counts). 404 if not found.
+- `GET /profile/{ninja_name}/overlap` — auth required. Returns up to 3 jobs both viewer + owner have saved. Match% from `user_job_matches` if exists, else basic overlap.
+- `POST /profile/ninja-name` — auth required. Update own `ninja_name`. Validates + uniqueness checks.
+
+**Modified: `backend/app/routers/auth.py`** — `_upsert_user_profile()` generates `ninja_name` on first provision. Signup handler reads `myro_ref` cookie via FastAPI `Cookie()`, resolves ninja_name → user_id, writes `referred_by_user_id` (self-ref guard: skip if same id).
+
+**Modified: `backend/app/schemas/users.py`** — add `ninja_name` + `referred_by_user_id` to `UserProfile`. New `PublicProfile` schema.
+
+### Frontend — New + Modified
+
+**New routes**
+- `frontend/app/profile/[ninja]/page.tsx` — server-component fetch from `/profile/{ninja}`, client-component renders.
+- `frontend/app/profile/[ninja]/opengraph-image.tsx` — Next.js dynamic OG; renders radar SVG → PNG. Edge-cached 24h.
+- `frontend/app/profile/[ninja]/loading.tsx` — radar skeleton.
+
+**New components**
+- `components/profile/PublicProfilePage.tsx` — main client component, 2-col grid (ninja radar | ghost-or-overlay).
+- `components/profile/GhostRadar.tsx` — outline SVG, `+` glyph, `unlock` label, wraps to `/signup?ref={ninja}`.
+- `components/profile/RadarOverlay.tsx` — dual-color SVG: ninja's polygon + viewer's polygon.
+- `components/profile/JobOverlapRows.tsx` — compact table, max 3 rows.
+- `components/profile/ShareButton.tsx` — Web Share API call; clipboard fallback; `↗` icon only.
+- `components/onboarding/NinjaNameStep.tsx` — onboarding step with auto-suggested name + input.
+
+**Modified**
+- `frontend/app/skills/page.tsx` — drops `<ShareButton />` top-right.
+- `frontend/app/signup/page.tsx` — reads `?ref=`, writes `myro_ref` cookie (`Max-Age=2592000; SameSite=Lax`).
+- `frontend/app/onboarding/page.tsx` — adds NinjaNameStep before final.
+- `frontend/lib/api.ts` — adds `profile.public(ninja)`, `profile.overlap(ninja, token)`, `users.updateNinjaName(name, token)`.
+- `frontend/components/skills/DomainRadar` — extract pure path-math helper so `GhostRadar` + OG image both consume.
+
+### Design Spec (ghost radar — the conversion mechanic)
+
+**Layout**
+- Desktop: 2-col grid, gap 24px, both radars 280×280.
+- Mobile: stacked, ninja top, ghost below, both 100% width capped at 320px.
+
+**Ghost radar visual**
+- 12 spokes, stroke `var(--tm-border-soft)`, opacity 0.18.
+- No fill polygon. No dot vertices.
+- Center: `+` glyph 28px, color `var(--tm-accent)`, opacity 0.55.
+- Below center (in-SVG `<text>`): `unlock` 9px caps, letter-spacing 0.2em, opacity 0.45.
+- Entire SVG wrapped in `<a>` → `/signup?ref={ninja_name}`.
+
+**Motion (animation budget = 600ms total cold start)**
+- Ninja radar polygon: stroke-dashoffset 0→full over 900ms `cubic-bezier(0.22,1,0.36,1)`.
+- Ghost radar: opacity 0→0.18 over 600ms, delayed 400ms.
+- Hover ghost: `+` glyph scale 1→1.08 over 200ms ease-out; stroke opacity → 0.3.
+- `@media (prefers-reduced-motion: reduce)`: no scale, no dashoffset; instant render.
+- All animated properties: `transform` and `opacity` only (compositor-friendly, no layout thrash).
+
+**Accessibility**
+- `<a aria-label="Unlock your domain map — sign up">`.
+- `:focus-visible` → 2px solid `var(--tm-accent)` ring, offset 4px.
+- `+` glyph contrast ≥ 4.5:1 on background.
+
+**Performance**
+- Single SVG per radar, no canvas.
+- Path data inlined (no fetch).
+- OG image: edge-cached 24h, computed from the same public payload the page reads.
+- No `backdrop-filter`, no blur, no shadow on ghost.
+
+### Tests
+
+- `backend/tests/test_ninja_name_service.py` — generate format, validate rules, reserved-words block, uniqueness retry.
+- `backend/tests/test_public_profile_router.py` — payload shape, 404, no PII leakage (assert email/full_name/linkedin_url absent from response).
+- `backend/tests/test_referral_attribution.py` — cookie → column write, self-ref guard, idempotency, signup without ref still works.
+- `backend/tests/test_job_overlap_router.py` — overlap math, max 3 rows, empty overlap = 200 with empty list.
+- `frontend/tests/share-button.test.mjs` — `navigator.share` call shape, clipboard fallback path.
+
+### Out of scope for v1 (logged for v2)
+
+- XP-for-referral payout (DB column ready; trigger not built).
+- Custom share modal with platform grid.
+- Vanity name change cooldown / cost.
+- Public profile SEO (`robots: noindex` initially — flip after v1 hardening).
+- Per-event referral analytics (`referrals_log` table).
+- Mentor/mentee surfacing.
+- Public profile theming (dark/light mode toggle for shared page).
 
 ---
 
