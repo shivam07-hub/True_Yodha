@@ -12,7 +12,7 @@ import { CVPlayground } from "@/components/cv/cv-playground"
 import { VersionPicker } from "@/components/cv/version-picker"
 import { cv, jobs, uploadCV } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { renderDeterministic } from "@/lib/cv-compose"
+import { renderBaselineDisplayText, renderDeterministic } from "@/lib/cv-compose"
 import { useAuth } from "@/lib/hooks/use-auth"
 
 function CVPage() {
@@ -182,6 +182,10 @@ function CVPage() {
     if (!structuredQuery.data) return ""
     return renderDeterministic(structuredQuery.data, hiddenItems)
   }, [structuredQuery.data, hiddenItems])
+  const baselineDisplayText = useMemo(
+    () => renderBaselineDisplayText(currentBaseline?.body_text, structuredQuery.data),
+    [currentBaseline?.body_text, structuredQuery.data],
+  )
 
   const currentSelected = jobVersions.find(v => v.id === selectedVersionId) ?? jobVersions[0] ?? null
   const playgroundDirty = !currentSelected
@@ -257,7 +261,7 @@ function CVPage() {
               borderRadius: "var(--tm-radius-lg)",
               fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
               color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-            }}>{currentBaseline?.body_text ?? "—"}</pre>
+            }}>{baselineDisplayText}</pre>
           </div>
         )}
 

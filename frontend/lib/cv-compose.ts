@@ -172,3 +172,14 @@ export function renderDeterministic(
 
   return lines.join("\n").trimEnd() + "\n"
 }
+
+export function renderBaselineDisplayText(
+  bodyText: string | null | undefined,
+  structuredCv: CVStructured | null | undefined,
+): string {
+  if (bodyText && bodyText.trim().length > 0) return bodyText
+  if (!structuredCv) return "—"
+
+  const rendered = renderDeterministic(structuredCv, new Set())
+  return rendered.trim().length > 0 ? rendered : "—"
+}
