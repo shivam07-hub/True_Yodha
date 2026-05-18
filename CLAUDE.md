@@ -427,7 +427,66 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-16)
+## LAST SESSION SUMMARY (2026-05-18 · Mobile PWA + Viewport seam)
+
+```
+Backlog #9 closed: enterprise mobile shell + PWA install + viewport seam.
+
+Commit ef8dd21 — feat(mobile): PWA polish + enterprise mobile shell
+  SKELETON LIB:
+  - Installed react-loading-skeleton (4.5kb, themable, 4.4k★).
+  - mobile-shell.tsx AppShellSkeleton rewrite: <SkeletonTheme baseColor=
+    var(--tm-surface-2) highlightColor=rgba(255,255,255,0.06) duration=
+    1.6s>. Replaces inline SHIMMER + pulse keyframe. Sweep gradient,
+    not opacity blink.
+  - globals.css: .tm-shell-enter keyframe (280ms cubic-bezier ease-out),
+    .tm-shell-skeleton 200ms. prefers-reduced-motion guard.
+  - app-shell.tsx:672 wraps real shell in className="tm-shell-enter".
+
+  PWA INSTALL:
+  - public/manifest.webmanifest: standalone, portrait, theme #050A18,
+    start /home.
+  - icons: 192/512/512-maskable generated via sips from aperture-m.png.
+  - .gitignore allowlist: !frontend/public/brand/*.png
+  - app/layout.tsx Metadata: manifest + appleWebApp block.
+
+  LAYOUT FIXES (@media max-width:768px):
+  - /login (login/page.tsx): tm-login-shell/-sidebar/-intel — single-
+    column collapse, IntelPane display:none.
+  - /home (MissionHeader.tsx): tm-mission-header-inner/-topbar/-grid/
+    -greeting/-meta. clamp(34px,9vw,52px) hero, grid 2→1 col.
+  - /skills (app/skills/page.tsx): tm-skills-header flex-wrap.
+  - Global safety: html, body { overflow-x: hidden } on mobile.
+
+Commit 8679eb1 — refactor(viewport): name the mobile breakpoint as a seam
+  Output of /improve-codebase-architecture audit:
+
+  - frontend/lib/viewport.ts NEW: BREAKPOINT_MOBILE_MAX = 768,
+    MEDIA_QUERY_DESKTOP, MEDIA_QUERY_MOBILE, ViewportMode type.
+  - app/design-tokens.css: --tm-bp-mobile: 768px (CSS mirror).
+  - lib/hooks/use-is-desktop.ts: imports MEDIA_QUERY_DESKTOP instead
+    of hardcoding "(min-width: 769px) and (pointer: fine)".
+  - CONTEXT.md: new Viewport Mode section. Domain term, rules ("both
+    nav variants always in DOM"), source of truth.
+  - CLAUDE.md: 3 deepening candidates logged in Backlog #9:
+      1. useViewportMode + <ViewportProvider> (one MediaQueryList
+         listener instead of N).
+      2. <ResponsiveStack> primitive (kills tm-mission-header-grid /
+         tm-home-cols / tm-login-shell duplication).
+      3. frontend/mobile/ module consolidation (prerequisite for v2
+         native Expo scaffold under packages/mobile-shared/).
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - Backlog #9 deepenings 1–3 above (when friction signals fire)
+  - Manual mobile QA in dev server (PWA install flow, viewport
+    transitions, skeleton fade-in)
+  - Backlog #10 v2: domain layer separation, Mirror→Myro rename
+```
+
+---
+
+## PREV SESSION SUMMARY (2026-05-16)
 
 ```
 Mobile performance overhaul — responsive AppShell, canvas guards, layout fixes.
