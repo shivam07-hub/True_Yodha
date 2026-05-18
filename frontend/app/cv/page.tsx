@@ -325,6 +325,7 @@ function CVPage() {
                   ) : (
                     <VersionPicker
                       versions={jobVersions}
+                      lineageVersions={allVersions}
                       selectedId={selectedVersionId}
                       onSelect={(id) => {
                         setSelectedVersionId(id)
