@@ -455,22 +455,16 @@ export function SettingsModal({ open, onClose, profile }: {
                 <div style={SECTION_HEADER}>Profile</div>
 
                 <div style={ROW_STYLE}>
-                  <div>
-                    <div style={ROW_LABEL}>Email</div>
-                    <div style={ROW_DESC}>Tied to your account · cannot be changed here</div>
-                  </div>
+                  <div style={ROW_LABEL}>Email</div>
                   <input
                     id="sm-email" type="email" value={profile?.email ?? ""} readOnly disabled
                     aria-readonly="true"
-                    style={{ ...INPUT_STYLE, opacity: 0.7, cursor: "not-allowed" }}
+                    style={{ ...INPUT_STYLE, opacity: 0.55, cursor: "not-allowed" }}
                   />
                 </div>
 
                 <div style={ROW_STYLE}>
-                  <div>
-                    <div style={ROW_LABEL}>Ninja Name</div>
-                    <div style={ROW_DESC}>Your display name across Myro · optional</div>
-                  </div>
+                  <div style={ROW_LABEL}>Ninja Name</div>
                   <input
                     id="sm-ninja-name" type="text" value={name}
                     onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
@@ -482,10 +476,7 @@ export function SettingsModal({ open, onClose, profile }: {
                 </div>
 
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={ROW_LABEL}>LinkedIn</div>
-                    <div style={ROW_DESC}>Linked to your profile</div>
-                  </div>
+                  <div style={ROW_LABEL}>LinkedIn</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
                     <input
@@ -570,7 +561,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
-                  {roles.length > 0 ? (
+                  {roles.length > 0 && (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
                       <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -581,8 +572,6 @@ export function SettingsModal({ open, onClose, profile }: {
                         {activeId ? <SortableRoleChip role={activeId} index={roles.indexOf(activeId)} onRemove={() => {}} isOverlay /> : null}
                       </DragOverlay>
                     </DndContext>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No target roles yet — search above to add</div>
                   )}
                 </div>
 
@@ -620,7 +609,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
-                  {location.trim() ? (
+                  {location.trim() && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
                         <span style={{ fontWeight: 500 }}>{location.trim()}</span>
@@ -630,8 +619,6 @@ export function SettingsModal({ open, onClose, profile }: {
                         >×</button>
                       </div>
                     </div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontStyle: "italic" }}>No location set — search above to add</div>
                   )}
                 </div>
 

@@ -226,7 +226,7 @@ export function AuthForm({ mode }: Props) {
                 opacity: loading ? 0.6 : 1,
               }}
             >
-              {loading ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account →"}
+              {loading ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in →" : "Create account →"}
             </button>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>

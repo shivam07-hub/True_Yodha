@@ -163,7 +163,7 @@ export function VersionPicker({
           background: "var(--tm-surface)", border: "1px dashed var(--tm-border-soft)",
           borderRadius: "var(--tm-radius-lg)", fontSize: 12,
         }}>
-          No versions yet. Pick items in the playground and click <strong style={{ color: "var(--tm-accent)" }}>Save Version</strong> to create your first commit.
+          No versions yet — <strong style={{ color: "var(--tm-accent)" }}>Save Version</strong> creates your first.
         </div>
       )}
     </div>

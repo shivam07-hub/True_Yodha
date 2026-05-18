@@ -189,13 +189,11 @@ function CVPage() {
             <h1 className="tm-title" style={{ fontSize: "var(--tm-fs-heading)", marginBottom: 4 }}>
               {jobId ? "Tailor your CV for this job" : "Your baseline CV"}
             </h1>
-            <p className="tm-meta" style={{ fontSize: 12 }}>
-              {hasBaseline
-                ? jobId
-                  ? "Pick what stays. Save a commit. Polish with AI. Edit polished bullets."
-                  : "Pick a target job to start tailoring — every save creates an immutable version."
-                : "Upload your baseline CV to start."}
-            </p>
+            {hasBaseline && jobId && (
+              <p className="tm-meta" style={{ fontSize: 12 }}>
+                Pick what stays. Save a commit. Polish with AI. Edit polished bullets.
+              </p>
+            )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {hasBaseline && (

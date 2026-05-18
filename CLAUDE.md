@@ -19,6 +19,7 @@
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
 - **Long-term fixes only.** When hitting errors, identify root cause — never patch symptoms with try/except, type casts, `|| undefined`, or workarounds. If trade-offs are unclear, discuss with Shivam before writing code.
+- **Design over words.** If the UI state already communicates a fact (disabled, error, loading, locked, success), do not pad with helper text restating it. A `disabled` input does not need "cannot be edited"; a red border does not need "this is an error". Helper text earns its place only when it (a) explains a flow the design can't, (b) discloses a non-visible constraint, or (c) is actionable. Default to stronger visual state — opacity, cursor, color, icon, motion — not microcopy.
 - **Newsletter articles: collaborate before drafting.** Do NOT write a full newsletter article without first agreeing with Shivam on angle, dashboards/images, and heading. Two-line confirmation pass minimum. See VOICE-NOTES.md for protocol.
 
 ---
@@ -303,6 +304,10 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Refresh hygiene
 
 8. **Graphify doc/image refresh deferred.** AST-only update on 2026-05-18 skipped 306 docs + 38 images. DMMT screenshots, design references, and markdown notes still reflect May 13 snapshot. Solve when: budget allows full `--update`, OR when working on landing-page / DMMT-design surfaces, run scoped LLM pass on `frontend/Black_futuristist_frontend/project/uploads/` + repo-root markdown.
+
+### UX systems audit
+
+9. **Loading-state audit across the entire frontend.** Shivam flagged 2026-05-18 that many surfaces fall straight to empty states instead of showing a loading state — the result feels "disappointing and depressing" because users can't tell whether the app is fetching or genuinely has nothing. Two loading templates already exist: `components/ui/particle-loading.tsx` (used only on `/skills` and `/companies/[slug]`) and `components/cv/upload-processing.tsx` (used only on `/cv` upload flow). Every other fetch surface either shows bare `"Loading…"` text, a one-off skeleton, or nothing. Next session: catalogue every `useQuery` / async surface, classify the load pattern it currently uses, decide a 3-tier loading system (skeleton for short fetches, particle for hero/full-screen, contextual inline for tiny loads), and ship a consistent treatment. Treat as foundational UX work — pairs naturally with the Category B verbal-scaffolding pass that's also queued.
 
 ---
 
