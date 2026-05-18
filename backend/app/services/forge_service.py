@@ -7,6 +7,8 @@ Level thresholds are cumulative forge sessions on a single skill.
 
 import logging
 
+from fastapi import HTTPException, status
+
 from app.database import get_supabase_admin
 from app.services.xp_service import earn_xp
 from app.services.taxonomy_loader import ensure_skill_in_db
@@ -40,23 +42,26 @@ async def complete_forge_session(
             resolved_skill_id = None
     if resolved_skill_id is None:
         resolved_skill_id = ensure_skill_in_db(admin, skill_name)
+    if resolved_skill_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown skill '{skill_name}'. Cannot record forge session.",
+        )
 
     # 1. Earn XP — rate depends on session_type
     rate = XP_RATE_BY_TYPE.get(session_type, 3)
     xp_earned = max(1, duration_minutes) * rate
     new_xp_balance = await earn_xp(user_id, xp_earned)
 
-    # 2. Fetch or create user_skills row
-    skill_filter = (
-        admin.table("user_skills").select("id, matched_level, forge_sessions_count")
+    # 2. Fetch or create user_skills row (skill_id is canonical key — no skill_name col)
+    existing = (
+        admin.table("user_skills")
+        .select("id, matched_level, forge_sessions_count")
         .eq("user_id", user_id)
+        .eq("skill_id", resolved_skill_id)
+        .maybe_single()
+        .execute()
     )
-    if resolved_skill_id is not None:
-        skill_filter = skill_filter.eq("skill_id", resolved_skill_id)
-    else:
-        skill_filter = skill_filter.eq("skill_name", skill_name)
-
-    existing = skill_filter.maybe_single().execute()
     row = existing.data if existing else None
 
     if row:
@@ -65,16 +70,12 @@ async def complete_forge_session(
     else:
         level_before = 0
         sessions_count = 1
-        # Insert new user_skills row
-        insert_payload: dict = {
+        admin.table("user_skills").insert({
             "user_id": user_id,
+            "skill_id": resolved_skill_id,
             "matched_level": 0,
             "forge_sessions_count": 0,
-            "skill_name": skill_name,
-        }
-        if resolved_skill_id is not None:
-            insert_payload["skill_id"] = resolved_skill_id
-        admin.table("user_skills").insert(insert_payload).execute()
+        }).execute()
 
     # 3. Check level-up
     threshold = LEVEL_THRESHOLDS.get(level_before)
@@ -88,26 +89,25 @@ async def complete_forge_session(
         update_payload["matched_level"] = level_after
         _log.info("Skill level-up: user=%s skill=%s %d→%d", user_id, skill_name, level_before, level_after)
 
-    update_q = admin.table("user_skills").update(update_payload).eq("user_id", user_id)
-    if resolved_skill_id is not None:
-        update_q = update_q.eq("skill_id", resolved_skill_id)
-    else:
-        update_q = update_q.eq("skill_name", skill_name)
-    update_q.execute()
+    (
+        admin.table("user_skills")
+        .update(update_payload)
+        .eq("user_id", user_id)
+        .eq("skill_id", resolved_skill_id)
+        .execute()
+    )
 
-    # 5. Log forge session
-    session_payload: dict = {
+    # 5. Log forge session (forge_sessions retains skill_name for human-readable history)
+    admin.table("forge_sessions").insert({
         "user_id": user_id,
+        "skill_id": resolved_skill_id,
         "skill_name": skill_name,
         "level_before": level_before,
         "level_after": level_after,
         "sessions_toward_next": sessions_count,
         "duration_minutes": max(1, duration_minutes),
         "xp_earned": xp_earned,
-    }
-    if resolved_skill_id is not None:
-        session_payload["skill_id"] = resolved_skill_id
-    admin.table("forge_sessions").insert(session_payload).execute()
+    }).execute()
 
     next_threshold = LEVEL_THRESHOLDS.get(level_after)
 

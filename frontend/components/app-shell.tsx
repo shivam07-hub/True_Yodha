@@ -324,7 +324,9 @@ function SidebarForgeTimer({
   const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, FORGE_AMBIENT_RATE)
   const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
   const canClaim = readyXP > 0
-  const accent = isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-accent)"
+  const accent = isComplete ? "var(--tm-success)" : "var(--tm-accent)"
+  const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-accent-wash)"
+  const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-accent-ring)"
 
   async function handleClaim() {
     if (!skillName || !canClaim || claiming) return
@@ -341,73 +343,290 @@ function SidebarForgeTimer({
     }
   }
 
+  // Ring geometry — single source of truth
+  const RING = 104           // outer SVG box (px)
+  const STROKE = 2
+  const R = (RING - STROKE) / 2 - 6   // r = 45
+  const C = 2 * Math.PI * R           // circumference
+  const dashOffset = C * (1 - progress)
+  const mins = Math.floor(remaining / 60)
+  const secs = remaining % 60
+  const clock = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+
+  // 12 hairline tick marks around the ring (clock-dial precision)
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const angle = (i * 30 - 90) * (Math.PI / 180)
+    const inner = R - 5
+    const outer = R - 1
+    const cx = RING / 2
+    const cy = RING / 2
+    return {
+      x1: cx + Math.cos(angle) * inner,
+      y1: cy + Math.sin(angle) * inner,
+      x2: cx + Math.cos(angle) * outer,
+      y2: cy + Math.sin(angle) * outer,
+      i,
+    }
+  })
+
   return (
-    <div style={{
-      margin: "0 8px 8px",
-      borderRadius: "var(--tm-radius)",
-      background: isComplete ? "rgba(74,222,128,0.05)" : "rgba(0,245,212,0.05)",
-      border: `1px solid ${isComplete ? "rgba(74,222,128,0.35)" : "var(--tm-accent-ring)"}`,
-      boxShadow: isComplete ? "0 0 12px rgba(74,222,128,0.12)" : running ? "0 0 10px rgba(0,245,212,0.1)" : "none",
-      transition: "box-shadow 400ms ease, border-color 400ms ease",
-      overflow: "hidden",
-    }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px 6px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>◆ Forge</span>
-          {running && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px rgba(0,245,212,0.8)", animation: "loop-pulse 1.4s ease infinite" }} />}
-        </div>
-        <button onClick={dismiss} style={{ background: "transparent", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "2px 4px", fontFamily: "inherit" }}>✕</button>
+    <div
+      style={{
+        margin: "0 10px 10px",
+        position: "relative",
+        borderRadius: "var(--tm-radius)",
+        background: `
+          linear-gradient(180deg, ${accentSoft}, transparent 70%),
+          var(--tm-surface)
+        `,
+        border: `1px solid ${accentRing}`,
+        boxShadow: isComplete
+          ? "0 0 18px rgba(74,222,128,0.10), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : running
+          ? "0 0 14px var(--tm-accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : "inset 0 1px 0 rgba(255,255,255,0.04)",
+        transition: "box-shadow 500ms ease, border-color 500ms ease",
+        overflow: "hidden",
+        fontFamily: "var(--tm-font-mono)",
+      }}
+    >
+      {/* Decorative crosshair corners — instrument-panel detail */}
+      <span aria-hidden style={{
+        position: "absolute", top: 5, left: 5, width: 7, height: 7,
+        borderTop: `1px solid ${accentRing}`, borderLeft: `1px solid ${accentRing}`,
+        opacity: 0.7,
+      }} />
+      <span aria-hidden style={{
+        position: "absolute", top: 5, right: 5, width: 7, height: 7,
+        borderTop: `1px solid ${accentRing}`, borderRight: `1px solid ${accentRing}`,
+        opacity: 0.7,
+      }} />
+
+      {/* Top rail — STATUS · DISMISS */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 12px 7px",
+      }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
+          color: "var(--tm-text-faint)",
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: "50%",
+            background: accent,
+            boxShadow: running ? `0 0 6px ${accent}` : "none",
+            animation: running ? "loop-pulse 1.6s ease-in-out infinite" : "none",
+          }} />
+          {isComplete ? "Ready" : running ? "Forging" : "Paused"}
+        </span>
+        <button
+          onClick={dismiss}
+          aria-label="Dismiss forge timer"
+          style={{
+            background: "transparent", border: "none",
+            color: "var(--tm-text-faint)", cursor: "pointer",
+            fontSize: 11, lineHeight: 1, padding: "2px 4px",
+            fontFamily: "inherit", letterSpacing: 0,
+          }}
+        >×</button>
       </div>
 
-      {/* Countdown + controls */}
-      <div style={{ padding: "10px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 24, fontWeight: 700, letterSpacing: 0, fontVariantNumeric: "tabular-nums", color: accent, lineHeight: 1 }}>
-              +{readyXP}
-            </div>
-            <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 3 }}>
-              XP ready
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button
-              onClick={() => setRunning(!running)}
-              style={{
-                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
-                border: running ? "1px solid rgba(255,255,255,0.12)" : "none",
-                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", fontSize: 10, transition: "all 150ms ease",
-              }}
-            >{running ? "⏸" : "▶"}</button>
-            <button
-              onClick={handleClaim}
-              disabled={!canClaim || claiming}
-              style={{
-                height: 28, padding: "0 10px", borderRadius: "var(--tm-radius-pill, 999px)",
-                background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-                border: canClaim && !claiming ? "none" : "1px solid rgba(255,255,255,0.08)",
-                color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)",
-                fontSize: 10, fontWeight: 700,
-                cursor: canClaim && !claiming ? "pointer" : "default",
-                fontFamily: "inherit", transition: "all 200ms ease",
-              }}
-            >{claiming ? "…" : "Claim"}</button>
-          </div>
-        </div>
+      {/* Aperture — concentric ring dial */}
+      <div style={{
+        display: "flex", justifyContent: "center", alignItems: "center",
+        padding: "4px 0 10px",
+        position: "relative",
+      }}>
+        {/* Breathing halo — only when running */}
+        {running && !isComplete && (
+          <span aria-hidden style={{
+            position: "absolute",
+            width: RING + 14, height: RING + 14, borderRadius: "50%",
+            background: `radial-gradient(circle, ${accentSoft} 0%, transparent 65%)`,
+            animation: "forge-breath 4.4s ease-in-out infinite",
+            pointerEvents: "none",
+          }} />
+        )}
 
-        {/* Progress bar */}
-        <div style={{ height: 3, borderRadius: 99, background: "rgba(255,255,255,0.06)", marginBottom: 7, overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: 99, background: accent, width: `${progress * 100}%`, transition: running ? "width 1s linear" : "none", boxShadow: `0 0 6px ${isComplete ? "rgba(74,222,128,0.5)" : "rgba(0,245,212,0.4)"}` }} />
-        </div>
-        <div style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 2 }}>
-          {running ? "Building" : "Paused"} · cap +{SIDEBAR_FORGE_CAP_XP} XP
-        </div>
-        {claimError && <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)", marginTop: 6 }}>{claimError}</div>}
+        <svg
+          width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}
+          style={{ display: "block", overflow: "visible" }}
+        >
+          {/* Subtle 12 tick marks */}
+          {ticks.map(t => (
+            <line
+              key={t.i}
+              x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+              stroke={accent}
+              strokeWidth={t.i % 3 === 0 ? 1.2 : 0.7}
+              strokeLinecap="round"
+              opacity={t.i % 3 === 0 ? 0.45 : 0.18}
+            />
+          ))}
+
+          {/* Track */}
+          <circle
+            cx={RING / 2} cy={RING / 2} r={R}
+            fill="none"
+            stroke="var(--tm-border-soft)"
+            strokeWidth={STROKE}
+          />
+
+          {/* Progress arc — rotated -90° so 12 o'clock is start */}
+          <circle
+            cx={RING / 2} cy={RING / 2} r={R}
+            fill="none"
+            stroke={accent}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            strokeDasharray={C}
+            strokeDashoffset={dashOffset}
+            transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
+            style={{
+              transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 400ms ease",
+              filter: `drop-shadow(0 0 3px ${accent})`,
+            }}
+          />
+
+          {/* Center: XP numeral + clock */}
+          <text
+            x={RING / 2} y={RING / 2 - 4}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="22"
+            fontWeight="600"
+            fill={accent}
+            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}
+          >
+            +{readyXP}
+          </text>
+          <text
+            x={RING / 2} y={RING / 2 + 8}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="7"
+            fill="var(--tm-text-faint)"
+            letterSpacing="2"
+          >
+            XP READY
+          </text>
+          <text
+            x={RING / 2} y={RING / 2 + 22}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="9.5"
+            fill="var(--tm-text-muted)"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {clock}
+          </text>
+        </svg>
       </div>
+
+      {/* Skill meta line — anchored, quiet */}
+      {skillName && (
+        <div style={{
+          padding: "0 14px 8px",
+          textAlign: "center",
+          fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase",
+          color: "var(--tm-text-faint)",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          <span style={{ color: "var(--tm-text-muted)" }}>{skillName}</span>
+          <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
+          <span>cap +{SIDEBAR_FORGE_CAP_XP}</span>
+        </div>
+      )}
+
+      {/* Hairline rail */}
+      <div style={{
+        height: 1,
+        background: `linear-gradient(90deg, transparent, ${accentRing}, transparent)`,
+        margin: "0 10px",
+      }} />
+
+      {/* Action bar — pause/play + claim */}
+      <div style={{
+        display: "flex", alignItems: "stretch", gap: 6,
+        padding: "8px 8px 9px",
+      }}>
+        <button
+          onClick={() => setRunning(!running)}
+          aria-label={running ? "Pause forge" : "Resume forge"}
+          style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "transparent",
+            border: `1px solid ${accentRing}`,
+            color: accent,
+            display: "grid", placeItems: "center",
+            cursor: "pointer", fontSize: 10,
+            fontFamily: "inherit",
+            transition: "background 180ms ease, transform 120ms ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = accentSoft }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+        >
+          <span style={{ fontSize: 11, lineHeight: 1 }}>{running ? "❚❚" : "▶"}</span>
+        </button>
+
+        <button
+          onClick={handleClaim}
+          disabled={!canClaim || claiming}
+          style={{
+            flex: 1, height: 32, padding: "0 12px",
+            borderRadius: 8,
+            background: canClaim && !claiming
+              ? `linear-gradient(90deg, ${accent} 0%, ${accent} 50%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-accent-hover)"} 100%)`
+              : "transparent",
+            backgroundSize: canClaim && !claiming ? "200% 100%" : "auto",
+            animation: canClaim && !claiming ? "forge-aurora 6s ease-in-out infinite alternate" : "none",
+            border: canClaim && !claiming
+              ? "1px solid transparent"
+              : `1px dashed ${accentRing}`,
+            color: canClaim && !claiming
+              ? "var(--tm-accent-fg)"
+              : "var(--tm-text-faint)",
+            fontSize: 10, fontWeight: 600,
+            letterSpacing: "0.18em", textTransform: "uppercase",
+            cursor: canClaim && !claiming ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "transform 120ms ease, box-shadow 200ms ease",
+            boxShadow: canClaim && !claiming ? `0 4px 14px -6px ${accent}` : "none",
+          }}
+          onMouseEnter={(e) => {
+            if (canClaim && !claiming) e.currentTarget.style.transform = "translateY(-1px)"
+          }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
+        >
+          {claiming ? (
+            <span style={{ letterSpacing: "0.4em" }}>· · ·</span>
+          ) : (
+            <>
+              <span>Claim</span>
+              <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em" }}>+{readyXP}</span>
+              <span style={{ fontSize: 11, letterSpacing: 0, marginLeft: 1 }}>→</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {claimError && (
+        <div style={{
+          margin: "0 10px 10px",
+          padding: "6px 8px",
+          borderRadius: 6,
+          background: "rgba(251,113,133,0.08)",
+          border: "1px solid rgba(251,113,133,0.25)",
+          fontSize: 9, letterSpacing: "0.06em",
+          color: "var(--tm-danger)",
+          display: "flex", alignItems: "center", gap: 5,
+        }}>
+          <span aria-hidden style={{ fontSize: 10 }}>⚠</span>
+          <span style={{ fontFamily: "var(--tm-font-sans)" }}>{claimError}</span>
+        </div>
+      )}
     </div>
   )
 }

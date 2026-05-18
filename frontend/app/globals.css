@@ -84,6 +84,35 @@
   .tm-pulse-ring, .tm-spinner { animation: none !important; }
 }
 
+/* ── Forge widget — meditative aperture ─────────────────────────
+ * Concept: slow breath. 4.4s inhale/exhale matches a calm pace
+ * (~14 bpm). Glow ring widens + softens on inhale.
+ */
+@keyframes forge-breath {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%       { transform: scale(1.06); opacity: 0.85; }
+}
+@keyframes forge-orbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes forge-tick {
+  0%, 100% { opacity: 0.18; }
+  50%       { opacity: 0.55; }
+}
+@keyframes forge-aurora {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes forge-ready {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tm-accent-glow), inset 0 0 0 1px var(--tm-accent-ring); }
+  50%       { box-shadow: 0 0 0 4px transparent,        inset 0 0 0 1px var(--tm-accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-forge-breath, .tm-forge-orbit, .tm-forge-tick, .tm-forge-aurora, .tm-forge-ready {
+    animation: none !important;
+  }
+}
+
 /* ── MDX article prose ────────────────────────────────────────── */
 .mdx-prose {
   color: var(--tm-text);
