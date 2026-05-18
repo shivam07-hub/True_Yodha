@@ -173,7 +173,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
       {/* Actions row — CV CTA always visible, no Forge button on job card */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
         <Link
-          href="/cv"
+          href={`/cv?jobId=${job.job_id}`}
           style={{
             display: "inline-flex", alignItems: "center",
             padding: "9px 20px", borderRadius: 99,
@@ -185,7 +185,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
           onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
           onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
         >
-          → Apply with tailored CV
+          → Tailor CV for this role
         </Link>
       </div>
 

@@ -197,7 +197,7 @@ export function RightRail({
           </button>
         </div>
         <Link
-          href="/cv"
+          href={job?.job_id ? `/cv?jobId=${job.job_id}` : "/cv"}
           style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 0", borderRadius: 6, border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
         >
           Open CV Builder →

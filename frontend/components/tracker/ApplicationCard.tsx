@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
@@ -106,6 +107,22 @@ export function ApplicationCard({
             )}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+        <Link
+          href={`/cv?jobId=${app.job_id}`}
+          aria-label={`Tailor CV for ${app.title || "this role"} at ${app.company ?? "company"}`}
+          style={{
+            fontSize: 12, fontWeight: 600,
+            color: "var(--tm-accent)", textDecoration: "none",
+            transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1" }}
+        >
+          → Tailor CV
+        </Link>
       </div>
 
       <style>{`

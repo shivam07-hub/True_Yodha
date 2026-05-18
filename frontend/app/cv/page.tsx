@@ -240,7 +240,7 @@ function CVPage() {
                   Pick a target job to start the playground. Every saved version is immutable, like a Git commit.
                 </div>
               </div>
-              <Button variant="solid" size="md" render={<Link href="/home" />}>Pick a target job →</Button>
+              <Button variant="solid" size="md" render={<Link href="/tracker?stage=saved" />}>Pick a target job →</Button>
             </div>
             <pre style={{
               margin: 0, padding: "20px 22px",
