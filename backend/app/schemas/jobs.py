@@ -239,24 +239,6 @@ class JobPathResponse(BaseModel):
     applied_at: datetime | None = None
 
 
-class JobCVGenerateRequest(BaseModel):
-    ai_polish: bool = False
-
-
-class JobCVGenerateResponse(BaseModel):
-    id: int
-    job_id: str
-    cv_text: str
-    polished_text: str | None = None
-    confidence: dict
-    snapshot_hash: str
-    from_cache: bool
-    ai_polish_used: int
-    ai_polish_limit: int
-    limit_reached: bool = False
-    polish_unavailable: bool = False
-
-
 class SkillSuggestion(BaseModel):
     label: str
     taxonomy_key: str | None = None

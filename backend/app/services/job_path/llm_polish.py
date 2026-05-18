@@ -1,19 +1,22 @@
+"""LLM polish helper for per-job CV Versions.
+
+Public API:
+  _call_ai_polish — used by routers/cv/versions.py to generate polished_text.
+
+The legacy daily polish rate limit + cached lookup helpers were removed alongside
+the generate_job_cv flow on 2026-05-18 (cv_versions unification).
+"""
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from supabase import Client
-
 from app.services.job_path._content import _load_text
-from app.services.job_path._helpers import _single_or_none
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
-AI_POLISH_LIMIT = 3
 _POLISH_MAX_TOKENS = 4096
 
 
@@ -82,29 +85,3 @@ async def _call_ai_polish(
     except LLMProviderError:
         logger.info("CV polish: all providers failed.")
         return None
-
-
-def _ai_polish_count(db: Client, user_id: str) -> int:
-    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-    result = (
-        db.table("job_cv_variants")
-        .select("id")
-        .eq("user_id", user_id)
-        .eq("ai_polished", True)
-        .gte("ai_polish_used_at", since)
-        .execute()
-    )
-    return len(result.data or [])
-
-
-def _latest_polished_cv(db: Client, user_id: str, job_id: str) -> dict[str, Any] | None:
-    return _single_or_none(
-        db.table("job_cv_variants")
-        .select("*")
-        .eq("user_id", user_id)
-        .eq("job_id", job_id)
-        .eq("ai_polished", True)
-        .order("created_at", desc=True)
-        .limit(1)
-    )
-

@@ -7,8 +7,11 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 
+from app.repositories.cv import (
+    CVVersionWriteSpec,
+    CVVersionsRepository,
+)
 from app.repositories.scores import ScoresRepository
-from app.repositories.cv import CVRepository
 from app.services import cv_parser, jobs_workflow, scoring_engine
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.xp_service import grant_welcome_xp
@@ -51,49 +54,42 @@ async def _grant_welcome_xp_safely(user_id: str) -> None:
 
 
 def _persist_baseline_cv(
-    cv_repo: CVRepository,
+    cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     raw_text: str,
-    skills_detected: list[dict],
-    score_total: float,
     content_hash: str,
     cv_structured: dict | None,
 ) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    cv_repo.update_cv_profile(
-        user_id,
-        {
-            "cv_raw_text": raw_text,
-            "cv_parsed_at": now,
-            "onboarding_complete": True,
-        },
+    """Write a new baseline_upload row into cv_versions.
+
+    onboarding_complete is the only profile-side update kept post-unification —
+    cv_raw_text / cv_parsed_at columns were dropped in 20260518_cv_versions_unify.
+    """
+    cv_repo.update_cv_profile(user_id, {"onboarding_complete": True})
+    spec = CVVersionWriteSpec(
+        kind="baseline_upload",
+        job_id=None,
+        parent_version_id=None,
+        body_text=raw_text,
+        cv_structured=cv_structured or {},
+        title="Uploaded baseline CV",
+        snapshot_hash=content_hash,
     )
-    history_row: dict = {
-        "user_id": user_id,
-        "skills_count": len(skills_detected),
-        "mirror_score": score_total,
-        "uploaded_at": now,
-        "cv_raw_text": raw_text,
-        "version_number": cv_repo.next_version_number(user_id),
-        "version_type": "baseline_upload",
-        "title": "Uploaded baseline CV",
-        "evidence_count": 0,
-        "content_hash": content_hash,
-    }
-    if cv_structured is not None:
-        history_row["cv_structured"] = cv_structured
-    cv_repo.insert_cv_history(history_row)
+    cv_repo.create(user_id, spec)
 
 
 async def ingest_uploaded_cv(
-    cv_repo: CVRepository,
+    cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     file_bytes: bytes,
     file_type: str,
 ) -> dict[str, float | int | str]:
-    assert_not_rate_limited(cv_repo.client, user_id, "cv_history", "uploaded_at")
+    assert_not_rate_limited(
+        cv_repo.client, user_id, "cv_versions", "created_at",
+        filters={"kind": "baseline_upload"},
+    )
     scores_repo = ScoresRepository(cv_repo.client)
 
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
@@ -104,8 +100,8 @@ async def ingest_uploaded_cv(
         _log.info("CV hash match for user=%s — returning cached score", user_id)
         await _grant_welcome_xp_safely(user_id)
         return {
-            "skills_detected": int(cached["skills_count"]),
-            "score": float(cached["mirror_score"]),
+            "skills_detected": cv_repo.count_user_skills(user_id),
+            "score": float(cv_repo.get_current_score(user_id) or 0),
             "redirect_to": "/onboarding/score",
         }
 
@@ -141,8 +137,6 @@ async def ingest_uploaded_cv(
         cv_repo,
         user_id,
         raw_text=raw_text,
-        skills_detected=skills_detected,
-        score_total=score_total,
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
     )
@@ -156,24 +150,24 @@ async def ingest_uploaded_cv(
 
 
 async def get_or_backfill_cv_structured(
-    cv_repo: CVRepository, user_id: str
+    cv_repo: CVVersionsRepository, user_id: str
 ) -> dict | None:
-    """Return the latest cv_structured for the user, lazily backfilling it from cv_raw_text if needed.
+    """Return latest cv_structured for the user, lazily backfilling from body_text.
 
     Returns:
         dict — validated structured payload
         None — no baseline CV uploaded yet (caller should 404)
     Raises HTTP 503 only if the LLM provider chain fails AND backfill is needed.
     """
-    latest = cv_repo.latest_cv_version(user_id)
-    if not latest:
+    baseline = cv_repo.latest_baseline(user_id)
+    if not baseline:
         return None
 
-    structured = latest.get("cv_structured")
+    structured = baseline.get("cv_structured")
     if isinstance(structured, dict) and structured:
         return structured
 
-    raw_text = latest.get("cv_raw_text") or cv_repo.get_cv_raw_text(user_id) or ""
+    raw_text = baseline.get("body_text") or ""
     if not raw_text:
         return None
 
@@ -183,17 +177,20 @@ async def get_or_backfill_cv_structured(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not parse CV structure right now. Please try again in a minute.",
         )
-    cv_repo.update_cv_history_structured(int(latest["id"]), reparsed)
+    cv_repo.update_structured(int(baseline["id"]), reparsed)
     return reparsed
 
 
 async def ingest_cv_text(
-    cv_repo: CVRepository,
+    cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     raw_text: str,
 ) -> dict[str, float | int | str]:
-    assert_not_rate_limited(cv_repo.client, user_id, "cv_history", "uploaded_at")
+    assert_not_rate_limited(
+        cv_repo.client, user_id, "cv_versions", "created_at",
+        filters={"kind": "baseline_upload"},
+    )
     scores_repo = ScoresRepository(cv_repo.client)
 
     if len(raw_text) < 80:
@@ -208,8 +205,8 @@ async def ingest_cv_text(
         _log.info("CV text hash match for user=%s — returning cached score", user_id)
         await _grant_welcome_xp_safely(user_id)
         return {
-            "skills_detected": int(cached["skills_count"]),
-            "score": float(cached["mirror_score"]),
+            "skills_detected": cv_repo.count_user_skills(user_id),
+            "score": float(cv_repo.get_current_score(user_id) or 0),
             "redirect_to": "/onboarding/score",
         }
 
@@ -245,8 +242,6 @@ async def ingest_cv_text(
         cv_repo,
         user_id,
         raw_text=raw_text,
-        skills_detected=skills_detected,
-        score_total=score_total,
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
     )

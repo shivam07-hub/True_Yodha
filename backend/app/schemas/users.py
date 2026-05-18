@@ -10,7 +10,6 @@ class UserProfileResponse(BaseModel):
     target_roles: list[str]
     target_location: str | None
     cv_url: str | None
-    cv_parsed_at: datetime | None
     onboarding_complete: bool
     created_at: datetime
     last_active_at: datetime

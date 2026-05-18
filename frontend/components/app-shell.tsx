@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { users, cv, jobs as jobsApi } from "@/lib/api"
+import { users, jobs as jobsApi } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
@@ -288,87 +288,6 @@ function StaleBadge() {
     >
       {n > 9 ? "9+" : n}
     </span>
-  )
-}
-
-function CvVersionsWidget() {
-  const { token } = useAuth()
-  const pathname = usePathname()
-  const { data: cvProfile } = useQuery({
-    queryKey: dataKeys.cvProfile(),
-    queryFn: () => cv.me(token!),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  if (!cvProfile?.history?.length) return null
-
-  // Determine active version from URL
-  const activeId = typeof window !== "undefined"
-    ? Number(new URLSearchParams(window.location.search).get("v")) || null
-    : null
-  const onCvPage = pathname.startsWith("/cv")
-
-  return (
-    <div style={{ padding: "0 8px 6px 8px" }}>
-      {/* Base CV root */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 2px" }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)", flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>Base CV</span>
-      </div>
-      {cvProfile.history.map((v, i) => {
-        const isLatest = i === 0
-        const prev = cvProfile.history[i + 1]
-        const delta = prev ? Math.round(v.mirror_score - prev.mirror_score) : null
-        const isLast = i === cvProfile.history.length - 1
-        const href = isLatest ? "/cv" : `/cv?v=${v.id}`
-        const isActive = onCvPage && (isLatest ? activeId === null : activeId === v.id)
-        return (
-          <div key={v.id} style={{ display: "flex", gap: 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, paddingLeft: 3, flexShrink: 0 }}>
-              <div style={{ width: 1, flex: 1, background: "var(--tm-border-soft)", minHeight: 5 }} />
-              <div style={{
-                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                border: `1.5px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                background: isActive ? "var(--tm-accent-wash)" : "transparent",
-              }} />
-              <div style={{ width: 1, flex: 1, background: isLast ? "transparent" : "var(--tm-border-soft)", minHeight: 5 }} />
-            </div>
-            <Link
-              href={href}
-              style={{
-                flex: 1, padding: "2px 6px", margin: "1px 0",
-                borderRadius: "var(--tm-radius-sm)",
-                background: isActive ? "var(--tm-accent-wash)" : "transparent",
-                textDecoration: "none",
-                transition: "background var(--tm-dur) var(--tm-ease)",
-              }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 12, fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: isActive ? "var(--tm-accent)" : "var(--tm-text-muted)" }}>
-                  v{v.version_number}
-                </span>
-                {isLatest && (
-                  <span style={{ fontSize: 10, padding: "1px 4px", borderRadius: 999, background: "var(--tm-accent)", color: "var(--tm-bg)", fontWeight: 700, letterSpacing: 0, textTransform: "uppercase" }}>
-                    HEAD
-                  </span>
-                )}
-                {delta !== null && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: delta >= 0 ? "var(--tm-success)" : "var(--tm-danger)" }}>
-                    {delta >= 0 ? `+${delta}` : delta}
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 1 }}>
-                {v.title ?? (v.version_type === "generated_draft" ? "generated" : "baseline")} · {new Date(v.uploaded_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-              </div>
-            </Link>
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -674,7 +593,6 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
                   </div>
                 </div>
               </Link>
-              {item.href === "/cv" && <CvVersionsWidget />}
             </div>
           )
         })}

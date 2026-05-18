@@ -84,33 +84,3 @@ def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
     assert response.json()["target_skills"][0]["skill"] == "SQL"
 
 
-def test_generate_job_cv_is_explicit_endpoint(monkeypatch) -> None:
-    repo = _FakeJobsRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
-    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    app.dependency_overrides[_get_db] = lambda: object()
-    async def _fake_generate_job_cv(db, user_id, job_id, ai_polish=False, provider=None):
-        return {
-            "id": 1,
-            "job_id": job_id,
-            "cv_text": "Starter CV\n\nBaseline",
-            "polished_text": None,
-            "confidence": {"id": "starter", "label": "Starter CV"},
-            "snapshot_hash": "hash",
-            "from_cache": False,
-            "ai_polish_used": 0,
-            "ai_polish_limit": 3,
-            "limit_reached": False,
-            "polish_unavailable": False,
-        }
-
-    monkeypatch.setattr(jobs.job_path_service, "generate_job_cv", _fake_generate_job_cv)
-
-    try:
-        with TestClient(app) as client:
-            response = client.post("/jobs/applications/job-1/cv", json={"ai_polish": False})
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 201
-    assert response.json()["confidence"]["id"] == "starter"

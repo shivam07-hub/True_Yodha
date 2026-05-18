@@ -1,14 +1,12 @@
 """
-job_path package — Application Path, Milestones, CV Variants, Quality Gate.
+job_path package — Application Path, Milestones, Quality Gate.
 
-Split from the monolithic services/job_path.py on 2026-04-27 (Phase 1b-i of
-the modularity refactor). Public API re-exported here for back-compat with
-routers and tests that import names directly from `app.services.job_path`.
+Per-job CV generation moved to /cv/versions (see backend/app/routers/cv/versions.py
+and CONTEXT.md). The legacy generate_job_cv flow was removed in the
+cv_versions unification (2026-05-18).
 """
 
 from app.services.job_path._content import CONTENT_DIR, content_bundle
-from app.services.job_path.cv_generator import generate_job_cv
-from app.services.job_path.llm_polish import AI_POLISH_LIMIT
 from app.services.job_path.milestones import (
     compute_readiness,
     cv_confidence_for_proof_count,
@@ -25,13 +23,11 @@ from app.services.job_path.quality_gate import (
 )
 
 __all__ = [
-    "AI_POLISH_LIMIT",
     "CONTENT_DIR",
     "QualityGateResult",
     "content_bundle",
     "compute_readiness",
     "cv_confidence_for_proof_count",
-    "generate_job_cv",
     "get_application_path",
     "polish_output_passes_quality_gates",
     "replace_skill_targets",

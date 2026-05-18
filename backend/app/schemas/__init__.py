@@ -1,8 +1,6 @@
 from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
 from app.schemas.cv import (
     CVEvidenceSummaryResponse,
-    CVGenerateDraftResponse,
-    CVSaveDraftRequest,
     CVUploadResponse,
 )
 from app.schemas.diary import (
@@ -33,8 +31,6 @@ from app.schemas.jobs import (
     CompanyReviewItem,
     ComputeJobMatchesResponse,
     EmergingSkillInput,
-    JobCVGenerateRequest,
-    JobCVGenerateResponse,
     JobComputeStatusResponse,
     JobImportPreviewRequest,
     JobImportPreviewResponse,
@@ -87,7 +83,7 @@ from app.schemas.users import (
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
-    "CVUploadResponse", "CVEvidenceSummaryResponse", "CVGenerateDraftResponse", "CVSaveDraftRequest",
+    "CVUploadResponse", "CVEvidenceSummaryResponse",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
     "XPBalanceResponse", "XPSpendRequest", "ForgeCompleteRequest", "ForgeSessionResponse",
@@ -98,7 +94,6 @@ __all__ = [
     "ComputeJobMatchesResponse", "JobComputeStatusResponse",
     "JobPathTargetInput", "JobPathTargetsRequest", "JobPathSkillTarget",
     "JobPathMilestoneUpdate", "JobPathMilestoneResponse", "JobPathResponse",
-    "JobCVGenerateRequest", "JobCVGenerateResponse",
     "EmergingSkillInput", "JobImportPreviewRequest", "JobImportPreviewResponse", "JobImportRequest",
     "EntitySkillsResponse", "MarketAnalyticsResponse", "MarketAnalyticsSummaryResponse",
     "NameCountItem", "SkillSuggestion", "SkillCountItem",

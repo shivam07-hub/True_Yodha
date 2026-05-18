@@ -16,18 +16,21 @@ class _FakeCVRepository:
     def update_cv_profile(self, _user_id: str, _payload: dict) -> None:  # pragma: no cover
         raise AssertionError("update_cv_profile should not be called when scoring fails")
 
-    def insert_cv_history(self, _payload: dict) -> None:  # pragma: no cover
-        raise AssertionError("insert_cv_history should not be called when scoring fails")
+    def create(self, _user_id: str, _spec) -> dict:  # pragma: no cover
+        raise AssertionError("create should not be called when scoring fails")
 
-    def next_version_number(self, _user_id: str) -> int:
-        return 1
+    def count_user_skills(self, _user_id: str) -> int:
+        return 0
+
+    def get_current_score(self, _user_id: str) -> float | None:
+        return None
 
 
 class _WritableFakeCVRepository:
     def __init__(self) -> None:
         self.client = object()
         self.profile_updates: list[dict] = []
-        self.history_rows: list[dict] = []
+        self.created_versions: list = []
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
         return None
@@ -35,11 +38,15 @@ class _WritableFakeCVRepository:
     def update_cv_profile(self, _user_id: str, payload: dict) -> None:
         self.profile_updates.append(payload)
 
-    def insert_cv_history(self, payload: dict) -> None:
-        self.history_rows.append(payload)
+    def create(self, _user_id: str, spec) -> dict:
+        self.created_versions.append(spec)
+        return {"id": len(self.created_versions)}
 
-    def next_version_number(self, _user_id: str) -> int:
-        return 1
+    def count_user_skills(self, _user_id: str) -> int:
+        return 0
+
+    def get_current_score(self, _user_id: str) -> float | None:
+        return None
 
 
 def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
@@ -172,4 +179,5 @@ def test_submit_cv_text_grants_welcome_xp_after_success(monkeypatch) -> None:
     assert response.json()["score"] == 64.0
     assert granted == ["u1"]
     assert repo.profile_updates
-    assert repo.history_rows
+    assert repo.created_versions
+    assert repo.created_versions[0].kind == "baseline_upload"

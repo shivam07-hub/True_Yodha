@@ -22,9 +22,6 @@ interface RightRailProps {
   savingProof: boolean
   onProofChange: (v: string) => void
   onSaveProof: (milestone: JobPathMilestone) => void
-  generatingCv: boolean
-  onGenerateCv: () => void
-  onPolishCv: () => void
 }
 
 const railCard: React.CSSProperties = {
@@ -48,9 +45,6 @@ export function RightRail({
   savingProof,
   onProofChange,
   onSaveProof,
-  generatingCv,
-  onGenerateCv,
-  onPolishCv,
 }: RightRailProps) {
   const earnedCount = achievements.filter(a => a.done).length
   const todayMilestone = jobPath?.today_milestone
@@ -180,22 +174,6 @@ export function RightRail({
       {/* 4. Quick CV */}
       <div style={railCard}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)" }}>CV · quick</span>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={onGenerateCv}
-            disabled={generatingCv}
-            style={{ flex: 1, padding: "8px 0", borderRadius: 6, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 12, fontWeight: 600, cursor: generatingCv ? "default" : "pointer", fontFamily: "inherit" }}
-          >
-            {generatingCv ? "Generating…" : "Generate"}
-          </button>
-          <button
-            onClick={onPolishCv}
-            disabled={generatingCv}
-            style={{ flex: 1, padding: "8px 0", borderRadius: 6, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 12, fontWeight: 600, cursor: generatingCv ? "default" : "pointer", fontFamily: "inherit" }}
-          >
-            Polish
-          </button>
-        </div>
         <Link
           href={job?.job_id ? `/cv?jobId=${job.job_id}` : "/cv"}
           style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 0", borderRadius: 6, border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 12, fontWeight: 700, textDecoration: "none" }}

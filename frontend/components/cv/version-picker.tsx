@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import type { JobCVVersion } from "@/lib/api"
+import type { CVVersion } from "@/lib/api"
 
 interface VersionPickerProps {
-  versions: JobCVVersion[]
+  versions: CVVersion[]
   selectedId: number | null
   onSelect: (id: number) => void
   onCreate: () => void
@@ -16,9 +16,10 @@ interface VersionPickerProps {
   canCreate: boolean
 }
 
-function kindIcon(kind: JobCVVersion["version_kind"]): string {
+function kindIcon(kind: CVVersion["kind"]): string {
   if (kind === "polished") return "◐"
   if (kind === "edited") return "✎"
+  if (kind === "baseline_upload") return "◇"
   return "○"
 }
 
@@ -46,7 +47,7 @@ export function VersionPicker({
   )
 
   const displayText = selected
-    ? (selected.polished_text ?? selected.deterministic_text)
+    ? (selected.polished_text ?? selected.body_text)
     : ""
 
   return (
@@ -63,7 +64,7 @@ export function VersionPicker({
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <span style={{ color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>
-              {selected ? `${kindIcon(selected.version_kind)} v${selected.job_version_number}` : "no versions yet"}
+              {selected ? `${kindIcon(selected.kind)} v${selected.user_version_number}` : "no versions yet"}
             </span>
             {selected && (
               <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
@@ -101,13 +102,13 @@ export function VersionPicker({
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: isActive ? "var(--tm-accent)" : "var(--tm-text)" }}>
-                      {kindIcon(v.version_kind)} v{v.job_version_number} · {v.version_kind}
+                      {kindIcon(v.kind)} v{v.user_version_number} · {v.kind}
                     </span>
                     <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{timeAgo(v.created_at)}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
                     {v.title ?? "—"}
-                    {v.parent_version_id ? <> · from v{versions.find(p => p.id === v.parent_version_id)?.job_version_number ?? "?"}</> : null}
+                    {v.parent_version_id ? <> · from v{versions.find(p => p.id === v.parent_version_id)?.user_version_number ?? "?"}</> : null}
                   </div>
                   {isActive && (
                     <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
@@ -116,14 +117,14 @@ export function VersionPicker({
                         disabled={isPolishing}
                         label={isPolishing ? "Polishing…" : "★ Polish"}
                       />
-                      {(v.version_kind === "polished" || v.version_kind === "edited") && (
+                      {(v.kind === "polished" || v.kind === "edited") && (
                         <ActionPill
                           onClick={() => { onEdit(v.id); setOpen(false) }}
                           label="✎ Edit polished"
                         />
                       )}
                       <ActionPill
-                        onClick={() => onDownload(v.polished_text ?? v.deterministic_text ?? "")}
+                        onClick={() => onDownload(v.polished_text ?? v.body_text ?? "")}
                         label="📄 PDF"
                       />
                     </div>
