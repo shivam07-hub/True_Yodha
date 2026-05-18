@@ -102,10 +102,10 @@ export function MissionHeader({
       </div>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 80% at 30% 50%, transparent 30%, var(--tm-bg) 90%)" }} />
 
-      <div style={{ position: "relative", zIndex: 1, padding: "28px 36px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="tm-mission-header-inner" style={{ position: "relative", zIndex: 1, padding: "28px 36px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
 
         {/* Top bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="tm-mission-header-topbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-accent)", fontWeight: 500 }}>
             <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--tm-accent)", boxShadow: "0 0 0 4px var(--tm-accent-wash)", flexShrink: 0, display: "inline-block" }} />
             <span>Target:</span>
@@ -132,19 +132,19 @@ export function MissionHeader({
         </div>
 
         {/* Content grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 32, alignItems: "center" }}>
+        <div className="tm-mission-header-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 32, alignItems: "center" }}>
 
           {/* Left */}
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-              <h1 style={{ margin: 0, fontFamily: "var(--tm-font-display)", fontWeight: 400, fontSize: 58, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--tm-text)" }}>
+              <h1 className="tm-mission-header-greeting" style={{ margin: 0, fontFamily: "var(--tm-font-display)", fontWeight: 400, fontSize: 58, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--tm-text)" }}>
                 {greeting()},
               </h1>
-              <h1 style={{ margin: 0, fontFamily: "var(--tm-font-display)", fontWeight: 400, fontStyle: "italic", fontSize: 58, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--tm-accent)" }}>
+              <h1 className="tm-mission-header-greeting" style={{ margin: 0, fontFamily: "var(--tm-font-display)", fontWeight: 400, fontStyle: "italic", fontSize: 58, letterSpacing: "-0.02em", lineHeight: 1, color: "var(--tm-accent)" }}>
                 {displayName}
               </h1>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", fontWeight: 500 }}>
+            <div className="tm-mission-header-meta" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", fontWeight: 500 }}>
               <IconAsterisk />
               <span style={{ color: "var(--tm-text)" }}>Mission Control</span>
               <span style={{ opacity: 0.4 }}>·</span>

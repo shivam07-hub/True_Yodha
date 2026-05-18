@@ -669,7 +669,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
+    <div className="tm-shell-enter" style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
 
       <div className="tm-sidebar-wrap">

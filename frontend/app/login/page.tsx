@@ -64,11 +64,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100dvh", width: "100dvw", overflow: "hidden", background: "var(--tm-bg)", position: "relative" }}>
+    <div className="tm-login-shell" style={{ display: "flex", height: "100dvh", width: "100dvw", overflow: "hidden", background: "var(--tm-bg)", position: "relative" }}>
       <ParticleBg />
 
       {/* ── Login sidebar — mirrors AppShell Sidebar exactly ── */}
       <nav
+        className="tm-login-sidebar"
         style={{
           width: 220,
           height: "100dvh",
@@ -267,7 +268,7 @@ export default function LoginPage() {
       </nav>
 
       {/* ── Market Intelligence ── */}
-      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2, display: "flex", flexDirection: "column" }}>
+      <main className="tm-login-intel" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2, display: "flex", flexDirection: "column" }}>
         <PublicTopNav active="intel" />
         <IntelPane />
         <PublicFooter />

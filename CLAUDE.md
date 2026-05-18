@@ -146,7 +146,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
    - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
-9. **Mobile — auth skeleton polish** — `AppShellSkeleton` shipped but `ready` resolves in ~1 frame (synchronous localStorage). If more polish needed: add staggered fade-in on skeleton → real content transition.
+9. **Mobile — enterprise polish + PWA (in progress 2026-05-18)** — Full plan below.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
 ---
@@ -190,6 +190,88 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 - `device_tokens` table (user_id, fcm_token, platform) + `/push/register` endpoint → FCM/APNs for diary reminders + score update push notifications
 - React Native app (Expo) targets Android Play Store first, iOS second
 - Prerequisite: shareability (public profiles) must ship before mobile — it's the referral hook
+
+---
+
+## MOBILE ENTERPRISE POLISH + PWA — PLAN (Backlog #9, started 2026-05-18)
+
+### v1 scope (this session — PWA on existing Next.js)
+
+**A. OSS skeleton lib + AppShellSkeleton refactor**
+- Install `react-loading-skeleton` (4.5kb, themable, mature, 4.4k★).
+- Replace inline `SHIMMER` const in `mobile-shell.tsx:15-19` with `<Skeleton>` + `<SkeletonTheme baseColor={var(--tm-surface-2)} highlightColor={var(--tm-border-soft)}>`.
+- Add fade-out transition on skeleton→content swap (CSS `opacity` + `transition:opacity 240ms ease-out`).
+
+**B. Layout breaks (from 2026-05-18 mobile audit, 18 screenshots in `reference/Mobile images/`)**
+- **L1 `/login`**: `login/page.tsx:67-274` — hide left 220px sidebar + collapse IntelPane to stack vertically `@media (max-width:768px)`. Right column shouldn't bleed.
+- **L2 `/home` hero**: `MissionHeader.tsx:140,143` — replace `fontSize:58` with `clamp(34px, 8vw, 58px)`.
+- **L3 `/home` content grid**: `MissionHeader.tsx:135` — `gridTemplateColumns:"1.4fr 1fr"` → collapse to single col `@media (max-width:768px)`.
+- **L4 `/home` top bar**: `MissionHeader.tsx:108` — `flex-wrap:wrap` on mobile, stack target row above diary/refresh.
+- **L5 `/home` SKILLS TO BUILD**: Audit `HomeColumns.tsx` / `skill-upgrade-card.tsx` — fixed grid clipping "Lock in" button.
+- **L6 `/home` SELF FOUND chips**: chip row needs `flex-wrap:wrap` + `gap` on mobile.
+- **L7 `/skills` ScoreRing**: hard-position clip; reposition or shrink on mobile.
+
+**C. PWA installable shell**
+- Add `frontend/public/manifest.webmanifest` (name, short_name, icons 192/512, theme_color `#0a0e14`, background_color `#0a0e14`, display:`standalone`, start_url:`/home`).
+- Add `<link rel="manifest">` + `<meta name="theme-color">` + `<link rel="apple-touch-icon">` in `app/layout.tsx`.
+- Generate icons from existing `MyroLogo` (192×192, 512×512, maskable variants).
+
+**D. Empty/loading states**
+- `/market` heatmap loading: swap text spinner → `<ParticleLoading>` per loading-state audit memory.
+
+### v2 scope — Native APK on Google Play (deferred, kicks off after 1000 PWA users per OQ note)
+
+**Prerequisites:**
+1. Shareability v1 (`/profile/{token}`) shipped — referral hook.
+2. `lib/api.ts` + `lib/session.ts` extracted into `packages/api-client/` with injectable storage adapter (AsyncStorage for RN, localStorage for web).
+3. All backend routes prefixed `/v1/` — versioning contract before native release.
+4. `device_tokens` table + `POST /push/register` endpoint shipped — FCM/APNs delivery.
+
+**Native scaffold (new repo OR `mobile-native/` sibling folder — NOT inside `frontend/`):**
+
+```bash
+# Expo SDK 51+ blank TypeScript template
+npx create-expo-app@latest mobile-native --template blank-typescript
+cd mobile-native
+
+# Core deps
+npx expo install \
+  expo-router \
+  @supabase/supabase-js \
+  @react-native-async-storage/async-storage \
+  react-native-url-polyfill \
+  @tanstack/react-query \
+  expo-secure-store \
+  expo-notifications \
+  expo-device \
+  expo-constants \
+  expo-splash-screen \
+  expo-system-ui \
+  expo-status-bar \
+  react-native-safe-area-context \
+  react-native-screens \
+  react-native-gesture-handler \
+  react-native-reanimated
+
+# Build / submit
+npm i -D eas-cli
+
+# Shared workspace at repo root
+# /Users/incognito/True_Yodha/
+#   ├── frontend/         (Next.js — web + PWA)
+#   ├── mobile-native/    (Expo RN — Android/iOS)
+#   ├── packages/
+#   │   └── api-client/   (shared lib/api.ts, lib/session.ts, types)
+#   └── backend/          (FastAPI, unchanged)
+```
+
+**Decisions still open (do NOT lock until shareability ships):**
+- Monorepo tool: `pnpm workspaces` vs `nx` vs `turborepo`. Lean `turborepo` — simplest, Vercel-aligned.
+- Auth flow: deep-link OAuth callback vs in-app browser (`expo-auth-session`).
+- Diary push notification cadence: 8pm local default, user-configurable.
+- iOS first or Android first: Android first (Play Store, lower cost, broader Myro target demographic).
+
+**Hard rule:** Do NOT add RN/Expo packages to `frontend/package.json`. Wrong package.json pollutes Next.js bundler + breaks Vercel. Native libs land in `mobile-native/package.json` only.
 
 ---
 

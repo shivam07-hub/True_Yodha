@@ -30,6 +30,7 @@
     "next-mdx-remote": "^6.0.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-loading-skeleton": "^3.5.0",
     "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.1.2",

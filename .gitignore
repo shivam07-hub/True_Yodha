@@ -64,6 +64,7 @@ graphify-out/
 Screenshot*.png
 *.png
 !frontend/public/newsletter/*.png
+!frontend/public/brand/*.png
 
 # Claude Code settings — local only
 .claude/

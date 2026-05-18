@@ -102,8 +102,8 @@ export default function SkillsPage() {
       <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <div>
+        <div className="tm-skills-header" style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div className="tm-label-caps" style={{ marginBottom: 6 }}>Skill Intelligence Overview</div>
             <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
             <p className="tm-meta text-pretty">
