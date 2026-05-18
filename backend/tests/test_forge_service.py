@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 
 from app.services.forge_service import LEVEL_THRESHOLDS, XP_RATE_BY_TYPE, complete_forge_session
 
@@ -19,6 +20,7 @@ def _make_admin(level: int = 0, sessions_count: int = 0, has_row: bool = True):
 async def _run(admin, level: int, sessions_count: int, has_row: bool = True) -> dict:
     with (
         patch("app.services.forge_service.get_supabase_admin", return_value=_make_admin(level, sessions_count, has_row)),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=99),
         patch("app.services.forge_service.earn_xp", return_value=sessions_count * 50 + 50),
     ):
         return await complete_forge_session("user-1", "Python", None, 25)
@@ -67,6 +69,7 @@ async def test_xp_earned_uses_rate_by_session_type():
     # ambient: 2 XP/min × 25 min = 50
     with (
         patch("app.services.forge_service.get_supabase_admin", return_value=_make_admin(0, 0)),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=99),
         patch("app.services.forge_service.earn_xp", return_value=50),
     ):
         ambient = await complete_forge_session("user-1", "Python", None, 25, session_type="ambient")
@@ -78,9 +81,41 @@ async def test_new_skill_row_created_when_missing():
     admin = _make_admin(has_row=False)
     with (
         patch("app.services.forge_service.get_supabase_admin", return_value=admin),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=42),
         patch("app.services.forge_service.earn_xp", return_value=50),
     ):
         result = await complete_forge_session("user-1", "Docker", None, 25)
     assert result["level_before"] == 0
     # insert called twice: user_skills row creation + forge_sessions log
     assert admin.table.return_value.insert.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_skill_name_is_resolved_to_canonical_skill_id_for_tracker_updates():
+    admin = _make_admin(level=0, sessions_count=0)
+    with (
+        patch("app.services.forge_service.get_supabase_admin", return_value=admin),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=42),
+        patch("app.services.forge_service.earn_xp", return_value=14),
+    ):
+        result = await complete_forge_session("user-1", "python", None, 7, session_type="ambient")
+
+    assert result["xp_earned"] == 14
+    update_chain = admin.table.return_value.update.return_value.eq.return_value.eq
+    update_chain.assert_called_with("skill_id", 42)
+
+
+@pytest.mark.asyncio
+async def test_unknown_skill_raises_400_not_500():
+    """ensure_skill_in_db returns None for unrecoverable skill → 400, never a DB write."""
+    admin = _make_admin(has_row=False)
+    with (
+        patch("app.services.forge_service.get_supabase_admin", return_value=admin),
+        patch("app.services.forge_service.ensure_skill_in_db", return_value=None),
+        patch("app.services.forge_service.earn_xp", return_value=0) as earn,
+    ):
+        with pytest.raises(HTTPException) as exc:
+            await complete_forge_session("user-1", "MadeUpSkill", None, 25)
+    assert exc.value.status_code == 400
+    earn.assert_not_called()
+    admin.table.return_value.insert.assert_not_called()

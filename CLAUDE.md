@@ -114,6 +114,13 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | IH3 | **Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others. |
 | IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
 | IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
+| SH1 | **Ninja Name = vanity slug** as the public profile ID. `user_profiles.ninja_name TEXT UNIQUE NOT NULL`. Charset `^[a-z0-9-]{3,32}$`. The codename IS the share URL: `/profile/{ninja_name}`. Aligns with PV1 — user controls disclosure, no real-name leakage. |
+| SH2 | **Onboarding step is skippable with auto-generated default.** `silent-fox-9k2` pattern (adjective + noun + 4-char suffix). User can accept, retype, or skip → keep default. Zero abandonment risk. Editable later via Settings. |
+| SH3 | **Domain Map is the share artifact — fully public, never blurred.** The 12-domain radar from `/skills`, the Myro Score number, the tier label, and aggregate activity counters (forge/diary/tracker counts) are public. Skill names, skill levels, CV, tracker rows, and email NEVER leak through the public surface. |
+| SH4 | **Ghost radar is the conversion mechanic.** Logged-out viewer sees an outline-only radar beside (desktop) / below (mobile) the ninja's, with a single `+` icon center and tiny `unlock` label. Whole shape is a single clickable target → `/signup?ref={ninja_name}`. Logged-in viewer with own radar sees their radar overlaid instead of the ghost. |
+| SH5 | **Job overlap rows are the logged-in-only accountability surface.** Compact rows of jobs both users have saved (`job_applications.status IN saved/applied/screening/interviewing/final_round`). Max 3 rows, sorted by viewer's own match%. Hide section silently when no overlap. Symmetric — owner doesn't see viewers. |
+| SH6 | **Web Share API + auto-OG image** is the share affordance. Single `↗` icon on `/skills` top-right. One tap → native share sheet (WhatsApp first on India mobile). Link unfurls with PNG of the ninja's radar shape + score via `app/profile/[ninja]/opengraph-image.tsx`. Desktop fallback = copy-to-clipboard. No custom share modal. |
+| SH7 | **Referral attribution = cookie + permanent DB column.** `myro_ref` cookie 30d TTL set from `?ref=` query. Signup handler resolves cookie → `user_profiles.referred_by_user_id UUID REFERENCES auth.users(id)`. v2 XP credit = single trigger on `welcome_xp_granted` flipping TRUE AND `referred_by_user_id IS NOT NULL`. Self-referral guard. No referrals_log table in v1. |
 
 ---
 
@@ -146,35 +153,24 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 8. **Process Transparency Layer** — Company review system. Full plan below.
    - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
-9. **Mobile — auth skeleton polish** — `AppShellSkeleton` shipped but `ready` resolves in ~1 frame (synchronous localStorage). If more polish needed: add staggered fade-in on skeleton → real content transition.
+9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
+11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
+
+   **Forge widget v2 (deferred, 2026-05-19 design pass):**
+   - **Cycle counter** — show "cycle N" badge on widget; track sessions completed in a single login window.
+   - **Long-press dismiss** — `×` requires 600ms press when mid-session w/ unclaimed XP; prevents accidental loss.
+   - **Haptic equivalent** — scale-pop + soft glow burst on successful claim; navigator.vibrate(10) on mobile PWA.
+   - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
+   - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
+
+12. **Shareability v1 — `/profile/{ninja_name}` public profile (NEXT SESSION).** Decisions SH1–SH7 locked. Full plan below.
 
 ---
 
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
 
-### Done ✅ (2026-05-16)
-- SkillCard component: "Log to Forge" button fires `diary.createEntry`, toggles to "✓ Logged to Forge"
-- "CV →" secondary link per skill card → `/cv`
-- "Intel →" secondary link per skill card → `/market?skill=<display_name>`
-- Stat line reframed: `"N skills · N need proof · N domains below 40%"` (removed misleading "0 gaps")
-- Intel page (`market/page.tsx`): reads `?skill=` param via `useSearchParams` → pins skill first in Skill Lens + first heatmap column
-- Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`
-
-### Phase 1 — Visual Polish ✅ DONE 2026-05-16
-- [x] Domain name truncation fix — `minmax(200px)`, wrap allowed, ellipsis removed. Radar SVG: first word shown + `<title>` native tooltip for full name
-- [x] Domain strip cards: 3px color-coded left border (`<30%` red · `30–50%` orange · `50–70%` amber · `>70%` green). Strength % colored to match. `"Explore →"` / `"← close"` affordance bottom-right
-- [x] Legend in domain inspector header: colored squares for L3+/L2/L0–1. Orange italic label = "No CV evidence yet". SkillCard jargon replaced: "No CV evidence — keyword inferred"
-
-### Phase 2 — Score Hero + Weakness Spotlight ✅ DONE 2026-05-16
-- [x] Score hero — `ScoreRing` SVG component: animated stroke-dashoffset on mount (900ms ease), 5 tiers (Building foundation → Emerging → Developing → Competent → Advanced), next milestone label. Replaces top-right mono number
-- [x] Weakness Spotlight — `WeaknessSpotlight` component: lowest avg% domain with most skills (among <60%). Shows domain name, %, skill count, no-proof count, max level. "Log to Forge" diary CTA + "CV →" link. Red left border accent. Sits between header and domain strip
-
-### Phase 3 — Radar → Domain Detail Transformation ✅ DONE 2026-05-16
-- [x] `DomainRadar` refactored to SVG-only. Spokes + dots dim (opacity 0.25) when another domain is active; active spoke brightens + dot grows to r=7
-- [x] Slide-in inspector between strip and radar removed. Inspector absorbed into radar card right panel
-- [x] Right panel two states: "Domain Scores" (default, clickable rows) → "Domain Detail" (SkillCards + actions, maxHeight:340 scroll). Zero layout shift on swap
-- [x] `SkillCard`, `ScoreRing`, `WeaknessSpotlight` extracted to `components/skills/`. Page down to 233 lines (under 300 limit)
+**Phases 1–3 ✅ DONE 2026-05-16** — SkillCard + Log-to-Forge + CV/Intel links · stat-line reframe · `?skill=` deeplink · color-coded domain strip · ScoreRing hero + WeaknessSpotlight · DomainRadar SVG-only · inspector absorbed into radar card · `components/skills/` extraction (page <300 lines). Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`. Full detail in `docs/session-history/2026-05.md`.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
@@ -190,6 +186,207 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 - `device_tokens` table (user_id, fcm_token, platform) + `/push/register` endpoint → FCM/APNs for diary reminders + score update push notifications
 - React Native app (Expo) targets Android Play Store first, iOS second
 - Prerequisite: shareability (public profiles) must ship before mobile — it's the referral hook
+
+---
+
+## MOBILE ENTERPRISE POLISH + PWA — PLAN (Backlog #9, ✅ CLOSED 2026-05-19)
+
+**v1 PWA shipped** — react-loading-skeleton, layout fixes (L1–L7), manifest + icons, loading-state audit. Detail in `docs/session-history/2026-05.md` (2026-05-18, 2026-05-19 entries).
+
+### v2 scope — Native APK on Google Play (deferred, kicks off after 1000 PWA users per OQ note)
+
+**Prerequisites:**
+1. Shareability v1 (`/profile/{token}`) shipped — referral hook.
+2. `lib/api.ts` + `lib/session.ts` extracted into `packages/api-client/` with injectable storage adapter (AsyncStorage for RN, localStorage for web).
+3. All backend routes prefixed `/v1/` — versioning contract before native release.
+4. `device_tokens` table + `POST /push/register` endpoint shipped — FCM/APNs delivery.
+
+**Native scaffold (new repo OR `mobile-native/` sibling folder — NOT inside `frontend/`):**
+
+```bash
+# Expo SDK 51+ blank TypeScript template
+npx create-expo-app@latest mobile-native --template blank-typescript
+cd mobile-native
+
+# Core deps
+npx expo install \
+  expo-router \
+  @supabase/supabase-js \
+  @react-native-async-storage/async-storage \
+  react-native-url-polyfill \
+  @tanstack/react-query \
+  expo-secure-store \
+  expo-notifications \
+  expo-device \
+  expo-constants \
+  expo-splash-screen \
+  expo-system-ui \
+  expo-status-bar \
+  react-native-safe-area-context \
+  react-native-screens \
+  react-native-gesture-handler \
+  react-native-reanimated
+
+# Build / submit
+npm i -D eas-cli
+
+# Shared workspace at repo root
+# /Users/incognito/True_Yodha/
+#   ├── frontend/         (Next.js — web + PWA)
+#   ├── mobile-native/    (Expo RN — Android/iOS)
+#   ├── packages/
+#   │   └── api-client/   (shared lib/api.ts, lib/session.ts, types)
+#   └── backend/          (FastAPI, unchanged)
+```
+
+**Decisions still open (do NOT lock until shareability ships):**
+- Monorepo tool: `pnpm workspaces` vs `nx` vs `turborepo`. Lean `turborepo` — simplest, Vercel-aligned.
+- Auth flow: deep-link OAuth callback vs in-app browser (`expo-auth-session`).
+- Diary push notification cadence: 8pm local default, user-configurable.
+- iOS first or Android first: Android first (Play Store, lower cost, broader Myro target demographic).
+
+**Hard rule:** Do NOT add RN/Expo packages to `frontend/package.json`. Wrong package.json pollutes Next.js bundler + breaks Vercel. Native libs land in `mobile-native/package.json` only.
+
+### Architecture audit (post-ef8dd21, via /improve-codebase-architecture)
+
+**Shipped (durable wins, see history):** breakpoint constant, CONTEXT.md Viewport Mode section, `useViewport()` provider (deepening #1), `frontend/mobile/` module (deepening #3).
+
+**Open:**
+- ⏸ **Deepening #2 — `<ResponsiveStack>` primitive.** DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks → ship it. 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`).
+- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
+
+---
+
+## SHAREABILITY v1 — PLAN (Backlog #12, locked 2026-05-19 via grill-me)
+
+### Vision
+Every Myro user is a viral seed. The Domain Map (12-domain radar from `/skills`) is the magnetic share artifact. A logged-out viewer who lands on `/profile/{ninja_name}` sees the ninja's radar alongside their own *empty* radar — the ghost is the conversion CTA. The college fellowship program treats every fellow's `/profile/` link as the rollout vector for their cohort. Forward-compat: v2 adds XP-for-referral on each completed onboarding.
+
+### Decisions (SH1–SH7)
+See **DECISIONS LOCKED** table above.
+
+### DB — Migration `database/migrations/20260519_shareability_v1.sql`
+
+```sql
+BEGIN;
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS ninja_name TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS referred_by_user_id UUID REFERENCES auth.users(id);
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_ninja_name ON user_profiles(ninja_name);
+
+-- Backfill: every existing user gets a generated ninja_name via service fn.
+-- Run in app code (loop with retry-on-conflict) before NOT NULL.
+
+ALTER TABLE user_profiles
+  ALTER COLUMN ninja_name SET NOT NULL;
+
+-- Public read surface (no PII)
+CREATE OR REPLACE VIEW public_profile_v AS
+  SELECT
+    up.ninja_name,
+    ms.mirror_score,
+    ms.domain_scores,
+    ms.tier_label,
+    (SELECT COUNT(*) FROM forge_sessions WHERE user_id = up.id) AS forge_sessions_count,
+    (SELECT COUNT(*) FROM daily_logs    WHERE user_id = up.id) AS diary_count,
+    (SELECT COUNT(*) FROM job_applications WHERE user_id = up.id) AS tracker_count
+  FROM user_profiles up
+  LEFT JOIN mirror_scores ms ON ms.user_id = up.id;
+
+GRANT SELECT ON public_profile_v TO anon, authenticated;
+
+NOTIFY pgrst, 'reload schema';
+COMMIT;
+```
+
+### Backend — New + Modified
+
+**New: `backend/app/services/ninja_name.py`**
+- `generate() -> str` — picks `{adjective}-{noun}-{4charsuffix}` from curated wordlists. Suffix avoids collision; retry-on-conflict.
+- `is_valid(name: str) -> bool` — regex `^[a-z0-9-]{3,32}$` + reserved-words blocklist (`admin`, `signup`, `login`, `api`, `profile`, `xp`, `home`, etc).
+- `is_available(name: str, db) -> bool` — DB uniqueness check.
+
+**New: `backend/app/routers/profile/public.py`**
+- `GET /profile/{ninja_name}` — no auth. Returns `PublicProfile` (score, domain_scores, tier, counts). 404 if not found.
+- `GET /profile/{ninja_name}/overlap` — auth required. Returns up to 3 jobs both viewer + owner have saved. Match% from `user_job_matches` if exists, else basic overlap.
+- `POST /profile/ninja-name` — auth required. Update own `ninja_name`. Validates + uniqueness checks.
+
+**Modified: `backend/app/routers/auth.py`** — `_upsert_user_profile()` generates `ninja_name` on first provision. Signup handler reads `myro_ref` cookie via FastAPI `Cookie()`, resolves ninja_name → user_id, writes `referred_by_user_id` (self-ref guard: skip if same id).
+
+**Modified: `backend/app/schemas/users.py`** — add `ninja_name` + `referred_by_user_id` to `UserProfile`. New `PublicProfile` schema.
+
+### Frontend — New + Modified
+
+**New routes**
+- `frontend/app/profile/[ninja]/page.tsx` — server-component fetch from `/profile/{ninja}`, client-component renders.
+- `frontend/app/profile/[ninja]/opengraph-image.tsx` — Next.js dynamic OG; renders radar SVG → PNG. Edge-cached 24h.
+- `frontend/app/profile/[ninja]/loading.tsx` — radar skeleton.
+
+**New components**
+- `components/profile/PublicProfilePage.tsx` — main client component, 2-col grid (ninja radar | ghost-or-overlay).
+- `components/profile/GhostRadar.tsx` — outline SVG, `+` glyph, `unlock` label, wraps to `/signup?ref={ninja}`.
+- `components/profile/RadarOverlay.tsx` — dual-color SVG: ninja's polygon + viewer's polygon.
+- `components/profile/JobOverlapRows.tsx` — compact table, max 3 rows.
+- `components/profile/ShareButton.tsx` — Web Share API call; clipboard fallback; `↗` icon only.
+- `components/onboarding/NinjaNameStep.tsx` — onboarding step with auto-suggested name + input.
+
+**Modified**
+- `frontend/app/skills/page.tsx` — drops `<ShareButton />` top-right.
+- `frontend/app/signup/page.tsx` — reads `?ref=`, writes `myro_ref` cookie (`Max-Age=2592000; SameSite=Lax`).
+- `frontend/app/onboarding/page.tsx` — adds NinjaNameStep before final.
+- `frontend/lib/api.ts` — adds `profile.public(ninja)`, `profile.overlap(ninja, token)`, `users.updateNinjaName(name, token)`.
+- `frontend/components/skills/DomainRadar` — extract pure path-math helper so `GhostRadar` + OG image both consume.
+
+### Design Spec (ghost radar — the conversion mechanic)
+
+**Layout**
+- Desktop: 2-col grid, gap 24px, both radars 280×280.
+- Mobile: stacked, ninja top, ghost below, both 100% width capped at 320px.
+
+**Ghost radar visual**
+- 12 spokes, stroke `var(--tm-border-soft)`, opacity 0.18.
+- No fill polygon. No dot vertices.
+- Center: `+` glyph 28px, color `var(--tm-accent)`, opacity 0.55.
+- Below center (in-SVG `<text>`): `unlock` 9px caps, letter-spacing 0.2em, opacity 0.45.
+- Entire SVG wrapped in `<a>` → `/signup?ref={ninja_name}`.
+
+**Motion (animation budget = 600ms total cold start)**
+- Ninja radar polygon: stroke-dashoffset 0→full over 900ms `cubic-bezier(0.22,1,0.36,1)`.
+- Ghost radar: opacity 0→0.18 over 600ms, delayed 400ms.
+- Hover ghost: `+` glyph scale 1→1.08 over 200ms ease-out; stroke opacity → 0.3.
+- `@media (prefers-reduced-motion: reduce)`: no scale, no dashoffset; instant render.
+- All animated properties: `transform` and `opacity` only (compositor-friendly, no layout thrash).
+
+**Accessibility**
+- `<a aria-label="Unlock your domain map — sign up">`.
+- `:focus-visible` → 2px solid `var(--tm-accent)` ring, offset 4px.
+- `+` glyph contrast ≥ 4.5:1 on background.
+
+**Performance**
+- Single SVG per radar, no canvas.
+- Path data inlined (no fetch).
+- OG image: edge-cached 24h, computed from the same public payload the page reads.
+- No `backdrop-filter`, no blur, no shadow on ghost.
+
+### Tests
+
+- `backend/tests/test_ninja_name_service.py` — generate format, validate rules, reserved-words block, uniqueness retry.
+- `backend/tests/test_public_profile_router.py` — payload shape, 404, no PII leakage (assert email/full_name/linkedin_url absent from response).
+- `backend/tests/test_referral_attribution.py` — cookie → column write, self-ref guard, idempotency, signup without ref still works.
+- `backend/tests/test_job_overlap_router.py` — overlap math, max 3 rows, empty overlap = 200 with empty list.
+- `frontend/tests/share-button.test.mjs` — `navigator.share` call shape, clipboard fallback path.
+
+### Out of scope for v1 (logged for v2)
+
+- XP-for-referral payout (DB column ready; trigger not built).
+- Custom share modal with platform grid.
+- Vanity name change cooldown / cost.
+- Public profile SEO (`robots: noindex` initially — flip after v1 hardening).
+- Per-event referral analytics (`referrals_log` table).
+- Mentor/mentee surfacing.
+- Public profile theming (dark/light mode toggle for shared page).
 
 ---
 
@@ -311,209 +508,108 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ### UX systems audit
 
-9. **Loading-state audit across the entire frontend.** Shivam flagged 2026-05-18 that many surfaces fall straight to empty states instead of showing a loading state — the result feels "disappointing and depressing" because users can't tell whether the app is fetching or genuinely has nothing. Two loading templates already exist: `components/ui/particle-loading.tsx` (used only on `/skills` and `/companies/[slug]`) and `components/cv/upload-processing.tsx` (used only on `/cv` upload flow). Every other fetch surface either shows bare `"Loading…"` text, a one-off skeleton, or nothing. Next session: catalogue every `useQuery` / async surface, classify the load pattern it currently uses, decide a 3-tier loading system (skeleton for short fetches, particle for hero/full-screen, contextual inline for tiny loads), and ship a consistent treatment. Treat as foundational UX work — pairs naturally with the Category B verbal-scaffolding pass that's also queued.
+9. ~~**Loading-state audit across the entire frontend.**~~ ✅ DONE 2026-05-19 — Closed as the foundational loading system, not as the separate verbal-scaffolding copy pass. Shivam's concern was that empty states felt "disappointing and depressing" because users could not tell fetching from genuine emptiness. Decision: keep a 3-tier system. **Shell skeleton** = `AppShellSkeleton` + `react-loading-skeleton` for auth/session chrome. **Process loading** = `components/loading/process-loading.tsx` + `components/loading/loading-page.tsx` + `app/loading.tsx` for route-level and multi-step work; adapters now include `IntelLoadingState` and onboarding CV analysis. **Ambient loading** = `components/ui/particle-loading.tsx` for immersive full-region waits (`/skills`, `/companies/[slug]`). Inline loading remains for tiny surfaces (`Button loading`, small row/card skeletons). Shipped with `/market` heatmap readiness fix and splash-screen token cleanup. Remaining UX copy/emotional tone work belongs to the Category B verbal-scaffolding pass, not this parked audit.
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-16)
+## LAST SESSION SUMMARY (2026-05-19 · Forge loop + Backlog #9 + loading-state audit closed)
 
 ```
-Mobile performance overhaul — responsive AppShell, canvas guards, layout fixes.
+FORGE + DIARY LOOP — BACKLOG #11 SHIPPED:
+  - Nav/sidebar Forge now shows generic XP ready, not the hidden skill.
+    XP can be claimed after whole minutes accrue; claim auto-restarts
+    the Forge timer.
+  - Full Forge modal and floating timer use the same generic XP loop.
+    Skill queue remains hidden and continues feeding backend progression.
+  - forge_service resolves skill_name → canonical skill_id via taxonomy
+    before updating user_skills, so Skill Tracker advances correctly.
+  - /users/me/skills now includes forge_sessions_count +
+    forged_level_up_available.
+  - SkillCard shows "AI skill upgrade" for forged level-ups. The advice
+    endpoint verifies a forged level-up, uses recent diary notes + CV
+    evidence, and returns xp_spent=0.
 
-Shipped to Develop:
+VERIFY:
+  - pytest backend/tests -q: 255 passed.
+  - npx tsc --noEmit: clean.
+  - npm run lint: 0 warnings, 0 errors.
+  - npx tsx --test tests/forge-progress.test.ts: 3 passed.
 
-  MOBILE LAYOUT (C1):
-  - AppShell: pure CSS @media(≤768px) — sidebar hidden, bottom 4-tab nav + slim
-    top bar (logo, XP pill, avatar) appear. Desktop layout completely untouched.
-  - mobile-shell.tsx: MobileTopBar, MobileBottomNav, MobileProfileSheet (bottom
-    sheet with settings/feedback/sign-out).
-  - use-is-desktop.ts: hook — pointer:fine + min-width:769px. Gates ParticleBg.
-  - layout.tsx: viewportFit:"cover" + env(safe-area-inset-*) for iPhone home bar.
+LOADING-STATE AUDIT — PARKED Q #9 CLOSED:
+  - Closed as foundational system. Remaining "empty states feel
+    disappointing" copy/tone work moves with Category B verbal-scaffolding,
+    not this audit.
+  - Three-tier loading system locked:
+    1. Shell skeleton: AppShellSkeleton + react-loading-skeleton for
+       auth/session chrome.
+    2. Process loading: components/loading/process-loading.tsx,
+       components/loading/loading-page.tsx, app/loading.tsx. IntelLoadingState
+       and onboarding CV analysis now use this module.
+    3. Ambient loading: components/ui/particle-loading.tsx for immersive
+       full-region waits (/skills, /companies/[slug]).
+  - /market heatmap readiness fixed: no followed companies / no selected
+    skills now count as resolved instead of leaving "Building heatmap" stuck.
+  - SplashScreen now reads var(--tm-bg/text/text-faint) instead of hard-coded
+    dark colors.
 
-  MOBILE PERFORMANCE (C4, C6):
-  - globals.css @media(≤768px): backdrop-filter:none — kills GPU blur on mobile.
-  - .tm-home-cols: 2-col job detail grid → 1-col on mobile.
+Backlog #9 fully closed. Deepenings #1 + #3 shipped, #2 deferred (only 3
+collapse sites — no friction yet).
 
-  AUTH SKELETON (C5):
-  - AppShellSkeleton in mobile-shell.tsx — shimmer layout shown while auth
-    resolves instead of blank screen. Matches desktop sidebar + mobile bars.
+DEEPENING #1 — ViewportProvider + useViewport:
+  - frontend/mobile/provider.tsx NEW: ViewportProvider wraps app in
+    providers.tsx. Single matchMedia subscriber tracks 3 queries
+    (mobile breakpoint, pointer:fine, prefers-reduced-motion) and
+    publishes one ViewportState = { mode, pointer, reducedMotion,
+    isDesktop } through React context.
+  - Mobile-safe defaults during SSR + first paint (isDesktop:false).
+  - 5 listeners → 1. Old useIsDesktop deleted entirely.
 
-  KEY FILES:
-  - frontend/components/mobile-shell.tsx (NEW — 274 lines)
-  - frontend/lib/hooks/use-is-desktop.ts (NEW)
-  - frontend/components/app-shell.tsx (exports FEEDBACK_ACTIONS, FeedbackModal,
-    SidebarProfile; wires mobile components; isDesktop gates particle bg)
-  - frontend/app/globals.css (mobile shell CSS block)
-  - frontend/app/layout.tsx (viewportFit)
+MIGRATION:
+  - components/app-shell.tsx: const { isDesktop } = useViewport()
+  - app/tracker/page.tsx: const { isDesktop } = useViewport()
+  - components/tracker/ScoreSparkle.tsx: drops ad-hoc matchMedia,
+    reads reducedMotion from useViewport().
+  - lib/hooks/use-rotating-message.ts: same — drops its own listener +
+    state, reads from useViewport.
+  - components/loading/process-loading.tsx (useAllowLoopingMotion):
+    same — drops matchMedia + setReduceMotion useEffect.
+
+DEEPENING #3 — frontend/mobile/ module:
+  - frontend/mobile/viewport.ts (was lib/viewport.ts — moved +
+    added MEDIA_QUERY_REDUCED_MOTION, MEDIA_QUERY_POINTER_FINE,
+    PointerKind type)
+  - frontend/mobile/shell.tsx (was components/mobile-shell.tsx — git
+    mv, no content change)
+  - frontend/mobile/provider.tsx NEW
+  - frontend/mobile/index.ts NEW: single import surface
+    `import { ViewportProvider, useViewport, MobileTopBar, ... }
+    from "@/mobile"`.
+  - DELETED: lib/viewport.ts, lib/hooks/use-is-desktop.ts.
+  - CSS + manifest stayed in place (Next.js convention — globals.css
+    + public/manifest.webmanifest).
+
+VERIFY:
+  - tsc --noEmit: clean.
+  - next lint: 0 warnings, 0 errors.
+
+CLAUDE.md:
+  - Backlog #9 marked DONE 2026-05-19.
+  - Deepening backlog: #1 + #3 ✅; #2 deferred with friction trigger.
+  - New open task logged: packages/mobile-shared/ extraction
+    (prereq for v2 Expo native scaffold).
 
 Open (next sessions):
   - Backlog #8: Process Transparency Layer
-  - Backlog #9: Auth skeleton staggered fade-in polish (minor)
-  - Intel page perf candidates (heatmap cache, search cache, optimistic follow)
-  - Shareability v1: public profile /profile/{token}
-```
----
-## LAST SESSION SUMMARY (2026-05-17 · CV Builder v2)
-```
-CV Builder rebuilt as Git-commit-style playground. /skills absorbs deprecated CV-left lenses.
-
-Locked via /grill-me + /frontend-design (T2 Layered Cards):
-  - Q2  drop Tech/Domain/Soft pivot
-  - Q3  /skills view-mode toggle: Domains | Audit (reuses SkillAuditView)
-  - Q4  level correction + AI advice migrate into SkillCard
-  - Q5  Path A parser-first
-  - Q6  LLM-extend single prompt → skills + structured payload
-  - Q7  cv_history.cv_structured JSONB
-  - Q8  lazy backfill on /cv visit (reparse_structured_only)
-  - Q9  bullet-level Exp/Proj · section-level Edu/Skills/Certs/Summary
-  - Q10 per-job state on job_cv_variants.hidden_items
-  - Q11 Save = NEW row, monotonic job_version_number
-  - Q12 unlimited versions, Q13 default = latest, Q14 jobId required
-  - Q15 live preview (client-side renderDeterministic) + explicit Save
-  - Q16 job-match badges (lowercase substring · target skills from /skill-gap)
-  - Q17 kill Generate-Job-CV + Generate-Next-CV-Draft on /cv. AI polish per-version.
-  - Q18 picker dropdown · auto title v{n}·timestamp · no-delete (immutable) ·
-        Git-commit model: polish + edit create NEW versions, parent_version_id chain
-  - Q18e baseline immutable, only polished bullets editable
-
-Schema (database/migrations/20260517_cv_builder_v2.sql):
-  - cv_history.cv_structured JSONB
-  - job_cv_variants: + job_version_number, parent_version_id, hidden_items JSONB,
-    edited_items JSONB, title, version_kind ('deterministic'|'polished'|'edited')
-  - dropped UNIQUE(snapshot_hash), added UNIQUE(user_id, job_id, job_version_number)
-  - existing rows backfilled (job_version_number via row_number() partitioned)
-
-Backend (250 tests pass):
-  - cv_parser.py: _SYSTEM_PROMPT now returns {skills, structured}.
-    _parse_llm_json returns (skills, structured) tuple. _validate_structured
-    coerces LLM output into stable shape. parse_cv / parse_cv_text return
-    cv_structured key. New reparse_structured_only() for lazy backfill.
-  - cv_workflow.py: persists cv_structured on ingest. get_or_backfill_cv_structured()
-    lazy-fills NULL on /cv visit.
-  - services/cv_compose.py NEW: djb2 stable item_id + render_deterministic().
-    Backend mirror of frontend lib/cv-compose.ts.
-  - routers/cv/structured.py NEW: GET /cv/structured.
-  - routers/jobs/cv_versions.py NEW: list / create / polish / edit endpoints
-    under /jobs/{job_id}/cv-versions/. Each Save / Polish / Edit = new row.
-    Polish reuses llm_polish._call_ai_polish on parent.deterministic_text.
-    Edit applies edited_items diff to parent.polished_text → new row.
-  - repositories/cv.py: update_cv_history_structured() for lazy backfill.
-
-Frontend (tsc + lint green):
-  - lib/cv-compose.ts NEW: djb2 itemId + collectItems + renderDeterministic.
-    Mirror of backend cv_compose.py.
-  - lib/api.ts: CVStructured / JobCVVersion types + cv.structured + cv.versions
-    {list, create, polish, edit}. Old cv.generateDraft removed from /cv-page
-    scope (home/page.tsx jobs.generateJobCv kept — different surface).
-  - lib/domain-data.ts: cvStructured(), cvVersions(jobId) keys.
-  - components/skills/skill-audit-view.tsx NEW (moved from cv/page.tsx).
-  - components/skills/skill-card.tsx: + expand panel with L0–L5 picker
-    (users.correctSkillLevel) + ★ Level-up advice (users.skillLevelUpAdvice).
-  - app/skills/page.tsx: VIEW pill `Domains | ◈ Audit` (replaces accordion when
-    Audit). Sort/Show pills hidden in Audit mode.
-  - app/cv/page.tsx FULL REWRITE (~360 lines): 3 modes — no-CV nudge, baseline+
-    no-jobId (read-only + "Pick a target job →" CTA), playground+versions.
-  - components/cv/cv-playground.tsx NEW: SectionShell + BulletRow + MatchBadge
-    + EyeToggle. Bullet-level toggle on Exp/Proj. Section-level toggle on
-    Summary/Edu/Skills/Certs. Live opacity+strikethrough on hidden items.
-  - components/cv/version-picker.tsx NEW: dropdown showing parent chain +
-    per-row actions (★ Polish · ✎ Edit polished · 📄 PDF).
-  - Edit modal: textarea, save creates new child version via cv.versions.edit.
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - home/page.tsx jobs.generateJobCv: still wired, consider killing in cleanup pass
-  - cv/variants.py legacy generate-draft + save-draft routes still exist —
-    no callers; safe to delete in cleanup pass
-  - Intel page perf candidates
+  - Cleanup pass: home/page.tsx jobs.generateJobCv, cv/variants.py
+    legacy generate-draft routes
   - Shareability v1: /profile/{token}
+  - packages/mobile-shared/ extraction (blocked on shareability +
+    api-client/ extraction)
 ```
 
 ---
-## PREV SESSION SUMMARY (2026-05-17 · CV upgrade loop + user_job_matches)
-```
-CV upgrade loop closed + user_job_matches design overhaul.
 
-Shipped to Develop:
+## EARLIER SESSION SUMMARIES
 
-  CV UPGRADE LOOP (Candidates 3+4):
-  - CVCol box deleted from HomeColumns.tsx — removed "Rewrite CV line" (100 XP)
-    and "Download tailored CV" (50 XP) buttons entirely.
-  - handleSpendXP removed from home/page.tsx (no more callers).
-  - "Open CV Builder →" link added to JobCard.tsx → /cv?jobId={job.job_id}
-    CV page already reads jobId param — flow works end-to-end.
-
-  USER_JOB_MATCHES REDESIGN:
-  - DB migration: deduplicated rows, unique key (user_id, job_id, batch_week)
-    → (user_id, job_id). action_plan column dropped.
-  - llm_ranker.py: action_plan removed from prompt + persist_matches + fallback.
-  - schemas/jobs.py: ActionPlanDay class deleted, action_plan removed from
-    JobMatchResponse.
-  - schemas/__init__.py: ActionPlanDay removed from imports + __all__.
-  - routers/jobs/_shared.py: ActionPlanDay removed, to_job_match cleaned.
-  - repositories/jobs.py: on_conflict → "user_id,job_id"; action_plan removed
-    from SELECT query.
-  - routers/jobs/analyse.py: full rewrite — 50 XP cost (was 10), weighted
-    overlap formula (PRIMARY_WEIGHT=2/SECONDARY_WEIGHT=1, no 3-match threshold),
-    LLM explanation via provider chain, upsert without action_plan.
-  - lib/api.ts: ActionPlanDay interface deleted, action_plan removed from JobMatch.
-
-  PERMANENT RULES ADDED:
-  - Long-term fixes only — no quick patches. Saved to CLAUDE.md + memory.
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - Backlog #9: Auth skeleton fade-in polish (minor)
-  - Intel page perf candidates
-  - Shareability v1: /profile/{token}
-```
----
-## PREV SESSION SUMMARY (2026-05-16)
-```
-Skill Intelligence page redesign (Phases 1–3) + mobile layout overhaul.
-(See SKILL INTELLIGENCE PAGE — REDESIGN TRACKER above for full detail.)
-```
----
-## PREV SESSION SUMMARY (2026-05-15)
-```
-Auth logout fix + Intel page full redesign (heatmap architecture overhaul).
-
-Shipped to Develop:
-
-  AUTH:
-  - Multi-tab logout fix: lib/api.ts — cross-tab localStorage lock prevents
-    parallel 401s from both calling /auth/refresh. Second tab waits for storage
-    event instead of racing → no Supabase token reuse invalidation.
-  - Supabase dashboard: JWT expiry extended to 7 days, refresh detection OFF.
-
-  INTEL PAGE — HEATMAP ARCHITECTURE REDESIGN (full rewrite of market/page.tsx):
-  Decision tree locked via /grill-me before building:
-    · Heatmap companies = followed only (user builds their own heatmap)
-    · First visit empty state with CTA pointing to TopMovers
-    · Follow costs 10 XP (burned, no refund). Floor: -30 XP (disabled below).
-    · Hard cap: 10 followed companies max (star disabled at cap)
-    · Row ordering: most recently starred first (created_at DESC from backend)
-    · Skill columns: CV skills always (mySkillDemand), Skill Lens toggles within
-    · Per-company independent useQueries — rows load in parallel, never invalidate each other
-    · Skeleton shimmer cells per row while data loads
-    · Progress banner (3-step: market data → skills → heatmap), disappears when done
-    · Hover-prefetch: hovering star in TopMovers fires prefetchQuery for that company row
-    · Star button shows "10" XP cost label; disabled states: cap OR floor
-
-  BACKEND FIXES:
-  - xp_service.py: spend_xp_to_floor(floor=-30) — XP can go negative to limit
-  - users.py router: follow_company now checks 10-cap, deducts 10 XP, returns new_xp_balance
-  - repositories/jobs.py: fetch_skill_heatmap_row — single-company method.
-    Filters skill_id at DB level (.in_("skill_id", skill_ids)) instead of
-    fetching all job_skills then filtering in Python. Kills the 23-46s query.
-    Expected: ~1-3s cold, ~150ms cached.
-  - routers/jobs/list.py: single-company requests routed to fast method.
-  - api.ts: followCompany returns new_xp_balance; new skillHeatmapRow fn.
-
-Open (next sessions):
-  - Backlog #4: ✅ DONE — loading screen shipped (progress banner + skeleton rows)
-  - Backlog #6: PR2 — Run Analysis endpoint + XP deduction
-  - Backlog #7: ✅ DONE — TopMovers shows all companies, search, follow from list
-  - Backlog #3: user_job_matches design review (discuss Shivam first)
-  - Backlog #8: Process Transparency Layer
-```
+Archived to `docs/session-history/2026-05.md` (2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).
+Read that file when prior-session context is required.

@@ -13,6 +13,8 @@ class UserProfileResponse(BaseModel):
     onboarding_complete: bool
     created_at: datetime
     last_active_at: datetime
+    ninja_name: str | None = None
+    referred_by_user_id: str | None = None
 
 
 class UpdateProfileResponse(UserProfileResponse):
@@ -33,6 +35,8 @@ class UserSkillItem(BaseModel):
     level: int
     proficiency_title: str
     evidence_text: str | None = None
+    forge_sessions_count: int = 0
+    forged_level_up_available: bool = False
 
 
 class UserSkillsByDomainResponse(BaseModel):
@@ -75,6 +79,7 @@ class SkillAdviceRequest(BaseModel):
     taxonomy_key: str
     current_level: int
     evidence_text: str
+    free_unlock: bool = False
 
 
 class SkillAdviceResponse(BaseModel):

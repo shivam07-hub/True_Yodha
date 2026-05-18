@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
 import { CVPlayground } from "@/components/cv/cv-playground"
+import { CVVersionLedger } from "@/components/cv/version-ledger"
 import { VersionPicker } from "@/components/cv/version-picker"
 import { cv, jobs, uploadCV } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -26,6 +27,7 @@ function CVPage() {
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
+  const [selectedLedgerVersionId, setSelectedLedgerVersionId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
@@ -44,7 +46,11 @@ function CVPage() {
     () => allVersions.filter(v => v.kind === "baseline_upload"),
     [allVersions],
   )
-  const jobVersions = useMemo(
+  const companyVersions = useMemo(
+    () => allVersions.filter(v => v.kind !== "baseline_upload"),
+    [allVersions],
+  )
+  const currentJobVersions = useMemo(
     () => allVersions.filter(v => v.job_id === jobId && v.kind !== "baseline_upload"),
     [allVersions, jobId],
   )
@@ -55,6 +61,10 @@ function CVPage() {
       null,
     ),
     [baselines],
+  )
+  const threadVersions = useMemo(
+    () => currentBaseline ? [currentBaseline, ...companyVersions] : companyVersions,
+    [companyVersions, currentBaseline],
   )
 
   const structuredQuery = useQuery({
@@ -81,11 +91,19 @@ function CVPage() {
 
   // Hydrate hiddenItems from latest job version on load.
   useEffect(() => {
-    if (!jobVersions.length) return
-    const latest = jobVersions[0]
-    setSelectedVersionId(prev => prev ?? latest.id)
-    setHiddenItems(new Set(latest.hidden_items))
-  }, [jobVersions])
+    const defaultVersion = currentJobVersions[0] ?? currentBaseline ?? companyVersions[0]
+    if (!defaultVersion) return
+    setSelectedVersionId(prev => prev ?? defaultVersion.id)
+    setHiddenItems(new Set(defaultVersion.hidden_items))
+  }, [companyVersions, currentBaseline, currentJobVersions])
+
+  useEffect(() => {
+    if (jobId || !hasBaseline) return
+    const selectedStillExists = selectedLedgerVersionId != null
+      && allVersions.some(v => v.id === selectedLedgerVersionId)
+    if (selectedStillExists) return
+    setSelectedLedgerVersionId(currentBaseline?.id ?? allVersions[0]?.id ?? null)
+  }, [allVersions, currentBaseline, hasBaseline, jobId, selectedLedgerVersionId])
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -163,7 +181,7 @@ function CVPage() {
   }
 
   function openEdit(versionId: number) {
-    const v = jobVersions.find(x => x.id === versionId)
+    const v = threadVersions.find(x => x.id === versionId)
     if (!v?.polished_text) return
     setEditTarget({ versionId, text: v.polished_text })
     setEditDraft(v.polished_text)
@@ -187,9 +205,10 @@ function CVPage() {
     [currentBaseline?.body_text, structuredQuery.data],
   )
 
-  const currentSelected = jobVersions.find(v => v.id === selectedVersionId) ?? jobVersions[0] ?? null
-  const playgroundDirty = !currentSelected
+  const currentSelected = threadVersions.find(v => v.id === selectedVersionId) ?? currentJobVersions[0] ?? currentBaseline ?? companyVersions[0] ?? null
+  const playgroundDirty = currentJobVersions.length === 0 || !currentSelected
     || Array.from(hiddenItems).sort().join(",") !== [...currentSelected.hidden_items].sort().join(",")
+  const canSaveVersion = playgroundDirty || currentJobVersions.length === 0
 
   if (!ready) return null
 
@@ -255,13 +274,12 @@ function CVPage() {
               </div>
               <Button variant="solid" size="md" render={<Link href="/tracker?stage=saved" />}>Pick a target job →</Button>
             </div>
-            <pre style={{
-              margin: 0, padding: "20px 22px",
-              background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-              borderRadius: "var(--tm-radius-lg)",
-              fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
-              color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-            }}>{baselineDisplayText}</pre>
+            <CVVersionLedger
+              versions={allVersions}
+              selectedId={selectedLedgerVersionId}
+              onSelect={setSelectedLedgerVersionId}
+              baselineDisplayText={baselineDisplayText}
+            />
           </div>
         )}
 
@@ -301,7 +319,7 @@ function CVPage() {
                     <Button
                       variant="solid" size="md"
                       onClick={() => saveVersion.mutate()}
-                      disabled={!playgroundDirty || saveVersion.isPending}
+                      disabled={!canSaveVersion || saveVersion.isPending}
                       loading={saveVersion.isPending}
                     >
                       Save Version
@@ -324,11 +342,12 @@ function CVPage() {
                     </div>
                   ) : (
                     <VersionPicker
-                      versions={jobVersions}
+                      versions={threadVersions}
+                      lineageVersions={allVersions}
                       selectedId={selectedVersionId}
                       onSelect={(id) => {
                         setSelectedVersionId(id)
-                        const v = jobVersions.find(x => x.id === id)
+                        const v = threadVersions.find(x => x.id === id)
                         if (v) setHiddenItems(new Set(v.hidden_items))
                       }}
                       onCreate={() => saveVersion.mutate()}
@@ -337,7 +356,7 @@ function CVPage() {
                       onDownload={(text) => downloadPdf.mutate(text)}
                       isCreating={saveVersion.isPending}
                       isPolishing={polishVersion.isPending}
-                      canCreate={playgroundDirty || jobVersions.length === 0}
+                      canCreate={canSaveVersion}
                     />
                   )}
                 </div>

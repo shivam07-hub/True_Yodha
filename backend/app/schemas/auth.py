@@ -5,6 +5,9 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str | None = None
+    # Optional referrer slug. Cross-origin CORS prevents cookies from
+    # auto-attaching, so the frontend echoes the captured ?ref= here.
+    myro_ref: str | None = None
 
 
 class LoginRequest(BaseModel):

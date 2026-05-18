@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useViewport } from "@/mobile"
 
 interface UseRotatingMessageOptions {
   enabled?: boolean
@@ -13,22 +14,7 @@ export function useRotatingMessage(
 ) {
   const { enabled = true, intervalMs = 1700 } = options
   const [index, setIndex] = useState(0)
-  const [reduceMotion, setReduceMotion] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const sync = () => setReduceMotion(mediaQuery.matches)
-    sync()
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", sync)
-      return () => mediaQuery.removeEventListener("change", sync)
-    }
-
-    mediaQuery.addListener(sync)
-    return () => mediaQuery.removeListener(sync)
-  }, [])
+  const { reducedMotion: reduceMotion } = useViewport()
 
   useEffect(() => {
     setIndex(0)

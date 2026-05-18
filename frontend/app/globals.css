@@ -84,6 +84,35 @@
   .tm-pulse-ring, .tm-spinner { animation: none !important; }
 }
 
+/* ── Forge widget — meditative aperture ─────────────────────────
+ * Concept: slow breath. 4.4s inhale/exhale matches a calm pace
+ * (~14 bpm). Glow ring widens + softens on inhale.
+ */
+@keyframes forge-breath {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%       { transform: scale(1.06); opacity: 0.85; }
+}
+@keyframes forge-orbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes forge-tick {
+  0%, 100% { opacity: 0.18; }
+  50%       { opacity: 0.55; }
+}
+@keyframes forge-aurora {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes forge-ready {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tm-accent-glow), inset 0 0 0 1px var(--tm-accent-ring); }
+  50%       { box-shadow: 0 0 0 4px transparent,        inset 0 0 0 1px var(--tm-accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-forge-breath, .tm-forge-orbit, .tm-forge-tick, .tm-forge-aurora, .tm-forge-ready {
+    animation: none !important;
+  }
+}
+
 /* ── MDX article prose ────────────────────────────────────────── */
 .mdx-prose {
   color: var(--tm-text);
@@ -307,4 +336,78 @@
 
   /* Kill backdrop-filter blur — expensive on mobile GPUs, invisible benefit */
   * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+}
+
+/* ── Mobile: /login layout collapse ───────────────────────────── */
+@media (max-width: 768px) {
+  .tm-login-shell {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .tm-login-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--tm-border-soft) !important;
+  }
+  .tm-login-intel {
+    display: none !important;
+  }
+}
+
+/* ── Mobile: kill horizontal scroll across whole app ──────────── */
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden !important; }
+}
+
+/* ── Mobile: /skills page header (ScoreRing) ──────────────────── */
+@media (max-width: 768px) {
+  .tm-skills-header {
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+}
+
+/* ── Mobile: /home MissionHeader hero ─────────────────────────── */
+@media (max-width: 768px) {
+  .tm-mission-header-inner {
+    padding: 20px 16px 18px !important;
+    gap: 14px !important;
+  }
+  .tm-mission-header-topbar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .tm-mission-header-grid {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .tm-mission-header-greeting {
+    font-size: clamp(34px, 9vw, 52px) !important;
+  }
+  .tm-mission-header-meta {
+    flex-wrap: wrap !important;
+    row-gap: 4px !important;
+  }
+  .tm-mission-header-chiprow {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── Shell skeleton → content fade transition ─────────────────── */
+@keyframes tm-shell-enter {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tm-shell-enter {
+  animation: tm-shell-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.tm-shell-skeleton {
+  animation: tm-shell-enter 200ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-shell-enter, .tm-shell-skeleton { animation: none; }
 }

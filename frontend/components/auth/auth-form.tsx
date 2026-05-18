@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/api"
@@ -11,6 +11,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { setSessionTokens } from "@/lib/session"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
+import { capturePendingReferral, getStoredReferral } from "@/lib/referral"
 
 interface Props {
   mode: "login" | "signup"
@@ -25,6 +26,11 @@ export function AuthForm({ mode }: Props) {
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [referrer, setReferrer] = useState<string | null>(null)
+
+  useEffect(() => {
+    setReferrer(capturePendingReferral())
+  }, [])
 
   async function handleGoogleSignIn() {
     setError(null)
@@ -51,7 +57,7 @@ export function AuthForm({ mode }: Props) {
     try {
       const res = mode === "login"
         ? await auth.login(email, password)
-        : await auth.signup(email, password, fullName)
+        : await auth.signup(email, password, fullName, referrer ?? getStoredReferral())
 
       if (!res.access_token || res.requires_email_confirmation) {
         setNotice(res.message ?? "Check your email for a confirmation link, then sign in.")

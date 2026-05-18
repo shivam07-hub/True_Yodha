@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { users, jobs as jobsApi } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 import { ParticleBg } from "@/components/particle-bg"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
@@ -15,13 +16,19 @@ import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
-import { xp, diary } from "@/lib/api"
+import { xp } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
-import { useIsDesktop } from "@/lib/hooks/use-is-desktop"
-import { MobileTopBar, MobileBottomNav, MobileProfileSheet, AppShellSkeleton } from "@/components/mobile-shell"
+import {
+  AppShellSkeleton,
+  MobileBottomNav,
+  MobileProfileSheet,
+  MobileTopBar,
+  useViewport,
+} from "@/mobile"
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/xp",      label: "XP Guide",    desc: "Earn & spend XP",        icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
@@ -291,19 +298,16 @@ function StaleBadge() {
   )
 }
 
-const SIDEBAR_FORGE_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
+const SIDEBAR_FORGE_CAP_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
 
 function SidebarForgeTimer({
   onXPEarned,
   onCompleteSession,
-  onSaveReflection,
 }: {
   onXPEarned: (amount: number, newBalance: number) => void
   onCompleteSession: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
-  onSaveReflection: (text: string, skillName: string) => Promise<void>
 }) {
-  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, resetSession, dismiss } = useForgeTimerStore()
-  const [reflection, setReflection] = useState("")
+  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, restartSession, dismiss } = useForgeTimerStore()
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
 
@@ -316,104 +320,322 @@ function SidebarForgeTimer({
   if (!sessionActive || dismissed) return null
 
   const isComplete = remaining === 0 && !running
-  const progress = 1 - remaining / FORGE_AMBIENT_DURATION
-  const mins = String(Math.floor(remaining / 60)).padStart(2, "0")
-  const secs = String(remaining % 60).padStart(2, "0")
-  const canClaim = reflection.trim().length >= 1
-  const accent = isComplete ? "var(--tm-success, #4ade80)" : "var(--tm-accent)"
+  const progress = forgeProgressRatio(FORGE_AMBIENT_DURATION, remaining)
+  const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, FORGE_AMBIENT_RATE)
+  const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
+  const canClaim = readyXP > 0
+  const accent = isComplete ? "var(--tm-success)" : "var(--tm-accent)"
+  const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-accent-wash)"
+  const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-accent-ring)"
 
   async function handleClaim() {
     if (!skillName || !canClaim || claiming) return
     try {
       setClaiming(true)
       setClaimError(null)
-      const [result] = await Promise.all([
-        onCompleteSession({ skill_name: skillName, duration_minutes: FORGE_AMBIENT_DURATION / 60 }),
-        onSaveReflection(reflection.trim(), skillName),
-      ])
+      const result = await onCompleteSession({ skill_name: skillName, duration_minutes: claimMinutes })
       onXPEarned(result.xp_earned, result.new_xp_balance)
-      resetSession()
-      setReflection("")
+      restartSession()
     } catch (e) {
-      setClaimError(e instanceof Error ? e.message : "Could not save session")
+      setClaimError(e instanceof Error ? e.message : "Could not claim XP")
     } finally {
       setClaiming(false)
     }
   }
 
+  // Ring geometry — single source of truth
+  const RING = 104           // outer SVG box (px)
+  const STROKE = 2
+  const R = (RING - STROKE) / 2 - 6   // r = 45
+  const C = 2 * Math.PI * R           // circumference
+  const dashOffset = C * (1 - progress)
+  const mins = Math.floor(remaining / 60)
+  const secs = remaining % 60
+  const clock = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+
+  // 12 hairline tick marks around the ring (clock-dial precision)
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const angle = (i * 30 - 90) * (Math.PI / 180)
+    const inner = R - 5
+    const outer = R - 1
+    const cx = RING / 2
+    const cy = RING / 2
+    return {
+      x1: cx + Math.cos(angle) * inner,
+      y1: cy + Math.sin(angle) * inner,
+      x2: cx + Math.cos(angle) * outer,
+      y2: cy + Math.sin(angle) * outer,
+      i,
+    }
+  })
+
   return (
-    <div style={{
-      margin: "0 8px 8px",
-      borderRadius: "var(--tm-radius)",
-      background: isComplete ? "rgba(74,222,128,0.05)" : "rgba(0,245,212,0.05)",
-      border: `1px solid ${isComplete ? "rgba(74,222,128,0.35)" : "var(--tm-accent-ring)"}`,
-      boxShadow: isComplete ? "0 0 12px rgba(74,222,128,0.12)" : running ? "0 0 10px rgba(0,245,212,0.1)" : "none",
-      transition: "box-shadow 400ms ease, border-color 400ms ease",
-      overflow: "hidden",
-    }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px 6px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>◆ Forge</span>
-          {running && <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 4px rgba(0,245,212,0.8)", animation: "loop-pulse 1.4s ease infinite" }} />}
-        </div>
-        <button onClick={dismiss} style={{ background: "transparent", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "2px 4px", fontFamily: "inherit" }}>✕</button>
-      </div>
+    <div
+      style={{
+        margin: "0 10px 10px",
+        position: "relative",
+        borderRadius: "var(--tm-radius)",
+        background: `
+          linear-gradient(180deg, ${accentSoft}, transparent 70%),
+          var(--tm-surface)
+        `,
+        border: `1px solid ${accentRing}`,
+        boxShadow: isComplete
+          ? "0 0 18px rgba(74,222,128,0.10), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : running
+          ? "0 0 14px var(--tm-accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : "inset 0 1px 0 rgba(255,255,255,0.04)",
+        transition: "box-shadow 500ms ease, border-color 500ms ease",
+        overflow: "hidden",
+        fontFamily: "var(--tm-font-mono)",
+      }}
+    >
+      {/* Decorative crosshair corners — instrument-panel detail */}
+      <span aria-hidden style={{
+        position: "absolute", top: 5, left: 5, width: 7, height: 7,
+        borderTop: `1px solid ${accentRing}`, borderLeft: `1px solid ${accentRing}`,
+        opacity: 0.7,
+      }} />
+      <span aria-hidden style={{
+        position: "absolute", top: 5, right: 5, width: 7, height: 7,
+        borderTop: `1px solid ${accentRing}`, borderRight: `1px solid ${accentRing}`,
+        opacity: 0.7,
+      }} />
 
-      {/* Countdown + controls */}
-      <div style={{ padding: "10px 10px 8px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 24, fontWeight: 300, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", color: accent, lineHeight: 1 }}>
-            {isComplete ? "✓ Done" : `${mins}:${secs}`}
-          </span>
-          {!isComplete && (
-            <button
-              onClick={() => setRunning(!running)}
-              style={{
-                width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)",
-                border: running ? "1px solid rgba(255,255,255,0.12)" : "none",
-                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg, #070711)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", fontSize: 10, transition: "all 150ms ease",
-              }}
-            >{running ? "⏸" : "▶"}</button>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ height: 3, borderRadius: 99, background: "rgba(255,255,255,0.06)", marginBottom: 7, overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: 99, background: accent, width: `${progress * 100}%`, transition: running ? "width 1s linear" : "none", boxShadow: `0 0 6px ${isComplete ? "rgba(74,222,128,0.5)" : "rgba(0,245,212,0.4)"}` }} />
-        </div>
-
-        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tm-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{skillName}</div>
-        {!isComplete && <div style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 2 }}>+{SIDEBAR_FORGE_XP} XP on completion</div>}
-      </div>
-
-      {/* Completion flow */}
-      {isComplete && (
-        <div style={{ padding: "0 10px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
-          <div style={{ fontSize: 10, color: "var(--tm-text-faint)" }}>What did you practice?</div>
-          <textarea
-            value={reflection}
-            onChange={(e) => { setReflection(e.target.value); setClaimError(null) }}
-            placeholder={`I practiced ${skillName} by…`}
-            rows={2}
-            style={{ width: "100%", resize: "none", borderRadius: "var(--tm-radius-sm, 8px)", border: `1px solid ${claimError ? "var(--tm-danger, #f87171)" : "var(--tm-border)"}`, background: "rgba(255,255,255,0.04)", color: "var(--tm-text)", padding: "6px 8px", fontSize: 11, lineHeight: 1.5, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
-          />
-          {claimError && <div style={{ fontSize: 10, color: "var(--tm-danger, #f87171)" }}>{claimError}</div>}
+      {/* Top rail — STATUS · PAUSE · DISMISS */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 10px 7px",
+      }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
+          color: "var(--tm-text-faint)",
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: "50%",
+            background: accent,
+            boxShadow: running ? `0 0 6px ${accent}` : "none",
+            animation: running ? "loop-pulse 1.6s ease-in-out infinite" : "none",
+          }} />
+          {isComplete ? "Ready" : running ? "Forging" : "Paused"}
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
-            onClick={handleClaim}
-            disabled={!canClaim || claiming}
-            style={{ width: "100%", padding: "7px", borderRadius: "var(--tm-radius-pill, 999px)", background: canClaim && !claiming ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none", color: canClaim && !claiming ? "var(--tm-accent-fg, #070711)" : "var(--tm-text-faint)", fontSize: 11, fontWeight: 700, cursor: canClaim && !claiming ? "pointer" : "default", fontFamily: "inherit", transition: "all 200ms ease" }}
-          >{claiming ? "Saving…" : `Claim +${SIDEBAR_FORGE_XP} XP →`}</button>
+            onClick={() => setRunning(!running)}
+            aria-label={running ? "Pause forge" : "Resume forge"}
+            title={running ? "Pause" : "Resume"}
+            style={{
+              width: 22, height: 22, borderRadius: 6,
+              background: "transparent",
+              border: `1px solid ${accentRing}`,
+              color: accent,
+              display: "grid", placeItems: "center",
+              cursor: "pointer", fontSize: 9, lineHeight: 1,
+              fontFamily: "inherit",
+              transition: "background 160ms ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = accentSoft }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+          >
+            {running ? "❚❚" : "▶"}
+          </button>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss forge timer"
+            title="Dismiss"
+            style={{
+              width: 22, height: 22, borderRadius: 6,
+              background: "transparent", border: "1px solid var(--tm-border-soft)",
+              color: "var(--tm-text-faint)", cursor: "pointer",
+              fontSize: 12, lineHeight: 1,
+              fontFamily: "inherit",
+              display: "grid", placeItems: "center",
+            }}
+          >×</button>
+        </div>
+      </div>
+
+      {/* Aperture — concentric ring dial */}
+      <div style={{
+        display: "flex", justifyContent: "center", alignItems: "center",
+        padding: "4px 0 10px",
+        position: "relative",
+      }}>
+        {/* Breathing halo — only when running */}
+        {running && !isComplete && (
+          <span aria-hidden style={{
+            position: "absolute",
+            width: RING + 14, height: RING + 14, borderRadius: "50%",
+            background: `radial-gradient(circle, ${accentSoft} 0%, transparent 65%)`,
+            animation: "forge-breath 4.4s ease-in-out infinite",
+            pointerEvents: "none",
+          }} />
+        )}
+
+        <svg
+          width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}
+          style={{ display: "block", overflow: "visible" }}
+        >
+          {/* Subtle 12 tick marks */}
+          {ticks.map(t => (
+            <line
+              key={t.i}
+              x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+              stroke={accent}
+              strokeWidth={t.i % 3 === 0 ? 1.2 : 0.7}
+              strokeLinecap="round"
+              opacity={t.i % 3 === 0 ? 0.45 : 0.18}
+            />
+          ))}
+
+          {/* Track */}
+          <circle
+            cx={RING / 2} cy={RING / 2} r={R}
+            fill="none"
+            stroke="var(--tm-border-soft)"
+            strokeWidth={STROKE}
+          />
+
+          {/* Progress arc — rotated -90° so 12 o'clock is start */}
+          <circle
+            cx={RING / 2} cy={RING / 2} r={R}
+            fill="none"
+            stroke={accent}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            strokeDasharray={C}
+            strokeDashoffset={dashOffset}
+            transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
+            style={{
+              transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 400ms ease",
+              filter: `drop-shadow(0 0 3px ${accent})`,
+            }}
+          />
+
+          {/* Center: XP numeral + clock — bumped +5pt for primary reward emphasis */}
+          <text
+            x={RING / 2} y={RING / 2 - 2}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="29"
+            fontWeight="700"
+            fill={accent}
+            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
+          >
+            +{readyXP}
+          </text>
+          <text
+            x={RING / 2} y={RING / 2 + 12}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="7"
+            fill="var(--tm-text-faint)"
+            letterSpacing="2.4"
+          >
+            XP READY
+          </text>
+          <text
+            x={RING / 2} y={RING / 2 + 26}
+            textAnchor="middle"
+            fontFamily="var(--tm-font-mono)"
+            fontSize="10"
+            fill="var(--tm-text-muted)"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {clock}
+          </text>
+        </svg>
+      </div>
+
+      {/* Cap indicator — universal forge, no skill name (XP1 + universal-forge decision) */}
+      <div style={{
+        padding: "0 14px 10px",
+        textAlign: "center",
+        fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
+        color: "var(--tm-text-faint)",
+      }}>
+        Cap · +{SIDEBAR_FORGE_CAP_XP} XP / cycle
+      </div>
+
+      {/* Hairline rail */}
+      <div style={{
+        height: 1,
+        background: `linear-gradient(90deg, transparent, ${accentRing}, transparent)`,
+        margin: "0 10px",
+      }} />
+
+      {/* Primary action — CLAIM. Always visible, full-width Fitt's target. */}
+      <div style={{ padding: "10px" }}>
+        <button
+          onClick={handleClaim}
+          disabled={!canClaim || claiming}
+          style={{
+            width: "100%", height: 40, padding: "0 14px",
+            borderRadius: 10,
+            background: canClaim && !claiming
+              ? `linear-gradient(90deg, ${accent} 0%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-accent-hover)"} 50%, ${accent} 100%)`
+              : "var(--tm-surface-2)",
+            backgroundSize: canClaim && !claiming ? "200% 100%" : "auto",
+            animation: canClaim && !claiming ? "forge-aurora 6s ease-in-out infinite alternate" : "none",
+            border: canClaim && !claiming
+              ? "1px solid transparent"
+              : `1px dashed ${accentRing}`,
+            color: canClaim && !claiming
+              ? "var(--tm-accent-fg)"
+              : "var(--tm-text-muted)",
+            fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.22em", textTransform: "uppercase",
+            cursor: canClaim && !claiming ? "pointer" : "not-allowed",
+            fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "transform 120ms ease, box-shadow 200ms ease, background 200ms ease",
+            boxShadow: canClaim && !claiming
+              ? `0 6px 18px -6px ${accent}, inset 0 1px 0 rgba(255,255,255,0.18)`
+              : "inset 0 1px 0 rgba(255,255,255,0.04)",
+          }}
+          onMouseEnter={(e) => {
+            if (canClaim && !claiming) e.currentTarget.style.transform = "translateY(-1px)"
+          }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
+        >
+          {claiming ? (
+            <span style={{ letterSpacing: "0.5em" }}>· · ·</span>
+          ) : canClaim ? (
+            <>
+              <span>Claim</span>
+              <span style={{
+                fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em",
+                fontSize: 13, fontWeight: 800,
+              }}>+{readyXP}</span>
+              <span style={{ fontSize: 14, letterSpacing: 0, marginLeft: 2 }}>→</span>
+            </>
+          ) : (
+            <span style={{ opacity: 0.7 }}>Building</span>
+          )}
+        </button>
+      </div>
+
+      {claimError && (
+        <div style={{
+          margin: "0 10px 10px",
+          padding: "6px 8px",
+          borderRadius: 6,
+          background: "rgba(251,113,133,0.08)",
+          border: "1px solid rgba(251,113,133,0.25)",
+          fontSize: 9, letterSpacing: "0.06em",
+          color: "var(--tm-danger)",
+          display: "flex", alignItems: "center", gap: 5,
+        }}>
+          <span aria-hidden style={{ fontSize: 10 }}>⚠</span>
+          <span style={{ fontFamily: "var(--tm-font-sans)" }}>{claimError}</span>
         </div>
       )}
     </div>
   )
 }
 
-function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflection, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeReflection: (text: string, skillName: string) => Promise<void>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
+function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -491,7 +713,6 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
       {/* Inline forge timer — shows when session active */}
       <SidebarForgeTimer
         onCompleteSession={onForgeComplete}
-        onSaveReflection={onForgeReflection}
         onXPEarned={onForgeXPEarned}
       />
 
@@ -623,7 +844,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeReflecti
   )
 }
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
@@ -633,11 +854,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
     if (!token) throw new Error("Not authenticated")
     return xp.completeForge(token, { ...payload, session_type: "ambient" })
-  }
-
-  async function handleAmbientReflection(text: string, skillName: string) {
-    if (!token) return
-    await diary.createEntry(token, text, undefined, [{ skill_name: skillName }])
   }
 
   function handleAmbientXPEarned(amount: number, newBalance: number) {
@@ -652,7 +868,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     staleTime: 10 * 60 * 1000,
   })
 
-  const isDesktop = useIsDesktop()
+  const { isDesktop } = useViewport()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const [xpModalOpen, setXPModalOpen] = useState(false)
 
@@ -669,7 +885,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
+    <div className="tm-shell-enter" style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
 
       <div className="tm-sidebar-wrap">
@@ -678,7 +894,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           profile={profile}
           signOut={signOut}
           onForgeComplete={handleAmbientForgeComplete}
-          onForgeReflection={handleAmbientReflection}
           onForgeXPEarned={handleAmbientXPEarned}
           onXPOpen={() => setXPModalOpen(true)}
         />

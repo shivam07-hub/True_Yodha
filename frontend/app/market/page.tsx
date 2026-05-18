@@ -716,6 +716,81 @@ function LocationBar({ cities, countries, city, country, mode, onCity, onCountry
   )
 }
 
+const intelResources = [
+  {
+    href: "/newsletter",
+    label: "Newsletter",
+    kicker: "Myro Weekly",
+    detail: "Weekly hiring intel, market maps, and skill-demand shifts.",
+  },
+  {
+    href: "/about",
+    label: "About us",
+    kicker: "What Myro tracks",
+    detail: "How the product reads live demand and turns it into career signals.",
+  },
+  {
+    href: "/xp",
+    label: "How to gain XP",
+    kicker: "Earn and spend fairly",
+    detail: "Forge skills, complete your diary, add LinkedIn, and build your CV.",
+  },
+] as const
+
+function IntelResourceStrip() {
+  return (
+    <section
+      aria-label="Myro resources"
+      style={{
+        marginTop: 14,
+        background: "var(--tm-surface)",
+        border: "1px solid var(--tm-border-soft)",
+        borderRadius: "var(--tm-radius-lg)",
+        padding: "16px 18px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
+            Resource shelf
+          </div>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--tm-text)" }}>
+            Learn how Myro works
+          </h2>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
+          Newsletter, product context, and XP rules live here.
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+        {intelResources.map((resource) => (
+          <Link
+            key={resource.href}
+            href={resource.href}
+            style={{
+              display: "block",
+              minHeight: 112,
+              padding: "12px 14px",
+              borderRadius: "var(--tm-radius-sm)",
+              border: "1px solid var(--tm-border-soft)",
+              background: "rgba(255,255,255,0.025)",
+              color: "var(--tm-text)",
+              textDecoration: "none",
+            }}
+          >
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 8 }}>
+              {resource.kicker}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 5 }}>{resource.label}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5, color: "var(--tm-text-faint)" }}>{resource.detail}</div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ── Skill Selector Panel ─────────────────────────────────────────────────────
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -804,7 +879,7 @@ function IntelPageInner() {
     return () => clearInterval(id)
   }, [analyticsLoading, analytics])
 
-  const { data: followedData } = useQuery({
+  const { data: followedData, isLoading: followedLoading } = useQuery({
     queryKey: ["followedCompanies", token],
     queryFn: () => users.followedCompanies(token!),
     enabled: !!token,
@@ -895,7 +970,14 @@ function IntelPageInner() {
     return map
   }, [followedCompanies, heatmapRowQueries])
 
-  const allRowsLoaded = heatmapRowQueries.length > 0 && heatmapRowQueries.every(q => !q.isLoading)
+  const heatmapReady =
+    !followedLoading &&
+    !skillDemandLoading &&
+    (
+      followedCompanies.length === 0 ||
+      heatmapSkills.length === 0 ||
+      heatmapRowQueries.every(q => !q.isLoading)
+    )
 
   // Resolved cell for drill-down
   const resolvedCell = useMemo(() => {
@@ -1026,11 +1108,13 @@ function IntelPageInner() {
         <ProgressBanner
           analyticsReady={!analyticsLoading && !!analytics}
           skillsReady={!skillDemandLoading && !!skillDemandData}
-          heatmapReady={allRowsLoaded}
+          heatmapReady={heatmapReady}
           message={MARKET_LOADING_STEPS[loadingStep]}
         />
 
         {analytics && <PulseStrip analytics={analytics} followedCount={followedNames.length} />}
+
+        <IntelResourceStrip />
 
         <SkillHeatmap
           companies={followedCompanies}

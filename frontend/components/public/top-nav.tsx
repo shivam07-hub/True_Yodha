@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 
-export type PublicNavPage = "intel" | "newsletter" | "privacy" | "signup" | "login"
+export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login"
 
 interface PublicTopNavProps {
   active?: PublicNavPage
@@ -13,6 +13,7 @@ interface PublicTopNavProps {
 const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
   { label: "Intel", href: "/", id: "intel" },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
+  { label: "About", href: "/about", id: "about" },
 ]
 
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {

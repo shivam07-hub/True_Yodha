@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
+from app.repositories.diary import DiaryRepository, get_token_diary_repository
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
@@ -24,7 +25,7 @@ from app.services.xp_policy import (
     FOLLOWED_COMPANY_LIMIT,
     SKILL_ADVICE_XP_COST,
 )
-from app.services.xp_service import assert_can_spend_xp, grant_linkedin_profile_xp, spend_xp, spend_xp_to_floor
+from app.services.xp_service import assert_can_spend_xp, get_xp_balance, grant_linkedin_profile_xp, spend_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -57,6 +58,8 @@ async def get_my_skills(
             "level": record.level,
             "proficiency_title": record.proficiency_title,
             "evidence_text": record.evidence_text,
+            "forge_sessions_count": record.forge_sessions_count,
+            "forged_level_up_available": record.forged_level_up_available,
         }
         l1 = (lc.l1_domain if lc else "") or "General"
         l2 = (lc.l2_cluster if lc else "") or "General"
@@ -108,19 +111,33 @@ _SKILL_ADVICE_XP_COST = SKILL_ADVICE_XP_COST
 async def get_skill_level_up_advice(
     body: SkillAdviceRequest,
     current_user: dict = Depends(get_current_user),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> SkillAdviceResponse:
     user_id = current_user["user_id"]
-    if not body.evidence_text.strip():
+    if body.free_unlock:
+        if not users_repo.has_forged_level_up(user_id, body.taxonomy_key):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No forged level-up is available for this skill.",
+            )
+        diary_context = _recent_diary_context(diary_repo, user_id)
+        evidence_text = "\n\n".join(part for part in [body.evidence_text.strip(), diary_context] if part)
+    else:
+        evidence_text = body.evidence_text.strip()
+
+    if not evidence_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Skill advice needs CV evidence before XP can be spent.",
         )
-    await assert_can_spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
+    if not body.free_unlock:
+        await assert_can_spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
     advice = await generate_skill_advice(
         skill=body.taxonomy_key,
         current_level=body.current_level,
-        evidence_text=body.evidence_text,
+        evidence_text=evidence_text,
         provider=llm_provider,
     )
     if not advice:
@@ -128,8 +145,20 @@ async def get_skill_level_up_advice(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Skill advice is unavailable right now. No XP was spent.",
         )
+    if body.free_unlock:
+        new_balance = await get_xp_balance(user_id)
+        return SkillAdviceResponse(advice=advice, xp_spent=0, new_xp_balance=new_balance)
     new_balance = await spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
     return SkillAdviceResponse(advice=advice, xp_spent=_SKILL_ADVICE_XP_COST, new_xp_balance=new_balance)
+
+
+def _recent_diary_context(diary_repo: DiaryRepository, user_id: str) -> str:
+    rows = diary_repo.list_daily_logs(user_id, 5)
+    notes = [str(row.get("entry_text") or "").strip()[:800] for row in rows]
+    notes = [note for note in notes if note]
+    if not notes:
+        return ""
+    return "Recent diary notes:\n" + "\n".join(f"- {note}" for note in notes)
 
 
 def _linkedin_reward_is_due(before: dict | None, updates: dict) -> bool:

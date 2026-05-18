@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
 import { StepScore } from "@/components/onboarding/step-score"
+import { NinjaNameStep } from "@/components/onboarding/NinjaNameStep"
 import { uploadCV, uploadCVText, scores, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { MyroLogo } from "@/components/myro-logo"
 
-type Step = "cv" | "role" | "score"
+type Step = "cv" | "role" | "ninja" | "score"
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -64,7 +65,7 @@ export default function OnboardingPage() {
       const result = await scores.me(token)
       // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
       setScoreData(result)
-      setStep("score")
+      setStep("ninja")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {
@@ -72,7 +73,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const STEPS: Step[] = ["cv", "role", "score"]
+  const STEPS: Step[] = ["cv", "role", "ninja", "score"]
   const stepIndex = STEPS.indexOf(step)
 
   if (!ready) return null
@@ -131,6 +132,12 @@ export default function OnboardingPage() {
 
         {step === "cv" && <StepCV onNext={handleCVNext} onNextText={handleCVTextNext} />}
         {step === "role" && <StepRole onNext={handleRoleNext} loading={loading} />}
+        {step === "ninja" && (
+          <NinjaNameStep
+            onAccept={() => setStep("score")}
+            onSkip={() => setStep("score")}
+          />
+        )}
         {step === "score" && scoreData && <StepScore score={scoreData} />}
       </div>
     </main>

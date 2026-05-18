@@ -1,26 +1,19 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Cookie, HTTPException, status
 
-from app.database import get_supabase, get_supabase_admin
+from app.database import get_supabase
 from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
+from app.services.user_provisioning import ensure_user_provisioned
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-
-def _upsert_user_profile(user_id: str, email: str | None, full_name: str | None) -> None:
-    if not email:
-        return
-    get_supabase_admin().table("user_profiles").upsert(
-        {
-            "id": user_id,
-            "email": email,
-            "full_name": full_name,
-        },
-        on_conflict="id",
-    ).execute()
+_REF_COOKIE = "myro_ref"
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: SignupRequest) -> AuthResponse:
+async def signup(
+    body: SignupRequest,
+    myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
+) -> AuthResponse:
     try:
         response = get_supabase().auth.sign_up({
             "email": body.email,
@@ -38,7 +31,7 @@ async def signup(body: SignupRequest) -> AuthResponse:
 
     if not response.session:
         # Email confirmation required — auth.users row not yet confirmed.
-        # Profile will be created on first login after confirmation.
+        # Profile (and ninja_name) created on first authenticated request.
         return AuthResponse(
             user_id=response.user.id,
             email=response.user.email,
@@ -46,8 +39,15 @@ async def signup(body: SignupRequest) -> AuthResponse:
             message="Check your email for a confirmation link, then sign in.",
         )
 
+    # Body field wins (cross-origin CORS strips cookies); cookie is the fallback.
+    referrer = body.myro_ref or myro_ref
     try:
-        _upsert_user_profile(response.user.id, response.user.email, body.full_name)
+        ensure_user_provisioned(
+            response.user.id,
+            response.user.email,
+            body.full_name,
+            myro_ref=referrer,
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -60,7 +60,10 @@ async def signup(body: SignupRequest) -> AuthResponse:
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(body: LoginRequest) -> AuthResponse:
+async def login(
+    body: LoginRequest,
+    myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
+) -> AuthResponse:
     try:
         response = get_supabase().auth.sign_in_with_password({
             "email": body.email,
@@ -75,10 +78,11 @@ async def login(body: LoginRequest) -> AuthResponse:
             detail="Invalid email or password.",
         )
 
-    _upsert_user_profile(
+    ensure_user_provisioned(
         response.user.id,
         response.user.email,
         response.user.user_metadata.get("full_name") if response.user.user_metadata else None,
+        myro_ref=myro_ref,
     )
     return AuthResponse(
         access_token=response.session.access_token,

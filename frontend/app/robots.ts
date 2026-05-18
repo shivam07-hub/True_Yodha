@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/newsletter", "/privacy", "/newsletter/rss.xml", "/newsletter/feed.json"],
-        disallow: ["/api/"],
+        disallow: ["/api/", "/profile/"],
       },
     ],
     sitemap: "https://www.himyro.com/sitemap.xml",

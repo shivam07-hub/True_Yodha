@@ -48,6 +48,29 @@ The directed graph formed by `parent_version_id` across a user's CV Versions.
 
 ---
 
+## Viewport Mode
+
+The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth for any code that needs to behave differently across screen sizes — sidebar vs bottom-nav, hero font size, grid collapse, particle background gating.
+
+**Boundary**
+
+- Single breakpoint: `--tm-bp-mobile` (CSS, `app/design-tokens.css`) and `BREAKPOINT_MOBILE_MAX` (TS, `lib/viewport.ts`). These two must stay in sync — they are the **same constant** mirrored across language boundaries.
+- `mobile` = viewport `max-width ≤ var(--tm-bp-mobile)` (currently 768px).
+- `desktop` = viewport `min-width: calc(var(--tm-bp-mobile) + 1px)` **and** `pointer: fine`. The pointer check keeps touch laptops on the mobile path.
+
+**Source of truth**
+
+- CSS branching: `@media (max-width: 768px) { … }`, ideally referencing `MEDIA_QUERY_MOBILE` indirectly via class hooks (`.tm-mobile-*`, page-scoped `.tm-<page>-*`).
+- JS branching: `useIsDesktop()` from `lib/hooks/use-is-desktop.ts`. Returns `false` on SSR + first paint to avoid mobile-broken hydration. Today only used to gate expensive desktop-only mounts (e.g. `ParticleBg`).
+
+**Rules**
+
+- Both nav variants — desktop sidebar and mobile top-bar + bottom-nav — always live in the DOM. CSS controls visibility, not JS. This avoids hydration mismatch and lets the layout respond to viewport changes without re-mounting.
+- JS-gated unmount (`useIsDesktop`) is reserved for components whose mobile render cost is unjustified (heavy animation, large data). Default to CSS branching.
+- Page-scoped class hooks (`.tm-mission-header-grid`, `.tm-login-sidebar`, etc.) are the current pattern. Future work may deepen this into a `<ResponsiveStack>` primitive — see Backlog #9 deepening notes in CLAUDE.md.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:

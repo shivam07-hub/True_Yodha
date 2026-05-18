@@ -110,6 +110,13 @@
   --tm-accent-ring:     rgba(0, 245, 212, 0.45);
   --tm-accent-grid:     rgba(0, 245, 212, 0.025);
   --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
+
+  /* ── Viewport breakpoints (single source of truth) ─────────
+     Mobile = max-width:  var(--tm-bp-mobile)
+     Desktop = min-width: calc(var(--tm-bp-mobile) + 1px)
+     JS mirror lives in lib/viewport.ts
+     ───────────────────────────────────────────────────────── */
+  --tm-bp-mobile:       768px;
 }
 
 /* ── Surface: LIGHT (executive white) ──────────────────────── */

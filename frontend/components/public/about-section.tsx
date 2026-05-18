@@ -3,7 +3,13 @@
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 
-export function AboutSection() {
+export function AboutSection({
+  primaryCtaHref = "#intel",
+  primaryCtaLabel = "See how it works ↓",
+}: {
+  primaryCtaHref?: string
+  primaryCtaLabel?: string
+}) {
   return (
     <section style={{ position: "relative", zIndex: 2, width: "100%", minWidth: 0, overflow: "hidden", background: "linear-gradient(180deg, var(--tm-bg) 0%, var(--tm-surface-2) 100%)" }}>
 
@@ -65,7 +71,7 @@ export function AboutSection() {
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 48 }}>
           <a
-            href="#intel"
+            href={primaryCtaHref}
             style={{
               display: "inline-flex", alignItems: "center",
               padding: "0 24px", height: 50,
@@ -87,7 +93,7 @@ export function AboutSection() {
               e.currentTarget.style.boxShadow = "0 0 20px var(--tm-accent-glow)"
             }}
           >
-            See how it works ↓
+            {primaryCtaLabel}
           </a>
           <Link
             href="/login"

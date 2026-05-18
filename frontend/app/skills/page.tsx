@@ -10,6 +10,7 @@ import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-rad
 import { ScoreRing } from "@/components/skills/score-ring"
 import { DomainAccordionRow } from "@/components/skills/domain-accordion-row"
 import { SkillAuditView } from "@/components/skills/skill-audit-view"
+import { ShareButton } from "@/components/profile/ShareButton"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -50,6 +51,13 @@ export default function SkillsPage() {
   const { data: userSkills, isLoading: skillsLoading } = useQuery({
     queryKey: dataKeys.userSkills(),
     queryFn: () => users.mySkills(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: profile } = useQuery({
+    queryKey: ["users-me", token],
+    queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
@@ -102,8 +110,8 @@ export default function SkillsPage() {
       <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <div>
+        <div className="tm-skills-header" style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div className="tm-label-caps" style={{ marginBottom: 6 }}>Skill Intelligence Overview</div>
             <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
             <p className="tm-meta text-pretty">
@@ -112,7 +120,15 @@ export default function SkillsPage() {
                 : "Upload your CV to see your Myro Score"}
             </p>
           </div>
-          {totalScore !== null && <ScoreRing score={totalScore} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {profile?.ninja_name ? (
+              <ShareButton
+                url={typeof window !== "undefined" ? `${window.location.origin}/profile/${profile.ninja_name}` : `/profile/${profile.ninja_name}`}
+                ninjaName={profile.ninja_name}
+              />
+            ) : null}
+            {totalScore !== null && <ScoreRing score={totalScore} />}
+          </div>
         </div>
 
         {/* Sort/Filter bar */}

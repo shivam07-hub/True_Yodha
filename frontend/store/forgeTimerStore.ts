@@ -3,14 +3,10 @@ import type { CartSkill } from "@/types/xp"
 
 export const FORGE_AMBIENT_DURATION = 25 * 60  // fixed 25 min for mini timer
 export const FORGE_AMBIENT_RATE = 2             // XP per minute
-export const FORGE_FOCUSED_RATE = 3             // XP per minute
 
 interface ForgeTimerStore {
   sessionActive: boolean
   skillName: string | null
-  skillLevelFrom: number
-  skillLevelTo: number
-  skillCompany: string | undefined
   remaining: number
   running: boolean
   minimized: boolean
@@ -19,6 +15,7 @@ interface ForgeTimerStore {
   setRunning: (r: boolean) => void
   setMinimized: (m: boolean) => void
   tick: () => void
+  restartSession: () => void
   resetSession: () => void
   dismiss: () => void
 }
@@ -26,9 +23,6 @@ interface ForgeTimerStore {
 export const useForgeTimerStore = create<ForgeTimerStore>((set) => ({
   sessionActive: false,
   skillName: null,
-  skillLevelFrom: 0,
-  skillLevelTo: 1,
-  skillCompany: undefined,
   remaining: FORGE_AMBIENT_DURATION,
   running: false,
   minimized: false,
@@ -37,11 +31,8 @@ export const useForgeTimerStore = create<ForgeTimerStore>((set) => ({
   startSession: (skill) => set({
     sessionActive: true,
     skillName: skill.skill_name,
-    skillLevelFrom: skill.level_from ?? 0,
-    skillLevelTo: skill.level_to ?? 1,
-    skillCompany: skill.company,
     remaining: FORGE_AMBIENT_DURATION,
-    running: false,
+    running: true,
     minimized: false,
     dismissed: false,
   }),
@@ -55,6 +46,14 @@ export const useForgeTimerStore = create<ForgeTimerStore>((set) => ({
     if (next <= 0) return { remaining: 0, running: false }
     return { remaining: next }
   }),
+
+  restartSession: () => set((state) => ({
+    sessionActive: !!state.skillName,
+    remaining: FORGE_AMBIENT_DURATION,
+    running: !!state.skillName,
+    minimized: false,
+    dismissed: false,
+  })),
 
   resetSession: () => set({
     sessionActive: false,

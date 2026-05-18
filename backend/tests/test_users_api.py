@@ -52,6 +52,9 @@ class _FakeUsersRepository:
     def list_user_skill_records(self, _user_id: str) -> list[UserSkillRecord]:
         return self.records
 
+    def has_forged_level_up(self, _user_id: str, _taxonomy_key: str) -> bool:
+        return False
+
     def get_followed_companies(self, _user_id: str) -> list[dict[str, Any]]:
         return self.followed_companies
 
@@ -60,6 +63,11 @@ class _FakeUsersRepository:
 
     def unfollow_company(self, _user_id: str, _company_name: str) -> None:
         pass
+
+
+class _FakeDiaryRepository:
+    def list_daily_logs(self, _user_id: str, _limit: int) -> list[dict[str, Any]]:
+        return []
 
 
 def test_get_me_reads_through_token_repository() -> None:
@@ -173,8 +181,8 @@ def test_update_profile_creates_row_for_orphan_user() -> None:
 def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
     repo = _FakeUsersRepository(
         records=[
-            UserSkillRecord("Python", "Python", 2, "Trailblazer", "Built ETL"),
-            UserSkillRecord("SQL", "SQL", 4, "Cartographer", None),
+            UserSkillRecord("Python", "Python", 2, "Trailblazer", "Built ETL", 0, False),
+            UserSkillRecord("SQL", "SQL", 4, "Cartographer", None, 2, True),
         ]
     )
 
@@ -197,6 +205,7 @@ def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
     body = response.json()
     assert [item["key"] for item in body["by_domain"]["IT"]] == ["SQL", "Python"]
     assert body["by_cluster"]["Databases"][0]["level"] == 4
+    assert body["by_cluster"]["Databases"][0]["forged_level_up_available"] is True
 
 
 def test_skill_advice_does_not_spend_xp_when_provider_returns_no_advice(monkeypatch) -> None:
@@ -214,6 +223,8 @@ def test_skill_advice_does_not_spend_xp_when_provider_returns_no_advice(monkeypa
     monkeypatch.setattr(users, "spend_xp", _spend)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[users.get_llm_provider] = lambda: object()
+    app.dependency_overrides[users.get_token_users_repository] = lambda: _FakeUsersRepository()
+    app.dependency_overrides[users.get_token_diary_repository] = lambda: _FakeDiaryRepository()
 
     try:
         with TestClient(app) as client:
@@ -248,6 +259,8 @@ def test_skill_advice_spends_xp_after_advice_is_generated(monkeypatch) -> None:
     monkeypatch.setattr(users, "spend_xp", _spend)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[users.get_llm_provider] = lambda: object()
+    app.dependency_overrides[users.get_token_users_repository] = lambda: _FakeUsersRepository()
+    app.dependency_overrides[users.get_token_diary_repository] = lambda: _FakeDiaryRepository()
 
     try:
         with TestClient(app) as client:

@@ -37,7 +37,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
   })
 
   const askAdvice = useMutation({
-    mutationFn: () => users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? ""),
+    mutationFn: (freeUnlock: boolean) => users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? "", freeUnlock),
     onSuccess: (data) => {
       if (data.advice) setAdvice(data.advice)
       if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
@@ -62,6 +62,26 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
         <div style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>{skill.evidence_text.slice(0, 60)}…</div>
       ) : (
         <div style={{ fontSize: 10, color: "var(--tm-warning)", fontStyle: "italic" }}>No CV evidence — keyword inferred</div>
+      )}
+
+      {skill.forged_level_up_available && !advice && (
+        <button
+          onClick={() => askAdvice.mutate(true)}
+          disabled={askAdvice.isPending}
+          style={{
+            marginTop: 4, padding: "6px 12px",
+            borderRadius: "var(--tm-radius-sm)",
+            fontSize: 11, fontWeight: 700,
+            background: "var(--tm-accent)",
+            color: "var(--tm-accent-fg)",
+            border: "1px solid var(--tm-accent)",
+            cursor: askAdvice.isPending ? "default" : "pointer",
+            transition: "all 200ms var(--tm-ease)",
+            fontFamily: "inherit", width: "100%",
+          }}
+        >
+          {askAdvice.isPending ? "Thinking…" : "AI skill upgrade"}
+        </button>
       )}
 
       <button
@@ -139,32 +159,35 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
 
           {/* AI advice */}
           <div>
-            <button
-              onClick={() => askAdvice.mutate()}
-              disabled={askAdvice.isPending}
-              style={{
-                padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
-                background: "transparent", color: "var(--tm-accent)",
-                border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
-                cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
-            </button>
-            {advice && (
-              <div style={{
-                marginTop: 6, padding: "8px 10px", fontSize: 11,
-                color: "var(--tm-text-muted)", lineHeight: 1.55,
-                background: "rgba(0,245,212,0.04)", border: "1px solid var(--tm-accent-ring)",
-                borderRadius: "var(--tm-radius-sm)",
-              }}>{advice}</div>
-            )}
-            {askAdvice.isError && (
-              <div style={{ marginTop: 6, fontSize: 10, color: "var(--tm-danger)" }}>
-                Couldn&apos;t fetch advice. No XP was spent.
-              </div>
+            {!skill.forged_level_up_available && (
+              <button
+                onClick={() => askAdvice.mutate(false)}
+                disabled={askAdvice.isPending}
+                style={{
+                  padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
+                  background: "transparent", color: "var(--tm-accent)",
+                  border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
+              </button>
             )}
           </div>
+        </div>
+      )}
+
+      {advice && (
+        <div style={{
+          marginTop: 4, padding: "8px 10px", fontSize: 11,
+          color: "var(--tm-text-muted)", lineHeight: 1.55,
+          background: "rgba(0,245,212,0.04)", border: "1px solid var(--tm-accent-ring)",
+          borderRadius: "var(--tm-radius-sm)",
+        }}>{advice}</div>
+      )}
+      {askAdvice.isError && (
+        <div style={{ marginTop: 4, fontSize: 10, color: "var(--tm-danger)" }}>
+          Couldn&apos;t fetch advice. No XP was spent.
         </div>
       )}
 

@@ -18,9 +18,9 @@ export const XP_POLICY = {
 export const XP_EARN_ACTIONS = [
   {
     title: "Forge a skill",
-    detail: "Focused sessions earn 3 XP per minute. Ambient sidebar sessions earn 2 XP per minute.",
+    detail: "Forge XP builds in the background and can be claimed during the session.",
     amount: `+${XP_POLICY.forgeFocusedMinutes * XP_POLICY.forgeFocusedRate} XP`,
-    meta: "focused 25 min",
+    meta: "soft cap 25 min",
     status: "live",
   },
   {

@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   title: "Myro — Career Intelligence",
   description:
     "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Myro",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Myro",
+  },
   robots: { index: false, follow: false },
   openGraph: {
     type: "website",

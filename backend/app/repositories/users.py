@@ -20,6 +20,8 @@ class UserSkillRecord:
     level: int
     proficiency_title: str
     evidence_text: str | None
+    forge_sessions_count: int
+    forged_level_up_available: bool
 
 
 class UsersRepository:
@@ -53,10 +55,11 @@ class UsersRepository:
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, evidence_text, skills(taxonomy_key, display_name)")
+            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, skills(taxonomy_key, display_name)")
             .eq("user_id", user_id)
             .execute()
         )
+        forged_level_up_keys = self.list_forged_level_up_skill_keys(user_id)
         records = []
         for row in result.data or []:
             if not row.get("skills"):
@@ -64,6 +67,7 @@ class UsersRepository:
             skill = row["skills"]
             key = skill["taxonomy_key"]
             level = int(row["matched_level"])
+            forge_sessions_count = int(row.get("forge_sessions_count") or 0)
             records.append(
                 UserSkillRecord(
                     key=key,
@@ -72,10 +76,32 @@ class UsersRepository:
                     proficiency_title=row.get("proficiency_title")
                     or _PROFICIENCY_TITLES.get(level, "Scout"),
                     evidence_text=row.get("evidence_text") or None,
+                    forge_sessions_count=forge_sessions_count,
+                    forged_level_up_available=key in forged_level_up_keys,
                 )
             )
         return records
 
+    def list_forged_level_up_skill_keys(self, user_id: str) -> set[str]:
+        result = (
+            self._db.table("forge_sessions")
+            .select("skill_name, level_before, level_after")
+            .eq("user_id", user_id)
+            .order("completed_at", desc=True)
+            .limit(500)
+            .execute()
+        )
+        keys: set[str] = set()
+        for row in result.data or []:
+            level_before = int(row.get("level_before") or 0)
+            level_after = int(row.get("level_after") or 0)
+            skill_name = str(row.get("skill_name") or "").strip()
+            if skill_name and level_after > level_before:
+                keys.add(skill_name)
+        return keys
+
+    def has_forged_level_up(self, user_id: str, taxonomy_key: str) -> bool:
+        return taxonomy_key in self.list_forged_level_up_skill_keys(user_id)
 
     def get_skill_id_by_taxonomy_key(self, taxonomy_key: str) -> int | None:
         result = (
@@ -156,4 +182,3 @@ def get_token_users_repository(
     current_user: dict = Depends(get_current_user),
 ) -> UsersRepository:
     return UsersRepository(get_supabase_for_token(current_user["token"]))
-

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useIsDesktop } from "@/lib/hooks/use-is-desktop"
+import { useViewport } from "@/mobile"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -28,7 +28,7 @@ function TrackerPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
-  const isDesktop = useIsDesktop()
+  const { isDesktop } = useViewport()
 
   const initialTab = (searchParams.get("tab") === "verdicts" ? "verdicts" : "active") as Tab
   const initialStage = (APPLICATION_STAGES as readonly string[]).includes(searchParams.get("stage") ?? "")
