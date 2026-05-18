@@ -804,7 +804,7 @@ function IntelPageInner() {
     return () => clearInterval(id)
   }, [analyticsLoading, analytics])
 
-  const { data: followedData } = useQuery({
+  const { data: followedData, isLoading: followedLoading } = useQuery({
     queryKey: ["followedCompanies", token],
     queryFn: () => users.followedCompanies(token!),
     enabled: !!token,
@@ -895,7 +895,14 @@ function IntelPageInner() {
     return map
   }, [followedCompanies, heatmapRowQueries])
 
-  const allRowsLoaded = heatmapRowQueries.length > 0 && heatmapRowQueries.every(q => !q.isLoading)
+  const heatmapReady =
+    !followedLoading &&
+    !skillDemandLoading &&
+    (
+      followedCompanies.length === 0 ||
+      heatmapSkills.length === 0 ||
+      heatmapRowQueries.every(q => !q.isLoading)
+    )
 
   // Resolved cell for drill-down
   const resolvedCell = useMemo(() => {
@@ -1026,7 +1033,7 @@ function IntelPageInner() {
         <ProgressBanner
           analyticsReady={!analyticsLoading && !!analytics}
           skillsReady={!skillDemandLoading && !!skillDemandData}
-          heatmapReady={allRowsLoaded}
+          heatmapReady={heatmapReady}
           message={MARKET_LOADING_STEPS[loadingStep]}
         />
 

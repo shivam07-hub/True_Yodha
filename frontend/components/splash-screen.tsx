@@ -37,7 +37,7 @@ export function SplashScreen() {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "#050A18",
+        background: "var(--tm-bg)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -79,7 +79,7 @@ export function SplashScreen() {
             fontSize: 26,
             fontWeight: 600,
             letterSpacing: "-0.01em",
-            color: "#F0F4FF",
+            color: "var(--tm-text)",
           }}
         >
           MYRO
@@ -90,7 +90,7 @@ export function SplashScreen() {
             fontSize: 11,
             fontWeight: 400,
             letterSpacing: "0.14em",
-            color: "#6F7891",
+            color: "var(--tm-text-faint)",
             textTransform: "uppercase",
           }}
         >

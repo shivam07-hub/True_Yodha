@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Bot, Briefcase, ChartNetwork } from "lucide-react"
+import { ProcessLoading } from "@/components/loading/process-loading"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 
 const CV_STAGES = [
-  { id: "reading",  label: "Reading your CV",           sub: "Parsing document structure and text",       icon: Bot },
-  { id: "skills",   label: "Extracting your skills",    sub: "Mapping evidence to the skill taxonomy",    icon: Briefcase },
-  { id: "scoring",  label: "Computing your Myro Score", sub: "Ranking across 10 career domains",          icon: ChartNetwork },
+  { id: "reading",  label: "Reading your CV",           description: "Parsing document structure and text",       icon: Bot },
+  { id: "skills",   label: "Extracting your skills",    description: "Mapping evidence to the skill taxonomy",    icon: Briefcase },
+  { id: "scoring",  label: "Computing your Myro Score", description: "Ranking across 10 career domains",          icon: ChartNetwork },
 ]
 // Advance stages at 8 s and 18 s into the ~29 s backend wait
 const CV_STAGE_MS = [8000, 18000]
@@ -43,7 +44,6 @@ export function StepRole({ onNext, loading }: Props) {
   const [showCustomLoc, setShowCustomLoc] = useState(false)
   const [customLoc, setCustomLoc] = useState("")
   const [cvStage, setCvStage] = useState(0)
-  const [dots, setDots] = useState(".")
   const inputRef = useRef<HTMLInputElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -54,13 +54,6 @@ export function StepRole({ onNext, loading }: Props) {
       setTimeout(() => setCvStage(i + 1), ms)
     )
     return () => timers.forEach(clearTimeout)
-  }, [loading])
-
-  // Animate the "..." busy indicator
-  useEffect(() => {
-    if (!loading) return
-    const id = setInterval(() => setDots(d => d.length >= 3 ? "." : d + "."), 420)
-    return () => clearInterval(id)
   }, [loading])
 
   const atMax = roles.length >= MAX_ROLES
@@ -391,81 +384,15 @@ export function StepRole({ onNext, loading }: Props) {
         )}
 
         {loading ? (
-          /* CV analysis loading panel — same icon-circle language as IntelLoadingState */
-          <div
-            role="status"
-            aria-live="polite"
-            aria-label={`Analysing CV — ${CV_STAGES[cvStage].label}`}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 16,
-              padding: "20px 0 4px",
-              animation: "loadIn 300ms var(--tm-ease) both",
-            }}
-          >
-            {/* Icon circles — same pattern as IntelLoadingState */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }} aria-hidden="true">
-              {CV_STAGES.map((stage, index) => {
-                const Icon = stage.icon
-                const active = index === cvStage
-                return (
-                  <div
-                    key={stage.id}
-                    title={stage.label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 36,
-                      height: 36,
-                      borderRadius: "50%",
-                      border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                      background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)",
-                      color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                      transform: active ? "translateY(-2px) scale(1.05)" : "none",
-                      opacity: active ? 1 : 0.55,
-                      transition: "transform var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
-                    }}
-                  >
-                    <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Current stage label + sub */}
-            <div style={{ textAlign: "center" }}>
-              <p style={{ fontSize: "var(--tm-fs-meta)", fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>
-                {CV_STAGES[cvStage].label}
-              </p>
-              <p style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
-                {CV_STAGES[cvStage].sub}
-              </p>
-            </div>
-
-            {/* Spinner + dots */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="var(--tm-accent)" strokeWidth="2.2" strokeLinecap="round"
-                aria-hidden="true"
-                style={{ animation: "tm-spin-slow 1.8s linear infinite", flexShrink: 0 }}
-              >
-                <circle cx="12" cy="12" r="9" strokeOpacity="0.18" />
-                <path d="M12 3a9 9 0 0 1 9 9" />
-              </svg>
-              <span style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
-                {dots}
-              </span>
-            </div>
-
-            {/* Honest timing hint */}
-            <p style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>
-              Usually takes 20–40 seconds
-            </p>
-          </div>
+          <ProcessLoading
+            message={CV_STAGES[cvStage].label}
+            stages={CV_STAGES}
+            activeStageIndex={cvStage}
+            showActiveStageDetail
+            timingHint="Usually takes 20–40 seconds"
+            size="compact"
+            style={{ animation: "loadIn 300ms var(--tm-ease) both" }}
+          />
         ) : (
           <button
             type="submit"
@@ -496,9 +423,6 @@ export function StepRole({ onNext, loading }: Props) {
         @keyframes loadIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes tm-spin-slow {
-          to { transform: rotate(360deg); }
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
