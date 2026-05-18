@@ -1,5 +1,6 @@
 export const XP_POLICY = {
   welcomeBaseline: 1000,
+  linkedInProfile: 50,
   diaryEntry: 30,
   forgeAmbientMinutes: 25,
   forgeAmbientRate: 2,
@@ -27,6 +28,13 @@ export const XP_EARN_ACTIONS = [
     detail: "Log what you practiced or shipped so your skill evidence keeps improving.",
     amount: `+${XP_POLICY.diaryEntry} XP`,
     meta: "per entry",
+    status: "live",
+  },
+  {
+    title: "Add your LinkedIn",
+    detail: "Connect your public profile so applications and CV work have a stronger identity signal.",
+    amount: `+${XP_POLICY.linkedInProfile} XP`,
+    meta: "once",
     status: "live",
   },
   {

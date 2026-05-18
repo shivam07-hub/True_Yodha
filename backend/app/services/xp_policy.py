@@ -6,6 +6,7 @@ user-facing XP explanations.
 
 WELCOME_XP = 1000
 DIARY_ENTRY_XP = 30
+LINKEDIN_PROFILE_XP = 50
 
 SKILL_ADVICE_XP_COST = 20
 

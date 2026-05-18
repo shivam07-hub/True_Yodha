@@ -11,6 +11,7 @@ from app.schemas import (
     SkillLevelCorrectionRequest,
     SkillLevelCorrectionResponse,
     UpdateProfileRequest,
+    UpdateProfileResponse,
     UserProfileResponse,
     UserSkillsByDomainResponse,
 )
@@ -23,7 +24,7 @@ from app.services.xp_policy import (
     FOLLOWED_COMPANY_LIMIT,
     SKILL_ADVICE_XP_COST,
 )
-from app.services.xp_service import assert_can_spend_xp, spend_xp, spend_xp_to_floor
+from app.services.xp_service import assert_can_spend_xp, grant_linkedin_profile_xp, spend_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -131,21 +132,42 @@ async def get_skill_level_up_advice(
     return SkillAdviceResponse(advice=advice, xp_spent=_SKILL_ADVICE_XP_COST, new_xp_balance=new_balance)
 
 
-@router.put("/me/profile", response_model=UserProfileResponse)
+def _linkedin_reward_is_due(before: dict | None, updates: dict) -> bool:
+    if "linkedin_url" not in updates:
+        return False
+    if not str(updates.get("linkedin_url") or "").strip():
+        return False
+    if before and before.get("linkedin_xp_granted"):
+        return False
+    if before and str(before.get("linkedin_url") or "").strip():
+        return False
+    return True
+
+
+@router.put("/me/profile", response_model=UpdateProfileResponse)
 async def update_profile(
     body: UpdateProfileRequest,
     current_user: dict = Depends(get_current_user),
     users_repo: UsersRepository = Depends(get_token_users_repository),
-) -> UserProfileResponse:
+) -> UpdateProfileResponse:
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update.")
 
-    users_repo.update_profile(current_user["user_id"], updates, email=current_user.get("email"))
+    user_id = current_user["user_id"]
+    before = users_repo.get_profile(user_id)
+    should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
+    users_repo.update_profile(user_id, updates, email=current_user.get("email"))
     profile = users_repo.get_profile(current_user["user_id"])
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
-    return UserProfileResponse(**profile)
+
+    xp_earned = 0
+    new_xp_balance = None
+    if should_grant_linkedin_xp:
+        xp_earned, new_xp_balance = await grant_linkedin_profile_xp(user_id)
+
+    return UpdateProfileResponse(**profile, xp_earned=xp_earned, new_xp_balance=new_xp_balance)
 
 
 @router.get("/me/following/companies", response_model=FollowedCompaniesResponse)

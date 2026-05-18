@@ -16,6 +16,11 @@ class UserProfileResponse(BaseModel):
     last_active_at: datetime
 
 
+class UpdateProfileResponse(UserProfileResponse):
+    xp_earned: int = 0
+    new_xp_balance: int | None = None
+
+
 class UpdateProfileRequest(BaseModel):
     full_name: str | None = None
     linkedin_url: str | None = None

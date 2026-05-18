@@ -154,6 +154,7 @@ export function SettingsModal({ open, onClose, profile }: {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [rewardNotice, setRewardNotice] = useState<string | null>(null)
 
   // Following tab state
   const [companyInput, setCompanyInput] = useState("")
@@ -178,7 +179,7 @@ export function SettingsModal({ open, onClose, profile }: {
     setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
     setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
     setLocationDropdown(false); setLocationFocused(false)
-    setSaveStatus("idle"); setSaveError(null); pending.current = {}
+    setSaveStatus("idle"); setSaveError(null); setRewardNotice(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
   }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
@@ -194,7 +195,9 @@ export function SettingsModal({ open, onClose, profile }: {
       if (!token) throw new Error("Session not ready — please refresh.")
       return users.updateProfile(token, payload)
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} XP earned`)
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -476,7 +479,10 @@ export function SettingsModal({ open, onClose, profile }: {
                 </div>
 
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={ROW_LABEL}>LinkedIn</div>
+                  <div>
+                    <div style={ROW_LABEL}>LinkedIn</div>
+                    <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} XP</div>
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
                     <input
@@ -492,6 +498,9 @@ export function SettingsModal({ open, onClose, profile }: {
 
                 {/* Save button */}
                 <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                  {rewardNotice && (
+                    <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
+                  )}
                   {saveStatus === "error" && saveError && (
                     <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
                   )}

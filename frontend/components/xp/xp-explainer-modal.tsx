@@ -1,5 +1,6 @@
 "use client"
 
+import type { ElementType } from "react"
 import {
   BookOpen,
   Building2,
@@ -13,10 +14,13 @@ import {
   X,
 } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { LinkedInIcon } from "@/components/icons/social-icons"
 import { XP_EARN_ACTIONS, XP_POLICY, XP_SPEND_ACTIONS } from "@/lib/xp-policy"
 
-const earnIcons = [Clock, BookOpen, FileText, Share2]
-const spendIcons = [Target, Building2, Lightbulb, RefreshCw]
+type XpIcon = ElementType
+
+const earnIcons: XpIcon[] = [Clock, BookOpen, LinkedInIcon, FileText, Share2]
+const spendIcons: XpIcon[] = [Target, Building2, Lightbulb, RefreshCw]
 
 function XpRow({
   title,
@@ -28,7 +32,7 @@ function XpRow({
   title: string
   detail: string
   amount: string
-  icon: typeof Clock
+  icon: XpIcon
   muted?: boolean
 }) {
   return (

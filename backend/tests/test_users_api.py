@@ -93,6 +93,56 @@ def test_update_profile_writes_through_token_repository() -> None:
     assert repo.updates == [("u1", {"full_name": "Grace Hopper"})]
 
 
+def test_update_profile_grants_linkedin_xp_once_when_linkedin_added(monkeypatch) -> None:
+    repo = _FakeUsersRepository(profile=_profile_row(linkedin_url=None, linkedin_xp_granted=False))
+    grants: list[str] = []
+
+    async def _grant(user_id: str) -> tuple[int, int]:
+        grants.append(user_id)
+        return 50, 1050
+
+    monkeypatch.setattr(users, "grant_linkedin_profile_xp", _grant)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.put("/users/me/profile", json={"linkedin_url": "https://linkedin.com/in/ada"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["xp_earned"] == 50
+    assert response.json()["new_xp_balance"] == 1050
+    assert grants == ["u1"]
+
+
+def test_update_profile_does_not_grant_linkedin_xp_after_first_reward(monkeypatch) -> None:
+    repo = _FakeUsersRepository(
+        profile=_profile_row(
+            linkedin_url="https://linkedin.com/in/ada",
+            linkedin_xp_granted=True,
+        )
+    )
+
+    async def _grant(_user_id: str) -> tuple[int, int]:  # pragma: no cover
+        raise AssertionError("LinkedIn XP should be one-time only")
+
+    monkeypatch.setattr(users, "grant_linkedin_profile_xp", _grant)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.put("/users/me/profile", json={"linkedin_url": "https://linkedin.com/in/grace"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["xp_earned"] == 0
+    assert response.json()["new_xp_balance"] is None
+
+
 def test_update_profile_creates_row_for_orphan_user() -> None:
     """If the user has no profile row yet, PUT must seed it via upsert and return 200."""
     repo = _FakeUsersRepository(profile=None)

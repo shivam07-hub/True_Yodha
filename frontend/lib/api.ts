@@ -234,6 +234,11 @@ export interface UserProfile {
   last_active_at: string
 }
 
+export interface ProfileUpdateResponse extends UserProfile {
+  xp_earned: number
+  new_xp_balance: number | null
+}
+
 export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
@@ -274,7 +279,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   updateProfile: (token: string, data: ProfileUpdate) =>
-    request<UserProfile>("/users/me/profile", {
+    request<ProfileUpdateResponse>("/users/me/profile", {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),

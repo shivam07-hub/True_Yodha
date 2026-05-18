@@ -41,6 +41,7 @@ CREATE TABLE user_profiles (
   email               VARCHAR(255) UNIQUE NOT NULL,
   full_name           VARCHAR(255),
   linkedin_url        VARCHAR(500),
+  linkedin_xp_granted BOOLEAN      NOT NULL DEFAULT FALSE,
   target_roles        TEXT[]       DEFAULT '{}',
   target_location     VARCHAR(200),
   cv_url              VARCHAR(500),

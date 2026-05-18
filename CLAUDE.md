@@ -305,6 +305,10 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 8. **Graphify doc/image refresh deferred.** AST-only update on 2026-05-18 skipped 306 docs + 38 images. DMMT screenshots, design references, and markdown notes still reflect May 13 snapshot. Solve when: budget allows full `--update`, OR when working on landing-page / DMMT-design surfaces, run scoped LLM pass on `frontend/Black_futuristist_frontend/project/uploads/` + repo-root markdown.
 
+### Architecture (deferred deepenings)
+
+10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
 ### UX systems audit
 
 9. **Loading-state audit across the entire frontend.** Shivam flagged 2026-05-18 that many surfaces fall straight to empty states instead of showing a loading state — the result feels "disappointing and depressing" because users can't tell whether the app is fetching or genuinely has nothing. Two loading templates already exist: `components/ui/particle-loading.tsx` (used only on `/skills` and `/companies/[slug]`) and `components/cv/upload-processing.tsx` (used only on `/cv` upload flow). Every other fetch surface either shows bare `"Loading…"` text, a one-off skeleton, or nothing. Next session: catalogue every `useQuery` / async surface, classify the load pattern it currently uses, decide a 3-tier loading system (skeleton for short fetches, particle for hero/full-screen, contextual inline for tiny loads), and ship a consistent treatment. Treat as foundational UX work — pairs naturally with the Category B verbal-scaffolding pass that's also queued.

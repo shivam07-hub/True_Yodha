@@ -10,7 +10,7 @@ import logging
 from fastapi import HTTPException, status
 
 from app.database import get_supabase_admin
-from app.services.xp_policy import WELCOME_XP
+from app.services.xp_policy import LINKEDIN_PROFILE_XP, WELCOME_XP
 
 _log = logging.getLogger(__name__)
 
@@ -67,6 +67,35 @@ async def earn_xp(user_id: str, amount: int) -> int:
     new_balance = current + amount
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     return new_balance
+
+
+async def grant_linkedin_profile_xp(user_id: str) -> tuple[int, int]:
+    """Grant LinkedIn profile XP once. Returns (xp_earned, new_balance)."""
+    admin = get_supabase_admin()
+    check = (
+        admin.table("user_profiles")
+        .select("xp_balance, linkedin_xp_granted")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    data = check.data or {}
+    current = int(data.get("xp_balance", 0))
+    if data.get("linkedin_xp_granted"):
+        return 0, current
+
+    new_balance = current + LINKEDIN_PROFILE_XP
+    admin.table("user_profiles").update(
+        {"xp_balance": new_balance, "linkedin_xp_granted": True}
+    ).eq("id", user_id).execute()
+    _log.info(
+        "XP earn: user=%s action=linkedin_profile amount=%d balance=%d→%d",
+        user_id,
+        LINKEDIN_PROFILE_XP,
+        current,
+        new_balance,
+    )
+    return LINKEDIN_PROFILE_XP, new_balance
 
 
 async def spend_xp(user_id: str, amount: int, action: str) -> int:
