@@ -21,7 +21,7 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
     try:
         from app.database import get_supabase_admin
         from app.repositories.jobs import JobsRepository
-        from app.services.llm_provider import LLMProvider
+        from app.services.llm_provider import get_llm_provider
         from app.routers.jobs._shared import last_monday
 
         admin_db = get_supabase_admin()
@@ -36,7 +36,7 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
             repo=jobs_repo,
             user_id=user_id,
             batch_week=batch_week,
-            llm_provider=LLMProvider(),
+            llm_provider=get_llm_provider(),
             excluded_job_ids=[],
         )
     except Exception as exc:

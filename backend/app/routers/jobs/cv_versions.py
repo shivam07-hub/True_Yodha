@@ -30,7 +30,7 @@ from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_jo
 from app.services.job_path._helpers import _single_or_none
 from app.services.job_path.cv_generator import _completed_milestones
 from app.services.job_path.llm_polish import _call_ai_polish
-from app.services.llm_provider import LLMProvider
+from app.services.llm_provider import get_llm_provider
 
 router = APIRouter(prefix="/{job_id}/cv-versions")
 
@@ -212,7 +212,7 @@ async def polish_cv_version(
         job=job,
         targets=targets,
         completed=completed,
-        provider=LLMProvider(),
+        provider=get_llm_provider(),
     )
     if not polished_text:
         raise HTTPException(

@@ -282,6 +282,29 @@ application_reviews (
 
 ---
 
+## PARKED OPEN QUESTIONS (from graphify refresh 2026-05-18)
+
+Park-and-solve list. Pick up when working in the related area. Source = `graphify-out/GRAPH_REPORT.md`.
+
+### Cross-community bridge nodes (high betweenness — verify intentional coupling)
+
+1. **`compute_and_persist_score()` — betweenness 0.083.** Bridges `CV Upload & Initial Match` → `Tracker & Application Endpoints` → `Score Engine (Mirror/Domain)`. Solve when: touching scoring pipeline or post-CV-upload flow. Question: is this the right single source of truth (OQ4) or has accidental coupling crept in via tracker side-effects?
+2. **`ScoresRepository` — betweenness 0.057.** Bridges 5 communities (CV Upload, CV Compose Hub, Tracker, Job-Skills RPC, LLM Overlap). Solve when: refactoring repository layer or splitting scoring concerns.
+3. **`fetch_all_rows()` — betweenness 0.033.** Bridges `CV Compose Hub` → `Tracker Endpoints` → `Job-Skills RPC` → `Lightcast Backfill`. Solve when: query-pattern review (likely a fetch-all hotpath worth specializing).
+
+### INFERRED-edge audit (LLM-guessed connections — confirm or prune)
+
+4. **`JobsRepository` — 30 INFERRED edges.** Sample: `Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()`, `Fire-and-forget: compute first 5 matches after CV upload`. Solve when: touching `repositories/jobs.py` or stale-clock logic. Audit during Backlog #8 (Process Transparency Layer).
+5. **`ScoresRepository` — 47 INFERRED edges.** Largest INFERRED footprint. Solve when: scoring refactor.
+6. **`CVRepository` — 18 INFERRED edges.** Sample: `CVTextRequest`, `EducationItem`. Solve when: working on CV Builder v2 surface.
+7. **`generate_job_cv()` — 22 INFERRED edges.** Sample: `generate_application_cv()`, `_get_job()`. Solve when: deciding cleanup of legacy `generate-draft` route (already noted as cleanup pass candidate in 2026-05-17 session summary).
+
+### Refresh hygiene
+
+8. **Graphify doc/image refresh deferred.** AST-only update on 2026-05-18 skipped 306 docs + 38 images. DMMT screenshots, design references, and markdown notes still reflect May 13 snapshot. Solve when: budget allows full `--update`, OR when working on landing-page / DMMT-design surfaces, run scoped LLM pass on `frontend/Black_futuristist_frontend/project/uploads/` + repo-root markdown.
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-16)
 
 ```
