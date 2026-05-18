@@ -13,6 +13,8 @@ class UserProfileResponse(BaseModel):
     onboarding_complete: bool
     created_at: datetime
     last_active_at: datetime
+    ninja_name: str | None = None
+    referred_by_user_id: str | None = None
 
 
 class UpdateProfileResponse(UserProfileResponse):

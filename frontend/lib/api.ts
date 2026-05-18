@@ -206,10 +206,10 @@ export interface AuthResponse {
 }
 
 export const auth = {
-  signup: (email: string, password: string, fullName: string) =>
+  signup: (email: string, password: string, fullName: string, myroRef?: string | null) =>
     request<AuthResponse>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ email, password, full_name: fullName }),
+      body: JSON.stringify({ email, password, full_name: fullName, myro_ref: myroRef ?? null }),
     }),
   login: (email: string, password: string) =>
     request<AuthResponse>("/auth/login", {
@@ -232,6 +232,8 @@ export interface UserProfile {
   onboarding_complete: boolean
   created_at: string
   last_active_at: string
+  ninja_name: string | null
+  referred_by_user_id: string | null
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -317,6 +319,51 @@ export const users = {
   unfollowCompany: (token: string, companyName: string) =>
     request<void>(`/users/me/following/companies/${encodeURIComponent(companyName)}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateNinjaName: (token: string, ninjaName: string) =>
+    request<{ ninja_name: string }>("/profile/ninja-name", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ninja_name: ninjaName }),
+    }),
+  suggestNinjaName: (token: string) =>
+    request<{ ninja_name: string }>("/profile/ninja-name/suggest", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+// ── Public profile (Shareability v1) ──────────────────────────────────────────
+
+export interface PublicProfile {
+  ninja_name: string
+  mirror_score: number | null
+  domain_scores: Record<string, number> | null
+  tier_label: string | null
+  forge_sessions_count: number
+  diary_count: number
+  tracker_count: number
+}
+
+export interface JobOverlapRow {
+  job_id: string
+  role: string | null
+  company_name: string | null
+  viewer_match_pct: number | null
+  owner_match_pct: number | null
+  viewer_status: string | null
+  owner_status: string | null
+}
+
+export interface JobOverlapResponse {
+  rows: JobOverlapRow[]
+}
+
+export const profile = {
+  public: (ninjaName: string) =>
+    request<PublicProfile>(`/profile/${encodeURIComponent(ninjaName)}`),
+  overlap: (ninjaName: string, token: string) =>
+    request<JobOverlapResponse>(`/profile/${encodeURIComponent(ninjaName)}/overlap`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

@@ -157,34 +157,20 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
 
+   **Forge widget v2 (deferred, 2026-05-19 design pass):**
+   - **Cycle counter** — show "cycle N" badge on widget; track sessions completed in a single login window.
+   - **Long-press dismiss** — `×` requires 600ms press when mid-session w/ unclaimed XP; prevents accidental loss.
+   - **Haptic equivalent** — scale-pop + soft glow burst on successful claim; navigator.vibrate(10) on mobile PWA.
+   - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
+   - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
+
 12. **Shareability v1 — `/profile/{ninja_name}` public profile (NEXT SESSION).** Decisions SH1–SH7 locked. Full plan below.
 
 ---
 
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
 
-### Done ✅ (2026-05-16)
-- SkillCard component: "Log to Forge" button fires `diary.createEntry`, toggles to "✓ Logged to Forge"
-- "CV →" secondary link per skill card → `/cv`
-- "Intel →" secondary link per skill card → `/market?skill=<display_name>`
-- Stat line reframed: `"N skills · N need proof · N domains below 40%"` (removed misleading "0 gaps")
-- Intel page (`market/page.tsx`): reads `?skill=` param via `useSearchParams` → pins skill first in Skill Lens + first heatmap column
-- Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`
-
-### Phase 1 — Visual Polish ✅ DONE 2026-05-16
-- [x] Domain name truncation fix — `minmax(200px)`, wrap allowed, ellipsis removed. Radar SVG: first word shown + `<title>` native tooltip for full name
-- [x] Domain strip cards: 3px color-coded left border (`<30%` red · `30–50%` orange · `50–70%` amber · `>70%` green). Strength % colored to match. `"Explore →"` / `"← close"` affordance bottom-right
-- [x] Legend in domain inspector header: colored squares for L3+/L2/L0–1. Orange italic label = "No CV evidence yet". SkillCard jargon replaced: "No CV evidence — keyword inferred"
-
-### Phase 2 — Score Hero + Weakness Spotlight ✅ DONE 2026-05-16
-- [x] Score hero — `ScoreRing` SVG component: animated stroke-dashoffset on mount (900ms ease), 5 tiers (Building foundation → Emerging → Developing → Competent → Advanced), next milestone label. Replaces top-right mono number
-- [x] Weakness Spotlight — `WeaknessSpotlight` component: lowest avg% domain with most skills (among <60%). Shows domain name, %, skill count, no-proof count, max level. "Log to Forge" diary CTA + "CV →" link. Red left border accent. Sits between header and domain strip
-
-### Phase 3 — Radar → Domain Detail Transformation ✅ DONE 2026-05-16
-- [x] `DomainRadar` refactored to SVG-only. Spokes + dots dim (opacity 0.25) when another domain is active; active spoke brightens + dot grows to r=7
-- [x] Slide-in inspector between strip and radar removed. Inspector absorbed into radar card right panel
-- [x] Right panel two states: "Domain Scores" (default, clickable rows) → "Domain Detail" (SkillCards + actions, maxHeight:340 scroll). Zero layout shift on swap
-- [x] `SkillCard`, `ScoreRing`, `WeaknessSpotlight` extracted to `components/skills/`. Page down to 233 lines (under 300 limit)
+**Phases 1–3 ✅ DONE 2026-05-16** — SkillCard + Log-to-Forge + CV/Intel links · stat-line reframe · `?skill=` deeplink · color-coded domain strip · ScoreRing hero + WeaknessSpotlight · DomainRadar SVG-only · inspector absorbed into radar card · `components/skills/` extraction (page <300 lines). Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`. Full detail in `docs/session-history/2026-05.md`.
 
 **Defer to v2:** domain layer separation · Rename Mirror→Myro in remaining strings · Pillar pages `/careers/*`
 
@@ -203,31 +189,9 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
-## MOBILE ENTERPRISE POLISH + PWA — PLAN (Backlog #9, started 2026-05-18)
+## MOBILE ENTERPRISE POLISH + PWA — PLAN (Backlog #9, ✅ CLOSED 2026-05-19)
 
-### v1 scope (this session — PWA on existing Next.js)
-
-**A. OSS skeleton lib + AppShellSkeleton refactor**
-- Install `react-loading-skeleton` (4.5kb, themable, mature, 4.4k★).
-- Replace inline `SHIMMER` const in `mobile-shell.tsx:15-19` with `<Skeleton>` + `<SkeletonTheme baseColor={var(--tm-surface-2)} highlightColor={var(--tm-border-soft)}>`.
-- Add fade-out transition on skeleton→content swap (CSS `opacity` + `transition:opacity 240ms ease-out`).
-
-**B. Layout breaks (from 2026-05-18 mobile audit, 18 screenshots in `reference/Mobile images/`)**
-- **L1 `/login`**: `login/page.tsx:67-274` — hide left 220px sidebar + collapse IntelPane to stack vertically `@media (max-width:768px)`. Right column shouldn't bleed.
-- **L2 `/home` hero**: `MissionHeader.tsx:140,143` — replace `fontSize:58` with `clamp(34px, 8vw, 58px)`.
-- **L3 `/home` content grid**: `MissionHeader.tsx:135` — `gridTemplateColumns:"1.4fr 1fr"` → collapse to single col `@media (max-width:768px)`.
-- **L4 `/home` top bar**: `MissionHeader.tsx:108` — `flex-wrap:wrap` on mobile, stack target row above diary/refresh.
-- **L5 `/home` SKILLS TO BUILD**: Audit `HomeColumns.tsx` / `skill-upgrade-card.tsx` — fixed grid clipping "Lock in" button.
-- **L6 `/home` SELF FOUND chips**: chip row needs `flex-wrap:wrap` + `gap` on mobile.
-- **L7 `/skills` ScoreRing**: hard-position clip; reposition or shrink on mobile.
-
-**C. PWA installable shell**
-- Add `frontend/public/manifest.webmanifest` (name, short_name, icons 192/512, theme_color `#0a0e14`, background_color `#0a0e14`, display:`standalone`, start_url:`/home`).
-- Add `<link rel="manifest">` + `<meta name="theme-color">` + `<link rel="apple-touch-icon">` in `app/layout.tsx`.
-- Generate icons from existing `MyroLogo` (192×192, 512×512, maskable variants).
-
-**D. Empty/loading states**
-- ✅ DONE 2026-05-19 — `/market` heatmap loading now uses the shared process-loading language, and heatmap readiness treats no followed companies / no selected skills as resolved instead of hanging on "Building heatmap". `ParticleLoading` stays reserved for ambient full-region waits (`/skills`, `/companies/[slug]`).
+**v1 PWA shipped** — react-loading-skeleton, layout fixes (L1–L7), manifest + icons, loading-state audit. Detail in `docs/session-history/2026-05.md` (2026-05-18, 2026-05-19 entries).
 
 ### v2 scope — Native APK on Google Play (deferred, kicks off after 1000 PWA users per OQ note)
 
@@ -285,21 +249,11 @@ npm i -D eas-cli
 
 ### Architecture audit (post-ef8dd21, via /improve-codebase-architecture)
 
-**Shipped now (cheap, durable wins):**
-- ✅ Single breakpoint constant — `--tm-bp-mobile: 768px` in `app/design-tokens.css` + `BREAKPOINT_MOBILE_MAX` in `lib/viewport.ts`. `useIsDesktop` now imports from `lib/viewport.ts`.
-- ✅ CONTEXT.md updated — new section **Viewport Mode** defines the domain term, rules ("both nav variants always in DOM"), source of truth.
+**Shipped (durable wins, see history):** breakpoint constant, CONTEXT.md Viewport Mode section, `useViewport()` provider (deepening #1), `frontend/mobile/` module (deepening #3).
 
-**Deepening backlog status:**
-
-1. ✅ **DONE 2026-05-19** — `useViewportMode()` + `<ViewportProvider>` shipped as `useViewport()` in `frontend/mobile/provider.tsx`. Single matchMedia subscriber; exposes `{ mode, pointer, reducedMotion, isDesktop }`. All ad-hoc `matchMedia` calls migrated (ScoreSparkle, use-rotating-message, process-loading). Five listeners → one.
-2. ⏸ **DEFERRED** — `<ResponsiveStack>` layout primitive. Only 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`); pick up when a 4th lands or a new mobile-broken page adds another class hook.
-3. ✅ **DONE 2026-05-19** — `frontend/mobile/` module shipped. `shell.tsx`, `viewport.ts`, `provider.tsx`, `index.ts` barrel. Single import surface `from "@/mobile"`. CSS + manifest stayed in place (Next.js convention).
-
-**New open task (post-#9 closure):**
-- **`packages/mobile-shared/` extraction.** With `frontend/mobile/` now consolidated, the next step is to lift it into a workspace package consumed by both `frontend/` (web PWA) and the future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
-
-**Friction signals to watch (for deferred #2):**
-- Class-hook proliferation: any new page adding 4+ `tm-<page>-*` hooks → ship `<ResponsiveStack>`.
+**Open:**
+- ⏸ **Deepening #2 — `<ResponsiveStack>` primitive.** DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks → ship it. 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`).
+- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
 
 ---
 
@@ -655,264 +609,7 @@ Open (next sessions):
 
 ---
 
-## PREV SESSION SUMMARY (2026-05-18 · Mobile PWA + Viewport seam)
+## EARLIER SESSION SUMMARIES
 
-```
-Backlog #9 closed: enterprise mobile shell + PWA install + viewport seam.
-
-Commit ef8dd21 — feat(mobile): PWA polish + enterprise mobile shell
-  SKELETON LIB:
-  - Installed react-loading-skeleton (4.5kb, themable, 4.4k★).
-  - mobile-shell.tsx AppShellSkeleton rewrite: <SkeletonTheme baseColor=
-    var(--tm-surface-2) highlightColor=rgba(255,255,255,0.06) duration=
-    1.6s>. Replaces inline SHIMMER + pulse keyframe. Sweep gradient,
-    not opacity blink.
-  - globals.css: .tm-shell-enter keyframe (280ms cubic-bezier ease-out),
-    .tm-shell-skeleton 200ms. prefers-reduced-motion guard.
-  - app-shell.tsx:672 wraps real shell in className="tm-shell-enter".
-
-  PWA INSTALL:
-  - public/manifest.webmanifest: standalone, portrait, theme #050A18,
-    start /home.
-  - icons: 192/512/512-maskable generated via sips from aperture-m.png.
-  - .gitignore allowlist: !frontend/public/brand/*.png
-  - app/layout.tsx Metadata: manifest + appleWebApp block.
-
-  LAYOUT FIXES (@media max-width:768px):
-  - /login (login/page.tsx): tm-login-shell/-sidebar/-intel — single-
-    column collapse, IntelPane display:none.
-  - /home (MissionHeader.tsx): tm-mission-header-inner/-topbar/-grid/
-    -greeting/-meta. clamp(34px,9vw,52px) hero, grid 2→1 col.
-  - /skills (app/skills/page.tsx): tm-skills-header flex-wrap.
-  - Global safety: html, body { overflow-x: hidden } on mobile.
-
-Commit 8679eb1 — refactor(viewport): name the mobile breakpoint as a seam
-  Output of /improve-codebase-architecture audit:
-
-  - frontend/lib/viewport.ts NEW: BREAKPOINT_MOBILE_MAX = 768,
-    MEDIA_QUERY_DESKTOP, MEDIA_QUERY_MOBILE, ViewportMode type.
-  - app/design-tokens.css: --tm-bp-mobile: 768px (CSS mirror).
-  - lib/hooks/use-is-desktop.ts: imports MEDIA_QUERY_DESKTOP instead
-    of hardcoding "(min-width: 769px) and (pointer: fine)".
-  - CONTEXT.md: new Viewport Mode section. Domain term, rules ("both
-    nav variants always in DOM"), source of truth.
-  - CLAUDE.md: 3 deepening candidates logged in Backlog #9:
-      1. useViewportMode + <ViewportProvider> (one MediaQueryList
-         listener instead of N).
-      2. <ResponsiveStack> primitive (kills tm-mission-header-grid /
-         tm-home-cols / tm-login-shell duplication).
-      3. frontend/mobile/ module consolidation (prerequisite for v2
-         native Expo scaffold under packages/mobile-shared/).
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - Backlog #9 deepenings 1–3 above (when friction signals fire)
-  - Manual mobile QA in dev server (PWA install flow, viewport
-    transitions, skeleton fade-in)
-  - Backlog #10 v2: domain layer separation, Mirror→Myro rename
-```
-
----
-
-## PREV SESSION SUMMARY (2026-05-16)
-
-```
-Mobile performance overhaul — responsive AppShell, canvas guards, layout fixes.
-
-Shipped to Develop:
-
-  MOBILE LAYOUT (C1):
-  - AppShell: pure CSS @media(≤768px) — sidebar hidden, bottom 4-tab nav + slim
-    top bar (logo, XP pill, avatar) appear. Desktop layout completely untouched.
-  - mobile-shell.tsx: MobileTopBar, MobileBottomNav, MobileProfileSheet (bottom
-    sheet with settings/feedback/sign-out).
-  - use-is-desktop.ts: hook — pointer:fine + min-width:769px. Gates ParticleBg.
-  - layout.tsx: viewportFit:"cover" + env(safe-area-inset-*) for iPhone home bar.
-
-  MOBILE PERFORMANCE (C4, C6):
-  - globals.css @media(≤768px): backdrop-filter:none — kills GPU blur on mobile.
-  - .tm-home-cols: 2-col job detail grid → 1-col on mobile.
-
-  AUTH SKELETON (C5):
-  - AppShellSkeleton in mobile-shell.tsx — shimmer layout shown while auth
-    resolves instead of blank screen. Matches desktop sidebar + mobile bars.
-
-  KEY FILES:
-  - frontend/components/mobile-shell.tsx (NEW — 274 lines)
-  - frontend/lib/hooks/use-is-desktop.ts (NEW)
-  - frontend/components/app-shell.tsx (exports FEEDBACK_ACTIONS, FeedbackModal,
-    SidebarProfile; wires mobile components; isDesktop gates particle bg)
-  - frontend/app/globals.css (mobile shell CSS block)
-  - frontend/app/layout.tsx (viewportFit)
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - Backlog #9: Auth skeleton staggered fade-in polish (minor)
-  - Intel page perf candidates (heatmap cache, search cache, optimistic follow)
-  - Shareability v1: public profile /profile/{token}
-```
----
-## LAST SESSION SUMMARY (2026-05-17 · CV Builder v2)
-```
-CV Builder rebuilt as Git-commit-style playground. /skills absorbs deprecated CV-left lenses.
-
-Locked via /grill-me + /frontend-design (T2 Layered Cards):
-  - Q2  drop Tech/Domain/Soft pivot
-  - Q3  /skills view-mode toggle: Domains | Audit (reuses SkillAuditView)
-  - Q4  level correction + AI advice migrate into SkillCard
-  - Q5  Path A parser-first
-  - Q6  LLM-extend single prompt → skills + structured payload
-  - Q7  cv_history.cv_structured JSONB
-  - Q8  lazy backfill on /cv visit (reparse_structured_only)
-  - Q9  bullet-level Exp/Proj · section-level Edu/Skills/Certs/Summary
-  - Q10 per-job state on job_cv_variants.hidden_items
-  - Q11 Save = NEW row, monotonic job_version_number
-  - Q12 unlimited versions, Q13 default = latest, Q14 jobId required
-  - Q15 live preview (client-side renderDeterministic) + explicit Save
-  - Q16 job-match badges (lowercase substring · target skills from /skill-gap)
-  - Q17 kill Generate-Job-CV + Generate-Next-CV-Draft on /cv. AI polish per-version.
-  - Q18 picker dropdown · auto title v{n}·timestamp · no-delete (immutable) ·
-        Git-commit model: polish + edit create NEW versions, parent_version_id chain
-  - Q18e baseline immutable, only polished bullets editable
-
-Schema (database/migrations/20260517_cv_builder_v2.sql):
-  - cv_history.cv_structured JSONB
-  - job_cv_variants: + job_version_number, parent_version_id, hidden_items JSONB,
-    edited_items JSONB, title, version_kind ('deterministic'|'polished'|'edited')
-  - dropped UNIQUE(snapshot_hash), added UNIQUE(user_id, job_id, job_version_number)
-  - existing rows backfilled (job_version_number via row_number() partitioned)
-
-Backend (250 tests pass):
-  - cv_parser.py: _SYSTEM_PROMPT now returns {skills, structured}.
-    _parse_llm_json returns (skills, structured) tuple. _validate_structured
-    coerces LLM output into stable shape. parse_cv / parse_cv_text return
-    cv_structured key. New reparse_structured_only() for lazy backfill.
-  - cv_workflow.py: persists cv_structured on ingest. get_or_backfill_cv_structured()
-    lazy-fills NULL on /cv visit.
-  - services/cv_compose.py NEW: djb2 stable item_id + render_deterministic().
-    Backend mirror of frontend lib/cv-compose.ts.
-  - routers/cv/structured.py NEW: GET /cv/structured.
-  - routers/jobs/cv_versions.py NEW: list / create / polish / edit endpoints
-    under /jobs/{job_id}/cv-versions/. Each Save / Polish / Edit = new row.
-    Polish reuses llm_polish._call_ai_polish on parent.deterministic_text.
-    Edit applies edited_items diff to parent.polished_text → new row.
-  - repositories/cv.py: update_cv_history_structured() for lazy backfill.
-
-Frontend (tsc + lint green):
-  - lib/cv-compose.ts NEW: djb2 itemId + collectItems + renderDeterministic.
-    Mirror of backend cv_compose.py.
-  - lib/api.ts: CVStructured / JobCVVersion types + cv.structured + cv.versions
-    {list, create, polish, edit}. Old cv.generateDraft removed from /cv-page
-    scope (home/page.tsx jobs.generateJobCv kept — different surface).
-  - lib/domain-data.ts: cvStructured(), cvVersions(jobId) keys.
-  - components/skills/skill-audit-view.tsx NEW (moved from cv/page.tsx).
-  - components/skills/skill-card.tsx: + expand panel with L0–L5 picker
-    (users.correctSkillLevel) + ★ Level-up advice (users.skillLevelUpAdvice).
-  - app/skills/page.tsx: VIEW pill `Domains | ◈ Audit` (replaces accordion when
-    Audit). Sort/Show pills hidden in Audit mode.
-  - app/cv/page.tsx FULL REWRITE (~360 lines): 3 modes — no-CV nudge, baseline+
-    no-jobId (read-only + "Pick a target job →" CTA), playground+versions.
-  - components/cv/cv-playground.tsx NEW: SectionShell + BulletRow + MatchBadge
-    + EyeToggle. Bullet-level toggle on Exp/Proj. Section-level toggle on
-    Summary/Edu/Skills/Certs. Live opacity+strikethrough on hidden items.
-  - components/cv/version-picker.tsx NEW: dropdown showing parent chain +
-    per-row actions (★ Polish · ✎ Edit polished · 📄 PDF).
-  - Edit modal: textarea, save creates new child version via cv.versions.edit.
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - home/page.tsx jobs.generateJobCv: still wired, consider killing in cleanup pass
-  - cv/variants.py legacy generate-draft + save-draft routes still exist —
-    no callers; safe to delete in cleanup pass
-  - Intel page perf candidates
-  - Shareability v1: /profile/{token}
-```
-
----
-## PREV SESSION SUMMARY (2026-05-17 · CV upgrade loop + user_job_matches)
-```
-CV upgrade loop closed + user_job_matches design overhaul.
-
-Shipped to Develop:
-
-  CV UPGRADE LOOP (Candidates 3+4):
-  - CVCol box deleted from HomeColumns.tsx — removed "Rewrite CV line" (100 XP)
-    and "Download tailored CV" (50 XP) buttons entirely.
-  - handleSpendXP removed from home/page.tsx (no more callers).
-  - "Open CV Builder →" link added to JobCard.tsx → /cv?jobId={job.job_id}
-    CV page already reads jobId param — flow works end-to-end.
-
-  USER_JOB_MATCHES REDESIGN:
-  - DB migration: deduplicated rows, unique key (user_id, job_id, batch_week)
-    → (user_id, job_id). action_plan column dropped.
-  - llm_ranker.py: action_plan removed from prompt + persist_matches + fallback.
-  - schemas/jobs.py: ActionPlanDay class deleted, action_plan removed from
-    JobMatchResponse.
-  - schemas/__init__.py: ActionPlanDay removed from imports + __all__.
-  - routers/jobs/_shared.py: ActionPlanDay removed, to_job_match cleaned.
-  - repositories/jobs.py: on_conflict → "user_id,job_id"; action_plan removed
-    from SELECT query.
-  - routers/jobs/analyse.py: full rewrite — 50 XP cost (was 10), weighted
-    overlap formula (PRIMARY_WEIGHT=2/SECONDARY_WEIGHT=1, no 3-match threshold),
-    LLM explanation via provider chain, upsert without action_plan.
-  - lib/api.ts: ActionPlanDay interface deleted, action_plan removed from JobMatch.
-
-  PERMANENT RULES ADDED:
-  - Long-term fixes only — no quick patches. Saved to CLAUDE.md + memory.
-
-Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - Backlog #9: Auth skeleton fade-in polish (minor)
-  - Intel page perf candidates
-  - Shareability v1: /profile/{token}
-```
----
-## PREV SESSION SUMMARY (2026-05-16)
-```
-Skill Intelligence page redesign (Phases 1–3) + mobile layout overhaul.
-(See SKILL INTELLIGENCE PAGE — REDESIGN TRACKER above for full detail.)
-```
----
-## PREV SESSION SUMMARY (2026-05-15)
-```
-Auth logout fix + Intel page full redesign (heatmap architecture overhaul).
-
-Shipped to Develop:
-
-  AUTH:
-  - Multi-tab logout fix: lib/api.ts — cross-tab localStorage lock prevents
-    parallel 401s from both calling /auth/refresh. Second tab waits for storage
-    event instead of racing → no Supabase token reuse invalidation.
-  - Supabase dashboard: JWT expiry extended to 7 days, refresh detection OFF.
-
-  INTEL PAGE — HEATMAP ARCHITECTURE REDESIGN (full rewrite of market/page.tsx):
-  Decision tree locked via /grill-me before building:
-    · Heatmap companies = followed only (user builds their own heatmap)
-    · First visit empty state with CTA pointing to TopMovers
-    · Follow costs 10 XP (burned, no refund). Floor: -30 XP (disabled below).
-    · Hard cap: 10 followed companies max (star disabled at cap)
-    · Row ordering: most recently starred first (created_at DESC from backend)
-    · Skill columns: CV skills always (mySkillDemand), Skill Lens toggles within
-    · Per-company independent useQueries — rows load in parallel, never invalidate each other
-    · Skeleton shimmer cells per row while data loads
-    · Progress banner (3-step: market data → skills → heatmap), disappears when done
-    · Hover-prefetch: hovering star in TopMovers fires prefetchQuery for that company row
-    · Star button shows "10" XP cost label; disabled states: cap OR floor
-
-  BACKEND FIXES:
-  - xp_service.py: spend_xp_to_floor(floor=-30) — XP can go negative to limit
-  - users.py router: follow_company now checks 10-cap, deducts 10 XP, returns new_xp_balance
-  - repositories/jobs.py: fetch_skill_heatmap_row — single-company method.
-    Filters skill_id at DB level (.in_("skill_id", skill_ids)) instead of
-    fetching all job_skills then filtering in Python. Kills the 23-46s query.
-    Expected: ~1-3s cold, ~150ms cached.
-  - routers/jobs/list.py: single-company requests routed to fast method.
-  - api.ts: followCompany returns new_xp_balance; new skillHeatmapRow fn.
-
-Open (next sessions):
-  - Backlog #4: ✅ DONE — loading screen shipped (progress banner + skeleton rows)
-  - Backlog #6: PR2 — Run Analysis endpoint + XP deduction
-  - Backlog #7: ✅ DONE — TopMovers shows all companies, search, follow from list
-  - Backlog #3: user_job_matches design review (discuss Shivam first)
-  - Backlog #8: Process Transparency Layer
-```
+Archived to `docs/session-history/2026-05.md` (2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).
+Read that file when prior-session context is required.

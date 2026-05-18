@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.database import get_supabase, get_supabase_admin
 from app.services.location_normalizer import normalize_location
+from app.services.user_provisioning import ensure_user_provisioned
 
 _bearer = HTTPBearer()
 _logger = logging.getLogger(__name__)
@@ -26,15 +27,14 @@ _location_backfilled_users: set[str] = set()
 
 
 def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str | None) -> None:
-    """Idempotent INSERT ... ON CONFLICT DO NOTHING on user_profiles. Fails open."""
+    """Idempotent profile seed with ninja_name. Fails open."""
     if user_id in _provisioned_users or not email:
         return
     try:
-        get_supabase_admin().table("user_profiles").upsert(
-            {"id": user_id, "email": email, "full_name": full_name},
-            on_conflict="id",
-            ignore_duplicates=True,
-        ).execute()
+        # Referral cookie is not available on bearer-token requests — only signup
+        # and login routes capture it. Pass None here so legacy users + email-
+        # confirm flows still get a ninja_name on their first authed request.
+        ensure_user_provisioned(user_id, email, full_name, myro_ref=None)
         _provisioned_users.add(user_id)
     except Exception as exc:
         # Profile provisioning must never block an authenticated request — log

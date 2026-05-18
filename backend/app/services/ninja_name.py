@@ -105,6 +105,7 @@ RESERVED_WORDS: set[str] = {
     "robots", "sitemap", "favicon", "manifest", "static", "assets",
     "fellow", "fellows", "team", "teams", "org", "orgs",
     "myro", "mirror", "true-yodha", "trueyodha",
+    "ninja-name", "ninja_name", "ninjaname",
     "null", "undefined", "test", "tests", "preview", "dev", "staging",
     "prod", "production",
 }

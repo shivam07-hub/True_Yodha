@@ -80,6 +80,14 @@ from app.schemas.users import (
     UserSkillItem,
     UserSkillsByDomainResponse,
 )
+from app.schemas.profile import (
+    JobOverlapResponse,
+    JobOverlapRow,
+    PublicProfile,
+    SuggestNinjaNameResponse,
+    UpdateNinjaNameRequest,
+    UpdateNinjaNameResponse,
+)
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
@@ -107,4 +115,6 @@ __all__ = [
     "SkillAdviceRequest", "SkillAdviceResponse",
     "SkillLevelCorrectionRequest", "SkillLevelCorrectionResponse",
     "FollowCompanyRequest", "FollowedCompany", "FollowedCompaniesResponse",
+    "PublicProfile", "JobOverlapRow", "JobOverlapResponse",
+    "UpdateNinjaNameRequest", "UpdateNinjaNameResponse", "SuggestNinjaNameResponse",
 ]

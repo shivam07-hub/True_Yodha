@@ -402,10 +402,10 @@ function SidebarForgeTimer({
         opacity: 0.7,
       }} />
 
-      {/* Top rail — STATUS · DISMISS */}
+      {/* Top rail — STATUS · PAUSE · DISMISS */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 12px 7px",
+        padding: "9px 10px 7px",
       }}>
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 5,
@@ -420,16 +420,40 @@ function SidebarForgeTimer({
           }} />
           {isComplete ? "Ready" : running ? "Forging" : "Paused"}
         </span>
-        <button
-          onClick={dismiss}
-          aria-label="Dismiss forge timer"
-          style={{
-            background: "transparent", border: "none",
-            color: "var(--tm-text-faint)", cursor: "pointer",
-            fontSize: 11, lineHeight: 1, padding: "2px 4px",
-            fontFamily: "inherit", letterSpacing: 0,
-          }}
-        >×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={() => setRunning(!running)}
+            aria-label={running ? "Pause forge" : "Resume forge"}
+            title={running ? "Pause" : "Resume"}
+            style={{
+              width: 22, height: 22, borderRadius: 6,
+              background: "transparent",
+              border: `1px solid ${accentRing}`,
+              color: accent,
+              display: "grid", placeItems: "center",
+              cursor: "pointer", fontSize: 9, lineHeight: 1,
+              fontFamily: "inherit",
+              transition: "background 160ms ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = accentSoft }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+          >
+            {running ? "❚❚" : "▶"}
+          </button>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss forge timer"
+            title="Dismiss"
+            style={{
+              width: 22, height: 22, borderRadius: 6,
+              background: "transparent", border: "1px solid var(--tm-border-soft)",
+              color: "var(--tm-text-faint)", cursor: "pointer",
+              fontSize: 12, lineHeight: 1,
+              fontFamily: "inherit",
+              display: "grid", placeItems: "center",
+            }}
+          >×</button>
+        </div>
       </div>
 
       {/* Aperture — concentric ring dial */}
@@ -489,33 +513,33 @@ function SidebarForgeTimer({
             }}
           />
 
-          {/* Center: XP numeral + clock */}
+          {/* Center: XP numeral + clock — bumped +5pt for primary reward emphasis */}
           <text
-            x={RING / 2} y={RING / 2 - 4}
+            x={RING / 2} y={RING / 2 - 2}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="22"
-            fontWeight="600"
+            fontSize="29"
+            fontWeight="700"
             fill={accent}
-            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}
+            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
           >
             +{readyXP}
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 8}
+            x={RING / 2} y={RING / 2 + 12}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
             fontSize="7"
             fill="var(--tm-text-faint)"
-            letterSpacing="2"
+            letterSpacing="2.4"
           >
             XP READY
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 22}
+            x={RING / 2} y={RING / 2 + 26}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="9.5"
+            fontSize="10"
             fill="var(--tm-text-muted)"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
@@ -524,20 +548,15 @@ function SidebarForgeTimer({
         </svg>
       </div>
 
-      {/* Skill meta line — anchored, quiet */}
-      {skillName && (
-        <div style={{
-          padding: "0 14px 8px",
-          textAlign: "center",
-          fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase",
-          color: "var(--tm-text-faint)",
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>
-          <span style={{ color: "var(--tm-text-muted)" }}>{skillName}</span>
-          <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span>
-          <span>cap +{SIDEBAR_FORGE_CAP_XP}</span>
-        </div>
-      )}
+      {/* Cap indicator — universal forge, no skill name (XP1 + universal-forge decision) */}
+      <div style={{
+        padding: "0 14px 10px",
+        textAlign: "center",
+        fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
+        color: "var(--tm-text-faint)",
+      }}>
+        Cap · +{SIDEBAR_FORGE_CAP_XP} XP / cycle
+      </div>
 
       {/* Hairline rail */}
       <div style={{
@@ -546,39 +565,17 @@ function SidebarForgeTimer({
         margin: "0 10px",
       }} />
 
-      {/* Action bar — pause/play + claim */}
-      <div style={{
-        display: "flex", alignItems: "stretch", gap: 6,
-        padding: "8px 8px 9px",
-      }}>
-        <button
-          onClick={() => setRunning(!running)}
-          aria-label={running ? "Pause forge" : "Resume forge"}
-          style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "transparent",
-            border: `1px solid ${accentRing}`,
-            color: accent,
-            display: "grid", placeItems: "center",
-            cursor: "pointer", fontSize: 10,
-            fontFamily: "inherit",
-            transition: "background 180ms ease, transform 120ms ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = accentSoft }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-        >
-          <span style={{ fontSize: 11, lineHeight: 1 }}>{running ? "❚❚" : "▶"}</span>
-        </button>
-
+      {/* Primary action — CLAIM. Always visible, full-width Fitt's target. */}
+      <div style={{ padding: "10px" }}>
         <button
           onClick={handleClaim}
           disabled={!canClaim || claiming}
           style={{
-            flex: 1, height: 32, padding: "0 12px",
-            borderRadius: 8,
+            width: "100%", height: 40, padding: "0 14px",
+            borderRadius: 10,
             background: canClaim && !claiming
-              ? `linear-gradient(90deg, ${accent} 0%, ${accent} 50%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-accent-hover)"} 100%)`
-              : "transparent",
+              ? `linear-gradient(90deg, ${accent} 0%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-accent-hover)"} 50%, ${accent} 100%)`
+              : "var(--tm-surface-2)",
             backgroundSize: canClaim && !claiming ? "200% 100%" : "auto",
             animation: canClaim && !claiming ? "forge-aurora 6s ease-in-out infinite alternate" : "none",
             border: canClaim && !claiming
@@ -586,14 +583,16 @@ function SidebarForgeTimer({
               : `1px dashed ${accentRing}`,
             color: canClaim && !claiming
               ? "var(--tm-accent-fg)"
-              : "var(--tm-text-faint)",
-            fontSize: 10, fontWeight: 600,
-            letterSpacing: "0.18em", textTransform: "uppercase",
+              : "var(--tm-text-muted)",
+            fontSize: 12, fontWeight: 700,
+            letterSpacing: "0.22em", textTransform: "uppercase",
             cursor: canClaim && !claiming ? "pointer" : "not-allowed",
             fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            transition: "transform 120ms ease, box-shadow 200ms ease",
-            boxShadow: canClaim && !claiming ? `0 4px 14px -6px ${accent}` : "none",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "transform 120ms ease, box-shadow 200ms ease, background 200ms ease",
+            boxShadow: canClaim && !claiming
+              ? `0 6px 18px -6px ${accent}, inset 0 1px 0 rgba(255,255,255,0.18)`
+              : "inset 0 1px 0 rgba(255,255,255,0.04)",
           }}
           onMouseEnter={(e) => {
             if (canClaim && !claiming) e.currentTarget.style.transform = "translateY(-1px)"
@@ -601,13 +600,18 @@ function SidebarForgeTimer({
           onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
         >
           {claiming ? (
-            <span style={{ letterSpacing: "0.4em" }}>· · ·</span>
-          ) : (
+            <span style={{ letterSpacing: "0.5em" }}>· · ·</span>
+          ) : canClaim ? (
             <>
               <span>Claim</span>
-              <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em" }}>+{readyXP}</span>
-              <span style={{ fontSize: 11, letterSpacing: 0, marginLeft: 1 }}>→</span>
+              <span style={{
+                fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em",
+                fontSize: 13, fontWeight: 800,
+              }}>+{readyXP}</span>
+              <span style={{ fontSize: 14, letterSpacing: 0, marginLeft: 2 }}>→</span>
             </>
+          ) : (
+            <span style={{ opacity: 0.7 }}>Building</span>
           )}
         </button>
       </div>
