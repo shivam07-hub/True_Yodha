@@ -74,18 +74,69 @@ class CVVersionsRepository:
         user_id: str,
         job_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return baseline rows + (optionally) per-job derivative rows for a user.
+        """Return baseline rows + scoped derivative rows for a user.
 
         With job_id=None: returns ALL rows for the user (every baseline + every derivative).
-        With job_id='X':  returns every baseline row + every row where job_id='X'.
+        With job_id='X':  returns every baseline row + every derivative row for the
+                          same company as job X.
         Ordered by user_version_number DESC (newest first).
         """
-        query = self._db.table("cv_versions").select("*").eq("user_id", user_id)
-        if job_id is not None:
-            # Baselines (job_id IS NULL) OR rows for the requested job.
-            query = query.or_(f"job_id.is.null,job_id.eq.{job_id}")
-        result = query.order("user_version_number", desc=True).execute()
-        return result.data or []
+        select_cols = "*, jobs(job_title, company_name)"
+        if job_id is None:
+            result = (
+                self._db.table("cv_versions")
+                .select(select_cols)
+                .eq("user_id", user_id)
+                .order("user_version_number", desc=True)
+                .execute()
+            )
+            return result.data or []
+
+        scoped_job_ids = self._company_job_ids_for_job(job_id)
+        baselines = (
+            self._db.table("cv_versions")
+            .select(select_cols)
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .execute()
+        ).data or []
+        variants = (
+            self._db.table("cv_versions")
+            .select(select_cols)
+            .eq("user_id", user_id)
+            .in_("job_id", scoped_job_ids)
+            .execute()
+        ).data or []
+        return sorted(
+            [*baselines, *variants],
+            key=lambda row: int(row.get("user_version_number") or 0),
+            reverse=True,
+        )
+
+    def _company_job_ids_for_job(self, job_id: str) -> list[str]:
+        target = (
+            self._db.table("jobs")
+            .select("company_name")
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        )
+        company_name = (target.data or [{}])[0].get("company_name")
+        if not company_name:
+            return [job_id]
+
+        company_jobs = (
+            self._db.table("jobs")
+            .select("job_id")
+            .eq("company_name", company_name)
+            .execute()
+        )
+        ids = [
+            row["job_id"]
+            for row in (company_jobs.data or [])
+            if row.get("job_id")
+        ]
+        return ids or [job_id]
 
     def latest_baseline(self, user_id: str) -> dict[str, Any] | None:
         result = (

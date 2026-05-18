@@ -49,23 +49,34 @@ export function formatGlobalVersionLabel(version: CVVersion): string {
   return `CV v${version.user_version_number}`
 }
 
-export function formatJobVersionLabel(version: CVVersion, jobVersions: CVVersion[]): string {
-  const index = oldestFirst(jobVersions).findIndex(v => v.id === version.id)
+function companyVersions(threadVersions: CVVersion[]): CVVersion[] {
+  return threadVersions.filter(v => v.kind !== "baseline_upload")
+}
+
+export function formatThreadVersionLabel(version: CVVersion, threadVersions: CVVersion[]): string {
+  if (version.kind === "baseline_upload") return "Master CV"
+
+  const index = oldestFirst(companyVersions(threadVersions)).findIndex(v => v.id === version.id)
   if (index === -1) return formatGlobalVersionLabel(version)
-  return `Job v${index + 1}`
+  return `Company CV v${index + 1}`
+}
+
+export function formatVersionContext(version: CVVersion): string {
+  if (version.kind === "baseline_upload") return "Master baseline"
+  return [version.job_title, version.company_name].filter(Boolean).join(" · ") || "Job-specific version"
 }
 
 export function formatParentVersionLabel(
   parentVersionId: number | null,
-  jobVersions: CVVersion[],
-  lineageVersions: CVVersion[] = jobVersions,
+  threadVersions: CVVersion[],
+  lineageVersions: CVVersion[] = threadVersions,
 ): string | null {
   if (!parentVersionId) return null
 
   const parent = lineageVersions.find(v => v.id === parentVersionId)
   if (!parent) return null
-  if (parent.kind === "baseline_upload") return `baseline v${parent.user_version_number}`
-  if (jobVersions.some(v => v.id === parent.id)) return formatJobVersionLabel(parent, jobVersions)
+  if (parent.kind === "baseline_upload") return "Master CV"
+  if (threadVersions.some(v => v.id === parent.id)) return formatThreadVersionLabel(parent, threadVersions)
   return formatGlobalVersionLabel(parent)
 }
 
@@ -97,11 +108,11 @@ export function VersionPicker({
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <span style={{ color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>
-              {selected ? `${kindIcon(selected.kind)} ${formatJobVersionLabel(selected, versions)}` : "no versions yet"}
+              {selected ? `${kindIcon(selected.kind)} ${formatThreadVersionLabel(selected, versions)}` : "no versions yet"}
             </span>
             {selected && (
               <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-                · {formatGlobalVersionLabel(selected)} · {timeAgo(selected.created_at)} · {selected.hidden_items.length ? `${selected.hidden_items.length} hidden` : "all items kept"}
+                · {formatVersionContext(selected)} · {formatGlobalVersionLabel(selected)} · {timeAgo(selected.created_at)} · {selected.hidden_items.length ? `${selected.hidden_items.length} hidden` : "all items kept"}
               </span>
             )}
           </span>
@@ -136,22 +147,24 @@ export function VersionPicker({
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: isActive ? "var(--tm-accent)" : "var(--tm-text)" }}>
-                      {kindIcon(v.kind)} {formatJobVersionLabel(v, versions)} · {v.kind}
+                      {kindIcon(v.kind)} {formatThreadVersionLabel(v, versions)} · {v.kind}
                     </span>
                     <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{timeAgo(v.created_at)}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
-                    {formatGlobalVersionLabel(v)}
+                    {formatVersionContext(v)} · {formatGlobalVersionLabel(v)}
                     {v.title ? <> · {v.title}</> : null}
                     {parentLabel ? <> · from {parentLabel}</> : null}
                   </div>
                   {isActive && (
                     <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                      <ActionPill
-                        onClick={() => { onPolish(v.id); setOpen(false) }}
-                        disabled={isPolishing}
-                        label={isPolishing ? "Polishing…" : "★ Polish"}
-                      />
+                      {v.kind !== "baseline_upload" && (
+                        <ActionPill
+                          onClick={() => { onPolish(v.id); setOpen(false) }}
+                          disabled={isPolishing}
+                          label={isPolishing ? "Polishing…" : "★ Polish"}
+                        />
+                      )}
                       {(v.kind === "polished" || v.kind === "edited") && (
                         <ActionPill
                           onClick={() => { onEdit(v.id); setOpen(false) }}

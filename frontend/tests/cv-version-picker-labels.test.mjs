@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 const versionPicker = await import("../components/cv/version-picker.tsx")
-const helpers = versionPicker.formatJobVersionLabel ? versionPicker : versionPicker.default
+const helpers = versionPicker.formatThreadVersionLabel ? versionPicker : versionPicker.default
 
 const baseline = {
   id: 4,
@@ -26,6 +26,8 @@ const autodeskV1 = {
   user_version_number: 15,
   kind: "deterministic",
   job_id: "autodesk-workplace-events-lead",
+  job_title: "Workplace Events Lead",
+  company_name: "Autodesk",
   parent_version_id: 4,
   baseline_version_id: 4,
   hidden_items: ["summary:a"],
@@ -45,14 +47,17 @@ const sanofiVersion = {
   id: 23,
   user_version_number: 14,
   job_id: "sanofi-project-manager",
+  job_title: "Head of Internal Stakeholder and Project Management",
+  company_name: "Sanofi",
 }
 
-const jobVersions = [autodeskV2, autodeskV1]
+const companyVersions = [baseline, autodeskV2, autodeskV1]
 const allVersions = [autodeskV2, autodeskV1, sanofiVersion, baseline]
 
-test("job version labels are local to the current job history", () => {
-  assert.equal(helpers.formatJobVersionLabel(autodeskV1, jobVersions), "Job v1")
-  assert.equal(helpers.formatJobVersionLabel(autodeskV2, jobVersions), "Job v2")
+test("thread labels expose the master CV and company-local CV versions", () => {
+  assert.equal(helpers.formatThreadVersionLabel(baseline, companyVersions), "Master CV")
+  assert.equal(helpers.formatThreadVersionLabel(autodeskV1, companyVersions), "Company CV v1")
+  assert.equal(helpers.formatThreadVersionLabel(autodeskV2, companyVersions), "Company CV v2")
 })
 
 test("global CV version is still available as metadata", () => {
@@ -61,14 +66,22 @@ test("global CV version is still available as metadata", () => {
 
 test("parent labels resolve baseline parents outside the job-scoped list", () => {
   assert.equal(
-    helpers.formatParentVersionLabel(autodeskV2.parent_version_id, jobVersions, allVersions),
-    "baseline v2",
+    helpers.formatParentVersionLabel(autodeskV2.parent_version_id, companyVersions, allVersions),
+    "Master CV",
   )
 })
 
-test("parent labels prefer job-local names when the parent belongs to this job", () => {
+test("parent labels prefer company-thread names when the parent belongs to this company", () => {
   assert.equal(
-    helpers.formatParentVersionLabel(autodeskV1.id, jobVersions, allVersions),
-    "Job v1",
+    helpers.formatParentVersionLabel(autodeskV1.id, companyVersions, allVersions),
+    "Company CV v1",
   )
+})
+
+test("version subtitles name the job behind a company CV version", () => {
+  assert.equal(
+    helpers.formatVersionContext(autodeskV2),
+    "Workplace Events Lead · Autodesk",
+  )
+  assert.equal(helpers.formatVersionContext(baseline), "Master baseline")
 })

@@ -384,6 +384,8 @@ export interface CVVersion {
   polished_text: string | null
   ai_polished: boolean
   created_at: string
+  job_title: string | null
+  company_name: string | null
 }
 
 export const cv = {

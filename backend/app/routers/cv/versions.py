@@ -63,6 +63,8 @@ class CVVersionResponse(BaseModel):
     polished_text:        str | None
     ai_polished:          bool
     created_at:           datetime
+    job_title:            str | None = None
+    company_name:         str | None = None
 
 
 class CVVersionListResponse(BaseModel):
@@ -77,6 +79,7 @@ def _db_dep(current_user: dict = Depends(get_current_user)) -> Client:
 
 
 def _to_response(row: dict[str, Any]) -> CVVersionResponse:
+    job = row.get("jobs") or {}
     return CVVersionResponse(
         id=row["id"],
         user_version_number=row.get("user_version_number") or 1,
@@ -91,6 +94,8 @@ def _to_response(row: dict[str, Any]) -> CVVersionResponse:
         polished_text=row.get("polished_text"),
         ai_polished=bool(row.get("ai_polished")),
         created_at=row["created_at"],
+        job_title=row.get("job_title") or job.get("job_title"),
+        company_name=row.get("company_name") or job.get("company_name"),
     )
 
 
@@ -113,9 +118,9 @@ async def list_cv_versions(
     current_user: dict = Depends(get_current_user),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> CVVersionListResponse:
-    """Return baselines + per-job derivatives for the current user.
+    """Return baselines + scoped derivatives for the current user.
 
-    With job_id query param: baselines + rows for that job.
+    With job_id query param: baselines + rows for that job's company.
     Without: all rows (baselines + every derivative for every job).
     """
     rows = cv_repo.list_versions(current_user["user_id"], job_id=job_id)
