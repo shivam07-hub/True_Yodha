@@ -1,4 +1,4 @@
-    from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
+from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
 from app.schemas.cv import (
     CVEvidenceSummaryResponse,
     CVUploadResponse,
