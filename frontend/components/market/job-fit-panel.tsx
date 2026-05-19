@@ -48,7 +48,7 @@ function PillGap({ label, skill }: { label: string; skill: string }) {
     }}>
       ✗ {label}
       <Link
-        href={`/diary?skill=${encodeURIComponent(skill)}`}
+        href={`/forge?diary=1&skill=${encodeURIComponent(skill)}`}
         style={{
           fontSize: 10, padding: "1px 6px", borderRadius: 999,
           background: P.warnW, border: `1px solid rgba(255,179,71,0.4)`,

@@ -75,6 +75,7 @@ export function AppShellSkeleton() {
 
 const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stalePill?: boolean }> = [
   { href: "/home",    label: "Dashboard", icon: null },
+  { href: "/forge",   label: "Forge",     icon: "◆" },
   { href: "/market",  label: "Intel",     icon: "◉" },
   { href: "/skills",  label: "Skills",    icon: "⬡" },
   { href: "/cv",      label: "CV",        icon: "◈" },

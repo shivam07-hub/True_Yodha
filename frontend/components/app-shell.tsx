@@ -28,6 +28,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/forge",   label: "Forge",      desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
@@ -516,12 +517,12 @@ function SidebarForgeTimer({
             }}
           />
 
-          {/* Center: XP numeral + clock — bumped +5pt for primary reward emphasis */}
+          {/* Center: XP numeral + clock — compact enough to host the Forge entry affordance. */}
           <text
-            x={RING / 2} y={RING / 2 - 2}
+            x={RING / 2} y={RING / 2 - 10}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="29"
+            fontSize="27"
             fontWeight="700"
             fill={accent}
             style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
@@ -529,7 +530,7 @@ function SidebarForgeTimer({
             +{readyXP}
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 12}
+            x={RING / 2} y={RING / 2 + 3}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
             fontSize="7"
@@ -539,16 +540,46 @@ function SidebarForgeTimer({
             XP READY
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 26}
+            x={RING / 2} y={RING / 2 + 16}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="10"
+            fontSize="9"
             fill="var(--tm-text-muted)"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             {clock}
           </text>
         </svg>
+        <Link
+          href="/forge"
+          aria-label="Enter Forge"
+          className="tm-control-focus"
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "calc(50% + 24px)",
+            transform: "translateX(-50%)",
+            height: 19,
+            minWidth: 66,
+            padding: "0 8px",
+            borderRadius: 999,
+            border: `1px solid ${accentRing}`,
+            background: "rgba(5,10,24,0.72)",
+            color: accent,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            fontFamily: "var(--tm-font-mono)",
+            fontSize: 8,
+            fontWeight: 800,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            boxShadow: running ? `0 0 10px ${accentSoft}` : "none",
+          }}
+        >
+          Forge ↗
+        </Link>
       </div>
 
       {/* Cap indicator — universal forge, no skill name (XP1 + universal-forge decision) */}
@@ -847,12 +878,17 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned
   )
 }
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/xp"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/forge", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
   const { balance: xpBalance, addBalance, setBalance: setXPBalance } = useXPStore()
   const pathname = usePathname()
+
+  useEffect(() => {
+    if (!token) return
+    xp.balance(token).then((response) => setXPBalance(response.balance)).catch(() => {})
+  }, [token, setXPBalance])
 
   async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
     if (!token) throw new Error("Not authenticated")

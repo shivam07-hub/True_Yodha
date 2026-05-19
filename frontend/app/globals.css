@@ -126,6 +126,60 @@
   }
 }
 
+.tm-forge-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
+  gap: 18px;
+  align-items: start;
+  transition: grid-template-columns var(--tm-dur-slow) var(--tm-ease);
+}
+
+.tm-forge-layout[data-diary="closed"] {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+.tm-forge-diary-rail {
+  min-width: 0;
+  overflow: hidden;
+  transition: opacity var(--tm-dur-slow) var(--tm-ease), transform var(--tm-dur-slow) var(--tm-ease);
+}
+
+.tm-forge-layout[data-diary="closed"] .tm-forge-diary-rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(18px);
+}
+
+.tm-forge-diary-card {
+  width: min(380px, 100%);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-2);
+  overflow: hidden;
+}
+
+@media (max-width: 1080px) {
+  .tm-forge-layout,
+  .tm-forge-layout[data-diary="closed"] {
+    grid-template-columns: 1fr;
+  }
+
+  .tm-forge-layout[data-diary="closed"] .tm-forge-diary-rail {
+    display: none;
+  }
+
+  .tm-forge-diary-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .tm-forge-stage {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ── MDX article prose ────────────────────────────────────────── */
 .mdx-prose {
   color: var(--tm-text);

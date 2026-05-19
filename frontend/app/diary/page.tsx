@@ -1,8 +1,8 @@
 "use client"
 
 /**
- * /diary is now merged into /home.
- * This file redirects to /home, preserving any query params (?jobId=, ?milestoneId=, etc.)
+ * /diary is now merged into /forge.
+ * This file redirects to /forge, preserving any query params (?jobId=, ?milestoneId=, etc.)
  * so that deep-links from /tracker and pipeline cards continue to work.
  */
 
@@ -15,7 +15,9 @@ function DiaryRedirectInner() {
 
   useEffect(() => {
     const qs = searchParams.toString()
-    router.replace(qs ? `/home?${qs}#forge-section` : "/home#forge-section")
+    const params = new URLSearchParams(qs)
+    params.set("diary", "1")
+    router.replace(`/forge?${params.toString()}`)
   }, [router, searchParams])
 
   return null
