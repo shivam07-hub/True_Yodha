@@ -699,6 +699,13 @@ export interface CompanyPage {
   reviews: CompanyReviewItem[]
 }
 
+export interface CVBadge {
+  version_id: number
+  version_number: number
+  kind: CVVersionKind
+  polished: boolean
+}
+
 export interface ApplicationResponse {
   id: number
   job_id: string
@@ -717,6 +724,7 @@ export interface ApplicationResponse {
   created_at: string
   last_stage_changed_at?: string | null
   is_first_offer?: boolean
+  cv_badge?: CVBadge | null
 }
 
 export interface JobPathTarget {

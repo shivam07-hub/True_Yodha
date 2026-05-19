@@ -123,7 +123,12 @@ async def list_cv_versions(
     With job_id query param: baselines + rows for that job's company.
     Without: all rows (baselines + every derivative for every job).
     """
-    rows = cv_repo.list_versions(current_user["user_id"], job_id=job_id)
+    user_id = current_user["user_id"]
+    rows = (
+        cv_repo.list_thread_for_job(user_id, job_id)
+        if job_id is not None
+        else cv_repo.list_all(user_id)
+    )
     return CVVersionListResponse(versions=[_to_response(r) for r in rows])
 
 

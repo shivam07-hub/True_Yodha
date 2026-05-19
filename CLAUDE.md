@@ -167,6 +167,18 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 13. **Frontend loading-time reduction + deep loading module** (locked 2026-05-19 via grill-me) — full plan below. Do NOT code until `/improve-codebase-architecture` pass on the deep module lands first.
 
+14. ~~**Company CV Thread + Tracker CV badge**~~ ✅ DONE 2026-05-19 — CV2/CV3/CV4 lock. CONTEXT.md gets `Company CV Thread` concept. Backend `CVVersionsRepository.list_thread / list_thread_for_job / latest_for_thread / latest_for_thread_batch`. `ApplicationResponse.cv_badge` ships per row via batched company-thread lookup. Frontend: `useCVPlayground` hook (kills hidden_items race), `<CVCommitPane>` (persist pane unsaved→saved with scale-pop), `ApplicationCard` renders `◐ Company CV v{n}` pill linking to `/cv?jobId=row`. Per-job filter bug deleted. 294 backend tests green; tsc + lint clean.
+
+15. **Marketing reshuffle — Intel/About** ✅ DONE 2026-05-19 — Intel page (`/`) keeps only IntelPane. About page (`/about`) gets SampleDiagnostic appended. Top-nav order: About · Newsletter · Intel.
+
+16. **Skills card — 3-button upgrade affordance restored** ✅ DONE 2026-05-19 — `InlineSkillCard` (in `frontend/components/skills/domain-accordion-row.tsx`) now renders 3 always-visible icon buttons after the excerpt: ✎ → `/cv?skill=<display_name>` Link, ✦ → `users.skillLevelUpAdvice` (-20 XP, FREE pill when `forged_level_up_available`, advice expands inline), ☆ → `diary.createEntry` (flips to ✓ active). Token threaded from caller. CV deeplink: `CVVersionLedger` accepts `highlightSkill`, splits preview text, wraps matches in `<mark>` with accent ring, auto-scrolls first hit into center. `app/cv/page.tsx` reads `?skill=` searchParam → passes through. tsc + lint clean.
+
+   **Carryover for next session (decide angle before coding):**
+   - **Fix-my-level picker.** Old rich `SkillCard` had a 0–5 level-correction picker calling `users.correctSkillLevel`. Dropped from new inline card. Decide: restore as 4th icon (◐?), surface in per-skill modal, or sunset entirely now that forged level-ups give a richer signal. The endpoint + API client still exist.
+   - **CV deeplink Mode 3 (tailored playground).** `?skill=` only highlights baseline ledger (Mode 2 — `hasBaseline && !jobId`). If user lands on `/cv?jobId=…&skill=…` (e.g. coming from a tailored-CV surface), the `BulletRow`s inside `CVPlayground` are not highlighted. Wire `focusSkill` into `CVPlayground` + scroll first matching bullet into view.
+   - **Diary log cache invalidation.** `logDiary.onSuccess` only flips local `logged` state. No `queryClient.invalidateQueries` for diary list, daily_logs, scores, or XP balance refresh — diary entry awards +30 XP that won't appear in the wallet until next manual refetch.
+   - **`/cv?skill=` deeplink fidelity.** Substring match is naïve — short skill names ("R", "Go") will false-positive. Add word-boundary guard, or pass skill `key` instead of `display_name` and let the CV side resolve to the evidence_text excerpt.
+
 ---
 
 ## FRONTEND LOADING-TIME REDUCTION — PLAN (Backlog #13, locked 2026-05-19 via grill-me)
@@ -282,204 +294,31 @@ Resist temptation (do NOT add ambient to): `/home`, `/dashboard`, `/tracker`, `/
 
 ---
 
-## MOBILE ENTERPRISE POLISH + PWA — PLAN (Backlog #9, ✅ CLOSED 2026-05-19)
+## MOBILE — v2 NATIVE APK (Backlog #9, v1 PWA ✅ CLOSED 2026-05-19)
 
-**v1 PWA shipped** — react-loading-skeleton, layout fixes (L1–L7), manifest + icons, loading-state audit. Detail in `docs/session-history/2026-05.md` (2026-05-18, 2026-05-19 entries).
+v1 PWA detail archived in `docs/session-history/2026-05.md`. v2 kicks off after 1000 PWA users.
 
-### v2 scope — Native APK on Google Play (deferred, kicks off after 1000 PWA users per OQ note)
+**v2 prerequisites (all must ship first):**
+1. ✅ Shareability v1 — referral hook (closed 2026-05-19).
+2. `packages/api-client/` extraction with injectable storage adapter (AsyncStorage/localStorage).
+3. All backend routes prefixed `/v1/` — versioning contract.
+4. `device_tokens` table + `POST /push/register` — FCM/APNs.
 
-**Prerequisites:**
-1. Shareability v1 (`/profile/{token}`) shipped — referral hook.
-2. `lib/api.ts` + `lib/session.ts` extracted into `packages/api-client/` with injectable storage adapter (AsyncStorage for RN, localStorage for web).
-3. All backend routes prefixed `/v1/` — versioning contract before native release.
-4. `device_tokens` table + `POST /push/register` endpoint shipped — FCM/APNs delivery.
+**v2 layout:** `mobile-native/` sibling folder (Expo SDK 51+ TS), NOT inside `frontend/`. Native libs land only in `mobile-native/package.json` (Expo-on-Next bundler pollution = Vercel break).
 
-**Native scaffold (new repo OR `mobile-native/` sibling folder — NOT inside `frontend/`):**
+**Decisions still open:** monorepo tool (lean turborepo), auth flow (deep-link vs `expo-auth-session`), diary push cadence (8pm local default), Android-first.
 
-```bash
-# Expo SDK 51+ blank TypeScript template
-npx create-expo-app@latest mobile-native --template blank-typescript
-cd mobile-native
-
-# Core deps
-npx expo install \
-  expo-router \
-  @supabase/supabase-js \
-  @react-native-async-storage/async-storage \
-  react-native-url-polyfill \
-  @tanstack/react-query \
-  expo-secure-store \
-  expo-notifications \
-  expo-device \
-  expo-constants \
-  expo-splash-screen \
-  expo-system-ui \
-  expo-status-bar \
-  react-native-safe-area-context \
-  react-native-screens \
-  react-native-gesture-handler \
-  react-native-reanimated
-
-# Build / submit
-npm i -D eas-cli
-
-# Shared workspace at repo root
-# /Users/incognito/True_Yodha/
-#   ├── frontend/         (Next.js — web + PWA)
-#   ├── mobile-native/    (Expo RN — Android/iOS)
-#   ├── packages/
-#   │   └── api-client/   (shared lib/api.ts, lib/session.ts, types)
-#   └── backend/          (FastAPI, unchanged)
-```
-
-**Decisions still open (do NOT lock until shareability ships):**
-- Monorepo tool: `pnpm workspaces` vs `nx` vs `turborepo`. Lean `turborepo` — simplest, Vercel-aligned.
-- Auth flow: deep-link OAuth callback vs in-app browser (`expo-auth-session`).
-- Diary push notification cadence: 8pm local default, user-configurable.
-- iOS first or Android first: Android first (Play Store, lower cost, broader Myro target demographic).
-
-**Hard rule:** Do NOT add RN/Expo packages to `frontend/package.json`. Wrong package.json pollutes Next.js bundler + breaks Vercel. Native libs land in `mobile-native/package.json` only.
-
-### Architecture audit (post-ef8dd21, via /improve-codebase-architecture)
-
-**Shipped (durable wins, see history):** breakpoint constant, CONTEXT.md Viewport Mode section, `useViewport()` provider (deepening #1), `frontend/mobile/` module (deepening #3).
-
-**Open:**
-- ⏸ **Deepening #2 — `<ResponsiveStack>` primitive.** DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks → ship it. 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`).
-- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). ✅ Shareability v1 unblock landed 2026-05-19. Still blocked on: `packages/api-client/` extraction + turborepo decision. Do NOT scaffold until both are real.
+**Open deepenings:**
+- ⏸ `<ResponsiveStack>` primitive — DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks.
+- `packages/mobile-shared/` extraction — blocked on `packages/api-client/` + turborepo decision.
 
 ---
 
-## SHAREABILITY v1 — PLAN (Backlog #12, locked 2026-05-19 via grill-me)
+## SHAREABILITY v1 — ✅ CLOSED 2026-05-19
 
-### Vision
-Every Myro user is a viral seed. The Domain Map (12-domain radar from `/skills`) is the magnetic share artifact. A logged-out viewer who lands on `/profile/{ninja_name}` sees the ninja's radar alongside their own *empty* radar — the ghost is the conversion CTA. The college fellowship program treats every fellow's `/profile/` link as the rollout vector for their cohort. Forward-compat: v2 adds XP-for-referral on each completed onboarding.
+Backlog #12 shipped. Full plan + DB migration + design spec archived in `docs/session-history/2026-05.md`. Decisions SH1–SH7 stay in **DECISIONS LOCKED** above.
 
-### Decisions (SH1–SH7)
-See **DECISIONS LOCKED** table above.
-
-### DB — Migration `database/migrations/20260519_shareability_v1.sql`
-
-```sql
-BEGIN;
-
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS ninja_name TEXT UNIQUE,
-  ADD COLUMN IF NOT EXISTS referred_by_user_id UUID REFERENCES auth.users(id);
-
-CREATE INDEX IF NOT EXISTS idx_user_profiles_ninja_name ON user_profiles(ninja_name);
-
--- Backfill: every existing user gets a generated ninja_name via service fn.
--- Run in app code (loop with retry-on-conflict) before NOT NULL.
-
-ALTER TABLE user_profiles
-  ALTER COLUMN ninja_name SET NOT NULL;
-
--- Public read surface (no PII)
-CREATE OR REPLACE VIEW public_profile_v AS
-  SELECT
-    up.ninja_name,
-    ms.mirror_score,
-    ms.domain_scores,
-    ms.tier_label,
-    (SELECT COUNT(*) FROM forge_sessions WHERE user_id = up.id) AS forge_sessions_count,
-    (SELECT COUNT(*) FROM daily_logs    WHERE user_id = up.id) AS diary_count,
-    (SELECT COUNT(*) FROM job_applications WHERE user_id = up.id) AS tracker_count
-  FROM user_profiles up
-  LEFT JOIN mirror_scores ms ON ms.user_id = up.id;
-
-GRANT SELECT ON public_profile_v TO anon, authenticated;
-
-NOTIFY pgrst, 'reload schema';
-COMMIT;
-```
-
-### Backend — New + Modified
-
-**New: `backend/app/services/ninja_name.py`**
-- `generate() -> str` — picks `{adjective}-{noun}-{4charsuffix}` from curated wordlists. Suffix avoids collision; retry-on-conflict.
-- `is_valid(name: str) -> bool` — regex `^[a-z0-9-]{3,32}$` + reserved-words blocklist (`admin`, `signup`, `login`, `api`, `profile`, `xp`, `home`, etc).
-- `is_available(name: str, db) -> bool` — DB uniqueness check.
-
-**New: `backend/app/routers/profile/public.py`**
-- `GET /profile/{ninja_name}` — no auth. Returns `PublicProfile` (score, domain_scores, tier, counts). 404 if not found.
-- `GET /profile/{ninja_name}/overlap` — auth required. Returns up to 3 jobs both viewer + owner have saved. Match% from `user_job_matches` if exists, else basic overlap.
-- `POST /profile/ninja-name` — auth required. Update own `ninja_name`. Validates + uniqueness checks.
-
-**Modified: `backend/app/routers/auth.py`** — `_upsert_user_profile()` generates `ninja_name` on first provision. Signup handler reads `myro_ref` cookie via FastAPI `Cookie()`, resolves ninja_name → user_id, writes `referred_by_user_id` (self-ref guard: skip if same id).
-
-**Modified: `backend/app/schemas/users.py`** — add `ninja_name` + `referred_by_user_id` to `UserProfile`. New `PublicProfile` schema.
-
-### Frontend — New + Modified
-
-**New routes**
-- `frontend/app/profile/[ninja]/page.tsx` — server-component fetch from `/profile/{ninja}`, client-component renders.
-- `frontend/app/profile/[ninja]/opengraph-image.tsx` — Next.js dynamic OG; renders radar SVG → PNG. Edge-cached 24h.
-- `frontend/app/profile/[ninja]/loading.tsx` — radar skeleton.
-
-**New components**
-- `components/profile/PublicProfilePage.tsx` — main client component, 2-col grid (ninja radar | ghost-or-overlay).
-- `components/profile/GhostRadar.tsx` — outline SVG, `+` glyph, `unlock` label, wraps to `/signup?ref={ninja}`.
-- `components/profile/RadarOverlay.tsx` — dual-color SVG: ninja's polygon + viewer's polygon.
-- `components/profile/JobOverlapRows.tsx` — compact table, max 3 rows.
-- `components/profile/ShareButton.tsx` — Web Share API call; clipboard fallback; `↗` icon only.
-- `components/onboarding/NinjaNameStep.tsx` — onboarding step with auto-suggested name + input.
-
-**Modified**
-- `frontend/app/skills/page.tsx` — drops `<ShareButton />` top-right.
-- `frontend/app/signup/page.tsx` — reads `?ref=`, writes `myro_ref` cookie (`Max-Age=2592000; SameSite=Lax`).
-- `frontend/app/onboarding/page.tsx` — adds NinjaNameStep before final.
-- `frontend/lib/api.ts` — adds `profile.public(ninja)`, `profile.overlap(ninja, token)`, `users.updateNinjaName(name, token)`.
-- `frontend/components/skills/DomainRadar` — extract pure path-math helper so `GhostRadar` + OG image both consume.
-
-### Design Spec (ghost radar — the conversion mechanic)
-
-**Layout**
-- Desktop: 2-col grid, gap 24px, both radars 280×280.
-- Mobile: stacked, ninja top, ghost below, both 100% width capped at 320px.
-
-**Ghost radar visual**
-- 12 spokes, stroke `var(--tm-border-soft)`, opacity 0.18.
-- No fill polygon. No dot vertices.
-- Center: `+` glyph 28px, color `var(--tm-accent)`, opacity 0.55.
-- Below center (in-SVG `<text>`): `unlock` 9px caps, letter-spacing 0.2em, opacity 0.45.
-- Entire SVG wrapped in `<a>` → `/signup?ref={ninja_name}`.
-
-**Motion (animation budget = 600ms total cold start)**
-- Ninja radar polygon: stroke-dashoffset 0→full over 900ms `cubic-bezier(0.22,1,0.36,1)`.
-- Ghost radar: opacity 0→0.18 over 600ms, delayed 400ms.
-- Hover ghost: `+` glyph scale 1→1.08 over 200ms ease-out; stroke opacity → 0.3.
-- `@media (prefers-reduced-motion: reduce)`: no scale, no dashoffset; instant render.
-- All animated properties: `transform` and `opacity` only (compositor-friendly, no layout thrash).
-
-**Accessibility**
-- `<a aria-label="Unlock your domain map — sign up">`.
-- `:focus-visible` → 2px solid `var(--tm-accent)` ring, offset 4px.
-- `+` glyph contrast ≥ 4.5:1 on background.
-
-**Performance**
-- Single SVG per radar, no canvas.
-- Path data inlined (no fetch).
-- OG image: edge-cached 24h, computed from the same public payload the page reads.
-- No `backdrop-filter`, no blur, no shadow on ghost.
-
-### Tests
-
-- `backend/tests/test_ninja_name_service.py` — generate format, validate rules, reserved-words block, uniqueness retry.
-- `backend/tests/test_public_profile_router.py` — payload shape, 404, no PII leakage (assert email/full_name/linkedin_url absent from response).
-- `backend/tests/test_referral_attribution.py` — cookie → column write, self-ref guard, idempotency, signup without ref still works.
-- `backend/tests/test_job_overlap_router.py` — overlap math, max 3 rows, empty overlap = 200 with empty list.
-- `frontend/tests/share-button.test.mjs` — `navigator.share` call shape, clipboard fallback path.
-
-### Out of scope for v1 (logged for v2)
-
-- XP-for-referral payout (DB column ready; trigger not built).
-- Custom share modal with platform grid.
-- Vanity name change cooldown / cost.
-- Public profile SEO (`robots: noindex` initially — flip after v1 hardening).
-- Per-event referral analytics (`referrals_log` table).
-- Mentor/mentee surfacing.
-- Public profile theming (dark/light mode toggle for shared page).
+**v2 (deferred):** XP-for-referral trigger on `welcome_xp_granted = TRUE AND referred_by_user_id IS NOT NULL`. `referrals_log` analytics table. Mentor/mentee surfacing. Public profile theming.
 
 ---
 
@@ -520,23 +359,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Backlog #8 + cleanup + scoring facade split)
+## LAST SESSION SUMMARY (2026-05-19 · Skills card 3-button restore + CV deeplink)
 
-Scoring engine refactor — parked Q #1 closed. `compute_and_persist_score()` audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge confirmed false INFERRED edge. Function split into 3 typed facades preserving OQ4.
+Skills page `InlineSkillCard` had lost its upgrade affordance (only name + tag + excerpt rendered). User specced 3 buttons; design choices locked inline via AskUserQuestion (icon-row always visible · keep 20 XP gate w/ free unlock · add `/cv?skill=` deeplink).
 
-- New: `services/scoring/orchestrator.py` (`record_cv_score`, `recompute_score`, `project_score`), `aspirations.py`, `market.py`.
-- Deleted: `scoring_engine.py` shim, `services/scoring/persistence.py`.
-- Privatised: `_persist_score`, `_build_user_skill_rows`. Dead flag `persist=False` removed.
-- ADR: `docs/adr/0002-scoring-facade-split.md` — locks the decision against re-litigation.
-- 5 call sites migrated: `cv_workflow.py:122,227` → `record_cv_score`; `routers/users.py:93` + `routers/scores.py:51` → `recompute_score`; `jobs_workflow.py:77` → direct import path. `repositories/users.py` import path updated.
-- Tests rewritten: `test_scoring_io.py` covers all 3 facades. `test_workflow_seams.py`, `test_scores_api.py`, `test_cv_upload_api.py` monkeypatches retargeted.
+- **Skills card — `frontend/components/skills/domain-accordion-row.tsx`** — `InlineSkillCard` rewritten. Now renders 3 always-visible icon buttons after the excerpt: ✎ Edit CV pointer (Link to `/cv?skill=<display_name>`), ✦ Polish with AI for next level (`users.skillLevelUpAdvice`, -20 XP, FREE pill when `forged_level_up_available`, advice expands inline below buttons), ☆ Track upgrade in diary (`diary.createEntry` skill-focused template, flips ☆→✓ on success). New `IconBtn` helper with hover-accent + disabled/active variants. Token threaded through from `DomainAccordionRow`. `useXPStore.setBalance` updates wallet on advice spend.
+- **CV deeplink — `frontend/components/cv/version-ledger.tsx`** — new optional `highlightSkill` prop. `buildHighlightedSegments` splits preview text into `{k, v, hit}` segments; `<pre>` body renders `<mark>` (accent bg + ring) for hits, `<span>` otherwise. First hit gets `ref={firstHitRef}` and `useEffect` calls `scrollIntoView({block:'center', behavior:'smooth'})`.
+- **CV page — `frontend/app/cv/page.tsx`** — reads `searchParams.get("skill")` → passes `highlightSkill={skillFocus}` to `CVVersionLedger`. Only wired in Mode 2 (baseline, no jobId). Mode 3 (tailored playground) skipped — carryover.
 
-Verify: 292 pytest passed · `tsc --noEmit` clean · `next lint` 0/0.
+Verify: `tsc --noEmit` clean · `next lint` 0/0. No backend touched, no tests added (frontend-only behavioral change).
 
-Open (next sessions):
-- `packages/mobile-shared/` extraction (blocked on `packages/api-client/` + turborepo decision)
-- Shareability v2: XP-for-referral trigger, `referrals_log` analytics, mentor/mentee, public profile theming
+Open (carryover from this session — see Backlog #16):
+- Fix-my-level picker — restore, modal-ize, or sunset.
+- `?skill=` highlight in `CVPlayground` Mode 3 BulletRows.
+- Diary log cache invalidation + XP wallet refresh on success.
+- Word-boundary guard on substring match (short-skill false positives).
+
+Open (carryover from prior sessions — still standing):
+- Backlog #13 code: `/improve-codebase-architecture` on `frontend/components/loading/`, then `<RouteLoading>` deep module + `/v1/status` + telemetry.
+- `packages/mobile-shared/` extraction (blocked on `packages/api-client/` + turborepo decision).
+- ADR for Company CV Thread decision (CV2 lock).
 
 ## EARLIER SESSION SUMMARIES
 
-Full detail in `docs/session-history/2026-05.md` (2026-05-19 ×4, 2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).
+Full detail in `docs/session-history/2026-05.md`.

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
@@ -11,69 +11,36 @@ import { CVUploadProcessing } from "@/components/cv/upload-processing"
 import { CVPlayground } from "@/components/cv/cv-playground"
 import { CVVersionLedger } from "@/components/cv/version-ledger"
 import { VersionPicker } from "@/components/cv/version-picker"
+import { CVCommitPane } from "@/components/cv/cv-commit-pane"
 import { cv, jobs, uploadCV } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { renderBaselineDisplayText, renderDeterministic } from "@/lib/cv-compose"
+import { renderBaselineDisplayText } from "@/lib/cv-compose"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 
 function CVPage() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
+  const skillFocus = searchParams.get("skill")
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
-  const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
-  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedLedgerVersionId, setSelectedLedgerVersionId] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
-  // Single source of truth: every baseline + (if jobId) every per-job row.
-  const versionsQuery = useQuery({
-    queryKey: dataKeys.cvVersions(jobId),
-    queryFn: () => cv.versions.list(token!, jobId),
-    enabled: !!token,
-    staleTime: 30 * 1000,
-  })
-  const allVersions = useMemo(() => versionsQuery.data?.versions ?? [], [versionsQuery.data])
+  const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token })
 
-  const baselines = useMemo(
-    () => allVersions.filter(v => v.kind === "baseline_upload"),
-    [allVersions],
-  )
-  const companyVersions = useMemo(
-    () => allVersions.filter(v => v.kind !== "baseline_upload"),
-    [allVersions],
-  )
-  const currentJobVersions = useMemo(
-    () => allVersions.filter(v => v.job_id === jobId && v.kind !== "baseline_upload"),
-    [allVersions, jobId],
-  )
+  const allVersions = playground.allVersions
+  const baselines = playground.baselines
+  const currentBaseline = playground.currentBaseline
+  const threadVersions = playground.threadVersions
   const hasBaseline = baselines.length > 0
-  const currentBaseline = useMemo(
-    () => baselines.reduce<typeof baselines[number] | null>(
-      (best, v) => (best == null || v.user_version_number > best.user_version_number ? v : best),
-      null,
-    ),
-    [baselines],
-  )
-  const threadVersions = useMemo(
-    () => currentBaseline ? [currentBaseline, ...companyVersions] : companyVersions,
-    [companyVersions, currentBaseline],
-  )
-
-  const structuredQuery = useQuery({
-    queryKey: dataKeys.cvStructured(),
-    queryFn: () => cv.structured(token!),
-    enabled: !!token && hasBaseline,
-    retry: false,
-    staleTime: 10 * 60 * 1000,
-  })
 
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
@@ -89,14 +56,7 @@ function CVPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Hydrate hiddenItems from latest job version on load.
-  useEffect(() => {
-    const defaultVersion = currentJobVersions[0] ?? currentBaseline ?? companyVersions[0]
-    if (!defaultVersion) return
-    setSelectedVersionId(prev => prev ?? defaultVersion.id)
-    setHiddenItems(new Set(defaultVersion.hidden_items))
-  }, [companyVersions, currentBaseline, currentJobVersions])
-
+  // Ledger selection (only used in no-jobId mode). Picks current baseline as default.
   useEffect(() => {
     if (jobId || !hasBaseline) return
     const selectedStillExists = selectedLedgerVersionId != null
@@ -104,39 +64,6 @@ function CVPage() {
     if (selectedStillExists) return
     setSelectedLedgerVersionId(currentBaseline?.id ?? allVersions[0]?.id ?? null)
   }, [allVersions, currentBaseline, hasBaseline, jobId, selectedLedgerVersionId])
-
-  // ── Mutations ──────────────────────────────────────────────────────────────
-
-  const saveVersion = useMutation({
-    mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems)),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not save version."),
-  })
-
-  const polishVersion = useMutation({
-    mutationFn: (versionId: number) => cv.versions.polish(token!, versionId),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not polish version."),
-  })
-
-  const editVersion = useMutation({
-    mutationFn: ({ versionId, edits }: { versionId: number; edits: Record<string, string> }) =>
-      cv.versions.edit(token!, versionId, edits),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-      setEditOpen(false)
-      setEditTarget(null)
-      setEditDraft("")
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
-  })
 
   const downloadPdf = useMutation({
     mutationFn: (text: string) => cv.downloadPdf(token!, text),
@@ -148,12 +75,12 @@ function CVPage() {
       a.click()
       URL.revokeObjectURL(url)
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate PDF."),
+    onError: (err) => setUploadError(err instanceof Error ? err.message : "Could not generate PDF."),
   })
 
   async function handleUpload(file: File) {
     if (!token) return
-    setUploading(true); setUploadResult(null); setError(null)
+    setUploading(true); setUploadResult(null); setUploadError(null)
     try {
       const result = await uploadCV(token, file)
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
@@ -165,19 +92,10 @@ function CVPage() {
       setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload CV")
+      setUploadError(err instanceof Error ? err.message : "Could not upload CV")
     } finally {
       setUploading(false)
     }
-  }
-
-  function toggleItem(iid: string) {
-    setHiddenItems(prev => {
-      const next = new Set(prev)
-      if (next.has(iid)) next.delete(iid)
-      else next.add(iid)
-      return next
-    })
   }
 
   function openEdit(versionId: number) {
@@ -193,24 +111,32 @@ function CVPage() {
     const original = editTarget.text
     const next = editDraft
     if (original === next) { setEditOpen(false); return }
-    editVersion.mutate({ versionId: editTarget.versionId, edits: { [original]: next } })
+    playground.editVersion.mutate(
+      { versionId: editTarget.versionId, edits: { [original]: next } },
+      {
+        onSuccess: () => {
+          setEditOpen(false)
+          setEditTarget(null)
+          setEditDraft("")
+        },
+      },
+    )
   }
 
-  const livePreview = useMemo(() => {
-    if (!structuredQuery.data) return ""
-    return renderDeterministic(structuredQuery.data, hiddenItems)
-  }, [structuredQuery.data, hiddenItems])
-  const baselineDisplayText = useMemo(
-    () => renderBaselineDisplayText(currentBaseline?.body_text, structuredQuery.data),
-    [currentBaseline?.body_text, structuredQuery.data],
+  const baselineDisplayText = renderBaselineDisplayText(
+    currentBaseline?.body_text,
+    playground.structuredQuery.data,
   )
 
-  const currentSelected = threadVersions.find(v => v.id === selectedVersionId) ?? currentJobVersions[0] ?? currentBaseline ?? companyVersions[0] ?? null
-  const playgroundDirty = currentJobVersions.length === 0 || !currentSelected
-    || Array.from(hiddenItems).sort().join(",") !== [...currentSelected.hidden_items].sort().join(",")
-  const canSaveVersion = playgroundDirty || currentJobVersions.length === 0
-
   if (!ready) return null
+
+  const selectedVersion = playground.selectedVersion
+  const isDirty = playground.isDirty
+  const paneMode: "unsaved" | "saved" = isDirty ? "unsaved" : "saved"
+  const paneText = isDirty
+    ? playground.livePreviewText
+    : (selectedVersion?.polished_text ?? selectedVersion?.body_text ?? "")
+  const surfacedError = playground.error ?? uploadError
 
   return (
     <AppShell>
@@ -243,9 +169,9 @@ function CVPage() {
           </div>
         </div>
 
-        {error && (
+        {surfacedError && (
           <div role="alert" style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12, color: "var(--tm-danger)", border: "1px solid var(--tm-danger)", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)" }}>
-            {error}
+            {surfacedError}
           </div>
         )}
 
@@ -267,9 +193,9 @@ function CVPage() {
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap",
             }}>
               <div>
-                <div className="tm-label-caps" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>Tailoring is per-job</div>
+                <div className="tm-label-caps" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>Tailoring is per-company</div>
                 <div style={{ fontSize: 13, color: "var(--tm-text)" }}>
-                  Pick a target job to start the playground. Every saved version is immutable, like a Git commit.
+                  Pick a target job to open its Company CV Thread. Every saved version is immutable, like a Git commit.
                 </div>
               </div>
               <Button variant="solid" size="md" render={<Link href="/tracker?stage=saved" />}>Pick a target job →</Button>
@@ -279,30 +205,31 @@ function CVPage() {
               selectedId={selectedLedgerVersionId}
               onSelect={setSelectedLedgerVersionId}
               baselineDisplayText={baselineDisplayText}
+              highlightSkill={skillFocus}
             />
           </div>
         )}
 
-        {/* Mode 3 — playground + version picker */}
+        {/* Mode 3 — playground + commit pane */}
         {hasBaseline && jobId && (
           <>
-            {structuredQuery.isLoading && (
+            {playground.structuredQuery.isLoading && (
               <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
                 Parsing your CV into sections…
               </div>
             )}
-            {structuredQuery.isError && (
+            {playground.structuredQuery.isError && (
               <div style={{ padding: 32, textAlign: "center", color: "var(--tm-danger)", fontSize: 12 }}>
                 Couldn&apos;t load your CV structure. Try refreshing in a minute.
               </div>
             )}
-            {structuredQuery.data && (
+            {playground.structuredQuery.data && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
                 <div>
                   <CVPlayground
-                    cv={structuredQuery.data}
-                    hiddenItems={hiddenItems}
-                    onToggle={toggleItem}
+                    cv={playground.structuredQuery.data}
+                    hiddenItems={playground.hiddenItems}
+                    onToggle={playground.toggleItem}
                     targetSkills={skillGapQuery.data?.skills ?? []}
                     jobTitle={jobPathQuery.data?.job_title}
                     companyName={jobPathQuery.data?.company ?? undefined}
@@ -314,51 +241,43 @@ function CVPage() {
                     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
                   }}>
                     <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-                      {hiddenItems.size} hidden · {playgroundDirty ? "unsaved changes" : "in sync with selected version"}
+                      {playground.hiddenItems.size} hidden · {isDirty ? "unsaved changes" : "in sync with selected version"}
                     </span>
                     <Button
                       variant="solid" size="md"
-                      onClick={() => saveVersion.mutate()}
-                      disabled={!canSaveVersion || saveVersion.isPending}
-                      loading={saveVersion.isPending}
+                      onClick={() => playground.saveVersion.mutate()}
+                      disabled={!playground.canSave || playground.saveVersion.isPending}
+                      loading={playground.saveVersion.isPending}
                     >
                       Save Version
                     </Button>
                   </div>
                 </div>
 
-                <div style={{ position: "sticky", top: 16 }}>
-                  {playgroundDirty ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div className="tm-label-caps" style={{ color: "var(--tm-warning)" }}>Live preview · unsaved</div>
-                      <pre style={{
-                        margin: 0, padding: "20px 22px",
-                        background: "var(--tm-surface)", border: "1px dashed var(--tm-warning)",
-                        borderRadius: "var(--tm-radius-lg)",
-                        fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
-                        color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-                        minHeight: 360,
-                      }}>{livePreview}</pre>
-                    </div>
-                  ) : (
-                    <VersionPicker
-                      versions={threadVersions}
-                      lineageVersions={allVersions}
-                      selectedId={selectedVersionId}
-                      onSelect={(id) => {
-                        setSelectedVersionId(id)
-                        const v = threadVersions.find(x => x.id === id)
-                        if (v) setHiddenItems(new Set(v.hidden_items))
-                      }}
-                      onCreate={() => saveVersion.mutate()}
-                      onPolish={(id) => polishVersion.mutate(id)}
-                      onEdit={openEdit}
-                      onDownload={(text) => downloadPdf.mutate(text)}
-                      isCreating={saveVersion.isPending}
-                      isPolishing={polishVersion.isPending}
-                      canCreate={canSaveVersion}
-                    />
-                  )}
+                <div style={{ position: "sticky", top: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* Picker = secondary switcher above the pane. The pane is the persistent surface. */}
+                  <VersionPicker
+                    versions={threadVersions}
+                    lineageVersions={allVersions}
+                    selectedId={playground.selectedVersionId}
+                    onSelect={playground.selectVersion}
+                    onCreate={() => playground.saveVersion.mutate()}
+                    onPolish={(id) => playground.polishVersion.mutate(id)}
+                    onEdit={openEdit}
+                    onDownload={(text) => downloadPdf.mutate(text)}
+                    isCreating={playground.saveVersion.isPending}
+                    isPolishing={playground.polishVersion.isPending}
+                    canCreate={playground.canSave}
+                    hidePreview
+                  />
+                  <CVCommitPane
+                    mode={paneMode}
+                    text={paneText}
+                    version={isDirty ? null : selectedVersion}
+                    threadVersions={threadVersions}
+                    onPolish={selectedVersion ? () => playground.polishVersion.mutate(selectedVersion.id) : undefined}
+                    isPolishing={playground.polishVersion.isPending}
+                  />
                 </div>
               </div>
             )}
@@ -424,7 +343,7 @@ function CVPage() {
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
             <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button variant="solid" size="md" onClick={submitEdit} loading={editVersion.isPending}>
+            <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
               Save as new version
             </Button>
           </div>

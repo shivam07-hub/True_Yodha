@@ -27,7 +27,37 @@ A single immutable snapshot of a CV. Stored as one row in `cv_versions`. Every i
 **Reads**
 
 - "Current baseline" = `cv_versions WHERE user_id = ? AND kind = 'baseline_upload' ORDER BY created_at DESC LIMIT 1`.
-- "All versions for the CV page" = `cv_versions WHERE user_id = ? AND (job_id IS NULL OR job_id = ?)`. One query returns both the baseline timeline and the per-job derivative chain.
+- "All versions for the CV page" = the user's baselines + the **Company CV Thread** for the current job's company. See below.
+
+---
+
+## Company CV Thread
+
+The ordered set of CV Versions a user has authored against any job at a given company. The unit of CV identity the user actually cares about — "my Capgemini CV" — independent of which specific Capgemini role row in `job_applications` is being viewed.
+
+**Why this exists**
+
+Users tailor per-company, not per-role. The same polished CV serves Capgemini Senior PM and Capgemini Lead PM applications. Modelling identity at the job-row level would force duplicate authoring; modelling it at the company level matches reality.
+
+**Membership**
+
+A row is in the thread for company `C` iff: `cv_versions.user_id = U AND cv_versions.kind <> 'baseline_upload' AND cv_versions.job_id IN (SELECT job_id FROM jobs WHERE company_name = C)`.
+
+**Reads**
+
+- "Thread for the current page" = baselines (`job_id IS NULL`) **+** thread rows for the company of the current `job_id`. Returned together by `CVVersionsRepository.list_thread(user_id, company_name)`.
+- "Canonical CV at company" = thread row with the largest `user_version_number`, kind-agnostic. Returned by `CVVersionsRepository.latest_for_thread(user_id, company_name)`. Display fallback: `polished_text ?? body_text`.
+
+**Invariants**
+
+- Threads are derived, not stored. No `cv_threads` table. Joins resolve at read time via `jobs.company_name`.
+- A single CV Version belongs to **exactly one** thread (the company of its `job_id`).
+- Reworking the baseline does not invalidate the thread — see CV Lineage rework semantics.
+
+**Surfaces**
+
+- `/cv?jobId=X` → playground for the thread covering `X`'s company.
+- `/tracker` → every application row carries a `cv_badge` summarising its company's latest thread row (or `null` if none).
 
 ---
 

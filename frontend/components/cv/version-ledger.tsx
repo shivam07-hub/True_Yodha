@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import type { CVVersion } from "@/lib/api"
 import { formatGlobalVersionLabel, formatVersionContext } from "@/components/cv/version-picker"
 
@@ -17,6 +17,27 @@ interface CVVersionLedgerProps {
   selectedId: number | null
   onSelect: (id: number) => void
   baselineDisplayText: string
+  highlightSkill?: string | null
+}
+
+function buildHighlightedSegments(text: string, needle: string): Array<{ k: number; v: string; hit: boolean }> {
+  if (!needle) return [{ k: 0, v: text, hit: false }]
+  const lowerText = text.toLowerCase()
+  const lowerNeedle = needle.toLowerCase()
+  const out: Array<{ k: number; v: string; hit: boolean }> = []
+  let cursor = 0
+  let key = 0
+  while (cursor < text.length) {
+    const idx = lowerText.indexOf(lowerNeedle, cursor)
+    if (idx < 0) {
+      out.push({ k: key++, v: text.slice(cursor), hit: false })
+      break
+    }
+    if (idx > cursor) out.push({ k: key++, v: text.slice(cursor, idx), hit: false })
+    out.push({ k: key++, v: text.slice(idx, idx + needle.length), hit: true })
+    cursor = idx + needle.length
+  }
+  return out
 }
 
 export function sortLedgerVersions(versions: CVVersion[]): CVVersion[] {
@@ -113,6 +134,7 @@ export function CVVersionLedger({
   selectedId,
   onSelect,
   baselineDisplayText,
+  highlightSkill,
 }: CVVersionLedgerProps) {
   const sortedVersions = useMemo(() => sortLedgerVersions(versions), [versions])
   const stats = useMemo(() => summarizeCVVersionLedger(sortedVersions), [sortedVersions])
@@ -125,6 +147,17 @@ export function CVVersionLedger({
     [currentBaseline, selectedId, sortedVersions],
   )
   const previewText = getLedgerPreviewText(selected, baselineDisplayText, currentBaseline?.id)
+  const trimmedSkill = highlightSkill?.trim() || null
+  const segments = useMemo(
+    () => trimmedSkill ? buildHighlightedSegments(previewText, trimmedSkill) : null,
+    [previewText, trimmedSkill],
+  )
+  const firstHitRef = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!trimmedSkill) return
+    const node = firstHitRef.current
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [trimmedSkill, previewText])
 
   return (
     <section
@@ -273,7 +306,21 @@ export function CVVersionLedger({
           minHeight: 520,
           maxHeight: 680,
           overflow: "auto",
-        }}>{previewText}</pre>
+        }}>{segments ? segments.map((s, i) => s.hit ? (
+          <mark
+            key={s.k}
+            ref={i === segments.findIndex(x => x.hit) ? firstHitRef : undefined}
+            style={{
+              background: "rgba(20,186,174,0.22)",
+              color: "var(--tm-text)",
+              borderRadius: 2,
+              padding: "0 2px",
+              boxShadow: "0 0 0 1px var(--tm-accent-ring)",
+            }}
+          >{s.v}</mark>
+        ) : (
+          <span key={s.k}>{s.v}</span>
+        )) : previewText}</pre>
       </div>
     </section>
   )

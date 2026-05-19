@@ -3,8 +3,10 @@
 import Link from "next/link"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { diary } from "@/lib/api"
+import { diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
+import { XP_POLICY } from "@/lib/xp-policy"
+import { useXPStore } from "@/store/xpStore"
 
 
 interface Props {
@@ -36,8 +38,79 @@ function levelBadgeColor(level: number) {
   return { bg: "#1f2937", fg: "var(--tm-text-faint)" }
 }
 
-function InlineSkillCard({ skill }: { skill: UserSkillItem }) {
+function IconBtn({ label, onClick, disabled, active, accent, freePill, children }: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  active?: boolean
+  accent?: boolean
+  freePill?: boolean
+  children: React.ReactNode
+}) {
+  const [hover, setHover] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        position: "relative",
+        width: 30, height: 28, padding: 0,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, lineHeight: 1, fontFamily: "inherit",
+        borderRadius: "var(--tm-radius-sm)",
+        border: `1px solid ${active ? "var(--tm-success)" : hover && !disabled ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+        background: active ? "rgba(20,186,174,0.10)" : hover && !disabled ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+        color: active ? "var(--tm-success)" : accent || (hover && !disabled) ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.55 : 1,
+        transition: "all 150ms var(--tm-ease)",
+      }}
+    >
+      {children}
+      {freePill && (
+        <span style={{
+          position: "absolute", top: -5, right: -6, padding: "1px 4px",
+          fontSize: 7, fontWeight: 800, letterSpacing: "0.08em",
+          background: "var(--tm-success)", color: "#0a0f0d",
+          borderRadius: 3, fontFamily: "var(--tm-font-mono)",
+        }}>FREE</span>
+      )}
+    </button>
+  )
+}
+
+function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const badge = levelBadgeColor(skill.level)
+  const { setBalance } = useXPStore()
+  const [logged, setLogged] = useState(false)
+  const [advice, setAdvice] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const isFree = skill.forged_level_up_available
+  const nextLevel = Math.min(skill.level + 1, 5)
+
+  const askAdvice = useMutation({
+    mutationFn: () =>
+      users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? "", isFree),
+    onSuccess: (data) => {
+      setErrorMsg(null)
+      if (data.advice) setAdvice(data.advice)
+      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+    },
+    onError: () => setErrorMsg("Couldn't fetch advice. No XP was spent."),
+  })
+
+  const logDiary = useMutation({
+    mutationFn: () =>
+      diary.createEntry(
+        token,
+        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to push ${skill.display_name} from L${skill.level} to L${nextLevel} this week through deliberate practice and visible proof on real work.`,
+      ),
+    onSuccess: () => setLogged(true),
+  })
 
   return (
     <div style={{
@@ -70,6 +143,50 @@ function InlineSkillCard({ skill }: { skill: UserSkillItem }) {
       ) : (
         <div style={{ fontSize: 10, color: "#d97706", fontStyle: "italic" }}>No CV evidence — keyword inferred</div>
       )}
+
+      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+        <Link
+          href={`/cv?skill=${encodeURIComponent(skill.display_name)}`}
+          aria-label="Edit the CV bullet this skill comes from"
+          title="Edit CV pointer"
+          style={{
+            width: 30, height: 28, padding: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 13, textDecoration: "none",
+            borderRadius: "var(--tm-radius-sm)",
+            border: "1px solid var(--tm-border-soft)",
+            background: "rgba(255,255,255,0.02)", color: "var(--tm-text-faint)",
+            transition: "all 150ms var(--tm-ease)",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--tm-accent)"; e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
+        >✎</Link>
+
+        <IconBtn
+          label={isFree ? "Polish with AI for next level · FREE (forged unlock)" : `Polish with AI for next level · -${XP_POLICY.skillAdviceCost} XP`}
+          onClick={() => askAdvice.mutate()}
+          disabled={askAdvice.isPending || !!advice}
+          accent={isFree}
+          freePill={isFree}
+        >{askAdvice.isPending ? "…" : "✦"}</IconBtn>
+
+        <IconBtn
+          label={logged ? "Logged to diary" : "Track upgrade in diary"}
+          onClick={() => !logged && logDiary.mutate()}
+          disabled={logDiary.isPending || logged}
+          active={logged}
+        >{logged ? "✓" : logDiary.isPending ? "…" : "☆"}</IconBtn>
+      </div>
+
+      {advice && (
+        <div style={{
+          marginTop: 4, padding: "8px 10px", fontSize: 11,
+          color: "var(--tm-text-muted)", lineHeight: 1.55,
+          background: "rgba(0,245,212,0.04)", border: "1px solid var(--tm-accent-ring)",
+          borderRadius: "var(--tm-radius-sm)",
+        }}>{advice}</div>
+      )}
+      {errorMsg && <div style={{ fontSize: 10, color: "var(--tm-danger)" }}>{errorMsg}</div>}
     </div>
   )
 }
@@ -150,7 +267,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
         <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
             {items.map(skill => (
-              <InlineSkillCard key={skill.key} skill={skill} />
+              <InlineSkillCard key={skill.key} skill={skill} token={token} />
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 4 }}>

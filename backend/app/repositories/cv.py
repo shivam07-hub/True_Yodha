@@ -69,30 +69,47 @@ class CVVersionsRepository:
 
     # ── cv_versions: reads ────────────────────────────────────────────────────
 
-    def list_versions(
+    def list_all(self, user_id: str) -> list[dict[str, Any]]:
+        """Every CV Version row for the user (baselines + every derivative).
+
+        Used by surfaces that need the full ledger (no jobId on the CV page).
+        Ordered by user_version_number DESC (newest first).
+        """
+        result = (
+            self._db.table("cv_versions")
+            .select("*, jobs(job_title, company_name)")
+            .eq("user_id", user_id)
+            .order("user_version_number", desc=True)
+            .execute()
+        )
+        return result.data or []
+
+    def list_thread_for_job(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
+        """Baselines + the Company CV Thread for `job_id`'s company.
+
+        Convenience wrapper for surfaces that have a job_id but not a company_name —
+        resolves the company first, then delegates to list_thread.
+        """
+        company_name = self._company_name_for_job(job_id)
+        return self.list_thread(user_id, company_name, fallback_job_id=job_id)
+
+    def list_thread(
         self,
         user_id: str,
-        job_id: str | None = None,
+        company_name: str | None,
+        *,
+        fallback_job_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Return baseline rows + scoped derivative rows for a user.
+        """Baselines + the Company CV Thread for `company_name`.
 
-        With job_id=None: returns ALL rows for the user (every baseline + every derivative).
-        With job_id='X':  returns every baseline row + every derivative row for the
-                          same company as job X.
+        When `company_name` is None (or the company has no jobs the caller can read),
+        we fall back to scoping by `fallback_job_id` alone — covers manually-imported
+        jobs whose company_name has been stripped or whose `jobs` row isn't visible.
+
         Ordered by user_version_number DESC (newest first).
         """
         select_cols = "*, jobs(job_title, company_name)"
-        if job_id is None:
-            result = (
-                self._db.table("cv_versions")
-                .select(select_cols)
-                .eq("user_id", user_id)
-                .order("user_version_number", desc=True)
-                .execute()
-            )
-            return result.data or []
-
-        scoped_job_ids = self._company_job_ids_for_job(job_id)
+        scoped_job_ids = self._thread_job_ids(company_name, fallback_job_id)
         baselines = (
             self._db.table("cv_versions")
             .select(select_cols)
@@ -113,7 +130,78 @@ class CVVersionsRepository:
             reverse=True,
         )
 
-    def _company_job_ids_for_job(self, job_id: str) -> list[str]:
+    def latest_for_thread(
+        self,
+        user_id: str,
+        company_name: str | None,
+        *,
+        fallback_job_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Canonical CV at a company — highest user_version_number, kind-agnostic.
+
+        Excludes baselines. Returns None if the thread is empty.
+        See CONTEXT.md ("Company CV Thread") for the rule.
+        """
+        scoped_job_ids = self._thread_job_ids(company_name, fallback_job_id)
+        if not scoped_job_ids:
+            return None
+        result = (
+            self._db.table("cv_versions")
+            .select("*, jobs(job_title, company_name)")
+            .eq("user_id", user_id)
+            .neq("kind", "baseline_upload")
+            .in_("job_id", scoped_job_ids)
+            .order("user_version_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return (result.data or [None])[0]
+
+    def latest_for_thread_batch(
+        self,
+        user_id: str,
+        company_names: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        """Batched variant of latest_for_thread — one query for N companies.
+
+        Used by the tracker to attach a `cv_badge` to each application row without
+        an N+1 fetch. Returns a {company_name: row} map; companies with no thread
+        are absent from the map.
+        """
+        unique = sorted({c for c in company_names if c})
+        if not unique:
+            return {}
+
+        company_jobs = (
+            self._db.table("jobs")
+            .select("job_id, company_name")
+            .in_("company_name", unique)
+            .execute()
+        ).data or []
+        if not company_jobs:
+            return {}
+
+        job_to_company = {row["job_id"]: row["company_name"] for row in company_jobs if row.get("job_id")}
+        scoped_job_ids = list(job_to_company.keys())
+        rows = (
+            self._db.table("cv_versions")
+            .select("*, jobs(job_title, company_name)")
+            .eq("user_id", user_id)
+            .neq("kind", "baseline_upload")
+            .in_("job_id", scoped_job_ids)
+            .order("user_version_number", desc=True)
+            .execute()
+        ).data or []
+
+        latest_per_company: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            company = job_to_company.get(row.get("job_id") or "")
+            if not company or company in latest_per_company:
+                continue
+            latest_per_company[company] = row
+        return latest_per_company
+
+    def _company_name_for_job(self, job_id: str) -> str | None:
         target = (
             self._db.table("jobs")
             .select("company_name")
@@ -121,22 +209,34 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        company_name = (target.data or [{}])[0].get("company_name")
-        if not company_name:
-            return [job_id]
+        return (target.data or [{}])[0].get("company_name")
 
-        company_jobs = (
-            self._db.table("jobs")
-            .select("job_id")
-            .eq("company_name", company_name)
-            .execute()
-        )
-        ids = [
-            row["job_id"]
-            for row in (company_jobs.data or [])
-            if row.get("job_id")
-        ]
-        return ids or [job_id]
+    def _thread_job_ids(
+        self,
+        company_name: str | None,
+        fallback_job_id: str | None,
+    ) -> list[str]:
+        """Resolve the list of job_ids that constitute a Company CV Thread.
+
+        Returns all job_ids at `company_name`. Falls back to `[fallback_job_id]`
+        when the company is unknown or has no readable jobs — preserves prior
+        behaviour for orphan or import-only jobs.
+        """
+        if company_name:
+            company_jobs = (
+                self._db.table("jobs")
+                .select("job_id")
+                .eq("company_name", company_name)
+                .execute()
+            )
+            ids = [
+                row["job_id"]
+                for row in (company_jobs.data or [])
+                if row.get("job_id")
+            ]
+            if ids:
+                return ids
+        return [fallback_job_id] if fallback_job_id else []
 
     def latest_baseline(self, user_id: str) -> dict[str, Any] | None:
         result = (

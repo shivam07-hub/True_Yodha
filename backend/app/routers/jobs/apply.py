@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import get_current_user
+from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     APPLICATION_STATUSES,
@@ -14,7 +15,7 @@ from app.schemas import (
 )
 from app.services import jobs_workflow
 
-from ._shared import to_application
+from ._shared import cv_badge_from_row, to_application
 
 router = APIRouter()
 
@@ -23,9 +24,24 @@ router = APIRouter()
 async def get_applications(
     current_user: dict = Depends(get_current_user),
     repo: JobsRepository = Depends(get_token_jobs_repository),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> list[ApplicationResponse]:
+    """Tracker list. Each row carries `cv_badge` for its Company CV Thread head.
+
+    Threads are derived (CONTEXT.md → Company CV Thread). One batched read across
+    all distinct companies on this page avoids the N+1 per-card fetch.
+    """
     rows = repo.get_user_applications(current_user["user_id"])
-    return [to_application(row) for row in rows]
+    companies = [(row.get("jobs") or {}).get("company_name") for row in rows]
+    latest_by_company = cv_repo.latest_for_thread_batch(
+        current_user["user_id"],
+        [c for c in companies if c],
+    )
+    out: list[ApplicationResponse] = []
+    for row in rows:
+        company = (row.get("jobs") or {}).get("company_name")
+        out.append(to_application(row, cv_badge_from_row(latest_by_company.get(company))))
+    return out
 
 
 @router.post("/import/preview", response_model=JobImportPreviewResponse)

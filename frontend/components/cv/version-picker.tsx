@@ -15,6 +15,7 @@ interface VersionPickerProps {
   isCreating: boolean
   isPolishing: boolean
   canCreate: boolean
+  hidePreview?: boolean  // CVCommitPane owns the preview surface — picker is dropdown-only.
 }
 
 function kindIcon(kind: CVVersion["kind"]): string {
@@ -82,7 +83,7 @@ export function formatParentVersionLabel(
 
 export function VersionPicker({
   versions, lineageVersions = versions, selectedId, onSelect, onCreate, onPolish, onEdit, onDownload,
-  isCreating, isPolishing, canCreate,
+  isCreating, isPolishing, canCreate, hidePreview = false,
 }: VersionPickerProps) {
   const [open, setOpen] = useState(false)
   const selected = useMemo(
@@ -196,24 +197,26 @@ export function VersionPicker({
         )}
       </div>
 
-      {/* Preview */}
-      {displayText ? (
-        <pre style={{
-          margin: 0, padding: "20px 22px",
-          background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-          borderRadius: "var(--tm-radius-lg)",
-          fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
-          color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-          minHeight: 360,
-        }}>{displayText}</pre>
-      ) : (
-        <div style={{
-          padding: 32, textAlign: "center", color: "var(--tm-text-faint)",
-          background: "var(--tm-surface)", border: "1px dashed var(--tm-border-soft)",
-          borderRadius: "var(--tm-radius-lg)", fontSize: 12,
-        }}>
-          No versions yet — <strong style={{ color: "var(--tm-accent)" }}>Save Version</strong> creates your first.
-        </div>
+      {/* Preview — suppressed when CVCommitPane owns the preview surface. */}
+      {!hidePreview && (
+        displayText ? (
+          <pre style={{
+            margin: 0, padding: "20px 22px",
+            background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius-lg)",
+            fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
+            color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
+            minHeight: 360,
+          }}>{displayText}</pre>
+        ) : (
+          <div style={{
+            padding: 32, textAlign: "center", color: "var(--tm-text-faint)",
+            background: "var(--tm-surface)", border: "1px dashed var(--tm-border-soft)",
+            borderRadius: "var(--tm-radius-lg)", fontSize: 12,
+          }}>
+            No versions yet — <strong style={{ color: "var(--tm-accent)" }}>Save Version</strong> creates your first.
+          </div>
+        )
       )}
     </div>
   )

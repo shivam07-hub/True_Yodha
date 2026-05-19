@@ -1,6 +1,7 @@
 from datetime import date, timedelta
+from typing import Any
 
-from app.schemas import ApplicationResponse, JobMatchResponse
+from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse
 
 
 def last_monday() -> date:
@@ -32,7 +33,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     )
 
 
-def to_application(row: dict) -> ApplicationResponse:
+def to_application(row: dict, cv_badge: CVBadge | None = None) -> ApplicationResponse:
     job = row.get("jobs") or {}
     return ApplicationResponse(
         id=row["id"],
@@ -51,4 +52,18 @@ def to_application(row: dict) -> ApplicationResponse:
         notes=row.get("notes"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
+        cv_badge=cv_badge,
+    )
+
+
+def cv_badge_from_row(row: dict[str, Any] | None) -> CVBadge | None:
+    """Project a cv_versions row → CVBadge. Returns None when there's no thread head."""
+    if not row:
+        return None
+    kind = row.get("kind") or "deterministic"
+    return CVBadge(
+        version_id=int(row["id"]),
+        version_number=int(row.get("user_version_number") or 0),
+        kind=kind,
+        polished=kind in {"polished", "edited"},
     )
