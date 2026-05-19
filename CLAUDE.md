@@ -121,6 +121,23 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | SH5 | **Job overlap rows are the logged-in-only accountability surface.** Compact rows of jobs both users have saved (`job_applications.status IN saved/applied/screening/interviewing/final_round`). Max 3 rows, sorted by viewer's own match%. Hide section silently when no overlap. Symmetric — owner doesn't see viewers. |
 | SH6 | **Web Share API + auto-OG image** is the share affordance. Single `↗` icon on `/skills` top-right. One tap → native share sheet (WhatsApp first on India mobile). Link unfurls with PNG of the ninja's radar shape + score via `app/profile/[ninja]/opengraph-image.tsx`. Desktop fallback = copy-to-clipboard. No custom share modal. |
 | SH7 | **Referral attribution = cookie + permanent DB column.** `myro_ref` cookie 30d TTL set from `?ref=` query. Signup handler resolves cookie → `user_profiles.referred_by_user_id UUID REFERENCES auth.users(id)`. v2 XP credit = single trigger on `welcome_xp_granted` flipping TRUE AND `referred_by_user_id IS NOT NULL`. Self-referral guard. No referrals_log table in v1. |
+| SE1 | **Skill-edit creates a NEW `baseline_upload` row.** Baselines stay immutable (Git-commit invariant). `latest_baseline()` returns the new one. |
+| SE2 | **Bullet locator = text-match first occurrence (A) + multi-match picker (C).** If >1 verbatim/substring match, router answers 409 with candidates; frontend renders picker; retries with `(section_hint, item_index, bullet_index)`. |
+| SE3 | **Skill diff = sync keyword drop (D-sync) + async full LLM re-tag (D-async).** Sync: drop skills whose display_name + evidence_text no longer occur in new body_text. Async: `parse_cv_text` → `record_cv_score` via FastAPI BackgroundTasks. |
+| SE4 | **Modal blocks until sync save returns** (~200ms). Score ring shimmers (`tm-score-pulse`) while async runs, via `useRecomputeStore.pendingBaselineId`. |
+| SE5 | **Editor scope = single bullet only.** Add-new-bullet + structured editor stay in `/cv`. |
+| SE6 | **Skill keyword guard = soft inline hint** when `display_name` not in textarea. Non-blocking. |
+| SE7 | **Reference text = greyed mono block under textarea.** No diff view. |
+| SE8 | **Ledger title = `Master CV · skill edit · {Skill display name}`.** Orphan baseline (no `parent_version_id`) per existing CVVersionWriteSpec invariant. |
+| SE9 | **Tailored versions stay parented to OLD baseline.** No auto-migrate on new baseline. |
+| SE10 | **Skill cards stack one-per-row in the expanded domain panel.** No more 200px grid; full width, single column. |
+| SE11 | **Card content (top → bottom):** name + L·{Gap/Building/Strong} pill → progress bar → `HOW TO REACH {NEXT_TITLE} (L{n+1})` descriptor → CV pointer as boxed mono `<pre>` → 3 action buttons. |
+| SE12 | **3 equal-weight full-label buttons.** Edit CV pointer · Polish with AI · Track in diary. |
+| SE13 | **No tap-toggle.** Descriptor + CV pointer always rendered (CV pointer has its own dedicated panel). |
+| SE14 | **Mobile (<480px) = icons only.** Labels hidden via `.tm-skill-card-action-label { display: none }`. Buttons keep `aria-label` + `title`. |
+| SE15 | **Editable sections = bullets, summary, skills_line, certs.** Education routes to `/cv` (disabled fallback). |
+| SE16 | **Backend endpoint = `POST /cv/skill-edit`.** Body `{skill_key, new_text, section_hint?, item_index?, bullet_index?}`. 409 on multi-match with candidate list. |
+| SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** Frontend polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s, clears `useRecomputeStore` + invalidates `userSkills`/`scores` queries. |
 
 ---
 
@@ -171,13 +188,18 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 15. **Marketing reshuffle — Intel/About** ✅ DONE 2026-05-19 — Intel page (`/`) keeps only IntelPane. About page (`/about`) gets SampleDiagnostic appended. Top-nav order: About · Newsletter · Intel.
 
-16. **Skills card — 3-button upgrade affordance restored** ✅ DONE 2026-05-19 — `InlineSkillCard` (in `frontend/components/skills/domain-accordion-row.tsx`) now renders 3 always-visible icon buttons after the excerpt: ✎ → `/cv?skill=<display_name>` Link, ✦ → `users.skillLevelUpAdvice` (-20 XP, FREE pill when `forged_level_up_available`, advice expands inline), ☆ → `diary.createEntry` (flips to ✓ active). Token threaded from caller. CV deeplink: `CVVersionLedger` accepts `highlightSkill`, splits preview text, wraps matches in `<mark>` with accent ring, auto-scrolls first hit into center. `app/cv/page.tsx` reads `?skill=` searchParam → passes through. tsc + lint clean.
+16. **Skills card — inline CV-pointer edit loop + full-width redesign** ✅ DONE 2026-05-19 (Phase 2) — Grilled SE1–SE17 (in DECISIONS LOCKED). Backend `POST /cv/skill-edit` creates a new orphan `baseline_upload` row, sync-drops skills whose display_name + evidence_text no longer occur in the rewritten body, schedules a `BackgroundTask` (`cv_skill_edit.run_async_retag`) that runs `parse_cv_text` → `record_cv_score` → stamps `cv_versions.recompute_finished_at`. New `GET /cv/skill-edit/recompute-status/{baseline_id}` for the frontend poll. Frontend: `<SkillEditDialog>` (textarea, greyed mono reference, soft keyword hint, multi-match picker), `InlineSkillCard` rewritten in `skill-card-inline.tsx` (full-width single column, `HOW TO REACH …` descriptor, boxed mono CV pointer, 3 labelled action buttons with mobile icon collapse), `useRecomputeStore` Zustand store driving `ScoreRing` shimmer until poll resolves. Migration `20260519_cv_skill_edit.sql`. 12 new pure-logic tests on `cv_skill_edit` (locator + mutator + render seam). 306 backend tests · tsc · lint all clean.
 
-   **Carryover for next session (decide angle before coding):**
-   - **Fix-my-level picker.** Old rich `SkillCard` had a 0–5 level-correction picker calling `users.correctSkillLevel`. Dropped from new inline card. Decide: restore as 4th icon (◐?), surface in per-skill modal, or sunset entirely now that forged level-ups give a richer signal. The endpoint + API client still exist.
-   - **CV deeplink Mode 3 (tailored playground).** `?skill=` only highlights baseline ledger (Mode 2 — `hasBaseline && !jobId`). If user lands on `/cv?jobId=…&skill=…` (e.g. coming from a tailored-CV surface), the `BulletRow`s inside `CVPlayground` are not highlighted. Wire `focusSkill` into `CVPlayground` + scroll first matching bullet into view.
+   **Phase 1** (earlier this session, superseded by phase 2 for the icon-row design — kept here for context): 3 always-visible icon buttons + `/cv?skill=` deeplink + `CVVersionLedger` highlight. Phase 2 replaced the icon row with labelled buttons and the navigate-to-CV link with the inline modal. Deeplink + highlight remain useful (e.g. for `/cv` arrival from places other than the skill card) so the `CVVersionLedger` `highlightSkill` plumbing stays.
+
+   **Carryover for next session:**
+   - **Fix-my-level picker.** Old rich `SkillCard` had a 0–5 level-correction picker calling `users.correctSkillLevel`. Still not surfaced. Decide: restore as 4th icon, surface in per-skill modal, or sunset entirely now that forged level-ups give a richer signal. Endpoint + API client still exist.
+   - **CV deeplink Mode 3 (tailored playground).** `?skill=` only highlights baseline ledger (Mode 2 — `hasBaseline && !jobId`). If user lands on `/cv?jobId=…&skill=…`, the `BulletRow`s inside `CVPlayground` are not highlighted. Wire `focusSkill` into `CVPlayground` + scroll first matching bullet into view.
    - **Diary log cache invalidation.** `logDiary.onSuccess` only flips local `logged` state. No `queryClient.invalidateQueries` for diary list, daily_logs, scores, or XP balance refresh — diary entry awards +30 XP that won't appear in the wallet until next manual refetch.
    - **`/cv?skill=` deeplink fidelity.** Substring match is naïve — short skill names ("R", "Go") will false-positive. Add word-boundary guard, or pass skill `key` instead of `display_name` and let the CV side resolve to the evidence_text excerpt.
+   - **`render_baseline_text` ↔ `parse_cv_text` shape drift.** New baseline body is rendered via `cv_compose.render_deterministic` (capitalised section headers, `•` bullets). The downstream `parse_cv_text` LLM tagger has only been exercised on raw PDF/DOCX text; smoke-check that re-tag still extracts skills correctly from the synthesised body, otherwise add a stripped variant fed to the tagger.
+   - **Stale `tailored versions` UX (SE9 carry).** No UI badge yet on tailored rows when a newer baseline lands. Ship `(based on older baseline)` pill in v2.
+   - **Author parent_version_id chain on baselines.** SE1=A keeps baselines immutable, but the new baseline is currently orphan (parent_version_id=NULL). Linear history via parent pointer would let the ledger show evolution. Requires loosening `CVVersionsRepository._validate_kind_job_id` to allow `baseline_upload` w/ parent. Defer until ledger UX needs it.
 
 ---
 
@@ -359,21 +381,32 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Skills card 3-button restore + CV deeplink)
+## LAST SESSION SUMMARY (2026-05-19 · Skills card inline CV-pointer edit loop)
 
-Skills page `InlineSkillCard` had lost its upgrade affordance (only name + tag + excerpt rendered). User specced 3 buttons; design choices locked inline via AskUserQuestion (icon-row always visible · keep 20 XP gate w/ free unlock · add `/cv?skill=` deeplink).
+Two-phase session. Phase 1 restored the 3-button affordance the card had lost (icon-row, navigate-to-CV link, ✦ Polish AI inline advice, ☆ Track-in-diary). Phase 2 (this lock) replaced the navigate-to-CV pattern with an **inline modal that edits the CV bullet on the Skills page itself and commits it as a new immutable baseline**. Grilled 17 decisions (SE1–SE17 in DECISIONS LOCKED) before writing code.
 
-- **Skills card — `frontend/components/skills/domain-accordion-row.tsx`** — `InlineSkillCard` rewritten. Now renders 3 always-visible icon buttons after the excerpt: ✎ Edit CV pointer (Link to `/cv?skill=<display_name>`), ✦ Polish with AI for next level (`users.skillLevelUpAdvice`, -20 XP, FREE pill when `forged_level_up_available`, advice expands inline below buttons), ☆ Track upgrade in diary (`diary.createEntry` skill-focused template, flips ☆→✓ on success). New `IconBtn` helper with hover-accent + disabled/active variants. Token threaded through from `DomainAccordionRow`. `useXPStore.setBalance` updates wallet on advice spend.
-- **CV deeplink — `frontend/components/cv/version-ledger.tsx`** — new optional `highlightSkill` prop. `buildHighlightedSegments` splits preview text into `{k, v, hit}` segments; `<pre>` body renders `<mark>` (accent bg + ring) for hits, `<span>` otherwise. First hit gets `ref={firstHitRef}` and `useEffect` calls `scrollIntoView({block:'center', behavior:'smooth'})`.
-- **CV page — `frontend/app/cv/page.tsx`** — reads `searchParams.get("skill")` → passes `highlightSkill={skillFocus}` to `CVVersionLedger`. Only wired in Mode 2 (baseline, no jobId). Mode 3 (tailored playground) skipped — carryover.
+- **Backend — `database/migrations/20260519_cv_skill_edit.sql`** — adds `cv_versions.recompute_finished_at TIMESTAMPTZ NULL`. NOTIFY pgrst.
+- **Backend — `app/services/cv_skill_edit.py`** — new pure-logic service. `BulletLocation` / `LocateConflict` dataclasses. `locate_bullet()` scans `cv_structured` editable regions (summary, exp_bullet, proj_bullet, skills_line, cert; SE15); honours `(section_hint, item_index, bullet_index)` tuple; SE2=A+C — exact-match → conflict-list → substring-fallback. `apply_bullet_edit()` deep-copies and mutates. `diff_keyword_skills()` runs the sync skill drop (SE3-sync). `run_async_retag()` BackgroundTask runs `parse_cv_text` → `record_cv_score` → stamps `recompute_finished_at` (SE3-async + SE17). `render_baseline_text()` reuses `cv_compose.render_deterministic`.
+- **Backend — `app/routers/cv/skill_edit.py`** — `POST /cv/skill-edit` + `GET /cv/skill-edit/recompute-status/{baseline_id}`. 409 + `SkillEditConflictDetail` candidate list on multi-match. 422 for non-editable sections. Mounted in `cv/__init__.py`.
+- **Backend — `app/repositories/scores.py`** — new `get_user_skill_for_key(user_id, taxonomy_key)` keeps the seam clean (no `scores_repo.client` from routers).
+- **Frontend — `lib/api.ts`** — `cv.skillEdit` (custom fetch to surface 409 candidate payload as `SkillEditConflict`), `cv.recomputeStatus`. New types: `SkillEditRequest`, `SkillEditResponse`, `SkillEditCandidate`, `SkillEditConflictDetail`, `SkillEditConflict`.
+- **Frontend — `store/recomputeStore.ts`** — Zustand. `pendingBaselineId` + `start` + `clear`. Reads from `<ScoreRing>` (drives `tm-score-pulse` opacity loop per SE4).
+- **Frontend — `components/skills/skill-edit-dialog.tsx`** — modal w/ textarea, greyed mono reference (`Currently in your CV`), soft keyword hint when `display_name` not in new text (SE6), multi-match candidate picker (SE2-C). On success invalidates `dataKeys.userSkills()` + `dataKeys.scores()`, calls `onSaved(baseline_id)` so parent can begin polling.
+- **Frontend — `components/skills/skill-card-inline.tsx` (new)** — full-width single-column `InlineSkillCard`. Layout (SE10–SE13): name + L·{Gap/Building/Strong} pill → 2px progress bar → `HOW TO REACH {NEXT_TITLE} (L{n+1})` descriptor from local `LADDER_DESCRIPTOR` table → boxed mono CV pointer (always rendered) → 3 labelled action buttons. Mobile (<480px) hides labels via `.tm-skill-card-action-label` (SE14). Owns recompute polling (3s interval, 30s cap).
+- **Frontend — `components/skills/domain-accordion-row.tsx`** — pruned. Grid `repeat(auto-fill, minmax(200px, 1fr))` → `flex column` (SE10). Imports new `InlineSkillCard`. Old icon-row + `IconBtn` dropped.
+- **Frontend — `components/skills/score-ring.tsx`** — subscribes to `useRecomputeStore`; applies `tm-score-pulse` while pending.
+- **Frontend — `app/globals.css`** — new keyframe `tm-score-pulse` + mobile `.tm-skill-card-action-label` media query.
 
-Verify: `tsc --noEmit` clean · `next lint` 0/0. No backend touched, no tests added (frontend-only behavioral change).
+Verify: 306 backend tests pass (12 new in `test_cv_skill_edit.py` covering locator + mutator + render seam) · `tsc --noEmit` clean · `next lint` 0/0.
 
 Open (carryover from this session — see Backlog #16):
 - Fix-my-level picker — restore, modal-ize, or sunset.
 - `?skill=` highlight in `CVPlayground` Mode 3 BulletRows.
 - Diary log cache invalidation + XP wallet refresh on success.
-- Word-boundary guard on substring match (short-skill false positives).
+- Word-boundary guard on substring match.
+- Smoke-check `parse_cv_text` on `render_deterministic`-shaped body (capitalised headers, `•` bullets).
+- Stale-baseline pill on orphaned tailored CVs (SE9 v2 polish).
+- Optional: loosen `CVVersionWriteSpec` to allow `parent_version_id` on `baseline_upload` for a linear baseline chain.
 
 Open (carryover from prior sessions — still standing):
 - Backlog #13 code: `/improve-codebase-architecture` on `frontend/components/loading/`, then `<RouteLoading>` deep module + `/v1/status` + telemetry.

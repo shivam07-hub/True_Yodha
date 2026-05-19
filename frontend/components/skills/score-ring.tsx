@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRecomputeStore } from "@/store/recomputeStore"
 
 const SCORE_TIERS = [
   { min: 80, label: "Advanced",            next: null, nextLabel: null },
@@ -21,10 +22,20 @@ export function ScoreRing({ score }: { score: number }) {
   }, [score, CIRC])
 
   const tier = SCORE_TIERS.find(t => score >= t.min) ?? SCORE_TIERS[SCORE_TIERS.length - 1]
+  const recomputing = useRecomputeStore(s => s.pendingBaselineId !== null)
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-      <svg width={68} height={68} viewBox="0 0 68 68" style={{ flexShrink: 0 }}>
+      <svg
+        width={68} height={68} viewBox="0 0 68 68"
+        aria-busy={recomputing}
+        style={{
+          flexShrink: 0,
+          animation: recomputing ? "tm-score-pulse 1400ms ease-in-out infinite" : "none",
+          opacity: recomputing ? 0.7 : 1,
+          transition: "opacity 200ms var(--tm-ease)",
+        }}
+      >
         <circle cx={34} cy={34} r={R} fill="none" stroke="var(--tm-border)" strokeWidth={5} />
         <circle cx={34} cy={34} r={R} fill="none" stroke="var(--tm-accent)" strokeWidth={5}
           strokeDasharray={CIRC} strokeDashoffset={offset}

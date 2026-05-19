@@ -437,6 +437,40 @@ export interface CVVersion {
   company_name: string | null
 }
 
+export interface SkillEditRequest {
+  skill_key: string
+  new_text: string
+  section_hint?: string
+  item_index?: number
+  bullet_index?: number
+}
+
+export interface SkillEditCandidate {
+  section: string
+  item_index: number
+  bullet_index: number
+  text: string
+  label: string
+}
+
+export interface SkillEditResponse {
+  baseline_id: number
+  user_version_number: number
+  body_text: string
+  title: string
+  dropped_skill_keys: string[]
+  recompute_pending: boolean
+  conflict?: false
+}
+
+export interface SkillEditConflictDetail {
+  code: "multi_match"
+  skill_key: string
+  candidates: SkillEditCandidate[]
+}
+
+export type SkillEditConflict = SkillEditConflictDetail & { conflict: true }
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -476,6 +510,34 @@ export const cv = {
         body: JSON.stringify({ edited_items: editedItems, title }),
       }),
   },
+  skillEdit: async (
+    token: string,
+    body: SkillEditRequest,
+  ): Promise<SkillEditResponse | SkillEditConflict> => {
+    const res = await fetch(`${BASE}/cv/skill-edit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 409) {
+      const payload = await res.json().catch(() => ({})) as { detail?: unknown }
+      const detail = payload.detail
+      if (detail && typeof detail === "object" && "candidates" in detail) {
+        return { conflict: true, ...(detail as SkillEditConflictDetail) }
+      }
+      throw new Error(typeof detail === "string" ? detail : "CV no longer matches that skill — refresh.")
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(extractError(err, res.status))
+    }
+    return res.json() as Promise<SkillEditResponse>
+  },
+  recomputeStatus: (token: string, baselineId: number) =>
+    request<{ baseline_id: number; recompute_finished_at: string | null }>(
+      `/cv/skill-edit/recompute-status/${baselineId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
   downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",
