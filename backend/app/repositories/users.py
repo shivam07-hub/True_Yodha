@@ -38,19 +38,12 @@ class UsersRepository:
         )
         return (result.data if result else None) or None
 
-    def update_profile(self, user_id: str, updates: dict[str, Any], *, email: str | None = None) -> None:
-        """UPSERT the profile so PUT always succeeds even if the row was never seeded.
-
-        email is required for the INSERT path (NOT NULL constraint); pass it from
-        the JWT so the upsert never fails on a new row.
-        """
-        payload = {"id": user_id, **updates}
-        if email:
-            payload.setdefault("email", email)
+    def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
+        payload = dict(updates)
         if "target_location" in payload:
             parsed = normalize_location(payload["target_location"])
             payload["target_location_country"] = parsed.location_country
-        self._db.table("user_profiles").upsert(payload, on_conflict="id").execute()
+        self._db.table("user_profiles").update(payload).eq("id", user_id).execute()
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
@@ -114,31 +107,6 @@ class UsersRepository:
         if not result or not result.data:
             return None
         return int(result.data["id"])
-
-    def ensure_profile_exists(
-        self,
-        user_id: str,
-        *,
-        email: str | None,
-        full_name: str | None = None,
-    ) -> None:
-        """Idempotent: insert a user_profiles row if missing, no-op if present.
-
-        Called from get_current_user so any authenticated request self-provisions
-        its profile. Uses INSERT ... ON CONFLICT DO NOTHING so we never overwrite
-        existing data.
-        """
-        if not email:
-            return
-        self._db.table("user_profiles").upsert(
-            {
-                "id": user_id,
-                "email": email,
-                "full_name": full_name,
-            },
-            on_conflict="id",
-            ignore_duplicates=True,
-        ).execute()
 
     def get_followed_companies(self, user_id: str) -> list[dict]:
         result = (

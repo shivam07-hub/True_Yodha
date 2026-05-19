@@ -20,6 +20,7 @@ import { VerdictsTab } from "@/components/tracker/VerdictsTab"
 import { ReviewModal } from "@/components/tracker/ReviewModal"
 import { ManualAddModal } from "@/components/tracker/ManualAddModal"
 import { DeleteConfirmDialog } from "@/components/tracker/DeleteConfirmDialog"
+import { StatusPicker } from "@/components/tracker/StatusPicker"
 
 type Tab = "active" | "verdicts"
 
@@ -39,11 +40,13 @@ function TrackerPageInner() {
   const [mobileStage, setMobileStage] = useState<StageKey>(initialStage)
   const [manualOpen, setManualOpen] = useState(false)
   const [reviewJobId, setReviewJobId] = useState<string | null>(null)
+  const [reviewDefaultStage, setReviewDefaultStage] = useState<StageKey>("applied")
   const [deleteTarget, setDeleteTarget] = useState<ApplicationResponse | null>(null)
   const [sparkleJobId, setSparkleJobId] = useState<string | null>(null)
   const [sparkleTrigger, setSparkleTrigger] = useState(0)
   const [reviewedJobIds, setReviewedJobIds] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<string | null>(null)
+  const [stalePickerJobId, setStalePickerJobId] = useState<string | null>(null)
 
   const {
     applications, applicationsLoading, staleApplications,
@@ -87,10 +90,15 @@ function TrackerPageInner() {
   }
 
   function handleStatusChange(jobId: string, status: ApplicationStatus) {
+    const before = applications.find(a => a.job_id === jobId)?.status
     updateStatus.mutate({ jobId, status }, {
       onSuccess: (res) => {
         const isOutcome = (["ghosted", "rejected", "offer", "withdrew"] as ApplicationStatus[]).includes(status)
-        if (isOutcome) setReviewJobId(jobId)
+        if (isOutcome) {
+          const isStage = before && (APPLICATION_STAGES as readonly string[]).includes(before)
+          setReviewDefaultStage(isStage ? (before as StageKey) : "applied")
+          setReviewJobId(jobId)
+        }
         if (status === "offer" && res?.is_first_offer) {
           setSparkleJobId(jobId)
           setSparkleTrigger(n => n + 1)
@@ -157,7 +165,7 @@ function TrackerPageInner() {
           <StuckBanner
             stale={staleApplications}
             onMarkGhosted={(jobId) => handleStatusChange(jobId, "ghosted")}
-            onUpdate={(jobId) => { /* scroll to card or open picker — minimal v1 just dismiss */ handleDismiss(jobId) }}
+            onUpdate={(jobId) => setStalePickerJobId(jobId)}
             onDismiss={handleDismiss}
           />
         )}
@@ -228,7 +236,7 @@ function TrackerPageInner() {
       {reviewJobId && reviewApp && (
         <ReviewModal
           company={reviewApp.company ?? null}
-          defaultStage={reviewApp.last_stage_changed_at ? "applied" : "applied"}
+          defaultStage={reviewDefaultStage}
           onClose={() => setReviewJobId(null)}
           onSubmit={handleReviewSubmit}
         />
@@ -242,6 +250,22 @@ function TrackerPageInner() {
           onClose={() => setDeleteTarget(null)}
         />
       )}
+
+      {stalePickerJobId && (() => {
+        const target = applications.find(a => a.job_id === stalePickerJobId)
+        if (!target) return null
+        return (
+          <StatusPicker
+            current={target.status}
+            asSheet
+            onClose={() => setStalePickerJobId(null)}
+            onPick={(status) => {
+              handleStatusChange(stalePickerJobId, status)
+              setStalePickerJobId(null)
+            }}
+          />
+        )
+      })()}
 
       {toast && (
         <div

@@ -186,7 +186,7 @@ async def update_profile(
     user_id = current_user["user_id"]
     before = users_repo.get_profile(user_id)
     should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
-    users_repo.update_profile(user_id, updates, email=current_user.get("email"))
+    users_repo.update_profile(user_id, updates)
     profile = users_repo.get_profile(current_user["user_id"])
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
