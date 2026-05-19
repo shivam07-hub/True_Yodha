@@ -381,7 +381,38 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Skills card inline CV-pointer edit loop)
+## LAST SESSION SUMMARY (2026-05-20 · Feedback Hub redesign)
+
+Unified the three buried sidebar feedback modals (Report a bug · Add more companies · Leave feedback) into one **Feedback Hub** modal — Claude Design handoff bundle (`reference/Setting Modal-handoff.zip`, screenshots 22:04–22:07). Picker for 4 categories (Bug · Idea · Question · Praise), severity for bugs, auto-attached context block, drag/paste/browse screenshot drop zone, optional pin-element handle, "My reports" tab, "Shipped" tab. `⌘/` opens it from anywhere; sidebar quick-actions and mobile sheet deep-link with the matching category.
+
+- **Backend — `database/migrations/20260520_feedback_hub.sql`** — extends `user_feedback.type` CHECK with `idea/question/praise`, adds `status` column (`received/triaged/in_progress/shipped/closed`) + index, `NOTIFY pgrst`.
+- **Backend — `app/routers/feedback.py`** — `FeedbackType` Literal grows to six categories (legacy `feedback`/`company` retained). New `GET /feedback/my` returns the caller's reports (auth required). `POST /feedback` stays anon-allowed for compat.
+- **Backend — `tests/test_feedback_router.py` (new)** — 11 tests: every category accepts, unknown rejects (422), anonymous insert path, `GET /my` 401 without token, returns rows.
+- **Frontend — `lib/api.ts`** — extends `FeedbackType` Literal, adds `FeedbackStatus`, `FeedbackSeverity`, `FeedbackReport`. `feedback.submit` payload now `Record<string, unknown>`; new `feedback.listMine`.
+- **Frontend — `components/feedback/` (new deep module — single import surface)**:
+  - `feedback-types.ts` — `CATEGORIES`, `CATEGORY_ORDER`, `SEVERITY`, `STATUS_META`, `OPEN_FEEDBACK_EVENT="tm:open-feedback"`, `FeedbackSubmissionPayload` schema.
+  - `feedback-hub.tsx` — orchestrator modal: left rail (tabs + SLA footer), right header (title/subtitle/close), body. Mobile breakpoint collapses rail to a horizontal tab row via scoped `styled-jsx`. `Esc` closes; backdrop click closes.
+  - `new-report.tsx` — form: category picker, severity (bug only), headline, details (Cmd+V paste image), attachments (drop/paste/browse + pin-element chip + screenshots grid), `<details>` auto-context (URL/UA/viewport/user). `useMutation` → real `feedback.submit`. Object-URLs revoked on unmount.
+  - `my-reports.tsx` — `useQuery(["feedback-my"])`, renders rows with `<StatusPill>` and category glyph. Empty / loading / error states all handled.
+  - `shipped.tsx` — curated changelog timeline (hand-maintained for v1; gated behind `showShipped` flag, default `false`).
+  - `sent-state.tsx` — success splash.
+  - `category-card.tsx`, `status-pill.tsx`, `category-glyph.tsx` — primitives.
+  - `use-context-snapshot.ts` — client hook returning `{url, user_agent, viewport, accent}`.
+  - `index.ts` — public exports.
+- **Frontend — `components/app-shell.tsx`** — deleted legacy `FeedbackModal` and the 3-button popover state. New exports: `FEEDBACK_QUICK_ACTIONS` (bug/idea/praise → hub categories) and `openFeedbackHub(detail)`. `AppShell` mounts a single `<FeedbackHub>` globally, listens for `tm:open-feedback`, wires `⌘/ / Ctrl+/`. Sidebar avatar menu now dispatches the event.
+- **Frontend — `mobile/shell.tsx`** — replaced `FeedbackModal` import with `openFeedbackHub` event dispatcher. Mobile profile sheet "Send Feedback" routes through the same hub.
+
+Verify: 317 backend tests pass (11 new in `test_feedback_router.py`) · `tsc --noEmit` clean · `next lint` 0/0 · `next build` succeeds (all 30 routes prerender).
+
+v2 deferred:
+- Real `shipped_changelog` table so the Shipped tab joins to `user_feedback.status='shipped'`.
+- Supabase Storage upload for screenshot blobs (v1 records names + sizes only — see comment in `new-report.tsx`).
+- Element-pin overlay (Marker.io-style click-to-target). The hub accepts `pinnedTarget`/`onPinElement` props; the picker overlay itself is not built yet.
+- XP grant on feedback submit (+25 XP "Signal Contributor") — backend route ready, hook into XP store.
+- Replies on individual reports (My reports → drilldown view).
+- Graphify-out refresh — manifest is 2 days stale (Backlog parked Q8 still standing).
+
+## PREVIOUS SESSION SUMMARY (2026-05-19 · Skills card inline CV-pointer edit loop)
 
 Two-phase session. Phase 1 restored the 3-button affordance the card had lost (icon-row, navigate-to-CV link, ✦ Polish AI inline advice, ☆ Track-in-diary). Phase 2 (this lock) replaced the navigate-to-CV pattern with an **inline modal that edits the CV bullet on the Skills page itself and commits it as a new immutable baseline**. Grilled 17 decisions (SE1–SE17 in DECISIONS LOCKED) before writing code.
 

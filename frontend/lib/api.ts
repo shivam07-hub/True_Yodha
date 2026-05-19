@@ -1323,14 +1323,46 @@ export const xp = {
 
 // ── Feedback ─────────────────────────────────────────────────────────────────
 
-export type FeedbackType = "feedback" | "company" | "bug"
+export type FeedbackType =
+  | "bug"
+  | "idea"
+  | "question"
+  | "praise"
+  | "feedback"
+  | "company"
+
+export type FeedbackStatus =
+  | "received"
+  | "triaged"
+  | "in_progress"
+  | "shipped"
+  | "closed"
+
+export type FeedbackSeverity = "low" | "medium" | "blocker"
+
+export interface FeedbackReport {
+  id: number
+  type: FeedbackType
+  status: FeedbackStatus
+  payload: Record<string, unknown>
+  created_at: string
+}
 
 export const feedback = {
-  submit: (type: FeedbackType, payload: Record<string, string>, token?: string) =>
+  submit: (
+    type: FeedbackType,
+    payload: Record<string, unknown>,
+    token?: string,
+  ) =>
     request<{ ok: boolean; id: number }>("/feedback", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify({ type, payload }),
+    }),
+
+  listMine: (token: string, limit = 50) =>
+    request<FeedbackReport[]>(`/feedback/my?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 
