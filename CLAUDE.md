@@ -165,6 +165,100 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 12. ~~**Shareability v1 — `/profile/{ninja_name}` public profile**~~ ✅ DONE 2026-05-19 — Backend `ninja_name` service + `routers/profile/public.py` (`GET /profile/{ninja_name}`, `GET /overlap`, `POST /ninja-name`, `GET /suggest`). Migration `20260519_shareability_v1.sql` + backfill script. `user_provisioning.ensure_user_provisioned` becomes single profile seed point — generates ninja_name on first insert, honors `myro_ref` (body field, cookie fallback). Frontend: `lib/radar-geometry.ts` extracted, `components/profile/` (GhostRadar, OwnerRadar, RadarOverlay, JobOverlapRows, ShareButton, PublicProfilePage), `app/profile/[ninja]/{page,loading,opengraph-image}.tsx`, `/skills` ShareButton top-right, signup captures `?ref=`, onboarding NinjaNameStep before final. `robots.ts` disallows `/profile/`. 301 backend tests green; tsc + lint clean.
 
+13. **Frontend loading-time reduction + deep loading module** (locked 2026-05-19 via grill-me) — full plan below. Do NOT code until `/improve-codebase-architecture` pass on the deep module lands first.
+
+---
+
+## FRONTEND LOADING-TIME REDUCTION — PLAN (Backlog #13, locked 2026-05-19 via grill-me)
+
+### Vision
+Every navigation page renders something useful in under 1 second and finishes critical content in under 2.5 seconds, on India-mobile reality. No user is ever "left hanging" by a waterfall fetch. Heavy modules stream in below the fold; light/cached modules render real immediately. The loader knows when the backend is mid-deploy or degraded and tells the user instead of spinning silently. One deep, reusable loading module governs all 14 logged-in + onboarding routes — pages consume a single `<RouteLoading kind=... query=... fallback=... />` and never import status codes, deploy state, or polling logic directly.
+
+### Decisions (LD1–LD6)
+
+| # | Decision |
+|---|---|
+| LD1 | **Scope = 14 routes.** Logged-in app shell (`/home`, `/cv`, `/jobs`, `/tracker`, `/skills`, `/diary`, `/xp`, `/market`, `/mission`, `/companies/[slug]`, `/profile/[ninja]`) + onboarding/auth chrome (`/onboarding`, `/login`, `/signup`). Marketing (`/`, `/about`, `/newsletter`) excluded — SSG, separate problem class. Legal pages excluded. |
+| LD2 | **Module split by data shape, not route group.** Two categories: `app-data` (logged-in shell, user-specific async, skeleton-mirror-then-stream) + `flow-step` (onboarding/auth, no user data or step-machine, centered process indicator). One entry point: `<RouteLoading kind="app-data" \| "flow-step" />`. Deep-module per Ousterhout — complex internals, narrow interface. |
+| LD3 | **Render priority rule = P(user's next action) × certainty-of-data × inverse-latency.** Three-axis sort: latency band (`instant` <200ms / `light` <1s / `heavy` 1–5s / `compute` >5s) × info density (`high`/`medium`/`low`) × action proximity (`primary`/`secondary`/`ambient`). Placement bands: above-fold = `action=primary` OR (`info=high` AND `latency∈{instant,light}`); below-fold-stream = `action=secondary` AND `latency∈{light,heavy}`; deferred-lazy-on-scroll = `latency=compute` OR `info=low`. Mechanism: Next.js `loading.tsx` per segment + `<Suspense>` per module + TanStack `staleTime` (`instant=5min`, `light=1min`, `heavy=30s`) + `keepPreviousData` on tab/filter switches. |
+| LD4 | **Aggressive targets (RUM p75 over 7d):** TTFA ≤ 1.0s · TTI-CC ≤ 2.5s · CLS ≤ 0.05 · stuck-screen rate ≤ 1%. Web vitals (LCP/FCP/INP) logged but not optimized for — TTFA + TTI-CC are the metrics product cares about. |
+| LD5 | **Route tiering = activation-weighted, not traffic-weighted.** P0 = `/onboarding`, `/myro`, `/home` (the conversion funnel — one-shot first-impression moments). P1 = `/jobs`, `/skills`, `/tracker` (retention loop). P2 = `/cv`, `/market`, `/companies/[slug]`, `/mission`, `/diary`, `/xp`, `/profile/[ninja]`. P3 = `/login`, `/signup`, `/auth/callback` (regression alarm only, no proactive work). |
+| LD6 | **Deploy coupling = A-Lean.** Midnight-IST-only deploys to `main` reduce collision rate but do NOT save the HTTP-status fallback work, chunk-version drift handling, or backend-degradation handling. Compute-optimized: `/v1/status` (merged health+version, 5s in-memory cache) replaces separate endpoints; `useBackendStatus()` polls only on 5xx or tab-refocus-after-5min-hidden (not on timeout — slow LLM ≠ deploy); `useAppVersionWatch` replaced by `visibilitychange` listener (zero polling steady state); `ChunkLoadError` → hard reload. Saves ~95% of status request volume vs naïve polling. |
+
+### Ambient-tier deployment list (the teal particle loader from `components/ui/particle-loading.tsx`)
+
+Fit criteria — ALL four must hold: single hero region · 2–15s bounded wait · no known sub-steps to expose · empty state would feel depressing.
+
+Locked candidates:
+- `/jobs` Run Analysis (50 XP) — LLM overlap, 5–15s, single card.
+- `/mission` company tab reconfigure (XP9) — single transition, bounded.
+- `/cv` polish/tailoring waits — LLM rewrite of section, ~8s, single card. Polish step only, not full builder.
+- `/myro` first score reveal — verify `/myro` renders a bounded compute moment >2s; if yes, ambient covers it.
+
+Resist temptation (do NOT add ambient to): `/home`, `/dashboard`, `/tracker`, `/jobs` list (grids → skeleton wins); `/market` heatmap (per-row independent fetches per IH3); `/cv` builder shell (layout-heavy, skeleton wins); onboarding CV parsing (step-machine, `process-loading` wins); `/auth/callback` (sub-second, spinner is honest).
+
+### Backend — New + Modified
+
+**New: `backend/app/routers/status.py`**
+- `GET /v1/status` — merged health + version. Returns `{status: "ready"|"degraded", version: <7-char SHA>, ts: <iso>}`. In-memory cache, 5s TTL. Drops the `deploying` state (midnight policy makes it dead code). No auth.
+
+**Modified: `backend/app/main.py`**
+- `/health` stays as legacy ping for Railway healthcheck probes. Mount `status.py` router.
+- Expose `RAILWAY_GIT_COMMIT_SHA` (or fallback) into status payload.
+
+**New: `backend/app/routers/telemetry.py`**
+- `POST /v1/telemetry/route-perf` — receives `{route, ttfa_ms, tti_cc_ms, cls, deploy_id, backend_version, viewport, session_id}` from frontend marks. Writes to `route_perf_events` table. Auth required (token-scoped per OQ2).
+- Sample rate: prod 10%, dev 100%. Sampling decision made client-side (cheap), backend just trusts the flag.
+
+**New: `backend/database/migrations/20260520_route_perf_telemetry.sql`**
+- `route_perf_events (id, user_id, route, ttfa_ms, tti_cc_ms, cls, deploy_id, backend_version, viewport, occurred_at)`. RLS: service-role write only. Indexed on `(route, occurred_at)` for the p75 query.
+
+### Frontend — New + Modified
+
+**New deep module: `frontend/components/loading/route-loading/`** — the public-facing single export.
+- `index.tsx` — `<RouteLoading kind query fallback />`. Pages import only this.
+- `route-loading.app-data.tsx` — `app-data` variant. Wraps `<Suspense>` boundary, decodes HTTP status, renders skeleton-mirror or recovery banner.
+- `route-loading.flow-step.tsx` — `flow-step` variant. Centered process indicator with step prop.
+- `use-backend-status.ts` — hook. Idle when queries happy. Activates on 5xx OR `visibilitychange` after >5min hidden. Polls `/v1/status` with jittered backoff (10s → 20s → 40s, cap 60s). Sleeps on recovery.
+- `use-route-perf-marks.ts` — hook. Emits `performance.mark()` at module mount (TTFA = when first real content paints) and at critical-content resolve (TTI-CC). Posts to `/v1/telemetry/route-perf` on unmount, sampled.
+- `use-app-version-watch.ts` — hook. Reads `<meta name="app-version">` once at mount. On `visibilitychange` to visible after >5min hidden, fetches `/v1/status.version` and compares. Mismatch → non-blocking toast "New version available — reload". `ChunkLoadError` global handler → hard reload.
+- `http-status-fallback.tsx` — pure component. Maps status code to UI: 401→redirect, 403→empty, 404→route-empty, 429→countdown, 5xx→deploy-aware retry banner.
+- `skeleton-mirrors/` — per-route shape-matching skeletons. Zero CLS allowed.
+
+**Modified pages (in P0/P1 order):**
+- `app/onboarding/page.tsx` — wrap CV parse step in `<RouteLoading kind="flow-step" step="cv-parsing">`.
+- `app/myro/page.tsx` — wrap score reveal in ambient `ParticleLoading` (verify >2s wait first). Add `<RouteLoading kind="app-data">`.
+- `app/home/page.tsx` — rearrange per LD3: score ring + primary CTA above fold (instant/cached), top jobs grid below fold (skeleton + Suspense), XP banner streams, recent activity lazy-on-scroll.
+- `app/jobs/page.tsx`, `app/skills/page.tsx`, `app/tracker/page.tsx` — apply rule, migrate to deep module.
+- `app/layout.tsx` — inject `<meta name="app-version" content={process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)}>`. Register `ChunkLoadError` global handler.
+
+**Modified: `frontend/lib/api.ts`**
+- Add `status.get()` for `/v1/status`. No auth.
+- Add `telemetry.routePerf(payload)` — sampled post, fire-and-forget.
+
+**Modified: `frontend/lib/query-client.ts` (or wherever TanStack is configured)**
+- Set default `staleTime` semantics per-band. Document with inline JSDoc on the constants.
+
+### Tests
+
+- `backend/tests/test_status_router.py` — payload shape, 5s cache TTL, degraded state on db ping failure, version field non-null.
+- `backend/tests/test_route_perf_telemetry.py` — auth required, sample rate honored, deploy_id captured.
+- `frontend/tests/route-loading.test.mjs` — kind switching, fallback rendering, status decode for 401/403/404/429/500/503.
+- `frontend/tests/use-backend-status.test.mjs` — idle in steady state, wakes on 5xx, sleeps on recovery, `visibilitychange` activation after 5min hidden.
+- `frontend/tests/use-app-version-watch.test.mjs` — no polling steady state, mismatch toast on tab-return, ChunkLoadError reload.
+
+### Architecture pass
+
+**Run `/improve-codebase-architecture` on `frontend/components/loading/` BEFORE first migration.** Today's modules (`loading-page.tsx`, `process-loading.tsx`, `particle-loading.tsx`) are shallow + scattered. The deep module replaces them as a single import surface. Pages must not depend on the legacy three separately — they depend on `<RouteLoading />` which internally picks the right tier. This is the deepening that prevents drift as P0 → P1 → P2 migration progresses.
+
+### Out of scope for v1 (logged for later)
+
+- Synthetic monitoring (Lighthouse CI in PR pipeline) — defer until RUM telemetry surfaces enough p75 noise.
+- Vercel Pro upgrade — revisit when Speed Insights shows sample dropping or when DAU pushes past ~7k page-views/month.
+- Predictive pre-fetch (prefetch likely-next-route on hover) — adds compute, defer until base TTFA target met.
+- Per-deploy regression alerts (PagerDuty / Slack) — defer until baseline p75 stable for 2 weeks.
+- Mobile-vs-desktop budget split — current targets are mobile-first by default; revisit if desktop measurably faster.
+
 ---
 
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
