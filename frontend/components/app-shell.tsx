@@ -14,7 +14,7 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { MyroLogo } from "@/components/myro-logo"
-import { FeedbackHub, OPEN_FEEDBACK_EVENT, type FeedbackCategory, type OpenFeedbackDetail } from "@/components/feedback"
+import { FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT, openFeedbackHub as openFeedbackHubEvent, type FeedbackCategory, type OpenFeedbackDetail } from "@/components/feedback"
 import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
 import { xp } from "@/lib/api"
@@ -53,14 +53,8 @@ export const FEEDBACK_QUICK_ACTIONS: {
   { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)", bg: "var(--tm-success-wash)" },
 ]
 
-/**
- * Dispatch this from anywhere to open the global Feedback Hub.
- * `AppShell` mounts a single listener and renders the hub.
- */
-export function openFeedbackHub(detail: OpenFeedbackDetail = {}) {
-  if (typeof document === "undefined") return
-  document.dispatchEvent(new CustomEvent<OpenFeedbackDetail>(OPEN_FEEDBACK_EVENT, { detail }))
-}
+/** Re-export for legacy callers; canonical home is `@/components/feedback`. */
+export const openFeedbackHub = openFeedbackHubEvent
 
 export type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
 
@@ -935,6 +929,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={xpModalOpen}
         onClose={() => setXPModalOpen(false)}
         balance={xpBalance}
+      />
+
+      <FeedbackFAB
+        hidden={!isDesktop || feedbackHubOpen}
+        onOpen={(category) => {
+          if (category) setFeedbackHubCategory(category)
+          setFeedbackHubTab("new")
+          setFeedbackHubOpen(true)
+        }}
       />
 
       <FeedbackHub

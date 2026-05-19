@@ -21,8 +21,15 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 import Link from "next/link"
+import {
+  CATEGORIES,
+  CATEGORY_ORDER,
+  CategoryGlyph,
+  openFeedbackHub,
+  type FeedbackCategory,
+} from "@/components/feedback"
 
-type Tab = "Account" | "Following"
+type Tab = "Account" | "Following" | "Feedback"
 type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 
@@ -353,7 +360,7 @@ export function SettingsModal({ open, onClose, profile }: {
     ? `Save failed: ${saveError ?? "unknown error"}`
     : ""
 
-  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★" }
+  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎" }
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
@@ -389,7 +396,7 @@ export function SettingsModal({ open, onClose, profile }: {
 
           {/* Nav tabs */}
           <nav style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            {(["Account", "Following"] as Tab[]).map((tab) => (
+            {(["Account", "Following", "Feedback"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -413,6 +420,16 @@ export function SettingsModal({ open, onClose, profile }: {
                     borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
                   }}>
                     {followingData!.total}
+                  </span>
+                )}
+                {tab === "Feedback" && (
+                  <span style={{
+                    marginLeft: "auto", fontSize: 9, fontWeight: 700,
+                    background: "var(--tm-success-wash)", color: "var(--tm-success)",
+                    border: "1px solid var(--tm-success)",
+                    borderRadius: 99, padding: "1px 6px", letterSpacing: "0.05em",
+                  }}>
+                    NEW
                   </span>
                 )}
               </button>
@@ -738,9 +755,133 @@ export function SettingsModal({ open, onClose, profile }: {
                 )}
               </>
             )}
+
+            {/* ── FEEDBACK TAB ── */}
+            {activeTab === "Feedback" && (
+              <FeedbackTabContent onClose={flushAndClose} />
+            )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
+
+// ── Feedback tab content ───────────────────────────────────────────────────
+
+function FeedbackTabContent({ onClose }: { onClose: () => void }) {
+  function open(category?: FeedbackCategory) {
+    onClose()
+    // Defer so the close animation finishes before the hub modal opens.
+    requestAnimationFrame(() => openFeedbackHub(category ? { category } : {}))
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingTop: 4 }}>
+      {/* Hero */}
+      <div style={{
+        padding: 18,
+        borderRadius: "var(--tm-radius)",
+        background: "linear-gradient(180deg, var(--tm-accent-wash), transparent)",
+        border: "1px solid var(--tm-accent-ring)",
+      }}>
+        <div style={{
+          fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "var(--tm-accent)", fontWeight: 500,
+        }}>Direct line</div>
+        <div style={{ marginTop: 6, fontSize: 18, color: "var(--tm-text)", fontWeight: 600 }}>
+          Help shape Myro
+        </div>
+        <div style={{ marginTop: 6, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
+          Every dispatch is read by a human. A growing share of Myro&apos;s roadmap starts as a user signal.
+        </div>
+        <button
+          type="button"
+          onClick={() => open()}
+          style={{
+            marginTop: 14,
+            padding: "10px 18px", borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+            border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            boxShadow: "0 0 18px var(--tm-accent-glow)",
+            display: "inline-flex", alignItems: "center", gap: 8,
+          }}
+        >
+          Open feedback hub <span>↗</span>
+        </button>
+      </div>
+
+      {/* Quick dispatch */}
+      <div>
+        <div style={{
+          fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "var(--tm-text-faint)", fontWeight: 500, marginBottom: 10,
+        }}>Quick dispatch</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          {CATEGORY_ORDER.map((id) => {
+            const c = CATEGORIES[id]
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => open(id)}
+                className="hover-lift"
+                style={{
+                  padding: 14, borderRadius: "var(--tm-radius-sm)",
+                  background: "transparent",
+                  border: "1px solid var(--tm-border-soft)",
+                  color: "var(--tm-text-muted)",
+                  cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                  display: "flex", alignItems: "center", gap: 12,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = c.color
+                  e.currentTarget.style.background = c.wash
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--tm-border-soft)"
+                  e.currentTarget.style.background = "transparent"
+                }}
+              >
+                <span style={{ color: c.color, display: "grid", placeItems: "center", filter: `drop-shadow(0 0 4px ${c.color}66)` }}>
+                  <CategoryGlyph category={id} size={18} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, color: "var(--tm-text)", fontWeight: 600 }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 1 }}>{c.hint}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* SLA footer */}
+      <div style={{
+        padding: "12px 16px",
+        borderRadius: "var(--tm-radius-sm)",
+        border: "1px solid var(--tm-border-soft)",
+        background: "rgba(255,255,255,0.015)",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--tm-text-faint)", fontWeight: 500,
+          }}>Response time</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", color: "var(--tm-accent)", fontWeight: 700 }}>14h</span>
+            <span style={{ color: "var(--tm-text-muted)", marginLeft: 6 }}>median this week · 1 human reads</span>
+          </div>
+        </div>
+        <span style={{
+          fontSize: 11, color: "var(--tm-text-faint)",
+          fontFamily: "var(--tm-font-mono)",
+        }}>
+          ⌘/ opens this anywhere
+        </span>
+      </div>
+    </div>
+  )
+}
+
