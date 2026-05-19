@@ -24,12 +24,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_profiles_ninja_name
 -- ── Public read surface ────────────────────────────────────────────────────
 -- Strict allowlist: ninja_name, score, domain_scores, tier, aggregate counters.
 -- Never expose email, full_name, linkedin_url, or any PII.
+-- Aliases keep the API/router shape stable (mirror_score, tier_label) while
+-- sourcing from the canonical mirror_scores columns (total_score, rank_tier).
 CREATE OR REPLACE VIEW public_profile_v AS
   SELECT
     up.ninja_name,
-    ms.mirror_score,
+    ms.total_score   AS mirror_score,
     ms.domain_scores,
-    ms.tier_label,
+    ms.rank_tier     AS tier_label,
     (SELECT COUNT(*) FROM forge_sessions    WHERE user_id = up.id) AS forge_sessions_count,
     (SELECT COUNT(*) FROM daily_logs        WHERE user_id = up.id) AS diary_count,
     (SELECT COUNT(*) FROM job_applications  WHERE user_id = up.id) AS tracker_count

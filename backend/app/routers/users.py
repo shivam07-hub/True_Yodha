@@ -16,7 +16,7 @@ from app.schemas import (
     UserProfileResponse,
     UserSkillsByDomainResponse,
 )
-from app.services.scoring_engine import compute_and_persist_score, fetch_aspiration_skills
+from app.services.scoring import recompute_score
 from app.services.skill_advice import generate_skill_advice
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.xp_policy import (
@@ -88,14 +88,7 @@ async def correct_skill_level(
 
     users_repo.correct_skill_level(user_id, skill_id, body.level)
 
-    inputs = scores_repo.get_recompute_inputs(user_id)
-    aspiration_skills = fetch_aspiration_skills(scores_repo, inputs.target_roles)
-    score_row = compute_and_persist_score(
-        scores_repo,
-        user_id,
-        aspiration_skills=aspiration_skills or None,
-        skill_level_map=inputs.skill_level_map,
-    )
+    score_row = recompute_score(scores_repo, user_id)
 
     return SkillLevelCorrectionResponse(
         taxonomy_key=taxonomy_key,
@@ -186,7 +179,7 @@ async def update_profile(
     user_id = current_user["user_id"]
     before = users_repo.get_profile(user_id)
     should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
-    users_repo.update_profile(user_id, updates, email=current_user.get("email"))
+    users_repo.update_profile(user_id, updates)
     profile = users_repo.get_profile(current_user["user_id"])
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")

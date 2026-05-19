@@ -71,7 +71,16 @@ export function ApplicationCard({
             {app.title || "Untitled role"}
           </div>
           <div style={{ marginTop: 2, fontSize: 12, color: "var(--tm-text-muted)" }}>
-            {app.company ?? "—"}
+            {app.company ? (
+              <Link
+                href={`/companies/${encodeURIComponent(app.company)}`}
+                style={{ color: "inherit", textDecoration: "none", borderBottom: "1px dotted var(--tm-border)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-muted)" }}
+              >
+                {app.company}
+              </Link>
+            ) : "—"}
           </div>
         </div>
         {!isOutcome && (

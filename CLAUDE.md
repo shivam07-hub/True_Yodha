@@ -151,8 +151,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 6. ~~**Intel page — PR2: Run Analysis**~~ ✅ DONE 2026-05-17 — `POST /jobs/analyse/{job_id}`: 50 XP, weighted overlap compute, LLM explanation, upserts to `user_job_matches`. Frontend already wired.
 7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
 
-8. **Process Transparency Layer** — Company review system. Full plan below.
-   - **Open sub-task:** Spot-check existing `job_applications` rows where `status = 'Responded'` before running the legacy → new migration. Goal: confirm `Responded → screening` is the correct map (vs `rejected` for some rows). Sample 10–20 rows, inspect `response_at` / `notes`. Adjust mapping if signal points elsewhere.
+8. ~~**Process Transparency Layer**~~ ✅ DONE 2026-05-19 — Company review system shipped. Migration `20260517_tracker_v1.sql` (legacy status remap, `last_stage_changed_at`, `first_offer_at`, review FK ON DELETE SET NULL). Backend `jobs/review.py`, `jobs/stale.py`, `companies.py`. Frontend `/tracker` (tabs, 5 stages + 4 outcomes, StatusPicker, MobileStagePills, StuckBanner with picker overlay, ReviewModal with real stage prefill, ManualAddModal, OutcomeSeal, ScoreSparkle). `/companies/[slug]` page with stats, funnel, reviews. Tracker company names link to `/companies/{name}` in both ApplicationCard + VerdictsTab. `+ Save` toast on `/jobs` with `View in Tracker →`.
 9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
@@ -164,7 +163,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
    - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
 
-12. **Shareability v1 — `/profile/{ninja_name}` public profile (NEXT SESSION).** Decisions SH1–SH7 locked. Full plan below.
+12. ~~**Shareability v1 — `/profile/{ninja_name}` public profile**~~ ✅ DONE 2026-05-19 — Backend `ninja_name` service + `routers/profile/public.py` (`GET /profile/{ninja_name}`, `GET /overlap`, `POST /ninja-name`, `GET /suggest`). Migration `20260519_shareability_v1.sql` + backfill script. `user_provisioning.ensure_user_provisioned` becomes single profile seed point — generates ninja_name on first insert, honors `myro_ref` (body field, cookie fallback). Frontend: `lib/radar-geometry.ts` extracted, `components/profile/` (GhostRadar, OwnerRadar, RadarOverlay, JobOverlapRows, ShareButton, PublicProfilePage), `app/profile/[ninja]/{page,loading,opengraph-image}.tsx`, `/skills` ShareButton top-right, signup captures `?ref=`, onboarding NinjaNameStep before final. `robots.ts` disallows `/profile/`. 301 backend tests green; tsc + lint clean.
 
 ---
 
@@ -253,7 +252,7 @@ npm i -D eas-cli
 
 **Open:**
 - ⏸ **Deepening #2 — `<ResponsiveStack>` primitive.** DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks → ship it. 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`).
-- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
+- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). ✅ Shareability v1 unblock landed 2026-05-19. Still blocked on: `packages/api-client/` extraction + turborepo decision. Do NOT scaffold until both are real.
 
 ---
 
@@ -390,94 +389,9 @@ COMMIT;
 
 ---
 
-## PROCESS TRANSPARENCY LAYER — PLAN (2026-05-14)
+## PROCESS TRANSPARENCY LAYER — ✅ CLOSED 2026-05-19
 
-### Vision
-Myro becomes the verified source of truth for *candidate experience* — not "is this a good company to work at" (Glassdoor) but "is this company worth applying to." Reviews tied to verified `job_applications` rows. Company pages public + SEO-indexed once ≥1 review exists.
-
-### Funnel-First Build Order
-Build in engagement depth order — start where we already have data:
-
-1. **Company follower base** — `followed_companies` already exists. Surface how many users follow each company. This is the top of the funnel and requires zero new data.
-2. **Saved jobs with match + analysis** — users who have saved a job (`job_applications.status = 'pending'`) from a followed company. One step deeper — intent signal.
-3. **Active applications** — users progressing through the tracker (Applied → Screening → Interviewing → Final Round).
-4. **Completed applications** — terminal status (Ghosted / Rejected / Offer / Withdrew) → review prompt fires.
-5. **Company page** — aggregates reviews. Public once ≥1 review exists.
-
-### Tracker Status Redesign
-Replace current flat list with stages + outcomes:
-
-**Stages (active progress):**
-- `Saved` — interested, not yet applied (was: Pending)
-- `Applied` — submitted, awaiting response
-- `Screening` — HR / phone screen stage (was: Responded)
-- `Interviewing` — technical or panel rounds
-- `Final Round` — late stage, decision imminent *(new)*
-
-**Outcomes (terminal):**
-- `Ghosted` — company went silent (was: No response)
-- `Rejected` — formal rejection received
-- `Offer` 🎉 — offer received
-- `Withdrew` — user chose to exit (was: Abandoned)
-
-### 7-Day Inactivity Prompt
-- Trigger: application stuck in any Stage (not Outcome) for 7 days, per company per application
-- Prompt text: *"Been 7 days since we last heard from [company]"*
-- Options: **Ghosted me** (marks Ghosted → opens review flow) | **Update tracker** (opens status picker → if terminal, review flow follows)
-- Any status touch resets the 7-day clock for that application
-
-### Review Structure
-- Star rating (1–5)
-- Last stage — pre-filled from application data, user can correct
-- Written note — optional free text
-- One review per `job_applications` row (verified)
-
-### Company Page (`/companies/[slug]`)
-- Public + SEO-indexed only when ≥1 verified review exists
-- Shows: avg star rating, review count, ghost rate, stage-breakdown of drop-offs, individual reviews
-- Non-logged-in users can read; logged-in users can submit
-
-### DB — New Table
-```sql
-application_reviews (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES auth.users,
-  job_application_id UUID REFERENCES job_applications(id),
-  company_name TEXT NOT NULL,
-  star_rating SMALLINT CHECK (star_rating BETWEEN 1 AND 5),
-  last_stage TEXT NOT NULL,  -- one of the 5 stage values
-  outcome TEXT NOT NULL,     -- one of the 4 outcome values
-  written_note TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-)
-```
-
-### v1 Scope Locked (2026-05-17 grill-me session)
-
-**Direction:** Editorial Dossier — extends existing `var(--tm-*)` aesthetic. No new Shadcn primitives. Reuses existing `ReviewModal`.
-
-**Decisions locked Q1–Q9:**
-- Q1: Move stale banner + review trigger to `/tracker`. Keep Self-Focus row on `/home`. Mental model: `/home` = today's work; `/tracker` = where everything is.
-- Q2: Tabs `Active | Verdicts` on `/tracker`. Verdicts = single chronological list with outcome chip + `Review pending →` chip on unreviewed rows.
-- Q3: Mobile = stage-pill carousel filter (`Saved 4 · Applied 7 · …`) with URL state `?stage=`. Status change = bottom sheet picker (reuse `MobileProfileSheet` pattern). Add `/tracker` to sidebar + mobile bottom nav (5 slots).
-- Q4: **No DnD library.** Click-to-change picker only — popover on desktop, sheet on mobile. Same idiom both viewports. Skip `@dnd-kit`.
-- Q5: One-time SQL migration of legacy statuses (`pending→saved`, `Responded→screening`, `No response→ghosted`, `Abandoned→withdrew`) + fix the four writer call-sites still emitting `"pending"` (`job_importer.py:226, 247`; `cv_generator.py:146`; `plan.py:41, 43, 142, 157`). Optional defensive `CHECK` constraint.
-- Q6: Offer = gold-leaf rule + serif stamp on card. **One-time** subtle sparkle (~1.2s, 8–12 gold/teal dots) on first-ever offer per user, anchored on the card. Track via new `user_profiles.first_offer_at TIMESTAMPTZ` column.
-- Q7: Clock resets on **any status change** (forward, backward, to outcome). Dismiss (✕) **snoozes 7 days** by bumping a new `job_applications.last_stage_changed_at TIMESTAMPTZ` column. Stale query switches from `updated_at` to this new column. New endpoint: `POST /jobs/applications/{job_id}/dismiss-stale`.
-- Q8: `+ Track` on `/jobs` lands in **Saved**. Rename label `+ Track → + Save`. Post-save toast: `Saved. View in Tracker →`.
-- Q9: **Full manual add with JD parsing** — reuses existing `/jobs/import/preview` + `/jobs/import` endpoints. Two-step modal: details → confirm extracted skills. Adds `status` field to `JobImportRequest` (default `"saved"`, manual modal sends `"applied"`). Analyse cost is **10 XP** (`ANALYSE_XP_COST = 10` already in `analyse.py:14` — last session summary line "50 XP cost (was 10)" is stale).
-
-**v2 deferred (Process Transparency Layer):**
-- Inline edit of manual-add company/role/JD after save (v1 = delete + re-add)
-- CSV / bulk manual import
-- Skill chip autocomplete on `+ add` in Step 2 of manual modal (v1 = plain text)
-- Offer-specific review modal copy ("Tell others how you got here") — v1 uses generic copy across all 4 outcomes
-- Optional defensive `CHECK` constraint on `job_applications.status` (nice-to-have)
-- Two-column dismiss/stage-change split (v1 = single `last_stage_changed_at` column bumped by both; v2 = separate `stale_dismissed_at` if a downstream consumer ever needs purity)
-- Edit/delete own reviews independently of the application row
-- Manual drag-to-reorder within a tracker column (v1 = deterministic sort by `last_stage_changed_at`)
-- Soft-delete with restore window (only if data shows users regret deletes)
-- Bulk delete / multi-select on tracker
+Full plan + Q1–Q9 decisions + v2 deferred list archived to `docs/session-history/2026-05.md`. Migration `20260517_tracker_v1.sql`. Backend `jobs/review.py`, `jobs/stale.py`, `companies.py`. Frontend `/tracker`, `/companies/[slug]`, ReviewModal, ManualAddModal.
 
 ---
 
@@ -487,7 +401,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ### Cross-community bridge nodes (high betweenness — verify intentional coupling)
 
-1. **`compute_and_persist_score()` — betweenness 0.083.** Bridges `CV Upload & Initial Match` → `Tracker & Application Endpoints` → `Score Engine (Mirror/Domain)`. Solve when: touching scoring pipeline or post-CV-upload flow. Question: is this the right single source of truth (OQ4) or has accidental coupling crept in via tracker side-effects?
+1. ~~**`compute_and_persist_score()` — betweenness 0.083.**~~ ✅ DONE 2026-05-19 — Audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge was a false INFERRED edge (0 tracker callers). Function had 6 params + 4 modal flags + 2 contradictory calling modes hidden behind one name. Split into 3 typed facades: `record_cv_score`, `recompute_score`, `project_score`. Engine + persistence stayed canonical (OQ4 invariant preserved). New modules `services/scoring/orchestrator.py` + `aspirations.py` + `market.py`. Deleted `scoring_engine.py` shim + `persistence.py`. See `docs/adr/0002-scoring-facade-split.md`.
 2. **`ScoresRepository` — betweenness 0.057.** Bridges 5 communities (CV Upload, CV Compose Hub, Tracker, Job-Skills RPC, LLM Overlap). Solve when: refactoring repository layer or splitting scoring concerns.
 3. **`fetch_all_rows()` — betweenness 0.033.** Bridges `CV Compose Hub` → `Tracker Endpoints` → `Job-Skills RPC` → `Lightcast Backfill`. Solve when: query-pattern review (likely a fetch-all hotpath worth specializing).
 
@@ -496,7 +410,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 4. **`JobsRepository` — 30 INFERRED edges.** Sample: `Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()`, `Fire-and-forget: compute first 5 matches after CV upload`. Solve when: touching `repositories/jobs.py` or stale-clock logic. Audit during Backlog #8 (Process Transparency Layer).
 5. **`ScoresRepository` — 47 INFERRED edges.** Largest INFERRED footprint. Solve when: scoring refactor.
 6. **`CVRepository` — 18 INFERRED edges.** Sample: `CVTextRequest`, `EducationItem`. Solve when: working on CV Builder v2 surface.
-7. **`generate_job_cv()` — 22 INFERRED edges.** Sample: `generate_application_cv()`, `_get_job()`. Solve when: deciding cleanup of legacy `generate-draft` route (already noted as cleanup pass candidate in 2026-05-17 session summary).
+7. ~~**`generate_job_cv()` — 22 INFERRED edges.**~~ ✅ DONE 2026-05-19 — Legacy flow removed in cv_versions unification 2026-05-18. Cleanup pass 2026-05-19 stripped trailing historical docstrings in `job_path/__init__.py` + `llm_polish.py`.
 
 ### Refresh hygiene
 
@@ -512,104 +426,23 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Forge loop + Backlog #9 + loading-state audit closed)
+## LAST SESSION SUMMARY (2026-05-19 · Backlog #8 + cleanup + scoring facade split)
 
-```
-FORGE + DIARY LOOP — BACKLOG #11 SHIPPED:
-  - Nav/sidebar Forge now shows generic XP ready, not the hidden skill.
-    XP can be claimed after whole minutes accrue; claim auto-restarts
-    the Forge timer.
-  - Full Forge modal and floating timer use the same generic XP loop.
-    Skill queue remains hidden and continues feeding backend progression.
-  - forge_service resolves skill_name → canonical skill_id via taxonomy
-    before updating user_skills, so Skill Tracker advances correctly.
-  - /users/me/skills now includes forge_sessions_count +
-    forged_level_up_available.
-  - SkillCard shows "AI skill upgrade" for forged level-ups. The advice
-    endpoint verifies a forged level-up, uses recent diary notes + CV
-    evidence, and returns xp_spent=0.
+Scoring engine refactor — parked Q #1 closed. `compute_and_persist_score()` audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge confirmed false INFERRED edge. Function split into 3 typed facades preserving OQ4.
 
-VERIFY:
-  - pytest backend/tests -q: 255 passed.
-  - npx tsc --noEmit: clean.
-  - npm run lint: 0 warnings, 0 errors.
-  - npx tsx --test tests/forge-progress.test.ts: 3 passed.
+- New: `services/scoring/orchestrator.py` (`record_cv_score`, `recompute_score`, `project_score`), `aspirations.py`, `market.py`.
+- Deleted: `scoring_engine.py` shim, `services/scoring/persistence.py`.
+- Privatised: `_persist_score`, `_build_user_skill_rows`. Dead flag `persist=False` removed.
+- ADR: `docs/adr/0002-scoring-facade-split.md` — locks the decision against re-litigation.
+- 5 call sites migrated: `cv_workflow.py:122,227` → `record_cv_score`; `routers/users.py:93` + `routers/scores.py:51` → `recompute_score`; `jobs_workflow.py:77` → direct import path. `repositories/users.py` import path updated.
+- Tests rewritten: `test_scoring_io.py` covers all 3 facades. `test_workflow_seams.py`, `test_scores_api.py`, `test_cv_upload_api.py` monkeypatches retargeted.
 
-LOADING-STATE AUDIT — PARKED Q #9 CLOSED:
-  - Closed as foundational system. Remaining "empty states feel
-    disappointing" copy/tone work moves with Category B verbal-scaffolding,
-    not this audit.
-  - Three-tier loading system locked:
-    1. Shell skeleton: AppShellSkeleton + react-loading-skeleton for
-       auth/session chrome.
-    2. Process loading: components/loading/process-loading.tsx,
-       components/loading/loading-page.tsx, app/loading.tsx. IntelLoadingState
-       and onboarding CV analysis now use this module.
-    3. Ambient loading: components/ui/particle-loading.tsx for immersive
-       full-region waits (/skills, /companies/[slug]).
-  - /market heatmap readiness fixed: no followed companies / no selected
-    skills now count as resolved instead of leaving "Building heatmap" stuck.
-  - SplashScreen now reads var(--tm-bg/text/text-faint) instead of hard-coded
-    dark colors.
-
-Backlog #9 fully closed. Deepenings #1 + #3 shipped, #2 deferred (only 3
-collapse sites — no friction yet).
-
-DEEPENING #1 — ViewportProvider + useViewport:
-  - frontend/mobile/provider.tsx NEW: ViewportProvider wraps app in
-    providers.tsx. Single matchMedia subscriber tracks 3 queries
-    (mobile breakpoint, pointer:fine, prefers-reduced-motion) and
-    publishes one ViewportState = { mode, pointer, reducedMotion,
-    isDesktop } through React context.
-  - Mobile-safe defaults during SSR + first paint (isDesktop:false).
-  - 5 listeners → 1. Old useIsDesktop deleted entirely.
-
-MIGRATION:
-  - components/app-shell.tsx: const { isDesktop } = useViewport()
-  - app/tracker/page.tsx: const { isDesktop } = useViewport()
-  - components/tracker/ScoreSparkle.tsx: drops ad-hoc matchMedia,
-    reads reducedMotion from useViewport().
-  - lib/hooks/use-rotating-message.ts: same — drops its own listener +
-    state, reads from useViewport.
-  - components/loading/process-loading.tsx (useAllowLoopingMotion):
-    same — drops matchMedia + setReduceMotion useEffect.
-
-DEEPENING #3 — frontend/mobile/ module:
-  - frontend/mobile/viewport.ts (was lib/viewport.ts — moved +
-    added MEDIA_QUERY_REDUCED_MOTION, MEDIA_QUERY_POINTER_FINE,
-    PointerKind type)
-  - frontend/mobile/shell.tsx (was components/mobile-shell.tsx — git
-    mv, no content change)
-  - frontend/mobile/provider.tsx NEW
-  - frontend/mobile/index.ts NEW: single import surface
-    `import { ViewportProvider, useViewport, MobileTopBar, ... }
-    from "@/mobile"`.
-  - DELETED: lib/viewport.ts, lib/hooks/use-is-desktop.ts.
-  - CSS + manifest stayed in place (Next.js convention — globals.css
-    + public/manifest.webmanifest).
-
-VERIFY:
-  - tsc --noEmit: clean.
-  - next lint: 0 warnings, 0 errors.
-
-CLAUDE.md:
-  - Backlog #9 marked DONE 2026-05-19.
-  - Deepening backlog: #1 + #3 ✅; #2 deferred with friction trigger.
-  - New open task logged: packages/mobile-shared/ extraction
-    (prereq for v2 Expo native scaffold).
+Verify: 292 pytest passed · `tsc --noEmit` clean · `next lint` 0/0.
 
 Open (next sessions):
-  - Backlog #8: Process Transparency Layer
-  - Cleanup pass: home/page.tsx jobs.generateJobCv, cv/variants.py
-    legacy generate-draft routes
-  - Shareability v1: /profile/{token}
-  - packages/mobile-shared/ extraction (blocked on shareability +
-    api-client/ extraction)
-```
-
----
+- `packages/mobile-shared/` extraction (blocked on `packages/api-client/` + turborepo decision)
+- Shareability v2: XP-for-referral trigger, `referrals_log` analytics, mentor/mentee, public profile theming
 
 ## EARLIER SESSION SUMMARIES
 
-Archived to `docs/session-history/2026-05.md` (2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).
-Read that file when prior-session context is required.
+Full detail in `docs/session-history/2026-05.md` (2026-05-19 ×4, 2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).

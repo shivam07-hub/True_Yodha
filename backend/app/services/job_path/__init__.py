@@ -1,10 +1,4 @@
-"""
-job_path package — Application Path, Milestones, Quality Gate.
-
-Per-job CV generation moved to /cv/versions (see backend/app/routers/cv/versions.py
-and CONTEXT.md). The legacy generate_job_cv flow was removed in the
-cv_versions unification (2026-05-18).
-"""
+"""job_path package — Application Path, Milestones, Quality Gate."""
 
 from app.services.job_path._content import CONTENT_DIR, content_bundle
 from app.services.job_path.milestones import (

@@ -9,7 +9,7 @@ from app.repositories.scores import ScoresRepository
 from app.services import job_importer, job_matcher, llm_ranker
 from app.services.llm_provider import LLMProvider
 from app.services.rate_limit import assert_not_rate_limited
-from app.services.scoring import fetch_aspiration_skills
+from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
 
