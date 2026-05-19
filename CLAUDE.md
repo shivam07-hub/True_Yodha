@@ -401,7 +401,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ### Cross-community bridge nodes (high betweenness — verify intentional coupling)
 
-1. **`compute_and_persist_score()` — betweenness 0.083.** Bridges `CV Upload & Initial Match` → `Tracker & Application Endpoints` → `Score Engine (Mirror/Domain)`. Solve when: touching scoring pipeline or post-CV-upload flow. Question: is this the right single source of truth (OQ4) or has accidental coupling crept in via tracker side-effects?
+1. ~~**`compute_and_persist_score()` — betweenness 0.083.**~~ ✅ DONE 2026-05-19 — Audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge was a false INFERRED edge (0 tracker callers). Function had 6 params + 4 modal flags + 2 contradictory calling modes hidden behind one name. Split into 3 typed facades: `record_cv_score`, `recompute_score`, `project_score`. Engine + persistence stayed canonical (OQ4 invariant preserved). New modules `services/scoring/orchestrator.py` + `aspirations.py` + `market.py`. Deleted `scoring_engine.py` shim + `persistence.py`. See `docs/adr/0002-scoring-facade-split.md`.
 2. **`ScoresRepository` — betweenness 0.057.** Bridges 5 communities (CV Upload, CV Compose Hub, Tracker, Job-Skills RPC, LLM Overlap). Solve when: refactoring repository layer or splitting scoring concerns.
 3. **`fetch_all_rows()` — betweenness 0.033.** Bridges `CV Compose Hub` → `Tracker Endpoints` → `Job-Skills RPC` → `Lightcast Backfill`. Solve when: query-pattern review (likely a fetch-all hotpath worth specializing).
 
@@ -410,7 +410,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 4. **`JobsRepository` — 30 INFERRED edges.** Sample: `Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()`, `Fire-and-forget: compute first 5 matches after CV upload`. Solve when: touching `repositories/jobs.py` or stale-clock logic. Audit during Backlog #8 (Process Transparency Layer).
 5. **`ScoresRepository` — 47 INFERRED edges.** Largest INFERRED footprint. Solve when: scoring refactor.
 6. **`CVRepository` — 18 INFERRED edges.** Sample: `CVTextRequest`, `EducationItem`. Solve when: working on CV Builder v2 surface.
-7. **`generate_job_cv()` — 22 INFERRED edges.** Sample: `generate_application_cv()`, `_get_job()`. Solve when: deciding cleanup of legacy `generate-draft` route (already noted as cleanup pass candidate in 2026-05-17 session summary).
+7. ~~**`generate_job_cv()` — 22 INFERRED edges.**~~ ✅ DONE 2026-05-19 — Legacy flow removed in cv_versions unification 2026-05-18. Cleanup pass 2026-05-19 stripped trailing historical docstrings in `job_path/__init__.py` + `llm_polish.py`.
 
 ### Refresh hygiene
 
@@ -426,23 +426,23 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Backlog #8 closed)
+## LAST SESSION SUMMARY (2026-05-19 · Backlog #8 + cleanup + scoring facade split)
 
-Process Transparency Layer (Backlog #8) closed. Stack was already 95% shipped from prior sessions; this session fixed the last 3 wiring gaps + verified the 4th.
+Scoring engine refactor — parked Q #1 closed. `compute_and_persist_score()` audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge confirmed false INFERRED edge. Function split into 3 typed facades preserving OQ4.
 
-Gaps fixed:
-- Tracker company names → `/companies/{name}` links (`ApplicationCard.tsx`, `VerdictsTab.tsx`).
-- `StuckBanner` "I have an update" wired to bottom-sheet `StatusPicker` overlay (new `stalePickerJobId` state).
-- `ReviewModal` `defaultStage` now pre-fills from real prior stage (`reviewDefaultStage` state captured before mutation).
-- `+ Save` toast on `/jobs` already shipped (verified).
+- New: `services/scoring/orchestrator.py` (`record_cv_score`, `recompute_score`, `project_score`), `aspirations.py`, `market.py`.
+- Deleted: `scoring_engine.py` shim, `services/scoring/persistence.py`.
+- Privatised: `_persist_score`, `_build_user_skill_rows`. Dead flag `persist=False` removed.
+- ADR: `docs/adr/0002-scoring-facade-split.md` — locks the decision against re-litigation.
+- 5 call sites migrated: `cv_workflow.py:122,227` → `record_cv_score`; `routers/users.py:93` + `routers/scores.py:51` → `recompute_score`; `jobs_workflow.py:77` → direct import path. `repositories/users.py` import path updated.
+- Tests rewritten: `test_scoring_io.py` covers all 3 facades. `test_workflow_seams.py`, `test_scores_api.py`, `test_cv_upload_api.py` monkeypatches retargeted.
 
-Verify: `npx tsc --noEmit` clean · `npx next lint` 0/0.
+Verify: 292 pytest passed · `tsc --noEmit` clean · `next lint` 0/0.
 
 Open (next sessions):
-- Cleanup pass: `home/page.tsx` `jobs.generateJobCv`, `cv/variants.py` legacy `generate-draft` routes
 - `packages/mobile-shared/` extraction (blocked on `packages/api-client/` + turborepo decision)
 - Shareability v2: XP-for-referral trigger, `referrals_log` analytics, mentor/mentee, public profile theming
 
 ## EARLIER SESSION SUMMARIES
 
-Full detail in `docs/session-history/2026-05.md` (2026-05-19 ×3, 2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).
+Full detail in `docs/session-history/2026-05.md` (2026-05-19 ×4, 2026-05-18, 2026-05-17 ×2, 2026-05-16, 2026-05-15).

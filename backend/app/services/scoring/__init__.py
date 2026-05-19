@@ -1,12 +1,17 @@
-"""
-Scoring package — Mirror Score pipeline.
+"""Scoring package — Mirror Score pipeline.
 
 Layered into:
-  formulas.py     pure computation (proficiency, cluster, domain, mirror score)
-  gap.py          gap analysis + rank tier
-  persistence.py  Supabase I/O + the compute_and_persist_score orchestrator
+  formulas.py       pure computation (proficiency, cluster, domain, mirror score)
+  gap.py            gap analysis + rank tier
+  aspirations.py    target-role aspiration inference
+  market.py         cached market skill demand
+  orchestrator.py   typed facades (record_cv_score, recompute_score, project_score)
+
+The orchestrator is the only public entry point for callers that need to
+compute or persist a score. See docs/adr/0002-scoring-facade-split.md.
 """
 
+from app.services.scoring.aspirations import fetch_aspiration_skills
 from app.services.scoring.formulas import (
     _DAYS_PER_STEP,
     _PROFICIENCY_TITLES,
@@ -23,12 +28,12 @@ from app.services.scoring.gap import (
     compute_gap_skills,
     compute_rank_tier,
 )
-from app.services.scoring.persistence import (
-    compute_and_persist_score,
-    fetch_aspiration_skills,
-    fetch_skill_demand,
-    persist_score,
-    persist_user_skills,
+from app.services.scoring.market import fetch_skill_demand
+from app.services.scoring.orchestrator import (
+    ScoreProjection,
+    project_score,
+    recompute_score,
+    record_cv_score,
 )
 
 __all__ = [
@@ -38,7 +43,6 @@ __all__ = [
     "_SIGNAL_LEVEL_MAP",
     "_build_cluster_maps",
     "build_skill_level_map",
-    "compute_and_persist_score",
     "compute_cluster_scores",
     "compute_domain_scores",
     "compute_gap_skills",
@@ -47,6 +51,8 @@ __all__ = [
     "fetch_aspiration_skills",
     "fetch_skill_demand",
     "infer_level_from_signals",
-    "persist_score",
-    "persist_user_skills",
+    "project_score",
+    "recompute_score",
+    "record_cv_score",
+    "ScoreProjection",
 ]

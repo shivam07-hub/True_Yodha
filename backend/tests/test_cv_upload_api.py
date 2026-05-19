@@ -68,7 +68,7 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
         raise ValueError("No valid skills could be persisted for this user.")
 
     monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _fail_scoring)
+    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _fail_scoring)
 
     try:
         with TestClient(app) as client:
@@ -123,7 +123,7 @@ def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch)
         raise ValueError("No valid skills could be persisted for this user.")
 
     monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _fail_scoring)
+    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _fail_scoring)
 
     try:
         with TestClient(app) as client:
@@ -162,7 +162,7 @@ def test_submit_cv_text_grants_welcome_xp_after_success(monkeypatch) -> None:
         return None
 
     monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring_engine, "compute_and_persist_score", _score)
+    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _score)
     monkeypatch.setattr(cv_upload.cv_workflow, "grant_welcome_xp", _grant)
     monkeypatch.setattr(cv_upload.cv_workflow, "_trigger_initial_match_compute", _skip_initial_matches)
 

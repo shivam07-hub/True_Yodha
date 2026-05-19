@@ -75,19 +75,12 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
     )
     seen: dict[str, Any] = {}
 
-    def fake_fetch(repo_arg: object, target_roles: list[str]) -> dict[str, int]:
-        seen["fetch_repo"] = repo_arg
-        seen["target_roles"] = target_roles
-        return {"Python": 4}
-
-    def fake_compute(repo_arg: object, user_id: str, **kwargs: Any) -> dict[str, Any]:
-        seen["compute_repo"] = repo_arg
+    def fake_recompute(repo_arg: object, user_id: str) -> dict[str, Any]:
+        seen["repo"] = repo_arg
         seen["user_id"] = user_id
-        seen["compute_kwargs"] = kwargs
         return _score_row(80.0)
 
-    monkeypatch.setattr(scores, "fetch_aspiration_skills", fake_fetch)
-    monkeypatch.setattr(scores.scoring_engine, "compute_and_persist_score", fake_compute)
+    monkeypatch.setattr(scores.scoring, "recompute_score", fake_recompute)
     app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
     app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
@@ -100,14 +93,8 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["score"]["total_score"] == 80.0
     assert seen == {
-        "fetch_repo": repo,
-        "target_roles": ["Data Analyst"],
-        "compute_repo": repo,
+        "repo": repo,
         "user_id": "u1",
-        "compute_kwargs": {
-            "aspiration_skills": {"Python": 4},
-            "skill_level_map": {"Python": 3},
-        },
     }
 
 

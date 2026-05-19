@@ -12,7 +12,7 @@ from app.repositories.cv import (
     CVVersionsRepository,
 )
 from app.repositories.scores import ScoresRepository
-from app.services import cv_parser, jobs_workflow, scoring_engine
+from app.services import cv_parser, jobs_workflow, scoring
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.xp_service import grant_welcome_xp
 
@@ -119,13 +119,7 @@ async def ingest_uploaded_cv(
         )
 
     try:
-        score_row = scoring_engine.compute_and_persist_score(
-            scores_repo,
-            user_id,
-            skills_detected,
-            include_market_signals=False,
-            require_skills_assessed=True,
-        )
+        score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -224,13 +218,7 @@ async def ingest_cv_text(
         )
 
     try:
-        score_row = scoring_engine.compute_and_persist_score(
-            scores_repo,
-            user_id,
-            skills_detected,
-            include_market_signals=False,
-            require_skills_assessed=True,
-        )
+        score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

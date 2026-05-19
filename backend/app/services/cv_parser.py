@@ -7,7 +7,7 @@ Pipeline:
   2. LLM extraction via OpenRouter — returns Lightcast-shaped skill names
   3. Validate each taxonomy_key against lightcast_skills_taxonomy.json
      (exact match → fuzzy fallback via difflib if no exact hit)
-  4. Return signals matching the contract consumed by scoring_engine:
+  4. Return signals matching the contract consumed by the scoring orchestrator:
         {
           "skills_detected": [
             {"taxonomy_key", "xp_awarded", "signal_type", "evidence"}

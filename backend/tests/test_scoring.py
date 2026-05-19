@@ -1,20 +1,12 @@
-"""
-test_scoring.py
-Pure formula unit tests for scoring_engine.py — no Supabase required.
+"""Pure formula unit tests — no Supabase required.
 
-Covers:
-  - Cluster coverage scoring (Tax-L2 level)
-  - Domain score aggregation (Tax-L1 level)
-  - Mirror Score (mean of domain scores)
-  - Gap analysis (aspiration-driven, 7-day budget)
-  - Rank tiers
-  - Signal type → proficiency level
-  - XP boost logic
+Covers cluster coverage, domain aggregation, Mirror Score, gap analysis,
+rank tiers, signal → proficiency mapping, XP boost.
 """
 
 import pytest
 
-from app.services.scoring_engine import (
+from app.services.scoring import (
     _DAYS_PER_STEP,
     _PROFICIENCY_TITLES,
     _RANK_TIERS,

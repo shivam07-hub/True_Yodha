@@ -1,11 +1,4 @@
-"""LLM polish helper for per-job CV Versions.
-
-Public API:
-  _call_ai_polish — used by routers/cv/versions.py to generate polished_text.
-
-The legacy daily polish rate limit + cached lookup helpers were removed alongside
-the generate_job_cv flow on 2026-05-18 (cv_versions unification).
-"""
+"""LLM polish helper for per-job CV Versions."""
 from __future__ import annotations
 
 import json

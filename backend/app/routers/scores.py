@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.deps import get_current_user
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
-from app.services import scoring_engine
-from app.services.scoring_engine import fetch_aspiration_skills
+from app.services import scoring
 
 router = APIRouter(prefix="/scores", tags=["scores"])
 
@@ -46,14 +45,7 @@ async def recompute_score(
             detail="No skills found. Upload your CV first.",
         )
 
-    aspiration_skills = fetch_aspiration_skills(scores_repo, inputs.target_roles)
-
-    score_row = scoring_engine.compute_and_persist_score(
-        scores_repo,
-        current_user["user_id"],
-        aspiration_skills=aspiration_skills or None,
-        skill_level_map=inputs.skill_level_map,
-    )
+    score_row = scoring.recompute_score(scores_repo, current_user["user_id"])
 
     score_response = MirrorScoreResponse(
         total_score=score_row["total_score"],

@@ -10,7 +10,7 @@ from supabase import Client
 from app.database import get_supabase_admin, get_supabase_for_token
 from app.deps import get_current_user
 from app.services.location_normalizer import normalize_location
-from app.services.scoring_engine import _PROFICIENCY_TITLES
+from app.services.scoring import _PROFICIENCY_TITLES
 
 
 @dataclass(frozen=True)
