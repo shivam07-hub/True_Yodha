@@ -421,16 +421,18 @@ function SidebarForgeTimer({
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
+            type="button"
             onClick={() => setRunning(!running)}
             aria-label={running ? "Pause forge" : "Resume forge"}
             title={running ? "Pause" : "Resume"}
+            className="tm-control-focus"
             style={{
-              width: 22, height: 22, borderRadius: 6,
+              width: 32, height: 32, borderRadius: 8,
               background: "transparent",
               border: `1px solid ${accentRing}`,
               color: accent,
               display: "grid", placeItems: "center",
-              cursor: "pointer", fontSize: 9, lineHeight: 1,
+              cursor: "pointer", fontSize: 11, lineHeight: 1,
               fontFamily: "inherit",
               transition: "background 160ms ease",
             }}
@@ -440,14 +442,16 @@ function SidebarForgeTimer({
             {running ? "❚❚" : "▶"}
           </button>
           <button
+            type="button"
             onClick={dismiss}
             aria-label="Dismiss forge timer"
             title="Dismiss"
+            className="tm-control-focus"
             style={{
-              width: 22, height: 22, borderRadius: 6,
+              width: 32, height: 32, borderRadius: 8,
               background: "transparent", border: "1px solid var(--tm-border-soft)",
               color: "var(--tm-text-faint)", cursor: "pointer",
-              fontSize: 12, lineHeight: 1,
+              fontSize: 14, lineHeight: 1,
               fontFamily: "inherit",
               display: "grid", placeItems: "center",
             }}

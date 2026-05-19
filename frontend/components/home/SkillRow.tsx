@@ -5,7 +5,7 @@ import type { SkillGapItem } from "@/lib/api"
 interface SkillRowProps {
   skill: SkillGapItem
   inCart: boolean
-  onToggle: () => void
+  onToggle?: () => void
 }
 
 function sessionsBetween(from: number, to: number): number {
@@ -32,31 +32,53 @@ export function SkillRow({ skill, inCart, onToggle }: SkillRowProps) {
         <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-danger)", flexShrink: 0 }}>
           L{skill.user_level}→L{skill.required_level}
         </span>
-        <button
-          onClick={onToggle}
-          style={{
+        {onToggle ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={inCart ? `Remove ${skill.skill} from diary cart` : `Lock in ${skill.skill} for ${sessions} sessions`}
+            className="tm-control-focus"
+            style={{
+              flexShrink: 0,
+              minHeight: 32,
+              padding: "0 12px",
+              borderRadius: 99,
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "var(--tm-font-mono)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "all 150ms var(--tm-ease)",
+              ...(inCart ? {
+                background: "var(--tm-accent-wash)",
+                border: "1.5px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)",
+              } : {
+                background: "linear-gradient(135deg, rgba(0,245,212,0.14) 0%, rgba(0,245,212,0.04) 100%)",
+                border: "1.5px solid var(--tm-accent-ring)",
+                color: "var(--tm-accent)",
+              }),
+            }}
+          >
+            {inCart ? "Remove" : `Lock in · ${sessions} ses`}
+          </button>
+        ) : (
+          <span style={{
             flexShrink: 0,
-            padding: "4px 11px",
+            minHeight: 24,
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 9px",
             borderRadius: 99,
+            border: "1px solid rgba(251,113,133,0.22)",
+            background: "rgba(251,113,133,0.06)",
+            color: "var(--tm-danger)",
             fontSize: 11,
-            fontWeight: 700,
-            fontFamily: "var(--tm-font-mono)",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            transition: "all 150ms var(--tm-ease)",
-            ...(inCart ? {
-              background: "var(--tm-accent)",
-              border: "1.5px solid var(--tm-accent)",
-              color: "var(--tm-accent-fg)",
-            } : {
-              background: "linear-gradient(135deg, rgba(0,245,212,0.14) 0%, rgba(0,245,212,0.04) 100%)",
-              border: "1.5px solid var(--tm-accent)",
-              color: "var(--tm-accent)",
-            }),
-          }}
-        >
-          {inCart ? "✓ Locked in" : `Lock in · ${sessions} ses`}
-        </button>
+            fontWeight: 650,
+          }}>
+            Needs practice
+          </span>
+        )}
       </div>
     )
   }
@@ -86,21 +108,23 @@ export function SkillRow({ skill, inCart, onToggle }: SkillRowProps) {
         ))}
       </div>
       <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-success)", flexShrink: 0 }}>
-        L{level}↗
+        L{level}
       </span>
-      <button
-        onClick={onToggle}
-        style={{
-          flexShrink: 0, padding: "4px 10px", borderRadius: 99, fontSize: 11,
-          fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          background: "transparent", border: "1px solid var(--tm-border)",
-          color: "var(--tm-text-muted)", transition: "border-color 150ms var(--tm-ease)",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-success)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
-      >
-        Lean in →
-      </button>
+      <span style={{
+        flexShrink: 0,
+        minHeight: 24,
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "0 9px",
+        borderRadius: 99,
+        border: "1px solid rgba(74,222,128,0.22)",
+        background: "rgba(74,222,128,0.06)",
+        color: "var(--tm-success)",
+        fontSize: 11,
+        fontWeight: 650,
+      }}>
+        Matched
+      </span>
     </div>
   )
 }

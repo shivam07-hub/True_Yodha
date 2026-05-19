@@ -24,6 +24,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.tm-control-focus:focus-visible {
+  outline: 2px solid var(--tm-accent-ring);
+  outline-offset: 3px;
+}
+
 /* ── Page slide animation (legacy — kept for existing .page-enter users) */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(16px); }

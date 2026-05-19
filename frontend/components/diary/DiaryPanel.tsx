@@ -58,20 +58,18 @@ export function DiaryPanel({
     }
   }
 
-  if (!mounted) return null
+  if (!mounted || !open) return null
 
   const panel = (
     <>
       {/* Backdrop */}
-      {open && (
-        <div
-          onClick={onClose}
-          style={{
-            position: "fixed", inset: 0, zIndex: "calc(var(--z-modal) - 1)" as never,
-            background: "rgba(5,10,24,0.55)", backdropFilter: "blur(2px)",
-          }}
-        />
-      )}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: "calc(var(--z-modal) - 1)" as never,
+          background: "rgba(5,10,24,0.55)", backdropFilter: "blur(2px)",
+        }}
+      />
 
       {/* Drawer */}
       <div style={{
@@ -80,9 +78,9 @@ export function DiaryPanel({
         background: "var(--tm-surface)",
         borderLeft: "1px solid var(--tm-border-soft)",
         display: "flex", flexDirection: "column",
-        transform: open ? "translateX(0)" : "translateX(100%)",
+        transform: "translateX(0)",
         transition: "transform 280ms var(--tm-ease)",
-        boxShadow: open ? "-12px 0 48px rgba(0,0,0,0.4)" : "none",
+        boxShadow: "-12px 0 48px rgba(0,0,0,0.4)",
       }}>
         {/* Header */}
         <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--tm-border-soft)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
@@ -90,6 +88,9 @@ export function DiaryPanel({
             ◈ JOURNAL
           </div>
           <button
+            type="button"
+            aria-label="Close journal"
+            className="tm-control-focus"
             onClick={onClose}
             style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: 16, cursor: "pointer", padding: "2px 6px", lineHeight: 1, borderRadius: 4 }}
           >
@@ -146,6 +147,9 @@ export function DiaryPanel({
                       L{skill.level_from}→L{skill.level_to}
                     </span>
                     <button
+                      type="button"
+                      aria-label={`Remove ${skill.skill_name} from diary cart`}
+                      className="tm-control-focus"
                       onClick={() => onRemoveSkill(skill.skill_name)}
                       style={{ background: "none", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
                     >
@@ -165,18 +169,36 @@ export function DiaryPanel({
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {gapSkills.slice(0, 5).map((g) => {
                     const inCart = cartSkills.some((s) => s.skill_name === g.skill)
+                    if (inCart) {
+                      return (
+                        <span
+                          key={g.skill}
+                          style={{
+                            padding: "4px 10px", borderRadius: 999, fontSize: 11,
+                            background: "rgba(0,245,212,0.08)",
+                            border: "1px solid var(--tm-accent-ring)",
+                            color: "var(--tm-accent)",
+                          }}
+                        >
+                          ✓ {g.skill}
+                        </span>
+                      )
+                    }
                     return (
                       <button
                         key={g.skill}
-                        onClick={() => !inCart && onAddSkill({ skill_name: g.skill, level_from: g.user_level, level_to: g.required_level, company: activeCompany ?? undefined })}
+                        type="button"
+                        aria-label={`Add ${g.skill} to diary cart`}
+                        className="tm-control-focus"
+                        onClick={() => onAddSkill({ skill_name: g.skill, level_from: g.user_level, level_to: g.required_level, company: activeCompany ?? undefined })}
                         style={{
-                          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "inherit", cursor: inCart ? "default" : "pointer",
-                          background: inCart ? "rgba(0,245,212,0.08)" : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${inCart ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                          color: inCart ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "inherit", cursor: "pointer",
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px solid var(--tm-border-soft)",
+                          color: "var(--tm-text-faint)",
                         }}
                       >
-                        {inCart ? "✓ " : "+ "}{g.skill}
+                        + {g.skill}
                       </button>
                     )
                   })}

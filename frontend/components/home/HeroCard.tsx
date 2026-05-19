@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { SkillRow } from "./SkillRow"
+import { InfoPill } from "./interaction-pills"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
 
 const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
@@ -82,22 +83,29 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
             {job.job_id && (
               <>
                 <span style={{ color: "var(--tm-border)" }}>·</span>
-                <span style={{
-                  padding: "1px 6px", borderRadius: 4,
-                  border: "1px dashed var(--tm-border)", color: "var(--tm-text-muted)",
-                  cursor: "copy", fontSize: 11,
-                }}
+                <button
+                  type="button"
+                  aria-label={`Copy job ID ${job.job_id}`}
+                  className="tm-control-focus"
+                  style={{
+                    display: "inline-flex", alignItems: "center", minHeight: 28,
+                    padding: "0 8px", borderRadius: 6,
+                    border: "1px dashed var(--tm-border)", color: "var(--tm-text-muted)",
+                    background: "rgba(255,255,255,0.02)",
+                    cursor: "copy", fontSize: 11, fontFamily: "var(--tm-font-mono)",
+                  }}
                   onClick={() => navigator.clipboard.writeText(String(job.job_id))}
                   title="Copy Job ID"
                 >
                   {job.job_id}
-                </span>
+                </button>
                 {job.source_url && (
                   <a
                     href={job.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "var(--tm-text-muted)", textDecoration: "none", fontSize: 11 }}
+                    className="tm-control-focus"
+                    style={{ color: "var(--tm-text-muted)", textDecoration: "underline", textUnderlineOffset: 3, fontSize: 11 }}
                   >
                     Open JD ↗
                   </a>
@@ -106,12 +114,15 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
             )}
             <span style={{ color: "var(--tm-border)" }}>·</span>
             <select
+              aria-label="Application status"
               value={status}
               onChange={(e) => onStatus(e.target.value as ApplicationStatus)}
+              className="tm-control-focus"
               style={{
-                fontSize: 11, fontWeight: 600, color: statusColor(status),
-                background: "transparent", border: "none", cursor: "pointer",
-                fontFamily: "var(--tm-font-mono)", padding: 0, outline: "none",
+                fontSize: 11, fontWeight: 650, color: statusColor(status),
+                background: "rgba(255,255,255,0.025)", border: "1px solid var(--tm-border-soft)", borderRadius: 999,
+                cursor: "pointer",
+                fontFamily: "var(--tm-font-mono)", padding: "4px 24px 4px 10px",
               }}
             >
               <optgroup label="Progress" style={{ background: "var(--tm-surface-2)", color: "var(--tm-text-faint)", fontSize: 10 }}>
@@ -155,18 +166,10 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
       {/* Skill pills */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
         {job.matched_skills?.slice(0, 5).map(s => (
-          <span key={s} style={{
-            padding: "2px 9px", borderRadius: 99,
-            background: "rgba(74,222,128,0.10)", border: "1px solid var(--tm-success)",
-            color: "var(--tm-success)", fontSize: 11,
-          }}>✓ {s}</span>
+          <InfoPill key={s} tone="success">✓ {s}</InfoPill>
         ))}
         {missingSkills.slice(0, 2).map(s => (
-          <span key={s.skill} style={{
-            padding: "2px 9px", borderRadius: 99,
-            background: "rgba(251,113,133,0.08)", border: "1px solid rgba(251,113,133,0.35)",
-            color: "var(--tm-danger)", fontSize: 11,
-          }}>⨯ {s.skill}</span>
+          <InfoPill key={s.skill} tone="danger">Missing · {s.skill}</InfoPill>
         ))}
       </div>
 
@@ -200,11 +203,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
                 fontSize: 11, fontWeight: 700, color: "var(--tm-text-muted)",
                 fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em",
               }}>Why this is a good fit</span>
-              <span style={{
-                fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em",
-              }}>LLM</span>
+              <InfoPill tone="accent" style={{ minHeight: 22, borderRadius: 6 }}>LLM</InfoPill>
             </div>
             <p style={{
               margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65,
@@ -224,15 +223,11 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
                   fontSize: 11, fontWeight: 700, color: "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-mono)", textTransform: "uppercase", letterSpacing: "0.08em",
                 }}>Skills you already match</span>
-                <span style={{
-                  fontFamily: "var(--tm-font-mono)", fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                  background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.25)",
-                  color: "var(--tm-success)",
-                }}>{matchedSkills.length}</span>
+                <InfoPill tone="success" style={{ minHeight: 22, borderRadius: 6 }}>{matchedSkills.length}</InfoPill>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 {[...matchedSkills].sort((a, b) => (b.user_level ?? 0) - (a.user_level ?? 0)).map(s => (
-                  <SkillRow key={s.skill} skill={s} inCart={false} onToggle={() => {}} />
+                  <SkillRow key={s.skill} skill={s} inCart={false} />
                 ))}
               </div>
             </div>
