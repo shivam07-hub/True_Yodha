@@ -93,7 +93,7 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
 
   return (
     <header className="tm-mobile-topbar">
-      <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+      <Link href="/myro" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
         <div style={{ filter: "drop-shadow(0 0 6px var(--tm-accent-glow))" }}>
           <MyroLogo size={24} />
         </div>

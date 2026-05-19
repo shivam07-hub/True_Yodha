@@ -28,7 +28,6 @@ import {
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
-  { href: "/xp",      label: "XP Guide",    desc: "Earn & spend XP",        icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
@@ -658,7 +657,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned
     >
       {/* Logo */}
       <Link
-        href="/home"
+        href="/myro"
         style={{
           padding: "22px 16px 20px",
           display: "flex", alignItems: "center", gap: 12,

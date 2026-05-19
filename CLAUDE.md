@@ -164,7 +164,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
    - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
 
-12. **Shareability v1 — `/profile/{ninja_name}` public profile (NEXT SESSION).** Decisions SH1–SH7 locked. Full plan below.
+12. ~~**Shareability v1 — `/profile/{ninja_name}` public profile**~~ ✅ DONE 2026-05-19 — Backend `ninja_name` service + `routers/profile/public.py` (`GET /profile/{ninja_name}`, `GET /overlap`, `POST /ninja-name`, `GET /suggest`). Migration `20260519_shareability_v1.sql` + backfill script. `user_provisioning.ensure_user_provisioned` becomes single profile seed point — generates ninja_name on first insert, honors `myro_ref` (body field, cookie fallback). Frontend: `lib/radar-geometry.ts` extracted, `components/profile/` (GhostRadar, OwnerRadar, RadarOverlay, JobOverlapRows, ShareButton, PublicProfilePage), `app/profile/[ninja]/{page,loading,opengraph-image}.tsx`, `/skills` ShareButton top-right, signup captures `?ref=`, onboarding NinjaNameStep before final. `robots.ts` disallows `/profile/`. 301 backend tests green; tsc + lint clean.
 
 ---
 
@@ -253,7 +253,7 @@ npm i -D eas-cli
 
 **Open:**
 - ⏸ **Deepening #2 — `<ResponsiveStack>` primitive.** DEFERRED. Trigger: any new page adding 4+ `tm-<page>-*` class hooks → ship it. 3 collapse sites today (`tm-mission-header-grid`, `tm-home-cols`, `tm-login-shell`).
-- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). Blocked on: Shareability v1, `packages/api-client/` extraction, turborepo decision. Do NOT scaffold until v2 prerequisites are real.
+- **`packages/mobile-shared/` extraction.** Lift `frontend/mobile/` into workspace package consumed by both `frontend/` (web PWA) + future `mobile-native/` (Expo). ✅ Shareability v1 unblock landed 2026-05-19. Still blocked on: `packages/api-client/` extraction + turborepo decision. Do NOT scaffold until both are real.
 
 ---
 
@@ -512,7 +512,148 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-19 · Forge loop + Backlog #9 + loading-state audit closed)
+## LAST SESSION SUMMARY (2026-05-19 · Shareability v1 — Backlog #12 shipped)
+
+```
+SHAREABILITY v1 — BACKLOG #12 SHIPPED:
+Public profile page (/profile/{ninja_name}) end-to-end. Decisions SH1–SH7
+already locked from prior grill-me; this session executed the plan.
+
+DB:
+  - database/migrations/20260519_shareability_v1.sql
+    * user_profiles.ninja_name TEXT (unique partial index, nullable until backfill)
+    * user_profiles.referred_by_user_id UUID REFERENCES auth.users(id)
+    * VIEW public_profile_v — strict PII-free allowlist (ninja_name,
+      mirror_score, domain_scores, tier_label + forge/diary/tracker counts)
+    * GRANT SELECT ON public_profile_v TO anon, authenticated
+    * Tail ALTER ... SET NOT NULL gated behind backfill (manual run)
+  - database/backfill_ninja_names.py — one-off generator, retry on
+    UNIQUE collision. Run after migration, before NOT NULL flip.
+
+BACKEND:
+  - services/ninja_name.py — adjective+noun+4-char-suffix slug.
+    ~180 adjectives, ~200 nouns, RESERVED_WORDS blocks app routes + PII
+    surface. generate(), is_valid(), is_available(), generate_unique()
+    with retry, claim(), resolve_user_id_by_name().
+  - services/user_provisioning.py NEW — single profile-seed point.
+    Fresh row: generates ninja_name + resolves myro_ref (with self-ref
+    guard) → INSERT. Existing row: refreshes email/full_name only,
+    never overwrites ninja_name or referred_by_user_id.
+  - routers/profile/public.py NEW:
+      GET  /profile/{ninja_name}          — no auth, reads public_profile_v
+      GET  /profile/{ninja_name}/overlap  — auth, intersects active
+            applications between viewer + owner via admin client; caps
+            3 rows sorted by viewer match%
+      POST /profile/ninja-name            — auth, validates + claims
+      GET  /profile/ninja-name/suggest    — auth, returns available slug
+  - schemas/profile.py NEW + wired into schemas/__init__.py.
+  - schemas/auth.py — SignupRequest gains optional myro_ref (body wins
+    over cookie; CORS strips cross-origin cookies).
+  - routers/auth.py — signup/login reads myro_ref cookie via Cookie(),
+    body overrides; both call ensure_user_provisioned.
+  - deps.py — _ensure_profile_provisioned routes through
+    ensure_user_provisioned (no cookie path here).
+  - main.py — registers profile router.
+
+TESTS (45 new, 301 total green):
+  - test_ninja_name_service.py — generate format, validate rules,
+    reserved-word blocklist (wordlist scrub: dropped 'tracker' from
+    NOUNS, 'sage' from NOUNS where it collided), availability,
+    generate_unique retry, max_attempts ceiling.
+  - test_public_profile_router.py — 404 paths, PII-leak defense
+    (asserts email/full_name/linkedin_url cannot appear in response
+    even when the view leaks them), reserved-name 404, ninja-name
+    update validation + 409 conflict.
+  - test_job_overlap_router.py — intersection math, empty
+    overlap returns [], self-view returns [], cap-at-3 + sort by
+    viewer pct desc.
+  - test_referral_attribution.py — fresh signup writes
+    referred_by_user_id, self-ref dropped, unknown ref dropped,
+    existing user never overwrites ninja_name, no-email no-op,
+    malformed cookie sanitized, empty/whitespace cookies safe.
+
+FRONTEND:
+  - lib/radar-geometry.ts NEW — pure path math. polarToCart,
+    radarShape, pointsToPolygonAttr, normalizeDomainScore +
+    normalizeDomainScoresMap. Consumed by DomainRadar, GhostRadar,
+    OwnerRadar, RadarOverlay, opengraph-image.
+  - components/skills/domain-radar.tsx — refactored to consume the
+    shared helper (DRY with profile components).
+  - components/profile/
+      GhostRadar.tsx        — outline radar, +/unlock glyph,
+                              wraps to /signup?ref={ninja};
+                              motion budget honored (opacity 0→0.18
+                              delayed 400ms, hover scale 1→1.08,
+                              prefers-reduced-motion = instant).
+                              compositor-only transitions.
+      OwnerRadar.tsx        — ninja's radar with stroke-dashoffset
+                              cold-draw (900ms), grid + vertices.
+      RadarOverlay.tsx      — dual-color overlay (accent + warm) for
+                              logged-in viewers with their own scores.
+      JobOverlapRows.tsx    — max 3 rows, hides silently if none.
+      ShareButton.tsx       — Web Share API w/ clipboard fallback;
+                              ↗ icon-only, ✓ on copy.
+      PublicProfilePage.tsx — 2-col / stacked grid (CSS @media 768px),
+                              decides ghost vs overlay per viewer
+                              state, fetches /me + mySkills + overlap.
+  - components/onboarding/NinjaNameStep.tsx NEW — auto-suggested
+    name, manual override, Skip button (SH2 — never blocks
+    onboarding).
+  - app/profile/[ninja]/
+      page.tsx              — server component, generateMetadata,
+                              robots: noindex (v1 hardening). Fetches
+                              with revalidate:60.
+      loading.tsx           — radar skeleton frame.
+      opengraph-image.tsx   — edge runtime, 24h revalidate, renders
+                              full-bleed 1200×630 PNG with radar +
+                              score for share unfurls.
+  - app/skills/page.tsx — adds ShareButton beside ScoreRing when
+    profile.ninja_name is present.
+  - lib/referral.ts NEW — capturePendingReferral reads ?ref=,
+    persists to cookie (Max-Age=30d, SameSite=Lax) AND localStorage
+    (cross-origin fallback). Used by auth-form on mount.
+  - components/auth/auth-form.tsx — on mount captures referral;
+    signup call echoes the value as body field.
+  - lib/api.ts — auth.signup gains myroRef arg; new PublicProfile +
+    JobOverlapRow types; new `profile` namespace; users.suggestNinjaName
+    + users.updateNinjaName; UserProfile gains ninja_name + referred_by.
+  - app/onboarding/page.tsx — inserts new "ninja" step between role
+    and score. Skippable.
+  - app/robots.ts — disallows /profile/.
+
+VERIFY:
+  - pytest backend/tests -q: 301 passed (45 new).
+  - npx tsc --noEmit: clean.
+  - next lint: 0 warnings, 0 errors.
+  - Manual QA pending (not pushed — another agent on Develop):
+      * visit /profile/{my_ninja} logged-out → ghost radar CTA
+      * click ghost → /signup?ref={ninja} → cookie set
+      * 2nd account signup completes → referred_by_user_id written
+      * logged-in non-owner view → RadarOverlay if viewer has scores
+      * overlap section appears if both have ≥1 saved job in common
+      * mobile share sheet fires; desktop falls back to clipboard
+
+DEPLOY ORDER (Shivam, when ready):
+  1. Apply 20260519_shareability_v1.sql (nullable cols + view + grant).
+  2. Run database/backfill_ninja_names.py to fill existing users.
+  3. Manual ALTER TABLE user_profiles ALTER COLUMN ninja_name SET NOT NULL.
+  4. Deploy backend (new routes + provisioning).
+  5. Deploy frontend.
+
+Open (next sessions):
+  - Backlog #8: Process Transparency Layer
+  - Cleanup pass: home/page.tsx jobs.generateJobCv, cv/variants.py
+    legacy generate-draft routes
+  - packages/mobile-shared/ extraction (unblocked by Shareability v1
+    landing; still wants packages/api-client/ + turborepo decision
+    before scaffolding)
+  - Shareability v2: XP-for-referral trigger, referrals_log analytics
+    table, mentor/mentee surfacing, public profile theming
+```
+
+---
+
+## PREV SESSION SUMMARY (2026-05-19 · Forge loop + Backlog #9 + loading-state audit closed)
 
 ```
 FORGE + DIARY LOOP — BACKLOG #11 SHIPPED:
