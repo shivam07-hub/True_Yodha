@@ -201,6 +201,16 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    - **Stale `tailored versions` UX (SE9 carry).** No UI badge yet on tailored rows when a newer baseline lands. Ship `(based on older baseline)` pill in v2.
    - **Author parent_version_id chain on baselines.** SE1=A keeps baselines immutable, but the new baseline is currently orphan (parent_version_id=NULL). Linear history via parent pointer would let the ledger show evolution. Requires loosening `CVVersionsRepository._validate_kind_job_id` to allow `baseline_upload` w/ parent. Defer until ledger UX needs it.
 
+17. **CV Builder three-view redesign — carryover (2026-05-20)** — `/cv` rebuilt from Claude Design handoff into Baseline / Playground / PDF views (see LAST SESSION SUMMARY). Open items:
+    - **Per-bullet drag-reorder UI.** Handoff prototype had drag-to-reorder bullets inside the playground. NOT shipped because `cv_versions` schema has no per-bullet order column. To revive: add `bullet_order JSONB` to `cv_versions`, extend `cv.versions.create`/`edit` to accept it, then wire `BulletRow` drag handles + `onDragStart/onDrop` handlers (atoms already structured to accept them).
+    - **JD source in intel drawer.** `IntelDrawer` reads `application.job_description` via `jobs.applications()`. Section hides silently when null. Once the scraper backfills JD text for older jobs, no code change needed — chip up.
+    - **ATS audit hardcoded 7/7.** `pdf-preview-view.tsx` always renders 7 green ticks. Wire to a real server-side ATS parser (filename heuristics + section-heading sniff + table detection) when budget allows.
+    - **`?skill=` deeplink highlight into `LivePreview` BulletRows.** Carry-forward from 2026-05-19 (Mode 3 deeplink fidelity). The skill keyword should highlight matching bullets when arriving at `/cv?jobId=…&skill=…`. Pass `focusSkill` into `BulletRow` and add a `tm-skill-pulse` outline class.
+    - **Word-boundary guard on substring match.** `bulletKeywordHits` + `highlightKeywords` use raw `.includes()`. Short skills ("R", "Go", "AI") false-positive. Add `\b{kw}\b` regex variant when kw length ≤ 3.
+    - **Match score persistence.** Currently passed via `?score=N` URL param to PDF view. Fine for v1, but lossy on refresh. v2: snapshot into URL state or recompute from `cv_versions.hidden_items` on PDF mount.
+    - **Lineage chain in BaselineView.** Commit graph draws threads as flat lists; doesn't draw vertical `parent_version_id` lines between siblings yet. Once `parent_version_id` chains land on baselines (SE1 carryover above), connect the dots.
+    - **Inline bullet edit → server.** `BulletRow` has `editable={false}` everywhere in PlaygroundView right now. The inline edit path requires routing through `cv.versions.edit` (which expects `Record<original, next>`). Wire when scope clarified — for now, polish-then-edit-polished modal remains the edit affordance.
+
 ---
 
 ## FRONTEND LOADING-TIME REDUCTION — PLAN (Backlog #13, locked 2026-05-19 via grill-me)
