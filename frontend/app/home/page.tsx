@@ -233,7 +233,7 @@ function MissionControlInner() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "/") {
         e.preventDefault()
-        openFeedbackHub({ category: "feedback" })
+        openFeedbackHub({})
       }
     }
     window.addEventListener("keydown", handler)
@@ -340,7 +340,7 @@ function MissionControlInner() {
               refreshDisabled={matchesExhausted}
               refreshNotice={refreshNotice}
               onRefresh={refreshMatches}
-              onFeedback={() => openFeedbackHub({ category: "feedback" })}
+              onFeedback={() => openFeedbackHub({})}
               onOpenDiary={() => router.push("/forge?diary=1")}
               cartCount={cartSkills.length}
             />
