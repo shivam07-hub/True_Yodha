@@ -1,9 +1,9 @@
 /**
  * BaselineView — landing surface for /cv with no jobId.
  *
- * Master CV at the trunk + per-company tailored branches drawn as a Git-style
- * commit graph. Clicking any commit opens a dark CV viewer modal.
- * Right column = saved target jobs that link into the per-job playground.
+ * LEFT col: immutable commit graph — always visible, acts as navigation rail.
+ * RIGHT col: default = saved target jobs. When a commit is selected, swaps
+ *            to an inline CV viewer (no modal). Escape deselects.
  */
 "use client"
 
@@ -34,13 +34,11 @@ interface BaselineViewProps {
 interface OrderedRow { v: CVVersion; thread: string }
 
 function orderRows(versions: CVVersion[]): OrderedRow[] {
-  // Master at top.
   const masters = versions
     .filter(v => v.kind === "baseline_upload")
     .sort((a, b) => b.user_version_number - a.user_version_number)
     .map(v => ({ v, thread: "master" }))
 
-  // Group company versions by job_id thread.
   const threads = new Map<string, CVVersion[]>()
   for (const v of versions) {
     if (v.kind === "baseline_upload") continue
@@ -49,10 +47,8 @@ function orderRows(versions: CVVersion[]): OrderedRow[] {
     if (arr) arr.push(v)
     else threads.set(key, [v])
   }
-  // Sort each thread oldest -> newest by user_version_number.
   const entries: Array<[string, CVVersion[]]> = Array.from(threads.entries())
   entries.forEach(([, arr]) => arr.sort((a, b) => a.user_version_number - b.user_version_number))
-  // Order threads by their newest entry, newest-first.
   entries.sort((a, b) => {
     const aLast = a[1][a[1].length - 1].user_version_number
     const bLast = b[1][b[1].length - 1].user_version_number
@@ -78,7 +74,7 @@ export function BaselineView({
   onRework,
   onOpenJob,
 }: BaselineViewProps) {
-  const [modalVId, setModalVId] = useState<number | null>(null)
+  const [selectedVId, setSelectedVId] = useState<number | null>(null)
 
   const rows = useMemo(() => orderRows(versions), [versions])
 
@@ -89,14 +85,9 @@ export function BaselineView({
     const jobIds = new Set(
       versions.filter(v => v.kind !== "baseline_upload" && v.job_id).map(v => v.job_id),
     )
-    return {
-      total: versions.length,
-      companies: companies.size,
-      jobs: jobIds.size,
-    }
+    return { total: versions.length, companies: companies.size, jobs: jobIds.size }
   }, [versions])
 
-  // Saved/active applications for the target-jobs panel.
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token),
@@ -105,7 +96,6 @@ export function BaselineView({
 
   const activeApplications = useMemo<ApplicationResponse[]>(() => {
     const list = applicationsQuery.data ?? []
-    // Only stages the user is actively working — outcomes are terminal.
     const liveStages: ApplicationResponse["status"][] = ["saved", "applied", "screening", "interviewing", "final_round"]
     return list
       .filter(a => liveStages.includes(a.status))
@@ -113,7 +103,7 @@ export function BaselineView({
       .slice(0, 8)
   }, [applicationsQuery.data])
 
-  const modalVersion = modalVId == null ? null : versions.find(v => v.id === modalVId) ?? null
+  const selectedVersion = selectedVId == null ? null : versions.find(v => v.id === selectedVId) ?? null
 
   const contact = useMemo(() => ({
     name: profile?.full_name?.trim() || "Your name",
@@ -123,6 +113,14 @@ export function BaselineView({
     phone: "",
     linkedin: profile?.linkedin_url ?? "",
   }), [profile, cv])
+
+  // Escape key deselects
+  useEffect(() => {
+    if (selectedVId === null) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedVId(null) }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [selectedVId])
 
   return (
     <>
@@ -163,6 +161,7 @@ export function BaselineView({
       </div>
 
       <div className="cvb-graph-wrap">
+        {/* LEFT: commit graph — always visible as navigation rail */}
         <div className="cvb-graph-col">
           <div className="cvb-section-head">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -198,8 +197,8 @@ export function BaselineView({
                   <CommitRow
                     v={v}
                     isCurrentBaseline={currentBaseline?.id === v.id}
-                    selected={modalVId === v.id}
-                    onSelect={setModalVId}
+                    selected={selectedVId === v.id}
+                    onSelect={setSelectedVId}
                     drawTop={!isFirstOfThread || i > 0}
                     drawBottom={!isLastOfThread}
                   />
@@ -209,47 +208,25 @@ export function BaselineView({
           </div>
         </div>
 
-        <div className="cvb-graph-col" style={{ padding: 16, gap: 14, display: "flex", flexDirection: "column", overflow: "auto" }}>
-          <div className="cvb-section-head" style={{ padding: 0, border: "none", background: "transparent" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="target" size={14} style={{ color: "var(--tm-accent)" }}/>
-              <span className="eyebrow">target jobs · open thread</span>
-            </div>
-            <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-              {activeApplications.length} active
-            </span>
-          </div>
-
-          {applicationsQuery.isLoading && (
-            <div style={{ padding: 18, fontSize: 12, color: "var(--tm-text-faint)" }}>
-              Loading saved jobs…
-            </div>
+        {/* RIGHT: swaps between target jobs list and inline CV viewer */}
+        <div className="cvb-graph-col cvb-right-col">
+          {selectedVersion && cv ? (
+            <CVInlineViewer
+              key={selectedVersion.id}
+              version={selectedVersion}
+              cv={cv}
+              contact={contact}
+              onClose={() => setSelectedVId(null)}
+              onOpenJob={(id) => { setSelectedVId(null); onOpenJob(id) }}
+            />
+          ) : (
+            <TargetJobsPanel
+              key="jobs"
+              applications={activeApplications}
+              isLoading={applicationsQuery.isLoading}
+              onOpen={onOpenJob}
+            />
           )}
-
-          {!applicationsQuery.isLoading && activeApplications.length === 0 && (
-            <div style={{
-              padding: 18, border: "1px dashed var(--tm-border-soft)", borderRadius: 8,
-              textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)",
-            }}>
-              No active applications yet.{" "}
-              <Link href="/tracker?stage=saved" style={{ color: "var(--tm-accent)" }}>Add one →</Link>
-            </div>
-          )}
-
-          {activeApplications.map(app => (
-            <TargetJobCard key={app.id} app={app} onOpen={() => onOpenJob(app.job_id)} />
-          ))}
-
-          <Link
-            href="/jobs"
-            style={{
-              marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
-              borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",
-              textDecoration: "none", display: "block",
-            }}
-          >
-            Browse more in <span style={{ color: "var(--tm-accent)" }}>Jobs →</span>
-          </Link>
         </div>
       </div>
 
@@ -262,20 +239,14 @@ export function BaselineView({
         <LegendDot cls="polished" label="AI polished"/>
         <LegendDot cls="edited" label="manually edited"/>
         <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span className="cvb-kbd">click</span> any commit to view its CV
+          <span className="cvb-kbd">click</span> any commit to preview
         </span>
       </div>
-
-      <CVViewerModal
-        version={modalVersion}
-        cv={cv}
-        contact={contact}
-        onClose={() => setModalVId(null)}
-        onOpenJob={(id) => { setModalVId(null); onOpenJob(id) }}
-      />
     </>
   )
 }
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, mono }: { label: string; value: string | number; sub: string; mono?: boolean }) {
   return (
@@ -287,13 +258,65 @@ function StatCard({ label, value, sub, mono }: { label: string; value: string | 
   )
 }
 
-interface TargetJobCardProps {
-  app: ApplicationResponse
-  onOpen: () => void
+interface TargetJobsPanelProps {
+  applications: ApplicationResponse[]
+  isLoading: boolean
+  onOpen: (jobId: string) => void
 }
 
+function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelProps) {
+  return (
+    <>
+      <div className="cvb-section-head" style={{ background: "transparent" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="target" size={14} style={{ color: "var(--tm-accent)" }}/>
+          <span className="eyebrow">target jobs · open thread</span>
+        </div>
+        <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+          {applications.length} active
+        </span>
+      </div>
+
+      <div className="cvb-right-col-body">
+        {isLoading && (
+          <div style={{ padding: 18, fontSize: 12, color: "var(--tm-text-faint)" }}>
+            Loading saved jobs…
+          </div>
+        )}
+
+        {!isLoading && applications.length === 0 && (
+          <div style={{
+            padding: 18, border: "1px dashed var(--tm-border-soft)", borderRadius: 8,
+            textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)",
+          }}>
+            No active applications yet.{" "}
+            <Link href="/tracker?stage=saved" style={{ color: "var(--tm-accent)" }}>Add one →</Link>
+          </div>
+        )}
+
+        {applications.map(app => (
+          <TargetJobCard key={app.id} app={app} onOpen={() => onOpen(app.job_id)} />
+        ))}
+
+        <Link
+          href="/jobs"
+          style={{
+            marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
+            borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",
+            textDecoration: "none", display: "block",
+          }}
+        >
+          Browse more in <span style={{ color: "var(--tm-accent)" }}>Jobs →</span>
+        </Link>
+      </div>
+    </>
+  )
+}
+
+interface TargetJobCardProps { app: ApplicationResponse; onOpen: () => void }
+
 function TargetJobCard({ app, onOpen }: TargetJobCardProps) {
-  const readinessApprox = matchPctTone(60) // tone-only fallback; real % needs jobs.path which we resolve lazily on click
+  const readinessApprox = matchPctTone(60)
   return (
     <button type="button" className="cvb-job-card" onClick={onOpen}>
       <div style={{ minWidth: 0 }}>
@@ -324,30 +347,15 @@ function TargetJobCard({ app, onOpen }: TargetJobCardProps) {
   )
 }
 
-interface CVViewerModalProps {
-  version: CVVersion | null
-  cv: CVStructured | null
+interface CVInlineViewerProps {
+  version: CVVersion
+  cv: CVStructured
   contact: { name: string; title: string; location: string; email: string; phone: string; linkedin: string }
   onClose: () => void
   onOpenJob: (jobId: string) => void
 }
 
-function CVViewerModal({ version, cv, contact, onClose, onOpenJob }: CVViewerModalProps) {
-  const open = version !== null && cv !== null
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
-    window.addEventListener("keydown", onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      document.body.style.overflow = prev
-    }
-  }, [open, onClose])
-
-  if (!open || !version || !cv) return null
-
+function CVInlineViewer({ version, cv, contact, onClose, onOpenJob }: CVInlineViewerProps) {
   const isMaster = version.kind === "baseline_upload"
   const kindLabel =
     isMaster ? "Master baseline"
@@ -357,40 +365,48 @@ function CVViewerModal({ version, cv, contact, onClose, onOpenJob }: CVViewerMod
   const titleLabel = version.title?.trim() || (isMaster ? "Master CV" : formatGlobalVersionLabel(version))
 
   return (
-    <div className="cvb-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="CV viewer">
-      <div className="cvb-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cvb-modal-head">
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-              <KindDot kind={version.kind} inline/>
-              <span className="mono" style={{ fontSize: 14, color: "var(--tm-accent)" }}>{titleLabel}</span>
-              <span className="cvb-pill" style={{ fontSize: 10 }}>{kindLabel}</span>
-              <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
-                {formatGlobalVersionLabel(version)}
-              </span>
-            </div>
-            <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {isMaster
-                ? "your master baseline · the trunk every job-tailored version branches from"
-                : `${version.company_name ?? "Company"} · ${version.job_title ?? "Job"}`}
-              {" · "}{timeAgo(version.created_at)}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            {!isMaster && version.job_id && (
-              <button type="button" className="cvb-btn sm" onClick={() => onOpenJob(version.job_id!)}>
-                <Icon name="git-branch" size={11}/> Open thread
-              </button>
-            )}
-            <button type="button" className="cvb-btn sm ghost" onClick={onClose} aria-label="Close viewer">
-              <Icon name="x" size={14}/>
-            </button>
-          </div>
+    <>
+      <div className="cvb-inline-cv-head cvb-fade-in">
+        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="cvb-btn ghost sm"
+            onClick={onClose}
+            aria-label="Back to target jobs"
+            style={{ padding: "2px 8px", flexShrink: 0 }}
+          >
+            <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/>
+          </button>
+          <KindDot kind={version.kind} inline/>
+          <span className="mono" style={{ fontSize: 13, color: "var(--tm-accent)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {titleLabel}
+          </span>
+          <span className="cvb-pill" style={{ fontSize: 10, flexShrink: 0 }}>{kindLabel}</span>
         </div>
-        <div className="cvb-modal-body">
-          <CVRender cv={cv} contact={contact}/>
-        </div>
+        {!isMaster && version.job_id && (
+          <button
+            type="button"
+            className="cvb-btn sm"
+            onClick={() => onOpenJob(version.job_id!)}
+            style={{ flexShrink: 0 }}
+          >
+            <Icon name="git-branch" size={11}/> Open thread
+          </button>
+        )}
       </div>
-    </div>
+
+      <div style={{ padding: "6px 14px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
+        <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
+          {isMaster
+            ? "master baseline · trunk every tailored version branches from"
+            : `${version.company_name ?? "Company"} · ${version.job_title ?? "Job"}`}
+          {" · "}{timeAgo(version.created_at)}
+        </span>
+      </div>
+
+      <div className="cvb-inline-cv-body">
+        <CVRender cv={cv} contact={contact}/>
+      </div>
+    </>
   )
 }

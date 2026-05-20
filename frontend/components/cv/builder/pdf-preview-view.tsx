@@ -7,11 +7,12 @@
  */
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { cv as cvApi } from "@/lib/api"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { Icon } from "./icons"
+import { runAtsChecks, atsScore } from "./ats-checks"
 
 interface PdfPreviewViewProps {
   token: string
@@ -22,6 +23,7 @@ interface PdfPreviewViewProps {
   company: string
   jobTitle: string
   matchScore: number
+  jobId?: string | null
   onBackToPlayground: () => void
 }
 
@@ -30,15 +32,29 @@ function slug(s: string | null | undefined): string {
 }
 
 export function PdfPreviewView({
-  token, cv, hidden, selectedVersion, profile, company, jobTitle, matchScore, onBackToPlayground,
+  token, cv, hidden, selectedVersion, profile, company, jobTitle, matchScore, jobId, onBackToPlayground,
 }: PdfPreviewViewProps) {
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
+  // sessionStorage fallback: job match % may be missing on direct URL / refresh.
+  const [effectiveScore, setEffectiveScore] = useState(matchScore)
+  useEffect(() => {
+    if (effectiveScore <= 0 && jobId) {
+      try {
+        const stored = sessionStorage.getItem(`myro-cv-score-${jobId}`)
+        if (stored) setEffectiveScore(Number(stored))
+      } catch { /* storage blocked */ }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId])
 
   const filename = useMemo(() => {
     const parts = [slug(profile?.full_name) || "myro_cv", slug(company), slug(jobTitle)].filter(Boolean)
     return `${parts.join("__")}.pdf`
   }, [profile, company, jobTitle])
+
+  const checks = useMemo(() => runAtsChecks(cv, profile, filename), [cv, profile, filename])
+  const { passed: passedCount, total: totalChecks } = atsScore(checks)
 
   // Snapshot text to send to the PDF endpoint — uses the version's polished
   // text if available, otherwise the deterministic render of the current state.
@@ -93,9 +109,9 @@ export function PdfPreviewView({
           <span className="cvb-pill success">
             <Icon name="check" size={11}/> ATS-friendly · single column
           </span>
-          {matchScore > 0 && (
+          {effectiveScore > 0 && (
             <span className="cvb-pill accent">
-              <Icon name="sparkle" size={11}/> {matchScore}% JD match
+              <Icon name="sparkle" size={11}/> {effectiveScore}% JD match
             </span>
           )}
           <button type="button" className="cvb-btn primary" onClick={handleDownload} disabled={downloading}>
@@ -132,18 +148,20 @@ export function PdfPreviewView({
               <Icon name="sparkle" size={14} style={{ color: "var(--tm-accent)" }}/>
               <span className="eyebrow" style={{ color: "var(--tm-accent)" }}>ATS &amp; AI audit</span>
             </div>
-            <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
-              passes 7 / 7 checks
+            <span
+              className="mono"
+              style={{
+                fontSize: 10.5,
+                color: passedCount === totalChecks ? "var(--tm-success)" : "var(--tm-warning)",
+              }}
+            >
+              passes {passedCount} / {totalChecks} checks
             </span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-            <AuditRow ok label="Single column · linear reading order"/>
-            <AuditRow ok label="Standard section headings (no tables)"/>
-            <AuditRow ok label="System fonts embedded · selectable text"/>
-            <AuditRow ok label="No images, icons, or watermarks in body"/>
-            <AuditRow ok label="ISO date format preserves parsing"/>
-            <AuditRow ok label={`Filename: ${filename}`}/>
-            <AuditRow ok label="Contact block at top · machine-readable"/>
+            {checks.map(c => (
+              <AuditRow key={c.label} ok={c.pass} label={c.pass ? c.label : (c.detail ?? c.label)}/>
+            ))}
           </div>
         </div>
       </div>

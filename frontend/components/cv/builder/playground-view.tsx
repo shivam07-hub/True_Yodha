@@ -31,6 +31,7 @@ import { BulletRow } from "./bullet-row"
 import { LivePreview } from "./live-preview"
 import { IntelDrawer } from "./intel-drawer"
 import { bulletKeywordHits, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
+import { runAtsChecks, atsScore, type AtsCheck } from "./ats-checks"
 
 interface PlaygroundViewProps {
   token: string
@@ -42,6 +43,7 @@ interface PlaygroundViewProps {
   onExportPDF: (matchScore: number) => void
   onEditPolished: (versionId: number) => void
   externalError?: string | null
+  focusSkill?: string | null
 }
 
 function tabKindDot(kind: CVVersion["kind"]) {
@@ -51,9 +53,13 @@ function tabKindDot(kind: CVVersion["kind"]) {
   return { background: "var(--tm-text-muted)", boxShadow: "none" }
 }
 
+function slugCV(s: string | null | undefined): string {
+  return (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+}
+
 export function PlaygroundView({
   token, jobId, playground, cv, profile,
-  onBackToBaseline, onExportPDF, onEditPolished, externalError,
+  onBackToBaseline, onExportPDF, onEditPolished, externalError, focusSkill,
 }: PlaygroundViewProps) {
   const { threadVersions, selectedVersionId, selectVersion, hiddenItems, toggleItem, isDirty, canSave } = playground
 
@@ -145,6 +151,14 @@ export function PlaygroundView({
   const selectedVersion = playground.selectedVersion
   const isEditableSelection = selectedVersion?.kind !== "baseline_upload"
 
+  // ATS checks — deterministic, client-side, no backend needed.
+  const cvFilename = useMemo(() => {
+    const parts = [slugCV(profile?.full_name) || "myro_cv", slugCV(company), slugCV(jobTitle)].filter(Boolean)
+    return `${parts.join("__")}.pdf`
+  }, [profile, company, jobTitle])
+  const atsChecks = useMemo(() => runAtsChecks(cv, profile, cvFilename), [cv, profile, cvFilename])
+  const atsSc = useMemo(() => atsScore(atsChecks), [atsChecks])
+
   function handleSave() { playground.saveVersion.mutate() }
   function handlePolish() {
     if (!selectedVersion) return
@@ -167,7 +181,7 @@ export function PlaygroundView({
             </div>
             <h1 className="cvb-page-title" style={{ marginTop: 8 }}>Tailor for {company}</h1>
             <p className="cvb-page-sub">
-              Toggle bullets · click to edit · live JD-match score on the right.
+              Toggle bullets to include/exclude · live JD-match score on the right.
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -267,7 +281,7 @@ export function PlaygroundView({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 12, flexWrap: "wrap" }}>
             <span className="eyebrow">experience · {visibleCount}/{totalBullets} visible</span>
             <span style={{ display: "inline-flex", gap: 6, fontSize: 11, color: "var(--tm-text-faint)", alignItems: "center" }}>
-              <span className="cvb-kbd">click</span> bullet to edit
+              <span className="cvb-kbd">click</span> to toggle
             </span>
           </div>
 
@@ -355,6 +369,8 @@ export function PlaygroundView({
             missing={missingTargets}
             allCovered={evaluatedTargets.length > 0 && missingTargets.length === 0}
             onOpenDrawer={() => setDrawerOpen(true)}
+            atsSc={atsSc}
+            atsChecks={atsChecks}
           />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
@@ -370,6 +386,7 @@ export function PlaygroundView({
             cv={cv}
             hidden={hiddenItems}
             keywords={evaluatedTargets}
+            focusSkill={focusSkill}
             contact={{
               name: profile?.full_name?.trim() || "Your name",
               title: cv.experience[0]?.role ?? "",
@@ -416,12 +433,17 @@ interface IntelStripProps {
   missing: KeywordTarget[]
   allCovered: boolean
   onOpenDrawer: () => void
+  atsSc: { passed: number; total: number }
+  atsChecks: AtsCheck[]
 }
 
-function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer }: IntelStripProps) {
+function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, atsChecks }: IntelStripProps) {
   const dir = delta >= 0 ? "up" : "down"
+  const atsAllPass = atsSc.passed === atsSc.total
+  const atsFailedLabels = atsChecks.filter(c => !c.pass).map(c => c.detail ?? c.label)
+
   return (
-    <div className="cvb-intel-strip">
+    <div className="cvb-intel-strip" style={{ flexWrap: "wrap", gap: 10 }}>
       <div className="score">
         <span className="num tabnum">
           {score}<span style={{ fontSize: 14, opacity: 0.7 }}>%</span>
@@ -435,7 +457,17 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer }: IntelSt
           </div>
         </div>
       </div>
-      <div className="gaps">
+
+      <span
+        className={`cvb-pill${atsAllPass ? " success" : " warning"}`}
+        title={atsAllPass ? "All ATS checks pass" : atsFailedLabels.join(" · ")}
+        style={{ cursor: "default", fontSize: 11 }}
+      >
+        <Icon name={atsAllPass ? "check" : "x"} size={10} stroke={3}/>
+        ATS {atsSc.passed}/{atsSc.total}
+      </span>
+
+      <div className="gaps" style={{ flex: 1 }}>
         {allCovered ? (
           <span className="cvb-pill success">
             <Icon name="check" size={10} stroke={3}/> all JD keywords covered
