@@ -162,37 +162,18 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
-1. ~~**`user_job_matches` design review**~~ ✅ DONE 2026-05-17 — Unique key changed to `(user_id, job_id)`, `action_plan` dropped, endpoint rebuilt.
-4. ~~**Intel page — job analytics loading screen**~~ ✅ DONE 2026-05-15 — Progress banner (3-step) + skeleton shimmer rows. Never blank. Banner disappears when all resolve.
-5. ~~**Intel page — skill selector panel**~~ ✅ DONE 2026-05-12 — TrackedDigest replaced with SkillSelectorPanel; user-curated heatmap columns.
-6. ~~**Intel page — PR2: Run Analysis**~~ ✅ DONE 2026-05-17 — `POST /jobs/analyse/{job_id}`: 50 XP, weighted overlap compute, LLM explanation, upserts to `user_job_matches`. Frontend already wired.
-7. ~~**Intel page — TopMovers: all companies**~~ ✅ DONE 2026-05-15 — All companies, scrollable, search, ★ follow on every row with 10 XP cost + cap/floor guards.
-
-8. ~~**Process Transparency Layer**~~ ✅ DONE 2026-05-19 — Company review system shipped. Migration `20260517_tracker_v1.sql` (legacy status remap, `last_stage_changed_at`, `first_offer_at`, review FK ON DELETE SET NULL). Backend `jobs/review.py`, `jobs/stale.py`, `companies.py`. Frontend `/tracker` (tabs, 5 stages + 4 outcomes, StatusPicker, MobileStagePills, StuckBanner with picker overlay, ReviewModal with real stage prefill, ManualAddModal, OutcomeSeal, ScoreSparkle). `/companies/[slug]` page with stats, funnel, reviews. Tracker company names link to `/companies/{name}` in both ApplicationCard + VerdictsTab. `+ Save` toast on `/jobs` with `View in Tracker →`.
-9. ~~**Mobile — enterprise polish + PWA**~~ ✅ DONE 2026-05-19 — All v1 PWA items shipped (skeleton lib, manifest, layout fixes, viewport seam). Deepenings #1 (ViewportProvider + useViewport) and #3 (frontend/mobile/ module) shipped. #2 (ResponsiveStack) deferred until friction fires.
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
-11. ~~**Forge + Diary Loop**~~ ✅ DONE 2026-05-19 — Generic claim-anytime Forge XP shipped across nav/modal surfaces. Visible skill names hidden; claim restarts Forge automatically. Backend resolves hidden Forge skills to canonical tracker rows. Skill Tracker exposes free AI upgrade prompts after forged level-ups, using CV evidence + recent diary notes with 0 XP spend.
 
-   **Forge widget v2 (deferred, 2026-05-19 design pass):**
+11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
    - **Cycle counter** — show "cycle N" badge on widget; track sessions completed in a single login window.
    - **Long-press dismiss** — `×` requires 600ms press when mid-session w/ unclaimed XP; prevents accidental loss.
    - **Haptic equivalent** — scale-pop + soft glow burst on successful claim; navigator.vibrate(10) on mobile PWA.
    - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
    - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
 
-12. ~~**Shareability v1 — `/profile/{ninja_name}` public profile**~~ ✅ DONE 2026-05-19 — Backend `ninja_name` service + `routers/profile/public.py` (`GET /profile/{ninja_name}`, `GET /overlap`, `POST /ninja-name`, `GET /suggest`). Migration `20260519_shareability_v1.sql` + backfill script. `user_provisioning.ensure_user_provisioned` becomes single profile seed point — generates ninja_name on first insert, honors `myro_ref` (body field, cookie fallback). Frontend: `lib/radar-geometry.ts` extracted, `components/profile/` (GhostRadar, OwnerRadar, RadarOverlay, JobOverlapRows, ShareButton, PublicProfilePage), `app/profile/[ninja]/{page,loading,opengraph-image}.tsx`, `/skills` ShareButton top-right, signup captures `?ref=`, onboarding NinjaNameStep before final. `robots.ts` disallows `/profile/`. 301 backend tests green; tsc + lint clean.
-
 13. **Frontend loading-time reduction + deep loading module** (locked 2026-05-19 via grill-me) — full plan below. Do NOT code until `/improve-codebase-architecture` pass on the deep module lands first.
 
-14. ~~**Company CV Thread + Tracker CV badge**~~ ✅ DONE 2026-05-19 — CV2/CV3/CV4 lock. CONTEXT.md gets `Company CV Thread` concept. Backend `CVVersionsRepository.list_thread / list_thread_for_job / latest_for_thread / latest_for_thread_batch`. `ApplicationResponse.cv_badge` ships per row via batched company-thread lookup. Frontend: `useCVPlayground` hook (kills hidden_items race), `<CVCommitPane>` (persist pane unsaved→saved with scale-pop), `ApplicationCard` renders `◐ Company CV v{n}` pill linking to `/cv?jobId=row`. Per-job filter bug deleted. 294 backend tests green; tsc + lint clean.
-
-15. **Marketing reshuffle — Intel/About** ✅ DONE 2026-05-19 — Intel page (`/`) keeps only IntelPane. About page (`/about`) gets SampleDiagnostic appended. Top-nav order: About · Newsletter · Intel.
-
-16. **Skills card — inline CV-pointer edit loop + full-width redesign** ✅ DONE 2026-05-19 (Phase 2) — Grilled SE1–SE17 (in DECISIONS LOCKED). Backend `POST /cv/skill-edit` creates a new orphan `baseline_upload` row, sync-drops skills whose display_name + evidence_text no longer occur in the rewritten body, schedules a `BackgroundTask` (`cv_skill_edit.run_async_retag`) that runs `parse_cv_text` → `record_cv_score` → stamps `cv_versions.recompute_finished_at`. New `GET /cv/skill-edit/recompute-status/{baseline_id}` for the frontend poll. Frontend: `<SkillEditDialog>` (textarea, greyed mono reference, soft keyword hint, multi-match picker), `InlineSkillCard` rewritten in `skill-card-inline.tsx` (full-width single column, `HOW TO REACH …` descriptor, boxed mono CV pointer, 3 labelled action buttons with mobile icon collapse), `useRecomputeStore` Zustand store driving `ScoreRing` shimmer until poll resolves. Migration `20260519_cv_skill_edit.sql`. 12 new pure-logic tests on `cv_skill_edit` (locator + mutator + render seam). 306 backend tests · tsc · lint all clean.
-
-   **Phase 1** (earlier this session, superseded by phase 2 for the icon-row design — kept here for context): 3 always-visible icon buttons + `/cv?skill=` deeplink + `CVVersionLedger` highlight. Phase 2 replaced the icon row with labelled buttons and the navigate-to-CV link with the inline modal. Deeplink + highlight remain useful (e.g. for `/cv` arrival from places other than the skill card) so the `CVVersionLedger` `highlightSkill` plumbing stays.
-
-   **Carryover for next session:**
+16. **Skills card — inline CV-pointer edit loop — carryover:**
    - **Fix-my-level picker.** Old rich `SkillCard` had a 0–5 level-correction picker calling `users.correctSkillLevel`. Still not surfaced. Decide: restore as 4th icon, surface in per-skill modal, or sunset entirely now that forged level-ups give a richer signal. Endpoint + API client still exist.
    - **CV deeplink Mode 3 (tailored playground).** `?skill=` only highlights baseline ledger (Mode 2 — `hasBaseline && !jobId`). If user lands on `/cv?jobId=…&skill=…`, the `BulletRow`s inside `CVPlayground` are not highlighted. Wire `focusSkill` into `CVPlayground` + scroll first matching bullet into view.
    - **Diary log cache invalidation.** `logDiary.onSuccess` only flips local `logged` state. No `queryClient.invalidateQueries` for diary list, daily_logs, scores, or XP balance refresh — diary entry awards +30 XP that won't appear in the wallet until next manual refetch.
@@ -331,10 +312,9 @@ Resist temptation (do NOT add ambient to): `/home`, `/dashboard`, `/tracker`, `/
 v1 PWA detail archived in `docs/session-history/2026-05.md`. v2 kicks off after 1000 PWA users.
 
 **v2 prerequisites (all must ship first):**
-1. ✅ Shareability v1 — referral hook (closed 2026-05-19).
-2. `packages/api-client/` extraction with injectable storage adapter (AsyncStorage/localStorage).
-3. All backend routes prefixed `/v1/` — versioning contract.
-4. `device_tokens` table + `POST /push/register` — FCM/APNs.
+1. `packages/api-client/` extraction with injectable storage adapter (AsyncStorage/localStorage).
+2. All backend routes prefixed `/v1/` — versioning contract.
+3. `device_tokens` table + `POST /push/register` — FCM/APNs.
 
 **v2 layout:** `mobile-native/` sibling folder (Expo SDK 51+ TS), NOT inside `frontend/`. Native libs land only in `mobile-native/package.json` (Expo-on-Next bundler pollution = Vercel break).
 
@@ -346,17 +326,10 @@ v1 PWA detail archived in `docs/session-history/2026-05.md`. v2 kicks off after 
 
 ---
 
-## SHAREABILITY v1 — ✅ CLOSED 2026-05-19
+## CLOSED — DEFERRED v2 NOTES
 
-Backlog #12 shipped. Full plan + DB migration + design spec archived in `docs/session-history/2026-05.md`. Decisions SH1–SH7 stay in **DECISIONS LOCKED** above.
-
-**v2 (deferred):** XP-for-referral trigger on `welcome_xp_granted = TRUE AND referred_by_user_id IS NOT NULL`. `referrals_log` analytics table. Mentor/mentee surfacing. Public profile theming.
-
----
-
-## PROCESS TRANSPARENCY LAYER — ✅ CLOSED 2026-05-19
-
-Full plan + Q1–Q9 decisions + v2 deferred list archived to `docs/session-history/2026-05.md`. Migration `20260517_tracker_v1.sql`. Backend `jobs/review.py`, `jobs/stale.py`, `companies.py`. Frontend `/tracker`, `/companies/[slug]`, ReviewModal, ManualAddModal.
+- **Shareability v2** — XP-for-referral trigger on `welcome_xp_granted = TRUE AND referred_by_user_id IS NOT NULL`. `referrals_log` analytics table. Mentor/mentee surfacing. Public profile theming. (v1 closed 2026-05-19; archive in `docs/session-history/2026-05.md`.)
+- **Process Transparency v2** — see `docs/session-history/2026-05.md` for v1 plan + v2 deferred list.
 
 ---
 
@@ -366,7 +339,6 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ### Cross-community bridge nodes (high betweenness — verify intentional coupling)
 
-1. ~~**`compute_and_persist_score()` — betweenness 0.083.**~~ ✅ DONE 2026-05-19 — Audited via `/improve-codebase-architecture` + `/grill-me`. Tracker bridge was a false INFERRED edge (0 tracker callers). Function had 6 params + 4 modal flags + 2 contradictory calling modes hidden behind one name. Split into 3 typed facades: `record_cv_score`, `recompute_score`, `project_score`. Engine + persistence stayed canonical (OQ4 invariant preserved). New modules `services/scoring/orchestrator.py` + `aspirations.py` + `market.py`. Deleted `scoring_engine.py` shim + `persistence.py`. See `docs/adr/0002-scoring-facade-split.md`.
 2. **`ScoresRepository` — betweenness 0.057.** Bridges 5 communities (CV Upload, CV Compose Hub, Tracker, Job-Skills RPC, LLM Overlap). Solve when: refactoring repository layer or splitting scoring concerns.
 3. **`fetch_all_rows()` — betweenness 0.033.** Bridges `CV Compose Hub` → `Tracker Endpoints` → `Job-Skills RPC` → `Lightcast Backfill`. Solve when: query-pattern review (likely a fetch-all hotpath worth specializing).
 
@@ -375,7 +347,6 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 4. **`JobsRepository` — 30 INFERRED edges.** Sample: `Q7: snooze the 7-day stale prompt by bumping last_stage_changed_at = now()`, `Fire-and-forget: compute first 5 matches after CV upload`. Solve when: touching `repositories/jobs.py` or stale-clock logic. Audit during Backlog #8 (Process Transparency Layer).
 5. **`ScoresRepository` — 47 INFERRED edges.** Largest INFERRED footprint. Solve when: scoring refactor.
 6. **`CVRepository` — 18 INFERRED edges.** Sample: `CVTextRequest`, `EducationItem`. Solve when: working on CV Builder v2 surface.
-7. ~~**`generate_job_cv()` — 22 INFERRED edges.**~~ ✅ DONE 2026-05-19 — Legacy flow removed in cv_versions unification 2026-05-18. Cleanup pass 2026-05-19 stripped trailing historical docstrings in `job_path/__init__.py` + `llm_polish.py`.
 
 ### Refresh hygiene
 
@@ -384,10 +355,6 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
-
-### UX systems audit
-
-9. ~~**Loading-state audit across the entire frontend.**~~ ✅ DONE 2026-05-19 — Closed as the foundational loading system, not as the separate verbal-scaffolding copy pass. Shivam's concern was that empty states felt "disappointing and depressing" because users could not tell fetching from genuine emptiness. Decision: keep a 3-tier system. **Shell skeleton** = `AppShellSkeleton` + `react-loading-skeleton` for auth/session chrome. **Process loading** = `components/loading/process-loading.tsx` + `components/loading/loading-page.tsx` + `app/loading.tsx` for route-level and multi-step work; adapters now include `IntelLoadingState` and onboarding CV analysis. **Ambient loading** = `components/ui/particle-loading.tsx` for immersive full-region waits (`/skills`, `/companies/[slug]`). Inline loading remains for tiny surfaces (`Button loading`, small row/card skeletons). Shipped with `/market` heatmap readiness fix and splash-screen token cleanup. Remaining UX copy/emotional tone work belongs to the Category B verbal-scaffolding pass, not this parked audit.
 
 ---
 
@@ -419,70 +386,8 @@ Open (carryover):
 - Per-bullet drag-reorder UI from the handoff prototype is intentionally NOT shipped — backend `cv_versions` schema has no order column. Add the schema + endpoint, then bolt UI on top.
 - Skill-card `?skill=` highlight inside `LivePreview` BulletRows (Mode 3 deeplink carryover from 2026-05-19).
 - ATS audit currently always reports "passes 7 / 7 checks". Wire real audits when a server-side ATS parser lands.
-
-## PREVIOUS SESSION SUMMARY (2026-05-20 · Feedback Hub redesign)
-
-Unified the three buried sidebar feedback modals (Report a bug · Add more companies · Leave feedback) into one **Feedback Hub** modal — Claude Design handoff bundle (`reference/Setting Modal-handoff.zip`, screenshots 22:04–22:07). Picker for 4 categories (Bug · Idea · Question · Praise), severity for bugs, auto-attached context block, drag/paste/browse screenshot drop zone, optional pin-element handle, "My reports" tab, "Shipped" tab. `⌘/` opens it from anywhere; sidebar quick-actions and mobile sheet deep-link with the matching category.
-
-- **Backend — `database/migrations/20260520_feedback_hub.sql`** — extends `user_feedback.type` CHECK with `idea/question/praise`, adds `status` column (`received/triaged/in_progress/shipped/closed`) + index, `NOTIFY pgrst`.
-- **Backend — `app/routers/feedback.py`** — `FeedbackType` Literal grows to six categories (legacy `feedback`/`company` retained). New `GET /feedback/my` returns the caller's reports (auth required). `POST /feedback` stays anon-allowed for compat.
-- **Backend — `tests/test_feedback_router.py` (new)** — 11 tests: every category accepts, unknown rejects (422), anonymous insert path, `GET /my` 401 without token, returns rows.
-- **Frontend — `lib/api.ts`** — extends `FeedbackType` Literal, adds `FeedbackStatus`, `FeedbackSeverity`, `FeedbackReport`. `feedback.submit` payload now `Record<string, unknown>`; new `feedback.listMine`.
-- **Frontend — `components/feedback/` (new deep module — single import surface)**:
-  - `feedback-types.ts` — `CATEGORIES`, `CATEGORY_ORDER`, `SEVERITY`, `STATUS_META`, `OPEN_FEEDBACK_EVENT="tm:open-feedback"`, `FeedbackSubmissionPayload` schema.
-  - `feedback-hub.tsx` — orchestrator modal: left rail (tabs + SLA footer), right header (title/subtitle/close), body. Mobile breakpoint collapses rail to a horizontal tab row via scoped `styled-jsx`. `Esc` closes; backdrop click closes.
-  - `new-report.tsx` — form: category picker, severity (bug only), headline, details (Cmd+V paste image), attachments (drop/paste/browse + pin-element chip + screenshots grid), `<details>` auto-context (URL/UA/viewport/user). `useMutation` → real `feedback.submit`. Object-URLs revoked on unmount.
-  - `my-reports.tsx` — `useQuery(["feedback-my"])`, renders rows with `<StatusPill>` and category glyph. Empty / loading / error states all handled.
-  - `shipped.tsx` — curated changelog timeline (hand-maintained for v1; gated behind `showShipped` flag, default `false`).
-  - `sent-state.tsx` — success splash.
-  - `category-card.tsx`, `status-pill.tsx`, `category-glyph.tsx` — primitives.
-  - `use-context-snapshot.ts` — client hook returning `{url, user_agent, viewport, accent}`.
-  - `index.ts` — public exports.
-- **Frontend — `components/app-shell.tsx`** — deleted legacy `FeedbackModal` and the 3-button popover state. New exports: `FEEDBACK_QUICK_ACTIONS` (bug/idea/praise → hub categories) and `openFeedbackHub(detail)`. `AppShell` mounts a single `<FeedbackHub>` globally, listens for `tm:open-feedback`, wires `⌘/ / Ctrl+/`. Sidebar avatar menu now dispatches the event.
-- **Frontend — `mobile/shell.tsx`** — replaced `FeedbackModal` import with `openFeedbackHub` event dispatcher. Mobile profile sheet "Send Feedback" routes through the same hub.
-
-Verify: 317 backend tests pass (11 new in `test_feedback_router.py`) · `tsc --noEmit` clean · `next lint` 0/0 · `next build` succeeds (all 30 routes prerender).
-
-v2 deferred:
-- Real `shipped_changelog` table so the Shipped tab joins to `user_feedback.status='shipped'`.
-- Supabase Storage upload for screenshot blobs (v1 records names + sizes only — see comment in `new-report.tsx`).
-- Element-pin overlay (Marker.io-style click-to-target). The hub accepts `pinnedTarget`/`onPinElement` props; the picker overlay itself is not built yet.
-- XP grant on feedback submit (+25 XP "Signal Contributor") — backend route ready, hook into XP store.
-- Replies on individual reports (My reports → drilldown view).
-- Graphify-out refresh — manifest is 2 days stale (Backlog parked Q8 still standing).
-
-## PREVIOUS SESSION SUMMARY (2026-05-19 · Skills card inline CV-pointer edit loop)
-
-Two-phase session. Phase 1 restored the 3-button affordance the card had lost (icon-row, navigate-to-CV link, ✦ Polish AI inline advice, ☆ Track-in-diary). Phase 2 (this lock) replaced the navigate-to-CV pattern with an **inline modal that edits the CV bullet on the Skills page itself and commits it as a new immutable baseline**. Grilled 17 decisions (SE1–SE17 in DECISIONS LOCKED) before writing code.
-
-- **Backend — `database/migrations/20260519_cv_skill_edit.sql`** — adds `cv_versions.recompute_finished_at TIMESTAMPTZ NULL`. NOTIFY pgrst.
-- **Backend — `app/services/cv_skill_edit.py`** — new pure-logic service. `BulletLocation` / `LocateConflict` dataclasses. `locate_bullet()` scans `cv_structured` editable regions (summary, exp_bullet, proj_bullet, skills_line, cert; SE15); honours `(section_hint, item_index, bullet_index)` tuple; SE2=A+C — exact-match → conflict-list → substring-fallback. `apply_bullet_edit()` deep-copies and mutates. `diff_keyword_skills()` runs the sync skill drop (SE3-sync). `run_async_retag()` BackgroundTask runs `parse_cv_text` → `record_cv_score` → stamps `recompute_finished_at` (SE3-async + SE17). `render_baseline_text()` reuses `cv_compose.render_deterministic`.
-- **Backend — `app/routers/cv/skill_edit.py`** — `POST /cv/skill-edit` + `GET /cv/skill-edit/recompute-status/{baseline_id}`. 409 + `SkillEditConflictDetail` candidate list on multi-match. 422 for non-editable sections. Mounted in `cv/__init__.py`.
-- **Backend — `app/repositories/scores.py`** — new `get_user_skill_for_key(user_id, taxonomy_key)` keeps the seam clean (no `scores_repo.client` from routers).
-- **Frontend — `lib/api.ts`** — `cv.skillEdit` (custom fetch to surface 409 candidate payload as `SkillEditConflict`), `cv.recomputeStatus`. New types: `SkillEditRequest`, `SkillEditResponse`, `SkillEditCandidate`, `SkillEditConflictDetail`, `SkillEditConflict`.
-- **Frontend — `store/recomputeStore.ts`** — Zustand. `pendingBaselineId` + `start` + `clear`. Reads from `<ScoreRing>` (drives `tm-score-pulse` opacity loop per SE4).
-- **Frontend — `components/skills/skill-edit-dialog.tsx`** — modal w/ textarea, greyed mono reference (`Currently in your CV`), soft keyword hint when `display_name` not in new text (SE6), multi-match candidate picker (SE2-C). On success invalidates `dataKeys.userSkills()` + `dataKeys.scores()`, calls `onSaved(baseline_id)` so parent can begin polling.
-- **Frontend — `components/skills/skill-card-inline.tsx` (new)** — full-width single-column `InlineSkillCard`. Layout (SE10–SE13): name + L·{Gap/Building/Strong} pill → 2px progress bar → `HOW TO REACH {NEXT_TITLE} (L{n+1})` descriptor from local `LADDER_DESCRIPTOR` table → boxed mono CV pointer (always rendered) → 3 labelled action buttons. Mobile (<480px) hides labels via `.tm-skill-card-action-label` (SE14). Owns recompute polling (3s interval, 30s cap).
-- **Frontend — `components/skills/domain-accordion-row.tsx`** — pruned. Grid `repeat(auto-fill, minmax(200px, 1fr))` → `flex column` (SE10). Imports new `InlineSkillCard`. Old icon-row + `IconBtn` dropped.
-- **Frontend — `components/skills/score-ring.tsx`** — subscribes to `useRecomputeStore`; applies `tm-score-pulse` while pending.
-- **Frontend — `app/globals.css`** — new keyframe `tm-score-pulse` + mobile `.tm-skill-card-action-label` media query.
-
-Verify: 306 backend tests pass (12 new in `test_cv_skill_edit.py` covering locator + mutator + render seam) · `tsc --noEmit` clean · `next lint` 0/0.
-
-Open (carryover from this session — see Backlog #16):
-- Fix-my-level picker — restore, modal-ize, or sunset.
-- `?skill=` highlight in `CVPlayground` Mode 3 BulletRows.
-- Diary log cache invalidation + XP wallet refresh on success.
-- Word-boundary guard on substring match.
-- Smoke-check `parse_cv_text` on `render_deterministic`-shaped body (capitalised headers, `•` bullets).
-- Stale-baseline pill on orphaned tailored CVs (SE9 v2 polish).
-- Optional: loosen `CVVersionWriteSpec` to allow `parent_version_id` on `baseline_upload` for a linear baseline chain.
-
-Open (carryover from prior sessions — still standing):
-- Backlog #13 code: `/improve-codebase-architecture` on `frontend/components/loading/`, then `<RouteLoading>` deep module + `/v1/status` + telemetry.
-- `packages/mobile-shared/` extraction (blocked on `packages/api-client/` + turborepo decision).
-- ADR for Company CV Thread decision (CV2 lock).
+- ADR for Company CV Thread decision (CV2 lock) — still un-authored. Migrate from CONTEXT.md note.
 
 ## EARLIER SESSION SUMMARIES
 
-Full detail in `docs/session-history/2026-05.md`.
+Full detail in `docs/session-history/2026-05.md` (includes 2026-05-20 Feedback Hub redesign + 2026-05-19 Skills card inline CV-pointer edit loop).
