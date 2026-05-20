@@ -381,7 +381,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-20 · Feedback Hub redesign)
+## LAST SESSION SUMMARY (2026-05-20 · CV Builder three-view redesign)
+
+Rebuilt `/cv` end-to-end from the Claude Design handoff (`reference/CV page redesign-handoff.zip` → `cv-page-redesign/project/`). Tactical-dark theme + Geist sans + cyan accent. Three views routed by query state: **Baseline** (no `jobId`) shows the master CV at the trunk of a Git-style commit graph with per-company branches + a saved-jobs picker; **Playground** (`?jobId=…`) is the per-job tailoring surface with version tabs, two-pane editor/preview, intel strip + drawer; **PDF preview** (`?jobId=…&view=pdf`) renders an enterprise A4 page with ATS audit card. Existing `useCVPlayground` state machine + `cv.*` API preserved unchanged — no backend touched.
+
+- **Frontend — `lib/cv/version-format.ts` (new)** — formatters extracted from old `version-picker.tsx` / `version-ledger.tsx`: `formatGlobalVersionLabel`, `formatThreadVersionLabel`, `formatVersionContext`, `formatParentVersionLabel`, `summarizeCVVersionLedger`, `sortLedgerVersions`, `getLedgerPreviewText`, `formatLedger*`, `timeAgo`. Tests still import from old paths via re-export shims.
+- **Frontend — `app/cv/cv-builder.css` (new)** — page-scoped CSS, loaded by `app/cv/page.tsx`. All `.cvb-*` classes (page head, commit graph, version tabs, two-pane body, bullet rows, intel strip, drawer, modal, PDF page, ATS audit). 3 media queries: ≤1100px (single-column playground + segmented mobile switch), ≤720px (phone polish: 16px padding, narrow version tabs, full-screen modal + drawer), `prefers-reduced-motion`.
+- **Frontend — `components/cv/builder/` (new deep module — single import surface)**:
+  - `icons.tsx` — 25 inline Lucide-family SVGs (1.6 stroke), tree-shakeable.
+  - `score-gauge.tsx` — radial SVG gauge with accent glow + dashoffset transition.
+  - `keyword-utils.tsx` — `targetsFromSkillGap`, `highlightKeywords`, `bulletKeywordHits`. Pure helpers shared by preview + bullet meta.
+  - `commit-graph.tsx` — `KindDot`, `CommitRow`, `LegendDot`. Buttons (a11y); aria-current + focus rings.
+  - `cv-render.tsx` — dark formatted CV body used inside the BaselineView viewer modal.
+  - `baseline-view.tsx` — page head + 4-stat row + commit graph + saved-jobs picker (real `jobs.applications()` filtered to live stages) + viewer modal (Esc + scroll lock).
+  - `bullet-row.tsx` — checkbox toggle + inline contentEditable + keyword chips + edit button (focus-within reveals).
+  - `live-preview.tsx` — deterministic dark mono render with `<mark>` keyword highlight; collapses empty sections.
+  - `intel-drawer.tsx` — slide-from-right drawer (full-screen on mobile) with `ScoreGauge`, matched/missing chips, JD source text, lineage list.
+  - `playground-view.tsx` — page head + crumbs + version tabs (kind dots + dirty marker) + segmented mobile switch + 2-pane edit/preview + intel strip + sticky save bar. Pulls real `jobs.path`, `jobs.skillGap`, `jobs.applications` (JD text). Live JD-match score recomputed client-side from `useCVPlayground.hiddenItems`.
+  - `pdf-preview-view.tsx` — toolbar with filename slug + ATS pill + match-score pill + Download PDF (uses existing `cv.downloadPdf` endpoint) + white A4 `cvb-pdf-page` + 7-check ATS audit card.
+- **Frontend — `app/cv/page.tsx`** — collapsed to thin router (3 view modes by `searchParams.jobId/view`). Upload modal + edit-polished modal retained. URL contract: `/cv` → baseline · `/cv?jobId=X` → playground · `/cv?jobId=X&view=pdf&score=N` → PDF.
+- **Frontend — `components/cv/version-picker.tsx` + `version-ledger.tsx`** — reduced to formatter re-export shims (visual components retired). `components/cv/cv-playground.tsx` + `cv-commit-pane.tsx` deleted (replaced by the deep module).
+
+Verify: 317 backend tests pass (no backend changes) · `tsc --noEmit` clean · `next lint` 0/0 · `next build` succeeds (route /cv: 16.2 kB / 222 kB First Load) · `tsx --test cv-version-picker-labels + cv-version-ledger` 8/8 pass.
+
+Open (carryover):
+- Lineage drawer + viewer modal don't yet surface the JD-source text on jobs that have no `job_description` (drawer hides the section silently). Wire up when scrape pipeline backfills.
+- Per-bullet drag-reorder UI from the handoff prototype is intentionally NOT shipped — backend `cv_versions` schema has no order column. Add the schema + endpoint, then bolt UI on top.
+- Skill-card `?skill=` highlight inside `LivePreview` BulletRows (Mode 3 deeplink carryover from 2026-05-19).
+- ATS audit currently always reports "passes 7 / 7 checks". Wire real audits when a server-side ATS parser lands.
+
+## PREVIOUS SESSION SUMMARY (2026-05-20 · Feedback Hub redesign)
 
 Unified the three buried sidebar feedback modals (Report a bug · Add more companies · Leave feedback) into one **Feedback Hub** modal — Claude Design handoff bundle (`reference/Setting Modal-handoff.zip`, screenshots 22:04–22:07). Picker for 4 categories (Bug · Idea · Question · Praise), severity for bugs, auto-attached context block, drag/paste/browse screenshot drop zone, optional pin-element handle, "My reports" tab, "Shipped" tab. `⌘/` opens it from anywhere; sidebar quick-actions and mobile sheet deep-link with the matching category.
 
