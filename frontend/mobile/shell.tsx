@@ -8,7 +8,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
-import { FEEDBACK_ACTIONS, FeedbackModal } from "@/components/app-shell"
+import { openFeedbackHub } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -75,6 +75,7 @@ export function AppShellSkeleton() {
 
 const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stalePill?: boolean }> = [
   { href: "/home",    label: "Dashboard", icon: null },
+  { href: "/forge",   label: "Forge",     icon: "◆" },
   { href: "/market",  label: "Intel",     icon: "◉" },
   { href: "/skills",  label: "Skills",    icon: "⬡" },
   { href: "/cv",      label: "CV",        icon: "◈" },
@@ -212,7 +213,6 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
   onClose: () => void
   signOut: () => void
 }) {
-  const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
 
@@ -258,7 +258,7 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
 
         {[
           { label: "My Profile",     icon: "⚙",  action: () => setShowSettings(true),                     danger: false },
-          { label: "Send Feedback",  icon: "◎",  action: () => setActiveModal(FEEDBACK_ACTIONS[2]),        danger: false },
+          { label: "Send Feedback",  icon: "◎",  action: () => { openFeedbackHub({ category: "praise" }); onClose() }, danger: false },
           { label: "Sign out",       icon: "→",  action: () => setSignOutConfirm(true),                    danger: true  },
         ].map((item, i, arr) => (
           <button
@@ -279,9 +279,6 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         ))}
       </div>
 
-      {activeModal && (
-        <FeedbackModal action={activeModal} onClose={() => { setActiveModal(null); onClose() }} />
-      )}
       {showSettings && (
         <SettingsModal open={showSettings} onClose={() => { setShowSettings(false); onClose() }} profile={profile} />
       )}

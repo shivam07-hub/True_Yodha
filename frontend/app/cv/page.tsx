@@ -1,159 +1,71 @@
 "use client"
 
-import Link from "next/link"
-import { Suspense, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
-import { CVPlayground } from "@/components/cv/cv-playground"
-import { CVVersionLedger } from "@/components/cv/version-ledger"
-import { VersionPicker } from "@/components/cv/version-picker"
-import { cv, jobs, uploadCV } from "@/lib/api"
+import { BaselineView } from "@/components/cv/builder/baseline-view"
+import { PlaygroundView } from "@/components/cv/builder/playground-view"
+import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
+import { Icon } from "@/components/cv/builder/icons"
+import { uploadCV, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { renderBaselineDisplayText, renderDeterministic } from "@/lib/cv-compose"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
+
+import "./cv-builder.css"
+
+type ViewMode = "baseline" | "playground" | "pdf"
 
 function CVPage() {
+  const router = useRouter()
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
+  const wantsPdf = searchParams.get("view") === "pdf"
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
-  const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
-  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
-  const [selectedLedgerVersionId, setSelectedLedgerVersionId] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
 
-  // Single source of truth: every baseline + (if jobId) every per-job row.
-  const versionsQuery = useQuery({
-    queryKey: dataKeys.cvVersions(jobId),
-    queryFn: () => cv.versions.list(token!, jobId),
-    enabled: !!token,
-    staleTime: 30 * 1000,
-  })
-  const allVersions = useMemo(() => versionsQuery.data?.versions ?? [], [versionsQuery.data])
-
-  const baselines = useMemo(
-    () => allVersions.filter(v => v.kind === "baseline_upload"),
-    [allVersions],
-  )
-  const companyVersions = useMemo(
-    () => allVersions.filter(v => v.kind !== "baseline_upload"),
-    [allVersions],
-  )
-  const currentJobVersions = useMemo(
-    () => allVersions.filter(v => v.job_id === jobId && v.kind !== "baseline_upload"),
-    [allVersions, jobId],
-  )
+  const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token })
+  const baselines = playground.baselines
   const hasBaseline = baselines.length > 0
-  const currentBaseline = useMemo(
-    () => baselines.reduce<typeof baselines[number] | null>(
-      (best, v) => (best == null || v.user_version_number > best.user_version_number ? v : best),
-      null,
-    ),
-    [baselines],
-  )
-  const threadVersions = useMemo(
-    () => currentBaseline ? [currentBaseline, ...companyVersions] : companyVersions,
-    [companyVersions, currentBaseline],
-  )
+  const cvData = playground.structuredQuery.data ?? null
 
-  const structuredQuery = useQuery({
-    queryKey: dataKeys.cvStructured(),
-    queryFn: () => cv.structured(token!),
-    enabled: !!token && hasBaseline,
-    retry: false,
-    staleTime: 10 * 60 * 1000,
-  })
-
-  const jobPathQuery = useQuery({
-    queryKey: dataKeys.jobPath(jobId),
-    queryFn: () => jobs.path(token!, jobId!),
-    enabled: !!token && !!jobId,
+  const profileQuery = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token!),
+    enabled: !!ready && !!token,
     staleTime: 5 * 60 * 1000,
   })
 
-  const skillGapQuery = useQuery({
-    queryKey: dataKeys.skillGap(jobId),
-    queryFn: () => jobs.skillGap(token!, jobId!),
-    enabled: !!token && !!jobId,
-    staleTime: 5 * 60 * 1000,
-  })
+  const view: ViewMode = !jobId ? "baseline" : wantsPdf ? "pdf" : "playground"
 
-  // Hydrate hiddenItems from latest job version on load.
-  useEffect(() => {
-    const defaultVersion = currentJobVersions[0] ?? currentBaseline ?? companyVersions[0]
-    if (!defaultVersion) return
-    setSelectedVersionId(prev => prev ?? defaultVersion.id)
-    setHiddenItems(new Set(defaultVersion.hidden_items))
-  }, [companyVersions, currentBaseline, currentJobVersions])
-
-  useEffect(() => {
-    if (jobId || !hasBaseline) return
-    const selectedStillExists = selectedLedgerVersionId != null
-      && allVersions.some(v => v.id === selectedLedgerVersionId)
-    if (selectedStillExists) return
-    setSelectedLedgerVersionId(currentBaseline?.id ?? allVersions[0]?.id ?? null)
-  }, [allVersions, currentBaseline, hasBaseline, jobId, selectedLedgerVersionId])
-
-  // ── Mutations ──────────────────────────────────────────────────────────────
-
-  const saveVersion = useMutation({
-    mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems)),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not save version."),
-  })
-
-  const polishVersion = useMutation({
-    mutationFn: (versionId: number) => cv.versions.polish(token!, versionId),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not polish version."),
-  })
-
-  const editVersion = useMutation({
-    mutationFn: ({ versionId, edits }: { versionId: number; edits: Record<string, string> }) =>
-      cv.versions.edit(token!, versionId, edits),
-    onSuccess: (v) => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      setSelectedVersionId(v.id)
-      setEditOpen(false)
-      setEditTarget(null)
-      setEditDraft("")
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
-  })
-
-  const downloadPdf = useMutation({
-    mutationFn: (text: string) => cv.downloadPdf(token!, text),
-    onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "myro_cv.pdf"
-      a.click()
-      URL.revokeObjectURL(url)
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Could not generate PDF."),
-  })
+  function navigate(href: string) { router.push(href) }
+  function openJob(id: string) { navigate(`/cv?jobId=${encodeURIComponent(id)}`) }
+  function backToBaseline() { navigate("/cv") }
+  function openPdf(matchScore = 0) {
+    if (!jobId) return
+    const scoreParam = matchScore > 0 ? `&score=${matchScore}` : ""
+    navigate(`/cv?jobId=${encodeURIComponent(jobId)}&view=pdf${scoreParam}`)
+  }
+  function backToPlayground() {
+    if (!jobId) return
+    navigate(`/cv?jobId=${encodeURIComponent(jobId)}`)
+  }
 
   async function handleUpload(file: File) {
     if (!token) return
-    setUploading(true); setUploadResult(null); setError(null)
+    setUploading(true); setUploadResult(null); setUploadError(null)
     try {
       const result = await uploadCV(token, file)
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
@@ -165,23 +77,14 @@ function CVPage() {
       setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload CV")
+      setUploadError(err instanceof Error ? err.message : "Could not upload CV")
     } finally {
       setUploading(false)
     }
   }
 
-  function toggleItem(iid: string) {
-    setHiddenItems(prev => {
-      const next = new Set(prev)
-      if (next.has(iid)) next.delete(iid)
-      else next.add(iid)
-      return next
-    })
-  }
-
   function openEdit(versionId: number) {
-    const v = threadVersions.find(x => x.id === versionId)
+    const v = playground.threadVersions.find(x => x.id === versionId)
     if (!v?.polished_text) return
     setEditTarget({ versionId, text: v.polished_text })
     setEditDraft(v.polished_text)
@@ -190,180 +93,117 @@ function CVPage() {
 
   function submitEdit() {
     if (!editTarget) return
-    const original = editTarget.text
-    const next = editDraft
-    if (original === next) { setEditOpen(false); return }
-    editVersion.mutate({ versionId: editTarget.versionId, edits: { [original]: next } })
+    if (editTarget.text === editDraft) { setEditOpen(false); return }
+    playground.editVersion.mutate(
+      { versionId: editTarget.versionId, edits: { [editTarget.text]: editDraft } },
+      { onSuccess: () => { setEditOpen(false); setEditTarget(null); setEditDraft("") } },
+    )
   }
 
-  const livePreview = useMemo(() => {
-    if (!structuredQuery.data) return ""
-    return renderDeterministic(structuredQuery.data, hiddenItems)
-  }, [structuredQuery.data, hiddenItems])
-  const baselineDisplayText = useMemo(
-    () => renderBaselineDisplayText(currentBaseline?.body_text, structuredQuery.data),
-    [currentBaseline?.body_text, structuredQuery.data],
-  )
-
-  const currentSelected = threadVersions.find(v => v.id === selectedVersionId) ?? currentJobVersions[0] ?? currentBaseline ?? companyVersions[0] ?? null
-  const playgroundDirty = currentJobVersions.length === 0 || !currentSelected
-    || Array.from(hiddenItems).sort().join(",") !== [...currentSelected.hidden_items].sort().join(",")
-  const canSaveVersion = playgroundDirty || currentJobVersions.length === 0
+  // If user lands directly on ?view=pdf without a baseline, drop them back to baseline.
+  useEffect(() => {
+    if (view === "pdf" && !hasBaseline) backToBaseline()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, hasBaseline])
 
   if (!ready) return null
 
+  const surfacedError = playground.error ?? uploadError
+
   return (
     <AppShell>
-      <div className="tm-page-enter" style={{ padding: "24px 32px 48px", minHeight: "100vh" }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div className="tm-label-caps" style={{ marginBottom: 4 }}>app/CV_Builder</div>
-            <h1 className="tm-title" style={{ fontSize: "var(--tm-fs-heading)", marginBottom: 4 }}>
-              {jobId ? "Tailor your CV for this job" : "Your baseline CV"}
-            </h1>
-            {hasBaseline && jobId && (
-              <p className="tm-meta" style={{ fontSize: 12 }}>
-                Pick what stays. Save a commit. Polish with AI. Edit polished bullets.
-              </p>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {hasBaseline && (
-              <Button variant="outline" size="md" onClick={() => setShowUpload(true)}>
-                Rework CV Baseline
-              </Button>
-            )}
-            {!hasBaseline && (
-              <Button variant="solid" size="md" onClick={() => setShowUpload(true)}>
-                Upload baseline CV
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {error && (
-          <div role="alert" style={{ marginBottom: 12, padding: "8px 12px", fontSize: 12, color: "var(--tm-danger)", border: "1px solid var(--tm-danger)", borderRadius: "var(--tm-radius-sm)", background: "var(--tm-danger-wash)" }}>
-            {error}
-          </div>
-        )}
-
-        {/* Mode 1 — no baseline */}
-        {!hasBaseline && (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--tm-text-faint)", border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)" }}>
-            <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.6 }}>◈</div>
-            <div style={{ fontSize: 16, color: "var(--tm-text)" }}>No CV uploaded yet</div>
-            <div style={{ fontSize: 12, marginTop: 8 }}>Upload to extract skills, see your Myro Score, and start tailoring per job.</div>
-          </div>
-        )}
-
-        {/* Mode 2 — baseline but no jobId */}
-        {hasBaseline && !jobId && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{
-              padding: 16, borderRadius: "var(--tm-radius-lg)",
-              border: "1px solid var(--tm-accent-ring)", background: "var(--tm-accent-wash)",
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap",
-            }}>
-              <div>
-                <div className="tm-label-caps" style={{ color: "var(--tm-accent)", marginBottom: 4 }}>Tailoring is per-job</div>
-                <div style={{ fontSize: 13, color: "var(--tm-text)" }}>
-                  Pick a target job to start the playground. Every saved version is immutable, like a Git commit.
-                </div>
-              </div>
-              <Button variant="solid" size="md" render={<Link href="/tracker?stage=saved" />}>Pick a target job →</Button>
-            </div>
-            <CVVersionLedger
-              versions={allVersions}
-              selectedId={selectedLedgerVersionId}
-              onSelect={setSelectedLedgerVersionId}
-              baselineDisplayText={baselineDisplayText}
-            />
-          </div>
-        )}
-
-        {/* Mode 3 — playground + version picker */}
-        {hasBaseline && jobId && (
-          <>
-            {structuredQuery.isLoading && (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-                Parsing your CV into sections…
-              </div>
-            )}
-            {structuredQuery.isError && (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-danger)", fontSize: 12 }}>
-                Couldn&apos;t load your CV structure. Try refreshing in a minute.
-              </div>
-            )}
-            {structuredQuery.data && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+      <div className="cvb-scope">
+        <div className="cvb-page">
+          {/* No baseline yet — onboarding empty state */}
+          {!hasBaseline && (
+            <>
+              <div className="cvb-page-head">
                 <div>
-                  <CVPlayground
-                    cv={structuredQuery.data}
-                    hiddenItems={hiddenItems}
-                    onToggle={toggleItem}
-                    targetSkills={skillGapQuery.data?.skills ?? []}
-                    jobTitle={jobPathQuery.data?.job_title}
-                    companyName={jobPathQuery.data?.company ?? undefined}
-                  />
-                  <div style={{
-                    position: "sticky", bottom: 0, marginTop: 12,
-                    padding: "12px 14px", borderRadius: "var(--tm-radius-lg)",
-                    background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-                  }}>
-                    <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-                      {hiddenItems.size} hidden · {playgroundDirty ? "unsaved changes" : "in sync with selected version"}
-                    </span>
-                    <Button
-                      variant="solid" size="md"
-                      onClick={() => saveVersion.mutate()}
-                      disabled={!canSaveVersion || saveVersion.isPending}
-                      loading={saveVersion.isPending}
-                    >
-                      Save Version
-                    </Button>
+                  <div className="cvb-crumbs" style={{ marginBottom: 2 }}>
+                    <span>app</span><span className="sep">/</span>
+                    <span className="accent">cv_builder</span>
                   </div>
+                  <h1 className="cvb-page-title">Upload your baseline CV</h1>
+                  <p className="cvb-page-sub">
+                    The baseline is the trunk of your CV history — every per-job tailored version branches from it.
+                  </p>
                 </div>
-
-                <div style={{ position: "sticky", top: 16 }}>
-                  {playgroundDirty ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div className="tm-label-caps" style={{ color: "var(--tm-warning)" }}>Live preview · unsaved</div>
-                      <pre style={{
-                        margin: 0, padding: "20px 22px",
-                        background: "var(--tm-surface)", border: "1px dashed var(--tm-warning)",
-                        borderRadius: "var(--tm-radius-lg)",
-                        fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.75,
-                        color: "var(--tm-text-muted)", whiteSpace: "pre-wrap",
-                        minHeight: 360,
-                      }}>{livePreview}</pre>
-                    </div>
-                  ) : (
-                    <VersionPicker
-                      versions={threadVersions}
-                      lineageVersions={allVersions}
-                      selectedId={selectedVersionId}
-                      onSelect={(id) => {
-                        setSelectedVersionId(id)
-                        const v = threadVersions.find(x => x.id === id)
-                        if (v) setHiddenItems(new Set(v.hidden_items))
-                      }}
-                      onCreate={() => saveVersion.mutate()}
-                      onPolish={(id) => polishVersion.mutate(id)}
-                      onEdit={openEdit}
-                      onDownload={(text) => downloadPdf.mutate(text)}
-                      isCreating={saveVersion.isPending}
-                      isPolishing={polishVersion.isPending}
-                      canCreate={canSaveVersion}
-                    />
-                  )}
+                <button type="button" className="cvb-btn primary" onClick={() => setShowUpload(true)}>
+                  <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload baseline CV
+                </button>
+              </div>
+              <div style={{
+                padding: 48, textAlign: "center",
+                color: "var(--tm-text-faint)",
+                border: "1px dashed var(--tm-border-soft)",
+                borderRadius: 16,
+                background: "var(--tm-surface)",
+              }}>
+                <Icon name="file" size={28} style={{ color: "var(--tm-accent)", marginBottom: 12 }}/>
+                <div style={{ fontSize: 16, color: "var(--tm-text)", marginBottom: 6 }}>No CV uploaded yet</div>
+                <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
+                  Upload to extract skills, see your Myro Score, and start tailoring per job.
                 </div>
               </div>
-            )}
-          </>
-        )}
+            </>
+          )}
+
+          {hasBaseline && view === "baseline" && cvData && (
+            <BaselineView
+              token={token!}
+              versions={playground.allVersions}
+              currentBaseline={playground.currentBaseline}
+              cv={cvData}
+              profile={profileQuery.data ?? null}
+              onRework={() => setShowUpload(true)}
+              onOpenJob={openJob}
+            />
+          )}
+
+          {hasBaseline && view === "baseline" && !cvData && (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
+              {playground.structuredQuery.isLoading
+                ? "Parsing your CV into sections…"
+                : playground.structuredQuery.isError
+                  ? "Couldn’t load your CV structure. Try refreshing in a minute."
+                  : null}
+            </div>
+          )}
+
+          {hasBaseline && view === "playground" && jobId && cvData && (
+            <PlaygroundView
+              token={token!}
+              jobId={jobId}
+              playground={playground}
+              cv={cvData}
+              profile={profileQuery.data ?? null}
+              onBackToBaseline={backToBaseline}
+              onExportPDF={openPdf}
+              onEditPolished={openEdit}
+              externalError={surfacedError}
+            />
+          )}
+
+          {hasBaseline && view === "playground" && jobId && !cvData && (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
+              Loading your CV…
+            </div>
+          )}
+
+          {hasBaseline && view === "pdf" && jobId && cvData && (
+            <PdfPreviewView
+              token={token!}
+              cv={cvData}
+              hidden={playground.hiddenItems}
+              selectedVersion={playground.selectedVersion}
+              profile={profileQuery.data ?? null}
+              company={playground.selectedVersion?.company_name ?? "Selected role"}
+              jobTitle={playground.selectedVersion?.job_title ?? ""}
+              matchScore={Number(searchParams.get("score") ?? 0)}
+              onBackToPlayground={backToPlayground}
+            />
+          )}
+        </div>
       </div>
 
       {/* Upload modal */}
@@ -424,7 +264,7 @@ function CVPage() {
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
             <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button variant="solid" size="md" onClick={submitEdit} loading={editVersion.isPending}>
+            <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
               Save as new version
             </Button>
           </div>

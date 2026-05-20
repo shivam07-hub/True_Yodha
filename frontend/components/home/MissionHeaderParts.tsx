@@ -74,36 +74,57 @@ export function SegmentedSteps({ hasCv, hasJob, loggedToday, hasApplied }: {
   const nextId = getNextId(hasCv, hasJob, loggedToday, hasApplied)
   const doneIds = getDoneIds(hasCv, hasJob, loggedToday)
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+    <div
+      role="list"
+      aria-label="Mission progress"
+      style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}
+    >
       {STEPS.map((s, i) => {
         const done   = doneIds.has(s.id)
         const active = s.id === nextId
         return (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            key={s.id}
+            role="listitem"
+            aria-current={active ? "step" : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 7 }}
+          >
             {i > 0 && <div style={{ width: 18, height: 1, background: "var(--tm-border-soft)", flexShrink: 0 }} />}
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
-              padding: "6px 12px", height: 30, borderRadius: 999,
-              border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-              background: active ? "var(--tm-accent-wash)" : "transparent",
+              minHeight: 28,
               color: active ? "var(--tm-accent)" : done ? "var(--tm-text-muted)" : "var(--tm-text-faint)",
-              fontSize: 12, fontWeight: 500,
+              fontSize: 12, fontWeight: active ? 750 : 550,
               fontFamily: "var(--tm-font-mono)",
               letterSpacing: ".06em", textTransform: "uppercase" as const,
             }}>
               <span style={{
-                width: 14, height: 14, borderRadius: 999, flexShrink: 0,
+                width: active ? 16 : 12, height: active ? 16 : 12, borderRadius: 999, flexShrink: 0,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: done ? "var(--tm-success)" : active ? "var(--tm-accent)" : "transparent",
-                border: !done && !active ? "1.5px solid var(--tm-text-faint)" : "none",
+                background: done ? "rgba(74,222,128,0.9)" : active ? "var(--tm-accent-wash)" : "transparent",
+                border: active ? "1.5px solid var(--tm-accent-ring)" : done ? "none" : "1.5px solid var(--tm-border)",
                 color: done ? "var(--tm-bg)" : "var(--tm-accent-fg)",
-                fontSize: 9, fontWeight: 700,
+                fontSize: 8, fontWeight: 700,
+                boxShadow: active ? "0 0 0 4px rgba(0,245,212,0.04)" : "none",
               }}>
                 {done ? "✓" : ""}
               </span>
               <span style={{ textDecoration: done ? "line-through" : "none" }}>{s.label}</span>
               {active && s.xp && (
-                <span style={{ color: "var(--tm-accent)", fontWeight: 600 }}>+{s.xp}XP</span>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minHeight: 20,
+                  padding: "0 7px",
+                  borderRadius: 999,
+                  background: "var(--tm-accent-wash)",
+                  border: "1px solid var(--tm-accent-ring)",
+                  color: "var(--tm-accent)",
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                }}>
+                  +{s.xp}XP
+                </span>
               )}
             </div>
           </div>

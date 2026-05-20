@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { diary } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
+import { InlineSkillCard } from "@/components/skills/skill-card-inline"
 
 
 interface Props {
@@ -27,51 +28,6 @@ function barColor(avg: number) {
   if (avg < 40) return "var(--tm-danger)"
   if (avg < 70) return "#d97706"
   return "var(--tm-success)"
-}
-
-function levelBadgeColor(level: number) {
-  if (level >= 4) return { bg: "var(--tm-accent)", fg: "var(--tm-accent-fg)" }
-  if (level >= 3) return { bg: "#065f46", fg: "#6ee7b7" }
-  if (level >= 2) return { bg: "#78350f", fg: "#fcd34d" }
-  return { bg: "#1f2937", fg: "var(--tm-text-faint)" }
-}
-
-function InlineSkillCard({ skill }: { skill: UserSkillItem }) {
-  const badge = levelBadgeColor(skill.level)
-
-  return (
-    <div style={{
-      background: "rgba(255,255,255,0.03)", border: "1px solid var(--tm-border-soft)",
-      borderRadius: "var(--tm-radius-sm)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6,
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>{skill.display_name}</div>
-        <span style={{
-          flexShrink: 0, width: 22, height: 22, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 10, fontWeight: 800, background: badge.bg, color: badge.fg, fontFamily: "var(--tm-font-mono)",
-        }}>L</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 10, letterSpacing: "0.08em", fontWeight: 700, color: "var(--tm-text-faint)", textTransform: "uppercase" }}>
-          {skill.proficiency_title}
-        </span>
-        <span style={{
-          fontSize: 10, fontWeight: 700, fontFamily: "var(--tm-font-mono)",
-          color: badge.fg, background: badge.bg,
-          borderRadius: 4, padding: "1px 6px",
-        }}>
-          {skill.level >= 3 ? `${skill.level}+` : skill.level}
-        </span>
-      </div>
-      {skill.evidence_text ? (
-        <div style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
-          {skill.evidence_text.slice(0, 55)}…
-        </div>
-      ) : (
-        <div style={{ fontSize: 10, color: "#d97706", fontStyle: "italic" }}>No CV evidence — keyword inferred</div>
-      )}
-    </div>
-  )
 }
 
 export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGap, onToggle, token }: Props) {
@@ -145,12 +101,12 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
         </span>
       </button>
 
-      {/* Expanded content */}
+      {/* Expanded content — single-column stack (SE10) */}
       {isExpanded && items.length > 0 && (
         <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {items.map(skill => (
-              <InlineSkillCard key={skill.key} skill={skill} />
+              <InlineSkillCard key={skill.key} skill={skill} token={token} />
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 4 }}>

@@ -157,6 +157,17 @@ class JobComputeStatusResponse(BaseModel):
     finished_at: datetime | None = None
 
 
+class CVBadge(BaseModel):
+    """Summary of an application's Company CV Thread head — rendered on tracker cards.
+
+    See CONTEXT.md ("Company CV Thread") for the canonical-CV rule.
+    """
+    version_id: int
+    version_number: int
+    kind: str
+    polished: bool
+
+
 class ApplicationResponse(BaseModel):
     id: int
     job_id: str
@@ -175,6 +186,7 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
+    cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
 
 
 class JobPathTargetInput(BaseModel):

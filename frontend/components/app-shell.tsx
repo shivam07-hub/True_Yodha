@@ -14,6 +14,7 @@ import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { MyroLogo } from "@/components/myro-logo"
+import { FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT, openFeedbackHub as openFeedbackHubEvent, type FeedbackCategory, type OpenFeedbackDetail } from "@/components/feedback"
 import { useXPStore } from "@/store/xpStore"
 import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
 import { xp } from "@/lib/api"
@@ -28,93 +29,34 @@ import {
 
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/forge",   label: "Forge",      desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
   { href: "/tracker", label: "Tracker",    desc: "Application pipeline",   icon: "▤",  hideLabel: false, nudge: false, stalePill: true },
 ]
 
-export const FEEDBACK_ACTIONS = [
-  { id: "bug",       icon: "⚠",  label: "Report a bug",       color: "var(--tm-warning)", bg: "var(--tm-warning-wash)", placeholder: "Describe what went wrong…"          },
-  { id: "companies", icon: "＋", label: "Add more companies", color: "var(--tm-accent)",  bg: "var(--tm-accent-wash)",  placeholder: "Which companies should we track?"    },
-  { id: "feedback",  icon: "◎",  label: "Leave feedback",     color: "var(--tm-success)", bg: "var(--tm-success-wash)", placeholder: "What can we improve?"                },
+/**
+ * Quick-access shortcuts shown in the sidebar avatar menu and mobile sheet.
+ * Each one opens the unified Feedback Hub at the matching category.
+ */
+export const FEEDBACK_QUICK_ACTIONS: {
+  id: string
+  category: FeedbackCategory
+  icon: string
+  label: string
+  color: string
+  bg: string
+}[] = [
+  { id: "bug",   category: "bug",   icon: "⚠",  label: "Report a bug",   color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
+  { id: "idea",  category: "idea",  icon: "✦",  label: "Suggest an idea", color: "var(--tm-accent)",  bg: "var(--tm-accent-wash)"  },
+  { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)", bg: "var(--tm-success-wash)" },
 ]
 
+/** Re-export for legacy callers; canonical home is `@/components/feedback`. */
+export const openFeedbackHub = openFeedbackHubEvent
+
 export type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
-
-export function FeedbackModal({ action, onClose }: { action: typeof FEEDBACK_ACTIONS[0]; onClose: () => void }) {
-  const [text, setText] = useState("")
-  const [sent, setSent] = useState(false)
-  const submit = () => {
-    if (text.trim()) { setSent(true); setTimeout(onClose, 1400) }
-  }
-
-  return (
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "flex-start", padding: "0 0 80px 72px" }}
-      onClick={onClose}
-    >
-      <div style={{ position: "absolute", inset: 0, background: "var(--tm-overlay-soft)", backdropFilter: "blur(6px)" }} />
-      <div
-        style={{
-          position: "relative",
-          background: "var(--tm-surface)",
-          border: `1px solid ${action.bg}`,
-          borderRadius: "var(--tm-radius-lg)",
-          padding: 20, width: 300, zIndex: 1,
-          boxShadow: "0 0 40px rgba(0,0,0,0.5)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {sent ? (
-          <div style={{ textAlign: "center", padding: "16px 0" }}>
-            <div style={{ fontSize: 29, marginBottom: 8, filter: `drop-shadow(0 0 8px ${action.color})`, color: action.color }}>✓</div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)" }}>Thanks — received!</div>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 17, color: action.color, filter: `drop-shadow(0 0 4px ${action.color})` }}>{action.icon}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{action.label}</span>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                style={{ marginLeft: "auto", background: "transparent", border: "none", color: "var(--tm-text-faint)", fontSize: 19, cursor: "pointer", lineHeight: 1 }}
-              >×</button>
-            </div>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={action.placeholder}
-              style={{
-                width: "100%", padding: "10px 12px",
-                borderRadius: "var(--tm-radius-sm)",
-                background: "var(--tm-surface-2)",
-                border: `1px solid ${action.bg}`,
-                color: "var(--tm-text)", fontSize: 13, lineHeight: 1.6,
-                resize: "none", minHeight: 80, fontFamily: "inherit",
-                outline: "none", boxSizing: "border-box",
-              }}
-            />
-            <button
-              onClick={submit}
-              style={{
-                marginTop: 10, width: "100%", padding: "9px",
-                borderRadius: "var(--tm-radius-sm)",
-                background: action.bg,
-                border: `1px solid ${action.color}`,
-                color: action.color, fontSize: 13, fontWeight: 500,
-                cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              Send →
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function UserFooter({
   expanded,
@@ -128,7 +70,6 @@ function UserFooter({
   signOut: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeModal, setActiveModal] = useState<typeof FEEDBACK_ACTIONS[0] | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const fullName = profile?.full_name ?? null
@@ -160,10 +101,10 @@ function UserFooter({
       <div style={{ borderTop: "1px solid var(--tm-border-soft)", position: "relative" }}>
         {expanded && menuOpen && (
           <div style={{ padding: "8px 8px 0", display: "flex", flexDirection: "column", gap: 2 }}>
-            {FEEDBACK_ACTIONS.map((a) => (
+            {FEEDBACK_QUICK_ACTIONS.map((a) => (
               <button
                 key={a.id}
-                onClick={() => { setActiveModal(a); setMenuOpen(false) }}
+                onClick={() => { openFeedbackHub({ category: a.category }); setMenuOpen(false); onMenuOpenChange?.(false) }}
                 style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
                   borderRadius: "var(--tm-radius-sm)",
@@ -228,7 +169,6 @@ function UserFooter({
         </div>
       </div>
 
-      {activeModal && <FeedbackModal action={activeModal} onClose={() => setActiveModal(null)} />}
       {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
 
       {signOutConfirm && (
@@ -421,16 +361,18 @@ function SidebarForgeTimer({
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
+            type="button"
             onClick={() => setRunning(!running)}
             aria-label={running ? "Pause forge" : "Resume forge"}
             title={running ? "Pause" : "Resume"}
+            className="tm-control-focus"
             style={{
-              width: 22, height: 22, borderRadius: 6,
+              width: 32, height: 32, borderRadius: 8,
               background: "transparent",
               border: `1px solid ${accentRing}`,
               color: accent,
               display: "grid", placeItems: "center",
-              cursor: "pointer", fontSize: 9, lineHeight: 1,
+              cursor: "pointer", fontSize: 11, lineHeight: 1,
               fontFamily: "inherit",
               transition: "background 160ms ease",
             }}
@@ -440,14 +382,16 @@ function SidebarForgeTimer({
             {running ? "❚❚" : "▶"}
           </button>
           <button
+            type="button"
             onClick={dismiss}
             aria-label="Dismiss forge timer"
             title="Dismiss"
+            className="tm-control-focus"
             style={{
-              width: 22, height: 22, borderRadius: 6,
+              width: 32, height: 32, borderRadius: 8,
               background: "transparent", border: "1px solid var(--tm-border-soft)",
               color: "var(--tm-text-faint)", cursor: "pointer",
-              fontSize: 12, lineHeight: 1,
+              fontSize: 14, lineHeight: 1,
               fontFamily: "inherit",
               display: "grid", placeItems: "center",
             }}
@@ -512,12 +456,12 @@ function SidebarForgeTimer({
             }}
           />
 
-          {/* Center: XP numeral + clock — bumped +5pt for primary reward emphasis */}
+          {/* Center: XP numeral + clock — compact enough to host the Forge entry affordance. */}
           <text
-            x={RING / 2} y={RING / 2 - 2}
+            x={RING / 2} y={RING / 2 - 10}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="29"
+            fontSize="27"
             fontWeight="700"
             fill={accent}
             style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
@@ -525,7 +469,7 @@ function SidebarForgeTimer({
             +{readyXP}
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 12}
+            x={RING / 2} y={RING / 2 + 3}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
             fontSize="7"
@@ -535,16 +479,46 @@ function SidebarForgeTimer({
             XP READY
           </text>
           <text
-            x={RING / 2} y={RING / 2 + 26}
+            x={RING / 2} y={RING / 2 + 16}
             textAnchor="middle"
             fontFamily="var(--tm-font-mono)"
-            fontSize="10"
+            fontSize="9"
             fill="var(--tm-text-muted)"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             {clock}
           </text>
         </svg>
+        <Link
+          href="/forge"
+          aria-label="Enter Forge"
+          className="tm-control-focus"
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "calc(50% + 24px)",
+            transform: "translateX(-50%)",
+            height: 19,
+            minWidth: 66,
+            padding: "0 8px",
+            borderRadius: 999,
+            border: `1px solid ${accentRing}`,
+            background: "rgba(5,10,24,0.72)",
+            color: accent,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
+            fontFamily: "var(--tm-font-mono)",
+            fontSize: 8,
+            fontWeight: 800,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            boxShadow: running ? `0 0 10px ${accentSoft}` : "none",
+          }}
+        >
+          Forge ↗
+        </Link>
       </div>
 
       {/* Cap indicator — universal forge, no skill name (XP1 + universal-forge decision) */}
@@ -843,12 +817,17 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned
   )
 }
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/xp"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/forge", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()
   const { balance: xpBalance, addBalance, setBalance: setXPBalance } = useXPStore()
   const pathname = usePathname()
+
+  useEffect(() => {
+    if (!token) return
+    xp.balance(token).then((response) => setXPBalance(response.balance)).catch(() => {})
+  }, [token, setXPBalance])
 
   async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
     if (!token) throw new Error("Not authenticated")
@@ -870,6 +849,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isDesktop } = useViewport()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const [xpModalOpen, setXPModalOpen] = useState(false)
+  const [feedbackHubOpen, setFeedbackHubOpen] = useState(false)
+  const [feedbackHubCategory, setFeedbackHubCategory] = useState<FeedbackCategory>("bug")
+  const [feedbackHubTab, setFeedbackHubTab] = useState<"new" | "reports" | "shipped">("new")
+
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<OpenFeedbackDetail>).detail ?? {}
+      if (detail.category) setFeedbackHubCategory(detail.category)
+      if (detail.tab) setFeedbackHubTab(detail.tab)
+      setFeedbackHubOpen(true)
+    }
+    document.addEventListener(OPEN_FEEDBACK_EVENT, handler)
+    return () => document.removeEventListener(OPEN_FEEDBACK_EVENT, handler)
+  }, [])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
+        e.preventDefault()
+        setFeedbackHubOpen((o) => !o)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
   if (!ready) return <AppShellSkeleton />
 
@@ -925,6 +929,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={xpModalOpen}
         onClose={() => setXPModalOpen(false)}
         balance={xpBalance}
+      />
+
+      <FeedbackFAB
+        hidden={!isDesktop || feedbackHubOpen}
+        onOpen={(category) => {
+          if (category) setFeedbackHubCategory(category)
+          setFeedbackHubTab("new")
+          setFeedbackHubOpen(true)
+        }}
+      />
+
+      <FeedbackHub
+        open={feedbackHubOpen}
+        onClose={() => setFeedbackHubOpen(false)}
+        defaultCategory={feedbackHubCategory}
+        defaultTab={feedbackHubTab}
+        showHistory={!!token}
+        showContext
+        userName={profile.full_name}
+        userEmail={profile.email}
       />
     </div>
   )

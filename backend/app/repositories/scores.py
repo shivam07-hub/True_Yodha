@@ -37,6 +37,28 @@ class ScoresRepository:
             return None
         return result.data or None
 
+    def get_user_skill_for_key(self, user_id: str, taxonomy_key: str) -> dict[str, Any] | None:
+        """Single user_skills row + joined display_name for one taxonomy_key.
+
+        Used by the skill-edit router to recover `evidence_text` before the
+        bullet locator runs. Returns None when the user does not hold the skill.
+        """
+        result = (
+            self._db.table("user_skills")
+            .select("evidence_text, skills(taxonomy_key, display_name)")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        for row in result.data or []:
+            skill = row.get("skills") or {}
+            if skill.get("taxonomy_key") == taxonomy_key:
+                return {
+                    "evidence_text": row.get("evidence_text"),
+                    "display_name":  skill.get("display_name"),
+                    "taxonomy_key":  taxonomy_key,
+                }
+        return None
+
     def get_user_skill_level_map(self, user_id: str) -> dict[str, int]:
         result = (
             self._db.table("user_skills")

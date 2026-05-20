@@ -24,6 +24,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.tm-control-focus:focus-visible {
+  outline: 2px solid var(--tm-accent-ring);
+  outline-offset: 3px;
+}
+
 /* ── Page slide animation (legacy — kept for existing .page-enter users) */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(16px); }
@@ -65,6 +70,14 @@
 @keyframes tm-fade-up {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tm-score-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@media (max-width: 479px) {
+  .tm-skill-card-action-label { display: none; }
+  .tm-skill-card-action-btn { padding: 9px 11px; }
 }
 @keyframes pulseRing {
   0%   { box-shadow: 0 0 0 0 rgba(0,245,212,0.5); }
@@ -110,6 +123,60 @@
 @media (prefers-reduced-motion: reduce) {
   .tm-forge-breath, .tm-forge-orbit, .tm-forge-tick, .tm-forge-aurora, .tm-forge-ready {
     animation: none !important;
+  }
+}
+
+.tm-forge-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
+  gap: 18px;
+  align-items: start;
+  transition: grid-template-columns var(--tm-dur-slow) var(--tm-ease);
+}
+
+.tm-forge-layout[data-diary="closed"] {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+.tm-forge-diary-rail {
+  min-width: 0;
+  overflow: hidden;
+  transition: opacity var(--tm-dur-slow) var(--tm-ease), transform var(--tm-dur-slow) var(--tm-ease);
+}
+
+.tm-forge-layout[data-diary="closed"] .tm-forge-diary-rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(18px);
+}
+
+.tm-forge-diary-card {
+  width: min(380px, 100%);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-2);
+  overflow: hidden;
+}
+
+@media (max-width: 1080px) {
+  .tm-forge-layout,
+  .tm-forge-layout[data-diary="closed"] {
+    grid-template-columns: 1fr;
+  }
+
+  .tm-forge-layout[data-diary="closed"] .tm-forge-diary-rail {
+    display: none;
+  }
+
+  .tm-forge-diary-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .tm-forge-stage {
+    grid-template-columns: 1fr !important;
   }
 }
 

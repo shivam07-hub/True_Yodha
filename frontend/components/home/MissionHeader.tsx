@@ -15,11 +15,6 @@ const IconDiary = () => (
     <rect x="3" y="2.5" width="10" height="11" rx="1.5" /><path d="M5 5.5h6M5 8h6M5 10.5h4" />
   </svg>
 )
-const IconArrowUR = () => (
-  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 11L11 5" /><path d="M5.5 5h5.5v5.5" />
-  </svg>
-)
 const IconAsterisk = () => (
   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--tm-accent)" strokeWidth="1.6" strokeLinecap="round">
     <path d="M12 3v18" /><path d="M3 12h18" /><path d="M5.6 5.6l12.8 12.8" /><path d="M18.4 5.6L5.6 18.4" />
@@ -63,7 +58,6 @@ export interface MissionHeaderProps {
   matchesExhausted: boolean
   cartCount: number
   onRefreshMatches: () => void
-  onEnterForge: () => void
   onOpenDiary: () => void
 }
 
@@ -72,7 +66,7 @@ export function MissionHeader({
   streak, sessions, score, evidenceData,
   hasCv, hasJob, loggedToday, hasApplied,
   isRefreshing, refreshNotice, matchesExhausted, cartCount,
-  onRefreshMatches, onEnterForge, onOpenDiary,
+  onRefreshMatches, onOpenDiary,
 }: MissionHeaderProps) {
   const dayStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }).toUpperCase()
   const scoreDelta = evidenceData?.score_delta != null ? Math.max(0, Math.round(evidenceData.score_delta)) : null
@@ -152,17 +146,6 @@ export function MissionHeader({
               {sessions > 0 && <><span style={{ opacity: 0.4 }}>·</span><span>{sessions} active targets</span></>}
             </div>
             <SegmentedSteps hasCv={hasCv} hasJob={hasJob} loggedToday={loggedToday} hasApplied={hasApplied} />
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 4 }}>
-              <button
-                onClick={onEnterForge}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 48, padding: "0 22px", borderRadius: 999, background: "var(--tm-accent)", border: "none", color: "var(--tm-accent-fg)", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "box-shadow 200ms" }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 0 0 6px var(--tm-accent-wash), 0 0 28px var(--tm-accent-glow)" }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = "none" }}
-              >
-                Enter Forge <IconArrowUR />
-              </button>
-              <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-text-muted)" }}>XP builds while Forge runs</span>
-            </div>
             {refreshNotice && <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>{refreshNotice}</div>}
           </div>
 

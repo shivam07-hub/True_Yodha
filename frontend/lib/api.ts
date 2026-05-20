@@ -437,6 +437,40 @@ export interface CVVersion {
   company_name: string | null
 }
 
+export interface SkillEditRequest {
+  skill_key: string
+  new_text: string
+  section_hint?: string
+  item_index?: number
+  bullet_index?: number
+}
+
+export interface SkillEditCandidate {
+  section: string
+  item_index: number
+  bullet_index: number
+  text: string
+  label: string
+}
+
+export interface SkillEditResponse {
+  baseline_id: number
+  user_version_number: number
+  body_text: string
+  title: string
+  dropped_skill_keys: string[]
+  recompute_pending: boolean
+  conflict?: false
+}
+
+export interface SkillEditConflictDetail {
+  code: "multi_match"
+  skill_key: string
+  candidates: SkillEditCandidate[]
+}
+
+export type SkillEditConflict = SkillEditConflictDetail & { conflict: true }
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -476,6 +510,34 @@ export const cv = {
         body: JSON.stringify({ edited_items: editedItems, title }),
       }),
   },
+  skillEdit: async (
+    token: string,
+    body: SkillEditRequest,
+  ): Promise<SkillEditResponse | SkillEditConflict> => {
+    const res = await fetch(`${BASE}/cv/skill-edit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (res.status === 409) {
+      const payload = await res.json().catch(() => ({})) as { detail?: unknown }
+      const detail = payload.detail
+      if (detail && typeof detail === "object" && "candidates" in detail) {
+        return { conflict: true, ...(detail as SkillEditConflictDetail) }
+      }
+      throw new Error(typeof detail === "string" ? detail : "CV no longer matches that skill — refresh.")
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(extractError(err, res.status))
+    }
+    return res.json() as Promise<SkillEditResponse>
+  },
+  recomputeStatus: (token: string, baselineId: number) =>
+    request<{ baseline_id: number; recompute_finished_at: string | null }>(
+      `/cv/skill-edit/recompute-status/${baselineId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
   downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",
@@ -699,6 +761,13 @@ export interface CompanyPage {
   reviews: CompanyReviewItem[]
 }
 
+export interface CVBadge {
+  version_id: number
+  version_number: number
+  kind: CVVersionKind
+  polished: boolean
+}
+
 export interface ApplicationResponse {
   id: number
   job_id: string
@@ -717,6 +786,7 @@ export interface ApplicationResponse {
   created_at: string
   last_stage_changed_at?: string | null
   is_first_offer?: boolean
+  cv_badge?: CVBadge | null
 }
 
 export interface JobPathTarget {
@@ -1253,14 +1323,46 @@ export const xp = {
 
 // ── Feedback ─────────────────────────────────────────────────────────────────
 
-export type FeedbackType = "feedback" | "company" | "bug"
+export type FeedbackType =
+  | "bug"
+  | "idea"
+  | "question"
+  | "praise"
+  | "feedback"
+  | "company"
+
+export type FeedbackStatus =
+  | "received"
+  | "triaged"
+  | "in_progress"
+  | "shipped"
+  | "closed"
+
+export type FeedbackSeverity = "low" | "medium" | "blocker"
+
+export interface FeedbackReport {
+  id: number
+  type: FeedbackType
+  status: FeedbackStatus
+  payload: Record<string, unknown>
+  created_at: string
+}
 
 export const feedback = {
-  submit: (type: FeedbackType, payload: Record<string, string>, token?: string) =>
+  submit: (
+    type: FeedbackType,
+    payload: Record<string, unknown>,
+    token?: string,
+  ) =>
     request<{ ok: boolean; id: number }>("/feedback", {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify({ type, payload }),
+    }),
+
+  listMine: (token: string, limit = 50) =>
+    request<FeedbackReport[]>(`/feedback/my?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 

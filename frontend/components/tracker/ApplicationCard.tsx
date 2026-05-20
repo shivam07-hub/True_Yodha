@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus, CVVersionKind } from "@/lib/api"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { STAGE_LABEL, OUTCOME_LABEL, daysBetween } from "./useTrackerBoard"
 import type { StageKey, OutcomeKey } from "./useTrackerBoard"
@@ -119,19 +119,7 @@ export function ApplicationCard({
       </div>
 
       <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
-        <Link
-          href={`/cv?jobId=${app.job_id}`}
-          aria-label={`Tailor CV for ${app.title || "this role"} at ${app.company ?? "company"}`}
-          style={{
-            fontSize: 12, fontWeight: 600,
-            color: "var(--tm-accent)", textDecoration: "none",
-            transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1" }}
-        >
-          → Tailor CV
-        </Link>
+        <CVBadgeLink app={app} />
       </div>
 
       <style>{`
@@ -144,5 +132,65 @@ export function ApplicationCard({
         }
       `}</style>
     </article>
+  )
+}
+
+function kindIcon(kind: CVVersionKind): string {
+  switch (kind) {
+    case "polished":        return "◐"
+    case "edited":          return "✎"
+    case "deterministic":   return "○"
+    case "baseline_upload": return "◇"
+    default:                return "○"
+  }
+}
+
+function CVBadgeLink({ app }: { app: ApplicationResponse }) {
+  const href = `/cv?jobId=${app.job_id}`
+  const ariaCompany = app.company ?? "company"
+  const ariaTitle = app.title || "this role"
+
+  // Empty thread → invite the user to start one.
+  if (!app.cv_badge) {
+    return (
+      <Link
+        href={href}
+        aria-label={`Tailor CV for ${ariaTitle} at ${ariaCompany}`}
+        style={{
+          fontSize: 12, fontWeight: 600,
+          color: "var(--tm-accent)", textDecoration: "none",
+          transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1" }}
+      >
+        + Tailor CV →
+      </Link>
+    )
+  }
+
+  const { version_number, kind } = app.cv_badge
+  const companyShort = app.company ?? "Company"
+  const label = `${kindIcon(kind)} ${companyShort} CV v${version_number}`
+
+  return (
+    <Link
+      href={href}
+      aria-label={`Open Company CV Thread for ${ariaCompany} (v${version_number}, ${kind})`}
+      title={`${kind} · saved for the ${ariaCompany} thread`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "4px 10px", borderRadius: 99,
+        background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+        color: "var(--tm-accent)", textDecoration: "none",
+        fontSize: 11, fontWeight: 600, fontFamily: "var(--tm-font-mono)",
+        letterSpacing: "0.04em",
+        transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.85" }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "1" }}
+    >
+      {label} →
+    </Link>
   )
 }

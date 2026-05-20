@@ -7,15 +7,12 @@ import { useMutation, useQuery, useQueries, useQueryClient } from "@tanstack/rea
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
-import { ForgeModal } from "@/components/forge/ForgeModal"
-import { DiaryPanel } from "@/components/diary/DiaryPanel"
 import { HeroCard } from "@/components/home/HeroCard"
-import { RightRail } from "@/components/home/RightRail"
 import { MissionHeader } from "@/components/home/MissionHeader"
 import { SkillGapCol } from "@/components/home/HomeColumns"
-import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
-import { dataKeys, invalidateJobPathData } from "@/lib/domain-data"
-import type { CartSkill, ForgeSessionResult } from "@/types/xp"
+import { AddChip, IconButton, InfoPill, InlineActionPill, SelectionChip, StripLabel } from "@/components/home/interaction-pills"
+import { cv, diary, jobs, scores, users } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreak } from "@/lib/forge-helpers"
@@ -24,7 +21,6 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
 import { useForgeTimerStore } from "@/store/forgeTimerStore"
-import { useDiaryIntentStore } from "@/store/diaryIntentStore"
 import { userCacheKey, withLocalCache, clearLocalCache } from "@/lib/local-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
@@ -48,18 +44,13 @@ function HomePageInner() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const { toast, show: showToast } = useToast()
-  const { setBalance: setXPBalance, addBalance } = useXPStore()
-  const { skills: cartSkills, addSkill, removeSkill, clearCart } = useCartStore()
+  const { setBalance: setXPBalance } = useXPStore()
+  const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
 
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
-  const [forgeOpen, setForgeOpen] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [proofText, setProofText] = useState("")
-  const [confidence] = useState(3)
   // Stale banner + ReviewModal moved to /tracker (PTL v1 — Q1, Q11). Self-Focus stays here.
 
-  const { open: diaryOpen, initialText: diaryInitialText, openDiary, closeDiary } = useDiaryIntentStore()
-  const { sessionActive, dismissed, startSession, setRunning: setForgeTimerRunning } = useForgeTimerStore()
+  const { sessionActive, dismissed, startSession } = useForgeTimerStore()
   const { isRefreshing, notice: refreshNotice, isExhausted: matchesExhausted, refresh: refreshMatches, cleanup: cleanupRefresh } = useMatchRefresh(token, queryClient)
   useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
   const urlJobId = searchParams.get("jobId")
@@ -89,13 +80,6 @@ function HomePageInner() {
   const activeJobStatus = activeJob ? (appsByJobId[activeJob.job_id] ?? "saved") : "saved"
   const cartSkillNames = useMemo(() => new Set(cartSkills.map(c => c.skill_name)), [cartSkills])
 
-  useEffect(() => { if (!token) return; xp.balance(token).then(r => setXPBalance(r.balance)).catch(() => {}) }, [token, setXPBalance])
-
-  // Pause ambient timer when full ForgeModal opens
-  useEffect(() => {
-    if (forgeOpen) setForgeTimerRunning(false)
-  }, [forgeOpen, setForgeTimerRunning])
-
   const { data: skillGapData } = useQuery({ queryKey: dataKeys.skillGap(activeJob?.job_id ?? null), queryFn: () => jobs.skillGap(token!, activeJob!.job_id), enabled: !!token && !!activeJob?.job_id, staleTime: 10 * 60 * 1000 })
 
   const trackedJobIds = useMemo(() => apps.map(a => a.job_id), [apps])
@@ -114,11 +98,6 @@ function HomePageInner() {
     })
     return s
   }, [jobPathQueries, trackedJobIds])
-  const activeJobPath = useMemo(
-    () => jobPathQueries.find((_, i) => trackedJobIds[i] === activeJob?.job_id)?.data,
-    [jobPathQueries, trackedJobIds, activeJob?.job_id]
-  )
-
   const gapSkills = skillGapData?.skills?.filter(g => g.missing) ?? []
 
   // Seed mini forge timer once when skills first become available.
@@ -137,15 +116,6 @@ function HomePageInner() {
   const todayStr = new Date().toISOString().slice(0, 10)
   const loggedToday = entries.length > 0 && entries[0].log_date === todayStr
   const hasApplied = apps.some(a => a.status !== "saved")
-  const ACHIEVEMENTS = [
-    { label: "CV Analysed", done: !!scoreData, icon: "◈" },
-    { label: "Score Computed", done: !!scoreData, icon: "◉" },
-    { label: "First Entry", done: entries.length >= 1, icon: "▣" },
-    { label: "5-Day Streak", done: streak >= 5, icon: "◆" },
-    { label: "Gap Closed", done: gapSkills.length === 0 && !!activeJob, icon: "◑" },
-    { label: "Score 80+", done: score >= 80, icon: "▲" },
-  ]
-
   const selfFocusJobs = useMemo(() => apps.filter(a => a.source === "user_discovery"), [apps])
   const analysedJobIds = useMemo(() => new Set(allMatchedJobs.map(j => j.job_id)), [allMatchedJobs])
 
@@ -157,7 +127,6 @@ function HomePageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topJobs[0]?.job_id, urlJobId])
 
-  const saveEntry = useMutation({ mutationFn: ({ text, cart }: { text: string; cart: CartSkill[] }) => diary.createEntry(token!, text, undefined, cart.map(s => ({ ...s }))), onSuccess: () => { addBalance(30); clearCart(); showToast("+30 XP · entry logged"); queryClient.invalidateQueries({ queryKey: dataKeys.diary() }); queryClient.invalidateQueries({ queryKey: dataKeys.scores() }) } })
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) => jobs.updateApplication(token!, jobId, { status }),
     onSuccess: () => {
@@ -181,12 +150,7 @@ function HomePageInner() {
     },
     onError: () => showToast("Not enough XP — forge a session to earn more"),
   })
-  const saveMilestoneProof = useMutation({ mutationFn: ({ jobId, milestoneId, proof }: { jobId: string; milestoneId: string; proof: string }) => jobs.updateMilestone(token!, jobId, milestoneId, { proof, confidence: confidence / 5, completed: true }), onSuccess: (_data, variables) => { setProofText(""); invalidateJobPathData(queryClient, variables.jobId) } })
-
-  async function handleDiarySubmit(text: string, cart: CartSkill[]) { await saveEntry.mutateAsync({ text, cart }) }
-  async function handleForgeSession(payload: { skill_name: string; duration_minutes: number }): Promise<ForgeSessionResult> { if (!token) throw new Error("Sign in first."); return xp.completeForge(token, { ...payload, session_type: "focused" }) }
   function handleSkillToggle(skill: SkillGapItem) { if (cartSkills.find(c => c.skill_name === skill.skill)) { removeSkill(skill.skill) } else { addSkill({ skill_name: skill.skill, level_from: skill.user_level ?? 0, level_to: skill.required_level ?? 1 }) } }
-  function handleSendBatch() { openDiary(); setDrawerOpen(false); router.push("/home") }
 
   if (!ready) return null
 
@@ -215,8 +179,7 @@ function HomePageInner() {
           matchesExhausted={matchesExhausted}
           cartCount={cartSkills.length}
           onRefreshMatches={refreshMatches}
-          onEnterForge={() => setForgeOpen(true)}
-          onOpenDiary={() => { setDrawerOpen(true); openDiary() }}
+          onOpenDiary={() => router.push("/forge?diary=1")}
         />
 
         <CVRequiredNudge hasCv={hasCv} feature="job matching" />
@@ -224,44 +187,33 @@ function HomePageInner() {
         {/* Focus strip */}
         {topJobs.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Myro Found →</span>
+            <StripLabel>Myro Found</StripLabel>
             {topJobs.map(j => {
               const isActive = j.job_id === activeJobId
-              const status = appsByJobId[j.job_id]
               const fit = Math.round(j.overlap_score)
               const hasMilestoneDot = pendingMilestoneJobIds.has(j.job_id) && !isActive
 
-              let bg = "rgba(255,255,255,0.025)"
-              let border = "1.5px solid var(--tm-border)"
-              let color = "var(--tm-text-muted)"
-              let shadow = "none"
-
-              if (isActive) {
-                bg = "var(--tm-accent)"; border = "1.5px solid var(--tm-accent)"; color = "var(--tm-accent-fg)"; shadow = "0 0 12px var(--tm-accent-glow)"
-              } else if (status === "interviewing" || status === "final_round" || status === "offer") {
-                bg = "var(--tm-success-wash)"; border = "1.5px solid rgba(74,222,128,0.5)"; color = "var(--tm-success)"
-              } else if (status === "applied" || status === "screening") {
-                bg = "var(--tm-accent-wash)"; border = "1.5px solid var(--tm-accent-ring)"; color = "var(--tm-accent)"
-              }
-
               return (
-                <button key={j.job_id} onClick={() => setActiveJobId(j.job_id)} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: bg, border, color, cursor: "pointer", transition: "all 120ms var(--tm-ease)", boxShadow: shadow }}>
+                <SelectionChip
+                  key={j.job_id}
+                  active={isActive}
+                  alertDot={hasMilestoneDot}
+                  ariaLabel={`Focus ${j.company ?? "company"} at ${fit}% fit`}
+                  onClick={() => setActiveJobId(j.job_id)}
+                >
                   {j.company ?? "Company"}
                   <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
-                  {hasMilestoneDot && (
-                    <span style={{ position: "absolute", top: -2, right: -2, width: 7, height: 7, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", border: "1.5px solid var(--tm-bg)" }} />
-                  )}
-                </button>
+                </SelectionChip>
               )
             })}
-            <Link href="/jobs" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Add target</Link>
+            <AddChip href="/jobs">Add target</AddChip>
           </div>
         )}
 
         {/* Self Focus strip */}
         {selfFocusJobs.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "10px 16px", flexWrap: "wrap" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", color: "var(--tm-text-faint)", textTransform: "uppercase", marginRight: 4 }}>Self Found →</span>
+            <StripLabel>Self Found</StripLabel>
             {selfFocusJobs.map(a => {
               const isAnalysed = analysedJobIds.has(a.job_id)
               const matchedJob = isAnalysed ? allMatchedJobs.find(j => j.job_id === a.job_id) : null
@@ -270,60 +222,43 @@ function HomePageInner() {
               if (isAnalysed && matchedJob) {
                 const fit = Math.round(matchedJob.overlap_score)
                 return (
-                  <div key={a.job_id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <button
+                  <div key={a.job_id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <SelectionChip
+                      active={isActive}
+                      ariaLabel={`Focus ${a.company ?? a.title ?? "self found role"} at ${fit}% fit`}
                       onClick={() => setActiveJobId(a.job_id)}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 8,
-                        padding: "6px 10px 6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600,
-                        fontFamily: "inherit", cursor: "pointer", transition: "all 120ms var(--tm-ease)",
-                        background: isActive ? "var(--tm-accent)" : "rgba(0,245,212,0.06)",
-                        border: isActive ? "1.5px solid var(--tm-accent)" : "1.5px solid var(--tm-accent-ring)",
-                        color: isActive ? "var(--tm-accent-fg)" : "var(--tm-accent)",
-                        boxShadow: isActive ? "0 0 12px var(--tm-accent-glow)" : "none",
-                      }}
                     >
                       {a.company ?? a.title}
                       <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, opacity: 0.8 }}>· {fit}%</span>
-                    </button>
-                    <button
-                      onClick={() => removeSelfFocus.mutate(a.job_id)}
-                      title="Remove"
-                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 11, padding: 0 }}
-                    >✕</button>
+                    </SelectionChip>
+                    <IconButton label={`Remove ${a.company ?? a.title ?? "self found role"}`} onClick={() => removeSelfFocus.mutate(a.job_id)}>
+                      ✕
+                    </IconButton>
                   </div>
                 )
               }
 
               return (
-                <div key={a.job_id} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px 5px 14px", borderRadius: 99, fontSize: 13, fontWeight: 500, background: "rgba(255,255,255,0.025)", border: "1.5px solid var(--tm-border)", color: "var(--tm-text-muted)" }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
-                    {a.company ?? a.title}
-                  </span>
-                  <button
+                <div key={a.job_id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <InfoPill style={{ maxWidth: 180, overflow: "hidden" }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {a.company ?? a.title}
+                    </span>
+                  </InfoPill>
+                  <InlineActionPill
                     onClick={() => analyseMutation.mutate(a.job_id)}
                     disabled={analysingJobId === a.job_id}
-                    title="Run skill gap analysis (−10 XP)"
-                    style={{
-                      display: "inline-flex", alignItems: "center",
-                      fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
-                      padding: "2px 8px", borderRadius: 99, cursor: analysingJobId === a.job_id ? "default" : "pointer",
-                      background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent)",
-                      color: "var(--tm-accent)", transition: "opacity 120ms ease",
-                      opacity: analysingJobId === a.job_id ? 0.5 : 1,
-                    }}
+                    ariaLabel={`Analyse ${a.company ?? a.title ?? "self found role"} for 10 XP`}
                   >
-                    {analysingJobId === a.job_id ? "…" : "Analyse → 10 XP"}
-                  </button>
-                  <button
-                    onClick={() => removeSelfFocus.mutate(a.job_id)}
-                    title="Remove"
-                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "transparent", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 11, padding: 0, marginLeft: 2 }}
-                  >✕</button>
+                    {analysingJobId === a.job_id ? "Analysing" : "Analyse · 10 XP"}
+                  </InlineActionPill>
+                  <IconButton label={`Remove ${a.company ?? a.title ?? "self found role"}`} onClick={() => removeSelfFocus.mutate(a.job_id)}>
+                    ✕
+                  </IconButton>
                 </div>
               )
             })}
-            <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 99, border: "1.5px dashed var(--tm-border)", fontSize: 11.5, color: "var(--tm-text-faint)", textDecoration: "none", transition: "all 120ms var(--tm-ease)" }} onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }} onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border)" }}>+ Find more</Link>
+            <AddChip href="/market">Find more</AddChip>
           </div>
         )}
 
@@ -334,14 +269,15 @@ function HomePageInner() {
           <>
             <button
               onClick={() => setActiveJobId(null)}
-              style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--tm-text-faint)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)" }}
-              onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
+              className="tm-control-focus"
+              style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, minHeight: 34, padding: "0 13px", borderRadius: 999, fontSize: 12, fontWeight: 650, color: "var(--tm-text-muted)", background: "rgba(255,255,255,0.025)", border: "1px solid var(--tm-border-soft)", cursor: "pointer", fontFamily: "inherit" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
+              onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.background = "rgba(255,255,255,0.025)" }}
             >
               ← All matches
             </button>
             <div className="tm-home-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
-              <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => setForgeOpen(true)} />
+              <HeroCard job={activeJob} status={activeJobStatus} skillGapData={skillGapData} onStatus={s => updateStatus.mutate({ jobId: activeJob.job_id, status: s })} onForge={() => router.push("/forge")} />
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <SkillGapCol skillGapData={skillGapData} cartSkillNames={cartSkillNames} onSkillToggle={handleSkillToggle} />
               </div>
@@ -359,27 +295,6 @@ function HomePageInner() {
           </div>
         ) : null}
       </div>
-
-      {/* Drawer */}
-      {drawerOpen && (
-        <>
-          <div onClick={() => setDrawerOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(5,10,24,0.65)", backdropFilter: "blur(4px)", zIndex: 50 }} />
-          <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 560, maxWidth: "100vw", background: "var(--tm-surface)", borderLeft: "1px solid var(--tm-accent-ring)", zIndex: 51, padding: 28, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18, boxShadow: "-20px 0 60px rgba(0,0,0,0.5)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--tm-text)" }}>Diary · cart · milestone</h2>
-              <button onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
-            </div>
-            <RightRail job={activeJob} jobPath={activeJobPath} cartSkills={cartSkills} onRemoveCart={c => removeSkill(c.skill_name)} onSendBatch={handleSendBatch} achievements={ACHIEVEMENTS} proofText={proofText} savingProof={saveMilestoneProof.isPending} onProofChange={setProofText} onSaveProof={milestone => activeJob && saveMilestoneProof.mutate({ jobId: activeJob.job_id, milestoneId: milestone.id, proof: proofText })} />
-          </div>
-        </>
-      )}
-
-      {forgeOpen && (
-        <ForgeModal cartSkills={cartSkills.length > 0 ? cartSkills : gapSkills.slice(0, 3).map(g => ({ skill_name: g.skill, level_from: g.user_level, level_to: g.required_level, company: activeJob?.company ?? undefined }))} onClose={() => setForgeOpen(false)} onXPEarned={(amount, newBalance) => { addBalance(amount); setXPBalance(newBalance) }} onCompleteSession={handleForgeSession} onOpenDiary={() => openDiary()} />
-      )}
-
-      <DiaryPanel open={diaryOpen} onClose={closeDiary} initialText={diaryInitialText} cartSkills={cartSkills} onAddSkill={addSkill} onRemoveSkill={removeSkill} gapSkills={gapSkills.map(g => ({ skill: g.skill, user_level: g.user_level, required_level: g.required_level }))} activeCompany={activeJob?.company} onSubmit={handleDiarySubmit} recentEntries={entries} />
-
       {/* ReviewModal trigger moved to /tracker (PTL v1, Q1). */}
     </AppShell>
   )
