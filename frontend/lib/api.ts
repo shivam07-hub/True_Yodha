@@ -1277,6 +1277,46 @@ export const skills = {
   domains: () => request<string[]>("/skills/domains"),
 }
 
+// ── Billing ──────────────────────────────────────────────────────────────────
+
+export interface RazorpayOrderResponse {
+  order_id: string
+  amount: number
+  currency: string
+}
+
+export interface RazorpayVerifyPayload {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+export interface RazorpayVerifyResponse {
+  success: boolean
+  xp_earned: number
+  new_xp_balance: number
+}
+
+export const billing = {
+  createOrder: (token: string) =>
+    request<RazorpayOrderResponse>("/api/create-order", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: 9900,
+        currency: "INR",
+        receipt: `xp_${Date.now()}`,
+      }),
+    }),
+
+  verifyPayment: (token: string, payload: RazorpayVerifyPayload) =>
+    request<RazorpayVerifyResponse>("/api/verify-payment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+}
+
 // ── XP + Forge ───────────────────────────────────────────────────────────────
 
 export interface XPBalanceResponse {

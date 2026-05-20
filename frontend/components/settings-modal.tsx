@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { jobs, users } from "@/lib/api"
+import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { XP_POLICY } from "@/lib/xp-policy"
@@ -29,14 +29,61 @@ import {
   type FeedbackCategory,
 } from "@/components/feedback"
 
-type Tab = "Account" | "Following" | "Feedback"
+type Tab = "Account" | "Following" | "Feedback" | "Billing"
 type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
+type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
+
+type RazorpaySuccessResponse = {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+type RazorpayFailureResponse = {
+  error?: {
+    code?: string
+    description?: string
+    reason?: string
+  }
+}
+
+type RazorpayCheckoutOptions = {
+  key: string
+  amount: number
+  currency: string
+  name: string
+  description: string
+  order_id: string
+  prefill?: { name?: string; email?: string }
+  theme?: { color?: string; backdrop_color?: string }
+  modal?: {
+    confirm_close?: boolean
+    ondismiss?: () => void
+  }
+  handler: (response: RazorpaySuccessResponse) => void
+}
+
+type RazorpayCheckout = {
+  open: () => void
+  on: (event: "payment.failed", handler: (response: RazorpayFailureResponse) => void) => void
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckout
+  }
+}
 
 const AUTOSAVE_MS = 800
 const SAVED_DISPLAY_MS = 2000
+const XP_PACK_AMOUNT = 1000
+const XP_PACK_PRICE_RUPEES = 99
 
 const normalize = (v: string): string | null => v.trim() || null
+const messageFromError = (error: unknown, fallback: string): string => (
+  error instanceof Error && error.message ? error.message : fallback
+)
 const normalizeLinkedIn = (v: string): string | null => {
   const t = v.trim()
   if (!t) return null
@@ -162,6 +209,8 @@ export function SettingsModal({ open, onClose, profile }: {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
   const [rewardNotice, setRewardNotice] = useState<string | null>(null)
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>("idle")
+  const [billingMessage, setBillingMessage] = useState<string | null>(null)
 
   // Following tab state
   const [companyInput, setCompanyInput] = useState("")
@@ -186,7 +235,8 @@ export function SettingsModal({ open, onClose, profile }: {
     setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
     setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
     setLocationDropdown(false); setLocationFocused(false)
-    setSaveStatus("idle"); setSaveError(null); setRewardNotice(null); pending.current = {}
+    setSaveStatus("idle"); setSaveError(null); setRewardNotice(null)
+    setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
   }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
@@ -344,6 +394,84 @@ export function SettingsModal({ open, onClose, profile }: {
     locationInputRef.current?.focus()
   }
 
+  async function handleBuyXP() {
+    if (!token) {
+      setBillingStatus("error")
+      setBillingMessage("Session not ready — please refresh.")
+      return
+    }
+
+    const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+    if (!key) {
+      setBillingStatus("error")
+      setBillingMessage("Razorpay public key is not configured.")
+      return
+    }
+
+    if (typeof window === "undefined" || !window.Razorpay) {
+      setBillingStatus("error")
+      setBillingMessage("Razorpay checkout is still loading. Try again in a moment.")
+      return
+    }
+
+    setBillingStatus("creating")
+    setBillingMessage("Opening Razorpay checkout…")
+
+    try {
+      const order = await billing.createOrder(token)
+      let completed = false
+      const checkout = new window.Razorpay({
+        key,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Myro",
+        description: `${XP_PACK_AMOUNT} XP launch pack`,
+        order_id: order.order_id,
+        prefill: {
+          name: name || undefined,
+          email: profile?.email || undefined,
+        },
+        theme: {
+          color: "#00F5D4",
+          backdrop_color: "#050A18",
+        },
+        modal: {
+          confirm_close: true,
+          ondismiss: () => {
+            if (completed) return
+            setBillingStatus("error")
+            setBillingMessage("Checkout closed before payment.")
+          },
+        },
+        handler: async (response) => {
+          completed = true
+          setBillingStatus("verifying")
+          setBillingMessage("Verifying payment…")
+          try {
+            const verified = await billing.verifyPayment(token, response)
+            setBalance(verified.new_xp_balance)
+            setBillingStatus("success")
+            setBillingMessage(`+${verified.xp_earned} XP added. New balance: ${verified.new_xp_balance} XP.`)
+          } catch (error) {
+            setBillingStatus("error")
+            setBillingMessage(messageFromError(error, "Payment verification failed."))
+          }
+        },
+      })
+
+      checkout.on("payment.failed", (response) => {
+        completed = true
+        setBillingStatus("error")
+        setBillingMessage(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
+      })
+
+      checkout.open()
+    } catch (error) {
+      setBillingStatus("error")
+      setBillingMessage(messageFromError(error, "Could not start Razorpay checkout."))
+    }
+  }
+
   const followedCompanies = followingData?.companies ?? []
 
   const statusNode = saveStatus === "saving" ? (
@@ -360,7 +488,7 @@ export function SettingsModal({ open, onClose, profile }: {
     ? `Save failed: ${saveError ?? "unknown error"}`
     : ""
 
-  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎" }
+  const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎", Billing: "▤" }
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
@@ -396,7 +524,7 @@ export function SettingsModal({ open, onClose, profile }: {
 
           {/* Nav tabs */}
           <nav style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-            {(["Account", "Following", "Feedback"] as Tab[]).map((tab) => (
+            {(["Account", "Following", "Feedback", "Billing"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -756,6 +884,15 @@ export function SettingsModal({ open, onClose, profile }: {
               </>
             )}
 
+            {/* ── BILLING TAB ── */}
+            {activeTab === "Billing" && (
+              <BillingTabContent
+                status={billingStatus}
+                message={billingMessage}
+                onBuy={handleBuyXP}
+              />
+            )}
+
             {/* ── FEEDBACK TAB ── */}
             {activeTab === "Feedback" && (
               <FeedbackTabContent onClose={flushAndClose} />
@@ -764,6 +901,118 @@ export function SettingsModal({ open, onClose, profile }: {
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ── Billing tab content ────────────────────────────────────────────────────
+
+function BillingTabContent({
+  status,
+  message,
+  onBuy,
+}: {
+  status: BillingStatus
+  message: string | null
+  onBuy: () => void
+}) {
+  const busy = status === "creating" || status === "verifying"
+  const buttonLabel = status === "creating"
+    ? "Opening checkout..."
+    : status === "verifying"
+    ? "Verifying..."
+    : `Pay Rs ${XP_PACK_PRICE_RUPEES}`
+  const messageColor = status === "success"
+    ? "var(--tm-success)"
+    : status === "error"
+    ? "var(--tm-danger)"
+    : "var(--tm-text-faint)"
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
+      <div style={SECTION_HEADER}>XP packs</div>
+
+      <div style={{
+        padding: 18,
+        borderRadius: "var(--tm-radius)",
+        background: "linear-gradient(180deg, var(--tm-accent-wash), rgba(255,255,255,0.015))",
+        border: "1px solid var(--tm-accent-ring)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
+          <div>
+            <div style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
+              border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)",
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>
+              Launch price
+            </div>
+            <div style={{ marginTop: 12, fontSize: 24, fontWeight: 750, color: "var(--tm-text)", lineHeight: 1 }}>
+              {XP_PACK_AMOUNT.toLocaleString()} XP
+            </div>
+            <div style={{ marginTop: 8, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5, maxWidth: 360 }}>
+              Use XP for company follows, match refreshes, and focused forge sessions.
+            </div>
+          </div>
+
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--tm-text)", lineHeight: 1 }}>
+              Rs {XP_PACK_PRICE_RUPEES}
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "var(--tm-text-faint)" }}>
+              Razorpay Standard Checkout
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={onBuy}
+            disabled={busy}
+            style={{
+              padding: "10px 20px", borderRadius: "var(--tm-radius-sm)", border: "none",
+              background: status === "success" ? "var(--tm-success)" : "var(--tm-accent)",
+              color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+              cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.72 : 1,
+              minWidth: 150, boxShadow: busy ? "none" : "0 0 18px var(--tm-accent-glow)",
+              transition: "opacity var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
+            }}
+          >
+            {buttonLabel}
+          </button>
+
+          {message && (
+            <div role="status" style={{ fontSize: 12, color: messageColor, lineHeight: 1.45, maxWidth: 360 }}>
+              {message}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{
+        padding: "12px 16px",
+        borderRadius: "var(--tm-radius-sm)",
+        border: "1px solid var(--tm-border-soft)",
+        background: "rgba(255,255,255,0.015)",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--tm-text-faint)", fontWeight: 500,
+          }}>
+            Payment partner
+          </div>
+          <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
+            Razorpay
+          </div>
+        </div>
+        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+          Test mode
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -884,4 +1133,3 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

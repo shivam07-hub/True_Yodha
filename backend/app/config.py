@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Email (post-MVP)
     sendgrid_api_key: str = ""
 
+    # Razorpay checkout
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+
     # Environment
     railway_environment: str = "development"
 

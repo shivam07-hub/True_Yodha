@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
 import type { CompanyPage, CompanyReviewItem } from "@/lib/api"
-import { ParticleLoading } from "@/components/ui/particle-loading"
+import { ParticleLoading } from "@/components/loading/particle-loading"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

@@ -12,6 +12,18 @@
   ],
   "items": [
     {
+      "id": "https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india",
+      "url": "https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india",
+      "title": "Semiconductor Hiring India 2026: 1,016 Roles",
+      "summary": "A May 2026 snapshot of 1,016 semiconductor jobs across AMD, Qualcomm, NXP, Texas Instruments, Intel and ST. Free skill-gap analysis inside.",
+      "date_published": "2026-05-20T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
       "id": "https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india",
       "url": "https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india",
       "title": "Razorpay, PhonePe, Paytm, CRED and Intuit show where fintech hiring is focused",

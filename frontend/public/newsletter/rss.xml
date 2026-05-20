@@ -6,7 +6,16 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://truemirror.vercel.app/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sun, 17 May 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 20 May 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>Semiconductor Hiring India 2026: 1,016 Roles</title>
+      <link>https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india</link>
+      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india</guid>
+      <description>A May 2026 snapshot of 1,016 semiconductor jobs across AMD, Qualcomm, NXP, Texas Instruments, Intel and ST. Free skill-gap analysis inside.</description>
+      <pubDate>Wed, 20 May 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>Razorpay, PhonePe, Paytm, CRED and Intuit show where fintech hiring is focused</title>
