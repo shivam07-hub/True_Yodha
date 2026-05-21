@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query"
 import { diary } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { InlineSkillCard } from "@/components/skills/skill-card-inline"
+import { domainTier, domainTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 import "./domain-accordion-row.css"
 
 
@@ -19,18 +20,6 @@ interface Props {
   token: string
 }
 
-function statusLabel(avg: number) {
-  if (avg < 40) return "AT RISK"
-  if (avg < 70) return "BUILDING"
-  return "STRONG"
-}
-
-function barColor(avg: number) {
-  if (avg < 40) return "var(--tm-danger)"
-  if (avg < 70) return "#d97706"
-  return "var(--tm-success)"
-}
-
 export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGap, onToggle, token }: Props) {
   const [logged, setLogged] = useState(false)
   const { mutate, isPending } = useMutation({
@@ -41,8 +30,9 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
     onSuccess: () => setLogged(true),
   })
   const maxLevel = items.length ? Math.max(...items.map(s => s.level)) : 0
-  const color = barColor(avg)
-  const status = statusLabel(avg)
+  const tier = domainTier(avg)
+  const color = TIER_TOKENS[tier].fg
+  const status = domainTierLabel(avg)
 
   return (
     <div style={{

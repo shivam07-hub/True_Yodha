@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { SkillRow } from "./SkillRow"
 import { InfoPill } from "./interaction-pills"
+import { ApplyRow } from "@/components/jobs/apply-row"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
 
 const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
@@ -80,38 +81,6 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
             color: "var(--tm-text-faint)", marginTop: 5, flexWrap: "wrap",
           }}>
             <span>{[job.company, job.location].filter(Boolean).join(" · ")}{job.llm_rank != null && ` · RANK · #${job.llm_rank}`}</span>
-            {job.job_id && (
-              <>
-                <span style={{ color: "var(--tm-border)" }}>·</span>
-                <button
-                  type="button"
-                  aria-label={`Copy job ID ${job.job_id}`}
-                  className="tm-control-focus"
-                  style={{
-                    display: "inline-flex", alignItems: "center", minHeight: 28,
-                    padding: "0 8px", borderRadius: 6,
-                    border: "1px dashed var(--tm-border)", color: "var(--tm-text-muted)",
-                    background: "rgba(255,255,255,0.02)",
-                    cursor: "copy", fontSize: 11, fontFamily: "var(--tm-font-mono)",
-                  }}
-                  onClick={() => navigator.clipboard.writeText(String(job.job_id))}
-                  title="Copy Job ID"
-                >
-                  {job.job_id}
-                </button>
-                {job.source_url && (
-                  <a
-                    href={job.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="tm-control-focus"
-                    style={{ color: "var(--tm-text-muted)", textDecoration: "underline", textUnderlineOffset: 3, fontSize: 11 }}
-                  >
-                    Open JD ↗
-                  </a>
-                )}
-              </>
-            )}
             <span style={{ color: "var(--tm-border)" }}>·</span>
             <select
               aria-label="Application status"
@@ -152,6 +121,11 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
             fit
           </div>
         </div>
+      </div>
+
+      {/* Apply row — Open careers / Copy ID / Copy title */}
+      <div style={{ marginTop: 10 }}>
+        <ApplyRow company={job.company} title={job.title} jobId={job.job_id} variant="compact" />
       </div>
 
       {/* Fit bar */}

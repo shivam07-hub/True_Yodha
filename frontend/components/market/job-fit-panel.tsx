@@ -21,8 +21,9 @@ const P = {
   text: "var(--tm-text)",
   muted: "var(--tm-text-muted)",
   faint: "var(--tm-text-faint)",
-  warn: "var(--tm-warning, #FFB347)",
-  warnW: "rgba(255,179,71,0.12)",
+  warn: "var(--tm-warning)",
+  warnW: "var(--tm-warning-wash)",
+  warnB: "var(--tm-warning-border)",
 }
 
 function PillGood({ label }: { label: string }) {
@@ -43,7 +44,7 @@ function PillGap({ label, skill }: { label: string; skill: string }) {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6,
       padding: "3px 6px 3px 10px", borderRadius: 999, fontSize: 11,
-      background: P.warnW, border: `1px solid rgba(255,179,71,0.3)`,
+      background: P.warnW, border: `1px solid ${P.warnB}`,
       color: P.warn,
     }}>
       ✗ {label}
@@ -51,7 +52,7 @@ function PillGap({ label, skill }: { label: string; skill: string }) {
         href={`/forge?diary=1&skill=${encodeURIComponent(skill)}`}
         style={{
           fontSize: 10, padding: "1px 6px", borderRadius: 999,
-          background: P.warnW, border: `1px solid rgba(255,179,71,0.4)`,
+          background: P.warnW, border: `1px solid ${P.warnB}`,
           color: P.warn, textDecoration: "none", fontWeight: 600,
           whiteSpace: "nowrap",
         }}

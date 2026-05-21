@@ -21,7 +21,7 @@ export function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
       {weak.length > 0 && (
         <div style={{
           fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase",
-          color: "var(--tm-warning, #FFB347)", marginBottom: 6, marginTop: 4,
+          color: "var(--tm-warning)", marginBottom: 6, marginTop: 4,
         }}>
           Proof weak · {weak.length} skills — keyword-inferred only
         </div>
@@ -30,7 +30,7 @@ export function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
         <div key={s.key} style={{
           display: "grid", gridTemplateColumns: "1fr 60px auto", gap: 10,
           padding: "7px 10px", borderRadius: "var(--tm-radius-sm)",
-          background: "rgba(255,179,71,0.04)", border: "1px solid rgba(255,179,71,0.15)",
+          background: "var(--tm-warning-wash)", border: "1px solid var(--tm-warning-border)",
           alignItems: "center",
         }}>
           <div style={{ fontSize: 12, color: "var(--tm-text)" }}>{s.display_name}</div>
@@ -39,8 +39,8 @@ export function SkillAuditView({ allSkills }: { allSkills: UserSkillItem[] }) {
           </div>
           <span style={{
             fontSize: 10, padding: "2px 7px", borderRadius: 999,
-            background: "rgba(255,179,71,0.1)", color: "var(--tm-warning, #FFB347)",
-            border: "1px solid rgba(255,179,71,0.3)", whiteSpace: "nowrap",
+            background: "var(--tm-warning-wash)", color: "var(--tm-warning)",
+            border: "1px solid var(--tm-warning-border)", whiteSpace: "nowrap",
           }}>Proof weak</span>
         </div>
       ))}

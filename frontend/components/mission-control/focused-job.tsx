@@ -8,6 +8,7 @@ import { jobs, type ApplicationStatus, type JobMatch, type SkillGapItem, type Sk
 import { dataKeys } from "@/lib/domain-data"
 import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
+import { ApplyRow } from "@/components/jobs/apply-row"
 
 interface FocusedJobProps {
   job: JobMatch
@@ -62,22 +63,9 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
               <span>
                 {[job.company, job.location].filter(Boolean).join(" · ")}
               </span>
-              {job.job_id ? (
-                <button
-                  type="button"
-                  className="id tm-control-focus"
-                  onClick={() => navigator.clipboard.writeText(String(job.job_id))}
-                  title="Copy Job ID"
-                  aria-label="Copy job id"
-                >
-                  {job.job_id}
-                </button>
-              ) : null}
-              {job.source_url ? (
-                <a href={job.source_url} target="_blank" rel="noopener noreferrer">
-                  Open JD <Icon name="ext" size={11} />
-                </a>
-              ) : null}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <ApplyRow company={job.company} title={job.title} jobId={job.job_id} variant="compact" />
             </div>
           </div>
           <div className="mc-focus-fit">

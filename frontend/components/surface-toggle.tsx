@@ -6,7 +6,7 @@ type Variation = "signal" | "forge"
 
 const ACCENT_STORAGE_KEY = "tm.accent"
 const SURFACE_STORAGE_KEY = "tm.surface"
-const DEFAULT_VARIATION: Variation = "signal"
+const DEFAULT_VARIATION: Variation = "forge"
 
 export function SurfaceToggle() {
   const [variation, setVariation] = useState<Variation>(DEFAULT_VARIATION)

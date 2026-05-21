@@ -42,6 +42,23 @@
   --tm-warning-wash:  rgba(245, 158, 11, 0.12);
   --tm-danger-wash:   rgba(251, 113, 133, 0.12);
 
+  --tm-success-border: rgba(74, 222, 128, 0.30);
+  --tm-warning-border: rgba(245, 158, 11, 0.40);
+  --tm-danger-border:  rgba(251, 113, 133, 0.30);
+
+  /* ── Skill tier (semantic — gap / building / strong) ────────── */
+  --tm-tier-gap-fg:        var(--tm-danger);
+  --tm-tier-gap-bg:        var(--tm-danger-wash);
+  --tm-tier-gap-border:    var(--tm-danger-border);
+
+  --tm-tier-building-fg:     #FBBF24;
+  --tm-tier-building-bg:     rgba(217, 119, 6, 0.14);
+  --tm-tier-building-border: rgba(217, 119, 6, 0.45);
+
+  --tm-tier-strong-fg:     var(--tm-success);
+  --tm-tier-strong-bg:     var(--tm-success-wash);
+  --tm-tier-strong-border: var(--tm-success-border);
+
   /* ── Typography ──────────────────────────────────────────── */
   --tm-font-sans:     var(--font-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
   --tm-font-display:  var(--font-display), "Source Serif 4", Georgia, serif;
@@ -138,6 +155,16 @@
 
   --tm-shadow-1:      0 1px 2px rgba(15, 23, 42, 0.10);
   --tm-shadow-2:      0 18px 44px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+
+  /* Status — legibility tuned for white surface */
+  --tm-warning:        #92400E;
+  --tm-warning-wash:   rgba(146, 64, 14, 0.10);
+  --tm-warning-border: rgba(146, 64, 14, 0.34);
+
+  /* Tier — building re-tuned for light bg; gap/strong inherit from danger/success (already surface-correct) */
+  --tm-tier-building-fg:     #92400E;
+  --tm-tier-building-bg:     rgba(146, 64, 14, 0.08);
+  --tm-tier-building-border: rgba(146, 64, 14, 0.32);
 }
 
 :root[data-surface="light"][data-accent="signal"] {
