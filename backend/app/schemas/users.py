@@ -37,6 +37,7 @@ class UserSkillItem(BaseModel):
     evidence_text: str | None = None
     forge_sessions_count: int = 0
     forged_level_up_available: bool = False
+    correction_count: int = 0
 
 
 class UserSkillsByDomainResponse(BaseModel):
@@ -60,6 +61,7 @@ class FollowedCompaniesResponse(BaseModel):
 
 class SkillLevelCorrectionRequest(BaseModel):
     level: int
+    bullet_text: str  # Bullet proving the claimed level — required for appeal flow.
 
     @field_validator("level")
     @classmethod
@@ -71,8 +73,12 @@ class SkillLevelCorrectionRequest(BaseModel):
 
 class SkillLevelCorrectionResponse(BaseModel):
     taxonomy_key: str
-    new_level: int
+    new_level: int | None          # None when appeal is rejected
     total_score: float | None
+    approved: bool
+    verdict: str                   # LLM one-line reason
+    criteria: str                  # LLM one-line bar description
+    appeals_remaining: int         # 0 = locked out
 
 
 class SkillAdviceRequest(BaseModel):

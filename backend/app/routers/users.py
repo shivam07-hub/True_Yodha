@@ -18,6 +18,7 @@ from app.schemas import (
 )
 from app.services.scoring import recompute_score
 from app.services.skill_advice import generate_skill_advice
+from app.services.skill_appeal import judge_skill_appeal
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.xp_policy import (
     FOLLOW_COMPANY_XP_COST,
@@ -60,6 +61,7 @@ async def get_my_skills(
             "evidence_text": record.evidence_text,
             "forge_sessions_count": record.forge_sessions_count,
             "forged_level_up_available": record.forged_level_up_available,
+            "correction_count": record.correction_count,
         }
         l1 = (lc.l1_domain if lc else "") or "General"
         l2 = (lc.l2_cluster if lc else "") or "General"
@@ -73,6 +75,9 @@ async def get_my_skills(
     return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
 
 
+_MAX_APPEALS = 2
+
+
 @router.patch("/me/skills/{taxonomy_key}/level", response_model=SkillLevelCorrectionResponse)
 async def correct_skill_level(
     taxonomy_key: str,
@@ -80,20 +85,50 @@ async def correct_skill_level(
     current_user: dict = Depends(get_current_user),
     users_repo: UsersRepository = Depends(get_token_users_repository),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> SkillLevelCorrectionResponse:
     user_id = current_user["user_id"]
     skill_id = users_repo.get_skill_id_by_taxonomy_key(taxonomy_key)
     if skill_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{taxonomy_key}' not found in taxonomy.")
 
-    users_repo.correct_skill_level(user_id, skill_id, body.level)
+    correction_count = users_repo.get_correction_count(user_id, skill_id)
+    if correction_count >= _MAX_APPEALS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="already changed twice",
+        )
 
-    score_row = recompute_score(scores_repo, user_id)
+    # Resolve display_name from records (needed for LLM context).
+    records = users_repo.list_user_skill_records(user_id)
+    display_name = next((r.display_name for r in records if r.key == taxonomy_key), taxonomy_key)
+
+    verdict_data = await judge_skill_appeal(
+        skill=display_name,
+        target_level=body.level,
+        bullet_text=body.bullet_text,
+        provider=llm_provider,
+    )
+
+    approved = verdict_data["approved"]
+    total_score = None
+    if approved:
+        users_repo.correct_skill_level(user_id, skill_id, body.level)
+        score_row = recompute_score(scores_repo, user_id)
+        total_score = score_row.get("total_score")
+
+    # Only successful appeals consume the cap (correction_count incremented in repo).
+    new_count = correction_count + (1 if approved else 0)
+    appeals_remaining = max(0, _MAX_APPEALS - new_count)
 
     return SkillLevelCorrectionResponse(
         taxonomy_key=taxonomy_key,
-        new_level=body.level,
-        total_score=score_row.get("total_score"),
+        new_level=body.level if approved else None,
+        total_score=total_score,
+        approved=approved,
+        verdict=verdict_data["verdict"],
+        criteria=verdict_data["criteria"],
+        appeals_remaining=appeals_remaining,
     )
 
 

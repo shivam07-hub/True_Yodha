@@ -256,6 +256,17 @@ export interface UserSkillItem {
   evidence_text: string | null
   forge_sessions_count: number
   forged_level_up_available: boolean
+  correction_count: number
+}
+
+export interface SkillAppealResponse {
+  taxonomy_key: string
+  new_level: number | null
+  total_score: number | null
+  approved: boolean
+  verdict: string
+  criteria: string
+  appeals_remaining: number
 }
 
 export interface UserSkillsByDomain {
@@ -288,13 +299,13 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
-  correctSkillLevel: (token: string, taxonomyKey: string, level: number) =>
-    request<{ taxonomy_key: string; new_level: number; total_score: number | null }>(
+  correctSkillLevel: (token: string, taxonomyKey: string, level: number, bulletText: string) =>
+    request<SkillAppealResponse>(
       `/users/me/skills/${encodeURIComponent(taxonomyKey)}/level`,
       {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ level }),
+        body: JSON.stringify({ level, bullet_text: bulletText }),
       },
     ),
   skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string, freeUnlock = false) =>

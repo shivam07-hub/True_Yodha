@@ -94,15 +94,43 @@ export default function SkillsPage() {
   const proofCount = allSkills.filter(s => s.evidence_text).length
   const weakDomainCount = domainEntries.filter(d => d.avg < 40).length
 
-  const PillBtn = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button onClick={onClick} style={{
-      padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: active ? 700 : 500,
-      fontFamily: "inherit", cursor: "pointer",
-      background: active ? "var(--tm-accent)" : "transparent",
-      color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
-      border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-      transition: "all 150ms var(--tm-ease)",
-    }}>{children}</button>
+  const IconBtn = ({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) => (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      style={{
+        width: 32, height: 32, borderRadius: 8, fontSize: 14, fontWeight: active ? 700 : 500,
+        fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        background: active ? "var(--tm-accent)" : "transparent",
+        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
+        border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+        transition: "all 150ms var(--tm-ease)",
+        flexShrink: 0,
+      }}
+    >{icon}</button>
+  )
+
+  const DotBtn = ({ active, onClick, color, count, label }: { active: boolean; onClick: () => void; color: string; count: number; label: string }) => (
+    <button
+      onClick={onClick}
+      title={`${label} (${count})`}
+      aria-label={`${label}: ${count}`}
+      aria-pressed={active}
+      style={{
+        height: 32, padding: "0 10px", borderRadius: 8, fontSize: 11, fontWeight: active ? 700 : 500,
+        fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+        background: active ? "var(--tm-accent)" : "transparent",
+        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
+        border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+        transition: "all 150ms var(--tm-ease)",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? "var(--tm-accent-fg)" : color, flexShrink: 0 }} />
+      {count}
+    </button>
   )
 
   return (
@@ -131,41 +159,29 @@ export default function SkillsPage() {
           </div>
         </div>
 
-        {/* Sort/Filter bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-          <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>VIEW</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <PillBtn active={view === "domains"} onClick={() => setView("domains")}>Domains</PillBtn>
-            <PillBtn active={view === "audit"} onClick={() => setView("audit")}>◈ Audit</PillBtn>
-          </div>
+        {/* Sort/Filter bar — icon-only, enterprise compact */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+          {/* VIEW group */}
+          <IconBtn active={view === "domains"} onClick={() => setView("domains")} icon="⊞" label="Domains view" />
+          <IconBtn active={view === "audit"} onClick={() => setView("audit")} icon="◈" label="Audit view" />
+
           {view === "domains" && (
             <>
-              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)" }} />
-              <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SORT</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <PillBtn active={sort === "gap"} onClick={() => setSort("gap")}>Gap first</PillBtn>
-                <PillBtn active={sort === "alpha"} onClick={() => setSort("alpha")}>A → Z</PillBtn>
-                <PillBtn active={sort === "skills"} onClick={() => setSort("skills")}>Most skills</PillBtn>
-              </div>
-              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)" }} />
-              <span className="tm-label-caps" style={{ letterSpacing: "0.1em", fontSize: 10 }}>SHOW</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <PillBtn active={show === "all"} onClick={() => setShow("all")}>All {counts.all}</PillBtn>
-                <PillBtn active={show === "at-risk"} onClick={() => setShow("at-risk")}>
-                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-danger)", marginRight: 5, verticalAlign: "middle" }} />
-                  At risk {counts["at-risk"]}
-                </PillBtn>
-                <PillBtn active={show === "building"} onClick={() => setShow("building")}>
-                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#d97706", marginRight: 5, verticalAlign: "middle" }} />
-                  Building {counts.building}
-                </PillBtn>
-                <PillBtn active={show === "strong"} onClick={() => setShow("strong")}>
-                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--tm-success)", marginRight: 5, verticalAlign: "middle" }} />
-                  Strong {counts.strong}
-                </PillBtn>
-              </div>
+              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)", margin: "0 4px" }} />
+              {/* SORT group */}
+              <IconBtn active={sort === "gap"} onClick={() => setSort("gap")} icon="↘" label="Sort: gap first" />
+              <IconBtn active={sort === "alpha"} onClick={() => setSort("alpha")} icon="Aa" label="Sort: A → Z" />
+              <IconBtn active={sort === "skills"} onClick={() => setSort("skills")} icon="#" label="Sort: most skills" />
+
+              <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)", margin: "0 4px" }} />
+              {/* SHOW group — dot + count */}
+              <DotBtn active={show === "all"} onClick={() => setShow("all")} color="var(--tm-text-faint)" count={counts.all} label="Show all" />
+              <DotBtn active={show === "at-risk"} onClick={() => setShow("at-risk")} color="var(--tm-danger)" count={counts["at-risk"]} label="At risk" />
+              <DotBtn active={show === "building"} onClick={() => setShow("building")} color="#d97706" count={counts.building} label="Building" />
+              <DotBtn active={show === "strong"} onClick={() => setShow("strong")} color="var(--tm-success)" count={counts.strong} label="Strong" />
             </>
           )}
+
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <Link href="/cv" style={{
               fontSize: 12, fontWeight: 600, color: "var(--tm-text-faint)", textDecoration: "none",
@@ -182,7 +198,7 @@ export default function SkillsPage() {
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
               onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
-            >★ Log to Forge</Link>
+            >★ Forge</Link>
           </div>
         </div>
 

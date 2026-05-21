@@ -151,14 +151,15 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
             )}
             <div style={{
               marginTop: 6, padding: "10px 12px",
-              fontSize: 12, lineHeight: 1.55, color: "var(--tm-text-faint)",
-              background: "rgba(255,255,255,0.02)",
-              border: "1px dashed var(--tm-border-soft)",
+              fontSize: 12, lineHeight: 1.55, color: "var(--tm-text)",
+              background: "rgba(0,245,212,0.04)",
+              border: "1px solid var(--tm-accent-ring)",
+              borderLeft: "3px solid var(--tm-accent)",
               borderRadius: "var(--tm-radius-sm)",
               fontFamily: "var(--tm-font-mono)",
             }}>
-              <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-text-faint)" }}>Currently in your CV</div>
-              {original || <em style={{ fontStyle: "italic" }}>No evidence text on file</em>}
+              <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-accent)" }}>Currently in your CV</div>
+              {original || <em style={{ fontStyle: "italic", color: "var(--tm-text-faint)" }}>No evidence text on file</em>}
             </div>
           </div>
         )}

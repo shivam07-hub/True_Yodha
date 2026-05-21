@@ -388,6 +388,15 @@
 .cvb-cv-render li { font-size: 12.5px; line-height: 1.6; margin-bottom: 4px; color: var(--tm-text); }
 .cvb-cv-render .cv-summary { font-size: 13px; color: var(--tm-text); line-height: 1.6; margin: 0; }
 .cvb-cv-render .cv-skills { font-family: var(--cvb-font-mono); font-size: 12px; line-height: 1.75; color: var(--tm-text); }
+/* Green persistent highlight on the CV line that matches ?skill= deeplink */
+.cvb-cv-render li.cv-focus-bullet {
+  background: rgba(0,245,212,0.08);
+  border-left: 3px solid var(--tm-accent);
+  padding-left: 8px;
+  margin-left: -8px;
+  border-radius: 3px;
+  color: var(--tm-text);
+}
 
 /* ─── Version tabs ──────────────────────────────────────────── */
 .cvb-version-tabs {

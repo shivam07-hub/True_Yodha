@@ -29,6 +29,7 @@ interface BaselineViewProps {
   profile: UserProfile | null
   onRework: () => void
   onOpenJob: (jobId: string) => void
+  focusSkill?: string | null
 }
 
 interface OrderedRow { v: CVVersion; thread: string }
@@ -48,10 +49,12 @@ function orderRows(versions: CVVersion[]): OrderedRow[] {
     else threads.set(key, [v])
   }
   const entries: Array<[string, CVVersion[]]> = Array.from(threads.entries())
-  entries.forEach(([, arr]) => arr.sort((a, b) => a.user_version_number - b.user_version_number))
+  // Newest commit first within each thread.
+  entries.forEach(([, arr]) => arr.sort((a, b) => b.user_version_number - a.user_version_number))
+  // Thread ordering: thread with the most recent commit first.
   entries.sort((a, b) => {
-    const aLast = a[1][a[1].length - 1].user_version_number
-    const bLast = b[1][b[1].length - 1].user_version_number
+    const aLast = a[1][0].user_version_number
+    const bLast = b[1][0].user_version_number
     return bLast - aLast
   })
   const ordered: OrderedRow[] = [...masters]
@@ -73,8 +76,18 @@ export function BaselineView({
   profile,
   onRework,
   onOpenJob,
+  focusSkill,
 }: BaselineViewProps) {
   const [selectedVId, setSelectedVId] = useState<number | null>(null)
+
+  // When arriving via ?skill= deeplink, auto-open the current baseline viewer.
+  useEffect(() => {
+    if (focusSkill && currentBaseline) {
+      setSelectedVId(currentBaseline.id)
+    }
+  // Run once on mount — focusSkill comes from URL, stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const rows = useMemo(() => orderRows(versions), [versions])
 
@@ -218,6 +231,7 @@ export function BaselineView({
               contact={contact}
               onClose={() => setSelectedVId(null)}
               onOpenJob={(id) => { setSelectedVId(null); onOpenJob(id) }}
+              focusSkill={focusSkill}
             />
           ) : (
             <TargetJobsPanel
@@ -353,9 +367,10 @@ interface CVInlineViewerProps {
   contact: { name: string; title: string; location: string; email: string; phone: string; linkedin: string }
   onClose: () => void
   onOpenJob: (jobId: string) => void
+  focusSkill?: string | null
 }
 
-function CVInlineViewer({ version, cv, contact, onClose, onOpenJob }: CVInlineViewerProps) {
+function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }: CVInlineViewerProps) {
   const isMaster = version.kind === "baseline_upload"
   const kindLabel =
     isMaster ? "Master baseline"
@@ -405,7 +420,7 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob }: CVInlineVi
       </div>
 
       <div className="cvb-inline-cv-body">
-        <CVRender cv={cv} contact={contact}/>
+        <CVRender cv={cv} contact={contact} focusSkill={focusSkill}/>
       </div>
     </>
   )

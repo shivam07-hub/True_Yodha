@@ -161,6 +161,7 @@ function CVPage() {
               profile={profileQuery.data ?? null}
               onRework={() => setShowUpload(true)}
               onOpenJob={openJob}
+              focusSkill={focusSkill}
             />
           )}
 

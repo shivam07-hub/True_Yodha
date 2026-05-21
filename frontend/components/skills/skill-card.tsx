@@ -2,21 +2,17 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
-
-const LEVEL_TITLE = ["None", "Awareness", "Working", "Practitioner", "Expert", "Authority"]
 
 export function SkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const [logged, setLogged] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [advice, setAdvice] = useState<string | null>(null)
-  const [pickedLevel, setPickedLevel] = useState<number | null>(null)
-  const queryClient = useQueryClient()
+  // queryClient not used in compact SkillCard — level correction moved to InlineSkillCard.
   const { setBalance } = useXPStore()
 
   const logToForge = useMutation({
@@ -28,13 +24,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
     onSuccess: () => setLogged(true),
   })
 
-  const correctLevel = useMutation({
-    mutationFn: (level: number) => users.correctSkillLevel(token, skill.key, level),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-    },
-  })
+  // Level correction is handled by InlineSkillCard (full appeal flow). SkillCard is a compact read-only card.
 
   const askAdvice = useMutation({
     mutationFn: (freeUnlock: boolean) => users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? "", freeUnlock),
@@ -46,7 +36,6 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
 
   const levelPct = (skill.level / 5) * 100
   const barColor = skill.level >= 3 ? "var(--tm-success)" : skill.level >= 2 ? "var(--tm-warning)" : "var(--tm-danger)"
-  const effectiveLevel = pickedLevel ?? skill.level
 
   return (
     <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -115,65 +104,21 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
 
       {expanded && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4, borderTop: "1px dashed var(--tm-border-soft)" }}>
-          {/* Level correction */}
-          <div>
-            <div style={{ fontSize: 10, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-              Correct level
-            </div>
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              {[0, 1, 2, 3, 4, 5].map(lvl => {
-                const isActive = effectiveLevel === lvl
-                return (
-                  <button
-                    key={lvl}
-                    onClick={() => setPickedLevel(lvl)}
-                    title={`L${lvl} · ${LEVEL_TITLE[lvl]}`}
-                    style={{
-                      width: 22, height: 22, borderRadius: "50%",
-                      border: `1px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                      background: isActive ? "var(--tm-accent-wash)" : "transparent",
-                      color: isActive ? "var(--tm-accent)" : "var(--tm-text-faint)",
-                      fontSize: 10, fontFamily: "var(--tm-font-mono)", cursor: "pointer",
-                      fontWeight: isActive ? 700 : 500,
-                    }}
-                  >{lvl}</button>
-                )
-              })}
-              {pickedLevel !== null && pickedLevel !== skill.level && (
-                <button
-                  onClick={() => correctLevel.mutate(pickedLevel)}
-                  disabled={correctLevel.isPending}
-                  style={{
-                    marginLeft: 8, padding: "4px 10px", borderRadius: "var(--tm-radius-sm)",
-                    background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
-                    border: "1px solid var(--tm-accent)", fontSize: 10, fontWeight: 600,
-                    cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >{correctLevel.isPending ? "…" : "Save"}</button>
-              )}
-              {correctLevel.isSuccess && (
-                <span style={{ marginLeft: 8, fontSize: 10, color: "var(--tm-success)" }}>✓ saved</span>
-              )}
-            </div>
-          </div>
-
           {/* AI advice */}
-          <div>
-            {!skill.forged_level_up_available && (
-              <button
-                onClick={() => askAdvice.mutate(false)}
-                disabled={askAdvice.isPending}
-                style={{
-                  padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
-                  background: "transparent", color: "var(--tm-accent)",
-                  border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
-              </button>
-            )}
-          </div>
+          {!skill.forged_level_up_available && (
+            <button
+              onClick={() => askAdvice.mutate(false)}
+              disabled={askAdvice.isPending}
+              style={{
+                padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
+                background: "transparent", color: "var(--tm-accent)",
+                border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
+            </button>
+          )}
         </div>
       )}
 
