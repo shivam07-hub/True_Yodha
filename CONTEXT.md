@@ -101,6 +101,62 @@ The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth 
 
 ---
 
+## Forge Session
+
+An open-ended interval of deliberate practice on one skill. Stored as **bursts** in `forge_sessions` rows (any `duration_minutes > 0`) and aggregated on `user_skills.total_forge_minutes`. A "session" toward level threshold is the derived unit `total_forge_minutes // 25` — partial bursts accrue across the day and survive reloads. Users are never punished for stopping mid-25-min.
+
+**Lifecycle states (orthogonal axes)**
+
+Timer axis:
+- `idle` — no active skill. No countdown.
+- `running` — active skill, countdown ticking.
+- `paused` — active skill, countdown frozen at last `remaining` value.
+- `complete` — active skill, `remaining = 0`, awaiting claim or restart.
+
+Claim axis (independent):
+- `pendingMinutes > 0` — whole minutes accrued since last successful claim. Claim writes them to backend; backend credits XP + may bump level.
+- `pendingMinutes = 0` — nothing to claim.
+
+A session can simultaneously be `running` and have `pendingMinutes > 0` (kept going past a whole-minute boundary).
+
+**View-model seam**
+
+`useForgeSession()` (`lib/hooks/use-forge-session.ts`) is the single seam every Forge UI surface consumes. Renderers never read `useForgeTimerStore` directly. The hook returns:
+
+```
+{
+  state: 'idle' | 'running' | 'paused' | 'complete'
+  skillName: string | null
+  mm: number; ss: number
+  ringPct: number   // 0..100 progress through current 25-min unit
+  pendingMinutes: number
+  pendingXp: number
+  canClaim: boolean
+
+  startSession(skill): void
+  startLastForged(): Promise<void>   // fetches /users/me/forge/last-skill
+  pause(): void
+  resume(): void
+  claim(opts?: { onClaimed?: (result) => void }): Promise<void>
+}
+```
+
+The hook auto-updates two stores after a successful claim: forge store (clear pendingMinutes) + XP wallet (bump balance). Cache invalidation is caller-controlled via `onClaimed` — most renderers don't show skills/scores, so they leave it blank; the Forge page wires `userSkills` / `scores` / `cvEvidence` invalidation.
+
+**Clock driver**
+
+`<ForgeClockDriver />` mounts once in `AppShell`. It owns the `setInterval(tick, 1000)`. Every other surface is a read-only consumer. Two ticks per second was a real bug class — concentrating the heartbeat in one place removes it as a possibility.
+
+**Surfaces consuming the hook**
+
+- Mobile top widget: `<ForgeXpPill />` (always-visible, compact 30px).
+- Desktop sidebar: `<SidebarForgeTimer />` (104px ring, decorative ticks, shown only when `sessionActive`).
+- Forge page: `app/forge/page.tsx` (full dial, skills picker, claim controls).
+
+Adding a fourth surface (PWA push, watch face, embedded widget) is one adapter, no engine change.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:
