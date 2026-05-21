@@ -12,6 +12,7 @@ import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
+import "./intel-pane.css"
 
 const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -189,30 +190,36 @@ export function IntelPane() {
       </div>
 
       {analytics && (
-        <div style={{ padding: "14px 18px", borderRadius: "var(--tm-radius)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-border-soft)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", fontSize: 44, color: "var(--tm-accent)", opacity: 0.06, pointerEvents: "none" }}>⚡</div>
-          <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 4, fontWeight: 700 }}>Market Signal</div>
-          <div style={{ fontSize: 16, lineHeight: 1.45, fontWeight: 600, color: "var(--tm-text)" }}>
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_jobs.toLocaleString()}</span> jobs across{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_companies.toLocaleString()}</span> companies in{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{analytics.total_industries}</span> industry groups
-            {selectedRole ? <> · role: <span style={{ color: "var(--tm-accent)" }}>{selectedRole}</span></> : null}
+        <div className="tm-intel-market" aria-label="Market signal">
+          <div className="tm-intel-market-stat">
+            <div className="tm-intel-market-num">{analytics.total_jobs.toLocaleString()}</div>
+            <div className="tm-intel-market-lbl">Jobs</div>
           </div>
+          <div className="tm-intel-market-stat">
+            <div className="tm-intel-market-num">{analytics.total_companies.toLocaleString()}</div>
+            <div className="tm-intel-market-lbl">Companies</div>
+          </div>
+          <div className="tm-intel-market-stat">
+            <div className="tm-intel-market-num">{analytics.total_industries}</div>
+            <div className="tm-intel-market-lbl">Industries</div>
+          </div>
+          {selectedRole && (
+            <div className="tm-intel-market-role" aria-label={`Filtered to role ${selectedRole}`}>
+              <span>·</span> {selectedRole}
+            </div>
+          )}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", fontWeight: 700 }}>
-          Role Domain
-        </div>
+      <div className="tm-intel-filters">
         <select
           value={selectedRole}
           onChange={(e) => {
             setSelectedRole(e.target.value)
             setSelected(null)
           }}
-          className="tm-input"
-          style={{ maxWidth: 320, height: 40, fontSize: 14 }}
+          className="tm-input tm-intel-filter"
+          aria-label="Filter by role"
         >
           <option value="">All roles</option>
           {roleOptions.map((role) => (
@@ -228,8 +235,8 @@ export function IntelPane() {
             setSelectedCity(e.target.value)
             setSelected(null)
           }}
-          className="tm-input"
-          style={{ maxWidth: 200, height: 40, fontSize: 14 }}
+          className="tm-input tm-intel-filter"
+          aria-label="Filter by city"
         >
           <option value="">All cities</option>
           {cityOptions.map((item) => (
@@ -245,8 +252,8 @@ export function IntelPane() {
             setSelectedCountry(e.target.value)
             setSelected(null)
           }}
-          className="tm-input"
-          style={{ maxWidth: 200, height: 40, fontSize: 14 }}
+          className="tm-input tm-intel-filter"
+          aria-label="Filter by country"
         >
           <option value="">All countries</option>
           {countryOptions.map((item) => (
@@ -262,8 +269,8 @@ export function IntelPane() {
             setSelectedMode(e.target.value)
             setSelected(null)
           }}
-          className="tm-input"
-          style={{ maxWidth: 180, height: 40, fontSize: 14 }}
+          className="tm-input tm-intel-filter"
+          aria-label="Filter by work mode"
         >
           <option value="">All modes</option>
           {modeOptions.map((item) => (
@@ -300,14 +307,13 @@ export function IntelPane() {
           alignItems: "start",
         }}>
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 16 }}>
-            <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78, marginBottom: 12, fontWeight: 700 }}>
-              {view === "companies" ? "Top Companies Hiring" : "Industry Breakdown"}
-            </div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              {view === "companies"
-                ? `Showing ${list.length.toLocaleString()} scraped companies`
-                : `Showing ${list.length.toLocaleString()} industry groups`}{" "}
-              · scroll to view all
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78, fontWeight: 700 }}>
+                {view === "companies" ? "Top Companies" : "Industries"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
+                {list.length.toLocaleString()}
+              </div>
             </div>
             <div
               role="region"
@@ -360,7 +366,7 @@ export function IntelPane() {
                         <div>
                           <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8, fontWeight: 700 }}>Hard Skills · job mentions</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {hard.slice(0, 12).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
+                            {hard.slice(0, 8).map((s) => <SkillChip key={s.skill} skill={s.skill} count={s.count} />)}
                           </div>
                         </div>
                       )}
@@ -398,11 +404,11 @@ export function IntelPane() {
 
       <div style={{ marginTop: 28, padding: "18px 20px", borderRadius: "var(--tm-radius)", background: "var(--tm-surface)", border: "1px solid var(--tm-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", boxShadow: "var(--tm-shadow-1)" }}>
         <div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>See how your skills stack up against this market</div>
-          <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Upload your CV → get your Myro Score in 60 seconds</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>How do you stack up?</div>
+          <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Upload your CV. 60 seconds. Free.</div>
         </div>
         <Link href="/signup" style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
-          Sign up to see your Myro Score →
+          Get my Myro Score →
         </Link>
       </div>
     </div>

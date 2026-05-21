@@ -54,6 +54,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const [editOpen, setEditOpen] = useState(false)
   const [logged, setLogged] = useState(false)
   const [advice, setAdvice] = useState<string | null>(null)
+  const [adviceExpanded, setAdviceExpanded] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const pollTimer = useRef<number | null>(null)
 
@@ -241,15 +242,37 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         />
       </div>
 
-      {advice && (
-        <div style={{
-          padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
-          color: "var(--tm-text-muted)",
-          background: "rgba(0,245,212,0.04)",
-          border: "1px solid var(--tm-accent-ring)",
-          borderRadius: "var(--tm-radius-sm)",
-        }}>{advice}</div>
-      )}
+      {advice && (() => {
+        const PREVIEW = 240
+        const isLong = advice.length > PREVIEW + 40
+        const shown = !isLong || adviceExpanded ? advice : `${advice.slice(0, PREVIEW).trimEnd()}…`
+        return (
+          <div style={{
+            padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
+            color: "var(--tm-text-muted)",
+            background: "rgba(0,245,212,0.04)",
+            border: "1px solid var(--tm-accent-ring)",
+            borderRadius: "var(--tm-radius-sm)",
+            wordBreak: "break-word", overflowWrap: "anywhere",
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div>{shown}</div>
+            {isLong && (
+              <button
+                type="button"
+                onClick={() => setAdviceExpanded((v) => !v)}
+                style={{
+                  alignSelf: "flex-start", padding: 0, background: "transparent", border: "none",
+                  fontSize: 11, fontWeight: 600, color: "var(--tm-accent)", cursor: "pointer",
+                  fontFamily: "inherit", letterSpacing: "0.02em",
+                }}
+              >
+                {adviceExpanded ? "Show less ↑" : "Show more ↓"}
+              </button>
+            )}
+          </div>
+        )
+      })()}
       {errorMsg && <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>{errorMsg}</div>}
 
       {/* Appeal level section */}
