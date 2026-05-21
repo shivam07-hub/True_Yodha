@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cv, diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
@@ -12,6 +11,7 @@ import { useRecomputeStore } from "@/store/recomputeStore"
 import { useCartStore } from "@/store/cartStore"
 import { LEVEL_THRESHOLDS } from "@/lib/level-thresholds"
 import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
+import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 
 const PROFICIENCY_TITLES = ["None", "Scout", "Trailblazer", "Excavator", "Cartographer", "Legend"]
 
@@ -24,28 +24,8 @@ const LADDER_DESCRIPTOR: Record<string, string> = {
   "4-5": "Set the standard others learn from. Public talks, published frameworks, hiring decisions made on this skill. Your bar IS the industry bar.",
 }
 
-function levelBadgeColor(level: number) {
-  if (level >= 4) return { bg: "var(--tm-accent)", fg: "var(--tm-accent-fg)" }
-  if (level >= 3) return { bg: "#065f46", fg: "#6ee7b7" }
-  if (level >= 2) return { bg: "#78350f", fg: "#fcd34d" }
-  return { bg: "#1f2937", fg: "var(--tm-text-faint)" }
-}
-
-function gapLabel(level: number): string {
-  if (level >= 4) return "Strong"
-  if (level >= 2) return "Building"
-  return "Gap"
-}
-
-function progressColor(level: number): string {
-  if (level >= 3) return "var(--tm-success)"
-  if (level >= 2) return "#d97706"
-  return "var(--tm-danger)"
-}
-
 export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const queryClient = useQueryClient()
-  const router = useRouter()
   const { setBalance } = useXPStore()
   const startRecompute = useRecomputeStore(s => s.start)
   const clearRecompute = useRecomputeStore(s => s.clear)
@@ -66,7 +46,10 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
 
   const isFree = skill.forged_level_up_available
   const nextLevel = Math.min(skill.level + 1, 5)
-  const badge = levelBadgeColor(skill.level)
+  const tier = skillTier(skill.level)
+  const nextTier = skillTier(nextLevel)
+  const tierTokens = TIER_TOKENS[tier]
+  const nextTierTokens = TIER_TOKENS[nextTier]
   const levelPct = (skill.level / 5) * 100
   const ladder = LADDER_DESCRIPTOR[`${skill.level}-${nextLevel}`] ?? LADDER_DESCRIPTOR["3-4"]
 
@@ -162,17 +145,17 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       {/* Row 1 — name + L · Gap pill */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>
-          <span style={{ marginRight: 8, color: progressColor(skill.level) }}>●</span>
+          <span style={{ marginRight: 8, color: tierTokens.fg }}>●</span>
           {skill.display_name}
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, fontFamily: "var(--tm-font-mono)",
           letterSpacing: "0.05em",
           padding: "4px 10px", borderRadius: 99,
-          color: badge.fg, background: "transparent",
-          border: `1px solid ${badge.bg}`,
+          color: tierTokens.fg, background: tierTokens.bg,
+          border: `1px solid ${tierTokens.border}`,
         }}>
-          L{skill.level} · {gapLabel(skill.level)}
+          L{skill.level} · {skillTierLabel(skill.level)}
         </span>
       </div>
 
@@ -180,14 +163,14 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       <div style={{ height: 2, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
         <div style={{
           height: "100%", width: `${levelPct}%`,
-          background: progressColor(skill.level),
+          background: tierTokens.fg,
           transition: "width 500ms var(--tm-ease)",
         }} />
       </div>
 
       {/* Row 3 — HOW TO REACH … descriptor */}
       <div>
-        <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "#d97706", marginBottom: 8 }}>
+        <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: nextTierTokens.fg, marginBottom: 8 }}>
           How to reach {PROFICIENCY_TITLES[nextLevel]?.toUpperCase()} (L{nextLevel})
         </div>
         <div style={{
@@ -209,7 +192,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           borderRadius: "var(--tm-radius-sm)",
           fontFamily: "var(--tm-font-mono)",
           fontSize: 12, lineHeight: 1.65,
-          color: skill.evidence_text ? "var(--tm-text)" : "var(--tm-warning, #d97706)",
+          color: skill.evidence_text ? "var(--tm-text)" : "var(--tm-text-faint)",
           whiteSpace: "pre-wrap", wordBreak: "break-word",
         }}>
           {skill.evidence_text || "No CV evidence — keyword inferred. Edit to add a real pointer."}
@@ -223,7 +206,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         <ActionBtn
           label="Edit CV pointer"
           icon="✎"
-          onClick={() => router.push(`/cv?skill=${encodeURIComponent(skill.key)}&edit=1`)}
+          onClick={() => setEditOpen(true)}
         />
         <ActionBtn
           label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} XP`}

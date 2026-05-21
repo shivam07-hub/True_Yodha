@@ -135,14 +135,14 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
                 fontFamily: "var(--tm-font-body)", fontSize: 13, lineHeight: 1.6,
                 color: "var(--tm-text)",
                 background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${keywordMissing ? "var(--tm-warning, #d97706)" : "var(--tm-border-soft)"}`,
+                border: `1px solid ${keywordMissing ? "var(--tm-warning)" : "var(--tm-border-soft)"}`,
                 borderRadius: "var(--tm-radius-sm)",
                 resize: "vertical",
                 outline: "none",
               }}
             />
             {keywordMissing && (
-              <div style={{ fontSize: 11, color: "#d97706", display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 11, color: "var(--tm-warning)", display: "flex", alignItems: "center", gap: 6 }}>
                 <span>⚠</span>
                 <span>
                   &ldquo;{skill.display_name}&rdquo; no longer appears in this bullet — the skill may drop unless an LLM-detected synonym is present.

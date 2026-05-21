@@ -58,7 +58,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   minimumScale: 1,
-  themeColor: "#050A18",
+  themeColor: "#FFFFFF",
   viewportFit: "cover",
 }
 
@@ -70,7 +70,7 @@ const THEME_BOOTSTRAP = `(function(){try{var a=localStorage.getItem('tm.accent')
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="dark" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`} data-accent="forge" data-surface="light" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

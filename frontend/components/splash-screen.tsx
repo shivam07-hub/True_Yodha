@@ -1,101 +1,28 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { MyroLogo } from "@/components/myro-logo"
-
-type Phase = "enter" | "visible" | "exit" | "done"
+import "./splash-screen.css"
 
 export function SplashScreen() {
-  const [phase, setPhase] = useState<Phase>("enter")
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const [done, setDone] = useState(false)
 
-  useEffect(() => {
-    // Double-rAF ensures browser has painted before transition fires
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => setPhase("visible"))
-    )
-
-    const t1 = setTimeout(() => setPhase("exit"), 1900)
-    const t2 = setTimeout(() => setPhase("done"), 2400)
-    timers.current = [t1, t2]
-
-    return () => {
-      cancelAnimationFrame(raf)
-      timers.current.forEach(clearTimeout)
-    }
-  }, [])
-
-  if (phase === "done") return null
-
-  const isExiting = phase === "exit"
-  const isVisible = phase === "visible" || isExiting
+  if (done) return null
 
   return (
     <div
+      className="tm-splash"
       aria-hidden="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background: "var(--tm-bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 20,
-        opacity: isExiting ? 0 : 1,
-        transition: isExiting
-          ? "opacity 500ms cubic-bezier(0.16, 1, 0.3, 1)"
-          : "none",
-        pointerEvents: isExiting ? "none" : "all",
+      onAnimationEnd={(e) => {
+        if (e.animationName === "tm-splash-dismiss") setDone(true)
       }}
     >
-      {/* Logo mark */}
-      <div
-        style={{
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? "scale(1)" : "scale(0.88)",
-          transition: "opacity 550ms cubic-bezier(0.16, 1, 0.3, 1), transform 550ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
+      <div className="tm-splash-logo">
         <MyroLogo size={88} />
       </div>
-
-      {/* Wordmark + tagline */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 6,
-          opacity: isVisible ? 1 : 0,
-          transform: isVisible ? "translateY(0)" : "translateY(10px)",
-          transition: "opacity 550ms 120ms cubic-bezier(0.16, 1, 0.3, 1), transform 550ms 120ms cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-sans, system-ui)",
-            fontSize: 26,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-            color: "var(--tm-text)",
-          }}
-        >
-          MYRO
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-sans, system-ui)",
-            fontSize: 11,
-            fontWeight: 400,
-            letterSpacing: "0.14em",
-            color: "var(--tm-text-faint)",
-            textTransform: "uppercase",
-          }}
-        >
-          Career Intelligence
-        </span>
+      <div className="tm-splash-text">
+        <span className="tm-splash-mark">MYRO</span>
+        <span className="tm-splash-tag">Career Intelligence</span>
       </div>
     </div>
   )

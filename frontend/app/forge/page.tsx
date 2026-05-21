@@ -14,8 +14,9 @@ import type {
   UserSkillsByDomain,
 } from "@/lib/api"
 import { dataKeys, invalidateDiaryData } from "@/lib/domain-data"
-import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
+import { forgeProgressRatio } from "@/lib/forge-progress"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useForgeSession } from "@/lib/hooks/use-forge-session"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { sessionsForGap } from "@/lib/level-thresholds"
 import { useCartStore } from "@/store/cartStore"
@@ -186,7 +187,7 @@ function ForgePageInner() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill, clearCart } = useCartStore()
-  const { setBalance: setXPBalance, addBalance } = useXPStore()
+  const { addBalance } = useXPStore()
   const {
     sessionActive,
     skillName,
@@ -195,8 +196,11 @@ function ForgePageInner() {
     dismissed,
     startSession,
     setRunning,
-    restartSession,
   } = useForgeTimerStore()
+
+  // Single source of truth for XP/claim — matches sidebar widget (ambient rate).
+  // Immersive Focus Mode (follow-up) will mount a separate surface with sessionType: "focused".
+  const forgeSession = useForgeSession({ sessionType: "ambient" })
 
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterMode>("all")
@@ -303,9 +307,8 @@ function ForgePageInner() {
   const activeSessionName = skillName ?? selectedCandidate?.skill_name ?? null
   const progress = forgeProgressRatio(FORGE_AMBIENT_DURATION, remaining)
   const dashOffset = DIAL_C * (1 - progress)
-  const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, XP_POLICY.forgeFocusedRate)
-  const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
-  const canClaim = readyXP > 0 && !!activeSessionName
+  const readyXP = forgeSession.pendingXp
+  const canClaim = forgeSession.canClaim && !!activeSessionName
   const clock = `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`
   const entries = (history?.entries ?? []) as DiaryEntry[]
   const milestoneRows = (milestones?.milestones ?? []) as Milestone[]
@@ -318,20 +321,21 @@ function ForgePageInner() {
     return candidate.tags.includes("upgrade") || candidate.tags.includes("ready")
   })
 
-  const completeForge = useMutation({
-    mutationFn: async (payload: { skill_name: string; duration_minutes: number }) => {
-      if (!token) throw new Error("Sign in first.")
-      return xp.completeForge(token, { ...payload, session_type: "focused" })
-    },
-    onSuccess: (result) => {
-      setXPBalance(result.new_xp_balance)
-      restartSession()
-      setToast(`+${result.xp_earned} XP · forge logged`)
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
-    },
-  })
+  async function handleClaim() {
+    if (!activeSessionName || !canClaim || forgeSession.claiming) return
+    try {
+      await forgeSession.claim({
+        onClaimed: (result) => {
+          setToast(`+${result.xp_earned} XP · forge logged`)
+          queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+          queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+          queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
+        },
+      })
+    } catch {
+      // Hook exposes claimError; toast handles success path.
+    }
+  }
 
   const saveEntry = useMutation({
     mutationFn: async (payload: { text: string; cart: CartSkill[] }) => {
@@ -361,11 +365,6 @@ function ForgePageInner() {
       return
     }
     setRunning(!running)
-  }
-
-  function handleClaim() {
-    if (!activeSessionName || !canClaim || completeForge.isPending) return
-    completeForge.mutate({ skill_name: activeSessionName, duration_minutes: claimMinutes })
   }
 
   function handleDiarySubmit() {
@@ -519,10 +518,10 @@ function ForgePageInner() {
                     type="button"
                     className="tm-control-focus"
                     onClick={handleClaim}
-                    disabled={!canClaim || completeForge.isPending}
-                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: canClaim ? "1px solid var(--tm-accent-ring)" : "1px dashed var(--tm-border-soft)", background: canClaim ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)", color: canClaim ? "var(--tm-accent)" : "var(--tm-text-faint)", cursor: canClaim && !completeForge.isPending ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
+                    disabled={!canClaim || forgeSession.claiming}
+                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: canClaim ? "1px solid var(--tm-accent-ring)" : "1px dashed var(--tm-border-soft)", background: canClaim ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)", color: canClaim ? "var(--tm-accent)" : "var(--tm-text-faint)", cursor: canClaim && !forgeSession.claiming ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
                   >
-                    {completeForge.isPending ? "Saving..." : `Claim +${readyXP} XP`}
+                    {forgeSession.claiming ? "Saving..." : `Claim +${readyXP} XP`}
                   </button>
                   <button
                     type="button"
@@ -533,7 +532,7 @@ function ForgePageInner() {
                     Log proof
                   </button>
                 </div>
-                {completeForge.isError && (
+                {forgeSession.claimError && (
                   <div style={{ color: "var(--tm-danger)", fontSize: 12 }}>
                     Could not save forge session. Try again in a moment.
                   </div>

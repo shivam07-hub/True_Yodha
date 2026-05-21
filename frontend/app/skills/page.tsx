@@ -177,7 +177,7 @@ export default function SkillsPage() {
               {/* SHOW group — dot + count */}
               <DotBtn active={show === "all"} onClick={() => setShow("all")} color="var(--tm-text-faint)" count={counts.all} label="Show all" />
               <DotBtn active={show === "at-risk"} onClick={() => setShow("at-risk")} color="var(--tm-danger)" count={counts["at-risk"]} label="At risk" />
-              <DotBtn active={show === "building"} onClick={() => setShow("building")} color="#d97706" count={counts.building} label="Building" />
+              <DotBtn active={show === "building"} onClick={() => setShow("building")} color="var(--tm-tier-building-fg)" count={counts.building} label="Building" />
               <DotBtn active={show === "strong"} onClick={() => setShow("strong")} color="var(--tm-success)" count={counts.strong} label="Strong" />
             </>
           )}

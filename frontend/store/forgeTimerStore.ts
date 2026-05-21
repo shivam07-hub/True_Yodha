@@ -4,6 +4,13 @@ import type { CartSkill } from "@/types/xp"
 
 export const FORGE_AMBIENT_DURATION = 25 * 60  // seconds in one "session" unit
 export const FORGE_AMBIENT_RATE = 2             // XP per minute (ambient)
+export const FORGE_FOCUSED_RATE = 3             // XP per minute (focused / immersive)
+
+export type ForgeSessionType = "ambient" | "focused"
+
+export function forgeRateFor(sessionType: ForgeSessionType): number {
+  return sessionType === "focused" ? FORGE_FOCUSED_RATE : FORGE_AMBIENT_RATE
+}
 
 interface ForgeTimerStore {
   // Active session metadata (the skill being forged right now).
@@ -126,6 +133,6 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
   ),
 )
 
-export function pendingXpFromMinutes(minutes: number): number {
-  return minutes * FORGE_AMBIENT_RATE
+export function pendingXpFromMinutes(minutes: number, sessionType: ForgeSessionType = "ambient"): number {
+  return minutes * forgeRateFor(sessionType)
 }
