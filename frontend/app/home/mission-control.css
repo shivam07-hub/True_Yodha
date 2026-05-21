@@ -753,6 +753,28 @@
   padding: 2px 8px;
   border-radius: var(--tm-radius-pill);
 }
+.mc-dominate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm-success);
+  background: var(--tm-success-wash);
+  border: 1px solid var(--tm-success);
+  padding: 3px 10px;
+  border-radius: var(--tm-radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 200ms var(--tm-ease), background 200ms var(--tm-ease);
+}
+.mc-dominate-btn:hover { filter: brightness(1.12); }
+.mc-dominate-btn.is-active {
+  background: var(--tm-accent-wash);
+  color: var(--tm-accent);
+  border-color: var(--tm-accent);
+}
 
 /* ─── Side card (Skills to build) ─── */
 .mc-side-card {

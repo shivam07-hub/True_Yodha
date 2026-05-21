@@ -27,22 +27,25 @@ async def _run(admin, level: int, sessions_count: int, has_row: bool = True) -> 
 
 
 @pytest.mark.asyncio
-async def test_level_up_fires_at_threshold_3():
-    result = await _run(MagicMock(), level=0, sessions_count=2)
+async def test_level_up_fires_at_l0_threshold():
+    # L0 → L1 threshold = 1 session; _run pre-increments by 1, so passing 0 lands at 1
+    result = await _run(MagicMock(), level=0, sessions_count=0)
     assert result["leveled_up"] is True
     assert result["level_after"] == 1
 
 
 @pytest.mark.asyncio
 async def test_no_level_up_before_threshold():
-    result = await _run(MagicMock(), level=0, sessions_count=1)
+    # L1 threshold = 3 sessions; sessions_count=1 → post-increment = 2, below threshold
+    result = await _run(MagicMock(), level=1, sessions_count=1)
     assert result["leveled_up"] is False
-    assert result["level_after"] == 0
+    assert result["level_after"] == 1
 
 
 @pytest.mark.asyncio
-async def test_level_up_l1_to_l2_at_9():
-    result = await _run(MagicMock(), level=1, sessions_count=8)
+async def test_level_up_l1_to_l2_at_threshold():
+    # L1 → L2 threshold = 3 sessions
+    result = await _run(MagicMock(), level=1, sessions_count=2)
     assert result["leveled_up"] is True
     assert result["level_after"] == 2
 

@@ -1,6 +1,7 @@
 "use client"
 
 import type { SkillGapItem } from "@/lib/api"
+import { sessionsForGap } from "@/lib/level-thresholds"
 
 interface SkillRowProps {
   skill: SkillGapItem
@@ -8,12 +9,7 @@ interface SkillRowProps {
   onToggle?: () => void
 }
 
-function sessionsBetween(from: number, to: number): number {
-  const steps = [3, 9, 27, 108]
-  let n = 0
-  for (let i = from; i < to && i < steps.length; i++) n += steps[i]
-  return n
-}
+const sessionsBetween = sessionsForGap
 
 export function SkillRow({ skill, inCart, onToggle }: SkillRowProps) {
   if (skill.missing) {

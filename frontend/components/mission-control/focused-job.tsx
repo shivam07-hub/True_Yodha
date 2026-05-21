@@ -7,6 +7,7 @@ import { Icon } from "./icons"
 import { jobs, type ApplicationStatus, type JobMatch, type SkillGapItem, type SkillGapResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
+import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 
 interface FocusedJobProps {
   job: JobMatch
@@ -46,7 +47,6 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
   const skills = skillGapData?.skills ?? []
   const matchedSkills = skills.filter((s) => (s.user_level ?? 0) > 0)
   const matchedDisplay = matchedSkills.slice(0, 2)
-  const missingSkills = skills.filter((s) => s.missing)
   const buildSkills = skills.filter((s) => (s.user_level ?? 0) === 0).slice(0, 4)
 
   return (
@@ -111,8 +111,8 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
           </select>
         </div>
 
-        <div className="mc-skill-rows">
-          {matchedDisplay.length > 0 ? (
+        {matchedDisplay.length > 0 ? (
+          <div className="mc-skill-rows">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {matchedDisplay.map((s) => (
                 <span className="mc-skill-pill matched" key={s.skill}>
@@ -120,13 +120,8 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
                 </span>
               ))}
             </div>
-          ) : null}
-          {missingSkills.slice(0, 3).map((s) => (
-            <span className="mc-skill-pill missing" key={s.skill}>
-              Missing · {s.skill}
-            </span>
-          ))}
-        </div>
+          </div>
+        ) : null}
 
         <Link className="mc-cta-tailor" href={`/cv?jobId=${job.job_id}`}>
           <Icon name="arrowRight" size={14} />
@@ -158,9 +153,18 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
                 <span className="mc-count-bub">{matchedSkills.length}</span>
               </div>
               <div className="mc-skill-match-grid">
-                {matchedSkills.slice(0, 8).map((s) => (
-                  <SkillMatchRow key={s.skill} skill={s} />
-                ))}
+                {matchedSkills.slice(0, 8).map((s) => {
+                  const current = Math.max(0, Math.round(s.user_level ?? 0))
+                  const target = Math.min(MAX_LEVEL, current + 1)
+                  return (
+                    <SkillMatchRow
+                      key={s.skill}
+                      skill={s}
+                      inCart={cartSkillNames.has(s.skill)}
+                      onDominate={() => onSkillToggle({ ...s, user_level: current, required_level: target, missing: true })}
+                    />
+                  )
+                })}
               </div>
             </section>
           </>
@@ -179,19 +183,20 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
         ) : (
           buildSkills.map((s) => {
             const inCart = cartSkillNames.has(s.skill)
+            const fromLvl = s.user_level ?? 0
+            const toLvl = s.required_level ?? 1
+            const sessions = sessionsForGap(fromLvl, toLvl)
             return (
               <div className="mc-skill-build-row" key={s.skill}>
                 <div className="name">{s.skill}</div>
                 <div className="meta">
-                  <span className="lvl">
-                    L{s.user_level ?? 0}→L{s.required_level ?? 1}
-                  </span>
+                  <span className="lvl">L{fromLvl}→L{toLvl}</span>
                   <button
                     type="button"
                     className={`mc-lock-btn tm-control-focus${inCart ? " is-active" : ""}`}
                     onClick={() => onSkillToggle(s)}
                   >
-                    {inCart ? "Locked ✓" : "Lock in · 12 ses"}
+                    {inCart ? "Locked ✓" : `Lock in · ${sessions} ses`}
                   </button>
                 </div>
               </div>
@@ -199,28 +204,21 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
           })
         )}
 
-        <div className="mc-forecast">
-          <div className="mc-forecast-title">Forecast</div>
-          {missingSkills.length > 0 ? (
-            <div>
-              Closing {missingSkills.length} gap{missingSkills.length === 1 ? "" : "s"} →{" "}
-              <span className="num">+{Math.min(30, missingSkills.length * 9)} Fit</span>
-              {" · "}
-              {missingSkills.length * 2} session{missingSkills.length * 2 === 1 ? "" : "s"}
-            </div>
-          ) : null}
-          <div>
-            Apply now → <span className="mono">{fit} → {Math.min(100, fit + 18)}</span> with tailored CV
-          </div>
-        </div>
       </aside>
     </div>
   )
 })
 
-function SkillMatchRow({ skill }: { skill: SkillGapItem }) {
-  const level = Math.max(0, Math.min(5, Math.round(skill.user_level ?? 0)))
-  const matched = !skill.missing
+interface SkillMatchRowProps {
+  skill: SkillGapItem
+  inCart: boolean
+  onDominate: () => void
+}
+
+function SkillMatchRow({ skill, inCart, onDominate }: SkillMatchRowProps) {
+  const level = Math.max(0, Math.min(MAX_LEVEL, Math.round(skill.user_level ?? 0)))
+  const atMax = level >= MAX_LEVEL
+  const sessions = atMax ? 0 : sessionsForGap(level, level + 1)
   return (
     <div className="mc-skill-match-row">
       <div className="name">{skill.skill}</div>
@@ -231,7 +229,18 @@ function SkillMatchRow({ skill }: { skill: SkillGapItem }) {
           ))}
         </div>
         <span className="mc-lvl-label">L{level}</span>
-        {matched ? <span className="mc-lvl-status">Matched</span> : null}
+        {atMax ? (
+          <span className="mc-lvl-status">Maxed</span>
+        ) : (
+          <button
+            type="button"
+            className={`mc-dominate-btn tm-control-focus${inCart ? " is-active" : ""}`}
+            onClick={onDominate}
+            title={`Push L${level} → L${level + 1} · ${sessions} session${sessions === 1 ? "" : "s"}`}
+          >
+            {inCart ? `Locked · ${sessions} ses` : `Dominate · ${sessions} ses`}
+          </button>
+        )}
       </div>
     </div>
   )
