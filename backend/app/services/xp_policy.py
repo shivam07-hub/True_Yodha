@@ -4,7 +4,7 @@ Keep spend/earn amounts here so routers and tests do not drift from the
 user-facing XP explanations.
 """
 
-WELCOME_XP = 1000
+WELCOME_XP = 3000
 DIARY_ENTRY_XP = 30
 LINKEDIN_PROFILE_XP = 50
 

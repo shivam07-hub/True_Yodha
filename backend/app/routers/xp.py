@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, status
 
 from app.deps import get_current_user
-from app.schemas.xp import ForgeCompleteRequest, ForgeSessionResponse, XPBalanceResponse, XPSpendRequest
+from app.schemas.xp import (
+    ForgeCompleteRequest,
+    ForgeSessionResponse,
+    LastForgedSkillResponse,
+    XPBalanceResponse,
+    XPSpendRequest,
+)
 from app.services import forge_service, xp_service
 
 router = APIRouter(prefix="/users/me", tags=["xp"])
@@ -41,3 +47,14 @@ async def complete_forge_session(
         session_type=body.session_type,
     )
     return ForgeSessionResponse(**result)
+
+
+@router.get("/forge/last-skill", response_model=LastForgedSkillResponse)
+async def last_forged_skill(
+    current_user: dict = Depends(get_current_user),
+) -> LastForgedSkillResponse:
+    """Return the most recently forged skill. Empty fields when user has none yet."""
+    row = forge_service.get_last_forged_skill(current_user["user_id"])
+    if not row:
+        return LastForgedSkillResponse(skill_id=None, skill_name=None)
+    return LastForgedSkillResponse(**row)

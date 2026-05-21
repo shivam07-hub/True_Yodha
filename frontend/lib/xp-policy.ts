@@ -1,5 +1,5 @@
 export const XP_POLICY = {
-  welcomeBaseline: 1000,
+  welcomeBaseline: 3000,
   linkedInProfile: 50,
   diaryEntry: 30,
   forgeAmbientMinutes: 25,

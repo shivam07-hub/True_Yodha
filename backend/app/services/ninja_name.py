@@ -140,6 +140,38 @@ def generate() -> str:
     return f"{adj}-{noun}-{_random_suffix()}"
 
 
+def slugify_full_name(full_name: str) -> Optional[str]:
+    """Convert a human full name to a candidate slug. Returns None if input degenerate.
+
+    "Shivam Pathak" -> "shivam-pathak"
+    "  Anya  D'Souza " -> "anya-dsouza"
+    """
+    if not isinstance(full_name, str):
+        return None
+    s = full_name.strip().lower()
+    # Strip anything that isn't a-z, 0-9, or whitespace; collapse whitespace runs to hyphen.
+    s = re.sub(r"[^a-z0-9\s-]", "", s)
+    s = re.sub(r"[\s_-]+", "-", s).strip("-")
+    if len(s) < 3:
+        return None
+    return s[:24]
+
+
+def generate_from_full_name(full_name: Optional[str], admin: Client) -> str:
+    """Try slugified full name + suffix first; fall back to random adjective-noun.
+
+    Prefers names the user recognizes (e.g. "shivam-pathak-9k2v") so the onboarding
+    suggestion doesn't feel arbitrary.
+    """
+    slug = slugify_full_name(full_name) if full_name else None
+    if slug:
+        for _ in range(5):
+            candidate = f"{slug}-{_random_suffix()}"
+            if is_valid(candidate) and is_available(candidate, admin=admin):
+                return candidate
+    return generate_unique(admin=admin)
+
+
 # ── Availability + retry ────────────────────────────────────────────────────
 
 def is_available(name: str, admin: Client) -> bool:

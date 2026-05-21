@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query"
 import { diary } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { InlineSkillCard } from "@/components/skills/skill-card-inline"
+import "./domain-accordion-row.css"
 
 
 interface Props {
@@ -52,9 +53,8 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
       overflow: "hidden",
     }}>
       {/* Row header */}
-      <button onClick={onToggle} style={{
+      <button onClick={onToggle} className="tm-domain-accordion-row" style={{
         width: "100%", display: "grid",
-        gridTemplateColumns: "20px 1fr auto auto 52px 32px",
         alignItems: "center", gap: 12,
         padding: "14px 16px", background: "none", border: "none",
         cursor: "pointer", fontFamily: "inherit", textAlign: "left",
@@ -87,8 +87,8 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
           )}
         </div>
 
-        <div style={{ width: 120, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ flex: 1, height: 3, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden" }}>
+        <div className="tm-domain-accordion-row-bar" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, height: 3, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden", minWidth: 0 }}>
             <div style={{ height: "100%", width: `${avg}%`, borderRadius: 99, background: color, transition: "width 500ms var(--tm-ease)" }} />
           </div>
           <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "var(--tm-font-mono)", minWidth: 32, textAlign: "right" }}>

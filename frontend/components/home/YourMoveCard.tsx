@@ -33,7 +33,7 @@ function resolveMove(
       tag: "START HERE",
       headline: "Upload your CV",
       sub: "Unlocks job matching, skill scoring, and XP",
-      xp: "+1000 XP",
+      xp: "+3000 XP",
       action: { label: "Upload CV →", href: "/cv" },
     }
   }

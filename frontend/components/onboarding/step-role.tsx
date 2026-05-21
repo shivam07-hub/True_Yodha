@@ -150,7 +150,7 @@ export function StepRole({ onNext, loading }: Props) {
               onKeyDown={handleKeyDown}
               onFocus={() => { setInputFocused(true); setShowDropdown(true) }}
               onBlur={() => { setInputFocused(false); handleBlur() }}
-              placeholder={atMax ? "Max 3 selected" : "Search skill areas…"}
+              placeholder={atMax ? `Max ${MAX_ROLES} selected` : "Search skill areas…"}
               disabled={atMax}
               autoComplete="off"
               style={{
@@ -258,8 +258,11 @@ export function StepRole({ onNext, loading }: Props) {
             gap: 6,
             overflowX: "auto",
             paddingBottom: 4,
+            paddingRight: 24,
             scrollbarWidth: "none",
             msOverflowStyle: "none",
+            WebkitMaskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%)",
+            maskImage: "linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%)",
           }}
             className="hide-scrollbar"
           >
@@ -374,14 +377,6 @@ export function StepRole({ onNext, loading }: Props) {
             />
           )}
         </div>
-
-        {roles.length > 0 && (
-          <p style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, marginTop: -8 }}>
-            Gap analysis will use live job postings for{" "}
-            <span style={{ color: "var(--tm-accent)" }}>{roles.join(", ")}</span>
-            {" "}to find what skills you need to close.
-          </p>
-        )}
 
         {loading ? (
           <ProcessLoading

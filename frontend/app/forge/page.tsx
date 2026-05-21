@@ -217,6 +217,22 @@ function ForgePageInner() {
     }
   }, [addSkill, cartSkills, skillParam])
 
+  // Auto-resume the last forged skill on entry so the user can keep moving
+  // without picking again. Only fires when no session is active and no ?skill=
+  // override is present — explicit user choices win.
+  useEffect(() => {
+    if (!token || !ready) return
+    if (sessionActive || skillParam) return
+    let cancelled = false
+    xp.lastForgedSkill(token)
+      .then((res) => {
+        if (cancelled || !res?.skill_name) return
+        startSession({ skill_name: res.skill_name, skill_id: res.skill_id })
+      })
+      .catch(() => { /* silent — first-time users have no last skill */ })
+    return () => { cancelled = true }
+  }, [token, ready, sessionActive, skillParam, startSession])
+
   useEffect(() => {
     if (!toast) return
     const id = window.setTimeout(() => setToast(null), 2600)
@@ -371,9 +387,44 @@ function ForgePageInner() {
       <div className="tm-page-enter" style={{ minHeight: "100%", padding: "var(--tm-page-py) var(--tm-page-px)", display: "flex", flexDirection: "column", gap: 18 }}>
         <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: "var(--tm-font-display)", fontSize: 44, lineHeight: 1, fontWeight: 500, color: "var(--tm-text)", letterSpacing: 0 }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!sessionActive) {
+                  const skill = selectedCandidate ?? candidates[0]
+                  if (skill) startSession(toCartSkill(skill))
+                  return
+                }
+                setRunning(!running)
+              }}
+              aria-label={
+                !sessionActive ? "Start forge session"
+                : running ? "Pause forge session"
+                : "Resume forge session"
+              }
+              style={{
+                margin: 0, padding: 0, background: "transparent", border: "none",
+                cursor: "pointer", textAlign: "left", fontFamily: "var(--tm-font-display)",
+                fontSize: 44, lineHeight: 1, fontWeight: 500, color: "var(--tm-text)",
+                letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 12,
+              }}
+            >
               Forge
-            </h1>
+              <span aria-hidden style={{
+                fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 600,
+                padding: "3px 9px", borderRadius: 999,
+                background: !sessionActive
+                  ? "rgba(255,255,255,0.04)"
+                  : running ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.06)",
+                color: !sessionActive
+                  ? "var(--tm-text-faint)"
+                  : running ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                border: `1px solid ${running && sessionActive ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                textTransform: "uppercase", letterSpacing: "0.06em",
+              }}>
+                {!sessionActive ? "Tap to start" : running ? "Running" : "Paused"}
+              </span>
+            </button>
             <div style={{ marginTop: 9, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
               Diary · cart · milestone
             </div>

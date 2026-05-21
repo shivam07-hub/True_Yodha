@@ -28,7 +28,7 @@ async def get_xp_balance(user_id: str) -> int:
 
 
 async def grant_welcome_xp(user_id: str) -> int:
-    """Grant 1000 XP once after first successful CV analysis. Idempotent."""
+    """Grant 3000 XP once after first successful CV analysis. Idempotent."""
     admin = get_supabase_admin()
     check = (
         admin.table("user_profiles")

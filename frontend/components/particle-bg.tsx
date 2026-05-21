@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useViewport } from "@/mobile"
 
 function hexToRgb(hex: string): string {
   if (hex.startsWith("#") && hex.length === 7) {
@@ -21,8 +22,10 @@ type BlastParticle = { x: number; y: number; vx: number; vy: number; op: number;
 
 export function ParticleBg() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { isDesktop } = useViewport()
 
   useEffect(() => {
+    if (!isDesktop) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")
@@ -269,7 +272,9 @@ export function ParticleBg() {
       document.removeEventListener("mouseenter", onEnter)
       document.removeEventListener("visibilitychange", onVisibilityChange)
     }
-  }, [])
+  }, [isDesktop])
+
+  if (!isDesktop) return null
 
   return (
     <canvas

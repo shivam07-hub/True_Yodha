@@ -1,0 +1,176 @@
+.tm-forge-xp-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 245, 212, 0.06);
+  border: 1px solid var(--tm-accent-ring);
+  border-radius: 999px;
+  font-family: var(--tm-font-mono);
+  transition: border-color var(--tm-dur-fast) var(--tm-ease),
+              background var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-forge-xp-pill[data-state="running"] {
+  background: rgba(0, 245, 212, 0.1);
+  box-shadow: 0 0 0 1px var(--tm-accent-ring), 0 0 16px rgba(0, 245, 212, 0.18);
+}
+
+.tm-forge-xp-pill-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px 4px 9px;
+  height: 30px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tm-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-forge-xp-pill-xp:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tm-forge-xp-pill-diamond {
+  color: var(--tm-accent);
+  filter: drop-shadow(0 0 4px var(--tm-accent-glow));
+  font-size: 13px;
+}
+
+.tm-forge-xp-pill-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.tm-forge-xp-pill-unit {
+  font-size: 10px;
+  color: var(--tm-text-faint);
+  font-weight: 500;
+}
+
+.tm-forge-xp-pill-cta,
+.tm-forge-xp-pill-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: color var(--tm-dur-fast) var(--tm-ease),
+              border-color var(--tm-dur-fast) var(--tm-ease),
+              background var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-forge-xp-pill-cta:hover,
+.tm-forge-xp-pill-timer:hover {
+  color: var(--tm-accent);
+  border-color: var(--tm-accent-ring);
+}
+
+.tm-forge-xp-pill-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  mask: radial-gradient(circle 4px at 50% 50%, transparent 99%, #000 100%);
+  -webkit-mask: radial-gradient(circle 4px at 50% 50%, transparent 99%, #000 100%);
+}
+
+.tm-forge-xp-pill-time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: var(--tm-text);
+}
+
+.tm-forge-xp-pill-claim {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--tm-accent);
+  border: 1px solid var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+  animation: tm-forge-claim-in 220ms var(--tm-ease) both;
+}
+
+.tm-forge-xp-pill-claim:hover {
+  background: var(--tm-accent-hover);
+}
+
+.tm-forge-xp-pill-claim:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tm-forge-xp-pill-toast {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  padding: 5px 10px;
+  background: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  animation: tm-forge-toast 1.8s var(--tm-ease) both;
+  pointer-events: none;
+  z-index: 50;
+}
+
+@keyframes tm-forge-claim-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tm-forge-toast {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  85%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-2px); }
+}
+
+@media (max-width: 720px) {
+  .tm-forge-xp-pill {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .tm-forge-xp-pill-xp,
+  .tm-forge-xp-pill-cta,
+  .tm-forge-xp-pill-timer,
+  .tm-forge-xp-pill-claim {
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .tm-forge-xp-pill-cta span:last-child {
+    display: none;
+  }
+}

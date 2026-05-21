@@ -1,4 +1,4 @@
-# MYRO — CLAUDE.md (Cockpit)
+# MYRO — AGENTS.md (Cockpit)
 ### Session Control File · v5.0 · May 2026
 
 ---
@@ -46,7 +46,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
-## CLAUDE CODE SKILLS
+## Codex SKILLS
 
 | Skill | Trigger | Purpose |
 |---|---|---|
@@ -83,7 +83,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 | Task type | Best fit |
 |---|---|
-| Multi-file orchestration, cross-cutting refactors | Claude Code |
+| Multi-file orchestration, cross-cutting refactors | Codex |
 | Mechanical splits / renames once interfaces are agreed | Codex |
 | Test scaffolding for new module boundaries | Codex |
 | Single-file Python tweaks with clear instructions | Either |
@@ -252,50 +252,9 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-21 · Mobile QA pass + Forge continuation model + view-model seam)
+## LAST SESSION SUMMARY (2026-05-20 · CV Builder three-view redesign)
 
-End-to-end mobile QA across 16 screenshots in `reference/21May Mobile screenshots/` (fresh-user landing → onboarding → skills → forge → cv). Three commits landed on Develop.
-
-### Commit `aa7a879` — Mobile QA Img 1-12
-- **Public nav (`components/public/top-nav.tsx` + `public-nav.css` new)**: auth CTAs (Sign up / Sign in) were clipped off-screen on 375px because `overflowX: auto` let content escape. Refactored inline styles → page-scoped CSS class hooks. `@media (max-width: 720px)` hides About/Newsletter/Intel center nav (still in footer) and pins logo + auth pills visible.
-- **ParticleBg (`components/particle-bg.tsx`)**: gated on `useViewport().isDesktop`. On mobile (no cursor) the idle-detection always fired → sphere bloomed at viewport-center, bleeding through translucent cards. Single source of truth for all public pages (`/`, `/about`, `/login`, `/signup`).
-- **Intel pane (`components/public/intel-pane.tsx` + `intel-pane.css` new)**: MARKET SIGNAL prose ("27,230 jobs across 145 companies in 10 industry groups") → 3 stat tiles. Dropped redundant "ROLE DOMAIN" label. 4-col filter grid desktop / 2-col mobile. CTA tightened (3× "Myro Score" → 1×). Above-fold copy ~38 → ~12 words.
-- **Step-role (`components/onboarding/step-role.tsx`)**: dropped redundant "Gap analysis will use…" prose (chips already showed selection — design-over-words). `placeholder={atMax ? "Max 3 selected"}` bug → uses `MAX_ROLES` const. Location row gets `mask-image` gradient fade so overflow is visibly affordable.
-- **Ninja name (`backend/app/services/ninja_name.py` + `routers/profile/public.py` + `components/onboarding/NinjaNameStep.tsx`)**: `suggest_ninja_name` endpoint now returns the persisted `ninja_name` first (auto-provisioned at signup per NU1), else a slug derived from `full_name` (e.g. `shivam-pathak-9k2v`), else random fallback. Fixes "I already gave a name, why is it different?" complaint. NinjaNameStep helper copy 24 → 9 words. Added `slugify_full_name()` and `generate_from_full_name()`.
-- **Skills domain-accordion (`components/skills/domain-accordion-row.tsx` + `domain-accordion-row.css` new)**: 6-col grid template with empty trailing 32px slot + 120px progress bar busted 375px viewport — every row's status badge ("BIGGEST GAP", "AT RISK", "BUILDING") clipped right. Fix: 5-col grid `20px minmax(0, 1fr) auto 90px 32px` desktop, 4-col with bar hidden <720px.
-- **Skill advice (`components/skills/skill-card-inline.tsx`)**: AI advice panel was a single 250-word paragraph with no word-break — wall of text spilling right. Added `wordBreak/overflowWrap` + "Show more" collapse at 240 chars.
-
-### Commit `5c5379e` — Forge continuation model
-User said: "Users should not be punished for not being able to complete 25 mins." Backend rewritten so partial bursts accumulate.
-- **Migration `20260521_forge_continuation.sql`** (applied to prod): `user_skills.total_forge_minutes INTEGER NOT NULL DEFAULT 0`. Backfill `COALESCE(SUM(duration_minutes), 25 × forge_sessions_count)` per `(user_id, skill_id)`.
-- **`backend/app/services/forge_service.py`**: `complete_forge_session` now logs any-duration burst, increments `total_forge_minutes`, derives `sessions_count = total // 25`. Level-up triggers off derived count. `forge_sessions_count` never decreases (preserves pre-redesign state). New `get_last_forged_skill()` + `GET /users/me/forge/last-skill` for auto-resume. Constants exposed: `SESSION_MINUTES`. Schema: `total_forge_minutes`, `minutes_to_next_session` returned on every complete.
-- **`backend/tests/test_forge_service.py`**: rewritten for continuation model. 15/15 pass including new tests for partial-burst-accrues, 25-min-boundary-crossing, count-never-decreases.
-- **Mobile top widget (`components/forge/ForgeXpPill.tsx` + `forge-xp-pill.css` new)**: ambient XP+Forge pill. Three states (idle / running / claim-ready). Live mm:ss timer with conic-gradient ring. Animated claim button. Replaces inline mobile XP button in `MobileTopBar`.
-- **`mobile/shell.tsx::MOBILE_NAV`**: dropped `/forge` slot (5-slot bottom nav now). Forge is no longer a destination — it's an ambient surface.
-- **`store/forgeTimerStore.ts`**: extended with `pendingMinutes`, `lastTickAt`, zustand `persist` middleware (`myro-forge-timer-v1` localStorage key). Tick logic detects whole-minute boundary crossings and increments `pendingMinutes`. Survives reloads.
-- **`app/forge/page.tsx`**: tap h1 = start/pause toggle (label changes "Tap to start" / "Running" / "Paused"). `useEffect` resolves last-forged skill via the new endpoint and auto-resumes on entry.
-
-### Commit `d640cd0` — Forge view-model deepening (Candidate 1 from `/improve-codebase-architecture`)
-Four renderers (SidebarForgeTimer / ForgeXpPill / ForgeFloatingTimer / `/forge` dial) each owned a `setInterval(tick, 1000)` + claim mutation + ring math + pause/resume wiring. Two visible at once = store ticked twice per real second. Collapsed onto a single seam.
-- **`lib/hooks/use-forge-session.ts` (new)** — view-model hook returning `{ state: idle|running|paused|complete, mm, ss, ringPct, pendingMinutes, pendingXp, canClaim, claiming, claimError, startSession, startLastForged, pause, resume, dismiss, claim }`. Hook auto-updates forge store + XP wallet on successful claim; cache invalidation caller-controlled via `claim({ onClaimed })`.
-- **`components/forge/ForgeClockDriver.tsx` (new)** — singleton heartbeat mounted ONCE in `AppShell` near `ParticleBg`. Renders nothing. Renderers are now read-only — two-ticks-per-second is no longer expressible.
-- **`components/forge/ForgeXpPill.tsx`** + **`app-shell.tsx::SidebarForgeTimer`** refactored onto hook. Visuals unchanged.
-- **`components/forge/ForgeFloatingTimer.tsx` deleted** (267 lines, zero imports — dead since commit `5c5379e`).
-- **CONTEXT.md** gains a "Forge Session" entry: lifecycle states (timer × claim, two-axis), partial-burst continuation, the four-surfaces-one-engine architecture, the view-model seam contract.
-
-Verify: 342 backend tests pass · `tsc --noEmit` clean · `next lint` 0/0 · `tsx --test forge-progress` 3/3.
-
-Open (carryover):
-- `/improve-codebase-architecture` surfaced 2 more candidates worth closing in a follow-up: (a) **Candidate 2 — unify `MOBILE_NAV` + sidebar `NAV_ITEMS` + `PublicTopNav::NAV_ITEMS` into `lib/nav-items.ts`** with `visibility` field. (b) **Candidate 3 — ADR-0003 documenting the page-scoped CSS pattern** now applied across `public-nav.css`, `intel-pane.css`, `domain-accordion-row.css`, `forge-xp-pill.css`, `cv-builder.css`.
-- `app/forge/page.tsx` still calls `xp.completeForge` directly with `session_type: "focused"` rather than via `useForgeSession`. Hook hardcodes ambient. Adding a `sessionType` param to `useForgeSession` is the natural next step but parking until forge page redesign returns.
-- Skill Intelligence page mobile redesign (Backlog #10) — phases 1-3 done; phase 4 should pick up the `domain-accordion-row.css` extraction pattern for the remaining inline-styled rows.
-- Multi-location targeting parked at Backlog #12 (DB migration + RPC change required).
-
-## EARLIER SESSION SUMMARIES — pre-2026-05-21
-
-### 2026-05-20 — CV Builder three-view redesign
-
-Rebuilt `/cv` end-to-end from the Claude Design handoff (`reference/CV page redesign-handoff.zip` → `cv-page-redesign/project/`). Tactical-dark theme + Geist sans + cyan accent. Three views routed by query state: **Baseline** (no `jobId`) shows the master CV at the trunk of a Git-style commit graph with per-company branches + a saved-jobs picker; **Playground** (`?jobId=…`) is the per-job tailoring surface with version tabs, two-pane editor/preview, intel strip + drawer; **PDF preview** (`?jobId=…&view=pdf`) renders an enterprise A4 page with ATS audit card. Existing `useCVPlayground` state machine + `cv.*` API preserved unchanged — no backend touched.
+Rebuilt `/cv` end-to-end from the Codex Design handoff (`reference/CV page redesign-handoff.zip` → `cv-page-redesign/project/`). Tactical-dark theme + Geist sans + cyan accent. Three views routed by query state: **Baseline** (no `jobId`) shows the master CV at the trunk of a Git-style commit graph with per-company branches + a saved-jobs picker; **Playground** (`?jobId=…`) is the per-job tailoring surface with version tabs, two-pane editor/preview, intel strip + drawer; **PDF preview** (`?jobId=…&view=pdf`) renders an enterprise A4 page with ATS audit card. Existing `useCVPlayground` state machine + `cv.*` API preserved unchanged — no backend touched.
 
 - **Frontend — `lib/cv/version-format.ts` (new)** — formatters extracted from old `version-picker.tsx` / `version-ledger.tsx`: `formatGlobalVersionLabel`, `formatThreadVersionLabel`, `formatVersionContext`, `formatParentVersionLabel`, `summarizeCVVersionLedger`, `sortLedgerVersions`, `getLedgerPreviewText`, `formatLedger*`, `timeAgo`. Tests still import from old paths via re-export shims.
 - **Frontend — `app/cv/cv-builder.css` (new)** — page-scoped CSS, loaded by `app/cv/page.tsx`. All `.cvb-*` classes (page head, commit graph, version tabs, two-pane body, bullet rows, intel strip, drawer, modal, PDF page, ATS audit). 3 media queries: ≤1100px (single-column playground + segmented mobile switch), ≤720px (phone polish: 16px padding, narrow version tabs, full-screen modal + drawer), `prefers-reduced-motion`.
@@ -323,4 +282,6 @@ Open (carryover):
 - ATS audit currently always reports "passes 7 / 7 checks". Wire real audits when a server-side ATS parser lands.
 - ADR for Company CV Thread decision (CV2 lock) — still un-authored. Migrate from CONTEXT.md note.
 
-Full detail for sessions before 2026-05-21 lives in `docs/session-history/2026-05.md` (Feedback Hub redesign, Skills card inline CV-pointer edit loop, etc).
+## EARLIER SESSION SUMMARIES
+
+Full detail in `docs/session-history/2026-05.md` (includes 2026-05-20 Feedback Hub redesign + 2026-05-19 Skills card inline CV-pointer edit loop).

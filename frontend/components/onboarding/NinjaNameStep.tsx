@@ -76,8 +76,7 @@ export function NinjaNameStep({ onAccept, onSkip }: NinjaNameStepProps) {
     >
       <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Pick your ninja name</h2>
       <p style={{ margin: 0, color: "var(--tm-text-faint)", fontSize: 14, lineHeight: 1.5 }}>
-        This is your public profile address — the link friends open to see your
-        domain map. You can change it later from Settings.
+        Your public profile link. Change anytime in Settings.
       </p>
 
       <label

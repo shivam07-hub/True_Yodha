@@ -198,6 +198,30 @@ async def update_ninja_name(
 async def suggest_ninja_name(
     current_user: dict = Depends(get_current_user),
 ) -> SuggestNinjaNameResponse:
-    """Onboarding seed — returns an available candidate the user can accept."""
-    _ = current_user  # auth required, but the suggestion is user-agnostic.
-    return SuggestNinjaNameResponse(ninja_name=nn.generate_unique(admin=_admin()))
+    """Onboarding seed.
+
+    Order of preference:
+      1. Existing persisted ninja_name on the user's profile (auto-provisioned at signup).
+         Returning the same value here prevents the "I already gave a name, why is it
+         different?" complaint reported during mobile QA.
+      2. Slug derived from the user's full_name (e.g. "shivam-pathak-9k2v").
+      3. Random adjective-noun fallback.
+    """
+    admin = _admin()
+    user_id = current_user["id"]
+
+    profile = (
+        admin.table("user_profiles")
+        .select("ninja_name, full_name")
+        .eq("id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    row = (profile.data if profile else {}) or {}
+    existing = row.get("ninja_name")
+    if existing and nn.is_valid(existing):
+        return SuggestNinjaNameResponse(ninja_name=existing)
+
+    return SuggestNinjaNameResponse(
+        ninja_name=nn.generate_from_full_name(row.get("full_name"), admin=admin)
+    )

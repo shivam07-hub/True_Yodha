@@ -27,3 +27,10 @@ class ForgeSessionResponse(BaseModel):
     leveled_up: bool
     sessions_toward_next: int
     sessions_needed: int | None
+    total_forge_minutes: int = 0
+    minutes_to_next_session: int = 25
+
+
+class LastForgedSkillResponse(BaseModel):
+    skill_id: str | None
+    skill_name: str | None

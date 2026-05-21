@@ -8,8 +8,9 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { users, jobs as jobsApi } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 import { ParticleBg } from "@/components/particle-bg"
+import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
+import { useForgeSession } from "@/lib/hooks/use-forge-session"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
@@ -241,44 +242,37 @@ const SIDEBAR_FORGE_CAP_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
 
 function SidebarForgeTimer({
   onXPEarned,
-  onCompleteSession,
 }: {
   onXPEarned: (amount: number, newBalance: number) => void
-  onCompleteSession: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
+  /** Legacy prop — hook handles the API call now. Retained for ABI compat with callers; unused. */
+  onCompleteSession?: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
 }) {
-  const { sessionActive, skillName, dismissed, running, remaining, setRunning, tick, restartSession, dismiss } = useForgeTimerStore()
-  const [claiming, setClaiming] = useState(false)
-  const [claimError, setClaimError] = useState<string | null>(null)
+  const {
+    state, skillName, remaining, ringPct,
+    pendingXp, canClaim, claiming, claimError,
+    pause, resume, dismiss, claim,
+  } = useForgeSession()
+  const dismissed = useForgeTimerStore((s) => s.dismissed)
 
-  useEffect(() => {
-    if (!running) return
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [running, tick])
+  const sessionActive = state !== "idle"
+  const running = state === "running"
+  const isComplete = state === "complete"
 
   if (!sessionActive || dismissed) return null
 
-  const isComplete = remaining === 0 && !running
-  const progress = forgeProgressRatio(FORGE_AMBIENT_DURATION, remaining)
-  const readyXP = claimableForgeXP(FORGE_AMBIENT_DURATION, remaining, FORGE_AMBIENT_RATE)
-  const claimMinutes = claimableForgeMinutes(FORGE_AMBIENT_DURATION, remaining)
-  const canClaim = readyXP > 0
+  const progress = ringPct / 100
   const accent = isComplete ? "var(--tm-success)" : "var(--tm-accent)"
   const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-accent-wash)"
   const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-accent-ring)"
 
   async function handleClaim() {
-    if (!skillName || !canClaim || claiming) return
+    if (!skillName || !canClaim) return
     try {
-      setClaiming(true)
-      setClaimError(null)
-      const result = await onCompleteSession({ skill_name: skillName, duration_minutes: claimMinutes })
-      onXPEarned(result.xp_earned, result.new_xp_balance)
-      restartSession()
-    } catch (e) {
-      setClaimError(e instanceof Error ? e.message : "Could not claim XP")
-    } finally {
-      setClaiming(false)
+      await claim({
+        onClaimed: (result: ForgeSessionResult) => onXPEarned(result.xp_earned, result.new_xp_balance),
+      })
+    } catch {
+      // Hook exposes claimError below.
     }
   }
 
@@ -362,7 +356,7 @@ function SidebarForgeTimer({
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             type="button"
-            onClick={() => setRunning(!running)}
+            onClick={() => (running ? pause() : resume())}
             aria-label={running ? "Pause forge" : "Resume forge"}
             title={running ? "Pause" : "Resume"}
             className="tm-control-focus"
@@ -466,7 +460,7 @@ function SidebarForgeTimer({
             fill={accent}
             style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
           >
-            +{readyXP}
+            +{pendingXp}
           </text>
           <text
             x={RING / 2} y={RING / 2 + 3}
@@ -580,7 +574,7 @@ function SidebarForgeTimer({
               <span style={{
                 fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em",
                 fontSize: 13, fontWeight: 800,
-              }}>+{readyXP}</span>
+              }}>+{pendingXp}</span>
               <span style={{ fontSize: 14, letterSpacing: 0, marginLeft: 2 }}>→</span>
             </>
           ) : (
@@ -890,6 +884,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="tm-shell-enter" style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
+      <ForgeClockDriver />
 
       <div className="tm-sidebar-wrap">
         <Sidebar

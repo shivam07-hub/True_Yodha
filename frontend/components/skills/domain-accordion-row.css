@@ -1,0 +1,20 @@
+.tm-domain-accordion-row {
+  grid-template-columns: 20px minmax(0, 1fr) auto 90px 32px;
+}
+
+.tm-domain-accordion-row-bar {
+  width: 90px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .tm-domain-accordion-row {
+    grid-template-columns: 16px minmax(0, 1fr) auto 32px;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .tm-domain-accordion-row-bar {
+    display: none !important;
+  }
+}
