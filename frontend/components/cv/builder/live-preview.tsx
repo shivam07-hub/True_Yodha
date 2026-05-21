@@ -4,6 +4,7 @@
  */
 "use client"
 
+import { useEffect, useRef } from "react"
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { highlightKeywords, type KeywordTarget } from "./keyword-utils"
@@ -13,10 +14,29 @@ interface LivePreviewProps {
   hidden: Set<string>
   keywords: KeywordTarget[]
   contact: { name: string; title: string; email: string; phone: string; linkedin: string }
+  focusSkill?: string | null
 }
 
-export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps) {
+export function LivePreview({ cv, hidden, keywords, contact, focusSkill }: LivePreviewProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const hl = (t: string) => highlightKeywords(t, keywords)
+
+  // Scroll first bullet containing focusSkill into view and flash it.
+  useEffect(() => {
+    if (!focusSkill || !containerRef.current) return
+    const needle = focusSkill.toLowerCase()
+    const divs = Array.from(containerRef.current.querySelectorAll<HTMLElement>("[data-bullet]"))
+    for (const el of divs) {
+      if (el.textContent?.toLowerCase().includes(needle)) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" })
+        el.classList.add("cvb-focus-bullet")
+        const timer = setTimeout(() => el.classList.remove("cvb-focus-bullet"), 2200)
+        return () => clearTimeout(timer)
+      }
+    }
+  // Run only on mount — focusSkill comes from URL, doesn't change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const visibleExperience = cv.experience
     .map((e, ei) => ({
@@ -36,7 +56,7 @@ export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps)
   const skillsHidden = cv.skills_line ? hidden.has(itemId("skills_line", 0, cv.skills_line)) : true
 
   return (
-    <div className="cvb-preview">
+    <div className="cvb-preview" ref={containerRef}>
       <div style={{ borderBottom: "1px dashed var(--tm-border-soft)", paddingBottom: 12, marginBottom: 12 }}>
         <div style={{ fontFamily: "var(--cvb-font-sans)", fontSize: 16, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>
           {contact.name || "Your name"}
@@ -52,7 +72,7 @@ export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps)
       {cv.summary && !summaryHidden && (
         <>
           <h6>Summary</h6>
-          <div style={{ marginBottom: 6 }}>{hl(cv.summary)}</div>
+          <div style={{ marginBottom: 6 }} data-bullet>{hl(cv.summary)}</div>
         </>
       )}
 
@@ -65,7 +85,7 @@ export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps)
                 {e.role}{e.company ? ` · ${e.company}` : ""} <span className="dates">{e.dates ? `· ${e.dates}` : ""}</span>
               </div>
               {e.keptBullets.map((b, i) => (
-                <div key={i} style={{ paddingLeft: 14, textIndent: -14 }}>• {hl(b)}</div>
+                <div key={i} style={{ paddingLeft: 14, textIndent: -14 }} data-bullet>• {hl(b)}</div>
               ))}
             </div>
           ))}
@@ -81,7 +101,7 @@ export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps)
                 {p.name} <span className="dates">{p.dates ? `· ${p.dates}` : ""}</span>
               </div>
               {p.keptBullets.map((b, i) => (
-                <div key={i} style={{ paddingLeft: 14, textIndent: -14 }}>• {hl(b)}</div>
+                <div key={i} style={{ paddingLeft: 14, textIndent: -14 }} data-bullet>• {hl(b)}</div>
               ))}
             </div>
           ))}
@@ -104,7 +124,7 @@ export function LivePreview({ cv, hidden, keywords, contact }: LivePreviewProps)
       {cv.skills_line && !skillsHidden && (
         <>
           <h6>Skills</h6>
-          <div>{hl(cv.skills_line)}</div>
+          <div data-bullet>{hl(cv.skills_line)}</div>
         </>
       )}
 

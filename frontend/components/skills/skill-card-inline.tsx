@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cv, diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
@@ -8,6 +9,8 @@ import { dataKeys } from "@/lib/domain-data"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { useRecomputeStore } from "@/store/recomputeStore"
+import { useCartStore } from "@/store/cartStore"
+import { LEVEL_THRESHOLDS } from "@/lib/level-thresholds"
 import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
 
 const PROFICIENCY_TITLES = ["None", "Scout", "Trailblazer", "Excavator", "Cartographer", "Legend"]
@@ -42,9 +45,11 @@ function progressColor(level: number): string {
 
 export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const { setBalance } = useXPStore()
   const startRecompute = useRecomputeStore(s => s.start)
   const clearRecompute = useRecomputeStore(s => s.clear)
+  const addToCart = useCartStore(s => s.addSkill)
 
   const [editOpen, setEditOpen] = useState(false)
   const [logged, setLogged] = useState(false)
@@ -52,11 +57,35 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const pollTimer = useRef<number | null>(null)
 
+  // Appeal state
+  const [appealOpen, setAppealOpen] = useState(false)
+  const [appealLevel, setAppealLevel] = useState<number>(skill.level)
+  const [appealBullet, setAppealBullet] = useState("")
+  const [appealResult, setAppealResult] = useState<import("@/lib/api").SkillAppealResponse | null>(null)
+
   const isFree = skill.forged_level_up_available
   const nextLevel = Math.min(skill.level + 1, 5)
   const badge = levelBadgeColor(skill.level)
   const levelPct = (skill.level / 5) * 100
   const ladder = LADDER_DESCRIPTOR[`${skill.level}-${nextLevel}`] ?? LADDER_DESCRIPTOR["3-4"]
+
+  const appealLocked = (skill.correction_count ?? 0) >= 2
+
+  const submitAppeal = useMutation({
+    mutationFn: () => users.correctSkillLevel(token, skill.key, appealLevel, appealBullet.trim()),
+    onSuccess: (data) => {
+      setAppealResult(data)
+      if (data.approved) {
+        queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      }
+    },
+    onError: (err: Error) => {
+      if (err.message?.toLowerCase().includes("already changed twice")) {
+        setAppealResult({ taxonomy_key: skill.key, new_level: null, total_score: null, approved: false, verdict: "already changed twice", criteria: "", appeals_remaining: 0 })
+      }
+    },
+  })
 
   const askAdvice = useMutation({
     mutationFn: () =>
@@ -69,13 +98,23 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
     onError: () => setErrorMsg("Couldn't fetch advice. No XP was spent."),
   })
 
+  const sessionsNeeded = LEVEL_THRESHOLDS[skill.level] ?? null
+
   const logDiary = useMutation({
     mutationFn: () =>
       diary.createEntry(
         token,
-        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to push ${skill.display_name} from L${skill.level} to L${nextLevel} this week through deliberate practice and visible proof on real work.`,
+        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to push ${skill.display_name} from L${skill.level} to L${nextLevel} through ${sessionsNeeded !== null ? `${sessionsNeeded} forge session${sessionsNeeded === 1 ? "" : "s"}` : "deliberate practice"} (25 min each).`,
       ),
-    onSuccess: () => setLogged(true),
+    onSuccess: () => {
+      setLogged(true)
+      addToCart({ skill_name: skill.display_name, level_from: skill.level, level_to: nextLevel })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      // Invalidate diary history and XP balance so wallet reflects +30 XP immediately.
+      queryClient.invalidateQueries({ queryKey: ["diary"] })
+      queryClient.invalidateQueries({ queryKey: ["xp"] })
+    },
   })
 
   // SE17 — poll cv_versions.recompute_finished_at every 3s, 30s cap. Once set,
@@ -183,7 +222,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         <ActionBtn
           label="Edit CV pointer"
           icon="✎"
-          onClick={() => setEditOpen(true)}
+          onClick={() => router.push(`/cv?skill=${encodeURIComponent(skill.key)}&edit=1`)}
         />
         <ActionBtn
           label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} XP`}
@@ -193,11 +232,12 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           accent={isFree}
         />
         <ActionBtn
-          label={logged ? "Logged to diary" : "Track in diary"}
+          label={logged ? "Queued in Forge" : "Track in diary"}
           icon={logged ? "✓" : logDiary.isPending ? "…" : "☆"}
           onClick={() => !logged && logDiary.mutate()}
           disabled={logDiary.isPending || logged}
           active={logged}
+          subLabel={!logged ? (sessionsNeeded !== null ? `L${skill.level}→L${nextLevel} · ${sessionsNeeded} session${sessionsNeeded === 1 ? "" : "s"}` : undefined) : undefined}
         />
       </div>
 
@@ -212,6 +252,146 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       )}
       {errorMsg && <div style={{ fontSize: 11, color: "var(--tm-danger)" }}>{errorMsg}</div>}
 
+      {/* Appeal level section */}
+      {appealLocked && !appealOpen ? (
+        <div style={{ fontSize: 11, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+          Level locked — already changed twice
+        </div>
+      ) : !appealOpen && !appealResult ? (
+        <button
+          onClick={() => { setAppealOpen(true); setAppealLevel(skill.level); setAppealBullet("") }}
+          style={{
+            padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
+            fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+            border: "1px dashed var(--tm-border-soft)",
+            background: "transparent", color: "var(--tm-text-faint)",
+            cursor: "pointer", textAlign: "left",
+          }}
+        >
+          ↑ Appeal level
+        </button>
+      ) : null}
+
+      {appealOpen && !appealResult && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
+          <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-accent)" }}>
+            Appeal level · {(skill.correction_count ?? 0) + 1} of 2
+          </div>
+
+          {/* Level picker */}
+          <div>
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>Select the level you believe you are at</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1, 2, 3, 4, 5].map(lvl => (
+                <button
+                  key={lvl}
+                  onClick={() => setAppealLevel(lvl)}
+                  title={`L${lvl} · ${PROFICIENCY_TITLES[lvl] ?? ""}`}
+                  style={{
+                    width: 32, height: 32, borderRadius: "var(--tm-radius-sm)",
+                    border: `1px solid ${appealLevel === lvl ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                    background: appealLevel === lvl ? "var(--tm-accent-wash)" : "transparent",
+                    color: appealLevel === lvl ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                    fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  }}
+                >L{lvl}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bullet textarea */}
+          <div>
+            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginBottom: 6 }}>
+              Write a bullet from your CV or experience that proves L{appealLevel}
+            </div>
+            <textarea
+              value={appealBullet}
+              onChange={e => setAppealBullet(e.target.value)}
+              placeholder={`What did you actually do with ${skill.display_name}? Be specific — shipped work, team size, measurable result.`}
+              rows={3}
+              style={{
+                width: "100%", padding: "10px 12px",
+                fontFamily: "var(--tm-font-body)", fontSize: 12, lineHeight: 1.55,
+                color: "var(--tm-text)", background: "rgba(255,255,255,0.04)",
+                border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)",
+                resize: "vertical", outline: "none",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => submitAppeal.mutate()}
+              disabled={submitAppeal.isPending || !appealBullet.trim() || appealLevel === skill.level}
+              style={{
+                padding: "8px 14px", borderRadius: "var(--tm-radius-sm)",
+                fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+                background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+                border: "1px solid var(--tm-accent)", cursor: submitAppeal.isPending ? "default" : "pointer",
+                opacity: (submitAppeal.isPending || !appealBullet.trim() || appealLevel === skill.level) ? 0.5 : 1,
+                transition: "all 150ms var(--tm-ease)",
+              }}
+            >
+              {submitAppeal.isPending ? "Judging…" : "Submit appeal"}
+            </button>
+            <button
+              onClick={() => setAppealOpen(false)}
+              style={{
+                padding: "8px 14px", borderRadius: "var(--tm-radius-sm)",
+                fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+                background: "transparent", color: "var(--tm-text-faint)",
+                border: "1px solid var(--tm-border-soft)", cursor: "pointer",
+              }}
+            >Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {appealResult && (
+        <div style={{
+          padding: "12px 14px", borderRadius: "var(--tm-radius-sm)",
+          border: `1px solid ${appealResult.approved ? "var(--tm-success)" : "var(--tm-danger)"}`,
+          background: appealResult.approved ? "rgba(20,186,174,0.06)" : "rgba(239,68,68,0.06)",
+        }}>
+          {appealResult.verdict === "already changed twice" ? (
+            <div style={{ fontSize: 12, color: "var(--tm-danger)", fontWeight: 600 }}>
+              already changed twice
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 700, color: appealResult.approved ? "var(--tm-success)" : "var(--tm-danger)", marginBottom: 6 }}>
+                {appealResult.approved ? "✓ Approved — level updated" : "✗ Not approved"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.55, marginBottom: 6 }}>
+                {appealResult.verdict}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 600, color: "var(--tm-text-faint)" }}>Bar: </span>
+                {appealResult.criteria}
+              </div>
+              {!appealResult.approved && appealResult.appeals_remaining > 0 && (
+                <button
+                  onClick={() => { setAppealResult(null); setAppealOpen(true); setAppealBullet("") }}
+                  style={{
+                    marginTop: 8, padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
+                    fontSize: 11, fontWeight: 600, fontFamily: "inherit",
+                    background: "transparent", color: "var(--tm-accent)",
+                    border: "1px dashed var(--tm-accent-ring)", cursor: "pointer",
+                  }}
+                >
+                  Try again · {appealResult.appeals_remaining} appeal{appealResult.appeals_remaining === 1 ? "" : "s"} remaining
+                </button>
+              )}
+              {!appealResult.approved && appealResult.appeals_remaining === 0 && (
+                <div style={{ marginTop: 6, fontSize: 11, color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+                  already changed twice — no more appeals
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       <SkillEditDialog
         skill={skill}
         token={token}
@@ -223,13 +403,14 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   )
 }
 
-function ActionBtn({ label, icon, onClick, disabled, active, accent }: {
+function ActionBtn({ label, icon, onClick, disabled, active, accent, subLabel }: {
   label: string
   icon: React.ReactNode
   onClick: () => void
   disabled?: boolean
   active?: boolean
   accent?: boolean
+  subLabel?: string
 }) {
   const [hover, setHover] = useState(false)
   return (
@@ -256,7 +437,10 @@ function ActionBtn({ label, icon, onClick, disabled, active, accent }: {
       }}
     >
       <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
-      <span className="tm-skill-card-action-label">{label}</span>
+      <span className="tm-skill-card-action-label" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+        {label}
+        {subLabel && <span style={{ fontSize: 10, opacity: 0.6, fontWeight: 500 }}>{subLabel}</span>}
+      </span>
     </button>
   )
 }

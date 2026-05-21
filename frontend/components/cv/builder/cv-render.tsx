@@ -5,6 +5,7 @@
  */
 "use client"
 
+import { useEffect, useRef } from "react"
 import type { CVStructured } from "@/lib/api"
 
 interface CVRenderProps {
@@ -17,11 +18,36 @@ interface CVRenderProps {
     phone: string
     linkedin: string
   }
+  focusSkill?: string | null
 }
 
-export function CVRender({ cv, contact }: CVRenderProps) {
+function kwMatch(text: string, needle: string): boolean {
+  if (needle.length <= 3) {
+    return new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text)
+  }
+  return text.toLowerCase().includes(needle.toLowerCase())
+}
+
+export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
+  const containerRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!focusSkill || !containerRef.current) return
+    const needle = focusSkill.toLowerCase()
+    const lis = Array.from(containerRef.current.querySelectorAll<HTMLElement>("li[data-bullet]"))
+    for (const el of lis) {
+      if (kwMatch(el.textContent ?? "", needle)) {
+        el.classList.add("cv-focus-bullet")
+        el.scrollIntoView({ behavior: "smooth", block: "center" })
+        return
+      }
+    }
+  // Run once on mount — focusSkill is from URL, stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <article className="cvb-cv-render">
+    <article className="cvb-cv-render" ref={containerRef}>
       <h1 className="cv-name">{contact.name}</h1>
       <div className="cv-title">{contact.title}</div>
       <div className="cv-contact">
@@ -51,7 +77,7 @@ export function CVRender({ cv, contact }: CVRenderProps) {
                 {e.dates && <span className="cv-dates">{e.dates}</span>}
               </div>
               <ul>
-                {e.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                {e.bullets.map((b, i) => <li key={i} data-bullet>{b}</li>)}
               </ul>
             </div>
           ))}
@@ -68,7 +94,7 @@ export function CVRender({ cv, contact }: CVRenderProps) {
                 {p.dates && <span className="cv-dates">{p.dates}</span>}
               </div>
               <ul>
-                {p.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                {p.bullets.map((b, i) => <li key={i} data-bullet>{b}</li>)}
               </ul>
             </div>
           ))}

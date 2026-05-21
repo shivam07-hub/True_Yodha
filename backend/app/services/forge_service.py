@@ -15,8 +15,9 @@ from app.services.taxonomy_loader import ensure_skill_in_db
 
 _log = logging.getLogger(__name__)
 
-# Cumulative forge sessions needed to reach next level (level 4 = max)
-LEVEL_THRESHOLDS: dict[int, int] = {0: 3, 1: 9, 2: 27, 3: 108}
+# Forge sessions needed to advance L{n} → L{n+1} (level 4 = max).
+# Mirror lives in frontend/lib/level-thresholds.ts — update both together.
+LEVEL_THRESHOLDS: dict[int, int] = {0: 1, 1: 3, 2: 9, 3: 27}
 
 # XP per minute by session type
 XP_RATE_BY_TYPE: dict[str, int] = {"ambient": 2, "focused": 3}

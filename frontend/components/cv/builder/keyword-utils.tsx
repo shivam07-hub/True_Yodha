@@ -21,29 +21,61 @@ export function targetsFromSkillGap(items: SkillGapItem[]): KeywordTarget[] {
     }))
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+// Word-boundary aware match: short keywords (≤3 chars like "R", "Go", "AI")
+// use \b guards to avoid false positives ("R" inside "React", "Go" inside "Google").
+function kwMatches(text: string, kw: string): boolean {
+  if (kw.length <= 3) {
+    return new RegExp(`\\b${escapeRegex(kw)}\\b`, "i").test(text)
+  }
+  return text.toLowerCase().includes(kw.toLowerCase())
+}
+
 export function highlightKeywords(text: string, keywords: KeywordTarget[] | undefined): ReactNode {
   if (!keywords || keywords.length === 0) return text
   // Sort longest first so multi-word phrases beat their component words.
   const sorted = [...keywords].sort((a, b) => b.kw.length - a.kw.length)
   let parts: Array<{ type: "text" | "hit"; v: string }> = [{ type: "text", v: text }]
+
   for (const { kw } of sorted) {
     if (!kw) continue
-    const needle = kw.toLowerCase()
+    const isShort = kw.length <= 3
     const next: typeof parts = []
+
     for (const part of parts) {
       if (part.type !== "text") { next.push(part); continue }
-      const lower = part.v.toLowerCase()
-      let cursor = 0
-      while (cursor < part.v.length) {
-        const idx = lower.indexOf(needle, cursor)
-        if (idx < 0) { next.push({ type: "text", v: part.v.slice(cursor) }); break }
-        if (idx > cursor) next.push({ type: "text", v: part.v.slice(cursor, idx) })
-        next.push({ type: "hit", v: part.v.slice(idx, idx + kw.length) })
-        cursor = idx + kw.length
+
+      if (isShort) {
+        // Use regex split to find word-boundary matches
+        const re = new RegExp(`(\\b${escapeRegex(kw)}\\b)`, "gi")
+        let cursor = 0
+        let m: RegExpExecArray | null
+        // eslint-disable-next-line no-cond-assign
+        while ((m = re.exec(part.v)) !== null) {
+          if (m.index > cursor) next.push({ type: "text", v: part.v.slice(cursor, m.index) })
+          next.push({ type: "hit", v: m[0] })
+          cursor = m.index + m[0].length
+        }
+        if (cursor < part.v.length) next.push({ type: "text", v: part.v.slice(cursor) })
+      } else {
+        const lower = part.v.toLowerCase()
+        const needle = kw.toLowerCase()
+        let cursor = 0
+        while (cursor < part.v.length) {
+          const idx = lower.indexOf(needle, cursor)
+          if (idx < 0) { next.push({ type: "text", v: part.v.slice(cursor) }); break }
+          if (idx > cursor) next.push({ type: "text", v: part.v.slice(cursor, idx) })
+          next.push({ type: "hit", v: part.v.slice(idx, idx + kw.length) })
+          cursor = idx + kw.length
+        }
       }
     }
     parts = next
   }
+
   return parts.map((p, i) =>
     p.type === "hit"
       ? <mark key={i} className="cvb-kw">{p.v}</mark>
@@ -52,6 +84,5 @@ export function highlightKeywords(text: string, keywords: KeywordTarget[] | unde
 }
 
 export function bulletKeywordHits(text: string, targets: KeywordTarget[]): KeywordTarget[] {
-  const lower = text.toLowerCase()
-  return targets.filter(t => lower.includes(t.kw.toLowerCase()))
+  return targets.filter(t => kwMatches(text, t.kw))
 }

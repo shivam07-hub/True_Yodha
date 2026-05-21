@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import type { CSSProperties, RefObject } from "react"
+import { useMemo, useRef } from "react"
+import type { CSSProperties } from "react"
 import type { LucideIcon } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
-import { useViewport } from "@/mobile"
+import { useAllowLoopingMotion } from "@/lib/hooks/use-allow-looping-motion"
 
 export interface ProcessLoadingStage {
   id: string
@@ -35,27 +35,6 @@ function inferStageIndex(message: string, stages: readonly ProcessLoadingStage[]
     stage.keywords?.some((keyword) => lower.includes(keyword)),
   )
   return match >= 0 ? match : 0
-}
-
-function useAllowLoopingMotion(hostRef: RefObject<HTMLElement>) {
-  const [isInView, setIsInView] = useState(true)
-  const { reducedMotion: reduceMotion } = useViewport()
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (typeof IntersectionObserver === "undefined") return
-    const host = hostRef.current
-    if (!host) return
-
-    const observer = new IntersectionObserver(
-      (entries) => setIsInView(entries[0]?.isIntersecting ?? true),
-      { threshold: 0.15 },
-    )
-    observer.observe(host)
-    return () => observer.disconnect()
-  }, [hostRef])
-
-  return isInView && !reduceMotion
 }
 
 export function ProcessLoading({

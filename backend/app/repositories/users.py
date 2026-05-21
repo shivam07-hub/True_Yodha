@@ -22,6 +22,7 @@ class UserSkillRecord:
     evidence_text: str | None
     forge_sessions_count: int
     forged_level_up_available: bool
+    correction_count: int = 0
 
 
 class UsersRepository:
@@ -48,7 +49,7 @@ class UsersRepository:
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, skills(taxonomy_key, display_name)")
+            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, correction_count, skills(taxonomy_key, display_name)")
             .eq("user_id", user_id)
             .execute()
         )
@@ -61,6 +62,7 @@ class UsersRepository:
             key = skill["taxonomy_key"]
             level = int(row["matched_level"])
             forge_sessions_count = int(row.get("forge_sessions_count") or 0)
+            correction_count = int(row.get("correction_count") or 0)
             records.append(
                 UserSkillRecord(
                     key=key,
@@ -71,9 +73,23 @@ class UsersRepository:
                     evidence_text=row.get("evidence_text") or None,
                     forge_sessions_count=forge_sessions_count,
                     forged_level_up_available=key in forged_level_up_keys,
+                    correction_count=correction_count,
                 )
             )
         return records
+
+    def get_correction_count(self, user_id: str, skill_id: int) -> int:
+        result = (
+            self._db.table("user_skills")
+            .select("correction_count")
+            .eq("user_id", user_id)
+            .eq("skill_id", skill_id)
+            .maybe_single()
+            .execute()
+        )
+        if not result or not result.data:
+            return 0
+        return int(result.data.get("correction_count") or 0)
 
     def list_forged_level_up_skill_keys(self, user_id: str) -> set[str]:
         result = (
@@ -130,6 +146,7 @@ class UsersRepository:
 
     def correct_skill_level(self, user_id: str, skill_id: int, new_level: int) -> None:
         now = datetime.now(timezone.utc).isoformat()
+        current = self.get_correction_count(user_id, skill_id)
         self._db.table("user_skills").upsert(
             {
                 "user_id": user_id,
@@ -137,6 +154,7 @@ class UsersRepository:
                 "matched_level": new_level,
                 "source": "user_correction",
                 "last_updated": now,
+                "correction_count": current + 1,
             },
             on_conflict="user_id,skill_id",
         ).execute()

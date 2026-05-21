@@ -268,7 +268,50 @@
 .cvb-job-card:hover { border-color: var(--tm-accent-ring); background: var(--tm-surface-2); }
 .cvb-job-card:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
 
-/* ─── Modal (CV viewer) ──────────────────────────────────────── */
+/* ─── Right-col inline CV viewer (replaces modal) ───────────────── */
+.cvb-right-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cvb-right-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cvb-inline-cv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  background: rgba(255, 255, 255, 0.015);
+  gap: 10px;
+  min-height: 46px;
+}
+.cvb-inline-cv-body {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--tm-bg);
+}
+
+/* Focus-bullet highlight for ?skill= deeplink scroll target */
+.cvb-focus-bullet {
+  outline: 2px solid var(--tm-accent-ring);
+  border-radius: 4px;
+  outline-offset: 2px;
+  animation: cvb-focus-pulse 2.2s var(--tm-ease) forwards;
+}
+@keyframes cvb-focus-pulse {
+  0%   { outline-color: var(--tm-accent); }
+  60%  { outline-color: var(--tm-accent-ring); }
+  100% { outline-color: transparent; }
+}
+
+/* ─── Modal styles (kept for .cvb-modal-backdrop used by mobile <720px) */
 .cvb-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -345,6 +388,15 @@
 .cvb-cv-render li { font-size: 12.5px; line-height: 1.6; margin-bottom: 4px; color: var(--tm-text); }
 .cvb-cv-render .cv-summary { font-size: 13px; color: var(--tm-text); line-height: 1.6; margin: 0; }
 .cvb-cv-render .cv-skills { font-family: var(--cvb-font-mono); font-size: 12px; line-height: 1.75; color: var(--tm-text); }
+/* Green persistent highlight on the CV line that matches ?skill= deeplink */
+.cvb-cv-render li.cv-focus-bullet {
+  background: rgba(0,245,212,0.08);
+  border-left: 3px solid var(--tm-accent);
+  padding-left: 8px;
+  margin-left: -8px;
+  border-radius: 3px;
+  color: var(--tm-text);
+}
 
 /* ─── Version tabs ──────────────────────────────────────────── */
 .cvb-version-tabs {

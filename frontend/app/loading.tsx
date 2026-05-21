@@ -1,5 +1,5 @@
-import { LoadingPage } from "@/components/loading/loading-page"
+import { RouteLoading } from "@/components/loading/route-loading"
 
 export default function Loading() {
-  return <LoadingPage />
+  return <RouteLoading kind="app-data" />
 }

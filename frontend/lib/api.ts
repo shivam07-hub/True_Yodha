@@ -256,6 +256,17 @@ export interface UserSkillItem {
   evidence_text: string | null
   forge_sessions_count: number
   forged_level_up_available: boolean
+  correction_count: number
+}
+
+export interface SkillAppealResponse {
+  taxonomy_key: string
+  new_level: number | null
+  total_score: number | null
+  approved: boolean
+  verdict: string
+  criteria: string
+  appeals_remaining: number
 }
 
 export interface UserSkillsByDomain {
@@ -288,13 +299,13 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
-  correctSkillLevel: (token: string, taxonomyKey: string, level: number) =>
-    request<{ taxonomy_key: string; new_level: number; total_score: number | null }>(
+  correctSkillLevel: (token: string, taxonomyKey: string, level: number, bulletText: string) =>
+    request<SkillAppealResponse>(
       `/users/me/skills/${encodeURIComponent(taxonomyKey)}/level`,
       {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ level }),
+        body: JSON.stringify({ level, bullet_text: bulletText }),
       },
     ),
   skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string, freeUnlock = false) =>
@@ -1275,6 +1286,46 @@ export interface Skill {
 export const skills = {
   all: () => request<Skill[]>("/skills"),
   domains: () => request<string[]>("/skills/domains"),
+}
+
+// ── Billing ──────────────────────────────────────────────────────────────────
+
+export interface RazorpayOrderResponse {
+  order_id: string
+  amount: number
+  currency: string
+}
+
+export interface RazorpayVerifyPayload {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+export interface RazorpayVerifyResponse {
+  success: boolean
+  xp_earned: number
+  new_xp_balance: number
+}
+
+export const billing = {
+  createOrder: (token: string) =>
+    request<RazorpayOrderResponse>("/api/create-order", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: 9900,
+        currency: "INR",
+        receipt: `xp_${Date.now()}`,
+      }),
+    }),
+
+  verifyPayment: (token: string, payload: RazorpayVerifyPayload) =>
+    request<RazorpayVerifyResponse>("/api/verify-payment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 }
 
 // ── XP + Forge ───────────────────────────────────────────────────────────────

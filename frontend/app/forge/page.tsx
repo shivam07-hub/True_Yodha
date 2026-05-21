@@ -17,6 +17,7 @@ import { dataKeys, invalidateDiaryData } from "@/lib/domain-data"
 import { claimableForgeMinutes, claimableForgeXP, forgeProgressRatio } from "@/lib/forge-progress"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { XP_POLICY } from "@/lib/xp-policy"
+import { sessionsForGap } from "@/lib/level-thresholds"
 import { useCartStore } from "@/store/cartStore"
 import { FORGE_AMBIENT_DURATION, useForgeTimerStore } from "@/store/forgeTimerStore"
 import { useXPStore } from "@/store/xpStore"
@@ -43,10 +44,7 @@ interface ForgeCandidate {
 }
 
 function sessionEstimate(from: number, to: number): number {
-  const steps = [3, 9, 27, 108]
-  let total = 0
-  for (let level = from; level < to && level < steps.length; level += 1) total += steps[level]
-  return Math.max(1, total)
+  return Math.max(1, sessionsForGap(from, to))
 }
 
 function normalizeSkillName(value: string): string {

@@ -27,6 +27,7 @@ function CVPage() {
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
   const wantsPdf = searchParams.get("view") === "pdf"
+  const focusSkill = searchParams.get("skill")
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -55,6 +56,9 @@ function CVPage() {
   function backToBaseline() { navigate("/cv") }
   function openPdf(matchScore = 0) {
     if (!jobId) return
+    if (matchScore > 0) {
+      try { sessionStorage.setItem(`myro-cv-score-${jobId}`, String(matchScore)) } catch { /* blocked */ }
+    }
     const scoreParam = matchScore > 0 ? `&score=${matchScore}` : ""
     navigate(`/cv?jobId=${encodeURIComponent(jobId)}&view=pdf${scoreParam}`)
   }
@@ -157,6 +161,7 @@ function CVPage() {
               profile={profileQuery.data ?? null}
               onRework={() => setShowUpload(true)}
               onOpenJob={openJob}
+              focusSkill={focusSkill}
             />
           )}
 
@@ -181,6 +186,7 @@ function CVPage() {
               onExportPDF={openPdf}
               onEditPolished={openEdit}
               externalError={surfacedError}
+              focusSkill={focusSkill}
             />
           )}
 
@@ -200,6 +206,7 @@ function CVPage() {
               company={playground.selectedVersion?.company_name ?? "Selected role"}
               jobTitle={playground.selectedVersion?.job_title ?? ""}
               matchScore={Number(searchParams.get("score") ?? 0)}
+              jobId={jobId}
               onBackToPlayground={backToPlayground}
             />
           )}

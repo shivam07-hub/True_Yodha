@@ -1,20 +1,26 @@
 "use client"
 
 import { Bot, BriefcaseBusiness, ChartNetwork } from "lucide-react"
-import { MyroLogo } from "@/components/myro-logo"
 import { ProcessLoading, type ProcessLoadingStage } from "@/components/loading/process-loading"
+import { MyroLogo } from "@/components/myro-logo"
 
-const APP_LOADING_STAGES: readonly ProcessLoadingStage[] = [
-  { id: "session", label: "Session", icon: Bot, keywords: ["session", "auth", "profile"] },
-  { id: "jobs", label: "Jobs", icon: BriefcaseBusiness, keywords: ["job", "market", "workspace"] },
-  { id: "signals", label: "Signals", icon: ChartNetwork, keywords: ["skill", "signal", "intel"] },
+const DEFAULT_STAGES: readonly ProcessLoadingStage[] = [
+  { id: "init", label: "Session", icon: Bot, keywords: ["session", "auth", "sign", "init"] },
+  { id: "process", label: "Processing", icon: BriefcaseBusiness, keywords: ["process", "parse", "upload", "analyse"] },
+  { id: "complete", label: "Finalising", icon: ChartNetwork, keywords: ["final", "complete", "ready", "done"] },
 ]
 
-interface LoadingPageProps {
+interface FlowStepLoadingProps {
+  step?: string
   message?: string
+  stages?: readonly ProcessLoadingStage[]
 }
 
-export function LoadingPage({ message = "Preparing Myro…" }: LoadingPageProps) {
+export function FlowStepLoading({
+  step,
+  message = "Loading…",
+  stages = DEFAULT_STAGES,
+}: FlowStepLoadingProps) {
   return (
     <main
       style={{
@@ -68,8 +74,8 @@ export function LoadingPage({ message = "Preparing Myro…" }: LoadingPageProps)
         </div>
 
         <ProcessLoading
-          message={message}
-          stages={APP_LOADING_STAGES}
+          message={step ? `${message} · ${step}` : message}
+          stages={stages}
           inferActiveStageFromMessage
           showSkeleton
           style={{ width: "100%", paddingTop: 10 }}
