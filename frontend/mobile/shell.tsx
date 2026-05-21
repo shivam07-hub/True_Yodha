@@ -10,6 +10,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
 import { openFeedbackHub } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
+import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -73,9 +74,11 @@ export function AppShellSkeleton() {
   )
 }
 
+// Forge moved out of the bottom nav 2026-05-21 — it now lives in the top
+// ForgeXpPill widget (always-on, ambient surface). Five-slot nav fits 375px
+// comfortably and frees space for the larger XP/Forge pill at the top.
 const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stalePill?: boolean }> = [
   { href: "/home",    label: "Dashboard", icon: null },
-  { href: "/forge",   label: "Forge",     icon: "◆" },
   { href: "/market",  label: "Intel",     icon: "◉" },
   { href: "/skills",  label: "Skills",    icon: "⬡" },
   { href: "/cv",      label: "CV",        icon: "◈" },
@@ -103,21 +106,8 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
         </span>
       </Link>
 
-      <button
-        type="button"
-        onClick={onXPOpen}
-        aria-label="Open XP guide"
-        style={{
-          padding: "5px 11px", borderRadius: 99,
-          background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-          fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 700,
-          color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 5,
-          cursor: "pointer",
-        }}>
-        <span style={{ filter: "drop-shadow(0 0 4px var(--tm-accent-glow))" }}>◆</span>
-        {xpBalance}
-        <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontWeight: 400 }}>XP</span>
-      </button>
+      <ForgeXpPill xpBalance={xpBalance} onXpClick={onXPOpen} />
+
 
       <button
         onClick={onAvatarClick}

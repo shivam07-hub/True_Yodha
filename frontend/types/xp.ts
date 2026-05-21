@@ -13,6 +13,8 @@ export interface ForgeSessionResult {
   leveled_up: boolean
   sessions_toward_next: number
   sessions_needed: number | null
+  total_forge_minutes?: number
+  minutes_to_next_session?: number
 }
 
 export interface XPSpendResult {

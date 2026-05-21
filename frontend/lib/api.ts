@@ -1370,6 +1370,11 @@ export const xp = {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
+
+  lastForgedSkill: (token: string) =>
+    request<{ skill_id: string | null; skill_name: string | null }>("/users/me/forge/last-skill", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 // ── Feedback ─────────────────────────────────────────────────────────────────
