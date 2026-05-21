@@ -244,8 +244,6 @@ function SidebarForgeTimer({
   onXPEarned,
 }: {
   onXPEarned: (amount: number, newBalance: number) => void
-  /** Legacy prop — hook handles the API call now. Retained for ABI compat with callers; unused. */
-  onCompleteSession?: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>
 }) {
   const {
     state, skillName, remaining, ringPct,
@@ -602,7 +600,7 @@ function SidebarForgeTimer({
   )
 }
 
-function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeComplete: (payload: { skill_name: string; duration_minutes: number }) => Promise<ForgeSessionResult>; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
+function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
   const expanded = true
   const pathname = usePathname()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -678,10 +676,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeComplete, onForgeXPEarned
       </button>
 
       {/* Inline forge timer — shows when session active */}
-      <SidebarForgeTimer
-        onCompleteSession={onForgeComplete}
-        onXPEarned={onForgeXPEarned}
-      />
+      <SidebarForgeTimer onXPEarned={onForgeXPEarned} />
 
       {/* Nav items */}
       <div style={{ flex: 1, padding: "8px", display: "flex", flexDirection: "column", gap: 2 }}>
@@ -823,11 +818,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     xp.balance(token).then((response) => setXPBalance(response.balance)).catch(() => {})
   }, [token, setXPBalance])
 
-  async function handleAmbientForgeComplete(payload: { skill_name: string; duration_minutes: number }) {
-    if (!token) throw new Error("Not authenticated")
-    return xp.completeForge(token, { ...payload, session_type: "ambient" })
-  }
-
   function handleAmbientXPEarned(amount: number, newBalance: number) {
     addBalance(amount)
     setXPBalance(newBalance)
@@ -891,7 +881,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           xpBalance={xpBalance}
           profile={profile}
           signOut={signOut}
-          onForgeComplete={handleAmbientForgeComplete}
           onForgeXPEarned={handleAmbientXPEarned}
           onXPOpen={() => setXPModalOpen(true)}
         />

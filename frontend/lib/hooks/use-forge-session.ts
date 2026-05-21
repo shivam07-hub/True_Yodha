@@ -9,11 +9,17 @@ import {
   FORGE_AMBIENT_DURATION,
   pendingXpFromMinutes,
   useForgeTimerStore,
+  type ForgeSessionType,
 } from "@/store/forgeTimerStore"
 import { useXPStore } from "@/store/xpStore"
 import type { CartSkill, ForgeSessionResult } from "@/types/xp"
 
 export type ForgeSessionTimerState = "idle" | "running" | "paused" | "complete"
+
+export interface UseForgeSessionOptions {
+  /** Defaults to "ambient". Pass "focused" from immersive Forge Mode surfaces. */
+  sessionType?: ForgeSessionType
+}
 
 export interface UseForgeSessionResult {
   state: ForgeSessionTimerState
@@ -45,7 +51,8 @@ export interface UseForgeSessionResult {
  * at the root of the app (AppShell does this). Every consumer of this hook
  * is read-only on the clock — multiple renderers cannot accidentally double-tick.
  */
-export function useForgeSession(): UseForgeSessionResult {
+export function useForgeSession(options: UseForgeSessionOptions = {}): UseForgeSessionResult {
+  const sessionType: ForgeSessionType = options.sessionType ?? "ambient"
   const {
     skillName,
     skillId,
@@ -71,7 +78,7 @@ export function useForgeSession(): UseForgeSessionResult {
         skill_name: skillName,
         skill_id: skillId ?? undefined,
         duration_minutes: minutes,
-        session_type: "ambient",
+        session_type: sessionType,
       })
     },
   })
@@ -121,7 +128,7 @@ export function useForgeSession(): UseForgeSessionResult {
     ss,
     ringPct,
     pendingMinutes,
-    pendingXp: pendingXpFromMinutes(pendingMinutes),
+    pendingXp: pendingXpFromMinutes(pendingMinutes, sessionType),
     canClaim: pendingMinutes > 0 && !claimMutation.isPending,
     claiming: claimMutation.isPending,
     claimError: claimMutation.error instanceof Error ? claimMutation.error.message : null,
