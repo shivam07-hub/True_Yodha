@@ -81,6 +81,11 @@ for _tier in OR_TIERS:
 
 GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile"
 
+# OR_TIERS[0:FREE_OR_TIER_COUNT] are free tiers.
+# get_cv_upload_provider() skips these to avoid free-tier exhaustion on the
+# user-blocking CV upload path.
+FREE_OR_TIER_COUNT = 2
+
 
 class LLMProviderError(Exception):
     """Raised when all configured providers fail or return empty responses."""
@@ -122,8 +127,7 @@ class LLMProvider:
         raise LLMProviderError("All LLM providers failed")
 
 
-def get_llm_provider() -> LLMProvider:
-    """FastAPI Depends factory. Reads settings, builds ordered provider list."""
+def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
     providers: list[_ProviderEntry] = []
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(
@@ -131,21 +135,32 @@ def get_llm_provider() -> LLMProvider:
             base_url=_OR_BASE,
             default_headers=_OR_HEADERS,
         )
-        # One ProviderEntry per OR tier chunk (≤3 models each).
-        for tier in OR_TIERS:
+        for tier in or_tiers:
             providers.append((or_client, tier[0], {"models": tier}))
     if settings.groq_api_key:
-        # Tertiary: Groq direct
         providers.append((
             AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
             GROQ_FALLBACK_MODEL,
             None,
         ))
     if settings.google_api_key:
-        # Quinary: Gemini direct
         providers.append((
             AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
             "gemini-2.0-flash-lite",
             None,
         ))
     return LLMProvider(providers)
+
+
+def get_llm_provider() -> LLMProvider:
+    """FastAPI Depends factory. Free tiers first — for background / non-blocking calls."""
+    return _build_provider(OR_TIERS)
+
+
+def get_cv_upload_provider() -> LLMProvider:
+    """Paid-tier-first provider for the user-blocking CV upload path.
+
+    Skips free OR tiers (indices 0..FREE_OR_TIER_COUNT-1) so free-tier exhaustion
+    never causes a 503 on the most critical onboarding action.
+    """
+    return _build_provider(OR_TIERS[FREE_OR_TIER_COUNT:])

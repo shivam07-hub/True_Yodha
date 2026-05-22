@@ -13,6 +13,7 @@ from app.repositories.cv import (
 )
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, jobs_workflow, scoring
+from app.services.llm_provider import get_cv_upload_provider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.xp_service import grant_welcome_xp
 
@@ -111,7 +112,7 @@ async def ingest_uploaded_cv(
             "redirect_to": "/onboarding/score",
         }
 
-    parsed = await cv_parser.parse_cv_text(raw_text)
+    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     skills_detected = parsed.get("skills_detected", [])
     if parsed.get("provider_failed"):
         raise HTTPException(
@@ -210,7 +211,7 @@ async def ingest_cv_text(
             "redirect_to": "/onboarding/score",
         }
 
-    parsed = await cv_parser.parse_cv_text(raw_text)
+    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     skills_detected = parsed.get("skills_detected", [])
     if parsed.get("provider_failed"):
         raise HTTPException(

@@ -156,7 +156,7 @@ class TestParseCv:
         fake_text = "Senior Data Engineer with 5 years of Python. " * 10
         monkeypatch.setattr(cv_parser, "_extract_text_pdf", lambda b: fake_text)
 
-        async def fake_extract(cv_text: str):
+        async def fake_extract(cv_text: str, provider=None):
             skills = [
                 {"taxonomy_key": "Python (Programming Language)", "signal_type": "impact", "evidence": "5y"},
                 {"taxonomy_key": "Not A Real Skill",              "signal_type": "mention"},
@@ -188,9 +188,37 @@ class TestParseCv:
         assert skills is None
         assert structured is None
 
+    def test_cv_upload_provider_skips_free_or_tiers(self) -> None:
+        from app.services.llm_provider import (
+            FREE_OR_TIER_COUNT,
+            OR_TIERS,
+            get_cv_upload_provider,
+        )
+        from app.services import llm_provider
+        # Ensure keys are present so the provider builds a non-empty list.
+        original_key = llm_provider.settings.openrouter_api_key
+        if not original_key:
+            llm_provider.settings.openrouter_api_key = "sk-test"
+        try:
+            p = get_cv_upload_provider()
+            paid_tier_count = len(OR_TIERS) - FREE_OR_TIER_COUNT
+            # Provider entries from OR = one per paid tier (models= extra_body entries).
+            or_entries = [entry for entry in p._providers if entry[2] and "models" in entry[2]]
+            assert len(or_entries) == paid_tier_count, (
+                f"Expected {paid_tier_count} paid OR tiers, got {len(or_entries)}"
+            )
+            # No free-tier model should appear in the upload provider.
+            free_models = {m for tier in OR_TIERS[:FREE_OR_TIER_COUNT] for m in tier}
+            for _, model, extra_body in p._providers:
+                if extra_body and "models" in extra_body:
+                    for m in extra_body["models"]:
+                        assert m not in free_models, f"Free model {m!r} leaked into CV upload provider"
+        finally:
+            llm_provider.settings.openrouter_api_key = original_key
+
     @pytest.mark.asyncio
     async def test_llm_extract_returns_empty_list_when_provider_responds_with_no_skills(self, monkeypatch) -> None:
-        async def _empty_provider(cv_text: str):  # noqa: ANN001
+        async def _empty_provider(cv_text: str, provider=None):  # noqa: ANN001
             return [], None
         monkeypatch.setattr(cv_parser, "_llm_extract", _empty_provider)
         out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
@@ -200,7 +228,7 @@ class TestParseCv:
 
     @pytest.mark.asyncio
     async def test_parse_cv_text_provider_failed_propagates(self, monkeypatch) -> None:
-        async def _failing_extract(cv_text: str):  # noqa: ANN001
+        async def _failing_extract(cv_text: str, provider=None):  # noqa: ANN001
             return None, None
         monkeypatch.setattr(cv_parser, "_llm_extract", _failing_extract)
         out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
@@ -218,7 +246,7 @@ class TestParseCv:
             "skills_line": "Python, SQL",
             "certs": [],
         }
-        async def _ok_provider(cv_text: str):  # noqa: ANN001
+        async def _ok_provider(cv_text: str, provider=None):  # noqa: ANN001
             return [{"taxonomy_key": "Python (Programming Language)", "signal_type": "impact"}], structured_payload
         monkeypatch.setattr(cv_parser, "_llm_extract", _ok_provider)
         out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
