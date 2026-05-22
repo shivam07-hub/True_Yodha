@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
@@ -33,6 +33,8 @@ function CVPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const ACCEPTED_EXT = /\.(pdf|docx)$/i
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
@@ -67,8 +69,21 @@ function CVPage() {
     navigate(`/cv?jobId=${encodeURIComponent(jobId)}`)
   }
 
+  function openFilePicker() {
+    setShowUpload(true)
+    setUploadError(null)
+    // Defer click so dialog mount doesn't intercept the activation gesture
+    requestAnimationFrame(() => fileInputRef.current?.click())
+  }
+
   async function handleUpload(file: File) {
     if (!token) return
+    if (!ACCEPTED_EXT.test(file.name)) {
+      setShowUpload(true)
+      setUploadError("Pick a PDF or DOCX file. Other formats aren’t supported yet.")
+      return
+    }
+    setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
     try {
       const result = await uploadCV(token, file)
@@ -132,7 +147,7 @@ function CVPage() {
                     The baseline is the trunk of your CV history — every per-job tailored version branches from it.
                   </p>
                 </div>
-                <button type="button" className="cvb-btn primary" onClick={() => setShowUpload(true)}>
+                <button type="button" className="cvb-btn primary" onClick={openFilePicker}>
                   <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload baseline CV
                 </button>
               </div>
@@ -159,7 +174,7 @@ function CVPage() {
               currentBaseline={playground.currentBaseline}
               cv={cvData}
               profile={profileQuery.data ?? null}
-              onRework={() => setShowUpload(true)}
+              onRework={openFilePicker}
               onOpenJob={openJob}
               focusSkill={focusSkill}
             />
@@ -213,8 +228,25 @@ function CVPage() {
         </div>
       </div>
 
+      {/* Persistent file input — outside Dialog so mobile picker resume never unmounts it */}
+      <input
+        ref={fileInputRef}
+        id="cv-upload-input"
+        type="file"
+        accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
+        style={{ position: "fixed", width: 1, height: 1, opacity: 0, pointerEvents: "none", left: -9999, top: -9999 }}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ""
+          if (f) handleUpload(f)
+        }}
+      />
+
       {/* Upload modal */}
-      <Dialog open={showUpload} onOpenChange={setShowUpload}>
+      <Dialog
+        open={showUpload}
+        onOpenChange={(o) => { if (uploading) return; setShowUpload(o) }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{hasBaseline ? "Replace your baseline CV" : "Upload your baseline CV"}</DialogTitle>
@@ -227,23 +259,30 @@ function CVPage() {
           {uploading || uploadResult ? (
             <CVUploadProcessing success={!!uploadResult} result={uploadResult ?? undefined} />
           ) : (
-            <label
-              htmlFor="cv-upload-input"
-              style={{
-                display: "block", padding: "32px 20px", textAlign: "center",
-                border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)",
-                cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13,
-              }}
-            >
-              Drop a PDF or DOCX here, or click to choose a file.
-              <input
-                id="cv-upload-input"
-                type="file"
-                accept=".pdf,.docx"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
-                style={{ display: "none" }}
-              />
-            </label>
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  display: "block", width: "100%", padding: "32px 20px", textAlign: "center",
+                  border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)",
+                  cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13,
+                  background: "transparent",
+                }}
+              >
+                {uploadError ? "Pick another file" : "Tap to choose a PDF or DOCX from your device."}
+              </button>
+              {uploadError && (
+                <div style={{
+                  marginTop: 10, padding: "8px 12px",
+                  border: "1px solid var(--tm-border-soft)",
+                  borderRadius: "var(--tm-radius-sm)",
+                  color: "var(--tm-text)", fontSize: 12,
+                }}>
+                  {uploadError}
+                </div>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>

@@ -1,5 +1,7 @@
 "use client"
 
+import "./skills.css"
+
 import Link from "next/link"
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -20,7 +22,10 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 type SortMode = "gap" | "alpha" | "skills"
 type ShowFilter = "all" | "at-risk" | "building" | "strong"
-type ViewMode = "domains" | "audit"
+// "intel" = domain accordion, "map" = radar (mobile-only first-class view),
+// "audit" = full skill audit table. Desktop never selects "map" via UI but
+// the value is tolerated (the desktop grid always shows the radar alongside).
+type ViewMode = "intel" | "map" | "audit"
 
 function domainAvg(items: ReturnType<typeof Object.values<ReturnType<typeof Object.values>[0]>>[0]) {
   if (!items.length) return 0
@@ -39,7 +44,7 @@ export default function SkillsPage() {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("gap")
   const [show, setShow] = useState<ShowFilter>("all")
-  const [view, setView] = useState<ViewMode>("domains")
+  const [view, setView] = useState<ViewMode>("intel")
 
   const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
@@ -135,7 +140,7 @@ export default function SkillsPage() {
 
   return (
     <AppShell>
-      <div className="tm-page-enter" style={{ minHeight: "100vh", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+      <div className="tm-page-enter tm-skills-page">
 
         {/* Header */}
         <div className="tm-skills-header" style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
@@ -159,13 +164,47 @@ export default function SkillsPage() {
           </div>
         </div>
 
-        {/* Sort/Filter bar — icon-only, enterprise compact */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
-          {/* VIEW group */}
-          <IconBtn active={view === "domains"} onClick={() => setView("domains")} icon="⊞" label="Domains view" />
-          <IconBtn active={view === "audit"} onClick={() => setView("audit")} icon="◈" label="Audit view" />
+        {/* Mobile-only 3-way segmented toggle (Intel / Map / Audit) */}
+        <div className="tm-skills-mview" role="group" aria-label="Skill view">
+          <button
+            type="button"
+            aria-pressed={view === "intel"}
+            onClick={() => setView("intel")}
+          >
+            <span className="glyph" aria-hidden>⊞</span>
+            <span>Intel</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "map"}
+            onClick={() => setView("map")}
+          >
+            <span className="glyph" aria-hidden>⬡</span>
+            <span>Map</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "audit"}
+            onClick={() => setView("audit")}
+          >
+            <span className="glyph" aria-hidden>◈</span>
+            <span>Audit</span>
+          </button>
+        </div>
 
-          {view === "domains" && (
+        {/* Sort/Filter bar — icon-only, enterprise compact */}
+        <div
+          className="tm-skills-chrome"
+          data-mview={view}
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 20, flexWrap: "wrap" }}
+        >
+          {/* VIEW group — desktop only; on mobile the segmented control above replaces this */}
+          <span className="tm-skills-view-toggle-desktop" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <IconBtn active={view === "intel"} onClick={() => setView("intel")} icon="⊞" label="Domains view" />
+            <IconBtn active={view === "audit"} onClick={() => setView("audit")} icon="◈" label="Audit view" />
+          </span>
+
+          {view !== "audit" && (
             <>
               <div style={{ width: 1, height: 20, background: "var(--tm-border-soft)", margin: "0 4px" }} />
               {/* SORT group */}
@@ -182,7 +221,7 @@ export default function SkillsPage() {
             </>
           )}
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <div className="tm-skills-actions-right" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <Link href="/cv" style={{
               fontSize: 12, fontWeight: 600, color: "var(--tm-text-faint)", textDecoration: "none",
               padding: "7px 16px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)",
@@ -202,11 +241,11 @@ export default function SkillsPage() {
           </div>
         </div>
 
-        {/* Two-column layout */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
+        {/* Two-column layout (desktop) / single-pane (mobile, driven by data-mview) */}
+        <div className="tm-skills-grid" data-mview={view}>
 
           {/* Left — domain accordion OR audit view */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="tm-skills-list-pane">
             {skillsLoading ? (
               <ParticleLoading message="Loading your skill constellation…" height={400} />
             ) : totalSkills === 0 ? (
@@ -235,32 +274,32 @@ export default function SkillsPage() {
             ))}
           </div>
 
-          {/* Right — sticky Domain Map */}
-          <div style={{ position: "sticky", top: 20 }}>
-            <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "20px 20px 16px", overflow: "hidden" }}>
+          {/* Right — Domain Map (sticky on desktop, inline on mobile) */}
+          <div className="tm-skills-radar-panel">
+            <div className="tm-skills-radar-card">
               <div className="tm-label-caps" style={{ marginBottom: 4 }}>Domain Map</div>
               <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginBottom: 16 }}>
-                {domainEntries.length} domains · hover or click to inspect
+                {domainEntries.length} domains · tap to inspect
               </div>
               {totalSkills > 0 ? (
-                <SkillsDomainRadar
-                  userSkills={skills}
-                  onDomainClick={d => {
-                    setActiveDomain(a => a === d ? null : d)
-                    setExpandedDomain(p => p === d ? null : d)
-                  }}
-                  activeDomain={activeDomain}
-                />
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <SkillsDomainRadar
+                    userSkills={skills}
+                    onDomainClick={d => {
+                      setActiveDomain(a => a === d ? null : d)
+                      setExpandedDomain(p => p === d ? null : d)
+                    }}
+                    activeDomain={activeDomain}
+                  />
+                </div>
               ) : (
                 <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ fontSize: 11, color: "var(--tm-text-faint)", textAlign: "center" }}>No data yet</div>
                 </div>
               )}
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", display: "flex", gap: 8 }}>
-                <span style={{ fontSize: 10, color: "var(--tm-text-faint)", opacity: 0.6 }}>ℹ</span>
-                <span style={{ fontSize: 10, color: "var(--tm-text-faint)", lineHeight: 1.5 }}>
-                  Each point = one domain. Distance from center = score.
-                </span>
+              <div className="tm-skills-radar-info">
+                <span style={{ opacity: 0.6 }}>ℹ</span>
+                <span>Each point = one domain. Distance from center = score.</span>
               </div>
             </div>
           </div>
