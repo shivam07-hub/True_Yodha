@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import SkillGapItem, SkillGapResponse
 
@@ -10,14 +10,14 @@ router = APIRouter()
 @router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)
 async def get_skill_gap(
     job_id: str,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> SkillGapResponse:
     job = repo.get_job_skills(job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    user_skill_map = repo.get_user_skill_map(current_user["user_id"])
+    user_skill_map = repo.get_user_skill_map(principal.id)
 
     gap_items: list[SkillGapItem] = []
     for skill in job.get("skills") or []:

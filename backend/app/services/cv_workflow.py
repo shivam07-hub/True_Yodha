@@ -13,6 +13,7 @@ from app.repositories.cv import (
 )
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, jobs_workflow, scoring
+from app.services.llm_provider import get_cv_upload_provider
 from app.services.rate_limit import assert_not_rate_limited
 from app.services.xp_service import grant_welcome_xp
 
@@ -47,10 +48,16 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
 
 
 async def _grant_welcome_xp_safely(user_id: str) -> None:
+    """Fire-and-forget welcome XP. CV upload UX must not 500 on a bonus grant.
+
+    Log at ERROR so silent failures surface in monitoring — the RPC is now
+    atomic and migration-backed, so any failure here is genuine infra (RLS,
+    connectivity, missing column) and worth paging on.
+    """
     try:
         await grant_welcome_xp(user_id)
     except Exception as exc:
-        _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+        _log.error("Welcome XP grant failed for user=%s: %s", user_id, exc, exc_info=True)
 
 
 def _persist_baseline_cv(
@@ -105,7 +112,7 @@ async def ingest_uploaded_cv(
             "redirect_to": "/onboarding/score",
         }
 
-    parsed = await cv_parser.parse_cv_text(raw_text)
+    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     skills_detected = parsed.get("skills_detected", [])
     if parsed.get("provider_failed"):
         raise HTTPException(
@@ -204,7 +211,7 @@ async def ingest_cv_text(
             "redirect_to": "/onboarding/score",
         }
 
-    parsed = await cv_parser.parse_cv_text(raw_text)
+    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     skills_detected = parsed.get("skills_detected", [])
     if parsed.get("provider_failed"):
         raise HTTPException(

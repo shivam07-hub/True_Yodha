@@ -87,7 +87,7 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
     _raw = "Python backend engineer with shipped APIs."
     monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
 
-    async def _fake_parse_cv_text(_raw_text: str) -> dict[str, Any]:
+    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict[str, Any]:
         return {
             "raw_text": _raw_text,
             "skills_detected": [{"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "Shipped APIs"}],

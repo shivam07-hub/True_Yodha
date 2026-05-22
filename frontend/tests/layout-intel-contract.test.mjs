@@ -12,13 +12,13 @@ function read(relativePath) {
 }
 
 test("intel section wrapper uses growable height to avoid overlap", () => {
-  const source = read("app/page.tsx")
-  const intelBlockMatch = source.match(/id="intel"[\s\S]*?<IntelPane \/>/)
+  const source = read("app/intel/page.tsx")
+  const intelBlockMatch = source.match(/<div style=\{\{ flex: 1,[\s\S]*?<IntelPane \/>/)
 
-  assert.ok(intelBlockMatch, "intel wrapper block should exist in app/page.tsx")
+  assert.ok(intelBlockMatch, "intel wrapper block should exist in app/intel/page.tsx")
 
   const intelBlock = intelBlockMatch[0]
-  assert.match(intelBlock, /minHeight:\s*"100dvh"/)
-  assert.match(intelBlock, /height:\s*"auto"/)
+  assert.match(intelBlock, /flex:\s*1/)
+  assert.match(intelBlock, /overflowY:\s*"auto"/)
   assert.doesNotMatch(intelBlock, /\bheight:\s*"100dvh"/)
 })

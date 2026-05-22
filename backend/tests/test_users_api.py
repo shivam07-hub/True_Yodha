@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.users import UserSkillRecord
 from app.routers import users
@@ -72,7 +72,7 @@ class _FakeDiaryRepository:
 
 def test_get_me_reads_through_token_repository() -> None:
     repo = _FakeUsersRepository(profile=_profile_row())
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
@@ -87,7 +87,7 @@ def test_get_me_reads_through_token_repository() -> None:
 
 def test_update_profile_writes_through_token_repository() -> None:
     repo = _FakeUsersRepository(profile=_profile_row())
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
@@ -110,7 +110,7 @@ def test_update_profile_grants_linkedin_xp_once_when_linkedin_added(monkeypatch)
         return 50, 1050
 
     monkeypatch.setattr(users, "grant_linkedin_profile_xp", _grant)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
@@ -137,7 +137,7 @@ def test_update_profile_does_not_grant_linkedin_xp_after_first_reward(monkeypatc
         raise AssertionError("LinkedIn XP should be one-time only")
 
     monkeypatch.setattr(users, "grant_linkedin_profile_xp", _grant)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
@@ -165,7 +165,7 @@ def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
         return SimpleNamespace(l1_domain="IT", l2_cluster="Databases")
 
     monkeypatch.setattr(users, "lookup_by_name", fake_lookup)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:
@@ -194,7 +194,7 @@ def test_skill_advice_does_not_spend_xp_when_provider_returns_no_advice(monkeypa
     monkeypatch.setattr(users, "generate_skill_advice", _no_advice)
     monkeypatch.setattr(users, "assert_can_spend_xp", _can_spend)
     monkeypatch.setattr(users, "spend_xp", _spend)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_llm_provider] = lambda: object()
     app.dependency_overrides[users.get_token_users_repository] = lambda: _FakeUsersRepository()
     app.dependency_overrides[users.get_token_diary_repository] = lambda: _FakeDiaryRepository()
@@ -230,7 +230,7 @@ def test_skill_advice_spends_xp_after_advice_is_generated(monkeypatch) -> None:
     monkeypatch.setattr(users, "generate_skill_advice", _advice)
     monkeypatch.setattr(users, "assert_can_spend_xp", _can_spend)
     monkeypatch.setattr(users, "spend_xp", _spend)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_llm_provider] = lambda: object()
     app.dependency_overrides[users.get_token_users_repository] = lambda: _FakeUsersRepository()
     app.dependency_overrides[users.get_token_diary_repository] = lambda: _FakeDiaryRepository()
@@ -259,7 +259,7 @@ def test_follow_company_case_insensitive_duplicate_does_not_spend_xp(monkeypatch
         raise AssertionError("Duplicate follows should not spend XP")
 
     monkeypatch.setattr(users, "spend_xp_to_floor", _spend)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
     try:

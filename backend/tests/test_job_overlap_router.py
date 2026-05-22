@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers.profile import public as public_router
 
@@ -91,7 +91,7 @@ def test_overlap_returns_intersection_with_owner(monkeypatch: Any, _clear_overri
         ],
     }
     monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "viewer-u", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="viewer-u", email=None, token="t")
 
     with TestClient(app) as client:
         response = client.get("/profile/silent-fox-9k2x/overlap")
@@ -118,7 +118,7 @@ def test_overlap_returns_empty_when_no_shared_jobs(monkeypatch: Any, _clear_over
         "user_job_matches": [],
     }
     monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "viewer-u", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="viewer-u", email=None, token="t")
 
     with TestClient(app) as client:
         response = client.get("/profile/silent-fox-9k2x/overlap")
@@ -136,7 +136,7 @@ def test_overlap_self_returns_empty(monkeypatch: Any, _clear_overrides: Any) -> 
         "user_job_matches": [],
     }
     monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "same-u", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="same-u", email=None, token="t")
 
     with TestClient(app) as client:
         response = client.get("/profile/silent-fox-9k2x/overlap")
@@ -172,7 +172,7 @@ def test_overlap_caps_at_three_rows_sorted_by_viewer_pct(monkeypatch: Any, _clea
         ],
     }
     monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "viewer-u", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="viewer-u", email=None, token="t")
 
     with TestClient(app) as client:
         response = client.get("/profile/silent-fox-9k2x/overlap")

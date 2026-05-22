@@ -157,6 +157,37 @@ Adding a fourth surface (PWA push, watch face, embedded widget) is one adapter, 
 
 ---
 
+## Principal
+
+The authenticated identity behind a request. One row in `auth.users`, surfaced into FastAPI as `Principal(id, email)` and produced by `app.deps.get_principal`. Every protected route depends on this — not on a raw dict, not on a JWT, not on a Supabase user object.
+
+**Attributes**
+
+- `id` — the `auth.users.id` UUID, as a string. **Same field name as the Supabase SDK's `response.user.id`**, so there is one canonical name for this value end-to-end (no `user_id` vs `id` translation to invite typos).
+- `email` — the JWT email claim. Optional — never assume present for non-email auth flows.
+
+**Seam**
+
+`app/deps.py` is the only place that talks to Supabase Auth. Three dependencies, all memoized within a single request by FastAPI's dep cache (one JWT validation per request, regardless of how many of these are injected):
+
+- `get_principal() -> Principal` — identity-only. Default choice for protected routes.
+- `get_user_db() -> Client` — RLS-scoped Supabase client bound to the caller's JWT. Routes that need the DB, and every `get_token_*_repository` factory, depend on this.
+- `get_current_user() -> CurrentUser` — `Principal + token`. **Internal**. Only `get_user_db` reads it. Routers must not depend on `CurrentUser` directly — depend on `Principal` and let the seam own the token.
+
+**Invariants**
+
+- The bearer token never leaves `deps.py`. Routers, services, repositories never see it. This is what makes `Principal` safe to log, serialize, or hand to background tasks.
+- `Principal.id` is non-null on any successful injection — `get_current_user` raises `401` before returning.
+- `Principal` is frozen (Pydantic `frozen=True`). Mutating identity mid-request is not a thing.
+- Tests construct `Principal(id=..., email=...)` directly and inject via `app.dependency_overrides[get_principal]`. There is no dict-shape contract to drift.
+
+**Surfaces**
+
+- ~50 router endpoints across `users`, `diary`, `payments`, `telemetry`, `scores`, `xp`, `profile`, `cv/*`, `jobs/*`.
+- 5 repository factories (`get_token_users_repository`, `get_token_cv_repository`, `get_token_jobs_repository`, `get_token_diary_repository`, `get_token_scores_repository`) — all consume `get_user_db`, none touch `Principal`.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:

@@ -6,8 +6,8 @@ from typing import Any
 from fastapi import Depends
 from supabase import Client
 
-from app.database import get_supabase_admin, get_supabase_for_token
-from app.deps import get_current_user
+from app.database import get_supabase_admin
+from app.deps import get_user_db
 
 
 class DiaryRepository:
@@ -154,7 +154,5 @@ def get_admin_diary_repository(db: Client = Depends(get_supabase_admin)) -> Diar
     return DiaryRepository(db)
 
 
-def get_token_diary_repository(
-    current_user: dict = Depends(get_current_user),
-) -> DiaryRepository:
-    return DiaryRepository(get_supabase_for_token(current_user["token"]))
+def get_token_diary_repository(db: Client = Depends(get_user_db)) -> DiaryRepository:
+    return DiaryRepository(db)

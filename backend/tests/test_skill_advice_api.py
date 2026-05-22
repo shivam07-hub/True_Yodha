@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.diary import get_token_diary_repository
 from app.repositories.users import get_token_users_repository
@@ -27,7 +27,7 @@ class _FakeDiaryRepository:
 
 
 def _override(users_repo: _FakeUsersRepository) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_llm_provider] = lambda: object()
     app.dependency_overrides[get_token_users_repository] = lambda: users_repo
     app.dependency_overrides[get_token_diary_repository] = lambda: _FakeDiaryRepository()

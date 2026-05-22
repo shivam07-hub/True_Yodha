@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import xp_service
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
@@ -56,11 +56,11 @@ def _compute_overlap(skill_rows: list[dict], user_lower: dict[str, int]) -> tupl
 @router.post("/analyse/{job_id}", status_code=status.HTTP_201_CREATED)
 async def analyse_job(
     job_id: str,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
     llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> dict:
-    user_id = current_user["user_id"]
+    user_id = principal.id
 
     skill_rows = repo.get_all_job_skill_rows(job_ids=[job_id])
     if not skill_rows:

@@ -34,7 +34,7 @@ import re
 from difflib import get_close_matches
 from functools import lru_cache
 
-from app.services.llm_provider import LLMProviderError, get_llm_provider
+from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
 # pymupdf (fitz) and python-docx are imported lazily inside the extract_* helpers
@@ -141,7 +141,10 @@ Structured-section rules:
   - Do NOT invent fields, dates, or bullets. Extract only what is present in the CV text."""
 
 
-async def _llm_extract(cv_text: str) -> tuple[list[dict] | None, dict | None]:
+async def _llm_extract(
+    cv_text: str,
+    provider: LLMProvider | None = None,
+) -> tuple[list[dict] | None, dict | None]:
     """Single LLM call → (skills, cv_structured).
 
     Returns:
@@ -158,7 +161,7 @@ async def _llm_extract(cv_text: str) -> tuple[list[dict] | None, dict | None]:
         )},
     ]
     try:
-        raw = await get_llm_provider().complete(messages, max_tokens=4096, temperature=0)
+        raw = await (provider or get_llm_provider()).complete(messages, max_tokens=4096, temperature=0)
     except LLMProviderError:
         logger.error("All CV extraction providers failed")
         return None, None
@@ -353,7 +356,7 @@ def extract_raw_text(file_bytes: bytes, file_type: str) -> str:
     raise ValueError(f"Unsupported file_type: {file_type!r}")
 
 
-async def parse_cv_text(raw_text: str) -> dict:
+async def parse_cv_text(raw_text: str, provider: LLMProvider | None = None) -> dict:
     """Parse free-form self-description text and return skill signals + structured sections.
 
     Result keys:
@@ -371,7 +374,7 @@ async def parse_cv_text(raw_text: str) -> dict:
         logger.info("CV text rejected as non-linguistic input (%d chars)", len(raw_text))
         return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
-    raw_skills, structured = await _llm_extract(raw_text)
+    raw_skills, structured = await _llm_extract(raw_text, provider)
     provider_failed = raw_skills is None
     skills = _validate_and_normalize(raw_skills or [])
     logger.info(
@@ -386,7 +389,7 @@ async def parse_cv_text(raw_text: str) -> dict:
     }
 
 
-async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
+async def parse_cv(file_bytes: bytes, file_type: str, provider: LLMProvider | None = None) -> dict:
     """
     Parse a CV and return detected skill signals mapped to Lightcast.
 
@@ -417,7 +420,7 @@ async def parse_cv(file_bytes: bytes, file_type: str) -> dict:
         logger.warning("CV extracted text is too short (%d chars) — likely scanned", len(raw_text))
         return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
-    raw_skills, structured = await _llm_extract(raw_text)
+    raw_skills, structured = await _llm_extract(raw_text, provider)
     provider_failed = raw_skills is None
     skills = _validate_and_normalize(raw_skills or [])
     logger.info(

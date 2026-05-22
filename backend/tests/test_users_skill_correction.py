@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.repositories.users import UsersRepository, UserSkillRecord, get_token_users_repository
@@ -129,7 +129,7 @@ def _override(
     scores_repo: _FakeScoresRepository,
     llm_provider: LLMProvider | None = None,
 ) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_users_repository] = lambda: users_repo
     app.dependency_overrides[get_token_scores_repository] = lambda: scores_repo
     if llm_provider is not None:

@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers import telemetry as telemetry_module
 
@@ -36,7 +36,7 @@ def patch_admin(monkeypatch: pytest.MonkeyPatch) -> _FakeChain:
 
 @pytest.fixture
 def authed_client(patch_admin):
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u-test", "token": "tok"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u-test", email=None, token="tok")
     with TestClient(app) as client:
         yield client, patch_admin
     app.dependency_overrides.clear()

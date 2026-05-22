@@ -14,13 +14,13 @@ interface PublicTopNavProps {
 const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
   { label: "About", href: "/about", id: "about" },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
-  { label: "Intel", href: "/", id: "intel" },
+  { label: "Intel", href: "/intel", id: "intel" },
 ]
 
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
-      <Link href="/" aria-label="Myro home" className="tm-public-nav-brand">
+      <Link href="/about" aria-label="Myro home" className="tm-public-nav-brand">
         <MyroLogo size={34} />
         <span className="tm-public-nav-wordmark">Myro</span>
       </Link>

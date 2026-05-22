@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 
 from app.database import get_supabase_admin
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.schemas import (
     JobOverlapResponse,
     JobOverlapRow,
@@ -123,7 +123,7 @@ def _fetch_match_scores(admin: Client, user_id: str, job_ids: list[str]) -> dict
 @router.get("/{ninja_name}/overlap", response_model=JobOverlapResponse)
 async def get_job_overlap(
     ninja_name: str,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> JobOverlapResponse:
     name = ninja_name.strip().lower()
     if not nn.is_valid(name):
@@ -131,7 +131,7 @@ async def get_job_overlap(
 
     admin = _admin()
     owner_id = _resolve_owner_id(name, admin=admin)
-    viewer_id = current_user["user_id"]
+    viewer_id = principal.id
 
     if not owner_id or owner_id == viewer_id:
         return JobOverlapResponse(rows=[])
@@ -170,7 +170,7 @@ async def get_job_overlap(
 @router.post("/ninja-name", response_model=UpdateNinjaNameResponse)
 async def update_ninja_name(
     body: UpdateNinjaNameRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> UpdateNinjaNameResponse:
     name = body.ninja_name
     if not nn.is_valid(name):
@@ -183,20 +183,20 @@ async def update_ninja_name(
     current = (
         admin.table("user_profiles")
         .select("ninja_name")
-        .eq("id", current_user["user_id"])
+        .eq("id", principal.id)
         .maybe_single()
         .execute()
     )
     current_name = (current.data or {}).get("ninja_name") if current else None
     if current_name != name and not nn.is_available(name, admin=admin):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="That name is taken.")
-    nn.claim(current_user["user_id"], name, admin=admin)
+    nn.claim(principal.id, name, admin=admin)
     return UpdateNinjaNameResponse(ninja_name=name)
 
 
 @router.get("/ninja-name/suggest", response_model=SuggestNinjaNameResponse)
 async def suggest_ninja_name(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> SuggestNinjaNameResponse:
     """Onboarding seed.
 
@@ -208,7 +208,7 @@ async def suggest_ninja_name(
       3. Random adjective-noun fallback.
     """
     admin = _admin()
-    user_id = current_user["id"]
+    user_id = principal.id
 
     profile = (
         admin.table("user_profiles")

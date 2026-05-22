@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     ComputeJobMatchesResponse,
@@ -26,21 +26,21 @@ REFRESH_XP_COST = MATCH_REFRESH_XP_COST
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
 async def get_my_skill_demand(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> UserSkillDemandResponse:
-    items = jobs_workflow.build_user_skill_demand(repo, current_user["user_id"])
+    items = jobs_workflow.build_user_skill_demand(repo, principal.id)
     return UserSkillDemandResponse(skills=items, total=len(items))
 
 
 @router.get("/matches", response_model=JobMatchesResponse)
 async def get_job_matches(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobMatchesResponse:
     from datetime import datetime, timezone
     batch_week = last_monday()
-    rows = repo.get_user_matches_for_week(current_user["user_id"], batch_week)
+    rows = repo.get_user_matches_for_week(principal.id, batch_week)
     jobs = [to_job_match(row, batch_week) for row in rows]
 
     feed_ts_raw = repo.get_feed_updated_at()
@@ -85,9 +85,9 @@ def _build_response(result: dict[str, Any], new_xp_balance: int | None = None) -
 
 @router.post("/compute", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
 async def compute_job_matches_async(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> ComputeJobMatchesResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
     batch_week = last_monday()
     try:
         queued = job_match_compute_async.enqueue_compute_job(user_id, batch_week)
@@ -101,11 +101,11 @@ async def compute_job_matches_async(
 
 @router.get("/compute/status", response_model=JobComputeStatusResponse)
 async def get_compute_status(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> JobComputeStatusResponse:
     batch_week = last_monday()
     try:
-        status_payload = job_match_compute_async.get_status(current_user["user_id"], batch_week)
+        status_payload = job_match_compute_async.get_status(principal.id, batch_week)
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -116,10 +116,10 @@ async def get_compute_status(
 
 @router.post("/refresh", response_model=ComputeJobMatchesResponse, status_code=status.HTTP_202_ACCEPTED)
 async def refresh_job_matches(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ComputeJobMatchesResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
     batch_week = last_monday()
 
     excluded_job_ids = repo.get_existing_match_job_ids(user_id, batch_week)
@@ -155,11 +155,11 @@ async def refresh_job_matches(
 
 @router.get("/refresh/status", response_model=JobComputeStatusResponse)
 async def get_refresh_status(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> JobComputeStatusResponse:
     batch_week = last_monday()
     try:
-        status_payload = job_match_compute_async.get_status(current_user["user_id"], batch_week)
+        status_payload = job_match_compute_async.get_status(principal.id, batch_week)
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -175,9 +175,9 @@ def _status_event_payload(payload: dict[str, Any]) -> str:
 @router.get("/refresh/status/stream")
 async def stream_refresh_status(
     request: Request,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> StreamingResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
     batch_week = last_monday()
 
     async def _events() -> Any:

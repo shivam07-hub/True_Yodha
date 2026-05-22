@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers import diary
 
@@ -81,7 +81,7 @@ class _FakeDiaryRepository:
 
 
 def _override(repo: _FakeDiaryRepository) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[diary.get_token_diary_repository] = lambda: repo
 
 

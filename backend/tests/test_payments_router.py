@@ -32,13 +32,12 @@ class _FakeRazorpayClient:
 
 @pytest.fixture(autouse=True)
 def _payments_auth_override() -> None:
-    app.dependency_overrides[payments_router.get_current_user] = lambda: {
-        "user_id": "user-1",
-        "email": "shivam@himyro.com",
-        "token": "token",
-    }
+    app.dependency_overrides[payments_router.get_principal] = lambda: payments_router.Principal(
+        id="user-1",
+        email="shivam@himyro.com",
+    )
     yield
-    app.dependency_overrides.pop(payments_router.get_current_user, None)
+    app.dependency_overrides.pop(payments_router.get_principal, None)
 
 
 @pytest.fixture(autouse=True)

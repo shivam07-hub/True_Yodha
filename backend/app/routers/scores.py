@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring
@@ -12,10 +12,10 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 
 @router.get("/me", response_model=MirrorScoreResponse)
 async def get_my_score(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> MirrorScoreResponse:
-    row = scores_repo.get_mirror_score(current_user["user_id"])
+    row = scores_repo.get_mirror_score(principal.id)
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -34,18 +34,18 @@ async def get_my_score(
 
 @router.post("/compute", response_model=ComputeScoreResponse)
 async def recompute_score(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> ComputeScoreResponse:
     """Re-run scoring from existing user_skills. Used after diary updates."""
-    inputs = scores_repo.get_recompute_inputs(current_user["user_id"])
+    inputs = scores_repo.get_recompute_inputs(principal.id)
     if not inputs.skill_level_map:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No skills found. Upload your CV first.",
         )
 
-    score_row = scoring.recompute_score(scores_repo, current_user["user_id"])
+    score_row = scoring.recompute_score(scores_repo, principal.id)
 
     score_response = MirrorScoreResponse(
         total_score=score_row["total_score"],

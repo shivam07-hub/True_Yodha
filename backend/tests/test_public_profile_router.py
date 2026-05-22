@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers.profile import public as public_router
 
@@ -132,21 +132,21 @@ def test_get_public_profile_404_when_name_invalid(monkeypatch: Any) -> None:
 
 
 def test_update_ninja_name_rejects_invalid(_clear_overrides: Any) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t")
     with TestClient(app) as client:
         response = client.post("/profile/ninja-name", json={"ninja_name": "ab"})
     assert response.status_code == 422
 
 
 def test_update_ninja_name_rejects_reserved(_clear_overrides: Any) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t")
     with TestClient(app) as client:
         response = client.post("/profile/ninja-name", json={"ninja_name": "admin"})
     assert response.status_code == 422
 
 
 def test_update_ninja_name_conflict_on_taken(monkeypatch: Any, _clear_overrides: Any) -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t")
 
     def fake_admin() -> _Chain:
         # current row returns a *different* current name; lookup returns existing row.

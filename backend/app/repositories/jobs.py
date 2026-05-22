@@ -8,8 +8,8 @@ from typing import Any
 from fastapi import Depends
 from supabase import Client
 
-from app.database import get_supabase_admin, get_supabase_for_token
-from app.deps import get_current_user
+from app.database import get_supabase_admin
+from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
@@ -1090,13 +1090,8 @@ def get_public_jobs_repository() -> JobsRepository:
     return JobsRepository(get_supabase_admin())
 
 
-def get_token_jobs_repository(
-    current_user: dict = Depends(get_current_user),
-) -> JobsRepository:
-    return JobsRepository(
-        get_supabase_for_token(current_user["token"]),
-        admin_db=get_supabase_admin(),
-    )
+def get_token_jobs_repository(db: Client = Depends(get_user_db)) -> JobsRepository:
+    return JobsRepository(db, admin_db=get_supabase_admin())
 
 
 def get_admin_jobs_repository() -> JobsRepository:

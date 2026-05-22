@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
@@ -13,7 +13,7 @@ class _FakeJobsRepository:
 
 
 def test_import_preview_requires_description() -> None:
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: _FakeJobsRepository()
     try:
         with TestClient(app) as client:
@@ -29,7 +29,7 @@ def test_import_preview_requires_description() -> None:
 
 def test_import_preview_returns_suggestions(monkeypatch) -> None:
     repo = _FakeJobsRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_importer,
@@ -85,7 +85,7 @@ def test_import_preview_returns_suggestions(monkeypatch) -> None:
 
 def test_import_job_calls_service_and_returns_application(monkeypatch) -> None:
     repo = _FakeJobsRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     monkeypatch.setattr(
         jobs.job_importer,

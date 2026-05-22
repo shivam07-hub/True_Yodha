@@ -31,7 +31,7 @@ export default function AboutPage() {
       <ParticleBg />
       <PublicTopNav active="about" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
-        <AboutSection primaryCtaHref="/" primaryCtaLabel="Open Intel" />
+        <AboutSection primaryCtaHref="/intel" primaryCtaLabel="Open Intel" />
         <div id="sample-diagnostic" style={{ scrollMarginTop: 72 }}>
           <SampleDiagnostic />
         </div>

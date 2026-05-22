@@ -4,8 +4,8 @@ import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 
 export function AboutSection({
-  primaryCtaHref = "#intel",
-  primaryCtaLabel = "See how it works ↓",
+  primaryCtaHref = "/intel",
+  primaryCtaLabel = "Open Intel",
 }: {
   primaryCtaHref?: string
   primaryCtaLabel?: string
@@ -63,11 +63,43 @@ export function AboutSection({
           fontSize: 20,
           color: "var(--tm-text-muted)",
           lineHeight: 1.55,
-          maxWidth: 680,
-          margin: "0 0 40px",
+          maxWidth: 640,
+          margin: "0 0 28px",
         }}>
-          Upload your CV and see where your skills stand against live hiring demand, which gaps matter, and which roles are realistic now.
+          Upload your CV, get your Myro Score, see the skills the market wants, and know what to improve next.
         </p>
+
+        <div
+          aria-label="How Myro works"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 10,
+            width: "100%",
+            maxWidth: 720,
+            marginBottom: 36,
+          }}
+        >
+          {[
+            ["1. Upload your CV", "Myro reads your current proof."],
+            ["2. Compare to demand", "Live job data reveals the missing skills."],
+            ["3. Act on the gap", "You get job matches and a sharper next move."],
+          ].map(([label, body]) => (
+            <div
+              key={label}
+              style={{
+                padding: "16px 18px",
+                borderRadius: "var(--tm-radius)",
+                border: "1px solid var(--tm-border-soft)",
+                background: "color-mix(in srgb, var(--tm-surface) 82%, transparent)",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tm-text)", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--tm-text-faint)" }}>{body}</div>
+            </div>
+          ))}
+        </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 48 }}>
           <a
@@ -96,7 +128,7 @@ export function AboutSection({
             {primaryCtaLabel}
           </a>
           <Link
-            href="/login"
+            href="/signup"
             style={{
               display: "inline-flex", alignItems: "center",
               padding: "0 22px", height: 50,
@@ -117,7 +149,7 @@ export function AboutSection({
               e.currentTarget.style.borderColor = "var(--tm-border)"
             }}
           >
-            Sign in
+            Sign up
           </Link>
         </div>
 
@@ -158,7 +190,7 @@ export function AboutSection({
           color: "var(--tm-text-muted)",
           margin: 0, letterSpacing: 0,
         }}>
-          Pulled directly from company career pages. Every day.
+          Live market signals, without the research rabbit hole.
         </p>
       </div>
 

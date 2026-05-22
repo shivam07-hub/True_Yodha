@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.cv import get_token_cv_repository
 from app.routers.cv import upload as cv_upload
@@ -51,14 +51,14 @@ class _WritableFakeCVRepository:
 
 def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
     repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
     monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
     _raw = "Built APIs with Django and scaled backend systems."
     monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
 
-    async def _fake_parse_cv_text(_raw_text: str) -> dict:
+    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
         return {
             "skills_detected": [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": "Built APIs"}],
             "raw_text": _raw_text,
@@ -85,11 +85,11 @@ def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> N
 
 def test_submit_cv_text_returns_503_when_all_providers_fail(monkeypatch) -> None:
     repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
     monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
-    async def _provider_failed_parse(_raw_text: str) -> dict:
+    async def _provider_failed_parse(_raw_text: str, provider=None) -> dict:
         return {"skills_detected": [], "raw_text": _raw_text, "provider_failed": True}
 
     monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _provider_failed_parse)
@@ -109,11 +109,11 @@ def test_submit_cv_text_returns_503_when_all_providers_fail(monkeypatch) -> None
 
 def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
     repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
     monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
-    async def _fake_parse_cv_text(_raw_text: str) -> dict:
+    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
         return {
             "skills_detected": [{"taxonomy_key": "SQL (Programming Language)", "signal_type": "project", "xp_awarded": 150, "evidence": "Built reports"}],
             "raw_text": _raw_text,
@@ -141,11 +141,11 @@ def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch)
 def test_submit_cv_text_grants_welcome_xp_after_success(monkeypatch) -> None:
     repo = _WritableFakeCVRepository()
     granted: list[str] = []
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_cv_repository] = lambda: repo
     monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
 
-    async def _fake_parse_cv_text(_raw_text: str) -> dict:
+    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
         return {
             "skills_detected": [{"taxonomy_key": "SQL (Programming Language)", "signal_type": "project", "xp_awarded": 150, "evidence": "Built reports"}],
             "cv_structured": {"summary": "Data analyst"},

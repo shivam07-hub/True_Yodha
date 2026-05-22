@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.cv import CVRepository, get_token_cv_repository
 from app.services import cv_workflow
 
@@ -41,11 +41,11 @@ class CVStructuredResponse(BaseModel):
 
 @router.get("/structured", response_model=CVStructuredResponse)
 async def get_cv_structured(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVRepository = Depends(get_token_cv_repository),
 ) -> CVStructuredResponse:
     """Return latest cv_structured for the user. Lazy backfill on first call if NULL."""
-    payload = await cv_workflow.get_or_backfill_cv_structured(cv_repo, current_user["user_id"])
+    payload = await cv_workflow.get_or_backfill_cv_structured(cv_repo, principal.id)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

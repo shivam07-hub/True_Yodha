@@ -1,7 +1,5 @@
 "use client"
 
-import Link from "next/link"
-
 const GAPS = [
   { skill: "Product Strategy", demand: "Very High", level: "Not on CV" },
   { skill: "Go-to-Market Strategy", demand: "High", level: "Early stage" },
@@ -40,18 +38,14 @@ export function SampleDiagnostic() {
         margin: "0 0 24px",
         maxWidth: 720,
       }}>
-        What Myro found when Meera uploaded her CV
+        What one upload turns into
       </h2>
 
-      {/* Narrative */}
       <p style={{
         fontSize: 18, color: "var(--tm-text-muted)",
-        lineHeight: 1.7, margin: "0 0 36px", maxWidth: 700,
+        lineHeight: 1.65, margin: "0 0 36px", maxWidth: 700,
       }}>
-        For four years, Meera has been the quiet engine at TCS — the analyst who turns
-        complex client requirements into specs that engineering can actually ship. Now she
-        wants the Product Manager title at a top MNC. The ambition is earned.
-        Three skills are standing in the way.
+        Myro turns a CV into a fast read on role fit: your current score, the skills helping you, and the gaps worth closing first.
       </p>
 
       {/* Visual anchor */}
@@ -75,7 +69,7 @@ export function SampleDiagnostic() {
               textTransform: "uppercase", color: "var(--tm-text-faint)",
               marginBottom: 6,
             }}>
-              Myro Score
+              Sample Myro Score
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
               <span style={{
@@ -89,7 +83,7 @@ export function SampleDiagnostic() {
             </div>
           </div>
           <div style={{ fontSize: 14, color: "var(--tm-text-faint)", maxWidth: 240, textAlign: "right", lineHeight: 1.5 }}>
-            Approaching baseline for target role — strategic evidence needed to clear competitive thresholds.
+            Close to target-role baseline, with a few high-value gaps still holding the profile back.
           </div>
         </div>
 
@@ -168,43 +162,15 @@ export function SampleDiagnostic() {
         </div>
       </div>
 
-      {/* Closing punch */}
       <p style={{
         fontSize: 18, fontWeight: 600,
         color: "var(--tm-text)", lineHeight: 1.6,
-        margin: "0 0 28px",
+        margin: 0,
         borderLeft: "3px solid var(--tm-accent)",
         paddingLeft: 16,
       }}>
-        The PM role she wants is 3 skills away. Myro shows her exactly which three.
+        Instead of broad advice, Myro shows the few skill moves most likely to change the outcome.
       </p>
-
-      {/* CTA */}
-      <Link
-        href="/signup"
-        style={{
-          display: "inline-flex", alignItems: "center",
-          padding: "0 24px", height: 50,
-          borderRadius: "var(--tm-radius-pill)",
-          fontSize: 16, fontWeight: 700,
-          color: "var(--tm-accent-fg)",
-          background: "var(--tm-accent)",
-          border: "1px solid var(--tm-accent)",
-          textDecoration: "none",
-          boxShadow: "0 0 20px var(--tm-accent-glow)",
-          transition: "background var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--tm-accent-hover)"
-          e.currentTarget.style.boxShadow = "0 0 32px var(--tm-accent-glow)"
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--tm-accent)"
-          e.currentTarget.style.boxShadow = "0 0 20px var(--tm-accent-glow)"
-        }}
-      >
-        See your own diagnostic →
-      </Link>
 
     </section>
   )
