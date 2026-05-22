@@ -8,7 +8,8 @@ Cost control:
   - Cache is invalidated when the user uploads a new CV (external — not handled here)
 
 Provider chain is managed by LLMProvider (services/llm_provider.py).
-Called from: POST /jobs/compute
+Called from: the Job Refresh seam (services/job_refresh/) and the
+CV-upload fire-and-forget initial-match compute (services/cv_workflow.py).
 """
 
 import json

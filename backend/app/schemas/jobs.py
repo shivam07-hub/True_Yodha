@@ -123,38 +123,28 @@ class CompanyPageResponse(BaseModel):
     reviews: list[CompanyReviewItem]
 
 
-class ComputeJobMatchesResponse(BaseModel):
-    matches_written: int
-    from_cache: bool = False
-    exhausted: bool = False  # True when job pool has no new candidates this week
+class RefreshTicketResponse(BaseModel):
+    """POST /jobs/refresh — XP already charged at this point."""
+    id: str
+    state: Literal["queued", "computing", "done"]
+    progress_label: str
     batch_week: date
-    needs_onboarding: bool = False
-    debug: dict[str, int | bool | None] | None = None
-    status: Literal["idle", "queued", "running", "succeeded", "failed"] = "queued"
-    already_running: bool = False
-    job_id: str | None = None
-    message: str | None = None
-    new_xp_balance: int | None = None
-    xp_spent: int = 0
-
-
-class JobComputeStatusResponse(BaseModel):
-    user_id: str
-    batch_week: date
-    status: Literal["idle", "queued", "running", "succeeded", "failed"]
-    job_id: str | None = None
-    already_running: bool = False
+    xp_charged: int
+    new_xp_balance: int
     matches_written: int | None = None
-    from_cache: bool | None = None
-    needs_onboarding: bool | None = None
-    debug: dict[str, Any] | None = None
-    message: str | None = None
-    error: str | None = None
+
+
+class RefreshStateResponse(BaseModel):
+    """GET /jobs/refresh/{ticket_id} — polled by frontend every ~1s."""
+    ticket_id: str
+    state: Literal["queued", "computing", "done", "failed"]
+    progress_label: str
+    batch_week: date
+    matches_written: int | None = None
+    refund: int | None = None
     new_xp_balance: int | None = None
-    xp_spent: int = 0
-    enqueued_at: datetime | None = None
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
+    error: str | None = None
+    debug: dict[str, Any] | None = None
 
 
 class CVBadge(BaseModel):

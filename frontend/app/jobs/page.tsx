@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
@@ -11,7 +11,7 @@ import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 import { jobs, scores } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
+import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
 
@@ -25,9 +25,8 @@ export default function JobsPage() {
   const [selectedMode, setSelectedMode] = useState("")
   const [saveToast, setSaveToast] = useState(false)
 
-  const { isRefreshing, notice: refreshNotice, isExhausted: matchesExhausted, refresh: refreshMatches, cleanup } = useMatchRefresh(token, queryClient)
-
-  useEffect(() => () => cleanup(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const refreshVm = useJobRefresh(token, queryClient)
+  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
 
   const matches = useQuery({
     queryKey: dataKeys.jobs(),
@@ -129,13 +128,7 @@ export default function JobsPage() {
                   {matches.data?.total ?? 0} recommendations from latest market batch
                 </p>
               </div>
-              <RefreshMatchesButton
-                isRefreshing={isRefreshing}
-                notice={refreshNotice}
-                hidden={matchesExhausted}
-                onRefresh={refreshMatches}
-                disabled={!token}
-              />
+              <RefreshMatchesButton vm={refreshVm} disabled={!token} />
             </div>
 
             {isFeedStale && !isRefreshing && (
@@ -151,7 +144,7 @@ export default function JobsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => refreshMatches()}
+                  onClick={() => refreshVm.refresh()}
                   className="shrink-0 !text-[var(--tm-warning)] !border-[var(--tm-warning)] hover:!bg-[var(--tm-warning-wash)]"
                 >
                   Refresh now

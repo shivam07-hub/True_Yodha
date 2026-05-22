@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { REFRESH_XP_COST } from "@/lib/hooks/use-match-refresh"
+import {
+  REFRESH_XP_COST,
+  type RefreshState,
+  type UseJobRefreshResult,
+} from "@/lib/hooks/use-job-refresh"
 
 /* ─── Icons ──────────────────────────────────────────────────────── */
 
@@ -25,16 +29,9 @@ const IconScan = () => (
   </svg>
 )
 
-/* ─── Notice type ─────────────────────────────────────────────────── */
+/* ─── Notice derivation ───────────────────────────────────────────── */
 
-type NoticeKind = "success" | "cached" | "error" | "info"
-
-function classifyNotice(msg: string): NoticeKind {
-  if (msg.includes("Not enough XP") || msg.includes("Insufficient") || msg.includes("failed") || msg.includes("unavailable")) return "error"
-  if (msg.includes("cached") || msg.includes("Cached")) return "cached"
-  if (msg.includes("Updated") || msg.includes("matched roles") || msg.includes("updated")) return "success"
-  return "info"
-}
+type NoticeKind = "success" | "error" | "info"
 
 const NOTICE_STYLES: Record<NoticeKind, { color: string; bg: string; border: string }> = {
   success: {
@@ -42,63 +39,83 @@ const NOTICE_STYLES: Record<NoticeKind, { color: string; bg: string; border: str
     bg:    "rgba(74,222,128,0.06)",
     border:"rgba(74,222,128,0.2)",
   },
-  cached: {
-    color: "var(--tm-accent)",
-    bg:    "var(--tm-accent-wash)",
-    border:"var(--tm-accent-ring)",
-  },
   error: {
     color: "var(--tm-danger)",
     bg:    "rgba(251,113,133,0.06)",
     border:"rgba(251,113,133,0.25)",
   },
   info: {
-    color: "var(--tm-text-faint)",
-    bg:    "transparent",
-    border:"transparent",
+    color: "var(--tm-accent)",
+    bg:    "var(--tm-accent-wash)",
+    border:"var(--tm-accent-ring)",
   },
+}
+
+function deriveNotice(state: RefreshState, progressLabel: string | null, matches: number | null, error: string | null): { msg: string; kind: NoticeKind } | null {
+  if (state === "computing" || state === "charging") {
+    return { msg: progressLabel ?? "Refreshing…", kind: "info" }
+  }
+  if (state === "done") {
+    if (matches != null && matches > 0) {
+      return { msg: `+${matches} new matches · -${REFRESH_XP_COST} XP`, kind: "success" }
+    }
+    return { msg: "No new matches · XP refunded", kind: "info" }
+  }
+  if (state === "error_insufficient_xp" || state === "error_failed") {
+    return { msg: error ?? "Refresh failed. Please try again.", kind: "error" }
+  }
+  return null
 }
 
 /* ─── Component ───────────────────────────────────────────────────── */
 
 interface RefreshMatchesButtonProps {
-  isRefreshing: boolean
-  notice: string | null
-  onRefresh: () => void
+  vm: UseJobRefreshResult
   disabled?: boolean
-  hidden?: boolean
   variant?: "header" | "compact"
 }
 
 export function RefreshMatchesButton({
-  isRefreshing,
-  notice,
-  onRefresh,
+  vm,
   disabled,
-  hidden,
   variant = "header",
 }: RefreshMatchesButtonProps) {
-  const kind = notice ? classifyNotice(notice) : null
-  const styles = kind ? NOTICE_STYLES[kind] : null
+  const isWorking = vm.state === "charging" || vm.state === "computing"
+  const notice = deriveNotice(vm.state, vm.progressLabel, vm.matchesWritten, vm.errorMessage)
+  const styles = notice ? NOTICE_STYLES[notice.kind] : null
+  const cannotClick = disabled || isWorking || !vm.canAfford
 
-  /* Fade-in key resets the animation every time notice changes */
+  /* Fade-in key resets the animation every time notice text changes */
   const [fadeKey, setFadeKey] = useState(0)
-  const prevNotice = useRef(notice)
+  const prevNotice = useRef(notice?.msg ?? null)
   useEffect(() => {
-    if (notice !== prevNotice.current) {
-      prevNotice.current = notice
-      setFadeKey(k => k + 1)
+    const msg = notice?.msg ?? null
+    if (msg !== prevNotice.current) {
+      prevNotice.current = msg
+      setFadeKey((k) => k + 1)
     }
   }, [notice])
 
-  if (hidden) return null
+  const costLabel = !isWorking && (
+    <span style={{
+      paddingLeft: 7,
+      borderLeft: "1px solid rgba(255,255,255,0.1)",
+      fontFamily: "var(--tm-font-mono)",
+      fontSize: 10,
+      letterSpacing: "0.07em",
+      color: vm.canAfford ? "rgba(0,245,212,0.5)" : "var(--tm-danger)",
+      fontWeight: 400,
+    }}>
+      -{vm.cost} XP{vm.canAfford ? " if new" : " (need more)"}
+    </span>
+  )
 
   if (variant === "compact") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
         <button
-          onClick={onRefresh}
-          disabled={disabled || isRefreshing}
+          onClick={vm.refresh}
+          disabled={cannotClick}
           style={{
             display: "inline-flex", alignItems: "center", gap: 7,
             height: 34, padding: "0 14px",
@@ -107,37 +124,25 @@ export function RefreshMatchesButton({
             border: "1px solid var(--tm-border-soft)",
             color: "var(--tm-text-muted)",
             fontSize: 13, fontWeight: 500,
-            cursor: disabled || isRefreshing ? "not-allowed" : "pointer",
+            cursor: cannotClick ? "not-allowed" : "pointer",
             fontFamily: "inherit",
-            opacity: disabled || isRefreshing ? 0.6 : 1,
+            opacity: cannotClick ? 0.6 : 1,
             transition: "border-color 200ms, color 200ms",
           }}
-          onMouseEnter={e => {
-            if (!disabled && !isRefreshing) {
+          onMouseEnter={(e) => {
+            if (!cannotClick) {
               e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
               e.currentTarget.style.color = "var(--tm-accent)"
             }
           }}
-          onMouseLeave={e => {
+          onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = "var(--tm-border-soft)"
             e.currentTarget.style.color = "var(--tm-text-muted)"
           }}
         >
-          {isRefreshing ? <IconScan /> : <IconRefresh />}
-          {isRefreshing ? "Refreshing…" : "Refresh matches"}
-          {!isRefreshing && (
-            <span style={{
-              paddingLeft: 7,
-              borderLeft: "1px solid rgba(255,255,255,0.1)",
-              fontFamily: "var(--tm-font-mono)",
-              fontSize: 10,
-              letterSpacing: "0.07em",
-              color: "rgba(0,245,212,0.5)",
-              fontWeight: 400,
-            }}>
-              -{REFRESH_XP_COST} if new
-            </span>
-          )}
+          {isWorking ? <IconScan /> : <IconRefresh />}
+          {isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}
+          {costLabel}
         </button>
 
         {notice && styles && (
@@ -160,7 +165,7 @@ export function RefreshMatchesButton({
               textOverflow: "ellipsis",
             }}
           >
-            {notice}
+            {notice.msg}
           </div>
         )}
       </div>
@@ -170,19 +175,17 @@ export function RefreshMatchesButton({
   /* ── header variant ─────────────────────────────────────────────── */
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-
-      {/* Button row */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Button
           variant="outline"
           size="md"
-          onClick={onRefresh}
-          disabled={disabled || isRefreshing}
-          loading={isRefreshing}
+          onClick={vm.refresh}
+          disabled={cannotClick}
+          loading={isWorking}
         >
-          {isRefreshing ? <IconScan /> : <IconRefresh />}
-          <span>{isRefreshing ? "Refreshing…" : "Refresh matches"}</span>
-          {!isRefreshing && (
+          {isWorking ? <IconScan /> : <IconRefresh />}
+          <span>{isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}</span>
+          {!isWorking && (
             <span style={{
               display: "inline-flex",
               alignItems: "center",
@@ -192,17 +195,16 @@ export function RefreshMatchesButton({
               fontFamily: "var(--tm-font-mono)",
               fontSize: 11,
               letterSpacing: "0.07em",
-              color: "rgba(0,245,212,0.55)",
+              color: vm.canAfford ? "rgba(0,245,212,0.55)" : "var(--tm-danger)",
               fontWeight: 400,
               lineHeight: 1,
             }}>
-              -{REFRESH_XP_COST}&thinsp;XP if new
+              -{vm.cost}&thinsp;XP{vm.canAfford ? " if new" : " (need more)"}
             </span>
           )}
         </Button>
       </div>
 
-      {/* Notice */}
       {notice && styles ? (
         <div
           key={fadeKey}
@@ -224,12 +226,11 @@ export function RefreshMatchesButton({
             width: 5, height: 5, borderRadius: "50%",
             background: styles.color,
             flexShrink: 0,
-            boxShadow: kind === "success" ? "0 0 6px var(--tm-success)" : kind === "error" ? "0 0 6px var(--tm-danger)" : "none",
+            boxShadow: notice.kind === "success" ? "0 0 6px var(--tm-success)" : notice.kind === "error" ? "0 0 6px var(--tm-danger)" : "none",
           }} />
-          {notice}
+          {notice.msg}
         </div>
       ) : null}
-
     </div>
   )
 }
