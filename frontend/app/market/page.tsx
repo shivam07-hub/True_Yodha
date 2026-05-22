@@ -164,7 +164,7 @@ function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; 
   const sparkValues = useMemo(() => genSparkline(analytics.total_jobs), [analytics.total_jobs])
 
   return (
-    <div style={{
+    <div className="tm-intel-pulse-strip" style={{
       background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
       borderRadius: "var(--tm-radius-lg)", display: "grid",
       gridTemplateColumns: "1fr 1fr 1fr 2fr", gap: 24, padding: "20px 24px", marginTop: 24,
@@ -344,14 +344,14 @@ function SkillHeatmap({
   const selectedCount = selectedSkillNames.size
 
   return (
-    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
+    <div className="tm-intel-heatmap" style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
       {/* Header row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px" }}>
+      <div className="tm-intel-heatmap-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px" }}>
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
-          <div style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
+          <div className="tm-intel-heatmap-title" style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: 4 }}>
+        <div className="tm-intel-heatmap-controls" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: 4 }}>
           {isLoggedIn && allSkills.length > 0 && (
             <div style={{ position: "relative" }}>
               <button
@@ -426,8 +426,8 @@ function SkillHeatmap({
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
+      <div className="tm-intel-heatmap-scroll" style={{ overflowX: "auto" }}>
+        <table className="tm-intel-heatmap-table" style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
           <thead>
             <tr>
               <th style={{ width: 180, minWidth: 140 }} />
@@ -442,10 +442,11 @@ function SkillHeatmap({
                     onMouseLeave={() => setHoveredCol(null)}
                     onClick={() => { if (canRemove) onToggleSkill(sk) }}
                     title={canRemove ? `Click to hide ${sk}` : "Keep at least one column"}
+                    className="tm-intel-skill-th"
                     style={{
-                      writingMode: "vertical-rl", transform: "rotate(180deg)", padding: "8px 0",
-                      fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em",
-                      fontWeight: 500, textAlign: "left", height: 100, verticalAlign: "bottom",
+                      padding: "8px 6px",
+                      fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em",
+                      fontWeight: 600, textAlign: "center", minWidth: 72, maxWidth: 92, verticalAlign: "bottom",
                       cursor: canRemove ? "pointer" : "default",
                       color: isHovered && canRemove ? "var(--tm-danger)" : "var(--tm-text-muted)",
                       transition: "color 100ms ease",
@@ -455,7 +456,7 @@ function SkillHeatmap({
                       <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
                         {isHovered && canRemove ? "×" : `L${level}`}
                       </span>
-                      {sk}
+                      <span style={{ display: "block", maxWidth: 82, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sk}</span>
                     </div>
                   </th>
                 )
@@ -482,9 +483,21 @@ function SkillHeatmap({
                   {isLoading ? (
                     skills.map((_, si) => <ShimmerCell key={si} />)
                   ) : isEmpty ? (
-                    <td colSpan={skills.length} style={{ paddingLeft: 8, fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em" }}>
-                      no roles match selected skills
-                    </td>
+                    skills.map((_, si) => (
+                      <td
+                        key={si}
+                        title="No roles match this company and skill yet"
+                        style={{
+                          width: 44, height: 32, textAlign: "center",
+                          background: "var(--tm-bg-inset)",
+                          border: "1px solid var(--tm-border-soft)",
+                          borderRadius: 5, fontSize: 12,
+                          color: "var(--tm-text-faint)",
+                        }}
+                      >
+                        —
+                      </td>
+                    ))
                   ) : (
                     skills.map((sk, si) => {
                       const v = rowData?.[sk] ?? 0
@@ -498,7 +511,7 @@ function SkillHeatmap({
                           onMouseLeave={() => setHoverCell(null)}
                           onClick={() => onCellSelect(ci, si)}
                           style={{
-                            width: 36, height: 28, cursor: "pointer", textAlign: "center",
+                            width: 44, height: 32, cursor: "pointer", textAlign: "center",
                             background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
                             border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
                             borderRadius: 4, fontSize: 11,
@@ -547,7 +560,7 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
   }, [movers, search])
 
   return (
-    <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
+    <div className="tm-intel-top-movers" style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
           TOP MOVERS · 7D
@@ -633,7 +646,7 @@ function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, i
   const isEmpty = targetRoles.length === 0
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
+    <div className="tm-intel-target-bar" style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
       <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>TARGET</span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {isEmpty ? (
@@ -696,7 +709,7 @@ function LocationBar({ cities, countries, city, country, mode, onCity, onCountry
   onMode: (v: string) => void
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+    <div className="tm-intel-location-bar" style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
       <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>LOCATION</span>
       <select value={city} onChange={e => onCity(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 140 }}>
         <option value="">All cities</option>
@@ -998,8 +1011,86 @@ function IntelPageInner() {
 
   return (
     <AppShell>
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-      <div style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @media (max-width: 768px) {
+          .tm-intel-page {
+            padding: 22px 18px 96px !important;
+          }
+          .tm-intel-page h1 {
+            font-size: 34px !important;
+            line-height: 1.08 !important;
+            letter-spacing: -0.03em !important;
+          }
+          .tm-intel-target-bar,
+          .tm-intel-location-bar {
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .tm-intel-target-bar > span,
+          .tm-intel-location-bar > span {
+            width: 100%;
+          }
+          .tm-intel-location-bar select {
+            width: 100%;
+            min-height: 44px;
+            font-size: 16px !important;
+          }
+          .tm-intel-pulse-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+          }
+          .tm-intel-pulse-strip > div {
+            padding: 16px !important;
+            border-left: 0 !important;
+            border-right: 1px solid var(--tm-border-soft);
+            border-bottom: 1px solid var(--tm-border-soft);
+          }
+          .tm-intel-pulse-strip > div:nth-child(2n) {
+            border-right: 0;
+          }
+          .tm-intel-pulse-strip svg {
+            max-width: 100%;
+          }
+          .tm-intel-heatmap-head {
+            flex-direction: column;
+            padding: 20px 18px 14px !important;
+          }
+          .tm-intel-heatmap-title {
+            font-size: 28px !important;
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+            max-width: 12ch;
+          }
+          .tm-intel-heatmap-controls {
+            width: 100%;
+            justify-content: space-between;
+            flex-wrap: wrap;
+          }
+          .tm-intel-heatmap-scroll {
+            padding-bottom: 4px;
+          }
+          .tm-intel-heatmap-table {
+            border-spacing: 3px !important;
+            padding: 0 18px 18px !important;
+            min-width: max-content;
+          }
+          .tm-intel-skill-th {
+            min-width: 76px !important;
+            height: auto !important;
+          }
+          .tm-intel-top-movers {
+            padding: 18px 12px !important;
+          }
+          .tm-intel-top-movers input {
+            min-height: 40px;
+            font-size: 16px !important;
+          }
+        }
+      `}</style>
+      <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
         <div>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>

@@ -252,22 +252,19 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-22 · Razorpay auth/logout hardening)
+## LAST SESSION SUMMARY (2026-05-22 · Mobile reading system)
 
-Fixed the Razorpay payment flow logout bug at the auth boundary. The root cause was that `/api/create-order` could return `401 Unauthorized` for a Razorpay upstream credential failure, and the shared frontend API client treated every `401` as an expired Myro session after one refresh attempt. That made payment setup errors look like user-session failures and redirected the user to `/login`.
+Implemented the Claude mobile wireframe direction as a web-first reading system across the authenticated app. The mobile shell now uses a five-slot bottom nav (`Mission`, `Intel`, `Skills`, `CV`, `Tracker`), a dark/teal mobile token layer that overrides stored desktop light/forge preferences on small screens, and safer fixed top/bottom chrome spacing for 375px devices. Mission now has a mobile-only "Today's three moves" treatment with three backend-fed action cards so users can always loop into CV tailoring, skill work, diary/tracker, or Intel.
 
-The backend now maps Razorpay authentication/key failures to `502 Bad Gateway` with `Razorpay authentication failed`, so provider configuration issues no longer share the same status code as Myro user auth. The frontend request layer now parses the response body before deciding whether to log out and only calls `forceLogout()` for known session-auth failures from the backend. Cross-tab refresh locking was moved into `lib/session.ts`, keeping token storage and refresh coordination behind the session adapter.
+Major frontend changes:
+- `frontend/mobile/shell.tsx`, `frontend/app/globals.css`, `frontend/app/design-tokens.css` — mobile dark/teal shell, custom nav icons, fixed bar spacing, stronger token aliases.
+- `frontend/app/home/page.tsx`, `frontend/components/mission-control/hero.tsx`, `frontend/app/home/mission-control.css` — mobile Mission reading hero plus three numbered move cards.
+- `frontend/app/skills/page.tsx`, `frontend/app/skills/skills.css`, `frontend/components/skills/*` — mobile score/stat grid, sticky Intel/Map/Audit switcher, safer 375px rows, icon-only skill actions under 480px, CV evidence loop links.
+- `frontend/app/market/page.tsx` — mobile Intel heatmap layout, readable horizontal columns, followed-company demand grid, mobile top-movers and filters.
+- `frontend/app/cv/*` — CV playground mobile score-gauge fix, calmer fit language, and direct Skills loop for missing JD skills.
+- `frontend/components/auth/auth-form.tsx`, `frontend/lib/api.ts` — signup simplified to email/password with optional referral only; ninja name stays after signup per privacy-first flow.
 
-Files touched:
-- `backend/app/routers/payments.py` — Razorpay auth errors now return `502` instead of user-session `401`
-- `backend/tests/test_payments_router.py` — regression test for Razorpay auth failure mapping
-- `frontend/lib/api.ts` — 401 handling now distinguishes session auth failures from upstream/provider failures
-- `frontend/lib/session.ts` — session adapter now owns refresh lock and token-change waiting
-- `frontend/tests/api-session-contract.test.mjs` — contract covering logout behavior and session-adapter usage
-
-Verify: `git diff --check` clean · `npm run lint` clean · `npm run build` succeeds · `.venv/bin/pytest backend/tests` 344/344 pass · `npm run test:contracts` has 4/5 passing, with the remaining pre-existing raw-query-key contract failure first reported at `frontend/app/companies/[slug]/page.tsx`.
-
-Manual deployment note: Railway still needs the server-side Razorpay env vars (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) and Vercel needs the public key env var (`NEXT_PUBLIC_RAZORPAY_KEY_ID`), followed by redeploys. If Railway credentials are wrong, payment creation should now show a payment setup error instead of logging the user out.
+Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `npm run build` succeeds · `.venv/bin/pytest backend/tests` 341/341 pass · `npm run test:contracts` remains 4/5 with the pre-existing raw query-key contract failure at `frontend/app/companies/[slug]/page.tsx`. Visual QA used Chrome/Puppeteer at a 375px viewport with mocked API responses only for screenshot data; Mission, Intel, Skills, CV, Tracker, and Signup rendered without horizontal overflow, and the final Mission/Skills/Intel screenshots confirmed mobile `--tm-bg: #0a0b10` and `--tm-accent: #00f5d4`.
 
 ## EARLIER SESSION SUMMARIES
 

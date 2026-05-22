@@ -77,13 +77,73 @@ export function AppShellSkeleton() {
 // Forge moved out of the bottom nav 2026-05-21 — it now lives in the top
 // ForgeXpPill widget (always-on, ambient surface). Five-slot nav fits 375px
 // comfortably and frees space for the larger XP/Forge pill at the top.
-const MOBILE_NAV: Array<{ href: string; label: string; icon: string | null; stalePill?: boolean }> = [
-  { href: "/home",    label: "Dashboard", icon: null },
-  { href: "/market",  label: "Intel",     icon: "◉" },
-  { href: "/skills",  label: "Skills",    icon: "⬡" },
-  { href: "/cv",      label: "CV",        icon: "◈" },
-  { href: "/tracker", label: "Tracker",   icon: "▤", stalePill: true },
+type MobileNavIconName = "mission" | "intel" | "skills" | "cv" | "tracker"
+
+const MOBILE_NAV: Array<{ href: string; label: string; icon: MobileNavIconName; stalePill?: boolean }> = [
+  { href: "/home",    label: "Mission", icon: "mission" },
+  { href: "/market",  label: "Intel",   icon: "intel" },
+  { href: "/skills",  label: "Skills",  icon: "skills" },
+  { href: "/cv",      label: "CV",      icon: "cv" },
+  { href: "/tracker", label: "Tracker", icon: "tracker", stalePill: true },
 ]
+
+function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: boolean }) {
+  const common = {
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    style: { filter: active ? "drop-shadow(0 0 6px var(--tm-accent-glow))" : "none" },
+  }
+
+  if (name === "mission") {
+    return (
+      <svg {...common} aria-hidden="true">
+        <path d="M5 20V9.6L12 4l7 5.6V20" />
+        <path d="M8.5 20v-6.5h7V20" />
+        <path d="M9 11.5v3M12 9.5v5M15 12.5v2" />
+      </svg>
+    )
+  }
+
+  if (name === "intel") {
+    return (
+      <svg {...common} aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <circle cx="12" cy="12" r="4.2" />
+        <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+      </svg>
+    )
+  }
+
+  if (name === "skills") {
+    return (
+      <svg {...common} aria-hidden="true">
+        <path d="M12 3.2 19.7 7.6v8.8L12 20.8l-7.7-4.4V7.6L12 3.2Z" />
+      </svg>
+    )
+  }
+
+  if (name === "cv") {
+    return (
+      <svg {...common} aria-hidden="true">
+        <path d="M12 3.5 18.5 12 12 20.5 5.5 12 12 3.5Z" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg {...common} aria-hidden="true">
+      <path d="M5 7h14" />
+      <path d="M5 12h14" />
+      <path d="M5 17h10" />
+    </svg>
+  )
+}
 
 export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
   xpBalance: number
@@ -97,11 +157,11 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
 
   return (
     <header className="tm-mobile-topbar">
-      <Link href="/myro" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+      <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 }}>
         <div style={{ filter: "drop-shadow(0 0 6px var(--tm-accent-glow))" }}>
-          <MyroLogo size={24} />
+          <MyroLogo size={30} />
         </div>
-        <span style={{ fontFamily: "var(--tm-font-display)", fontSize: 17, fontWeight: 600, color: "var(--tm-text)" }}>
+        <span style={{ fontFamily: "var(--tm-font-sans)", fontSize: 22, fontWeight: 650, color: "var(--tm-text)" }}>
           Myro
         </span>
       </Link>
@@ -163,32 +223,19 @@ export function MobileBottomNav() {
           <Link
             key={item.href}
             href={item.href}
+            className="tm-mobile-nav-item"
+            data-active={active}
             style={{
               flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 3, textDecoration: "none",
+              alignItems: "center", justifyContent: "center", gap: 4, textDecoration: "none",
               color,
             }}
           >
-            <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {item.icon === null ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  style={{ filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none" }}>
-                  <path
-                    d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              ) : (
-                <span style={{
-                  fontSize: 18, lineHeight: 1,
-                  filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
-                }}>
-                  {item.icon}
-                </span>
-              )}
+            <span className="tm-mobile-nav-icon" style={{ position: "relative" }}>
+              <MobileNavIcon name={item.icon} active={active} />
               {item.stalePill && <MobileStaleBadge />}
             </span>
-            <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, letterSpacing: "0.01em" }}>
+            <span className="tm-mobile-nav-label" style={{ fontWeight: active ? 650 : 450 }}>
               {item.label}
             </span>
           </Link>

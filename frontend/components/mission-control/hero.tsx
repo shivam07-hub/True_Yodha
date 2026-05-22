@@ -48,6 +48,13 @@ export function Hero({
   return (
     <div className="mc-hero">
       <div>
+        <div className="mc-mobile-mission-head">
+          <div className="eyebrow">Mission Control</div>
+          <h1>
+            Today&apos;s <span>three moves.</span>
+          </h1>
+        </div>
+
         <h1 className="mc-greeting">
           {greeting}, <span className="mc-name">{name}</span>
         </h1>

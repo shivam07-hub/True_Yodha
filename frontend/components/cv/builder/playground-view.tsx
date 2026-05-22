@@ -438,9 +438,13 @@ interface IntelStripProps {
 }
 
 function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, atsChecks }: IntelStripProps) {
-  const dir = delta >= 0 ? "up" : "down"
   const atsAllPass = atsSc.passed === atsSc.total
   const atsFailedLabels = atsChecks.filter(c => !c.pass).map(c => c.detail ?? c.label)
+  const scoreLabel = missing.length > 0
+    ? `${missing.length} skill${missing.length === 1 ? "" : "s"} to add`
+    : allCovered
+      ? "Ready to export"
+      : "No JD targets yet"
 
   return (
     <div className="cvb-intel-strip" style={{ flexWrap: "wrap", gap: 10 }}>
@@ -451,9 +455,11 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
         <div className="delta">
           <div style={{ textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 10, color: "var(--tm-text-faint)" }}>JD match</div>
           <div>
-            <strong className={dir === "down" ? "down" : ""}>
-              {delta >= 0 ? "+" : ""}{delta}
-            </strong>{" "}vs. baseline
+            {delta > 0 ? (
+              <>
+                <strong>+{delta}</strong>{" "}vs. baseline
+              </>
+            ) : scoreLabel}
           </div>
         </div>
       </div>
@@ -490,6 +496,11 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
           </>
         )}
       </div>
+      {missing.length > 0 ? (
+        <Link href="/skills" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
+          <Icon name="sparkle" size={12}/> Forge them
+        </Link>
+      ) : null}
       <button type="button" className="cvb-btn ghost sm" onClick={onOpenDrawer}>
         <Icon name="intel" size={12}/> View intel
       </button>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cv, diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
@@ -195,7 +196,17 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           color: skill.evidence_text ? "var(--tm-text)" : "var(--tm-text-faint)",
           whiteSpace: "pre-wrap", wordBreak: "break-word",
         }}>
-          {skill.evidence_text || "No CV evidence — keyword inferred. Edit to add a real pointer."}
+          {skill.evidence_text || (
+            <>
+              No CV evidence yet ·{" "}
+              <Link
+                href={`/cv?skill=${encodeURIComponent(skill.display_name)}`}
+                style={{ color: "var(--tm-accent-text)", textDecoration: "none" }}
+              >
+                Add a bullet in CV →
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -443,7 +454,7 @@ function ActionBtn({ label, icon, onClick, disabled, active, accent, subLabel }:
       }}
     >
       <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
-      <span className="tm-skill-card-action-label" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+      <span className="tm-skill-card-action-label">
         {label}
         {subLabel && <span style={{ fontSize: 10, opacity: 0.6, fontWeight: 500 }}>{subLabel}</span>}
       </span>

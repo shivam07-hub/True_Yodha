@@ -32,10 +32,12 @@ export function ScoreGauge({ value, size = 120, label = "JD MATCH" }: ScoreGauge
           }}
         />
       </svg>
-      <div className="score-val mono tabnum">
-        {clamped}<span style={{ fontSize: 14, opacity: 0.6, marginLeft: 2 }}>%</span>
+      <div className="score-center mono tabnum">
+        <div className="score-val">
+          {clamped}<span>%</span>
+        </div>
+        <div className="score-sub">{label}</div>
       </div>
-      <div className="score-sub">{label}</div>
     </div>
   )
 }
