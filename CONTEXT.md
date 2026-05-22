@@ -188,6 +188,76 @@ The authenticated identity behind a request. One row in `auth.users`, surfaced i
 
 ---
 
+## Job Refresh
+
+A user-initiated request to recompute the user's weekly Job Matches. Modelled as a discrete **action** — every click of the dashboard's "Refresh matches" button creates one Job Refresh, identified by a `ticket_id`. There is no per-week singleton; users may fire as many refreshes as their XP balance allows.
+
+**Economy**
+
+- Costs `MATCH_REFRESH_XP_COST` (currently 50) XP per ticket.
+- XP is debited **at start**, before compute runs. If compute fails for any reason (provider error, exhausted pool, infra), XP is refunded inside the same ticket — refund amount is surfaced on the final `RefreshState`.
+- No cooldown. As long as the jobs feed is being continuously swept by the external crawler (ADR-0001), users can refresh at will.
+- Insufficient XP raises `HTTP 400` from the start endpoint before any ticket exists. Frontend reads the typed error state, no substring matching.
+
+**Lifecycle states**
+
+```
+queued    → ticket created, work not yet picked up
+computing → worker running (skill query → ranking → persist)
+done      → matches written, ticket terminal
+failed    → compute errored, XP refunded, ticket terminal
+```
+
+Each transition writes a `progress_label` ("Reading skills", "Scanning jobs", "Ranking with Myro", "Done") for the UI to render without state-machine knowledge.
+
+**Job Refresh seam**
+
+`app/services/job_refresh/` is the single entry point. Two facades:
+
+```py
+class JobRefresh:
+    @staticmethod
+    async def start(user_id) -> RefreshTicket            # charges XP, returns ticket
+    @staticmethod
+    async def status(user_id, ticket_id) -> RefreshState # poll-shaped read
+```
+
+Internals (private):
+
+- `_dispatch.py` — picks inline (no Redis) vs async (Redis-backed RQ queue). Production always async on Railway; tests + local dev use inline. Router and frontend never branch on this.
+- `_xp_charge.py` — debit-then-refund-on-failure semantics. Single SQL transaction owns balance mutation; preflight is no longer separate from spend.
+- `_pipeline.py` — calls `jobs_workflow.compute_job_matches`, maps the typed `MatchComputeOutcome` onto `RefreshState`.
+
+**Status surface**
+
+- `POST /jobs/refresh` → returns `RefreshTicket{id, state: "queued", xp_charged, new_xp_balance}`.
+- `GET  /jobs/refresh/{ticket_id}` → returns `RefreshState`.
+- Frontend polls GET every 1s, max 30s. No SSE. Polling beat SSE on the simplicity axis after 10–15s compute windows + proxy-drop bugs.
+
+**LLM fast-lane**
+
+The paid refresh path uses `get_paid_jobs_provider()` — Groq llama-3.3-70b only, no free-tier fallback chain. Free auto-compute (CV upload fire-and-forget in `cv_workflow._trigger_initial_match_compute`) keeps the full fallback ladder. Reasoning: a paid user clicked the button; the user-perceived latency target is ≤5s. The free chain costs nothing but takes 10–15s under cascade.
+
+**Frontend seam**
+
+`useJobRefresh()` (`lib/hooks/use-job-refresh.ts`) is the one view-model every refresh surface consumes. Renderers never read `/jobs/refresh/*` directly. Returns:
+
+```ts
+{
+  state: 'idle' | 'charging' | 'computing' | 'done' | 'error_insufficient_xp' | 'error_failed'
+  progressLabel: string | null
+  cost: number
+  canAfford: boolean
+  matchesWritten: number | null
+  refresh(): void
+  reset(): void
+}
+```
+
+Mirrors the `useForgeSession` pattern. Two surfaces today consume the hook: `MissionHeader` (home) + `/jobs` page. Adding a third (mobile widget, scheduled refresh tile) is one adapter, no engine change.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:

@@ -164,3 +164,33 @@ def get_cv_upload_provider() -> LLMProvider:
     never causes a 503 on the most critical onboarding action.
     """
     return _build_provider(OR_TIERS[FREE_OR_TIER_COUNT:])
+
+
+def get_paid_jobs_provider() -> LLMProvider:
+    """Fast-lane provider for the paid Job Refresh path.
+
+    Drops the OpenRouter fallback ladder entirely. Groq llama-3.3-70b-versatile
+    is ~1.5s end-to-end; Gemini flash-lite stays as the only fallback if Groq
+    is unreachable. Used when the user has burned XP and is staring at a button
+    waiting for matches — target latency ≤ 5s.
+
+    The free auto-compute path (CV upload fire-and-forget) keeps the full
+    fallback chain via `get_llm_provider()` — no user is blocked on it.
+    """
+    providers: list[_ProviderEntry] = []
+    if settings.groq_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    if settings.google_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            "gemini-2.0-flash-lite",
+            None,
+        ))
+    if not providers:
+        # No fast-lane creds — fall back to standard chain so the feature still works.
+        return _build_provider(OR_TIERS)
+    return LLMProvider(providers)
