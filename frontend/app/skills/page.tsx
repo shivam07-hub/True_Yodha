@@ -97,6 +97,7 @@ export default function SkillsPage() {
   const allSkills = Object.values(skills.by_domain).flat()
   const totalSkills = allSkills.length
   const proofCount = allSkills.filter(s => s.evidence_text).length
+  const needProofCount = Math.max(0, totalSkills - proofCount)
   const weakDomainCount = domainEntries.filter(d => d.avg < 40).length
 
   const IconBtn = ({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) => (
@@ -149,7 +150,7 @@ export default function SkillsPage() {
             <h1 className="tm-title text-balance" style={{ marginBottom: 4 }}>Skill Intelligence</h1>
             <p className="tm-meta text-pretty">
               {scoreData
-                ? `${domainEntries.length} domains · ${totalSkills} skills · ${totalSkills - proofCount} need proof · ${weakDomainCount} below 40%`
+                ? `${domainEntries.length} domains · ${totalSkills} skills · ${needProofCount} need proof · ${weakDomainCount} below 40%`
                 : "Upload your CV to see your Myro Score"}
             </p>
           </div>
@@ -163,6 +164,29 @@ export default function SkillsPage() {
             {totalScore !== null && <ScoreRing score={totalScore} />}
           </div>
         </div>
+
+        {scoreData ? (
+          <div className="tm-skills-stat-grid" aria-label="Skill summary">
+            <button type="button" onClick={() => setShow("all")} className="tm-skills-stat-tile">
+              <span className="label">Domains</span>
+              <span className="value">{domainEntries.length}</span>
+            </button>
+            <button type="button" onClick={() => setShow("all")} className="tm-skills-stat-tile">
+              <span className="label">Skills</span>
+              <span className="value">{totalSkills}</span>
+            </button>
+            <button type="button" onClick={() => setShow("all")} className="tm-skills-stat-tile">
+              <span className="label">Need proof</span>
+              <span className="value">{needProofCount}</span>
+              <span className="meta">{needProofCount === 0 ? "All evidenced" : "Add CV evidence"}</span>
+            </button>
+            <button type="button" onClick={() => setShow("at-risk")} className="tm-skills-stat-tile">
+              <span className="label">Below 40%</span>
+              <span className="value warning">{weakDomainCount}</span>
+              <span className="meta">Tap to forge</span>
+            </button>
+          </div>
+        ) : null}
 
         {/* Mobile-only 3-way segmented toggle (Intel / Map / Audit) */}
         <div className="tm-skills-mview" role="group" aria-label="Skill view">

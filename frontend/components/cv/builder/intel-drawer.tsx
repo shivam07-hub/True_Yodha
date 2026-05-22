@@ -6,6 +6,7 @@
 "use client"
 
 import { useEffect } from "react"
+import Link from "next/link"
 import type { CVVersion } from "@/lib/api"
 import { Icon } from "./icons"
 import { ScoreGauge } from "./score-gauge"
@@ -66,8 +67,7 @@ export function IntelDrawer({
           </div>
           <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)" }}>
             <span style={{ color: fitColor }}>{fitLabel}</span>{" · "}
-            <span>baseline {baseScore}% · </span>
-            <span className="mono">{score - baseScore >= 0 ? "+" : ""}{score - baseScore} this session</span>
+            <span>baseline {baseScore}%</span>
           </div>
 
           <section className="cvb-intel-section">
@@ -96,7 +96,10 @@ export function IntelDrawer({
             </div>
             {missing.length > 0 && (
               <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
-                Forge these gaps in <span style={{ color: "var(--tm-accent)" }}>Skills →</span> to earn XP and unlock new bullet drafts.
+                <Link href="/skills" style={{ color: "var(--tm-accent-text)", textDecoration: "none" }}>
+                  Forge these gaps in Skills →
+                </Link>{" "}
+                to earn XP and unlock new bullet drafts.
               </div>
             )}
           </section>

@@ -293,8 +293,37 @@ function MissionControlInner() {
         onClick: () => router.push("/forge?diary=1"),
       })
     }
-    return moves
-  }, [primaryJob, hasForged, cartSkills, firstMissing, loggedToday, streak, router])
+
+    const addIfRoom = (move: (typeof moves)[number]) => {
+      if (moves.length >= 3) return
+      if (moves.some((m) => m.title === move.title)) return
+      moves.push(move)
+    }
+
+    addIfRoom({
+      icon: "cv",
+      title: "Star one company hiring PMs",
+      meta: "Builds your heatmap",
+      reward: "Open",
+      href: "/market",
+    })
+    addIfRoom({
+      icon: "forge",
+      title: "Read one skill gap",
+      meta: "Open your weakest domain",
+      reward: "Intel",
+      href: "/skills",
+    })
+    addIfRoom({
+      icon: "diary",
+      title: loggedToday ? "Review tracker follow-up" : "Log today's session",
+      meta: loggedToday ? `${activeTargets} active target${activeTargets === 1 ? "" : "s"}` : `Streak ${streak} → ${streak + 1} days`,
+      reward: loggedToday ? "Track" : "+10 XP",
+      href: loggedToday ? "/tracker" : "/forge?diary=1",
+    })
+
+    return moves.slice(0, 3)
+  }, [primaryJob, hasForged, cartSkills, firstMissing, loggedToday, streak, router, activeTargets])
 
   if (!ready) return null
 

@@ -32,6 +32,7 @@
   --tm-text:          #F0F4FF;
   --tm-text-muted:    #9AA4BF;
   --tm-text-faint:    #6F7891;
+  --tm-accent-text:   #67E8F9;
 
   /* ── Status (constant across accent modes) ───────────────── */
   --tm-success:       #4ADE80;
@@ -127,6 +128,13 @@
   --tm-accent-ring:     rgba(0, 245, 212, 0.45);
   --tm-accent-grid:     rgba(0, 245, 212, 0.025);
   --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
+  --tm-bg-page:         var(--tm-bg);
+  --tm-bg-inset:        #030712;
+  --tm-bg-surface-hover: var(--tm-surface-2);
+  --tm-border-subtle:   var(--tm-border-soft);
+  --tm-text-primary:    var(--tm-text);
+  --tm-text-secondary:  var(--tm-text-muted);
+  --tm-text-tertiary:   var(--tm-text-faint);
 
   /* ── Viewport breakpoints (single source of truth) ─────────
      Mobile = max-width:  var(--tm-bp-mobile)

@@ -122,7 +122,7 @@ export interface AuthResponse {
 }
 
 export const auth = {
-  signup: (email: string, password: string, fullName: string, myroRef?: string | null) =>
+  signup: (email: string, password: string, fullName?: string | null, myroRef?: string | null) =>
     request<AuthResponse>("/auth/signup", {
       method: "POST",
       body: JSON.stringify({ email, password, full_name: fullName, myro_ref: myroRef ?? null }),

@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
-import { SurfaceToggle } from "@/components/surface-toggle"
 import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
 import { setSessionTokens } from "@/lib/session"
-import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { capturePendingReferral, getStoredReferral } from "@/lib/referral"
 
@@ -19,7 +17,6 @@ interface Props {
 
 export function AuthForm({ mode }: Props) {
   const router = useRouter()
-  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +54,7 @@ export function AuthForm({ mode }: Props) {
     try {
       const res = mode === "login"
         ? await auth.login(email, password)
-        : await auth.signup(email, password, fullName, referrer ?? getStoredReferral())
+        : await auth.signup(email, password, null, referrer ?? getStoredReferral())
 
       if (!res.access_token || res.requires_email_confirmation) {
         setNotice(res.message ?? "Check your email for a confirmation link, then sign in.")
@@ -74,22 +71,21 @@ export function AuthForm({ mode }: Props) {
   }
 
   const inputBase: React.CSSProperties = {
-    width: "100%", padding: "10px 14px", borderRadius: 8,
-    background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)",
-    color: "var(--tm-text)", fontSize: 15, outline: "none", fontFamily: "inherit",
+    width: "100%", minHeight: 46, padding: "11px 14px", borderRadius: 10,
+    background: "var(--tm-bg-inset)", border: "1px solid var(--tm-border)",
+    color: "var(--tm-text)", fontSize: 16, outline: "none", fontFamily: "inherit",
   }
 
   const hasError = !!error
 
   return (
-    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", position: "relative" }}>
+    <main style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", position: "relative", background: "var(--tm-bg)" }}>
       <ParticleBg />
-      <PublicTopNav active={mode === "signup" ? "signup" : "login"} />
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", position: "relative", zIndex: 2 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 18px", position: "relative", zIndex: 2 }}>
       <div style={{ width: "100%", maxWidth: 360 }}>
         {/* Logo */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 26 }}>
           <div style={{ marginBottom: 12, filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }}>
             <MyroLogo size={44} />
           </div>
@@ -99,40 +95,32 @@ export function AuthForm({ mode }: Props) {
 
         {/* Card */}
         <div style={{
-          background: "rgba(255,255,255,0.003)",
-          border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-surface)",
+          border: "1px solid var(--tm-border-soft)",
           borderRadius: 16, padding: 28,
-          backdropFilter: "blur(20px)",
+          boxShadow: "var(--tm-shadow-2)",
         }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--tm-text)", marginBottom: 4 }}>
-            {mode === "login" ? "Welcome back" : ""}
+          <h1 style={{ fontSize: 24, lineHeight: 1.15, fontWeight: 700, color: "var(--tm-text)", marginBottom: 6, letterSpacing: "-0.015em" }}>
+            {mode === "login" ? "Welcome back" : "Create your account"}
           </h1>
-          <p style={{ fontSize: 15, color: "var(--tm-text-muted)", marginBottom: 24 }}>
-            {mode === "login" ? "Sign in to see your Myro Score" : ""}
+          <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--tm-text-muted)", marginBottom: 20 }}>
+            {mode === "login" ? "Sign in to see your Myro Score" : "Email and password only. Your public ninja name comes next and can be skipped."}
           </p>
+
+          {mode === "signup" && referrer && (
+            <div style={{
+              marginBottom: 16, padding: "8px 10px", borderRadius: 10,
+              border: "1px solid var(--tm-border-soft)", background: "var(--tm-accent-wash)",
+              color: "var(--tm-text-muted)", fontSize: 13,
+            }}>
+              Invited by <span style={{ color: "var(--tm-accent-text)", fontFamily: "var(--tm-font-mono)" }}>@{referrer}</span>
+            </div>
+          )}
 
           {/* aria-live region catches both error and notice for screen readers */}
           <div aria-live="polite" aria-atomic="true" style={{ display: "contents" }} />
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }} noValidate>
-            {mode === "signup" && (
-              <div>
-                <label htmlFor="auth-name" style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
-                  Secret Ninja User_Code
-                </label>
-                <input
-                  id="auth-name"
-                  type="text" required value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Your name"
-                  autoComplete="name"
-                  style={inputBase}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--tm-accent-ring)" }}
-                  onBlur={(e) => { e.target.style.borderColor = "var(--tm-border)" }}
-                />
-              </div>
-            )}
-
             <div>
               <label htmlFor="auth-email" style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)", letterSpacing: 0, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
                 Email
@@ -222,7 +210,7 @@ export function AuthForm({ mode }: Props) {
               disabled={loading}
               aria-busy={loading}
               style={{
-                padding: "11px", borderRadius: 10,
+                minHeight: 46, padding: "11px", borderRadius: 10,
                 background: loading ? "var(--tm-accent-wash)" : "var(--tm-accent)",
                 border: `1px solid ${loading ? "var(--tm-border)" : "var(--tm-accent)"}`,
                 color: loading ? "var(--tm-text-muted)" : "var(--tm-accent-fg)",
@@ -232,7 +220,12 @@ export function AuthForm({ mode }: Props) {
                 opacity: loading ? 0.6 : 1,
               }}
             >
-              {loading ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in →" : "Create account →"}
+              {loading ? (
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
+                  <span aria-hidden style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderRightColor: "transparent", animation: "spin 800ms linear infinite" }} />
+                  {mode === "login" ? "Signing in…" : "Creating account…"}
+                </span>
+              ) : mode === "login" ? "Sign in →" : "Create account →"}
             </button>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
@@ -246,8 +239,8 @@ export function AuthForm({ mode }: Props) {
               onClick={handleGoogleSignIn}
               disabled={loading}
               style={{
-                padding: "11px", borderRadius: 10,
-                background: "rgba(255,255,255,0.04)",
+                minHeight: 46, padding: "11px", borderRadius: 10,
+                background: "var(--tm-bg-surface-hover)",
                 border: "1px solid var(--tm-border)",
                 color: "var(--tm-text)",
                 fontSize: 15, fontWeight: 600,
@@ -283,10 +276,6 @@ export function AuthForm({ mode }: Props) {
           )}
         </p>
 
-        <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-faint)", letterSpacing: 0, textTransform: "uppercase" }}>Background</div>
-          <SurfaceToggle />
-        </div>
       </div>
       </div>
       <PublicFooter />

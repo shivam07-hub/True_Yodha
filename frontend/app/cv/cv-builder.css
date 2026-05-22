@@ -688,24 +688,38 @@ mark.cvb-kw {
 .cvb-kw-chip.miss .dot { background: var(--tm-warning); }
 
 .cvb-score-gauge { position: relative; margin: 0 auto; }
-.cvb-score-gauge .score-val {
+.cvb-score-gauge .score-center {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.cvb-score-gauge .score-val {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
   font-family: var(--cvb-font-mono);
   font-size: 30px;
+  line-height: 0.95;
   font-weight: 500;
   color: var(--tm-accent);
   text-shadow: 0 0 12px var(--tm-accent-glow);
   letter-spacing: -0.02em;
 }
+.cvb-score-gauge .score-val span {
+  margin-left: 3px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.62;
+}
 .cvb-score-gauge .score-sub {
-  position: absolute;
-  bottom: 22px;
-  left: 0; right: 0;
   text-align: center;
   font-size: 10px;
+  line-height: 1;
   color: var(--tm-text-faint);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -897,8 +911,40 @@ mark.cvb-kw {
   .cvb-stats { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 720px) {
-  .cvb-page { padding: 16px 16px 32px; }
-  .cvb-page-title { font-size: 20px; }
+  .cvb-page { padding: 18px 18px 96px; }
+  .cvb-page-title { font-size: 30px; line-height: 1.1; letter-spacing: -0.03em; }
+  .cvb-page-sub { font-size: 16px; line-height: 1.55; }
+  .cvb-page-head { gap: 18px; }
+  .cvb-pg-seg .seg { min-height: 42px; font-size: 13px; }
+  .cvb-intel-strip {
+    grid-template-columns: 1fr !important;
+    align-items: stretch;
+    padding: 14px !important;
+    border-radius: 16px;
+  }
+  .cvb-intel-strip .score {
+    justify-content: space-between;
+  }
+  .cvb-intel-strip .score .num {
+    font-size: 42px;
+  }
+  .cvb-intel-strip .score .delta {
+    max-width: 150px;
+    text-align: right;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .cvb-intel-strip .gaps {
+    width: 100%;
+  }
+  .cvb-intel-strip .cvb-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 42px;
+  }
+  .cvb-kw-chip {
+    font-size: 12.5px !important;
+  }
   .cvb-version-tab { min-width: 180px; padding: 9px 14px 8px; }
   .cvb-save-bar { flex-direction: column; align-items: stretch; gap: 10px; }
   .cvb-drawer { width: 100vw; }
