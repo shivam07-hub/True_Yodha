@@ -37,17 +37,23 @@ async def test_grant_welcome_xp_idempotent_when_already_granted():
 
 
 @pytest.mark.asyncio
-async def test_grant_welcome_xp_grants_1000_on_first_call():
+async def test_grant_welcome_xp_grants_via_rpc_on_first_call():
+    from app.services.xp_policy import WELCOME_XP
+
     admin = _mock_admin(balance=0, welcome_granted=False)
-    # RPC returns None to trigger fallback UPDATE path
-    admin.rpc.return_value.execute.return_value.data = None
-    updated_row = MagicMock()
-    updated_row.data = [{"xp_balance": 1000}]
-    admin.table.return_value.update.return_value.eq.return_value.execute.return_value = updated_row
+    # RPC returns post-update balance (atomic in DB).
+    admin.rpc.return_value.execute.return_value.data = WELCOME_XP
 
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
         balance = await grant_welcome_xp("user-1")
-    assert balance == 1000
+
+    assert balance == WELCOME_XP
+    admin.rpc.assert_called_once_with(
+        "increment_xp_and_grant_welcome",
+        {"p_user_id": "user-1", "p_amount": WELCOME_XP},
+    )
+    # No Python-side fallback UPDATE — atomicity lives in the DB.
+    admin.table.return_value.update.assert_not_called()
 
 
 @pytest.mark.asyncio

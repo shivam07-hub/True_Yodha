@@ -1,12 +1,16 @@
 """
 Unified LLM provider abstraction for the Myro cloud stack.
 
-Fallback order (OR handles tiers 1–2 natively via `models` array; Python-level for 3+):
-  1. OpenRouter — free tier  (gpt-oss-120b, llama-3.3-70b, qwen3-coder, nemotron-120b)
-  2. OpenRouter — cheap paid ($0.04–$0.15/M: gemma-3-4b → gpt-4o-mini)
+OpenRouter caps the native `models` fallback array at 3 entries per call, so the
+cost-tier ladder is split into multiple ProviderEntry chunks of ≤3 models each.
+The outer Python loop in LLMProvider.complete walks the chunks in order.
+
+Fallback order:
+  1. OpenRouter — free tier  (gpt-oss-120b, llama-3.3-70b, qwen3-coder, nemotron)
+  2. OpenRouter — cheap paid ($0.04–$0.15/M)
   3. OpenRouter — last resort (kimi-k2.6 → kimi-k2.5, $0.75/M)
-  4. Groq       — llama-3.3-70b-versatile (Python-level fallback)
-  5. Gemini     — gemini-2.0-flash-lite (Python-level fallback)
+  4. Groq       — llama-3.3-70b-versatile
+  5. Gemini     — gemini-2.0-flash-lite
 
 Scope: Myro cloud stack only. The scraper (skill_tagger.py / LM Studio) is intentionally
 separate — do not merge those stacks.
@@ -30,27 +34,51 @@ _OR_BASE = "https://openrouter.ai/api/v1"
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
-# ── Centralized model config ───────────────────────────────────────────────────
-# OR's native `models` array tries each in order within a single API call.
-OR_PRIMARY_MODELS: list[str] = [
-    # Tier 1: free — try first, cost $0
-    "openai/gpt-oss-120b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen3-coder:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    # Tier 2: cheap paid — $0.04–$0.15/M input
-    "google/gemma-3-4b-it",           # $0.04/M
-    "google/gemma-3-12b-it",          # $0.04/M
-    "ibm-granite/granite-4.1-8b",     # $0.05/M
-    "openai/gpt-5-nano",              # $0.05/M
-    "z-ai/glm-4.7-flash",            # $0.06/M
-    "google/gemma-4-26b-a4b-it",     # $0.07/M
-    "meta-llama/llama-3.3-70b-instruct",  # $0.10/M
-    "openai/gpt-4o-mini",            # $0.15/M
+# OpenRouter caps the `models` fallback array at this length per call.
+OR_MAX_MODELS_PER_CALL = 3
+
+# Ordered chunks of OpenRouter models. Each chunk is one API call with native
+# fallback inside. Order = cost-tier ladder; cheaper chunks tried first.
+OR_TIERS: list[list[str]] = [
+    # Tier 1a: free, top picks
+    [
+        "openai/gpt-oss-120b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen3-coder:free",
+    ],
+    # Tier 1b: free, remaining
+    ["nvidia/nemotron-3-super-120b-a12b:free"],
+    # Tier 2a: cheap paid — $0.04–$0.05/M
+    [
+        "google/gemma-3-4b-it",
+        "google/gemma-3-12b-it",
+        "ibm-granite/granite-4.1-8b",
+    ],
+    # Tier 2b: cheap paid — $0.05–$0.07/M
+    [
+        "openai/gpt-5-nano",
+        "z-ai/glm-4.7-flash",
+        "google/gemma-4-26b-a4b-it",
+    ],
+    # Tier 2c: cheap paid — $0.10–$0.15/M
+    [
+        "meta-llama/llama-3.3-70b-instruct",
+        "openai/gpt-4o-mini",
+    ],
     # Tier 3: last resort — $0.75/M
-    "moonshotai/kimi-k2.6",
-    "moonshotai/kimi-k2.5",
+    [
+        "moonshotai/kimi-k2.6",
+        "moonshotai/kimi-k2.5",
+    ],
 ]
+
+# Enforce vendor cap at import time — fail fast on deploy, never at user click.
+for _tier in OR_TIERS:
+    if not _tier or len(_tier) > OR_MAX_MODELS_PER_CALL:
+        raise RuntimeError(
+            f"OR_TIERS chunk violates OR_MAX_MODELS_PER_CALL={OR_MAX_MODELS_PER_CALL}: {_tier}"
+        )
+
 GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile"
 
 
@@ -103,8 +131,9 @@ def get_llm_provider() -> LLMProvider:
             base_url=_OR_BASE,
             default_headers=_OR_HEADERS,
         )
-        # OR handles full tier 1–3 fallback natively via `models` array
-        providers.append((or_client, OR_PRIMARY_MODELS[0], {"models": OR_PRIMARY_MODELS}))
+        # One ProviderEntry per OR tier chunk (≤3 models each).
+        for tier in OR_TIERS:
+            providers.append((or_client, tier[0], {"models": tier}))
     if settings.groq_api_key:
         # Tertiary: Groq direct
         providers.append((

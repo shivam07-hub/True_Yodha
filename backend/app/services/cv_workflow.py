@@ -47,10 +47,16 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
 
 
 async def _grant_welcome_xp_safely(user_id: str) -> None:
+    """Fire-and-forget welcome XP. CV upload UX must not 500 on a bonus grant.
+
+    Log at ERROR so silent failures surface in monitoring — the RPC is now
+    atomic and migration-backed, so any failure here is genuine infra (RLS,
+    connectivity, missing column) and worth paging on.
+    """
     try:
         await grant_welcome_xp(user_id)
     except Exception as exc:
-        _log.warning("Welcome XP grant failed for user=%s: %s", user_id, exc)
+        _log.error("Welcome XP grant failed for user=%s: %s", user_id, exc, exc_info=True)
 
 
 def _persist_baseline_cv(

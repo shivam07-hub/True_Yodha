@@ -28,7 +28,12 @@ async def get_xp_balance(user_id: str) -> int:
 
 
 async def grant_welcome_xp(user_id: str) -> int:
-    """Grant 3000 XP once after first successful CV analysis. Idempotent."""
+    """Grant 3000 XP once after first successful CV analysis. Idempotent.
+
+    Atomicity lives in the DB: increment_xp_and_grant_welcome flips
+    welcome_xp_granted FALSE → TRUE in the same statement as the balance
+    increment, so concurrent callers cannot double-grant.
+    """
     admin = get_supabase_admin()
     check = (
         admin.table("user_profiles")
@@ -41,23 +46,11 @@ async def grant_welcome_xp(user_id: str) -> int:
     if data.get("welcome_xp_granted"):
         return int(data.get("xp_balance", 0))
 
-    result = (
-        admin.rpc(
-            "increment_xp_and_grant_welcome",
-            {"p_user_id": user_id, "p_amount": WELCOME_XP},
-        ).execute()
-    )
-    if result.data is not None:
-        return int(result.data)
-
-    # Fallback: direct UPDATE if RPC not yet deployed
-    updated = (
-        admin.table("user_profiles")
-        .update({"xp_balance": int(data.get("xp_balance", 0)) + WELCOME_XP, "welcome_xp_granted": True})
-        .eq("id", user_id)
-        .execute()
-    )
-    return int((updated.data or [{}])[0].get("xp_balance", WELCOME_XP))
+    result = admin.rpc(
+        "increment_xp_and_grant_welcome",
+        {"p_user_id": user_id, "p_amount": WELCOME_XP},
+    ).execute()
+    return int(result.data)
 
 
 async def earn_xp(user_id: str, amount: int) -> int:
