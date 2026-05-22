@@ -107,6 +107,28 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
     assert recorded["xp_amount"] == 1000
 
 
+def test_create_order_maps_razorpay_auth_failure_to_gateway_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _FailingOrderApi:
+        def create(self, _payload: dict[str, Any]) -> dict[str, Any]:
+            raise payments_router.razorpay_errors.BadRequestError("Authentication failed")
+
+    class _FailingRazorpayClient:
+        order = _FailingOrderApi()
+
+    monkeypatch.setattr(payments_router, "_razorpay_client", lambda: _FailingRazorpayClient())
+    monkeypatch.setattr(payments_router, "_record_created_payment", lambda **_kwargs: pytest.fail("should not record failed order"))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/create-order",
+            json={"amount": 9900, "currency": "INR", "receipt": "xp_123"},
+            headers={"Authorization": "Bearer token"},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Razorpay authentication failed"
+
+
 def test_verify_payment_requires_all_fields() -> None:
     with TestClient(app) as client:
         response = client.post(

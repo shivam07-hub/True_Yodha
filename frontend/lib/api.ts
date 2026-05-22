@@ -4,7 +4,14 @@
  * Never call fetch() directly in components — use TanStack Query + these functions.
  */
 
-import { clearSessionTokens, getRefreshToken, setSessionTokens } from "./session"
+import {
+  acquireRefreshLock,
+  clearSessionTokens,
+  getRefreshToken,
+  releaseRefreshLock,
+  setSessionTokens,
+  waitForAccessTokenChange,
+} from "./session"
 import { queryClient } from "./query-client"
 
 const BASE =
@@ -20,49 +27,25 @@ function extractError(body: unknown, status: number): string {
   return `HTTP ${status}`
 }
 
+function isSessionUnauthorized(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return true
+  const detail = (body as Record<string, unknown>).detail
+  if (typeof detail !== "string") return false
+  return [
+    "Authentication required",
+    "Invalid token",
+    "Invalid or expired token",
+    "Not authenticated",
+    "Session expired",
+  ].includes(detail)
+}
+
 // Deduplicates concurrent refresh calls within a tab — Supabase rotates refresh
 // tokens on each use, so parallel 401s must share one refresh or the second
 // invalidates the first.
 let _refreshInFlight: Promise<string | null> | null = null
 
-// Cross-tab lock: prevents multiple tabs from racing to call /auth/refresh.
-// Key must stay in sync with ACCESS_TOKEN_KEY in lib/session.ts.
-const _CROSS_TAB_LOCK_KEY = "mirror_refresh_lock"
-const _ACCESS_TOKEN_STORAGE_KEY = "mirror_token"
 const _LOCK_TTL = 6000 // ms — must exceed worst-case refresh round-trip
-
-function _acquireRefreshLock(): boolean {
-  try {
-    const val = window.localStorage.getItem(_CROSS_TAB_LOCK_KEY)
-    if (val && Date.now() - parseInt(val, 10) < _LOCK_TTL) return false
-    window.localStorage.setItem(_CROSS_TAB_LOCK_KEY, String(Date.now()))
-    return true
-  } catch {
-    return true
-  }
-}
-
-function _releaseRefreshLock(): void {
-  try { window.localStorage.removeItem(_CROSS_TAB_LOCK_KEY) } catch {}
-}
-
-// Waits for another tab to write a fresh access token to localStorage.
-function _waitForCrossTabToken(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === _ACCESS_TOKEN_STORAGE_KEY && e.newValue) {
-        window.removeEventListener("storage", handler)
-        clearTimeout(timer)
-        resolve(e.newValue)
-      }
-    }
-    const timer = setTimeout(() => {
-      window.removeEventListener("storage", handler)
-      resolve(null)
-    }, _LOCK_TTL)
-    window.addEventListener("storage", handler)
-  })
-}
 
 async function tryRefreshToken(): Promise<string | null> {
   if (typeof window === "undefined") return null
@@ -71,7 +54,7 @@ async function tryRefreshToken(): Promise<string | null> {
   if (!refreshToken) return null
 
   // Another tab already holds the lock — wait for it to write the new token.
-  if (!_acquireRefreshLock()) return _waitForCrossTabToken()
+  if (!acquireRefreshLock(_LOCK_TTL)) return waitForAccessTokenChange(_LOCK_TTL)
 
   _refreshInFlight = (async () => {
     try {
@@ -88,7 +71,7 @@ async function tryRefreshToken(): Promise<string | null> {
     } catch {
       return null
     } finally {
-      _releaseRefreshLock()
+      releaseRefreshLock()
       _refreshInFlight = null
     }
   })()
@@ -108,6 +91,7 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
     ...rest,
   })
   if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
     if (res.status === 401 && typeof window !== "undefined") {
       if (!_isRetry) {
         const newToken = await tryRefreshToken()
@@ -117,9 +101,8 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
           return request<T>(path, { ...rest, headers: newHeaders }, true)
         }
       }
-      forceLogout()
+      if (isSessionUnauthorized(body)) forceLogout()
     }
-    const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(extractError(body, res.status))
   }
   if (res.status === 204) return undefined as T
