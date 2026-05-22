@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
@@ -22,7 +22,7 @@ router = APIRouter()
 
 @router.get("/applications", response_model=list[ApplicationResponse])
 async def get_applications(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> list[ApplicationResponse]:
@@ -31,10 +31,10 @@ async def get_applications(
     Threads are derived (CONTEXT.md → Company CV Thread). One batched read across
     all distinct companies on this page avoids the N+1 per-card fetch.
     """
-    rows = repo.get_user_applications(current_user["user_id"])
+    rows = repo.get_user_applications(principal.id)
     companies = [(row.get("jobs") or {}).get("company_name") for row in rows]
     latest_by_company = cv_repo.latest_for_thread_batch(
-        current_user["user_id"],
+        principal.id,
         [c for c in companies if c],
     )
     out: list[ApplicationResponse] = []
@@ -47,7 +47,7 @@ async def get_applications(
 @router.post("/import/preview", response_model=JobImportPreviewResponse)
 async def preview_job_import(
     body: JobImportPreviewRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobImportPreviewResponse:
     if not body.job_description.strip():
@@ -58,13 +58,13 @@ async def preview_job_import(
 @router.post("/import", response_model=ApplicationResponse)
 async def import_job(
     body: JobImportRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
     return ApplicationResponse(
-        **jobs_workflow.save_imported_job(repo, current_user["user_id"], body)
+        **jobs_workflow.save_imported_job(repo, principal.id, body)
     )
 
 
@@ -72,14 +72,14 @@ async def import_job(
 async def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
     if body.status not in APPLICATION_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {body.status}")
 
     now = datetime.now(timezone.utc).isoformat()
-    user_id = current_user["user_id"]
+    user_id = principal.id
     existing = repo.get_application_with_job(user_id, job_id) or {}
     prior_status = existing.get("status")
 
@@ -121,10 +121,10 @@ async def update_application(
 @router.post("/save/{job_id}", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 async def save_discovered_job(
     job_id: str,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
     repo.upsert_application(user_id, job_id, {"status": "saved", "source": "user_discovery"})
     data = repo.get_application_with_job(user_id, job_id)
     if not data:
@@ -135,7 +135,7 @@ async def save_discovered_job(
 @router.delete("/tracker/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_tracker_job(
     job_id: str,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
-    repo.delete_tracker_rows(current_user["user_id"], job_id)
+    repo.delete_tracker_rows(principal.id, job_id)

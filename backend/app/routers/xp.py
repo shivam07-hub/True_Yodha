@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.schemas.xp import (
     ForgeCompleteRequest,
     ForgeSessionResponse,
@@ -15,19 +15,19 @@ router = APIRouter(prefix="/users/me", tags=["xp"])
 
 @router.get("/xp", response_model=XPBalanceResponse)
 async def get_xp_balance(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> XPBalanceResponse:
-    balance = await xp_service.get_xp_balance(current_user["user_id"])
+    balance = await xp_service.get_xp_balance(principal.id)
     return XPBalanceResponse(balance=balance)
 
 
 @router.post("/xp/spend", response_model=XPBalanceResponse)
 async def spend_xp(
     body: XPSpendRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> XPBalanceResponse:
     new_balance = await xp_service.spend_xp(
-        user_id=current_user["user_id"],
+        user_id=principal.id,
         amount=body.amount,
         action=body.action,
     )
@@ -37,10 +37,10 @@ async def spend_xp(
 @router.post("/forge/complete", response_model=ForgeSessionResponse, status_code=status.HTTP_201_CREATED)
 async def complete_forge_session(
     body: ForgeCompleteRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> ForgeSessionResponse:
     result = await forge_service.complete_forge_session(
-        user_id=current_user["user_id"],
+        user_id=principal.id,
         skill_name=body.skill_name,
         skill_id=body.skill_id,
         duration_minutes=body.duration_minutes,
@@ -51,10 +51,10 @@ async def complete_forge_session(
 
 @router.get("/forge/last-skill", response_model=LastForgedSkillResponse)
 async def last_forged_skill(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> LastForgedSkillResponse:
     """Return the most recently forged skill. Empty fields when user has none yet."""
-    row = forge_service.get_last_forged_skill(current_user["user_id"])
+    row = forge_service.get_last_forged_skill(principal.id)
     if not row:
         return LastForgedSkillResponse(skill_id=None, skill_name=None)
     return LastForgedSkillResponse(**row)

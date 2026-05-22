@@ -18,7 +18,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.cv import (
     CVVersionWriteSpec,
     CVVersionsRepository,
@@ -77,11 +77,11 @@ class RecomputeStatusResponse(BaseModel):
 async def skill_edit(
     body: SkillEditRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> SkillEditResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
 
     baseline = cv_repo.latest_baseline(user_id)
     if baseline is None:
@@ -179,12 +179,12 @@ async def skill_edit(
 @router.get("/skill-edit/recompute-status/{baseline_id}", response_model=RecomputeStatusResponse)
 async def recompute_status(
     baseline_id: int,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> RecomputeStatusResponse:
     """Polled by the Skills page after a skill-edit save so it can stop the
     score-ring shimmer once record_cv_score has finished writing."""
-    row = cv_repo.find(baseline_id, current_user["user_id"])
+    row = cv_repo.find(baseline_id, principal.id)
     if not row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Baseline not found.")
     return RecomputeStatusResponse(

@@ -14,8 +14,7 @@ from typing import Any, Literal
 from fastapi import Depends, HTTPException, status
 from supabase import Client
 
-from app.database import get_supabase_for_token
-from app.deps import get_current_user
+from app.deps import get_user_db
 
 
 CVKind = Literal["baseline_upload", "deterministic", "polished", "edited"]
@@ -443,7 +442,5 @@ class CVVersionsRepository:
 CVRepository = CVVersionsRepository
 
 
-def get_token_cv_repository(
-    current_user: dict = Depends(get_current_user),
-) -> CVVersionsRepository:
-    return CVVersionsRepository(get_supabase_for_token(current_user["token"]))
+def get_token_cv_repository(db: Client = Depends(get_user_db)) -> CVVersionsRepository:
+    return CVVersionsRepository(db)

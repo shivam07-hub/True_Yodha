@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     APPLICATION_OUTCOMES,
@@ -20,7 +20,7 @@ router = APIRouter()
 async def submit_application_review(
     job_id: str,
     body: ApplicationReviewRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ApplicationReviewResponse:
     if not (1 <= body.star_rating <= 5):
@@ -28,7 +28,7 @@ async def submit_application_review(
     if body.last_stage not in APPLICATION_STAGES:
         raise HTTPException(status_code=422, detail=f"Invalid last_stage: {body.last_stage}")
 
-    user_id = current_user["user_id"]
+    user_id = principal.id
     app_row = repo.get_application_with_job(user_id, job_id)
     if not app_row:
         raise HTTPException(status_code=404, detail="Application not found")

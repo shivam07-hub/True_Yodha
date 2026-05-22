@@ -13,7 +13,7 @@ from razorpay import errors as razorpay_errors
 
 from app.config import settings
 from app.database import get_supabase_admin
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.services import xp_service
 
 XP_PACK_PRICE_PAISE = 9900
@@ -151,7 +151,7 @@ def _mark_payment_verified(
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_order(
     body: CreateOrderRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> CreateOrderResponse:
     if body.amount < 100:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be at least 100 paise")
@@ -166,7 +166,7 @@ async def create_order(
             detail="Only the 1000 XP launch pack is available",
         )
 
-    receipt = body.receipt or _default_receipt(current_user["user_id"])
+    receipt = body.receipt or _default_receipt(principal.id)
     if len(receipt) > 40:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receipt must be 40 characters or fewer")
 
@@ -175,7 +175,7 @@ async def create_order(
         "currency": currency,
         "receipt": receipt,
         "notes": {
-            "user_id": current_user["user_id"],
+            "user_id": principal.id,
             "xp_amount": str(XP_PACK_AMOUNT),
             "product": XP_PACK_PRODUCT,
         },
@@ -194,7 +194,7 @@ async def create_order(
         )
 
     _record_created_payment(
-        user_id=current_user["user_id"],
+        user_id=principal.id,
         razorpay_order_id=order_id,
         amount_paise=int(order.get("amount", body.amount)),
         currency=str(order.get("currency", currency)),
@@ -212,7 +212,7 @@ async def create_order(
 @router.post("/verify-payment", response_model=VerifyPaymentResponse)
 async def verify_payment(
     body: VerifyPaymentRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> VerifyPaymentResponse:
     if not body.razorpay_order_id or not body.razorpay_payment_id or not body.razorpay_signature:
         raise HTTPException(
@@ -226,7 +226,7 @@ async def verify_payment(
         )
 
     payment = _find_payment_by_order(
-        user_id=current_user["user_id"],
+        user_id=principal.id,
         razorpay_order_id=body.razorpay_order_id,
     )
     if not payment:
@@ -242,7 +242,7 @@ async def verify_payment(
     if payment.get("status") == "verified":
         if payment.get("razorpay_payment_id") != body.razorpay_payment_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order was already verified")
-        balance = await xp_service.get_xp_balance(current_user["user_id"])
+        balance = await xp_service.get_xp_balance(principal.id)
         return VerifyPaymentResponse(success=True, xp_earned=0, new_xp_balance=balance)
 
     updated = _mark_payment_verified(
@@ -252,14 +252,14 @@ async def verify_payment(
     )
     if not updated:
         latest = _find_payment_by_order(
-            user_id=current_user["user_id"],
+            user_id=principal.id,
             razorpay_order_id=body.razorpay_order_id,
         )
         if latest and latest.get("status") == "verified" and latest.get("razorpay_payment_id") == body.razorpay_payment_id:
-            balance = await xp_service.get_xp_balance(current_user["user_id"])
+            balance = await xp_service.get_xp_balance(principal.id)
             return VerifyPaymentResponse(success=True, xp_earned=0, new_xp_balance=balance)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment verification is already in progress")
 
     xp_amount = int(payment.get("xp_amount") or XP_PACK_AMOUNT)
-    new_balance = await xp_service.earn_xp(current_user["user_id"], xp_amount)
+    new_balance = await xp_service.earn_xp(principal.id, xp_amount)
     return VerifyPaymentResponse(success=True, xp_earned=xp_amount, new_xp_balance=new_balance)

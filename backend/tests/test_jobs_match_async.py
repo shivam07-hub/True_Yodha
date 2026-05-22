@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.routers.jobs import match as match_router
 
 
-def _auth_override() -> dict[str, str]:
-    return {"user_id": "user-123", "token": "token-123", "email": "user@example.com"}
+def _auth_override() -> CurrentUser:
+    return CurrentUser(id="user-123", email="user@example.com", token="token-123")
 
 
 def test_compute_enqueues_and_returns_accepted_payload(monkeypatch) -> None:

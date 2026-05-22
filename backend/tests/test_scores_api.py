@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.scores import ScoreRecomputeInputs
 from app.routers import scores
@@ -38,7 +38,7 @@ def _score_row(total_score: float = 72.5) -> dict[str, Any]:
 
 def test_get_my_score_reads_through_scores_repository() -> None:
     repo = _FakeScoresRepository(score_row=_score_row())
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
@@ -54,7 +54,7 @@ def test_get_my_score_reads_through_scores_repository() -> None:
 
 def test_get_my_score_returns_404_when_missing() -> None:
     repo = _FakeScoresRepository(score_row=None)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
@@ -81,7 +81,7 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
         return _score_row(80.0)
 
     monkeypatch.setattr(scores.scoring, "recompute_score", fake_recompute)
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:
@@ -100,7 +100,7 @@ def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
 
 def test_recompute_score_returns_404_without_skills() -> None:
     repo = _FakeScoresRepository(recompute_inputs=ScoreRecomputeInputs({}, []))
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
 
     try:

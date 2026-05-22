@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 import logging
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.diary import DiaryRepository, get_token_diary_repository
 from app.schemas import (
     DiaryEntryRequest,
@@ -29,10 +29,10 @@ DIARY_XP = DIARY_ENTRY_XP
 @router.post("/entry", response_model=DiaryEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_or_update_entry(
     body: DiaryEntryRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> DiaryEntryResponse:
-    user_id = current_user["user_id"]
+    user_id = principal.id
     log_date = body.log_date or date.today()
     row, score_before, score_after = progress.record_diary_entry(
         diary_repo=diary_repo,
@@ -51,23 +51,23 @@ async def create_or_update_entry(
 
 @router.get("/history", response_model=DiaryHistoryResponse)
 async def get_diary_history(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
 ) -> DiaryHistoryResponse:
-    entries = [_to_diary_response(row) for row in diary_repo.list_daily_logs(current_user["user_id"], limit)]
+    entries = [_to_diary_response(row) for row in diary_repo.list_daily_logs(principal.id, limit)]
     return DiaryHistoryResponse(entries=entries, total=len(entries))
 
 
 @router.get("/milestones", response_model=MilestoneListResponse)
 async def get_milestones(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
 ) -> MilestoneListResponse:
     milestones = [
         _to_milestone_response(row)
-        for row in progress.list_progress_milestones(diary_repo, current_user["user_id"], limit)
+        for row in progress.list_progress_milestones(diary_repo, principal.id, limit)
     ]
     return MilestoneListResponse(milestones=milestones, total=len(milestones))
 
@@ -75,12 +75,12 @@ async def get_milestones(
 @router.put("/milestones", response_model=MilestoneResponse)
 async def upsert_milestone(
     body: MilestoneRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> MilestoneResponse:
     row = progress.upsert_personal_milestone(
         diary_repo=diary_repo,
-        user_id=current_user["user_id"],
+        user_id=principal.id,
         milestone_date=body.milestone_date,
         skill=body.skill,
         task=body.task,

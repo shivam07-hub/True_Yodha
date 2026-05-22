@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_public_jobs_repository, get_token_jobs_repository
 from app.schemas import (
     EntitySkillsResponse,
@@ -32,12 +32,12 @@ async def get_my_analytics(
     location_country: str | None = None,
     location_mode: str | None = None,
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
 ) -> MarketAnalyticsSummaryResponse:
     if cluster:
         role_domain = repo.resolve_role_domain_for_clusters([cluster])
     else:
-        target_roles = repo.get_user_target_roles(current_user["user_id"])
+        target_roles = repo.get_user_target_roles(principal.id)
         role_domain = repo.resolve_role_domain_for_clusters(target_roles) if target_roles else None
     analytics = repo.compile_market_analytics(
         role_domain=role_domain,

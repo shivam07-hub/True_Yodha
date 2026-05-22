@@ -7,8 +7,8 @@ from typing import Any
 from fastapi import Depends
 from supabase import Client
 
-from app.database import get_supabase_admin, get_supabase_for_token
-from app.deps import get_current_user
+from app.database import get_supabase_admin
+from app.deps import get_user_db
 from app.services.location_normalizer import normalize_location
 from app.services.scoring import _PROFICIENCY_TITLES
 
@@ -164,7 +164,5 @@ def get_admin_users_repository(db: Client = Depends(get_supabase_admin)) -> User
     return UsersRepository(db)
 
 
-def get_token_users_repository(
-    current_user: dict = Depends(get_current_user),
-) -> UsersRepository:
-    return UsersRepository(get_supabase_for_token(current_user["token"]))
+def get_token_users_repository(db: Client = Depends(get_user_db)) -> UsersRepository:
+    return UsersRepository(db)

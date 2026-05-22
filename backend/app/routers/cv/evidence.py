@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends
 
-from app.deps import get_current_user
+from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.schemas import CVEvidenceSummaryResponse
 
@@ -19,10 +19,10 @@ router = APIRouter()
 
 @router.get("/evidence", response_model=CVEvidenceSummaryResponse)
 async def get_cv_evidence(
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> CVEvidenceSummaryResponse:
-    return _evidence_stats(cv_repo, current_user["user_id"])
+    return _evidence_stats(cv_repo, principal.id)
 
 
 def _parse_datetime(value: str | datetime | None) -> datetime | None:

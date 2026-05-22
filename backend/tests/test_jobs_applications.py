@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
@@ -39,10 +39,7 @@ class _FakeCVRepository:
 def test_remove_tracker_job_deletes_current_users_application_and_match() -> None:
     repo = _FakeJobsRepository()
 
-    app.dependency_overrides[get_current_user] = lambda: {
-        "user_id": "user-123",
-        "token": "token-123",
-    }
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
 
     try:
@@ -97,10 +94,7 @@ def test_get_applications_attaches_cv_badge_for_companies_with_thread() -> None:
         },
     )
 
-    app.dependency_overrides[get_current_user] = lambda: {
-        "user_id": "user-123",
-        "token": "token-123",
-    }
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     app.dependency_overrides[get_token_cv_repository] = lambda: cv_repo
 
@@ -135,10 +129,7 @@ def test_get_applications_returns_empty_badges_when_no_thread_data() -> None:
     ]
     cv_repo = _FakeCVRepository(latest={})
 
-    app.dependency_overrides[get_current_user] = lambda: {
-        "user_id": "user-123",
-        "token": "token-123",
-    }
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     app.dependency_overrides[get_token_cv_repository] = lambda: cv_repo
 

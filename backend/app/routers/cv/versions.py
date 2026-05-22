@@ -20,8 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from supabase import Client
 
-from app.database import get_supabase_for_token
-from app.deps import get_current_user
+from app.deps import Principal, get_principal, get_user_db
 from app.repositories.cv import (
     CVVersionWriteSpec,
     CVVersionsRepository,
@@ -74,10 +73,6 @@ class CVVersionListResponse(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _db_dep(current_user: dict = Depends(get_current_user)) -> Client:
-    return get_supabase_for_token(current_user["token"])
-
-
 def _to_response(row: dict[str, Any]) -> CVVersionResponse:
     job = row.get("jobs") or {}
     return CVVersionResponse(
@@ -115,7 +110,7 @@ def _auto_title(kind: str, n: int) -> str:
 @router.get("", response_model=CVVersionListResponse)
 async def list_cv_versions(
     job_id: str | None = None,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> CVVersionListResponse:
     """Return baselines + scoped derivatives for the current user.
@@ -123,7 +118,7 @@ async def list_cv_versions(
     With job_id query param: baselines + rows for that job's company.
     Without: all rows (baselines + every derivative for every job).
     """
-    user_id = current_user["user_id"]
+    user_id = principal.id
     rows = (
         cv_repo.list_thread_for_job(user_id, job_id)
         if job_id is not None
@@ -135,12 +130,12 @@ async def list_cv_versions(
 @router.post("", response_model=CVVersionResponse, status_code=status.HTTP_201_CREATED)
 async def create_cv_version(
     body: CVVersionCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
-    db: Client = Depends(_db_dep),
+    db: Client = Depends(get_user_db),
 ) -> CVVersionResponse:
     """Save a new deterministic version from the playground state."""
-    user_id = current_user["user_id"]
+    user_id = principal.id
     baseline = cv_repo.latest_baseline(user_id)
     if baseline is None:
         raise HTTPException(
@@ -179,12 +174,12 @@ async def create_cv_version(
 )
 async def polish_cv_version(
     version_id: int,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
-    db: Client = Depends(_db_dep),
+    db: Client = Depends(get_user_db),
 ) -> CVVersionResponse:
     """Create a new child version with LLM-polished text. Parent stays immutable."""
-    user_id = current_user["user_id"]
+    user_id = principal.id
     parent = cv_repo.find(version_id, user_id)
     if not parent:
         raise HTTPException(
@@ -246,7 +241,7 @@ async def polish_cv_version(
 async def edit_cv_version(
     version_id: int,
     body: CVVersionEditRequest,
-    current_user: dict = Depends(get_current_user),
+    principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> CVVersionResponse:
     """Create a new child version with edited polished bullets.
@@ -254,7 +249,7 @@ async def edit_cv_version(
     Baselines and pure-deterministic rows are not directly editable — polish them
     first. Edits operate on the polished_text via string replace.
     """
-    user_id = current_user["user_id"]
+    user_id = principal.id
     parent = cv_repo.find(version_id, user_id)
     if not parent:
         raise HTTPException(

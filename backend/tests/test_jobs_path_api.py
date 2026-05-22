@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 
-from app.deps import get_current_user
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers import jobs
-from app.routers.jobs.milestone import _get_db
+from app.deps import get_user_db
 
 
 class _FakeJobsRepository:
@@ -15,9 +15,9 @@ class _FakeJobsRepository:
 
 def test_get_application_path_calls_service(monkeypatch) -> None:
     repo = _FakeJobsRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    app.dependency_overrides[_get_db] = lambda: object()
+    app.dependency_overrides[get_user_db] = lambda: object()
     monkeypatch.setattr(
         jobs.job_path_service,
         "get_application_path",
@@ -49,9 +49,9 @@ def test_get_application_path_calls_service(monkeypatch) -> None:
 
 def test_put_targets_replaces_targets_and_returns_path(monkeypatch) -> None:
     repo = _FakeJobsRepository()
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": "u1", "token": "t1"}
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    app.dependency_overrides[_get_db] = lambda: object()
+    app.dependency_overrides[get_user_db] = lambda: object()
     monkeypatch.setattr(
         jobs.job_path_service,
         "replace_skill_targets",
