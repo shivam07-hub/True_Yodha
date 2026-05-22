@@ -30,6 +30,13 @@ test("api client uses session adapter and not direct localStorage access", () =>
   assert.equal(source.includes("localStorage."), false)
 })
 
+test("api client only logs out for session unauthorized responses", () => {
+  const source = read("lib/api.ts")
+  assert.match(source, /function isSessionUnauthorized/)
+  assert.match(source, /if \(isSessionUnauthorized\(body\)\) forceLogout\(\)/)
+  assert.equal(source.includes("Razorpay authentication failed"), false)
+})
+
 test("use-auth hook relies on session adapter", () => {
   const source = read("lib/hooks/use-auth.ts")
   assert.match(source, /from "@\/lib\/session"/)

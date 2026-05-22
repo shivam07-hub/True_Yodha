@@ -2,13 +2,11 @@
 
 import * as React from "react"
 import { Icon } from "./icons"
+import type { UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
 interface TopbarProps {
   location: string
-  refreshing: boolean
-  refreshDisabled: boolean
-  refreshNotice: string | null
-  onRefresh: () => void
+  refresh: UseJobRefreshResult
   onFeedback: () => void
   onOpenDiary: () => void
   cartCount: number
@@ -16,27 +14,33 @@ interface TopbarProps {
 
 export function Topbar({
   location,
-  refreshing,
-  refreshDisabled,
-  refreshNotice,
-  onRefresh,
+  refresh,
   onFeedback,
   onOpenDiary,
   cartCount,
 }: TopbarProps) {
+  const isWorking = refresh.state === "charging" || refresh.state === "computing"
+  const cannotClick = isWorking || !refresh.canAfford
+  const badge = isWorking
+    ? refresh.progressLabel ?? "Working…"
+    : refresh.state === "done" && refresh.matchesWritten != null
+      ? `+${refresh.matchesWritten} new · −${refresh.cost} XP`
+      : refresh.errorMessage
+        ? refresh.errorMessage
+        : `−${refresh.cost} XP if new`
   return (
     <div className="mc-topbar">
       {location ? <span className="mc-topbar-loc">📍 {location}</span> : null}
       <button
         type="button"
         className="mc-btn tm-control-focus"
-        onClick={onRefresh}
-        disabled={refreshDisabled || refreshing}
+        onClick={refresh.refresh}
+        disabled={cannotClick}
         aria-label="Refresh job matches"
       >
         <Icon name="refresh" size={14} />
-        {refreshing ? "Refreshing…" : "Refresh matches"}
-        {refreshNotice ? <span className="mc-badge">{refreshNotice}</span> : <span className="mc-badge">−50 if new</span>}
+        {isWorking ? (refresh.progressLabel ?? "Refreshing…") : "Refresh matches"}
+        <span className="mc-badge">{badge}</span>
       </button>
       <button
         type="button"

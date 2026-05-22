@@ -65,7 +65,7 @@ def _razorpay_error(exc: Exception) -> HTTPException:
     message = str(exc) or "Razorpay order creation failed"
     is_auth_error = "auth" in message.lower() or "key" in message.lower()
     return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED if is_auth_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=status.HTTP_502_BAD_GATEWAY if is_auth_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Razorpay authentication failed" if is_auth_error else "Razorpay order creation failed",
     )
 

@@ -19,7 +19,7 @@ import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreak } from "@/lib/forge-helpers"
-import { useMatchRefresh } from "@/lib/hooks/use-match-refresh"
+import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
@@ -58,14 +58,7 @@ function MissionControlInner() {
   const { setBalance: setXPBalance } = useXPStore()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
 
-  const {
-    isRefreshing,
-    notice: refreshNotice,
-    isExhausted: matchesExhausted,
-    refresh: refreshMatches,
-    cleanup: cleanupRefresh,
-  } = useMatchRefresh(token, queryClient)
-  useEffect(() => cleanupRefresh, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const refreshVm = useJobRefresh(token, queryClient)
 
   const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
@@ -336,10 +329,7 @@ function MissionControlInner() {
           <div className="mc-inner">
             <Topbar
               location={profile?.target_location ?? ""}
-              refreshing={isRefreshing}
-              refreshDisabled={matchesExhausted}
-              refreshNotice={refreshNotice}
-              onRefresh={refreshMatches}
+              refresh={refreshVm}
               onFeedback={() => openFeedbackHub({})}
               onOpenDiary={() => router.push("/forge?diary=1")}
               cartCount={cartSkills.length}

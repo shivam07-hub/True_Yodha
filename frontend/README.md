@@ -71,7 +71,8 @@ All backend calls go through `frontend/lib/api.ts`:
 |--------|---------------|
 | `scores.me(token)` | `GET /scores/me` |
 | `jobs.matches(token)` | `GET /jobs/matches` |
-| `jobs.compute(token)` | `POST /jobs/compute` |
+| `jobs.refresh(token)` | `POST /jobs/refresh` |
+| `jobs.refreshStatus(token, ticketId)` | `GET /jobs/refresh/:ticket_id` |
 | `jobs.applications(token)` | `GET /jobs/applications` |
 | `jobs.updateApplication(token, jobId, data)` | `PATCH /jobs/applications/:id` |
 | `users.mySkills(token)` | `GET /users/me/skills` |

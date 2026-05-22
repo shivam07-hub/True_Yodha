@@ -4,7 +4,14 @@
  * Never call fetch() directly in components — use TanStack Query + these functions.
  */
 
-import { clearSessionTokens, getRefreshToken, setSessionTokens } from "./session"
+import {
+  acquireRefreshLock,
+  clearSessionTokens,
+  getRefreshToken,
+  releaseRefreshLock,
+  setSessionTokens,
+  waitForAccessTokenChange,
+} from "./session"
 import { queryClient } from "./query-client"
 
 const BASE =
@@ -20,49 +27,25 @@ function extractError(body: unknown, status: number): string {
   return `HTTP ${status}`
 }
 
+function isSessionUnauthorized(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return true
+  const detail = (body as Record<string, unknown>).detail
+  if (typeof detail !== "string") return false
+  return [
+    "Authentication required",
+    "Invalid token",
+    "Invalid or expired token",
+    "Not authenticated",
+    "Session expired",
+  ].includes(detail)
+}
+
 // Deduplicates concurrent refresh calls within a tab — Supabase rotates refresh
 // tokens on each use, so parallel 401s must share one refresh or the second
 // invalidates the first.
 let _refreshInFlight: Promise<string | null> | null = null
 
-// Cross-tab lock: prevents multiple tabs from racing to call /auth/refresh.
-// Key must stay in sync with ACCESS_TOKEN_KEY in lib/session.ts.
-const _CROSS_TAB_LOCK_KEY = "mirror_refresh_lock"
-const _ACCESS_TOKEN_STORAGE_KEY = "mirror_token"
 const _LOCK_TTL = 6000 // ms — must exceed worst-case refresh round-trip
-
-function _acquireRefreshLock(): boolean {
-  try {
-    const val = window.localStorage.getItem(_CROSS_TAB_LOCK_KEY)
-    if (val && Date.now() - parseInt(val, 10) < _LOCK_TTL) return false
-    window.localStorage.setItem(_CROSS_TAB_LOCK_KEY, String(Date.now()))
-    return true
-  } catch {
-    return true
-  }
-}
-
-function _releaseRefreshLock(): void {
-  try { window.localStorage.removeItem(_CROSS_TAB_LOCK_KEY) } catch {}
-}
-
-// Waits for another tab to write a fresh access token to localStorage.
-function _waitForCrossTabToken(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === _ACCESS_TOKEN_STORAGE_KEY && e.newValue) {
-        window.removeEventListener("storage", handler)
-        clearTimeout(timer)
-        resolve(e.newValue)
-      }
-    }
-    const timer = setTimeout(() => {
-      window.removeEventListener("storage", handler)
-      resolve(null)
-    }, _LOCK_TTL)
-    window.addEventListener("storage", handler)
-  })
-}
 
 async function tryRefreshToken(): Promise<string | null> {
   if (typeof window === "undefined") return null
@@ -71,7 +54,7 @@ async function tryRefreshToken(): Promise<string | null> {
   if (!refreshToken) return null
 
   // Another tab already holds the lock — wait for it to write the new token.
-  if (!_acquireRefreshLock()) return _waitForCrossTabToken()
+  if (!acquireRefreshLock(_LOCK_TTL)) return waitForAccessTokenChange(_LOCK_TTL)
 
   _refreshInFlight = (async () => {
     try {
@@ -88,7 +71,7 @@ async function tryRefreshToken(): Promise<string | null> {
     } catch {
       return null
     } finally {
-      _releaseRefreshLock()
+      releaseRefreshLock()
       _refreshInFlight = null
     }
   })()
@@ -108,6 +91,7 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
     ...rest,
   })
   if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
     if (res.status === 401 && typeof window !== "undefined") {
       if (!_isRetry) {
         const newToken = await tryRefreshToken()
@@ -117,80 +101,12 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
           return request<T>(path, { ...rest, headers: newHeaders }, true)
         }
       }
-      forceLogout()
+      if (isSessionUnauthorized(body)) forceLogout()
     }
-    const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(extractError(body, res.status))
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
-}
-
-interface SSEMessage<T> {
-  event: string
-  data: T
-}
-
-async function streamSSE<T>(
-  path: string,
-  token: string,
-  onMessage: (message: SSEMessage<T>) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const response = await fetch(`${BASE}${path}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "text/event-stream",
-    },
-    signal,
-  })
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ detail: response.statusText }))
-    throw new Error(extractError(body, response.status))
-  }
-  if (!response.body) {
-    throw new Error("Streaming not supported in this environment.")
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    while (true) {
-      const splitIndex = buffer.indexOf("\n\n")
-      if (splitIndex === -1) break
-      const block = buffer.slice(0, splitIndex)
-      buffer = buffer.slice(splitIndex + 2)
-
-      const lines = block.split(/\r?\n/)
-      let event = "message"
-      const dataLines: string[] = []
-      for (const line of lines) {
-        if (line.startsWith(":")) continue
-        if (line.startsWith("event:")) {
-          event = line.slice(6).trim() || "message"
-          continue
-        }
-        if (line.startsWith("data:")) {
-          dataLines.push(line.slice(5).trimStart())
-        }
-      }
-
-      if (!dataLines.length) continue
-      const raw = dataLines.join("\n")
-      try {
-        onMessage({ event, data: JSON.parse(raw) as T })
-      } catch {
-        // Ignore malformed event payloads and keep stream alive.
-      }
-    }
-  }
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -679,46 +595,28 @@ export interface JobMatchesResponse {
   matches_computed_at: string | null
 }
 
-export interface ComputeJobMatchesResponse {
-  matches_written: number
-  from_cache: boolean
-  exhausted?: boolean
+export type RefreshLifecycle = "queued" | "computing" | "done" | "failed"
+
+export interface RefreshTicketResponse {
+  id: string
+  state: "queued" | "computing" | "done"
+  progress_label: string
   batch_week: string
-  needs_onboarding?: boolean
-  status?: JobComputeStatus
-  already_running?: boolean
-  job_id?: string | null
-  message?: string | null
-  new_xp_balance?: number | null
-  xp_spent?: number
-  debug?: {
-    cache_hit: boolean
-    user_skills_count: number | null
-    candidate_jobs_count: number | null
-    top_jobs_count: number | null
-    target_roles_count: number | null
-  } | null
+  xp_charged: number
+  new_xp_balance: number
+  matches_written: number | null
 }
 
-export type JobComputeStatus = "idle" | "queued" | "running" | "succeeded" | "failed"
-
-export interface JobComputeStatusResponse {
-  user_id: string
+export interface RefreshStateResponse {
+  ticket_id: string
+  state: RefreshLifecycle
+  progress_label: string
   batch_week: string
-  status: JobComputeStatus
-  job_id: string | null
-  already_running: boolean
   matches_written: number | null
-  from_cache: boolean | null
-  needs_onboarding: boolean | null
-  debug: Record<string, unknown> | null
-  message: string | null
-  error: string | null
+  refund: number | null
   new_xp_balance: number | null
-  xp_spent: number
-  enqueued_at: string | null
-  started_at: string | null
-  finished_at: string | null
+  error: string | null
+  debug: Record<string, unknown> | null
 }
 
 export type ApplicationStatus =
@@ -1061,27 +959,14 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   refresh: (token: string) =>
-    request<ComputeJobMatchesResponse>("/jobs/refresh", {
+    request<RefreshTicketResponse>("/jobs/refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
-  refreshStatus: (token: string) =>
-    request<JobComputeStatusResponse>("/jobs/refresh/status", {
+  refreshStatus: (token: string, ticketId: string) =>
+    request<RefreshStateResponse>(`/jobs/refresh/${encodeURIComponent(ticketId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  refreshStatusStream: (
-    token: string,
-    onStatus: (status: JobComputeStatusResponse) => void,
-    signal?: AbortSignal,
-  ) =>
-    streamSSE<JobComputeStatusResponse>(
-      "/jobs/refresh/status/stream",
-      token,
-      (message) => {
-        if (message.event === "status") onStatus(message.data)
-      },
-      signal,
-    ),
   applications: (token: string) =>
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },

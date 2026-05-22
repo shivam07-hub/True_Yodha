@@ -252,25 +252,22 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-22 · Public routing + about-page trim)
+## LAST SESSION SUMMARY (2026-05-22 · Razorpay auth/logout hardening)
 
-Moved the public entry flow so `https://www.himyro.com/` now routes to the About experience and Intel now lives at its own dedicated route, `/intel`. This keeps the first visit oriented around what Myro is before dropping people into the market surface. Public navigation was updated to point the brand to `/about` and the Intel tab to `/intel`, and the about-page primary Intel CTA now opens the dedicated intel page instead of the old root route.
+Fixed the Razorpay payment flow logout bug at the auth boundary. The root cause was that `/api/create-order` could return `401 Unauthorized` for a Razorpay upstream credential failure, and the shared frontend API client treated every `401` as an expired Myro session after one refresh attempt. That made payment setup errors look like user-session failures and redirected the user to `/login`.
 
-The About page copy was tightened for faster first-scan comprehension. The hero now explains Myro in one short line, adds a simple 3-step "how it works" strip, and emphasizes the two key actions: `Open Intel` and `Sign up`. The old extra signup CTA at the bottom of the sample diagnostic was removed to avoid over-calling the same action, and the sample section copy was shortened so it communicates output shape without the heavier Meera narrative.
+The backend now maps Razorpay authentication/key failures to `502 Bad Gateway` with `Razorpay authentication failed`, so provider configuration issues no longer share the same status code as Myro user auth. The frontend request layer now parses the response body before deciding whether to log out and only calls `forceLogout()` for known session-auth failures from the backend. Cross-tab refresh locking was moved into `lib/session.ts`, keeping token storage and refresh coordination behind the session adapter.
 
 Files touched:
-- `frontend/app/page.tsx` — root route now redirects to `/about`
-- `frontend/app/intel/page.tsx` (new) — dedicated Intel page with metadata + existing `IntelPane`
-- `frontend/app/about/page.tsx` — about CTA now links to `/intel`
-- `frontend/components/public/top-nav.tsx` — nav routing updated for About/Intel entry flow
-- `frontend/components/public/about-section.tsx` — hero copy reduced, 3-step explainer added, CTA pair simplified
-- `frontend/components/public/sample-diagnostic.tsx` — narrative + CTA trimmed
-- `frontend/tests/layout-intel-contract.test.mjs` — contract moved from root page to `/intel`
+- `backend/app/routers/payments.py` — Razorpay auth errors now return `502` instead of user-session `401`
+- `backend/tests/test_payments_router.py` — regression test for Razorpay auth failure mapping
+- `frontend/lib/api.ts` — 401 handling now distinguishes session auth failures from upstream/provider failures
+- `frontend/lib/session.ts` — session adapter now owns refresh lock and token-change waiting
+- `frontend/tests/api-session-contract.test.mjs` — contract covering logout behavior and session-adapter usage
 
-Verify: `npx tsc --noEmit` clean · `npm run lint` clean · `node --test tests/layout-intel-contract.test.mjs` pass · `npm run build` succeeds (`/intel` now prerenders) · `.venv/bin/pytest backend/tests` 342/342 pass.
+Verify: `git diff --check` clean · `npm run lint` clean · `npm run build` succeeds · `.venv/bin/pytest backend/tests` 344/344 pass · `npm run test:contracts` has 4/5 passing, with the remaining pre-existing raw-query-key contract failure first reported at `frontend/app/companies/[slug]/page.tsx`.
 
-Open note:
-- `backend/app/services/llm_provider.py` and `docs/free-llm-api-resources` were already dirty in the worktree and were intentionally left untouched.
+Manual deployment note: Railway still needs the server-side Razorpay env vars (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`) and Vercel needs the public key env var (`NEXT_PUBLIC_RAZORPAY_KEY_ID`), followed by redeploys. If Railway credentials are wrong, payment creation should now show a payment setup error instead of logging the user out.
 
 ## EARLIER SESSION SUMMARIES
 
