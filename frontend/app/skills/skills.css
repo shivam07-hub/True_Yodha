@@ -1,0 +1,186 @@
+/* Page-scoped CSS for /skills.
+   Desktop = unchanged 2-col layout (list + sticky radar).
+   Mobile  = single-column with a 3-way segmented toggle:
+            Intel (accordion) / Map (radar) / Audit. */
+
+.tm-skills-page {
+  min-height: 100vh;
+  padding: var(--tm-page-py) var(--tm-page-px);
+}
+
+/* Desktop default grid: list + sticky radar */
+.tm-skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.tm-skills-list-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tm-skills-radar-panel {
+  position: sticky;
+  top: 20px;
+}
+
+.tm-skills-radar-card {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  padding: 20px 20px 16px;
+  overflow: hidden;
+}
+
+.tm-skills-radar-info {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-border-soft);
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--tm-text-faint);
+}
+
+/* Mobile-only 3-way segmented toggle — hidden on desktop */
+.tm-skills-mview {
+  display: none;
+}
+
+/* ── Mobile breakpoint ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .tm-skills-page {
+    padding: 20px 16px 24px;
+  }
+
+  /* Body collapses to single column */
+  .tm-skills-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Radar inline, not sticky */
+  .tm-skills-radar-panel {
+    position: static;
+    top: auto;
+  }
+
+  .tm-skills-radar-card {
+    padding: 18px 16px 14px;
+  }
+
+  /* Mobile segmented control — sticky beneath header */
+  .tm-skills-mview {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin: 4px 0 16px;
+    background: var(--tm-surface);
+    border: 1px solid var(--tm-border-soft);
+    border-radius: 999px;
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+  }
+
+  .tm-skills-mview button {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: var(--tm-text-faint);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 160ms var(--tm-ease), color 160ms var(--tm-ease);
+    min-width: 0;
+  }
+
+  .tm-skills-mview button[aria-pressed="true"] {
+    background: var(--tm-accent);
+    color: var(--tm-accent-fg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .tm-skills-mview button .glyph {
+    font-size: 11px;
+    opacity: 0.9;
+  }
+
+  /* Hide the desktop VIEW icon-button group on mobile —
+     replaced by the segmented control. */
+  .tm-skills-view-toggle-desktop {
+    display: none !important;
+  }
+
+  /* Hide the CV→ / Forge buttons on mobile — accessible via bottom nav. */
+  .tm-skills-actions-right {
+    display: none !important;
+  }
+
+  /* Compress chrome to a single horizontally scrolling row. */
+  .tm-skills-chrome {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    margin-bottom: 14px !important;
+  }
+  .tm-skills-chrome::-webkit-scrollbar {
+    display: none;
+  }
+  .tm-skills-chrome > * {
+    flex-shrink: 0;
+  }
+
+  /* Hide entire chrome (sort + show + actions) when the user is on
+     map or audit views — sort/show only apply to the accordion list. */
+  .tm-skills-chrome[data-mview="map"],
+  .tm-skills-chrome[data-mview="audit"] {
+    display: none !important;
+  }
+
+  /* Mobile pane visibility — data-mview on the grid controls which
+     pane is visible. Desktop ignores the attribute (both panes show). */
+  .tm-skills-grid[data-mview="intel"] .tm-skills-radar-panel,
+  .tm-skills-grid[data-mview="audit"] .tm-skills-radar-panel {
+    display: none;
+  }
+  .tm-skills-grid[data-mview="map"] .tm-skills-list-pane {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .tm-skills-mview button {
+    font-size: 11px;
+    gap: 4px;
+  }
+  .tm-skills-mview button .glyph {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-skills-mview button {
+    transition: none;
+  }
+}
