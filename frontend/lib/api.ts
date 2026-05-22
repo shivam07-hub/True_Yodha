@@ -488,21 +488,43 @@ export async function uploadCVText(token: string, text: string): Promise<CVUploa
 }
 
 export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {
+  if (!BASE) {
+    throw new Error("Upload misconfigured: missing API URL. Reload the app.")
+  }
+  // Normalize MIME from filename — Android phone-memory pickers often send
+  // application/octet-stream or empty type, which the backend strict-rejects.
+  const lower = file.name.toLowerCase()
+  const correctedType = lower.endsWith(".pdf")
+    ? "application/pdf"
+    : lower.endsWith(".docx")
+      ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      : ""
+  if (!correctedType) {
+    throw new Error("Only PDF or DOCX files are accepted.")
+  }
+  const safeFile = file.type === correctedType
+    ? file
+    : new File([file], file.name, { type: correctedType })
   const form = new FormData()
-  form.append("file", file)
+  form.append("file", safeFile)
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 180_000)
+  const url = `${BASE}/cv/upload`
   let res: Response
   try {
-    res = await fetch(`${BASE}/cv/upload`, {
+    res = await fetch(url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       body: form,
       signal: controller.signal,
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
     })
   } catch (err) {
     if ((err as Error).name === "AbortError") throw new Error("CV processing timed out — try again")
-    throw err
+    const reason = (err as Error).message || "network unreachable"
+    throw new Error(`Couldn’t reach the server (${reason}). Check connection or try Wi-Fi.`)
   } finally {
     clearTimeout(timeout)
   }
@@ -512,11 +534,14 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadRespo
       if (newToken) {
         // Retry upload once with new token
         const retryForm = new FormData()
-        retryForm.append("file", file)
-        const retryRes = await fetch(`${BASE}/cv/upload`, {
+        retryForm.append("file", safeFile)
+        const retryRes = await fetch(url, {
           method: "POST",
-          headers: { Authorization: `Bearer ${newToken}` },
+          headers: { Authorization: `Bearer ${newToken}`, Accept: "application/json" },
           body: retryForm,
+          mode: "cors",
+          credentials: "omit",
+          cache: "no-store",
         })
         if (retryRes.ok) return retryRes.json()
       }
