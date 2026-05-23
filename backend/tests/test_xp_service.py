@@ -82,3 +82,57 @@ async def test_spend_xp_deducts_correctly():
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
         new_balance = await spend_xp("user-1", 50, "download_cv")
     assert new_balance == 150
+
+
+# ── ADR-0004 charge_or_raise / refund ─────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_charge_or_raise_deducts_when_funded():
+    from app.services.xp_service import charge_or_raise
+    admin = _mock_admin(balance=300)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        new_balance = await charge_or_raise("user-1", 200, "cv_upload")
+    assert new_balance == 100
+
+
+@pytest.mark.asyncio
+async def test_charge_or_raise_blocks_below_floor():
+    from fastapi import HTTPException
+
+    from app.services.xp_service import charge_or_raise
+    admin = _mock_admin(balance=50)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        with pytest.raises(HTTPException) as exc_info:
+            await charge_or_raise("user-1", 200, "cv_upload", floor=0)
+    assert exc_info.value.status_code == 400
+    assert "Out of XP" in exc_info.value.detail
+    # No mutation when below floor
+    admin.table.return_value.update.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_charge_or_raise_allows_negative_when_floor_negative():
+    from app.services.xp_service import charge_or_raise
+    admin = _mock_admin(balance=5)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        new_balance = await charge_or_raise("user-1", 10, "follow", floor=-30)
+    assert new_balance == -5
+
+
+@pytest.mark.asyncio
+async def test_refund_credits_balance():
+    from app.services.xp_service import refund
+    admin = _mock_admin(balance=100)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        new_balance = await refund("user-1", 200, "cv_upload", reason="provider_unavailable")
+    assert new_balance == 300
+
+
+@pytest.mark.asyncio
+async def test_charge_or_raise_zero_amount_is_noop():
+    from app.services.xp_service import charge_or_raise
+    admin = _mock_admin(balance=10)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        new_balance = await charge_or_raise("user-1", 0, "noop")
+    assert new_balance == 10
+    admin.table.return_value.update.assert_not_called()

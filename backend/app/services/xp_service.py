@@ -130,3 +130,61 @@ async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int =
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
     return new_balance
+
+
+# ── ADR-0004: charge / refund pair for LLM-bearing actions ────────────────────
+
+async def charge_or_raise(
+    user_id: str,
+    amount: int,
+    action: str,
+    *,
+    floor: int = 0,
+) -> int:
+    """Deduct `amount` XP before an LLM call. Raises 400 if balance < amount+floor.
+
+    Pair with `refund` in the LLM call's failure path so users never pay for
+    our provider outages. Returns the new balance for caller-side response shaping.
+
+    Floor defaults to 0 (core flows). Cosmetic actions (follow company) pass
+    floor=-30 to allow short-term negative balance per IH2.
+    """
+    if amount <= 0:
+        return await get_xp_balance(user_id)
+    admin = get_supabase_admin()
+    current = await get_xp_balance(user_id)
+    new_balance = current - amount
+    if new_balance < floor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Out of XP — this action costs {amount} XP and you have {current}. "
+                "Earn 30 XP in 5min via a diary entry."
+            ),
+        )
+    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    _log.info(
+        "XP charge: user=%s action=%s amount=%d balance=%d→%d",
+        user_id, action, amount, current, new_balance,
+    )
+    return new_balance
+
+
+async def refund(user_id: str, amount: int, action: str, reason: str) -> int:
+    """Credit `amount` XP back after a charged LLM call fails. Returns new balance.
+
+    Idempotency is the caller's responsibility — the `cv_upload_jobs.xp_refunded`
+    flag is the source of truth for upload refunds; double-credit is the bug
+    we cannot detect at this layer.
+    """
+    if amount <= 0:
+        return await get_xp_balance(user_id)
+    admin = get_supabase_admin()
+    current = await get_xp_balance(user_id)
+    new_balance = current + amount
+    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    _log.info(
+        "XP refund: user=%s action=%s amount=%d balance=%d→%d reason=%s",
+        user_id, action, amount, current, new_balance, reason,
+    )
+    return new_balance

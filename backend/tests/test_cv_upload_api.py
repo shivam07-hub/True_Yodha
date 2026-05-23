@@ -1,23 +1,31 @@
+"""API tests for the two-phase CV upload (ADR-0004).
+
+POST /cv/upload now returns 202 + job_id (or 200 + done payload on hash-cache
+hit). The slow LLM work runs in a background task; clients poll
+GET /cv/upload/status/{job_id} for terminal state.
+"""
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.cv import get_token_cv_repository
 from app.routers.cv import upload as cv_upload
+from app.services import cv_workflow
 
 
 class _FakeCVRepository:
+    """Hash-miss repo — forces XP charge + async path in all tests."""
     def __init__(self) -> None:
         self.client = object()
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
-        return None  # always miss — force full pipeline in tests
-
-    def update_cv_profile(self, _user_id: str, _payload: dict) -> None:  # pragma: no cover
-        raise AssertionError("update_cv_profile should not be called when scoring fails")
-
-    def create(self, _user_id: str, _spec) -> dict:  # pragma: no cover
-        raise AssertionError("create should not be called when scoring fails")
+        return None
 
     def count_user_skills(self, _user_id: str) -> int:
         return 0
@@ -26,158 +34,336 @@ class _FakeCVRepository:
         return None
 
 
-class _WritableFakeCVRepository:
+class _CachedCVRepository:
+    """Hash-hit repo — exercises the free synchronous return path."""
     def __init__(self) -> None:
         self.client = object()
-        self.profile_updates: list[dict] = []
-        self.created_versions: list = []
 
-    def find_by_content_hash(self, _user_id: str, _content_hash: str) -> None:
+    def find_by_content_hash(self, _user_id: str, _content_hash: str) -> dict:
+        return {"id": 42}
+
+    def count_user_skills(self, _user_id: str) -> int:
+        return 7
+
+    def get_current_score(self, _user_id: str) -> float | None:
+        return 72.5
+
+
+def _override_principal_and_repo(repo) -> None:
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[get_token_cv_repository] = lambda: repo
+
+
+def _patch_async_workflow(monkeypatch, *, captured: dict[str, Any] | None = None) -> None:
+    """Replace the async background runner so tests don't hit the LLM or DB."""
+    async def _noop_run(**kwargs):  # type: ignore[no-untyped-def]
+        if captured is not None:
+            captured.update(kwargs)
+    monkeypatch.setattr(cv_workflow, "_run_cv_upload_job", _noop_run)
+
+
+def _patch_xp(monkeypatch, *, balance: int = 3000) -> dict[str, Any]:
+    state = {"balance": balance, "charged": 0, "refunded": 0}
+    async def _charge(user_id, amount, action, *, floor=0):
+        if state["balance"] - amount < floor:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Out of XP")
+        state["balance"] -= amount
+        state["charged"] += amount
+        return state["balance"]
+    async def _refund(user_id, amount, action, reason):
+        state["balance"] += amount
+        state["refunded"] += amount
+        return state["balance"]
+    async def _balance(user_id):
+        return state["balance"]
+    monkeypatch.setattr(cv_workflow, "charge_or_raise", _charge)
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _balance)
+    return state
+
+
+def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "create_processing_job",
+        lambda **_kwargs: job_id,
+    )
+
+
+# ─── Phase-1 tests ────────────────────────────────────────────────────────────
+
+def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer")
+    _patch_jobs_create(monkeypatch, job_id="job-abc")
+    _patch_async_workflow(monkeypatch)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202
+    body = res.json()
+    assert body["status"] == "processing"
+    assert body["job_id"] == "job-abc"
+    assert state["charged"] == 200  # CV_UPLOAD_XP_COST
+    assert state["balance"] == 2800
+
+
+def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
+    _override_principal_and_repo(_CachedCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "same cv")
+    _patch_jobs_create(monkeypatch)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202  # route declares 202 default; payload distinguishes
+    body = res.json()
+    assert body["status"] == "done"
+    assert body["skills_detected"] == 7
+    assert body["score"] == 72.5
+    assert state["charged"] == 0  # hash-cache hits never charge
+
+
+def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    _patch_xp(monkeypatch, balance=50)  # < 200 cost
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python")
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 400
+    assert "Out of XP" in res.json()["detail"]
+
+
+def test_submit_text_below_min_length_returns_422(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    _patch_xp(monkeypatch, balance=3000)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post("/cv/text", json={"text": "too short"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 422
+
+
+# ─── Async runner tests (drive _run_cv_upload_job directly) ───────────────────
+
+class _AdminFakeRepo:
+    """Stand-in for both CVVersionsRepository and ScoresRepository in the background path."""
+    def __init__(self) -> None:
+        self.client = object()
+        self.profile_updates: list = []
+        self.created: list = []
+
+    def find_by_content_hash(self, *_a, **_k):
         return None
 
-    def update_cv_profile(self, _user_id: str, payload: dict) -> None:
+    def update_cv_profile(self, _user_id, payload):
         self.profile_updates.append(payload)
 
-    def create(self, _user_id: str, spec) -> dict:
-        self.created_versions.append(spec)
-        return {"id": len(self.created_versions)}
+    def create(self, _user_id, spec):
+        self.created.append(spec)
+        return {"id": 1}
 
-    def count_user_skills(self, _user_id: str) -> int:
+    def count_user_skills(self, _user_id):
         return 0
 
-    def get_current_score(self, _user_id: str) -> float | None:
+    def get_current_score(self, _user_id):
         return None
 
 
-def test_upload_cv_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
-    repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
+def _patch_admin_repo(monkeypatch, repo) -> None:
+    monkeypatch.setattr(cv_workflow, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(cv_workflow, "CVVersionsRepository", lambda _client: repo)
+    monkeypatch.setattr(cv_workflow, "ScoresRepository", lambda _client: repo)
 
-    _raw = "Built APIs with Django and scaled backend systems."
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
 
-    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
+def test_background_run_marks_done_on_success(monkeypatch) -> None:
+    repo = _AdminFakeRepo()
+    _patch_admin_repo(monkeypatch, repo)
+
+    async def _parse(_text, provider=None):
         return {
-            "skills_detected": [{"taxonomy_key": "Django", "signal_type": "impact", "xp_awarded": 350, "evidence": "Built APIs"}],
-            "raw_text": _raw_text,
+            "skills_detected": [{"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "X"}],
+            "cv_structured": {"summary": "Engineer"},
         }
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", lambda *_a, **_k: {"total_score": 71.0})
 
-    def _fail_scoring(*_args, **_kwargs) -> dict:
-        raise ValueError("No valid skills could be persisted for this user.")
+    done_calls: list[dict] = []
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda job_id, **kw: done_calls.append({"job_id": job_id, **kw}))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda *a, **k: pytest.fail("should not fail"))
+    async def _no_initial(_user_id): return None
+    monkeypatch.setattr(cv_workflow, "_trigger_initial_match_compute", _no_initial)
 
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _fail_scoring)
+    asyncio.run(cv_workflow._run_cv_upload_job(
+        job_id="job-1", user_id="u1", raw_text="text", content_hash="h",
+    ))
+
+    assert done_calls == [{"job_id": "job-1", "skills_detected": 1, "score": 71.0}]
+    assert repo.profile_updates == [{"onboarding_complete": True}]
+    assert repo.created and repo.created[0].kind == "baseline_upload"
+
+
+def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:
+    repo = _AdminFakeRepo()
+    _patch_admin_repo(monkeypatch, repo)
+
+    async def _parse(_text, provider=None):
+        return {"skills_detected": [], "provider_failed": True}
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+
+    refunds: list[tuple] = []
+    async def _refund(user_id, amount, action, reason):
+        refunds.append((user_id, amount, action, reason))
+        return 3000
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+
+    failed_calls: list[dict] = []
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
+
+    asyncio.run(cv_workflow._run_cv_upload_job(
+        job_id="job-2", user_id="u1", raw_text="text", content_hash="h",
+    ))
+
+    assert refunds == [("u1", 200, "cv_upload", "provider_unavailable")]
+    assert failed_calls[0]["error_code"] == "provider_unavailable"
+    assert failed_calls[0]["refunded"] is True
+    assert repo.created == []  # nothing persisted on failure
+
+
+def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
+    repo = _AdminFakeRepo()
+    _patch_admin_repo(monkeypatch, repo)
+
+    async def _parse(_text, provider=None):
+        return {"skills_detected": []}
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+
+    refunded = {"count": 0}
+    async def _refund(*_a, **_k):
+        refunded["count"] += 1
+        return 3000
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+
+    failed_calls: list[dict] = []
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append(kw))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
+
+    asyncio.run(cv_workflow._run_cv_upload_job(
+        job_id="job-3", user_id="u1", raw_text="text", content_hash="h",
+    ))
+
+    assert refunded["count"] == 1
+    assert failed_calls[0]["error_code"] == "no_skills"
+
+
+def test_background_run_refunds_when_taxonomy_mapping_fails(monkeypatch) -> None:
+    repo = _AdminFakeRepo()
+    _patch_admin_repo(monkeypatch, repo)
+
+    async def _parse(_text, provider=None):
+        return {"skills_detected": [{"taxonomy_key": "Made-up", "signal_type": "project", "xp_awarded": 50, "evidence": "X"}]}
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+
+    def _fail_score(*_a, **_k):
+        raise ValueError("no taxonomy")
+    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", _fail_score)
+
+    refunded = {"count": 0}
+    async def _refund(*_a, **_k):
+        refunded["count"] += 1
+        return 3000
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+
+    failed_calls: list[dict] = []
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append(kw))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
+
+    asyncio.run(cv_workflow._run_cv_upload_job(
+        job_id="job-4", user_id="u1", raw_text="text", content_hash="h",
+    ))
+
+    assert refunded["count"] == 1
+    assert failed_calls[0]["error_code"] == "taxonomy_unmapped"
+
+
+# ─── Status endpoint test ────────────────────────────────────────────────────
+
+def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "fetch_status_for_owner",
+        lambda job_id, user_id, db=None: {
+            "id": job_id,
+            "status": "done",
+            "skills_detected": 5,
+            "score": 64.2,
+            "error_code": None,
+            "error_detail": None,
+            "xp_charged": 200,
+            "xp_refunded": False,
+            "created_at": "x",
+            "finished_at": "y",
+        },
+    )
+
+    async def _balance(_user_id): return 2800
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _balance)
 
     try:
         with TestClient(app) as client:
-            response = client.post(
-                "/cv/upload",
-                files={"file": ("cv.pdf", b"%PDF-1.4 test cv", "application/pdf")},
-            )
+            res = client.get("/cv/upload/status/job-xyz")
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 422
-    assert "could not be mapped" in response.json()["detail"]
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "done"
+    assert body["score"] == 64.2
+    assert body["new_xp_balance"] == 2800
+    assert body["redirect_to"] == "/onboarding/score"
 
 
-def test_submit_cv_text_returns_503_when_all_providers_fail(monkeypatch) -> None:
-    repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
-
-    async def _provider_failed_parse(_raw_text: str, provider=None) -> dict:
-        return {"skills_detected": [], "raw_text": _raw_text, "provider_failed": True}
-
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _provider_failed_parse)
+def test_status_endpoint_404_when_not_owner(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "fetch_status_for_owner",
+        lambda *_a, **_k: None,
+    )
 
     try:
         with TestClient(app) as client:
-            response = client.post(
-                "/cv/text",
-                json={"text": "I built production data dashboards with SQL and analytics tooling across projects."},
-            )
+            res = client.get("/cv/upload/status/someone-elses-job")
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 503
-    assert "temporarily unavailable" in response.json()["detail"]
-
-
-def test_submit_cv_text_returns_422_when_no_skills_can_be_persisted(monkeypatch) -> None:
-    repo = _FakeCVRepository()
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
-
-    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
-        return {
-            "skills_detected": [{"taxonomy_key": "SQL (Programming Language)", "signal_type": "project", "xp_awarded": 150, "evidence": "Built reports"}],
-            "raw_text": _raw_text,
-        }
-
-    def _fail_scoring(*_args, **_kwargs) -> dict:
-        raise ValueError("No valid skills could be persisted for this user.")
-
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _fail_scoring)
-
-    try:
-        with TestClient(app) as client:
-            response = client.post(
-                "/cv/text",
-                json={"text": "I built production data dashboards with SQL and analytics tooling across projects."},
-            )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 422
-    assert "could not be mapped" in response.json()["detail"]
-
-
-def test_submit_cv_text_grants_welcome_xp_after_success(monkeypatch) -> None:
-    repo = _WritableFakeCVRepository()
-    granted: list[str] = []
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
-    app.dependency_overrides[get_token_cv_repository] = lambda: repo
-    monkeypatch.setattr(cv_upload.cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
-
-    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict:
-        return {
-            "skills_detected": [{"taxonomy_key": "SQL (Programming Language)", "signal_type": "project", "xp_awarded": 150, "evidence": "Built reports"}],
-            "cv_structured": {"summary": "Data analyst"},
-        }
-
-    def _score(*_args, **_kwargs) -> dict:
-        return {"total_score": 64.0}
-
-    async def _grant(user_id: str) -> int:
-        granted.append(user_id)
-        return 1000
-
-    async def _skip_initial_matches(_user_id: str) -> None:
-        return None
-
-    monkeypatch.setattr(cv_upload.cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_upload.cv_workflow.scoring, "record_cv_score", _score)
-    monkeypatch.setattr(cv_upload.cv_workflow, "grant_welcome_xp", _grant)
-    monkeypatch.setattr(cv_upload.cv_workflow, "_trigger_initial_match_compute", _skip_initial_matches)
-
-    try:
-        with TestClient(app) as client:
-            response = client.post(
-                "/cv/text",
-                json={"text": "I built production data dashboards with SQL and analytics tooling across projects."},
-            )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 201
-    assert response.json()["score"] == 64.0
-    assert granted == ["u1"]
-    assert repo.profile_updates
-    assert repo.created_versions
-    assert repo.created_versions[0].kind == "baseline_upload"
+    assert res.status_code == 404
