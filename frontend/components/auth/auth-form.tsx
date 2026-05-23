@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/api"
 import { ParticleBg } from "@/components/particle-bg"
@@ -15,8 +15,22 @@ interface Props {
   mode: "login" | "signup"
 }
 
+/**
+ * Same-origin path whitelist for ?next= redirect. Rejects absolute URLs,
+ * protocol-relative paths, and backslash tricks that some browsers normalise
+ * into open redirects. Returns null when the input cannot be trusted; callers
+ * fall back to the mode default.
+ */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith("/")) return null
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return null
+  return raw
+}
+
 export function AuthForm({ mode }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -24,6 +38,8 @@ export function AuthForm({ mode }: Props) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [referrer, setReferrer] = useState<string | null>(null)
+
+  const nextPath = safeNextPath(searchParams.get("next"))
 
   useEffect(() => {
     setReferrer(capturePendingReferral())
@@ -62,7 +78,8 @@ export function AuthForm({ mode }: Props) {
       }
 
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
-      router.push(mode === "login" ? "/home" : "/onboarding")
+      const fallback = mode === "login" ? "/home" : "/onboarding"
+      router.push(nextPath ?? fallback)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
@@ -267,11 +284,21 @@ export function AuthForm({ mode }: Props) {
         <p style={{ marginTop: 20, textAlign: "center", fontSize: 14, color: "var(--tm-text-faint)" }}>
           {mode === "login" ? (
             <>No account?{" "}
-              <Link href="/signup" style={{ color: "var(--tm-accent)", textDecoration: "none" }}>Sign up</Link>
+              <Link
+                href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
+                style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+              >
+                Sign up
+              </Link>
             </>
           ) : (
             <>Already have an account?{" "}
-              <Link href="/login" style={{ color: "var(--tm-accent)", textDecoration: "none" }}>Sign in</Link>
+              <Link
+                href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"}
+                style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+              >
+                Sign in
+              </Link>
             </>
           )}
         </p>

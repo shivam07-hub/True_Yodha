@@ -28,6 +28,7 @@ import {
   openFeedbackHub,
   type FeedbackCategory,
 } from "@/components/feedback"
+import "./settings-modal.css"
 
 type Tab = "Account" | "Following" | "Feedback" | "Billing"
 type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "linkedin_url">
@@ -501,7 +502,7 @@ export function SettingsModal({ open, onClose, profile }: {
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-[740px] max-w-[calc(100%-1.5rem)] p-0 bg-transparent ring-0"
+        className="tm-settings-dialog sm:max-w-[740px] max-w-[calc(100%-1.5rem)] p-0 bg-transparent ring-0"
         style={{
           background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)",
           borderRadius: "var(--tm-radius-xl)", boxShadow: "0 0 60px rgba(0,0,0,0.65)",
@@ -512,14 +513,14 @@ export function SettingsModal({ open, onClose, profile }: {
         <div aria-live="polite" aria-atomic="true" className="sr-only">{liveAnnouncement}</div>
 
         {/* ── Left sidebar ── */}
-        <div style={{
+        <div className="tm-settings-sidebar" style={{
           width: 200, flexShrink: 0,
           borderRight: "1px solid var(--tm-border-soft)",
           display: "flex", flexDirection: "column",
           background: "rgba(255,255,255,0.015)",
         }}>
           {/* Profile card */}
-          <div style={{ padding: "28px 20px 20px", borderBottom: "1px solid var(--tm-border-soft)" }}>
+          <div className="tm-settings-profile" style={{ padding: "28px 20px 20px", borderBottom: "1px solid var(--tm-border-soft)" }}>
             <InitialsAvatar name={name || "?"} size={52} />
             <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1.3 }}>
               {name || "Set your name"}
@@ -530,11 +531,12 @@ export function SettingsModal({ open, onClose, profile }: {
           </div>
 
           {/* Nav tabs */}
-          <nav style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+          <nav className="tm-settings-nav" style={{ padding: "12px 12px", flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
             {(["Account", "Following", "Feedback", "Billing"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
+                className="tm-settings-nav-tab"
                 style={{
                   display: "flex", alignItems: "center", gap: 10, width: "100%",
                   padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
@@ -546,10 +548,10 @@ export function SettingsModal({ open, onClose, profile }: {
                   transition: "all 180ms var(--tm-ease)",
                 }}
               >
-                <span style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
-                {tab}
+                <span className="tm-settings-nav-icon" style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
+                <span>{tab}</span>
                 {tab === "Following" && (followingData?.total ?? 0) > 0 && (
-                  <span style={{
+                  <span className="tm-settings-nav-badge" style={{
                     marginLeft: "auto", fontSize: 10, fontWeight: 600,
                     background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
                     borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
@@ -558,7 +560,7 @@ export function SettingsModal({ open, onClose, profile }: {
                   </span>
                 )}
                 {tab === "Feedback" && (
-                  <span style={{
+                  <span className="tm-settings-nav-badge" style={{
                     marginLeft: "auto", fontSize: 9, fontWeight: 700,
                     background: "var(--tm-success-wash)", color: "var(--tm-success)",
                     border: "1px solid var(--tm-success)",
@@ -572,15 +574,15 @@ export function SettingsModal({ open, onClose, profile }: {
           </nav>
 
           {/* Autosave indicator */}
-          <div style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
+          <div className="tm-settings-autosave" style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
             {statusNode ?? <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.5 }}>Auto-saved</span>}
           </div>
         </div>
 
         {/* ── Right content ── */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <div className="tm-settings-panel" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           {/* Tab header */}
-          <div style={{
+          <div className="tm-settings-header" style={{
             padding: "20px 28px 16px", borderBottom: "1px solid var(--tm-border-soft)",
             display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
           }}>
@@ -601,7 +603,7 @@ export function SettingsModal({ open, onClose, profile }: {
           </div>
 
           {/* Scrollable body */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "8px 28px 28px" }}>
+          <div className="tm-settings-body" style={{ flex: 1, overflowY: "auto", padding: "8px 28px 28px" }}>
 
             {/* ── ACCOUNT TAB ── */}
             {activeTab === "Account" && (
@@ -630,12 +632,12 @@ export function SettingsModal({ open, onClose, profile }: {
                   />
                 </div>
 
-                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="tm-settings-linkedin-row" style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <div style={ROW_LABEL}>LinkedIn</div>
                     <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} XP</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
+                  <div className="tm-settings-linkedin-field" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
                     <input
                       id="sm-linkedin" type="url" value={linkedin}

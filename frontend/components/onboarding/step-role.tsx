@@ -111,7 +111,7 @@ export function StepRole({ onNext, loading }: Props) {
           background: "var(--tm-accent-wash)",
           border: "1px solid var(--tm-accent-ring)",
         }}>
-          Step 2 of 3
+          Step 2 of 4
         </div>
         <h2 style={{
           fontSize: "var(--tm-fs-title)", fontWeight: 700,

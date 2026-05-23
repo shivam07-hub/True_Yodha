@@ -133,6 +133,19 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, hasBaseline])
 
+  // Auto-open the upload picker when arriving with ?upload=1. Fired by the
+  // /about "Upload your CV" CTA flow (anonymous visitor → signup → /cv?upload=1).
+  // Once-only — the URL is normalised after firing so a refresh doesn't re-trigger.
+  const autoUploadFiredRef = useRef(false)
+  useEffect(() => {
+    if (!ready || !token || autoUploadFiredRef.current) return
+    if (searchParams.get("upload") !== "1") return
+    autoUploadFiredRef.current = true
+    openFilePicker()
+    router.replace("/cv", { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, token, searchParams])
+
   // Resume an upload that was in flight when the tab closed / page reloaded.
   // The job is server-side; polling reconciles its terminal state.
   useEffect(() => {
@@ -328,6 +341,24 @@ function CVPage() {
                   )}
                 </div>
               )}
+              {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
+              <p style={{
+                marginTop: 12,
+                marginBottom: 0,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "var(--tm-text-faint)",
+              }}>
+                Your CV is private by default.{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+                >
+                  How we handle your data ↗
+                </a>
+              </p>
             </>
           )}
         </DialogContent>

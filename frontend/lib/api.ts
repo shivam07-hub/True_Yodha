@@ -619,10 +619,13 @@ async function _postCVUpload(token: string, file: File, idempotencyKey: string):
 function _wrapNetworkError(err: unknown): Error {
   const name = (err as Error)?.name
   if (name === "AbortError") {
-    return new Error("Upload took too long. Check your connection and try again.")
+    return new Error("Upload took too long. Tap to try again.")
   }
   // TypeError "Failed to fetch" is the most common mobile-cellular drop.
-  return new Error("Network dropped during upload. Wi-Fi is recommended for the first upload.")
+  // Beta-1 feedback: do not blame the user's network. The product promise is
+  // that first success works on weak mobile data — say what happened, say what
+  // to do, never recommend Wi-Fi.
+  return new Error("Upload was interrupted. Tap to try again.")
 }
 
 async function _resolveUploadResult(
