@@ -32,6 +32,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV â
 
 **Architecture deep-dive:** `graphify-out/GRAPH_REPORT.md` (832 nodes, 1247 edges) + `graphify-out/graph.html`
 
+**Beta 1 report:** `docs/beta-testing/2026-05-24-first-beta-testing-report.md` is the canonical fellowship feedback synthesis for both Claude and Codex. It captures what users loved, what confused them, what has already shipped (`e2c7b00`, `4ceab03`), and the shared backlog: CV hub onboarding, mobile usability, trust/privacy/methodology, durable CV delivery, auth recovery, score explainability, and CV version management.
+
 ---
 
 ## CODING CONVENTIONS
