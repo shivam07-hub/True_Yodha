@@ -341,6 +341,24 @@ function CVPage() {
                   )}
                 </div>
               )}
+              {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
+              <p style={{
+                marginTop: 12,
+                marginBottom: 0,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "var(--tm-text-faint)",
+              }}>
+                Your CV is private by default.{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+                >
+                  How we handle your data ↗
+                </a>
+              </p>
             </>
           )}
         </DialogContent>
