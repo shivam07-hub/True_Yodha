@@ -18,9 +18,9 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.himyro.com"),
-  title: "Myro — Career Intelligence",
+  title: "Myro - One hub for every CV version",
   description:
-    "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",
+    "Save your master CV, tailor versions for internships and jobs, and know which resume to send next.",
   manifest: "/manifest.webmanifest",
   applicationName: "Myro",
   appleWebApp: {
@@ -28,21 +28,21 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Myro",
   },
-  robots: { index: false, follow: false },
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     url: "https://www.himyro.com",
-    title: "Myro — Career Intelligence",
+    title: "Myro - One hub for every CV version",
     description:
-      "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",
+      "Save your master CV, tailor versions for internships and jobs, and know which resume to send next.",
     siteName: "Myro",
     images: [{ url: "/brand/og-image.png", width: 1200, height: 630, alt: "Myro — Career Intelligence" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Myro — Career Intelligence",
+    title: "Myro - One hub for every CV version",
     description:
-      "Upload your CV and discover your Myro Score across 10 professional domains. See exactly where you stand in the skills economy.",
+      "Save your master CV, tailor versions for internships and jobs, and know which resume to send next.",
     images: ["/brand/og-image.png"],
   },
   icons: {

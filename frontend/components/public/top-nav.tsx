@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { MyroLogo } from "@/components/myro-logo"
+import { getAccessToken } from "@/lib/session"
 import "./public-nav.css"
 
 export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login"
@@ -11,13 +13,26 @@ interface PublicTopNavProps {
   showSignIn?: boolean
 }
 
-const NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
-  { label: "About", href: "/about", id: "about" },
+const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
+  { label: "CV Hub", href: "/about", id: "about" },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
-  { label: "Intel", href: "/intel", id: "intel" },
 ]
 
+function formatTodayShort(): string {
+  return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+}
+
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [today, setToday] = useState("")
+
+  useEffect(() => {
+    setIsAuthed(!!getAccessToken())
+    setToday(formatTodayShort())
+  }, [])
+
+  const intelLabel = isAuthed && today ? `Live Job Data · ${today}` : "Live Job Data"
+
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
       <Link href="/about" aria-label="Myro home" className="tm-public-nav-brand">
@@ -26,7 +41,7 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
       </Link>
 
       <div className="tm-public-nav-links">
-        {NAV_ITEMS.map((item) => (
+        {STATIC_NAV_ITEMS.map((item) => (
           <Link
             key={item.id}
             href={item.href}
@@ -36,6 +51,13 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             {item.label}
           </Link>
         ))}
+        <Link
+          href="/intel"
+          className="tm-public-nav-link"
+          data-active={active === "intel"}
+        >
+          {intelLabel}
+        </Link>
       </div>
 
       <div className="tm-public-nav-auth">

@@ -1,0 +1,278 @@
+/* ─────────────────────────────────────────────────────────────
+   /about — Hero (commit-graph spine + Strava-flavored vocab)
+   See: docs/session-history (2026-05-23 batch-1 feedback rewrite)
+   ───────────────────────────────────────────────────────────── */
+
+.tm-about-hero {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--tm-bg) 0%, var(--tm-surface-2) 100%);
+}
+
+.tm-about-hero-inner {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ── Status chip ──────────────────────────────────────────── */
+.tm-about-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin-bottom: 18px;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+}
+
+.tm-about-chip-tag {
+  color: var(--tm-accent);
+  font-weight: 600;
+}
+
+.tm-about-chip-sep {
+  color: var(--tm-text-faint);
+}
+
+/* ── Headline + subhead ───────────────────────────────────── */
+.tm-about-headline {
+  max-width: 100%;
+  font-family: var(--tm-font-display);
+  font-size: clamp(28px, 7.5vw, 40px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+
+.tm-about-headline-line {
+  display: block;
+}
+
+.tm-about-subhead {
+  box-sizing: border-box;
+  font-size: clamp(14px, 4vw, 17px);
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+  max-width: 540px;
+  margin: 0 0 28px;
+  text-wrap: balance;
+}
+
+/* ── Commit graph ─────────────────────────────────────────── */
+.tm-about-graph {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 0 32px;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius);
+  background: color-mix(in srgb, var(--tm-surface) 86%, transparent);
+}
+
+.tm-about-graph-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.tm-about-graph-rail {
+  stroke: var(--tm-border);
+  stroke-width: 2;
+  fill: none;
+}
+
+.tm-about-graph-branch {
+  stroke: var(--tm-accent);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.tm-about-graph-dot {
+  fill: var(--tm-accent);
+  filter: drop-shadow(0 0 6px var(--tm-accent-glow, rgba(0, 245, 212, 0.4)));
+}
+
+.tm-about-graph-dot-baseline {
+  fill: var(--tm-text-muted);
+  filter: none;
+}
+
+.tm-about-graph-ghost-line {
+  stroke: var(--tm-text-faint);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+  animation: tm-about-ghost-breath 4s ease-in-out infinite;
+}
+
+.tm-about-graph-ghost-dot {
+  fill: none;
+  stroke: var(--tm-text-faint);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+  animation: tm-about-ghost-breath 4s ease-in-out infinite;
+}
+
+.tm-about-graph-label {
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  fill: var(--tm-text);
+  font-weight: 500;
+}
+
+.tm-about-graph-label-baseline {
+  fill: var(--tm-text-muted);
+}
+
+.tm-about-graph-label-ghost {
+  fill: var(--tm-text-faint);
+  animation: tm-about-ghost-breath 4s ease-in-out infinite;
+}
+
+.tm-about-graph-score {
+  font-family: var(--tm-font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--tm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.tm-about-graph-delta {
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  fill: var(--tm-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tm-about-ghost-breath {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* ── CTA + secondary + trust hook ─────────────────────────── */
+.tm-about-cta-primary {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  height: 56px;
+  padding: 0 24px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tm-accent-fg);
+  background: var(--tm-accent);
+  border: 1px solid var(--tm-accent);
+  text-decoration: none;
+  box-shadow: 0 0 20px var(--tm-accent-glow, rgba(0, 245, 212, 0.32));
+  transition: background var(--tm-dur-fast) var(--tm-ease),
+              box-shadow var(--tm-dur-fast) var(--tm-ease),
+              transform var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-about-cta-primary:hover {
+  background: var(--tm-accent-hover, var(--tm-accent));
+  box-shadow: 0 0 28px var(--tm-accent-glow, rgba(0, 245, 212, 0.48));
+}
+
+.tm-about-cta-primary:active {
+  transform: scale(0.99);
+}
+
+.tm-about-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tm-text-muted);
+  background: transparent;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-about-cta-secondary:hover {
+  color: var(--tm-accent);
+}
+
+.tm-about-cta-secondary-arrow {
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.tm-about-trust {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--tm-border-soft);
+  width: 100%;
+  max-width: 460px;
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--tm-text-faint);
+}
+
+/* ── Reduced motion: silence the ghost breath ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tm-about-graph-ghost-line,
+  .tm-about-graph-ghost-dot,
+  .tm-about-graph-label-ghost {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ── Mobile (375px focus) ─────────────────────────────────── */
+@media (max-width: 480px) {
+  .tm-about-hero-inner {
+    padding: 40px 16px 36px;
+  }
+
+  .tm-about-chip {
+    font-size: 10.5px;
+  }
+
+  .tm-about-headline {
+    font-size: clamp(26px, 8vw, 32px);
+  }
+
+  .tm-about-graph {
+    padding: 14px 12px 12px;
+  }
+
+  .tm-about-graph-label {
+    font-size: 12px;
+  }
+
+  .tm-about-graph-score {
+    font-size: 13px;
+  }
+}

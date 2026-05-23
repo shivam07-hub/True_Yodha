@@ -252,7 +252,19 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-23 · Company search incident)
+## LAST SESSION SUMMARY (2026-05-24 - CV hub first-use story)
+
+Made "CV hub" the simple public first-use story. Root `/` now renders the CV hub page directly instead of serving redirect scaffolding, while `/about` reuses the same `CVHubPage` composition. Public metadata now says "One hub for every CV version", removes the site-wide `noindex, nofollow`, and keeps private/app routes out of discovery through `robots.txt`. Sitemap now includes `/about`, `/intel`, and `/terms`.
+
+Reframed the public hero, steps, nav, and sample diagnostic around the beginner story: save one master CV, tailor versions for each internship/job, compare score/gaps, then apply. Split the hero/steps CSS so no new public file exceeds the 300-line repo rule. Verified true 375px mobile emulation: root renders with `documentElement.scrollWidth === 375`, no horizontal overflow, correct H1 text, `index, follow`, and canonical `https://www.himyro.com/`.
+
+Infrastructure note: Vercel MCP was present but exposed no teams/projects in this session, and Railway CLI/MCP were not available locally. Live backend health checks still returned OK from Railway, and no relevant Supabase backend errors appeared during the sampled window.
+
+Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 359/359 pass. Remaining production issues from fellowship feedback are still open: mobile settings modal layout, durable/resumable CV delivery, upload copy that mentions Wi-Fi, onboarding step count mismatch, role-search ranking, forgot/reset password, and score methodology explanation.
+
+## EARLIER SESSION SUMMARIES
+
+### 2026-05-23 - Company search incident
 
 Fixed the production company autocomplete incident from `GET /jobs/companies/search`. Root cause was a per-keystroke public autocomplete path running broad PostgREST `ilike.%term%` reads over duplicate `jobs` rows; during a burst (`sc`, `go`, `goo`, `goog`, `googl`, `google`) Supabase returned Cloudflare 1101 HTML, which the Python PostgREST client surfaced as `APIError`/JSON decode and Railway returned as 500. Added `search_job_companies(search_term, result_limit)` RPC plus `pg_trgm` GIN index in production and migration history, moved the repository to the RPC path with a small TTL cache, and mapped upstream company search failures to a controlled 503.
 
@@ -261,7 +273,5 @@ Attribution: the failed search endpoint itself is public and carried no user pri
 Also fixed a nearby production log issue: `get_feed_updated_at()` was querying nonexistent `jobs.created_at`; it now uses `jobs.last_seen` and caches null/error results for the 5-minute guard window. Frontend settings company search now debounces input by 250ms and only runs on the Following tab.
 
 Verify: production DB RPC/index applied and `search_job_companies('go', 10)` returns `Google`/`Wells Fargo`; local repo search returns `['Google', 'Wells Fargo']`; legacy PostgREST company query now returns 200. `git diff --check` clean · `.venv/bin/pytest backend/tests` 359/359 pass · `npm run lint` clean · `npx tsc --noEmit` clean.
-
-## EARLIER SESSION SUMMARIES
 
 Full detail in `docs/session-history/2026-05.md` (includes 2026-05-20 Feedback Hub redesign + 2026-05-19 Skills card inline CV-pointer edit loop).

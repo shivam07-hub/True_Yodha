@@ -26,7 +26,7 @@ export function SampleDiagnostic() {
         textTransform: "uppercase", color: "var(--tm-text-faint)",
         marginBottom: 20,
       }}>
-        Sample Diagnostic
+        Sample version score
       </div>
 
       {/* Editorial header */}
@@ -38,14 +38,14 @@ export function SampleDiagnostic() {
         margin: "0 0 24px",
         maxWidth: 720,
       }}>
-        What one upload turns into
+        What the hub adds after upload
       </h2>
 
       <p style={{
         fontSize: 18, color: "var(--tm-text-muted)",
         lineHeight: 1.65, margin: "0 0 36px", maxWidth: 700,
       }}>
-        Myro turns a CV into a fast read on role fit: your current score, the skills helping you, and the gaps worth closing first.
+        First, your CVs stay organized. Then Myro shows how each version fits the job you are aiming for.
       </p>
 
       {/* Visual anchor */}
@@ -69,7 +69,7 @@ export function SampleDiagnostic() {
               textTransform: "uppercase", color: "var(--tm-text-faint)",
               marginBottom: 6,
             }}>
-              Sample Myro Score
+              Content intern version
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
               <span style={{
@@ -83,7 +83,7 @@ export function SampleDiagnostic() {
             </div>
           </div>
           <div style={{ fontSize: 14, color: "var(--tm-text-faint)", maxWidth: 240, textAlign: "right", lineHeight: 1.5 }}>
-            Close to target-role baseline, with a few high-value gaps still holding the profile back.
+            Strong enough to apply, with a few high-value gaps still holding the profile back.
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export function SampleDiagnostic() {
               textTransform: "uppercase", color: "var(--tm-warning)",
               marginBottom: 14,
             }}>
-              Bridge These Gaps
+              Improve before applying
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {GAPS.map((g) => (
@@ -143,7 +143,7 @@ export function SampleDiagnostic() {
               textTransform: "uppercase", color: "var(--tm-success, #22c55e)",
               marginBottom: 14,
             }}>
-              Leverage These
+              Already strong
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {STRENGTHS.map((s) => (
@@ -165,11 +165,20 @@ export function SampleDiagnostic() {
       <p style={{
         fontSize: 18, fontWeight: 600,
         color: "var(--tm-text)", lineHeight: 1.6,
-        margin: 0,
+        margin: "0 0 20px",
         borderLeft: "3px solid var(--tm-accent)",
         paddingLeft: 16,
       }}>
-        Instead of broad advice, Myro shows the few skill moves most likely to change the outcome.
+        The simple story is the CV hub. The intelligence layer tells you which version to send and what to improve next.
+      </p>
+
+      <p style={{
+        fontSize: 15,
+        color: "var(--tm-text-muted)",
+        lineHeight: 1.6,
+        margin: 0,
+      }}>
+        That keeps beginners oriented: save, tailor, compare, apply.
       </p>
 
     </section>
