@@ -149,6 +149,7 @@
   --tm-bg:            #FFFFFF;
   --tm-surface:       #FFFFFF;
   --tm-surface-2:     #F4F7FA;
+  --tm-bg-inset:      #F4F7FA;   /* input wells / inset surfaces on light */
   --tm-border:        #DDE3EA;
   --tm-border-soft:   rgba(32, 33, 36, 0.14);
   --tm-scrim:         rgba(15, 23, 42, 0.32);

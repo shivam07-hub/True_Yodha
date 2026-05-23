@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase"
 import { MyroLogo } from "@/components/myro-logo"
 import { setSessionTokens } from "@/lib/session"
 import { PublicFooter } from "@/components/public/public-footer"
+import { SurfaceToggle } from "@/components/surface-toggle"
 import { capturePendingReferral, getStoredReferral } from "@/lib/referral"
 
 interface Props {
@@ -302,6 +303,24 @@ export function AuthForm({ mode }: Props) {
             </>
           )}
         </p>
+
+        {/* Theme toggle — desktop + mobile parity (beta-1 bug: missing on signup) */}
+        <div style={{
+          marginTop: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--tm-text-faint)",
+          }}>
+            Background
+          </span>
+          <SurfaceToggle />
+        </div>
 
       </div>
       </div>
