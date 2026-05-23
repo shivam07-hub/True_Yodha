@@ -9,6 +9,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ApplyRow } from "@/components/jobs/apply-row"
+import { CompanyDrawer } from "@/components/companies/company-drawer"
 
 function stripTaxonomySuffix(s: string): string {
   return s.replace(/\s*\((Programming Language|Software|Framework|Library)\)\s*$/i, "")
@@ -53,6 +54,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
   const matchedSkills = skills.filter((s) => (s.user_level ?? 0) > 0)
   const matchedDisplay = matchedSkills.slice(0, 2)
   const buildSkills = skills.filter((s) => (s.user_level ?? 0) === 0).slice(0, 4)
+  const [companyDrawerOpen, setCompanyDrawerOpen] = React.useState(false)
 
   return (
     <div className="mc-focus-row" ref={ref}>
@@ -62,13 +64,19 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             <div className="mc-focus-eyebrow">
               Focused on:{" "}
               {job.company ? (
-                <Link
-                  href={`/companies/${encodeURIComponent(job.company)}`}
+                <button
+                  type="button"
+                  onClick={() => setCompanyDrawerOpen(true)}
                   className="strong"
-                  style={{ color: "var(--tm-text)", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}
+                  style={{
+                    color: "var(--tm-text)", textDecoration: "underline", textDecorationStyle: "dotted",
+                    textUnderlineOffset: 3, background: "transparent", border: "none",
+                    padding: 0, font: "inherit", letterSpacing: "inherit", textTransform: "inherit",
+                    cursor: "pointer",
+                  }}
                 >
                   {job.company}
-                </Link>
+                </button>
               ) : (
                 <span className="strong">—</span>
               )}
@@ -223,6 +231,14 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
         )}
 
       </aside>
+
+      {job.company && (
+        <CompanyDrawer
+          company={job.company}
+          open={companyDrawerOpen}
+          onClose={() => setCompanyDrawerOpen(false)}
+        />
+      )}
     </div>
   )
 })
