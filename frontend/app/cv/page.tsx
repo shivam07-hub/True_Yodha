@@ -11,7 +11,7 @@ import { BaselineView } from "@/components/cv/builder/baseline-view"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
 import { Icon } from "@/components/cv/builder/icons"
-import { CVUploadFailure, uploadCV, users } from "@/lib/api"
+import { CVUploadFailure, getPersistedCVUploadJobId, pollCVUploadStatus, uploadCV, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
@@ -132,6 +132,35 @@ function CVPage() {
     if (view === "pdf" && !hasBaseline) backToBaseline()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, hasBaseline])
+
+  // Resume an upload that was in flight when the tab closed / page reloaded.
+  // The job is server-side; polling reconciles its terminal state.
+  useEffect(() => {
+    if (!token || !ready || uploadInFlightRef.current) return
+    const persistedJobId = getPersistedCVUploadJobId()
+    if (!persistedJobId) return
+    uploadInFlightRef.current = true
+    setShowUpload(true); setUploading(true); setUploadError(null)
+    pollCVUploadStatus(token, persistedJobId)
+      .then((result) => {
+        if (result.new_xp_balance != null) setXPBalance(result.new_xp_balance)
+        queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+        queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+        setUploadResult({ skills_detected: result.skills_detected, score: result.score })
+        setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
+      })
+      .catch((err) => {
+        if (err instanceof CVUploadFailure && err.newXpBalance != null) setXPBalance(err.newXpBalance)
+        setUploadError(err instanceof Error ? err.message : "Upload could not be resumed.")
+      })
+      .finally(() => {
+        setUploading(false)
+        uploadInFlightRef.current = false
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, ready])
 
   if (!ready) return null
 

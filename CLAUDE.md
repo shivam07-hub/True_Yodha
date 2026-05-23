@@ -138,6 +138,16 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | SE15 | **Editable sections = bullets, summary, skills_line, certs.** Education routes to `/cv` (disabled fallback). |
 | SE16 | **Backend endpoint = `POST /cv/skill-edit`.** Body `{skill_key, new_text, section_hint?, item_index?, bullet_index?}`. 409 on multi-match with candidate list. |
 | SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** Frontend polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s, clears `useRecomputeStore` + invalidates `userSkills`/`scores` queries. |
+| **XP-DB1** | **Welcome XP grant lives at the DB layer.** `user_profiles` BEFORE INSERT trigger adds 3000 XP + flips `welcome_xp_granted`. App code MUST NOT set those fields in the insert payload. Rationale: the 2026-05-23 deploy gap stranded 4 users at 0 XP — invariants in Python = invariants only held when the right code runs. Migration `20260523b_xp_ledger_and_atomic_rpcs`. |
+| **XP-DB2** | **Charge / refund are atomic SQL RPCs, never Python read-then-write.** `charge_xp(user_id, amount, action, floor, ref_table, ref_id)` and `refund_xp(...)` (migration 20260523b). The RPC does `UPDATE...WHERE balance - amount >= floor RETURNING` in one statement so two concurrent uploads cannot both pass the funded check. `app.services.xp_service.charge_or_raise / refund` are thin wrappers. |
+| **XP-DB3** | **Every balance mutation writes an `xp_ledger` row.** Append-only audit table keyed by `(user_id, action, ref_table, ref_id)`. Bootstrap snapshot per existing user already loaded. Refund RPC short-circuits on prior `refund_*` entry with the same ref — double-refund is structurally impossible. |
+| **XP-DB4** | **Charges are tied to the originating row via (ref_table, ref_id).** Pass them whenever a row owns the charge (e.g. `cv_upload_jobs`). Enables ledger reconciliation and refund idempotency. CV upload ordering: insert job row → charge against job_id → mark_charged. Charge denial marks job `failed/insufficient_xp` before raising. |
+| **XP-CTA** | **xp_service raises `InsufficientXPError(amount, balance, action)` with a bare detail string. Callers append the recovery CTA.** Diary nudge is right for CV upload; "unfollow another company first" is right for cosmetic follow. The service stays domain-free. |
+| **CVUP1** | **POST /cv/upload supports `Idempotency-Key` header (POST /cv/text: body field).** Client-generated UUID stored in localStorage. Backend `cv_upload_jobs.idempotency_key` has a per-user UNIQUE INDEX — retried POSTs return the existing job_id, never double-charge. |
+| **CVUP2** | **Persisted job_id resumes after tab close.** Frontend writes `localStorage["myro_cv_upload_job_v1"]` when phase-1 returns `processing`. `/cv` mount checks for it and calls `pollCVUploadStatus` to reconcile. localStorage cleared on terminal state (done/failed). |
+| **CVUP3** | **Orphan sweep on FastAPI startup.** `sweep_stale_cv_upload_jobs(5)` RPC marks any `processing` job > 5min as failed and refunds via the idempotent refund_xp. Runs in `app.main._sweep_orphaned_cv_upload_jobs` so Railway redeploys never strand users on immortal processing jobs. |
+| **CVUP4** | **Scanned-PDF guard before charge.** Phase 1 rejects extracted text shorter than 80 non-whitespace chars with HTTP 422, never reaches the charge. Eliminates the charge → no_skills → refund retry loop that bit `thui46348` 3× on 2026-05-23. |
+| **METRIC1** | **Refund-rate alert hook.** `xp_service.refund` emits structured `"metric refund.fired action=… reason=… amount=… ref=…/…"` warning. Refund rate > 5% over a rolling window indicates the LLM provider chain is degraded; wire Grafana / log alert when monitoring is set up. |
 
 ---
 
@@ -172,6 +182,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
+
+13. **Anonymous trial flow — upload before signup (priority, parked 2026-05-23):** Visitor lands on `/about`, taps Upload your CV, picks a file, sees the full first-time-user value moment (skills extracted → domain map → top 3 job matches) BEFORE any signup prompt. Account creation arrives only after the value has landed; parsed CV + score data is held client-side through signup and persisted as the new account's first state. **Current /about hero rewrite ships Pattern 2 (auth-first redirect: `/signup?next=/cv?upload=1`) as the conservative interim.** Scope when picked up: client-side `File` + parsed-CV state holding through signup redirect, deferred persist after auth resolves, abandoned-signup fallback (keep the artifact in local storage for next visit), all four downstream `<RequiresCV>` boundary sites become `<RequiresUpload>` instead so anonymous + uploaded users get the same surface. Pick up after the /about hero + the four downstream Ousterhout-driven fixes have shipped and signup conversion stabilises.
 
 ---
 
@@ -252,7 +264,57 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-23 · Saturday-morning mobile audit + 4 deepenings)
+## LAST SESSION SUMMARY (2026-05-23 · ADR-0004 phase 1 + structural hardening A/B/C)
+
+End-to-end overhaul of CV upload + XP economy, kicked off by a mobile-upload bug report. 13 commits to Develop across two arcs.
+
+### Arc 1 — ADR-0004 phase 1 (XP-gated 2-phase upload)
+- `docs/adr/0004-llm-actions-cost-xp.md` + sweep tracking stub. Replaces the 3-day baseline-upload cooldown with a single XP-gated economy: every LLM-bearing action costs XP, hash-cached re-runs free, refunds on provider failure, floor 0 for core flows.
+- Migration `20260523_cv_upload_jobs_and_xp_pre_grant.sql` — `cv_upload_jobs` table (async LLM parse status surface, mirrors SE17), welcome XP backfill for 73 existing users.
+- Backend: 2-phase upload (POST returns 202+job_id in ~1s; LLM runs in BackgroundTask; GET /cv/upload/status/{job_id} polls). `_run_cv_upload_job` refunds on three failure modes (provider_unavailable / no_skills / taxonomy_unmapped) with structured `cv_upload_jobs` audit. Welcome XP pre-grants at signup so the first paid action is uniform.
+- Frontend: `lib/cv-upload-state.ts` pure state machine + `lib/cv-file-detect.ts` (Drive picker fix — name/MIME/magic-bytes cascade so extensionless Drive files work). `app/cv/page.tsx` reentry guard + out-of-XP CTA pointing to `/diary`. `useAuth` cold-start refresh-on-mount so expired access tokens don't bounce users.
+- Mobile cellular socket-TTL bug solved: phase 1 returns in ~1s, the long LLM wait moves to the polled status endpoint.
+
+### Arc 2 — Structural hardening (Brooks review found app-layer invariants)
+A 27-min deploy gap on 2026-05-23 (migration applied at 12:48 UTC, backend code deployed ~13:15 UTC) stranded 4 users at 0 XP because welcome XP was granted in Python, not the DB. That symptom led to a full review of every other app-layer invariant in ADR-0004 phase 1. Three follow-up PRs landed:
+
+**PR A — DB-enforced welcome grant + atomic charge/refund + ledger** (migration `20260523b_xp_ledger_and_atomic_rpcs`)
+- `user_profiles` BEFORE INSERT trigger grants 3000 XP + flips `welcome_xp_granted`. No future code path can skip it. App code dropped from setting those fields.
+- `xp_ledger` append-only audit table; 106 bootstrap snapshots seeded. Every charge/refund/grant writes a row keyed on (user_id, action, ref_table, ref_id).
+- `charge_xp` RPC — single statement `UPDATE...WHERE balance - amount >= floor RETURNING`. Two concurrent uploads can no longer both pass the funded check.
+- `refund_xp` RPC — short-circuits on prior `refund_*` ledger entry with the same ref. Double-refund is structurally impossible.
+- `xp_service.charge_or_raise / refund` rewritten as thin RPC wrappers w/ new `ref_table` / `ref_id` parameters.
+- `cv_workflow._start_async_upload_job` — ordering flipped to insert job → charge against job_id → mark_charged. Charge denial marks the job failed before raising so every attempt is reconcilable.
+
+**PR B — Resilience: idempotency + tab-close resume + orphan sweep** (migration `20260523c_cv_upload_idempotency`)
+- `cv_upload_jobs.idempotency_key` w/ partial UNIQUE INDEX on `(user_id, idempotency_key)`. Retried POSTs return the existing job_id, never double-charge.
+- `sweep_stale_cv_upload_jobs(minutes=5)` RPC — bounded to 200/sweep, marks orphan rows failed and refunds via the idempotent refund_xp.
+- `app.main._sweep_orphaned_cv_upload_jobs` on FastAPI startup recovers any process-restart victims.
+- Frontend: UUID-per-upload persisted to localStorage. `job_id` persisted on phase-1 processing return. `/cv` mount checks for the persisted job and calls `pollCVUploadStatus` to reconcile — closing the tab mid-upload no longer loses state.
+- Backend route accepts `Idempotency-Key` header (POST /cv/upload) and body field (POST /cv/text).
+
+**PR C — Caller-owned CTAs + refund metric**
+- `InsufficientXPError(amount, balance, action)` — typed exception with bare detail string. `xp_service` stops carrying domain-specific recovery copy. Callers append their own CTA (CV upload → "Earn 30 XP in 5min via a diary entry, or complete a forge session for +50 XP"; cosmetic follow at floor=-30 → different recovery path).
+- `xp_service.refund` emits structured `"metric refund.fired action=… reason=… amount=… ref=…/…"` warning. Refund rate > 5% over a rolling window = LLM provider chain degraded; wire to Grafana when monitoring stands up.
+
+### Field bugs caught + fixed live
+- 4 users (atharv, takarpapang, dhrits, kinzaqazi) backfilled to 3000 XP via re-run of the migration UPDATE.
+- User `thui46348` uploaded a scanned PDF 3× — empty-text retry loop. Phase-1 guard added: text < 80 non-whitespace chars → 422 BEFORE charge with "If it's a scanned or photo-based PDF, export a text-based PDF" copy.
+- Drive picker accepted extensionless files via the new name/MIME/magic-bytes cascade.
+
+### Tests + verify
+355 backend tests pass (24 new across xp_service / cv_upload_api / workflow_seams). Frontend: 14 node:test cases (`tests/cv-upload-state.test.ts` + `tests/cv-file-detect.test.ts`), `tsc --noEmit` clean, `next lint` clean across all commits.
+
+### Commits landed (chronological)
+`dc2e707` ADR-0004 docs · `7ffa8a8` cv_upload_jobs + welcome backfill · `c63ee05` backend 2-phase upload · `b1e790a` frontend 2-phase + XP errors · `aa62bf9` Drive picker fix · `26e5919` cold-mount auth refresh · `e5d1407` scanned-PDF guard · `6bf5199` PR A — DB trigger + atomic RPCs + ledger · `ed10e35` PR B — idempotency + sweep + resume · `55e41ae` PR C — caller CTAs + refund metric.
+
+### Open carry-over (next session)
+- **ADR-0004 phase 2 sweep** (`docs/adr/0004-sweep-tracking-issue.md`) — migrate other LLM call sites to `charge_or_raise` + `refund` with `ref_table`/`ref_id`: skill-edit re-tag (currently UNCHARGED), `reparse_structured_only` lazy backfill, `ingest_cv_text` parallel path, `get_skill_advice` (add refund-on-fail), match refresh (add refund-on-fail).
+- **gh CLI** not installed — file the tracking issue manually from `0004-sweep-tracking-issue.md` once `brew install gh` happens.
+- **80-char text guard is heuristic.** OCR-garbage PDFs can still pass and fail at the LLM; valid CVs with > 80 chars of mostly visual layout sail through. Long-term: gate on `skills_detected >= 1` BEFORE finalising the charge (would require charge-after-LLM, breaks "no LLM call without funding" — needs separate ADR).
+- **`spend_xp` / `spend_xp_to_floor`** (legacy) still in use by skill advice + follow company. Phase 2 sweep should migrate them onto the new `charge_xp` RPC for consistency.
+
+## OLDER SESSION SUMMARY (2026-05-23 · Saturday-morning mobile audit + 4 deepenings)
 
 End-to-end audit on 12 Saturday-morning screenshots (`reference/Saturday morning phone bugs/`) plus the landing-page WhatsApp shot from the night before. Shipped 7 commits to Develop: `aa7a87...` style mobile QA fixes followed by `d994558` (image 2-12 batch), `28ecf10` (image 5 CompanyDrawer), `b2c0512` (image 7 ForgeChip + LevelDots), `927ee6f` (image 8b FilterBar), `4bd6895` (image 10 triad foundation + ADR 0003), and a final wrap-up commit closing Phase 2 + ubiquitous-language pass.
 
@@ -309,7 +371,7 @@ Internal kind comparisons inside the data model (e.g. `v.kind === "baseline_uplo
 
 Verify: `tsc --noEmit` clean across all 7 commits · 11 files in image 2-12 batch · 2 files for image 5 · 5 files for image 7 · 2 files for image 8b · 3 files for image 10 foundation · 6 files for image 10 Phase 2 + ubiquitous-language cleanup.
 
-## OLDER SESSION SUMMARY (2026-05-21 · Mobile QA pass + Forge continuation model + view-model seam)
+## EARLIER SESSION SUMMARY (2026-05-21 · Mobile QA pass + Forge continuation model + view-model seam)
 
 End-to-end mobile QA across 16 screenshots in `reference/21May Mobile screenshots/` (fresh-user landing → onboarding → skills → forge → cv). Three commits landed on Develop.
 

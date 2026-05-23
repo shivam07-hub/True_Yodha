@@ -84,55 +84,114 @@ async def test_spend_xp_deducts_correctly():
     assert new_balance == 150
 
 
-# ── ADR-0004 charge_or_raise / refund ─────────────────────────────────────────
+# ── ADR-0004 (20260523b): atomic RPC-backed charge / refund ───────────────────
+# These tests pin the *RPC call shape* — the Postgres function does the actual
+# arithmetic + ledger write. The integration test for that lives in SQL land.
+
+
+def _mock_admin_rpc(rpc_return: int | None = None, balance: int = 0):
+    admin = MagicMock()
+    # rpc(...).execute().data path
+    admin.rpc.return_value.execute.return_value.data = rpc_return
+    # get_xp_balance fallback path
+    admin.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {
+        "xp_balance": balance,
+    }
+    return admin
+
 
 @pytest.mark.asyncio
-async def test_charge_or_raise_deducts_when_funded():
+async def test_charge_or_raise_invokes_rpc_with_floor_and_ref():
     from app.services.xp_service import charge_or_raise
-    admin = _mock_admin(balance=300)
+    admin = _mock_admin_rpc(rpc_return=100)
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
-        new_balance = await charge_or_raise("user-1", 200, "cv_upload")
+        new_balance = await charge_or_raise(
+            "user-1", 200, "cv_upload", floor=0,
+            ref_table="cv_upload_jobs", ref_id="job-abc",
+        )
     assert new_balance == 100
+    admin.rpc.assert_called_once_with("charge_xp", {
+        "p_user_id": "user-1",
+        "p_amount": 200,
+        "p_action": "cv_upload",
+        "p_floor": 0,
+        "p_ref_table": "cv_upload_jobs",
+        "p_ref_id": "job-abc",
+    })
 
 
 @pytest.mark.asyncio
-async def test_charge_or_raise_blocks_below_floor():
+async def test_charge_or_raise_raises_400_when_rpc_returns_null():
+    """RPC returns NULL when xp_balance - amount < floor (row not updated)."""
     from fastapi import HTTPException
-
     from app.services.xp_service import charge_or_raise
-    admin = _mock_admin(balance=50)
+    admin = _mock_admin_rpc(rpc_return=None, balance=50)
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
         with pytest.raises(HTTPException) as exc_info:
             await charge_or_raise("user-1", 200, "cv_upload", floor=0)
     assert exc_info.value.status_code == 400
     assert "Out of XP" in exc_info.value.detail
-    # No mutation when below floor
-    admin.table.return_value.update.assert_not_called()
+    # Detail surfaces the floor-respecting current balance from get_xp_balance
+    assert "have 50" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
-async def test_charge_or_raise_allows_negative_when_floor_negative():
-    from app.services.xp_service import charge_or_raise
-    admin = _mock_admin(balance=5)
-    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
-        new_balance = await charge_or_raise("user-1", 10, "follow", floor=-30)
-    assert new_balance == -5
-
-
-@pytest.mark.asyncio
-async def test_refund_credits_balance():
+async def test_refund_invokes_rpc_with_action_and_ref():
     from app.services.xp_service import refund
-    admin = _mock_admin(balance=100)
+    admin = _mock_admin_rpc(rpc_return=3000)
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
-        new_balance = await refund("user-1", 200, "cv_upload", reason="provider_unavailable")
-    assert new_balance == 300
+        new_balance = await refund(
+            "user-1", 200, "cv_upload", reason="provider_unavailable",
+            ref_table="cv_upload_jobs", ref_id="job-abc",
+        )
+    assert new_balance == 3000
+    admin.rpc.assert_called_once_with("refund_xp", {
+        "p_user_id": "user-1",
+        "p_amount": 200,
+        "p_action": "cv_upload",
+        "p_reason": "provider_unavailable",
+        "p_ref_table": "cv_upload_jobs",
+        "p_ref_id": "job-abc",
+    })
 
 
 @pytest.mark.asyncio
 async def test_charge_or_raise_zero_amount_is_noop():
     from app.services.xp_service import charge_or_raise
-    admin = _mock_admin(balance=10)
+    admin = _mock_admin_rpc(balance=10)
     with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
         new_balance = await charge_or_raise("user-1", 0, "noop")
     assert new_balance == 10
-    admin.table.return_value.update.assert_not_called()
+    admin.rpc.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_insufficient_xp_error_carries_amount_and_balance():
+    """Callers branch on the structured exception fields, not the message text.
+    Pin those fields so a regression that flattens the error is caught."""
+    from app.services.xp_service import InsufficientXPError, charge_or_raise
+    admin = _mock_admin_rpc(rpc_return=None, balance=42)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        with pytest.raises(InsufficientXPError) as exc_info:
+            await charge_or_raise("u1", 200, "cv_upload", floor=0)
+    assert exc_info.value.amount == 200
+    assert exc_info.value.balance == 42
+    assert exc_info.value.action == "cv_upload"
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_refund_emits_structured_metric(caplog):
+    """metric refund.fired warning is what Grafana scrapes for alerting."""
+    import logging
+    from app.services.xp_service import refund
+    admin = _mock_admin_rpc(rpc_return=3000)
+    with caplog.at_level(logging.WARNING, logger="app.services.xp_service"):
+        with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+            await refund("u1", 200, "cv_upload", reason="provider_unavailable",
+                         ref_table="cv_upload_jobs", ref_id="job-1")
+    metric_lines = [r.getMessage() for r in caplog.records if "metric refund.fired" in r.getMessage()]
+    assert len(metric_lines) == 1
+    assert "action=cv_upload" in metric_lines[0]
+    assert "reason=provider_unavailable" in metric_lines[0]
+    assert "amount=200" in metric_lines[0]

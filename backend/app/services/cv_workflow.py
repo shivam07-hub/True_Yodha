@@ -17,7 +17,7 @@ from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, jobs_workflow, scoring
 from app.services.llm_provider import get_cv_upload_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
-from app.services.xp_service import charge_or_raise, get_xp_balance, refund
+from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
 
 _log = logging.getLogger(__name__)
 
@@ -76,19 +76,52 @@ def _persist_baseline_cv(
 # Phase 2 — async (10-60s): LLM parse, score, persist baseline, mark done.
 #   Refund XP on provider failure or empty extraction.
 
+_MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
+
+
+def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
+    """Reject scanned / image-only PDFs and DOCX-with-only-images BEFORE charging XP.
+
+    The async worker would otherwise refund every time and trap the user in a
+    retry loop. Threshold is shared with the typed-text path so both flows
+    apply the same minimum-content rule.
+    """
+    if len(raw_text.strip()) < _MIN_CV_TEXT_LEN:
+        if source == "upload":
+            detail = (
+                "We couldn't read any text in this file. If it's a scanned or "
+                "photo-based PDF, export a text-based PDF (Save As → PDF in "
+                "Word/Google Docs) and try again."
+            )
+        else:
+            detail = "Please write at least a few sentences about yourself."
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=detail,
+        )
+
+
 async def start_cv_upload_job(
     cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     file_bytes: bytes,
     file_type: str,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Phase 1. Returns one of:
-      - {status: "done", job_id?, skills_detected, score, redirect_to}  ← hash cache hit
-      - {status: "processing", job_id}                                   ← LLM job queued
-    Raises 400 if user has insufficient XP for an LLM-bearing upload.
+      - {status: "done", skills_detected, score, redirect_to}      ← hash cache hit
+      - {status: "processing", job_id}                              ← LLM job queued
+      - existing job's status payload                               ← idempotency hit
+    Raises 400 on insufficient XP, 422 on unreadable text.
     """
+    if idempotency_key:
+        existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
+        if existing:
+            return _idem_response(existing)
+
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
+    _assert_cv_text_extractable(raw_text, source="upload")
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
 
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
@@ -102,25 +135,26 @@ async def start_cv_upload_job(
             "xp_charged": 0,
         }
 
-    # Charge first so the job row never exists for an under-funded user.
-    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload", floor=CV_UPLOAD_XP_FLOOR)
-
-    job_id = upload_jobs_repo.create_processing_job(
-        user_id=user_id,
-        xp_charged=CV_UPLOAD_XP_COST,
-        content_hash=content_hash,
+    return await _start_async_upload_job(
+        user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload",
+        idempotency_key=idempotency_key,
     )
 
-    # Hand the heavy work to the running event loop. The HTTP response returns
-    # immediately; the LLM call survives long after the client socket closes.
-    asyncio.create_task(_run_cv_upload_job(
-        job_id=job_id,
-        user_id=user_id,
-        raw_text=raw_text,
-        content_hash=content_hash,
-    ))
 
-    return {"status": "processing", "job_id": job_id}
+def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
+    """Translate a cached job row back into the upload-response shape so the
+    frontend's state machine doesn't have to special-case retries."""
+    status = existing["status"]
+    if status == "done":
+        return {
+            "status": "done",
+            "skills_detected": existing.get("skills_detected") or 0,
+            "score": float(existing.get("score") or 0),
+            "redirect_to": "/onboarding/score",
+            "xp_charged": existing.get("xp_charged", 0),
+        }
+    # processing or failed — return job_id so client polls / surfaces failure
+    return {"status": "processing", "job_id": str(existing["id"])}
 
 
 async def start_cv_upload_job_from_text(
@@ -128,13 +162,15 @@ async def start_cv_upload_job_from_text(
     user_id: str,
     *,
     raw_text: str,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Phase 1 for the typed-text variant. Mirrors start_cv_upload_job."""
-    if len(raw_text) < 80:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Please write at least a few sentences about yourself.",
-        )
+    if idempotency_key:
+        existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
+        if existing:
+            return _idem_response(existing)
+
+    _assert_cv_text_extractable(raw_text, source="text")
 
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
@@ -148,13 +184,63 @@ async def start_cv_upload_job_from_text(
             "xp_charged": 0,
         }
 
-    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload_text", floor=CV_UPLOAD_XP_FLOOR)
+    return await _start_async_upload_job(
+        user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
+        idempotency_key=idempotency_key,
+    )
 
+
+async def _start_async_upload_job(
+    user_id: str,
+    *,
+    raw_text: str,
+    content_hash: str,
+    action: str,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """Shared job-creation path for both upload + typed-text flows.
+
+    Order is deliberate:
+      1. Insert job row with xp_charged=0 — this is the audit anchor.
+      2. Charge XP, tying the ledger entry to the job_id (atomic RPC).
+      3. If charge fails (insufficient XP): mark job failed + raise 400.
+      4. Update job.xp_charged = amount.
+      5. Spawn background runner with the job_id.
+    Charge-before-job would lose the audit trail on funded-but-crashed inserts;
+    job-before-charge guarantees every charge is reconcilable from cv_upload_jobs.
+    """
     job_id = upload_jobs_repo.create_processing_job(
         user_id=user_id,
-        xp_charged=CV_UPLOAD_XP_COST,
         content_hash=content_hash,
+        idempotency_key=idempotency_key,
     )
+
+    try:
+        await charge_or_raise(
+            user_id, CV_UPLOAD_XP_COST, action,
+            floor=CV_UPLOAD_XP_FLOOR,
+            ref_table="cv_upload_jobs",
+            ref_id=job_id,
+        )
+    except InsufficientXPError as exc:
+        upload_jobs_repo.mark_failed(
+            job_id,
+            error_code="insufficient_xp",
+            error_detail="Not enough XP to start this upload.",
+            refunded=False,
+        )
+        # Re-raise with the CV-specific recovery CTA appended. Other call
+        # sites attach their own CTA (e.g. follow-company → "unfollow another
+        # company first") — that's why xp_service stays CTA-free.
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=(
+                f"{exc.detail} Earn 30 XP in 5min via a diary entry, or "
+                "complete a forge session for +50 XP."
+            ),
+        ) from exc
+
+    upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
 
     asyncio.create_task(_run_cv_upload_job(
         job_id=job_id,
@@ -230,8 +316,17 @@ async def _run_cv_upload_job(
 async def _fail_and_refund(
     job_id: str, user_id: str, *, error_code: str, detail: str,
 ) -> None:
+    """Refund the upload charge if one was made, then mark the job failed.
+
+    The refund RPC is idempotent on (ref_table, ref_id) — re-invocation for
+    the same job_id returns the current balance without crediting again.
+    Worker retries are therefore safe.
+    """
     try:
-        await refund(user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code)
+        await refund(
+            user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code,
+            ref_table="cv_upload_jobs", ref_id=job_id,
+        )
         refunded = True
     except Exception as exc:  # pragma: no cover — refund must never crash a job
         _log.exception("Refund failed for job=%s user=%s: %s", job_id, user_id, exc)

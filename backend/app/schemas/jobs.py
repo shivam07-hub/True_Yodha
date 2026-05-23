@@ -63,7 +63,7 @@ class JobMatchesResponse(BaseModel):
     jobs: list[JobMatchResponse]
     batch_week: date        # Monday of the current week's batch
     total: int
-    feed_updated_at: datetime | None = None    # MAX(jobs.created_at) — when the feed last grew
+    feed_updated_at: datetime | None = None    # MAX(jobs.last_seen) — when the feed last refreshed
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
 
 

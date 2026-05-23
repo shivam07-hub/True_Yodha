@@ -6,6 +6,7 @@ from datetime import date
 from typing import Any
 
 from fastapi import Depends
+from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.database import get_supabase_admin
@@ -17,27 +18,50 @@ from app.services.location_normalizer import normalize_location
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
+_COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
 _heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
 _skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
+_company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _feed_ts_cache: tuple[float, str | None] = (0.0, None)
+_COMPANY_SEARCH_RPC = "search_job_companies"
+
+
+class CompanySearchUnavailable(RuntimeError):
+    """Raised when the upstream company autocomplete read cannot be served."""
+
+
+def _job_feed_marker_to_iso(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        text = f"{value:08d}"
+    else:
+        text = str(value).strip()
+    if len(text) == 8 and text.isdigit():
+        try:
+            return date(int(text[:4]), int(text[4:6]), int(text[6:8])).isoformat()
+        except ValueError:
+            return None
+    return text or None
 
 
 def get_feed_updated_at(db: Client) -> str | None:
-    """Returns ISO timestamp of the most recently created job row. Cached 5 min."""
+    """Returns an ISO date for the latest job feed marker. Cached 5 min."""
     global _feed_ts_cache
     cached_at, cached_value = _feed_ts_cache
-    if cached_value and (time.monotonic() - cached_at) < _FEED_TS_TTL:
+    if (time.monotonic() - cached_at) < _FEED_TS_TTL:
         return cached_value
     try:
-        result = db.table("jobs").select("created_at").order("created_at", desc=True).limit(1).execute()
-        value = ((result.data or [{}])[0].get("created_at")) if result.data else None
+        result = db.table("jobs").select("last_seen").order("last_seen", desc=True).limit(1).execute()
+        value = _job_feed_marker_to_iso(((result.data or [{}])[0].get("last_seen")) if result.data else None)
     except Exception:
+        _feed_ts_cache = (time.monotonic(), cached_value)
         return cached_value
     _feed_ts_cache = (time.monotonic(), value)
     return value
@@ -55,6 +79,10 @@ def _bounded_page(page: int) -> int:
 
 def _bounded_page_size(page_size: int) -> int:
     return max(1, min(page_size, SKILL_DRILL_MAX_PAGE_SIZE))
+
+
+def _bounded_company_search_limit(limit: int) -> int:
+    return max(1, min(limit, 20))
 
 
 def _norm_filter(value: str | None) -> str | None:
@@ -484,14 +512,27 @@ class JobsRepository:
         return result
 
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
-        result = (
-            self._db.table("jobs")
-            .select("company_name")
-            .ilike("company_name", f"%{q.strip()}%")
-            .not_.is_("company_name", "null")
-            .limit(limit * 20)
-            .execute()
-        )
+        search_term = " ".join(q.split())
+        if not search_term:
+            return []
+
+        scoped_limit = _bounded_company_search_limit(limit)
+        cache_key = (search_term.lower(), scoped_limit)
+        now = time.monotonic()
+        cached = _company_search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _COMPANY_SEARCH_TTL:
+            return list(cached[1])
+
+        try:
+            result = self._db.rpc(
+                _COMPANY_SEARCH_RPC,
+                {"search_term": search_term, "result_limit": scoped_limit},
+            ).execute()
+        except APIError as exc:
+            if cached is not None:
+                return list(cached[1])
+            raise CompanySearchUnavailable("company search unavailable") from exc
+
         seen: set[str] = set()
         companies: list[str] = []
         for row in result.data or []:
@@ -499,9 +540,10 @@ class JobsRepository:
             if name and name not in seen:
                 seen.add(name)
                 companies.append(name)
-                if len(companies) >= limit:
+                if len(companies) >= scoped_limit:
                     break
-        return sorted(companies)
+        _company_search_cache[cache_key] = (now, companies)
+        return companies
 
     def search_jobs_by_filters(
         self,

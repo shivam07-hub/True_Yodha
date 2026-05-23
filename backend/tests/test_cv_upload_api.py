@@ -63,15 +63,16 @@ def _patch_async_workflow(monkeypatch, *, captured: dict[str, Any] | None = None
 
 
 def _patch_xp(monkeypatch, *, balance: int = 3000) -> dict[str, Any]:
-    state = {"balance": balance, "charged": 0, "refunded": 0}
-    async def _charge(user_id, amount, action, *, floor=0):
+    state = {"balance": balance, "charged": 0, "refunded": 0, "last_ref": None}
+    async def _charge(user_id, amount, action, *, floor=0, ref_table=None, ref_id=None):
         if state["balance"] - amount < floor:
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Out of XP")
         state["balance"] -= amount
         state["charged"] += amount
+        state["last_ref"] = (ref_table, ref_id)
         return state["balance"]
-    async def _refund(user_id, amount, action, reason):
+    async def _refund(user_id, amount, action, reason, *, ref_table, ref_id):
         state["balance"] += amount
         state["refunded"] += amount
         return state["balance"]
@@ -89,6 +90,16 @@ def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
         "create_processing_job",
         lambda **_kwargs: job_id,
     )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_charged",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_failed",
+        lambda *_a, **_k: None,
+    )
 
 
 # ─── Phase-1 tests ────────────────────────────────────────────────────────────
@@ -96,7 +107,7 @@ def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
 def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer with five years of backend experience building production APIs, data pipelines, and shipping reliable systems.")
     _patch_jobs_create(monkeypatch, job_id="job-abc")
     _patch_async_workflow(monkeypatch)
 
@@ -115,12 +126,14 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     assert body["job_id"] == "job-abc"
     assert state["charged"] == 200  # CV_UPLOAD_XP_COST
     assert state["balance"] == 2800
+    # Charge MUST be tied to the job_id so the ledger row + refund idempotency work.
+    assert state["last_ref"] == ("cv_upload_jobs", "job-abc")
 
 
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
     _override_principal_and_repo(_CachedCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "same cv")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Same CV uploaded again. The hash check below must short-circuit before any LLM or XP charge runs.")
     _patch_jobs_create(monkeypatch)
 
     try:
@@ -143,7 +156,8 @@ def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
 def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     _patch_xp(monkeypatch, balance=50)  # < 200 cost
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python developer with several years of experience building backend services and CLI tools for production.")
+    _patch_jobs_create(monkeypatch, job_id="job-blocked")  # job row pre-charge per new ordering
 
     try:
         with TestClient(app) as client:
@@ -169,6 +183,27 @@ def test_submit_text_below_min_length_returns_422(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert res.status_code == 422
+
+
+def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> None:
+    """Scanned/image-only PDFs extract to empty string. Reject in phase 1
+    so the user is not charged-refunded in a retry loop."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "")
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("scan.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 422
+    assert "couldn't read any text" in res.json()["detail"].lower()
+    assert state["charged"] == 0  # critical: no charge on rejected upload
 
 
 # ─── Async runner tests (drive _run_cv_upload_job directly) ───────────────────
@@ -239,8 +274,8 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
 
     refunds: list[tuple] = []
-    async def _refund(user_id, amount, action, reason):
-        refunds.append((user_id, amount, action, reason))
+    async def _refund(user_id, amount, action, reason, *, ref_table, ref_id):
+        refunds.append((user_id, amount, action, reason, ref_table, ref_id))
         return 3000
     monkeypatch.setattr(cv_workflow, "refund", _refund)
 
@@ -252,7 +287,7 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
         job_id="job-2", user_id="u1", raw_text="text", content_hash="h",
     ))
 
-    assert refunds == [("u1", 200, "cv_upload", "provider_unavailable")]
+    assert refunds == [("u1", 200, "cv_upload", "provider_unavailable", "cv_upload_jobs", "job-2")]
     assert failed_calls[0]["error_code"] == "provider_unavailable"
     assert failed_calls[0]["refunded"] is True
     assert repo.created == []  # nothing persisted on failure
@@ -350,6 +385,36 @@ def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
     assert body["score"] == 64.2
     assert body["new_xp_balance"] == 2800
     assert body["redirect_to"] == "/onboarding/score"
+
+
+def test_upload_with_idempotency_key_returns_existing_job_without_recharging(monkeypatch) -> None:
+    """Same idempotency_key + same user → return existing job, no second charge."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "X" * 200)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "find_by_idempotency_key",
+        lambda user_id, key: {"id": "existing-job-1", "status": "processing"},
+    )
+    # If charging happened, this would be incremented; assertion below pins it at 0.
+    _patch_jobs_create(monkeypatch, job_id="new-job-should-not-fire")
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+                headers={"Idempotency-Key": "client-uuid-123"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202
+    body = res.json()
+    assert body["status"] == "processing"
+    assert body["job_id"] == "existing-job-1"
+    assert state["charged"] == 0  # critical: no double-charge on retry
 
 
 def test_status_endpoint_404_when_not_owner(monkeypatch) -> None:
