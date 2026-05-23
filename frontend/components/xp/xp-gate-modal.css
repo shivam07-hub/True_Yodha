@@ -1,0 +1,110 @@
+/* ─────────────────────────────────────────────────────────────
+   <XPGateModal> — canonical insufficient-XP dialog
+   Mounted once in AppShell; driven by xpGateStore.
+   ───────────────────────────────────────────────────────────── */
+
+.tm-xp-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 500);
+  background: var(--tm-scrim, rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: tm-xp-gate-fade 160ms ease-out;
+}
+
+.tm-xp-gate-modal {
+  width: 100%;
+  max-width: 380px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  padding: 28px 24px 22px;
+  box-shadow: var(--tm-shadow-2, 0 18px 44px rgba(0, 0, 0, 0.32));
+  animation: tm-xp-gate-pop 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.tm-xp-gate-title {
+  font-family: var(--tm-font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--tm-text);
+  margin: 0 0 10px;
+}
+
+.tm-xp-gate-body {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+  margin: 0 0 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tm-xp-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tm-xp-gate-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tm-accent-fg);
+  background: var(--tm-accent);
+  border: 1px solid var(--tm-accent);
+  text-decoration: none;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-xp-gate-primary:hover {
+  background: var(--tm-accent-hover, var(--tm-accent));
+}
+
+.tm-xp-gate-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-text-muted);
+  background: transparent;
+  border: 1px solid var(--tm-border-soft);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--tm-dur-fast) var(--tm-ease),
+              border-color var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-xp-gate-secondary:hover {
+  color: var(--tm-text);
+  border-color: var(--tm-border);
+}
+
+@keyframes tm-xp-gate-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tm-xp-gate-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-xp-gate-overlay,
+  .tm-xp-gate-modal {
+    animation: none;
+  }
+}
