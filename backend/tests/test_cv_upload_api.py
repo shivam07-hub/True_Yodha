@@ -63,15 +63,16 @@ def _patch_async_workflow(monkeypatch, *, captured: dict[str, Any] | None = None
 
 
 def _patch_xp(monkeypatch, *, balance: int = 3000) -> dict[str, Any]:
-    state = {"balance": balance, "charged": 0, "refunded": 0}
-    async def _charge(user_id, amount, action, *, floor=0):
+    state = {"balance": balance, "charged": 0, "refunded": 0, "last_ref": None}
+    async def _charge(user_id, amount, action, *, floor=0, ref_table=None, ref_id=None):
         if state["balance"] - amount < floor:
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Out of XP")
         state["balance"] -= amount
         state["charged"] += amount
+        state["last_ref"] = (ref_table, ref_id)
         return state["balance"]
-    async def _refund(user_id, amount, action, reason):
+    async def _refund(user_id, amount, action, reason, *, ref_table, ref_id):
         state["balance"] += amount
         state["refunded"] += amount
         return state["balance"]
@@ -88,6 +89,16 @@ def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
         cv_workflow.upload_jobs_repo,
         "create_processing_job",
         lambda **_kwargs: job_id,
+    )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_charged",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_failed",
+        lambda *_a, **_k: None,
     )
 
 
@@ -115,6 +126,8 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     assert body["job_id"] == "job-abc"
     assert state["charged"] == 200  # CV_UPLOAD_XP_COST
     assert state["balance"] == 2800
+    # Charge MUST be tied to the job_id so the ledger row + refund idempotency work.
+    assert state["last_ref"] == ("cv_upload_jobs", "job-abc")
 
 
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
@@ -144,6 +157,7 @@ def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     _patch_xp(monkeypatch, balance=50)  # < 200 cost
     monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python developer with several years of experience building backend services and CLI tools for production.")
+    _patch_jobs_create(monkeypatch, job_id="job-blocked")  # job row pre-charge per new ordering
 
     try:
         with TestClient(app) as client:
@@ -260,8 +274,8 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
 
     refunds: list[tuple] = []
-    async def _refund(user_id, amount, action, reason):
-        refunds.append((user_id, amount, action, reason))
+    async def _refund(user_id, amount, action, reason, *, ref_table, ref_id):
+        refunds.append((user_id, amount, action, reason, ref_table, ref_id))
         return 3000
     monkeypatch.setattr(cv_workflow, "refund", _refund)
 
@@ -273,7 +287,7 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
         job_id="job-2", user_id="u1", raw_text="text", content_hash="h",
     ))
 
-    assert refunds == [("u1", 200, "cv_upload", "provider_unavailable")]
+    assert refunds == [("u1", 200, "cv_upload", "provider_unavailable", "cv_upload_jobs", "job-2")]
     assert failed_calls[0]["error_code"] == "provider_unavailable"
     assert failed_calls[0]["refunded"] is True
     assert repo.created == []  # nothing persisted on failure

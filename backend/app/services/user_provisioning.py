@@ -22,7 +22,6 @@ from typing import Optional
 
 from app.database import get_supabase_admin
 from app.services import ninja_name as nn
-from app.services.xp_policy import WELCOME_XP
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +80,15 @@ def ensure_user_provisioned(
     if myro_ref:
         referred_by = _resolve_referrer(myro_ref.strip().lower(), user_id)
 
-    # ADR-0004 — welcome XP pre-grants at signup so the first LLM-bearing
-    # action (CV upload) charges uniformly. welcome_xp_granted=TRUE on insert
-    # is idempotent w.r.t. later code paths that still call grant_welcome_xp.
+    # ADR-0004 + migration 20260523b — welcome XP grant is owned by the
+    # user_profiles BEFORE INSERT trigger. App code intentionally does NOT
+    # set xp_balance / welcome_xp_granted; the DB enforces the invariant so
+    # no future code path (admin tool, future migration, race, deploy gap)
+    # can skip it.
     payload = {
         "id": user_id,
         "email": email,
         "full_name": full_name,
-        "xp_balance": WELCOME_XP,
-        "welcome_xp_granted": True,
     }
     if ninja:
         payload["ninja_name"] = ninja

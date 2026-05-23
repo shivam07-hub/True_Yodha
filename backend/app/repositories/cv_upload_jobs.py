@@ -23,17 +23,19 @@ _TABLE = "cv_upload_jobs"
 def create_processing_job(
     *,
     user_id: str,
-    xp_charged: int,
     content_hash: str | None,
 ) -> str:
-    """Insert a row in `processing` status, return its job_id (str uuid)."""
+    """Insert a row in `processing` status with xp_charged=0. Caller charges
+    XP against this job_id immediately after; mark_charged updates the column
+    once the RPC returns. This ordering means an under-funded user gets a job
+    row marked `failed` (with audit) rather than an invisible 400."""
     admin = get_supabase_admin()
     result = (
         admin.table(_TABLE)
         .insert({
             "user_id": user_id,
             "status": "processing",
-            "xp_charged": xp_charged,
+            "xp_charged": 0,
             "content_hash": content_hash,
         })
         .execute()
@@ -43,6 +45,11 @@ def create_processing_job(
     if not job_id:
         raise RuntimeError("cv_upload_jobs insert returned no id")
     return str(job_id)
+
+
+def mark_charged(job_id: str, amount: int) -> None:
+    admin = get_supabase_admin()
+    admin.table(_TABLE).update({"xp_charged": amount}).eq("id", job_id).execute()
 
 
 def mark_done(

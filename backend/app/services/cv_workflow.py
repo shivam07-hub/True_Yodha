@@ -129,25 +129,9 @@ async def start_cv_upload_job(
             "xp_charged": 0,
         }
 
-    # Charge first so the job row never exists for an under-funded user.
-    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload", floor=CV_UPLOAD_XP_FLOOR)
-
-    job_id = upload_jobs_repo.create_processing_job(
-        user_id=user_id,
-        xp_charged=CV_UPLOAD_XP_COST,
-        content_hash=content_hash,
+    return await _start_async_upload_job(
+        user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload",
     )
-
-    # Hand the heavy work to the running event loop. The HTTP response returns
-    # immediately; the LLM call survives long after the client socket closes.
-    asyncio.create_task(_run_cv_upload_job(
-        job_id=job_id,
-        user_id=user_id,
-        raw_text=raw_text,
-        content_hash=content_hash,
-    ))
-
-    return {"status": "processing", "job_id": job_id}
 
 
 async def start_cv_upload_job_from_text(
@@ -171,13 +155,51 @@ async def start_cv_upload_job_from_text(
             "xp_charged": 0,
         }
 
-    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload_text", floor=CV_UPLOAD_XP_FLOOR)
+    return await _start_async_upload_job(
+        user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
+    )
 
+
+async def _start_async_upload_job(
+    user_id: str,
+    *,
+    raw_text: str,
+    content_hash: str,
+    action: str,
+) -> dict[str, Any]:
+    """Shared job-creation path for both upload + typed-text flows.
+
+    Order is deliberate:
+      1. Insert job row with xp_charged=0 — this is the audit anchor.
+      2. Charge XP, tying the ledger entry to the job_id (atomic RPC).
+      3. If charge fails (insufficient XP): mark job failed + raise 400.
+      4. Update job.xp_charged = amount.
+      5. Spawn background runner with the job_id.
+    Charge-before-job would lose the audit trail on funded-but-crashed inserts;
+    job-before-charge guarantees every charge is reconcilable from cv_upload_jobs.
+    """
     job_id = upload_jobs_repo.create_processing_job(
         user_id=user_id,
-        xp_charged=CV_UPLOAD_XP_COST,
         content_hash=content_hash,
     )
+
+    try:
+        await charge_or_raise(
+            user_id, CV_UPLOAD_XP_COST, action,
+            floor=CV_UPLOAD_XP_FLOOR,
+            ref_table="cv_upload_jobs",
+            ref_id=job_id,
+        )
+    except HTTPException:
+        upload_jobs_repo.mark_failed(
+            job_id,
+            error_code="insufficient_xp",
+            error_detail="Not enough XP to start this upload.",
+            refunded=False,
+        )
+        raise
+
+    upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
 
     asyncio.create_task(_run_cv_upload_job(
         job_id=job_id,
@@ -253,8 +275,17 @@ async def _run_cv_upload_job(
 async def _fail_and_refund(
     job_id: str, user_id: str, *, error_code: str, detail: str,
 ) -> None:
+    """Refund the upload charge if one was made, then mark the job failed.
+
+    The refund RPC is idempotent on (ref_table, ref_id) — re-invocation for
+    the same job_id returns the current balance without crediting again.
+    Worker retries are therefore safe.
+    """
     try:
-        await refund(user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code)
+        await refund(
+            user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code,
+            ref_table="cv_upload_jobs", ref_id=job_id,
+        )
         refunded = True
     except Exception as exc:  # pragma: no cover — refund must never crash a job
         _log.exception("Refund failed for job=%s user=%s: %s", job_id, user_id, exc)
