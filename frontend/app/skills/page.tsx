@@ -13,6 +13,7 @@ import { ScoreRing } from "@/components/skills/score-ring"
 import { DomainAccordionRow } from "@/components/skills/domain-accordion-row"
 import { SkillAuditView } from "@/components/skills/skill-audit-view"
 import { ShareButton } from "@/components/profile/ShareButton"
+import { ViewTriadToggle, useTriadView } from "@/components/ui/view-triad-toggle"
 import { scores, users } from "@/lib/api"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -22,10 +23,6 @@ const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
 type SortMode = "gap" | "alpha" | "skills"
 type ShowFilter = "all" | "at-risk" | "building" | "strong"
-// "intel" = domain accordion, "map" = radar (mobile-only first-class view),
-// "audit" = full skill audit table. Desktop never selects "map" via UI but
-// the value is tolerated (the desktop grid always shows the radar alongside).
-type ViewMode = "intel" | "map" | "audit"
 
 function domainAvg(items: ReturnType<typeof Object.values<ReturnType<typeof Object.values>[0]>>[0]) {
   if (!items.length) return 0
@@ -44,7 +41,7 @@ export default function SkillsPage() {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("gap")
   const [show, setShow] = useState<ShowFilter>("all")
-  const [view, setView] = useState<ViewMode>("intel")
+  const [view, setView] = useTriadView("skills")
 
   const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
@@ -188,32 +185,9 @@ export default function SkillsPage() {
           </div>
         ) : null}
 
-        {/* Mobile-only 3-way segmented toggle (Intel / Map / Audit) */}
-        <div className="tm-skills-mview" role="group" aria-label="Skill view">
-          <button
-            type="button"
-            aria-pressed={view === "intel"}
-            onClick={() => setView("intel")}
-          >
-            <span className="glyph" aria-hidden>⊞</span>
-            <span>Intel</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "map"}
-            onClick={() => setView("map")}
-          >
-            <span className="glyph" aria-hidden>⬡</span>
-            <span>Map</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "audit"}
-            onClick={() => setView("audit")}
-          >
-            <span className="glyph" aria-hidden>◈</span>
-            <span>Audit</span>
-          </button>
+        {/* Mobile-only triad toggle (Intel / Map / Audit) — shared component */}
+        <div className="tm-skills-mview-wrap">
+          <ViewTriadToggle page="skills" value={view} onChange={setView} ariaLabel="Skill view" />
         </div>
 
         {/* Sort/Filter bar — icon-only, enterprise compact */}

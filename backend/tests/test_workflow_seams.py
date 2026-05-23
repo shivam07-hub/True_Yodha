@@ -80,12 +80,16 @@ class _FakeCVRepository:
         return 68.4
 
 
-def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any) -> None:
+def test_cv_workflow_background_run_uses_scores_repository_for_scoring(monkeypatch: Any) -> None:
+    """ADR-0004: scoring runs inside _run_cv_upload_job (background) with a fresh
+    admin-scoped ScoresRepository. This validates the seam survives the 2-phase split.
+    """
     repo = _FakeCVRepository()
     captured: dict[str, Any] = {}
 
-    _raw = "Python backend engineer with shipped APIs."
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: _raw)
+    monkeypatch.setattr(cv_workflow, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(cv_workflow, "CVVersionsRepository", lambda _c: repo)
+    monkeypatch.setattr(cv_workflow, "ScoresRepository", lambda _c: ScoresRepository(_c))
 
     async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict[str, Any]:
         return {
@@ -101,24 +105,18 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
         captured["scores_repo"] = scores_repo
         return {"total_score": 68.4}
 
-    async def _noop_welcome_xp(_user_id: str) -> int:
-        return 1000
-
-    monkeypatch.setattr(cv_workflow, "assert_not_rate_limited", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(cv_workflow, "grant_welcome_xp", _noop_welcome_xp)
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(
-        cv_workflow.scoring,
-        "record_cv_score",
-        _fake_record_cv_score,
-    )
+    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", _fake_record_cv_score)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *_a, **_k: None)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda *_a, **_k: None)
+    async def _no_initial(_user_id): return None
+    monkeypatch.setattr(cv_workflow, "_trigger_initial_match_compute", _no_initial)
 
-    result = asyncio.run(
-        cv_workflow.ingest_uploaded_cv(
-            repo,
-            "user-1",
-            file_bytes=b"%PDF-1.7 ...",
-            file_type="application/pdf",
+    asyncio.run(
+        cv_workflow._run_cv_upload_job(
+            job_id="job-x", user_id="user-1",
+            raw_text="Python backend engineer with shipped APIs.",
+            content_hash="hash",
         )
     )
 
@@ -126,7 +124,6 @@ def test_cv_workflow_ingest_uses_scores_repository_for_scoring(monkeypatch: Any)
     assert repo.updated_profile is not None
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
-    assert result["score"] == 68.4
 
 
 class _FakeComputeJobsRepository:

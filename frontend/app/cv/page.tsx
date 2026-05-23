@@ -11,10 +11,11 @@ import { BaselineView } from "@/components/cv/builder/baseline-view"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
 import { Icon } from "@/components/cv/builder/icons"
-import { uploadCV, users } from "@/lib/api"
+import { CVUploadFailure, uploadCV, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
+import { useXPStore } from "@/store/xpStore"
 
 import "./cv-builder.css"
 
@@ -34,7 +35,10 @@ function CVPage() {
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const ACCEPTED_EXT = /\.(pdf|docx)$/i
+  // Reentry guard: setUploading(true) is async, mobile Chrome can fire change
+  // twice; the ref blocks the second call synchronously.
+  const uploadInFlightRef = useRef(false)
+  const setXPBalance = useXPStore((s) => s.setBalance)
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
@@ -78,27 +82,31 @@ function CVPage() {
 
   async function handleUpload(file: File) {
     if (!token) return
-    if (!ACCEPTED_EXT.test(file.name)) {
-      setShowUpload(true)
-      setUploadError("Pick a PDF or DOCX file. Other formats aren’t supported yet.")
-      return
-    }
+    if (uploadInFlightRef.current) return  // double-fire guard
+    uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
     try {
       const result = await uploadCV(token, file)
+      if (result.new_xp_balance != null) setXPBalance(result.new_xp_balance)
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      setUploadResult({ skills_detected: result.skills_detected as number, score: result.score as number })
+      setUploadResult({ skills_detected: result.skills_detected, score: result.score })
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Could not upload CV")
+      if (err instanceof CVUploadFailure) {
+        if (err.newXpBalance != null) setXPBalance(err.newXpBalance)
+        setUploadError(err.message)
+      } else {
+        setUploadError(err instanceof Error ? err.message : "Could not upload CV")
+      }
     } finally {
       setUploading(false)
+      uploadInFlightRef.current = false
     }
   }
 
@@ -138,10 +146,6 @@ function CVPage() {
             <>
               <div className="cvb-page-head">
                 <div>
-                  <div className="cvb-crumbs" style={{ marginBottom: 2 }}>
-                    <span>app</span><span className="sep">/</span>
-                    <span className="accent">cv_builder</span>
-                  </div>
                   <h1 className="cvb-page-title">Upload your baseline CV</h1>
                   <p className="cvb-page-sub">
                     The baseline is the trunk of your CV history — every per-job tailored version branches from it.
@@ -279,7 +283,20 @@ function CVPage() {
                   borderRadius: "var(--tm-radius-sm)",
                   color: "var(--tm-text)", fontSize: 12,
                 }}>
-                  {uploadError}
+                  <div>{uploadError}</div>
+                  {uploadError.startsWith("Out of XP") && (
+                    <button
+                      type="button"
+                      onClick={() => router.push("/diary")}
+                      style={{
+                        marginTop: 8, padding: 0, background: "none", border: "none",
+                        color: "var(--tm-accent)", fontSize: 12, cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Earn 30 XP in 5min via a diary entry →
+                    </button>
+                  )}
                 </div>
               )}
             </>

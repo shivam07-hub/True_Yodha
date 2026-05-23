@@ -133,7 +133,13 @@ export function IntelDrawer({
                   <KindDot kind={v.kind} inline/>
                   <span className="mono" style={{ fontSize: 11 }}>{formatGlobalVersionLabel(v)}</span>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {v.kind === "baseline_upload" ? "Master baseline" : (v.title?.trim() || v.kind)}
+                    {v.kind === "baseline_upload"
+                      ? "Master baseline"
+                      : (v.title?.trim()
+                          || (v.kind === "polished" ? "AI polished"
+                            : v.kind === "edited" ? "Manually edited"
+                            : v.kind === "deterministic" ? "Auto-tailored"
+                            : v.kind))}
                   </span>
                   <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
                     {timeAgo(v.created_at)}

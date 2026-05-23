@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import HTTPException, status
 
+from app.database import get_supabase_admin
+from app.repositories import cv_upload_jobs as upload_jobs_repo
 from app.repositories.cv import (
     CVVersionWriteSpec,
     CVVersionsRepository,
@@ -14,16 +16,15 @@ from app.repositories.cv import (
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, jobs_workflow, scoring
 from app.services.llm_provider import get_cv_upload_provider
-from app.services.rate_limit import assert_not_rate_limited
-from app.services.xp_service import grant_welcome_xp
+from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
+from app.services.xp_service import charge_or_raise, get_xp_balance, refund
 
 _log = logging.getLogger(__name__)
 
 
 async def _trigger_initial_match_compute(user_id: str) -> None:
-    """Fire-and-forget: compute first 5 matches after CV upload (no XP cost)."""
+    """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus)."""
     try:
-        from app.database import get_supabase_admin
         from app.repositories.jobs import JobsRepository
         from app.services.llm_provider import get_llm_provider
         from app.routers.jobs._shared import last_monday
@@ -47,19 +48,6 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
         _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
 
 
-async def _grant_welcome_xp_safely(user_id: str) -> None:
-    """Fire-and-forget welcome XP. CV upload UX must not 500 on a bonus grant.
-
-    Log at ERROR so silent failures surface in monitoring — the RPC is now
-    atomic and migration-backed, so any failure here is genuine infra (RLS,
-    connectivity, missing column) and worth paging on.
-    """
-    try:
-        await grant_welcome_xp(user_id)
-    except Exception as exc:
-        _log.error("Welcome XP grant failed for user=%s: %s", user_id, exc, exc_info=True)
-
-
 def _persist_baseline_cv(
     cv_repo: CVVersionsRepository,
     user_id: str,
@@ -68,11 +56,7 @@ def _persist_baseline_cv(
     content_hash: str,
     cv_structured: dict | None,
 ) -> None:
-    """Write a new baseline_upload row into cv_versions.
-
-    onboarding_complete is the only profile-side update kept post-unification —
-    cv_raw_text / cv_parsed_at columns were dropped in 20260518_cv_versions_unify.
-    """
+    """Write a new baseline_upload row into cv_versions."""
     cv_repo.update_cv_profile(user_id, {"onboarding_complete": True})
     spec = CVVersionWriteSpec(
         kind="baseline_upload",
@@ -86,69 +70,201 @@ def _persist_baseline_cv(
     cv_repo.create(user_id, spec)
 
 
-async def ingest_uploaded_cv(
+# ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
+# Phase 1 — synchronous, fast (~500ms): validate, extract raw text, hash-check
+#   cache, charge XP, persist a processing row, return job_id.
+# Phase 2 — async (10-60s): LLM parse, score, persist baseline, mark done.
+#   Refund XP on provider failure or empty extraction.
+
+async def start_cv_upload_job(
     cv_repo: CVVersionsRepository,
     user_id: str,
     *,
     file_bytes: bytes,
     file_type: str,
-) -> dict[str, float | int | str]:
-    assert_not_rate_limited(
-        cv_repo.client, user_id, "cv_versions", "created_at",
-        filters={"kind": "baseline_upload"},
-    )
-    scores_repo = ScoresRepository(cv_repo.client)
-
+) -> dict[str, Any]:
+    """Phase 1. Returns one of:
+      - {status: "done", job_id?, skills_detected, score, redirect_to}  ← hash cache hit
+      - {status: "processing", job_id}                                   ← LLM job queued
+    Raises 400 if user has insufficient XP for an LLM-bearing upload.
+    """
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
 
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
     if cached:
-        _log.info("CV hash match for user=%s — returning cached score", user_id)
-        await _grant_welcome_xp_safely(user_id)
+        _log.info("CV hash match for user=%s — free synchronous return", user_id)
         return {
+            "status": "done",
             "skills_detected": cv_repo.count_user_skills(user_id),
             "score": float(cv_repo.get_current_score(user_id) or 0),
             "redirect_to": "/onboarding/score",
+            "xp_charged": 0,
         }
 
-    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
-    skills_detected = parsed.get("skills_detected", [])
-    if parsed.get("provider_failed"):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Our CV analysis service is temporarily unavailable. Please try again in a few minutes.",
-        )
-    if not skills_detected:
+    # Charge first so the job row never exists for an under-funded user.
+    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload", floor=CV_UPLOAD_XP_FLOOR)
+
+    job_id = upload_jobs_repo.create_processing_job(
+        user_id=user_id,
+        xp_charged=CV_UPLOAD_XP_COST,
+        content_hash=content_hash,
+    )
+
+    # Hand the heavy work to the running event loop. The HTTP response returns
+    # immediately; the LLM call survives long after the client socket closes.
+    asyncio.create_task(_run_cv_upload_job(
+        job_id=job_id,
+        user_id=user_id,
+        raw_text=raw_text,
+        content_hash=content_hash,
+    ))
+
+    return {"status": "processing", "job_id": job_id}
+
+
+async def start_cv_upload_job_from_text(
+    cv_repo: CVVersionsRepository,
+    user_id: str,
+    *,
+    raw_text: str,
+) -> dict[str, Any]:
+    """Phase 1 for the typed-text variant. Mirrors start_cv_upload_job."""
+    if len(raw_text) < 80:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No skills could be extracted from this CV. Try a more detailed document.",
+            detail="Please write at least a few sentences about yourself.",
         )
+
+    content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
+    cached = cv_repo.find_by_content_hash(user_id, content_hash)
+    if cached:
+        _log.info("CV text hash match for user=%s — free synchronous return", user_id)
+        return {
+            "status": "done",
+            "skills_detected": cv_repo.count_user_skills(user_id),
+            "score": float(cv_repo.get_current_score(user_id) or 0),
+            "redirect_to": "/onboarding/score",
+            "xp_charged": 0,
+        }
+
+    await charge_or_raise(user_id, CV_UPLOAD_XP_COST, "cv_upload_text", floor=CV_UPLOAD_XP_FLOOR)
+
+    job_id = upload_jobs_repo.create_processing_job(
+        user_id=user_id,
+        xp_charged=CV_UPLOAD_XP_COST,
+        content_hash=content_hash,
+    )
+
+    asyncio.create_task(_run_cv_upload_job(
+        job_id=job_id,
+        user_id=user_id,
+        raw_text=raw_text,
+        content_hash=content_hash,
+    ))
+
+    return {"status": "processing", "job_id": job_id}
+
+
+async def _run_cv_upload_job(
+    *,
+    job_id: str,
+    user_id: str,
+    raw_text: str,
+    content_hash: str,
+) -> None:
+    """Phase 2 — runs in a background task. Owns its own admin-scoped repo."""
+    admin_db = get_supabase_admin()
+    cv_repo = CVVersionsRepository(admin_db)
+    scores_repo = ScoresRepository(admin_db)
+
+    try:
+        parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
+    except Exception as exc:  # network / provider library blew up
+        _log.exception("CV parse crashed for job=%s user=%s", job_id, user_id)
+        await _fail_and_refund(
+            job_id, user_id,
+            error_code="internal",
+            detail="Unexpected error while analysing your CV. Your XP has been refunded.",
+        )
+        return
+
+    if parsed.get("provider_failed"):
+        await _fail_and_refund(
+            job_id, user_id,
+            error_code="provider_unavailable",
+            detail="Our CV analysis service was down. Your XP has been refunded — please try again in a few minutes.",
+        )
+        return
+
+    skills_detected = parsed.get("skills_detected", [])
+    if not skills_detected:
+        await _fail_and_refund(
+            job_id, user_id,
+            error_code="no_skills",
+            detail="No skills could be extracted from this CV. Your XP has been refunded — try a more detailed document.",
+        )
+        return
 
     try:
         score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV skills could not be mapped to the skill taxonomy. Please revise and try again.",
-        ) from exc
+    except ValueError:
+        await _fail_and_refund(
+            job_id, user_id,
+            error_code="taxonomy_unmapped",
+            detail="CV skills could not be mapped to the skill taxonomy. Your XP has been refunded.",
+        )
+        return
 
     score_total = float(score_row["total_score"])
     _persist_baseline_cv(
-        cv_repo,
-        user_id,
+        cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
     )
-    await _grant_welcome_xp_safely(user_id)
+    upload_jobs_repo.mark_done(job_id, skills_detected=len(skills_detected), score=score_total)
     asyncio.create_task(_trigger_initial_match_compute(user_id))
+
+
+async def _fail_and_refund(
+    job_id: str, user_id: str, *, error_code: str, detail: str,
+) -> None:
+    try:
+        await refund(user_id, CV_UPLOAD_XP_COST, "cv_upload", reason=error_code)
+        refunded = True
+    except Exception as exc:  # pragma: no cover — refund must never crash a job
+        _log.exception("Refund failed for job=%s user=%s: %s", job_id, user_id, exc)
+        refunded = False
+    upload_jobs_repo.mark_failed(
+        job_id,
+        error_code=error_code,
+        error_detail=detail,
+        refunded=refunded,
+    )
+
+
+# ── Status read ───────────────────────────────────────────────────────────────
+
+async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
+    row = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload job not found.")
+    balance = await get_xp_balance(user_id)
     return {
-        "skills_detected": len(skills_detected),
-        "score": score_total,
-        "redirect_to": "/onboarding/score",
+        "status": row["status"],
+        "skills_detected": row.get("skills_detected"),
+        "score": float(row["score"]) if row.get("score") is not None else None,
+        "error_code": row.get("error_code"),
+        "error_detail": row.get("error_detail"),
+        "xp_charged": row.get("xp_charged", 0),
+        "xp_refunded": bool(row.get("xp_refunded", False)),
+        "new_xp_balance": balance,
+        "redirect_to": "/onboarding/score" if row["status"] == "done" else None,
     }
 
+
+# ── Lazy structured backfill (kept synchronous — small, single-call) ──────────
 
 async def get_or_backfill_cv_structured(
     cv_repo: CVVersionsRepository, user_id: str
@@ -180,70 +296,3 @@ async def get_or_backfill_cv_structured(
         )
     cv_repo.update_structured(int(baseline["id"]), reparsed)
     return reparsed
-
-
-async def ingest_cv_text(
-    cv_repo: CVVersionsRepository,
-    user_id: str,
-    *,
-    raw_text: str,
-) -> dict[str, float | int | str]:
-    assert_not_rate_limited(
-        cv_repo.client, user_id, "cv_versions", "created_at",
-        filters={"kind": "baseline_upload"},
-    )
-    scores_repo = ScoresRepository(cv_repo.client)
-
-    if len(raw_text) < 80:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Please write at least a few sentences about yourself.",
-        )
-
-    content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
-    cached = cv_repo.find_by_content_hash(user_id, content_hash)
-    if cached:
-        _log.info("CV text hash match for user=%s — returning cached score", user_id)
-        await _grant_welcome_xp_safely(user_id)
-        return {
-            "skills_detected": cv_repo.count_user_skills(user_id),
-            "score": float(cv_repo.get_current_score(user_id) or 0),
-            "redirect_to": "/onboarding/score",
-        }
-
-    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
-    skills_detected = parsed.get("skills_detected", [])
-    if parsed.get("provider_failed"):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Our CV analysis service is temporarily unavailable. Please try again in a few minutes.",
-        )
-    if not skills_detected:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No skills could be identified from your description. Try adding more detail about your work and projects.",
-        )
-
-    try:
-        score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="CV skills could not be mapped to the skill taxonomy. Please revise and try again.",
-        ) from exc
-
-    score_total = float(score_row["total_score"])
-    _persist_baseline_cv(
-        cv_repo,
-        user_id,
-        raw_text=raw_text,
-        content_hash=content_hash,
-        cv_structured=parsed.get("cv_structured"),
-    )
-    await _grant_welcome_xp_safely(user_id)
-    asyncio.create_task(_trigger_initial_match_compute(user_id))
-    return {
-        "skills_detected": len(skills_detected),
-        "score": score_total,
-        "redirect_to": "/onboarding/score",
-    }

@@ -53,8 +53,8 @@
   color: var(--tm-text-faint);
 }
 
-/* Mobile-only 3-way segmented toggle — hidden on desktop */
-.tm-skills-mview {
+/* Mobile-only triad wrap — hidden on desktop */
+.tm-skills-mview-wrap {
   display: none;
 }
 
@@ -184,15 +184,14 @@
     padding: 18px 16px 14px;
   }
 
-  /* Mobile segmented control — sticky beneath header */
-  .tm-skills-mview {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px;
-    padding: 5px;
+  /* Mobile triad wrap — sticky beneath header. The toggle itself is the
+     shared <ViewTriadToggle>; we only own the sticky container chrome. */
+  .tm-skills-mview-wrap {
+    display: flex;
+    justify-content: center;
     margin: 2px 0 18px;
+    padding: 5px 0;
     background: var(--tm-bg);
-    border: 1px solid var(--tm-border-soft);
     border-radius: 999px;
     position: sticky;
     top: calc(72px + env(safe-area-inset-top));
@@ -201,36 +200,13 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
-
-  .tm-skills-mview button {
-    appearance: none;
-    background: transparent;
-    border: none;
-    color: var(--tm-text-faint);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    min-height: 40px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
+  .tm-skills-mview-wrap .tm-view-triad {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .tm-skills-mview-wrap .tm-view-triad button {
+    flex: 1;
     justify-content: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: background 160ms var(--tm-ease), color 160ms var(--tm-ease);
-    min-width: 0;
-  }
-
-  .tm-skills-mview button[aria-pressed="true"] {
-    background: var(--tm-surface-2);
-    color: var(--tm-accent-text);
-    box-shadow: inset 0 0 0 1px var(--tm-accent-ring);
-  }
-
-  .tm-skills-mview button .glyph {
-    font-size: 11px;
-    opacity: 0.9;
   }
 
   /* Hide the desktop VIEW icon-button group on mobile —
@@ -304,17 +280,15 @@
 }
 
 @media (max-width: 420px) {
-  .tm-skills-mview button {
+  .tm-skills-mview-wrap .tm-view-triad button {
     font-size: 11px;
     gap: 4px;
-  }
-  .tm-skills-mview button .glyph {
-    font-size: 10px;
+    padding: 5px 8px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tm-skills-mview button {
+  .tm-skills-mview-wrap .tm-view-triad button {
     transition: none;
   }
 }

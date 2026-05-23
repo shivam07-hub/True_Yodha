@@ -3,12 +3,20 @@ from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVRepository, get_token_cv_repository
-from app.schemas import CVUploadResponse
+from app.schemas import (
+    CVUploadAcceptedResponse,
+    CVUploadDoneResponse,
+    CVUploadResponse,
+    CVUploadStatusResponse,
+)
 from app.services import cv_workflow
 
 router = APIRouter()
 
-ALLOWED_TYPES = {"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+ALLOWED_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10MB
 
 
@@ -16,7 +24,15 @@ class CVTextRequest(BaseModel):
     text: str
 
 
-@router.post("/upload", response_model=CVUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/upload",
+    response_model=CVUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        200: {"model": CVUploadDoneResponse, "description": "Hash cache hit — no LLM call, no XP charge"},
+        202: {"model": CVUploadAcceptedResponse, "description": "LLM job queued; poll /cv/upload/status/{job_id}"},
+    },
+)
 async def upload_cv(
     file: UploadFile,
     principal: Principal = Depends(get_principal),
@@ -36,25 +52,43 @@ async def upload_cv(
         )
 
     file_type = "pdf" if file.content_type == "application/pdf" else "docx"
-    payload = await cv_workflow.ingest_uploaded_cv(
+    payload = await cv_workflow.start_cv_upload_job(
         cv_repo=cv_repo,
         user_id=principal.id,
         file_bytes=file_bytes,
         file_type=file_type,
     )
+    # Response is a union; FastAPI serialises whichever fields are present.
     return CVUploadResponse(**payload)
 
 
-@router.post("/text", response_model=CVUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/text",
+    response_model=CVUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def submit_cv_text(
     body: CVTextRequest,
     principal: Principal = Depends(get_principal),
     cv_repo: CVRepository = Depends(get_token_cv_repository),
 ) -> CVUploadResponse:
     raw_text = body.text.strip()
-    payload = await cv_workflow.ingest_cv_text(
+    payload = await cv_workflow.start_cv_upload_job_from_text(
         cv_repo=cv_repo,
         user_id=principal.id,
         raw_text=raw_text,
     )
     return CVUploadResponse(**payload)
+
+
+@router.get(
+    "/upload/status/{job_id}",
+    response_model=CVUploadStatusResponse,
+)
+async def upload_status(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+) -> CVUploadStatusResponse:
+    """Poll terminal state of an async CV upload job (ADR-0004)."""
+    payload = await cv_workflow.get_cv_upload_status(job_id, principal.id)
+    return CVUploadStatusResponse(**payload)
