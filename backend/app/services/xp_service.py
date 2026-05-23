@@ -138,6 +138,22 @@ async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int =
 # row lock, so two concurrent charges from the same user can't both win the
 # balance >= cost check. Refunds are idempotent on (ref_table, ref_id).
 
+
+class InsufficientXPError(HTTPException):
+    """Raised when a charge would breach the floor. Callers add the
+    user-facing CTA (diary, follow upsell, etc) since the right recovery
+    depends on the action — diary is wrong for cosmetic actions like
+    follow company (floor=-30, recovery is unfollow not earn-more)."""
+    def __init__(self, *, amount: int, balance: int, action: str) -> None:
+        self.amount = amount
+        self.balance = balance
+        self.action = action
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Out of XP — this action costs {amount} XP and you have {balance}.",
+        )
+
+
 async def charge_or_raise(
     user_id: str,
     amount: int,
@@ -147,7 +163,7 @@ async def charge_or_raise(
     ref_table: str | None = None,
     ref_id: str | None = None,
 ) -> int:
-    """Deduct `amount` XP atomically. Raises 400 if floor would be breached.
+    """Deduct `amount` XP atomically. Raises InsufficientXPError if floor breached.
 
     `ref_table` + `ref_id` link the charge to the originating row so the
     ledger entry can be queried later and `refund` can short-circuit double
@@ -167,13 +183,7 @@ async def charge_or_raise(
     new_balance = result.data
     if new_balance is None:
         current = await get_xp_balance(user_id)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Out of XP — this action costs {amount} XP and you have {current}. "
-                "Earn 30 XP in 5min via a diary entry."
-            ),
-        )
+        raise InsufficientXPError(amount=amount, balance=current, action=action)
     _log.info(
         "XP charge: user=%s action=%s amount=%d balance=→%d ref=%s/%s",
         user_id, action, amount, int(new_balance), ref_table, ref_id,
@@ -212,5 +222,11 @@ async def refund(
     _log.info(
         "XP refund: user=%s action=%s amount=%d balance=→%d ref=%s/%s reason=%s",
         user_id, action, amount, new_balance, ref_table, ref_id, reason,
+    )
+    # Structured metric — easy to grep/parse downstream (Grafana / log alerts).
+    # Refund rate > 5% over a rolling window = LLM provider chain is degraded.
+    _log.warning(
+        "metric refund.fired action=%s reason=%s amount=%d ref=%s/%s",
+        action, reason, amount, ref_table, ref_id,
     )
     return new_balance

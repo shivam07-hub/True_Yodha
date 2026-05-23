@@ -163,3 +163,35 @@ async def test_charge_or_raise_zero_amount_is_noop():
         new_balance = await charge_or_raise("user-1", 0, "noop")
     assert new_balance == 10
     admin.rpc.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_insufficient_xp_error_carries_amount_and_balance():
+    """Callers branch on the structured exception fields, not the message text.
+    Pin those fields so a regression that flattens the error is caught."""
+    from app.services.xp_service import InsufficientXPError, charge_or_raise
+    admin = _mock_admin_rpc(rpc_return=None, balance=42)
+    with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+        with pytest.raises(InsufficientXPError) as exc_info:
+            await charge_or_raise("u1", 200, "cv_upload", floor=0)
+    assert exc_info.value.amount == 200
+    assert exc_info.value.balance == 42
+    assert exc_info.value.action == "cv_upload"
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_refund_emits_structured_metric(caplog):
+    """metric refund.fired warning is what Grafana scrapes for alerting."""
+    import logging
+    from app.services.xp_service import refund
+    admin = _mock_admin_rpc(rpc_return=3000)
+    with caplog.at_level(logging.WARNING, logger="app.services.xp_service"):
+        with patch("app.services.xp_service.get_supabase_admin", return_value=admin):
+            await refund("u1", 200, "cv_upload", reason="provider_unavailable",
+                         ref_table="cv_upload_jobs", ref_id="job-1")
+    metric_lines = [r.getMessage() for r in caplog.records if "metric refund.fired" in r.getMessage()]
+    assert len(metric_lines) == 1
+    assert "action=cv_upload" in metric_lines[0]
+    assert "reason=provider_unavailable" in metric_lines[0]
+    assert "amount=200" in metric_lines[0]

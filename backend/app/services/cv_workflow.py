@@ -17,7 +17,7 @@ from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, jobs_workflow, scoring
 from app.services.llm_provider import get_cv_upload_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
-from app.services.xp_service import charge_or_raise, get_xp_balance, refund
+from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
 
 _log = logging.getLogger(__name__)
 
@@ -222,14 +222,23 @@ async def _start_async_upload_job(
             ref_table="cv_upload_jobs",
             ref_id=job_id,
         )
-    except HTTPException:
+    except InsufficientXPError as exc:
         upload_jobs_repo.mark_failed(
             job_id,
             error_code="insufficient_xp",
             error_detail="Not enough XP to start this upload.",
             refunded=False,
         )
-        raise
+        # Re-raise with the CV-specific recovery CTA appended. Other call
+        # sites attach their own CTA (e.g. follow-company → "unfollow another
+        # company first") — that's why xp_service stays CTA-free.
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=(
+                f"{exc.detail} Earn 30 XP in 5min via a diary entry, or "
+                "complete a forge session for +50 XP."
+            ),
+        ) from exc
 
     upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
 
