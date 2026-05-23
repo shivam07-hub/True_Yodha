@@ -76,6 +76,31 @@ def _persist_baseline_cv(
 # Phase 2 — async (10-60s): LLM parse, score, persist baseline, mark done.
 #   Refund XP on provider failure or empty extraction.
 
+_MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
+
+
+def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
+    """Reject scanned / image-only PDFs and DOCX-with-only-images BEFORE charging XP.
+
+    The async worker would otherwise refund every time and trap the user in a
+    retry loop. Threshold is shared with the typed-text path so both flows
+    apply the same minimum-content rule.
+    """
+    if len(raw_text.strip()) < _MIN_CV_TEXT_LEN:
+        if source == "upload":
+            detail = (
+                "We couldn't read any text in this file. If it's a scanned or "
+                "photo-based PDF, export a text-based PDF (Save As → PDF in "
+                "Word/Google Docs) and try again."
+            )
+        else:
+            detail = "Please write at least a few sentences about yourself."
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=detail,
+        )
+
+
 async def start_cv_upload_job(
     cv_repo: CVVersionsRepository,
     user_id: str,
@@ -87,8 +112,10 @@ async def start_cv_upload_job(
       - {status: "done", job_id?, skills_detected, score, redirect_to}  ← hash cache hit
       - {status: "processing", job_id}                                   ← LLM job queued
     Raises 400 if user has insufficient XP for an LLM-bearing upload.
+    Raises 422 if the file has no readable text (scanned PDF).
     """
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
+    _assert_cv_text_extractable(raw_text, source="upload")
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
 
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
@@ -130,11 +157,7 @@ async def start_cv_upload_job_from_text(
     raw_text: str,
 ) -> dict[str, Any]:
     """Phase 1 for the typed-text variant. Mirrors start_cv_upload_job."""
-    if len(raw_text) < 80:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Please write at least a few sentences about yourself.",
-        )
+    _assert_cv_text_extractable(raw_text, source="text")
 
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
     cached = cv_repo.find_by_content_hash(user_id, content_hash)

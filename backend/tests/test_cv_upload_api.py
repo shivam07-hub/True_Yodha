@@ -96,7 +96,7 @@ def _patch_jobs_create(monkeypatch, *, job_id: str = "job-123") -> None:
 def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer with five years of backend experience building production APIs, data pipelines, and shipping reliable systems.")
     _patch_jobs_create(monkeypatch, job_id="job-abc")
     _patch_async_workflow(monkeypatch)
 
@@ -120,7 +120,7 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
     _override_principal_and_repo(_CachedCVRepository())
     state = _patch_xp(monkeypatch, balance=3000)
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "same cv")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Same CV uploaded again. The hash check below must short-circuit before any LLM or XP charge runs.")
     _patch_jobs_create(monkeypatch)
 
     try:
@@ -143,7 +143,7 @@ def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
 def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     _patch_xp(monkeypatch, balance=50)  # < 200 cost
-    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python")
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python developer with several years of experience building backend services and CLI tools for production.")
 
     try:
         with TestClient(app) as client:
@@ -169,6 +169,27 @@ def test_submit_text_below_min_length_returns_422(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert res.status_code == 422
+
+
+def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> None:
+    """Scanned/image-only PDFs extract to empty string. Reject in phase 1
+    so the user is not charged-refunded in a retry loop."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "")
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("scan.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 422
+    assert "couldn't read any text" in res.json()["detail"].lower()
+    assert state["charged"] == 0  # critical: no charge on rejected upload
 
 
 # ─── Async runner tests (drive _run_cv_upload_job directly) ───────────────────
