@@ -252,7 +252,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 - CV hub first-use story)
+## LAST SESSION SUMMARY (2026-05-24 - CV hub story + mobile feedback)
 
 Made "CV hub" the simple public first-use story. Root `/` now renders the CV hub page directly instead of serving redirect scaffolding, while `/about` reuses the same `CVHubPage` composition. Public metadata now says "One hub for every CV version", removes the site-wide `noindex, nofollow`, and keeps private/app routes out of discovery through `robots.txt`. Sitemap now includes `/about`, `/intel`, and `/terms`.
 
@@ -260,7 +260,9 @@ Reframed the public hero, steps, nav, and sample diagnostic around the beginner 
 
 Infrastructure note: Vercel MCP was present but exposed no teams/projects in this session, and Railway CLI/MCP were not available locally. Live backend health checks still returned OK from Railway, and no relevant Supabase backend errors appeared during the sampled window.
 
-Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 359/359 pass. Remaining production issues from fellowship feedback are still open: mobile settings modal layout, durable/resumable CV delivery, upload copy that mentions Wi-Fi, onboarding step count mismatch, role-search ranking, forgot/reset password, and score methodology explanation.
+Also fixed the phone feedback blocker from the attached screenshot. Root cause: `SettingsModal` used a fixed desktop two-column layout on mobile, so the 200px sidebar squeezed Account/Feedback content into an unusable right rail; the mobile profile sheet could also stack above the settings dialog because of z-index ordering. Added a mobile settings stylesheet that turns Settings into a full-width phone sheet, hides the desktop profile/autosave rail, makes Account/Following/Feedback/Billing reachable as a compact top tab row, restores full-width Account fields, and raises the dialog above the mobile sheet. The Feedback Hub now uses a mobile CSS file for a full-height phone layout with a compact top rail. Verified at 375px: Settings and Feedback Hub both render with `documentElement.scrollWidth === 375`, tabs reachable, no horizontal overflow.
+
+Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 359/359 pass. Remaining production issues from fellowship feedback are still open: durable/resumable CV delivery, upload copy that mentions Wi-Fi, onboarding step count mismatch, role-search ranking, forgot/reset password, score methodology explanation, mobile CTA/tab ordering across the main app, and CV version labels/compare/application tracking.
 
 ## EARLIER SESSION SUMMARIES
 

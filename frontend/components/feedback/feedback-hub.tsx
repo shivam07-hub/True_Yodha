@@ -8,37 +8,24 @@ import { NewReport } from "./new-report"
 import { MyReports } from "./my-reports"
 import { Shipped } from "./shipped"
 import { SentState } from "./sent-state"
+import "./feedback-hub.css"
 
 export interface FeedbackHubProps {
   open: boolean
   onClose: () => void
   defaultCategory?: FeedbackCategory
   defaultTab?: "new" | "reports" | "shipped"
-  /** Auto-attached context block in the New-report form. */
   showContext?: boolean
-  /** Show the "My reports" tab. Default true (requires auth). */
   showHistory?: boolean
-  /**
-   * Show the "Shipped" tab. Default false in v1 because the data source is a
-   * curated changelog rather than a real DB table. Flip to true once the
-   * `shipped_changelog` table lands (Backlog #17 v2).
-   */
   showShipped?: boolean
   userName?: string | null
   userEmail?: string | null
-  /** Optional element-pin handler (e.g., marker.io-style picker). */
   onPinElement?: () => void
   pinnedTarget?: string | null
   onClearPin?: () => void
 }
 
 type TabId = "new" | "reports" | "shipped"
-
-interface TabDef {
-  id: TabId
-  label: string
-  show: boolean
-}
 
 export function FeedbackHub({
   open,
@@ -76,12 +63,12 @@ export function FeedbackHub({
 
   if (!open) return null
 
-  const tabs: TabDef[] = (
+  const tabs = (
     [
       { id: "new", label: "New report", show: true },
       { id: "reports", label: "My reports", show: showHistory },
       { id: "shipped", label: "Shipped", show: showShipped },
-    ] satisfies TabDef[]
+    ] satisfies { id: TabId; label: string; show: boolean }[]
   ).filter((t) => t.show)
 
   function handleSent(category: FeedbackCategory) {
@@ -226,8 +213,9 @@ export function FeedbackHub({
         </aside>
 
         {/* Right content */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <div className="tm-feedback-panel" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           <header
+            className="tm-feedback-header"
             style={{
               padding: "20px 28px 16px",
               borderBottom: "1px solid var(--tm-border-soft)",
@@ -281,7 +269,7 @@ export function FeedbackHub({
             </button>
           </header>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px 24px" }}>
+          <div className="tm-feedback-body" style={{ flex: 1, overflowY: "auto", padding: "20px 28px 24px" }}>
             {tab === "new" && !sent && (
               <NewReport
                 defaultCategory={defaultCategory}
@@ -302,36 +290,8 @@ export function FeedbackHub({
           </div>
         </div>
       </div>
-
-      {/* Mobile-friendly tweak: stack rail above content on narrow viewports */}
-      <style jsx global>{`
-        @media (max-width: 640px) {
-          .tm-feedback-hub {
-            flex-direction: column !important;
-            height: min(90dvh, 720px) !important;
-          }
-          .tm-feedback-rail {
-            width: 100% !important;
-            border-right: none !important;
-            border-bottom: 1px solid var(--tm-border-soft) !important;
-            flex-direction: row !important;
-            overflow-x: auto;
-          }
-          .tm-feedback-rail nav {
-            flex-direction: row !important;
-            flex: 1;
-            padding: 8px !important;
-          }
-          .tm-feedback-rail nav button {
-            flex: 1;
-            white-space: nowrap;
-          }
-        }
-      `}</style>
     </>
   )
 }
-
-// Convenience re-exports for callers
 export type { FeedbackCategory } from "./feedback-types"
 export { CATEGORIES } from "./feedback-types"
