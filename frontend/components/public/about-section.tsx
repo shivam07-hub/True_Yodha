@@ -37,7 +37,7 @@ export function AboutSection({
 
         <h1 style={{
           fontFamily: "var(--tm-font-display)",
-          fontSize: "var(--tm-fs-hero)",
+          fontSize: "calc(var(--tm-fs-hero) - 2pt)",
           fontWeight: 600,
           letterSpacing: 0,
           lineHeight: "var(--tm-lh-hero)",
@@ -48,15 +48,16 @@ export function AboutSection({
         </h1>
 
         <p style={{
-          fontSize: "var(--tm-fs-title)",
-          fontWeight: 700,
+          fontSize: "clamp(11px, 3vw, 22px)",
+          fontWeight: 600,
           color: "var(--tm-text)",
           margin: "0 0 18px",
-          letterSpacing: 0,
-          lineHeight: "var(--tm-lh-title)",
-          maxWidth: 760,
+          letterSpacing: "-0.01em",
+          lineHeight: 1.25,
+          whiteSpace: "nowrap",
+          maxWidth: "100%",
         }}>
-          Career intelligence for people who are done guessing.
+          Career intelligence for professionals who don&rsquo;t compromise.
         </p>
 
         <p style={{
@@ -66,8 +67,22 @@ export function AboutSection({
           maxWidth: 640,
           margin: "0 0 28px",
         }}>
-          Upload your CV, get your Myro Score, see the skills the market wants, and know what to improve next.
+          Upload CV, map your skills with market, fix CV and Apply.
         </p>
+
+        <div
+          aria-hidden="true"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--tm-text-faint)",
+            margin: "0 0 12px",
+          }}
+        >
+          Career Intelligence Platform
+        </div>
 
         <div
           aria-label="How Myro works"

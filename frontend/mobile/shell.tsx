@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -8,6 +8,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
+import { SurfaceToggle } from "@/components/surface-toggle"
 import { openFeedbackHub } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
 import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
@@ -252,6 +253,8 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
 }) {
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
+  const [dragOffset, setDragOffset] = useState(0)
+  const dragStart = useRef<number | null>(null)
 
   const fullName = profile?.full_name ?? "My Account"
   const initials = profile?.full_name
@@ -259,6 +262,20 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
     : "HM"
 
   const handleSignOut = () => { signOut(); onClose() }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    dragStart.current = e.touches[0].clientY
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragStart.current === null) return
+    const delta = e.touches[0].clientY - dragStart.current
+    if (delta > 0) setDragOffset(delta)
+  }
+  const onTouchEnd = () => {
+    if (dragOffset > 80) onClose()
+    setDragOffset(0)
+    dragStart.current = null
+  }
 
   return (
     <>
@@ -274,8 +291,19 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         borderRadius: "16px 16px 0 0",
         padding: "16px 20px 20px",
         paddingBottom: "calc(20px + env(safe-area-inset-bottom))",
+        transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+        transition: dragOffset > 0 ? "none" : "transform 200ms var(--tm-ease)",
       }}>
-        <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--tm-border)", margin: "0 auto 20px" }} />
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          role="button"
+          aria-label="Swipe down to close"
+          style={{ padding: "4px 0 16px", margin: "-4px auto 4px", display: "flex", justifyContent: "center", touchAction: "none", cursor: "grab" }}
+        >
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--tm-border)" }} />
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--tm-border-soft)" }}>
           <div style={{
@@ -314,6 +342,15 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
             <span style={{ fontSize: 15, fontWeight: 500 }}>{item.label}</span>
           </button>
         ))}
+
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "16px 4px 4px", marginTop: 4,
+          borderTop: "1px solid var(--tm-border-soft)",
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Theme</span>
+          <SurfaceToggle />
+        </div>
       </div>
 
       {showSettings && (
