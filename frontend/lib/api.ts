@@ -12,6 +12,13 @@ import {
   setSessionTokens,
   waitForAccessTokenChange,
 } from "./session"
+import {
+  type CVUploadInitial,
+  type CVUploadPolledStatus,
+  type CVUploadResultShape,
+  CVUploadFailureBase,
+  resolveCVUploadResult,
+} from "./cv-upload-state"
 import { queryClient } from "./query-client"
 
 const BASE =
@@ -297,11 +304,11 @@ export const profile = {
 
 // ── CV ────────────────────────────────────────────────────────────────────────
 
-export interface CVUploadResponse {
-  skills_detected: number
-  score: number
-  redirect_to: string
-}
+/** ADR-0004 — POST /cv/upload returns a discriminated union (see cv-upload-state). */
+export type CVUploadResponse = CVUploadInitial
+export type CVUploadStatusResponse = CVUploadPolledStatus
+export type CVUploadResult = CVUploadResultShape
+export const CVUploadFailure = CVUploadFailureBase
 
 export interface CVEvidenceSummary {
   evidence_count: number
@@ -479,20 +486,32 @@ export const cv = {
   },
 }
 
-export async function uploadCVText(token: string, text: string): Promise<CVUploadResponse> {
-  return request<CVUploadResponse>("/cv/text", {
+/**
+ * uploadCV runs the full ADR-0004 two-phase flow end-to-end:
+ *   1. POST /cv/upload — fast (~1s): validates, charges XP, queues LLM work
+ *   2. If processing: polls GET /cv/upload/status/{job_id} until terminal state
+ *
+ * Throws CVUploadFailure on terminal "failed" so the caller can surface the
+ * refund context. Throws Error for transport / 4xx errors.
+ */
+export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
+  const safeFile = _normalizeUploadFile(file)
+  const initial = await _postCVUpload(token, safeFile)
+  return _resolveUploadResult(token, initial)
+}
+
+export async function uploadCVText(token: string, text: string): Promise<CVUploadResult> {
+  const initial = await request<CVUploadResponse>("/cv/text", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text }),
   })
+  return _resolveUploadResult(token, initial)
 }
 
-export async function uploadCV(token: string, file: File): Promise<CVUploadResponse> {
-  if (!BASE) {
-    throw new Error("Upload misconfigured: missing API URL. Reload the app.")
-  }
-  // Normalize MIME from filename — Android phone-memory pickers often send
-  // application/octet-stream or empty type, which the backend strict-rejects.
+function _normalizeUploadFile(file: File): File {
+  // Android phone-memory pickers often send application/octet-stream or empty
+  // type; backend strict-rejects those. Re-derive from the filename.
   const lower = file.name.toLowerCase()
   const correctedType = lower.endsWith(".pdf")
     ? "application/pdf"
@@ -502,14 +521,22 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadRespo
   if (!correctedType) {
     throw new Error("Only PDF or DOCX files are accepted.")
   }
-  const safeFile = file.type === correctedType
+  return file.type === correctedType
     ? file
     : new File([file], file.name, { type: correctedType })
-  const form = new FormData()
-  form.append("file", safeFile)
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 180_000)
+}
+
+async function _postCVUpload(token: string, file: File): Promise<CVUploadResponse> {
+  if (!BASE) {
+    throw new Error("Upload misconfigured: missing API URL. Reload the app.")
+  }
   const url = `${BASE}/cv/upload`
+  const form = new FormData()
+  form.append("file", file)
+  // 30s is the realistic mobile cellular socket TTL. Phase-1 should return in
+  // ~1s; any longer is a transport problem worth surfacing fast.
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30_000)
   let res: Response
   try {
     res = await fetch(url, {
@@ -522,35 +549,69 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadRespo
       cache: "no-store",
     })
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw new Error("CV processing timed out — try again")
-    const reason = (err as Error).message || "network unreachable"
-    throw new Error(`Couldn’t reach the server (${reason}). Check connection or try Wi-Fi.`)
+    throw _wrapNetworkError(err)
   } finally {
     clearTimeout(timeout)
   }
-  if (!res.ok) {
-    if (res.status === 401 && typeof window !== "undefined") {
-      const newToken = await tryRefreshToken()
-      if (newToken) {
-        // Retry upload once with new token
-        const retryForm = new FormData()
-        retryForm.append("file", safeFile)
-        const retryRes = await fetch(url, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${newToken}`, Accept: "application/json" },
-          body: retryForm,
-          mode: "cors",
-          credentials: "omit",
-          cache: "no-store",
-        })
-        if (retryRes.ok) return retryRes.json()
-      }
-      forceLogout()
+  if (res.status === 401 && typeof window !== "undefined") {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      const retryForm = new FormData()
+      retryForm.append("file", file)
+      const retryRes = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${newToken}`, Accept: "application/json" },
+        body: retryForm,
+        mode: "cors",
+        credentials: "omit",
+        cache: "no-store",
+      })
+      if (retryRes.ok) return retryRes.json() as Promise<CVUploadResponse>
     }
+    forceLogout()
+  }
+  if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(extractError(body, res.status))
   }
-  return res.json()
+  return res.json() as Promise<CVUploadResponse>
+}
+
+function _wrapNetworkError(err: unknown): Error {
+  const name = (err as Error)?.name
+  if (name === "AbortError") {
+    return new Error("Upload took too long. Check your connection and try again.")
+  }
+  // TypeError "Failed to fetch" is the most common mobile-cellular drop.
+  return new Error("Network dropped during upload. Wi-Fi is recommended for the first upload.")
+}
+
+async function _resolveUploadResult(
+  token: string,
+  initial: CVUploadResponse,
+): Promise<CVUploadResult> {
+  return resolveCVUploadResult(initial, (jobId) =>
+    request<CVUploadStatusResponse>(
+      `/cv/upload/status/${encodeURIComponent(jobId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+  )
+}
+
+/** Imperative status poll for callers that already have a job_id. */
+export async function pollCVUploadStatus(
+  token: string,
+  jobId: string,
+  opts: { intervalMs?: number; timeoutMs?: number } = {},
+): Promise<CVUploadResult> {
+  return resolveCVUploadResult(
+    { status: "processing", job_id: jobId },
+    (jid) => request<CVUploadStatusResponse>(
+      `/cv/upload/status/${encodeURIComponent(jid)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    ),
+    opts,
+  )
 }
 
 // ── Scores ────────────────────────────────────────────────────────────────────
