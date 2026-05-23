@@ -10,6 +10,10 @@ import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ApplyRow } from "@/components/jobs/apply-row"
 
+function stripTaxonomySuffix(s: string): string {
+  return s.replace(/\s*\((Programming Language|Software|Framework|Library)\)\s*$/i, "")
+}
+
 interface FocusedJobProps {
   job: JobMatch
   status: ApplicationStatus
@@ -56,9 +60,35 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
         <div className="mc-focus-head">
           <div style={{ minWidth: 0 }}>
             <div className="mc-focus-eyebrow">
-              Focused on: <span className="strong">{job.company ?? "—"}</span>
+              Focused on:{" "}
+              {job.company ? (
+                <Link
+                  href={`/companies/${encodeURIComponent(job.company)}`}
+                  className="strong"
+                  style={{ color: "var(--tm-text)", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}
+                >
+                  {job.company}
+                </Link>
+              ) : (
+                <span className="strong">—</span>
+              )}
             </div>
-            <h2 className="mc-focus-title">{job.title}</h2>
+            <h2
+              className="mc-focus-title"
+              role="button"
+              tabIndex={0}
+              title="Tap to copy job title"
+              onClick={() => navigator.clipboard?.writeText(job.title ?? "").catch(() => {})}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  navigator.clipboard?.writeText(job.title ?? "").catch(() => {})
+                }
+              }}
+              style={{ cursor: "copy" }}
+            >
+              {job.title}
+            </h2>
             <div className="mc-focus-sub">
               <span>
                 {[job.company, job.location].filter(Boolean).join(" · ")}
@@ -104,7 +134,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {matchedDisplay.map((s) => (
                 <span className="mc-skill-pill matched" key={s.skill}>
-                  ✓ {s.skill}
+                  ✓ {stripTaxonomySuffix(s.skill)}
                 </span>
               ))}
             </div>
@@ -176,7 +206,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             const sessions = sessionsForGap(fromLvl, toLvl)
             return (
               <div className="mc-skill-build-row" key={s.skill}>
-                <div className="name">{s.skill}</div>
+                <div className="name">{stripTaxonomySuffix(s.skill)}</div>
                 <div className="meta">
                   <span className="lvl">L{fromLvl}→L{toLvl}</span>
                   <button
@@ -209,7 +239,7 @@ function SkillMatchRow({ skill, inCart, onDominate }: SkillMatchRowProps) {
   const sessions = atMax ? 0 : sessionsForGap(level, level + 1)
   return (
     <div className="mc-skill-match-row">
-      <div className="name">{skill.skill}</div>
+      <div className="name">{stripTaxonomySuffix(skill.skill)}</div>
       <div className="right">
         <div className="mc-lvl-dots">
           {[0, 1, 2, 3, 4].map((i) => (

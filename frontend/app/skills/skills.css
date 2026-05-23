@@ -112,7 +112,20 @@
     text-align: left;
     font-family: inherit;
     cursor: pointer;
+    transition: background 160ms var(--tm-ease);
+    position: relative;
   }
+  .tm-skills-stat-tile::after {
+    content: "›";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    font-size: 16px;
+    color: var(--tm-text-faint);
+    line-height: 1;
+  }
+  .tm-skills-stat-tile:hover { background: var(--tm-surface-2); }
+  .tm-skills-stat-tile:hover::after { color: var(--tm-accent); }
 
   .tm-skills-stat-tile:nth-child(2n) {
     border-right: 0;
@@ -184,7 +197,9 @@
     position: sticky;
     top: calc(72px + env(safe-area-inset-top));
     z-index: 20;
-    box-shadow: 0 1px 0 var(--tm-border-soft), 0 12px 24px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 1px 0 var(--tm-border-soft), 0 12px 24px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .tm-skills-mview button {

@@ -92,11 +92,14 @@ function XpActionRow({
       <div
         style={{
           fontFamily: "var(--tm-font-mono)",
+          fontVariantNumeric: "tabular-nums",
           fontSize: compact ? 12 : 13,
           fontWeight: 800,
           color: item.amount.startsWith("+") ? "var(--tm-success)" : "var(--tm-accent)",
           whiteSpace: "nowrap",
           paddingTop: 2,
+          textAlign: "right",
+          minWidth: 64,
         }}
       >
         {item.amount}

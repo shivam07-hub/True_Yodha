@@ -346,10 +346,10 @@ function SkillHeatmap({
   return (
     <div className="tm-intel-heatmap" style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 14, overflow: "hidden" }}>
       {/* Header row */}
-      <div className="tm-intel-heatmap-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px" }}>
-        <div>
+      <div className="tm-intel-heatmap-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "18px 24px 16px", flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>YOUR SKILLS × COMPANY DEMAND</div>
-          <div className="tm-intel-heatmap-title" style={{ fontSize: 18, fontWeight: 600, marginTop: 2, color: "var(--tm-text)" }}>Where to invest your skill points</div>
+          <div className="tm-intel-heatmap-title" style={{ fontSize: 18, fontWeight: 600, marginTop: 8, color: "var(--tm-text)", lineHeight: 1.25 }}>Where to invest your skill points</div>
         </div>
         <div className="tm-intel-heatmap-controls" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: 4 }}>
           {isLoggedIn && allSkills.length > 0 && (

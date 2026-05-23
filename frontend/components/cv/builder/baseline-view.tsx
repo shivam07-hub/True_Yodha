@@ -139,11 +139,6 @@ export function BaselineView({
     <>
       <div className="cvb-page-head cvb-fade-in">
         <div>
-          <div className="cvb-crumbs" style={{ marginBottom: 2 }}>
-            <span>app</span><span className="sep">/</span>
-            <span className="accent">cv_builder</span><span className="sep">/</span>
-            <span>baseline</span>
-          </div>
           <h1 className="cvb-page-title">Your Master CV</h1>
           <p className="cvb-page-sub">
             The trunk. Every job-tailored version branches from here.{" "}
@@ -151,25 +146,26 @@ export function BaselineView({
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <button type="button" className="cvb-btn" onClick={onRework}>
-            <Icon name="edit" size={14}/> Rework baseline
-          </button>
           <Link href="/tracker?stage=saved" className="cvb-btn primary">
             <Icon name="target" size={14}/> Pick a target job
             <Icon name="arrow-right" size={14}/>
           </Link>
+          <button type="button" className="cvb-btn" onClick={onRework}>
+            <Icon name="edit" size={14}/> Rework baseline
+          </button>
         </div>
       </div>
 
       <div className="cvb-stats">
-        <StatCard label="versions" value={stats.total} sub="immutable commits"/>
-        <StatCard label="companies" value={stats.companies} sub="branches tracked"/>
-        <StatCard label="jobs" value={stats.jobs} sub="tailored threads"/>
+        <StatCard label={stats.total === 1 ? "version" : "versions"} value={stats.total} sub="immutable commits" href="#commit-graph"/>
+        <StatCard label={stats.companies === 1 ? "company" : "companies"} value={stats.companies} sub="branches tracked" href="/tracker"/>
+        <StatCard label={stats.jobs === 1 ? "job" : "jobs"} value={stats.jobs} sub="tailored threads" href="/tracker?stage=saved"/>
         <StatCard
           label="master"
           value={currentBaseline ? `v${currentBaseline.user_version_number}` : "—"}
           sub={currentBaseline ? `baseline · ${timeAgo(currentBaseline.created_at)}` : "no baseline"}
           mono
+          onClick={currentBaseline ? () => setSelectedVId(currentBaseline.id) : undefined}
         />
       </div>
 
@@ -262,14 +258,20 @@ export function BaselineView({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, mono }: { label: string; value: string | number; sub: string; mono?: boolean }) {
-  return (
-    <div className="cvb-stat-card">
+function StatCard({ label, value, sub, mono, href, onClick }: {
+  label: string; value: string | number; sub: string; mono?: boolean
+  href?: string; onClick?: () => void
+}) {
+  const inner = (
+    <>
       <div className={`cvb-stat-value${mono ? " mono" : ""} tabnum`}>{value}</div>
       <div className="eyebrow" style={{ marginTop: 8 }}>{label}</div>
       <div className="cvb-stat-sub">{sub}</div>
-    </div>
+    </>
   )
+  if (href) return <Link href={href} className="cvb-stat-card cvb-stat-card-interactive">{inner}</Link>
+  if (onClick) return <button type="button" onClick={onClick} className="cvb-stat-card cvb-stat-card-interactive">{inner}</button>
+  return <div className="cvb-stat-card">{inner}</div>
 }
 
 interface TargetJobsPanelProps {
