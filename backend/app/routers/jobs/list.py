@@ -1,9 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.deps import Principal, get_principal
-from app.repositories.jobs import JobsRepository, get_public_jobs_repository, get_token_jobs_repository
+from app.repositories.jobs import (
+    CompanySearchUnavailable,
+    JobsRepository,
+    get_public_jobs_repository,
+    get_token_jobs_repository,
+)
 from app.schemas import (
     EntitySkillsResponse,
     JobSearchResponse,
@@ -22,7 +27,13 @@ async def search_companies(
     limit: Annotated[int, Query(ge=1, le=20)] = 10,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> list[str]:
-    return repo.search_companies(q, limit=limit)
+    try:
+        return repo.search_companies(q, limit=limit)
+    except CompanySearchUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Company search is temporarily unavailable.",
+        ) from exc
 
 
 @router.get("/analytics/me", response_model=MarketAnalyticsSummaryResponse)

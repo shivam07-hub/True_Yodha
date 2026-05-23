@@ -214,6 +214,7 @@ export function SettingsModal({ open, onClose, profile }: {
 
   // Following tab state
   const [companyInput, setCompanyInput] = useState("")
+  const [companySearchTerm, setCompanySearchTerm] = useState("")
   const [companyDropdown, setCompanyDropdown] = useState(false)
   const [companyFocused, setCompanyFocused] = useState(false)
 
@@ -279,10 +280,16 @@ export function SettingsModal({ open, onClose, profile }: {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
 
+  useEffect(() => {
+    const term = companyInput.trim()
+    const timer = setTimeout(() => setCompanySearchTerm(term), 250)
+    return () => clearTimeout(timer)
+  }, [companyInput])
+
   const { data: companySuggestions = [] } = useQuery({
-    queryKey: ["companySuggestions", companyInput],
-    queryFn: () => jobs.searchCompanies(companyInput),
-    enabled: companyInput.trim().length >= 2,
+    queryKey: ["companySuggestions", companySearchTerm],
+    queryFn: () => jobs.searchCompanies(companySearchTerm),
+    enabled: open && activeTab === "Following" && companySearchTerm.length >= 2,
     staleTime: 60 * 1000,
   })
 

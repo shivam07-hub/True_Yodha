@@ -3,8 +3,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.repositories.jobs import JobsRepository, MarketAnalyticsCompiler
-from app.routers.jobs.list import get_market_analytics, search_jobs
+from fastapi import HTTPException
+
+from app.repositories import jobs as jobs_module
+from app.repositories.jobs import CompanySearchUnavailable, JobsRepository, MarketAnalyticsCompiler
+from app.routers.jobs.list import get_market_analytics, search_companies, search_jobs
 
 
 class _Result:
@@ -20,6 +23,8 @@ class _FakeQuery:
         self._eq_filters: list[tuple[str, Any]] = []
         self._in_filters: list[tuple[str, list[Any]]] = []
         self._range: tuple[int, int] | None = None
+        self._order: tuple[str, bool] | None = None
+        self._limit: int | None = None
 
     def select(self, _: str) -> "_FakeQuery":
         return self
@@ -36,15 +41,28 @@ class _FakeQuery:
         self._range = (start, end)
         return self
 
+    def order(self, key: str, desc: bool = False) -> "_FakeQuery":
+        self._order = (key, desc)
+        return self
+
+    def limit(self, count: int) -> "_FakeQuery":
+        self._limit = count
+        return self
+
     def execute(self) -> _Result:
         rows = self._rows
         for key, value in self._eq_filters:
             rows = [r for r in rows if r.get(key) == value]
         for key, values in self._in_filters:
             rows = [r for r in rows if r.get(key) in values]
+        if self._order is not None:
+            key, desc = self._order
+            rows = sorted(rows, key=lambda row: row.get(key) or 0, reverse=desc)
         if self._range is not None:
             start, end = self._range
             rows = rows[start: end + 1]
+        if self._limit is not None:
+            rows = rows[:self._limit]
         return _Result(rows)
 
 
@@ -54,6 +72,29 @@ class _SearchFakeDB:
 
     def table(self, name: str) -> _FakeQuery:
         return _FakeQuery(self._tables.get(name, []), table=name, db=self)
+
+
+class _FakeRpcQuery:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self._rows = rows
+
+    def execute(self) -> _Result:
+        return _Result(self._rows)
+
+
+class _CompanySearchRpcDB:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self.rows = rows
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def rpc(self, name: str, params: dict[str, Any]) -> _FakeRpcQuery:
+        self.calls.append((name, params))
+        return _FakeRpcQuery(self.rows)
+
+
+class _UnavailableCompanySearchRepo:
+    def search_companies(self, q: str, limit: int = 10) -> list[str]:
+        raise CompanySearchUnavailable("company search unavailable")
 
 
 class _FakeJobsRepo:
@@ -230,6 +271,51 @@ def test_search_jobs_passes_pagination_contract() -> None:
     assert repo.search_args == ("Acme", "Python", "Software Engineering", None, None, None, 2, 25)
     assert result.page == 2
     assert result.page_size == 25
+
+
+def test_search_companies_uses_rpc_and_normalizes_results() -> None:
+    db = _CompanySearchRpcDB([
+        {"company_name": " Google "},
+        {"company_name": "Google"},
+        {"company_name": ""},
+        {"company_name": "GoTo"},
+    ])
+
+    result = JobsRepository(db).search_companies(" go ", limit=2)
+
+    assert db.calls == [("search_job_companies", {"search_term": "go", "result_limit": 2})]
+    assert result == ["Google", "GoTo"]
+
+
+def test_search_companies_skips_blank_queries_after_trim() -> None:
+    db = _CompanySearchRpcDB([{"company_name": "Google"}])
+
+    result = JobsRepository(db).search_companies("  ", limit=10)
+
+    assert db.calls == []
+    assert result == []
+
+
+def test_search_companies_returns_503_when_repository_unavailable() -> None:
+    try:
+        asyncio.run(search_companies(q="go", limit=10, repo=_UnavailableCompanySearchRepo()))
+    except HTTPException as exc:
+        assert exc.status_code == 503
+        assert exc.detail == "Company search is temporarily unavailable."
+    else:
+        raise AssertionError("expected HTTPException")
+
+
+def test_get_feed_updated_at_uses_last_seen_date() -> None:
+    jobs_module._feed_ts_cache = (0.0, None)
+    db = _SearchFakeDB({
+        "jobs": [
+            {"last_seen": 20260519},
+            {"last_seen": 20260520},
+        ]
+    })
+
+    assert JobsRepository(db).get_feed_updated_at() == "2026-05-20"
 
 
 def _make_search_db(num_acme_jobs: int = 3) -> "_SearchFakeDB":

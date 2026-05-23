@@ -252,19 +252,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-22 · Mobile reading system)
+## LAST SESSION SUMMARY (2026-05-23 · Company search incident)
 
-Implemented the Claude mobile wireframe direction as a web-first reading system across the authenticated app. The mobile shell now uses a five-slot bottom nav (`Mission`, `Intel`, `Skills`, `CV`, `Tracker`), a dark/teal mobile token layer that overrides stored desktop light/forge preferences on small screens, and safer fixed top/bottom chrome spacing for 375px devices. Mission now has a mobile-only "Today's three moves" treatment with three backend-fed action cards so users can always loop into CV tailoring, skill work, diary/tracker, or Intel.
+Fixed the production company autocomplete incident from `GET /jobs/companies/search`. Root cause was a per-keystroke public autocomplete path running broad PostgREST `ilike.%term%` reads over duplicate `jobs` rows; during a burst (`sc`, `go`, `goo`, `goog`, `googl`, `google`) Supabase returned Cloudflare 1101 HTML, which the Python PostgREST client surfaced as `APIError`/JSON decode and Railway returned as 500. Added `search_job_companies(search_term, result_limit)` RPC plus `pg_trgm` GIN index in production and migration history, moved the repository to the RPC path with a small TTL cache, and mapped upstream company search failures to a controlled 503.
 
-Major frontend changes:
-- `frontend/mobile/shell.tsx`, `frontend/app/globals.css`, `frontend/app/design-tokens.css` — mobile dark/teal shell, custom nav icons, fixed bar spacing, stronger token aliases.
-- `frontend/app/home/page.tsx`, `frontend/components/mission-control/hero.tsx`, `frontend/app/home/mission-control.css` — mobile Mission reading hero plus three numbered move cards.
-- `frontend/app/skills/page.tsx`, `frontend/app/skills/skills.css`, `frontend/components/skills/*` — mobile score/stat grid, sticky Intel/Map/Audit switcher, safer 375px rows, icon-only skill actions under 480px, CV evidence loop links.
-- `frontend/app/market/page.tsx` — mobile Intel heatmap layout, readable horizontal columns, followed-company demand grid, mobile top-movers and filters.
-- `frontend/app/cv/*` — CV playground mobile score-gauge fix, calmer fit language, and direct Skills loop for missing JD skills.
-- `frontend/components/auth/auth-form.tsx`, `frontend/lib/api.ts` — signup simplified to email/password with optional referral only; ninja name stays after signup per privacy-first flow.
+Attribution: the failed search endpoint itself is public and carried no user principal, but Supabase/Railway timing correlates the burst to active user `8347d70c-fd70-4427-a0a8-d38dbc45757d` (`wooden-weaver-r8hx`) around `2026-05-23 17:32:15 UTC`. The Vercel logs only show static/client route hits, so the user identity came from adjacent authenticated backend/Supabase calls, not from the search request itself.
 
-Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `npm run build` succeeds · `.venv/bin/pytest backend/tests` 341/341 pass · `npm run test:contracts` remains 4/5 with the pre-existing raw query-key contract failure at `frontend/app/companies/[slug]/page.tsx`. Visual QA used Chrome/Puppeteer at a 375px viewport with mocked API responses only for screenshot data; Mission, Intel, Skills, CV, Tracker, and Signup rendered without horizontal overflow, and the final Mission/Skills/Intel screenshots confirmed mobile `--tm-bg: #0a0b10` and `--tm-accent: #00f5d4`.
+Also fixed a nearby production log issue: `get_feed_updated_at()` was querying nonexistent `jobs.created_at`; it now uses `jobs.last_seen` and caches null/error results for the 5-minute guard window. Frontend settings company search now debounces input by 250ms and only runs on the Following tab.
+
+Verify: production DB RPC/index applied and `search_job_companies('go', 10)` returns `Google`/`Wells Fargo`; local repo search returns `['Google', 'Wells Fargo']`; legacy PostgREST company query now returns 200. `git diff --check` clean · `.venv/bin/pytest backend/tests` 359/359 pass · `npm run lint` clean · `npx tsc --noEmit` clean.
 
 ## EARLIER SESSION SUMMARIES
 
