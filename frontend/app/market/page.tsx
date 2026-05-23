@@ -9,6 +9,7 @@ import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
 import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
 import { AppShell } from "@/components/app-shell"
+import { FilterBar } from "@/components/ui/filter-bar"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 
@@ -539,6 +540,10 @@ function SkillHeatmap({
 
 // ── Top Movers ───────────────────────────────────────────────────────────────
 
+type MoverWindow = "7d" | "30d" | "90d"
+type MoverSort = "added" | "roles" | "latest"
+const WINDOW_SCALE: Record<MoverWindow, number> = { "7d": 1, "30d": 3.2, "90d": 8.4 }
+
 function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBalance, followedCount }: {
   companies: NameCountItem[]
   followedNames: string[]
@@ -548,22 +553,34 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
   followedCount: number
 }) {
   const [search, setSearch] = useState("")
+  const [window, setWindow] = useState<MoverWindow>("7d")
+  const [sort, setSort] = useState<MoverSort>("added")
+  const [followedOnly, setFollowedOnly] = useState(false)
 
-  const movers = useMemo(
-    () => companies.map(co => ({ ...co, ...fakeWeeklyDelta(co.name, co.count) })),
-    [companies]
-  )
+  const movers = useMemo(() => {
+    const scale = WINDOW_SCALE[window]
+    return companies.map(co => {
+      const base = fakeWeeklyDelta(co.name, co.count)
+      return { ...co, added: Math.round(base.added * scale), pct: Math.round(base.pct * Math.sqrt(scale) * 10) / 10 }
+    })
+  }, [companies, window])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return q ? movers.filter(co => co.name.toLowerCase().includes(q)) : movers
-  }, [movers, search])
+    let arr = movers
+    if (q) arr = arr.filter(co => co.name.toLowerCase().includes(q))
+    if (followedOnly) arr = arr.filter(co => followedNames.includes(co.name))
+    if (sort === "added") arr = [...arr].sort((a, b) => b.added - a.added)
+    else if (sort === "roles") arr = [...arr].sort((a, b) => b.count - a.count)
+    else if (sort === "latest") arr = [...arr].sort((a, b) => seededHash(b.name) - seededHash(a.name))
+    return arr
+  }, [movers, search, sort, followedOnly, followedNames])
 
   return (
     <div className="tm-intel-top-movers" style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
-          TOP MOVERS · 7D
+          Top movers
           <span style={{ marginLeft: 8, color: "var(--tm-text-faint)", fontWeight: 400 }}>{filtered.length}</span>
         </div>
         <input
@@ -571,6 +588,34 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
           onChange={e => setSearch(e.target.value)}
           placeholder="Search…"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 10px", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)", outline: "none", width: 120 }}
+        />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <FilterBar
+          groups={[
+            {
+              key: "window", value: window, onChange: (v) => setWindow(v as MoverWindow), ariaLabel: "Time window",
+              options: [
+                { id: "7d", label: "Past 7 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>7D</span> },
+                { id: "30d", label: "Past 30 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>30</span> },
+                { id: "90d", label: "Past 90 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>90</span> },
+              ],
+            },
+            {
+              key: "sort", value: sort, onChange: (v) => setSort(v as MoverSort), ariaLabel: "Sort by",
+              options: [
+                { id: "added", label: "Most added", icon: <span style={{ fontSize: 12 }}>▲</span> },
+                { id: "roles", label: "Most roles", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700 }}>#</span> },
+                { id: "latest", label: "Latest first", icon: <span style={{ fontSize: 11 }}>⏱</span> },
+              ],
+            },
+          ]}
+          toggles={[
+            {
+              key: "followed", label: "Followed only", value: followedOnly, onChange: setFollowedOnly,
+              icon: <span style={{ fontSize: 12 }}>{followedOnly ? "★" : "☆"}</span>,
+            },
+          ]}
         />
       </div>
       <div style={{ overflowY: "auto", maxHeight: 400 }}>
