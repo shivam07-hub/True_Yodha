@@ -39,7 +39,6 @@ function CVPage() {
   // twice; the ref blocks the second call synchronously.
   const uploadInFlightRef = useRef(false)
   const setXPBalance = useXPStore((s) => s.setBalance)
-  const ACCEPTED_EXT = /\.(pdf|docx)$/i
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
@@ -84,11 +83,6 @@ function CVPage() {
   async function handleUpload(file: File) {
     if (!token) return
     if (uploadInFlightRef.current) return  // double-fire guard
-    if (!ACCEPTED_EXT.test(file.name)) {
-      setShowUpload(true)
-      setUploadError("Pick a PDF or DOCX file. Other formats aren’t supported yet.")
-      return
-    }
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)

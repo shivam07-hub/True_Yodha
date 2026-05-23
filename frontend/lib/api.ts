@@ -19,6 +19,7 @@ import {
   CVUploadFailureBase,
   resolveCVUploadResult,
 } from "./cv-upload-state"
+import { detectCVFile, ensureCVExtension } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 
 const BASE =
@@ -495,7 +496,7 @@ export const cv = {
  * refund context. Throws Error for transport / 4xx errors.
  */
 export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
-  const safeFile = _normalizeUploadFile(file)
+  const safeFile = await _normalizeUploadFile(file)
   const initial = await _postCVUpload(token, safeFile)
   return _resolveUploadResult(token, initial)
 }
@@ -509,21 +510,17 @@ export async function uploadCVText(token: string, text: string): Promise<CVUploa
   return _resolveUploadResult(token, initial)
 }
 
-function _normalizeUploadFile(file: File): File {
-  // Android phone-memory pickers often send application/octet-stream or empty
-  // type; backend strict-rejects those. Re-derive from the filename.
-  const lower = file.name.toLowerCase()
-  const correctedType = lower.endsWith(".pdf")
-    ? "application/pdf"
-    : lower.endsWith(".docx")
-      ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      : ""
-  if (!correctedType) {
-    throw new Error("Only PDF or DOCX files are accepted.")
+async function _normalizeUploadFile(file: File): Promise<File> {
+  const detected = await detectCVFile(file)
+  if (!detected) {
+    throw new Error(
+      "We couldn't detect a PDF or DOCX in this file. " +
+      "If you picked it from Google Drive, download it to your phone first, then upload.",
+    )
   }
-  return file.type === correctedType
-    ? file
-    : new File([file], file.name, { type: correctedType })
+  const safeName = ensureCVExtension(file.name, detected)
+  if (file.type === detected && safeName === file.name) return file
+  return new File([file], safeName, { type: detected })
 }
 
 async function _postCVUpload(token: string, file: File): Promise<CVUploadResponse> {
