@@ -252,7 +252,64 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-21 · Mobile QA pass + Forge continuation model + view-model seam)
+## LAST SESSION SUMMARY (2026-05-23 · Saturday-morning mobile audit + 4 deepenings)
+
+End-to-end audit on 12 Saturday-morning screenshots (`reference/Saturday morning phone bugs/`) plus the landing-page WhatsApp shot from the night before. Shipped 7 commits to Develop: `aa7a87...` style mobile QA fixes followed by `d994558` (image 2-12 batch), `28ecf10` (image 5 CompanyDrawer), `b2c0512` (image 7 ForgeChip + LevelDots), `927ee6f` (image 8b FilterBar), `4bd6895` (image 10 triad foundation + ADR 0003), and a final wrap-up commit closing Phase 2 + ubiquitous-language pass.
+
+### Image-by-image (each w/ 3+ findings the user added pointers to)
+
+**Landing page (night before)** — sticky top bar on /about lost when scrolling; outer `minHeight: 100dvh` → `height: 100dvh` so inner becomes the actual scroll container. Tagline restructure ("Career Intelligence Platform" caption · "Career intelligence for professionals who don't compromise." single-line subhead via clamp + nowrap · "Upload CV, map your skills with market, fix CV and Apply" descriptor · MYRO display size -2pt).
+
+**Image 1** — Mobile profile sheet missing theme toggle + swipe-to-dismiss. Mounted `<SurfaceToggle>` (already existed, unmounted on mobile) inside MobileProfileSheet; added swipe-down drag handle (touch handlers translate sheet w/ finger, > 80px closes). Light palette already lived in design-tokens.css under `[data-surface="light"]` — just needed wiring.
+
+**Image 2/3** — XP explainer modal cyan edge rails, X scrolled away. Modal container now flex-column w/ `maxHeight: calc(100dvh - 32px)`. Header is `position: sticky; top: 0` so balance + X stay. Footer pinned. Soft border replaces cyan ring. XP amount column gets `fontVariantNumeric: tabular-nums` + `minWidth: 64` so `+30 XP` and `+3000 XP` line up.
+
+**Image 4** — Home Mission Control. Internal name "Mission Control" eyebrow + "Today's three moves." H1 deleted from `hero.tsx` (ubiquitous-language leak per user's 4a + 4b).
+
+**Image 5** — "Focused on: {company}" now opens a tracker-context drawer (new `components/companies/company-drawer.tsx`). Adaptive: desktop = right side drawer (420px), mobile = bottom sheet (max 85dvh, same swipe-down pattern as MobileProfileSheet). Drawer shows mini stats row (rating · ghost · open count), follow/unfollow toggle with XP cap + floor enforcement, the user's saved jobs at that company in live stages, and a "See reviews + funnel →" footer link to the existing `/companies/[slug]` review page.
+
+**Image 6** — LLM rationale text clipped right edge on narrow viewports. `mc-fit-quote` + `mc-focus-title` get `overflow-wrap: anywhere`. `mc-focus-card` gets `min-width: 0; overflow: hidden`. `mc-focus-head > div` gets `min-width: 0` so a wide descendant can no longer push the whole card past the viewport.
+
+**Image 7 (largest deepening)** — Dominate / Lock in / Locked were three divergent pills funneling to one outcome (open Forge). Replaced with two new primitives in `components/skills/`:
+- `level-dots.tsx` — 5-dot ladder, `level` dots solid; if a forge session is running for *this* skill, the (level+1) dot fills bottom-up using `pendingMinutes / 25` from the timer store. Same indicator on desktop and mobile.
+- `forge-chip.tsx` — single chip, four states: idle (outline accent) · cart (solid accent) · active (warning wash + pulsing heartbeat dot) · done (success wash, auto when level ≥ 5). Wraps LevelDots + state label.
+
+Wired through `focused-job.tsx::SkillMatchRow` and `mc-skill-build-row`. New `.mc-forge-cart-footer` — full-bleed accent strip appearing when `cartSkillNames.size > 0`, "{N} skill(s) locked → Open Forge" linking to `/forge`. Single funnel CTA, no longer competing with "Tailor CV for this role". Skill-card-inline header also leads with LevelDots now so the ladder is the cross-surface progression vocabulary.
+
+**Image 8** — Heatmap eyebrow ("YOUR SKILLS × COMPANY DEMAND") was overlapping the H2 below it. `marginTop: 2 → 8`, header gets `flex-wrap: wrap` + `lineHeight: 1.25`. Backend names already linked to `/companies/{name}` via existing Link.
+
+**Image 8b** — Top Movers had hardcoded "7D" + a single sort. New `components/ui/filter-bar.tsx` primitive: generic icon-only row with `groups[]` (segmented selects) + `toggles[]` (boolean pills) + `trailing` slot for non-filter UI. Top Movers consumes it with window (7D/30/90, scales the fake delta until backend exposes real windowed data) · sort (most-added / most-roles / latest) · followed-only ★ toggle.
+
+**Image 9** — Skills stat tiles are real `<button>`s but read as static. Added hover bg, focus ring, and a "›" chevron pseudo-element top-right so the four big numbers visibly carry the primary interaction.
+
+**Image 10/11 — small fixes + system pattern.** Mobile sticky bar (Intel/Map/Audit) got darker drop-shadow + backdrop blur so rows scrolling under read as elevated. Ghost left "▸" column removed from domain accordion — single `+/-` on the right is now the only expand affordance. Status pill (AT RISK / BUILDING / STRONG) uses the tier color instead of flat faint — severity gradient restored.
+
+**Image 10 (big deepening — ADR 0003).** Intel/Map/Audit triad codified as system pattern across Skills/CV/Tracker/Home.
+- `lib/views/triad.ts` — `TriadView` type, `TRIAD` semantics map (Intel = signal density · Map = spatial layout · Audit = evidence walkthrough), `TRIAD_DEFAULTS` per page (Skills=Intel · CV=Map · Tracker=Audit · Home=Intel), `triadStorageKey()`.
+- `components/ui/view-triad-toggle.tsx` — `<ViewTriadToggle page value onChange compact />` segmented control + `useTriadView(page)` hook with localStorage sticky per-user pref.
+- `docs/adr/0003-view-triad-intel-map-audit.md` — decision, Brooks rationale (conceptual integrity > local optimization), Phase 2-5 migration plan, parked open questions.
+- Phase 2 (Skills rewire to use the shared hook + toggle) shipped in the closing commit. Phases 3-5 (CV / Tracker / Home triads) intentionally deferred — each is its own design discussion and PR.
+
+**Image 12** — CV Master baseline. Dropped `app / cv_builder / baseline` mono breadcrumb (and the matching one on the empty-state upload page). "1 COMPANIES" / "1 JOBS" pluralization fixed. "Pick a target job" CTA promoted to first position before "Rework baseline". `StatCard` now renders as Link or button when given href/onClick — hover bg + accent border + focus ring make the four numbers interactive surfaces, not static text.
+
+### Ubiquitous-language audit (cross-cutting close)
+
+Grepped frontend for backend identifiers leaking into user surface text. Findings + fixes:
+- `app/cv/page.tsx` empty-state breadcrumb still had `cv_builder` — deleted.
+- `components/cv/builder/playground-view.tsx` version-tab meta-line printed `v.kind` raw (`polished` / `edited` / `deterministic`) — replaced with `humanKind()` helper ("AI polished" / "manually edited" / "auto-tailored").
+- `components/cv/builder/intel-drawer.tsx` version row fell back to raw `v.kind` when title was empty — same human-readable fallback.
+
+Internal kind comparisons inside the data model (e.g. `v.kind === "baseline_upload"` for sorting/filtering) intentionally left untouched — those are correct uses of the backend enum and never reach the user surface.
+
+### Open carry-over
+
+- **Image 10 Phases 3-5 (deferred).** Each page needs its own grilling on what Intel/Map/Audit *mean* in that page's domain before we wire the toggle. Per ADR 0003 migration plan: CV (Intel = version list · Map = commit graph · Audit = ATS audit) · Tracker (Intel = open pipeline · Map = stage funnel · Audit = per-app history) · Home (Intel = next moves · Map = score radar · Audit = recent diary). Pick up when product agrees.
+- **Top Movers windowed data.** Currently fakes 30D/90D by scaling the existing weekly delta (`WINDOW_SCALE` = 1× / 3.2× / 8.4×). Replace with real windowed deltas when backend exposes `companies?window=...`.
+- **Ad-hoc humanKind helper.** Lives in `playground-view.tsx`; intel-drawer.tsx inlined its own version. If a third consumer needs it, hoist to `lib/cv/version-format.ts`.
+
+Verify: `tsc --noEmit` clean across all 7 commits · 11 files in image 2-12 batch · 2 files for image 5 · 5 files for image 7 · 2 files for image 8b · 3 files for image 10 foundation · 6 files for image 10 Phase 2 + ubiquitous-language cleanup.
+
+## OLDER SESSION SUMMARY (2026-05-21 · Mobile QA pass + Forge continuation model + view-model seam)
 
 End-to-end mobile QA across 16 screenshots in `reference/21May Mobile screenshots/` (fresh-user landing → onboarding → skills → forge → cv). Three commits landed on Develop.
 

@@ -46,6 +46,16 @@ interface PlaygroundViewProps {
   focusSkill?: string | null
 }
 
+function humanKind(kind: CVVersion["kind"]): string {
+  switch (kind) {
+    case "baseline_upload": return "baseline"
+    case "polished":        return "AI polished"
+    case "edited":          return "manually edited"
+    case "deterministic":   return "auto-tailored"
+    default:                return kind
+  }
+}
+
 function tabKindDot(kind: CVVersion["kind"]) {
   if (kind === "baseline_upload") return { background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)" }
   if (kind === "polished") return { background: "#A78BFA", boxShadow: "none" }
@@ -241,7 +251,9 @@ export function PlaygroundView({
                 {formatThreadVersionLabel(v, threadVersions)}
               </span>
               <span className="v-meta">
-                {v.kind === "baseline_upload" ? `baseline · ${formatGlobalVersionLabel(v)}` : `${formatGlobalVersionLabel(v)} · ${v.kind}`}
+                {v.kind === "baseline_upload"
+                  ? `baseline · ${formatGlobalVersionLabel(v)}`
+                  : `${formatGlobalVersionLabel(v)} · ${humanKind(v.kind)}`}
                 {" · "}{timeAgo(v.created_at)}
               </span>
             </button>

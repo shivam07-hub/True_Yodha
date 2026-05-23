@@ -138,10 +138,6 @@ function CVPage() {
             <>
               <div className="cvb-page-head">
                 <div>
-                  <div className="cvb-crumbs" style={{ marginBottom: 2 }}>
-                    <span>app</span><span className="sep">/</span>
-                    <span className="accent">cv_builder</span>
-                  </div>
                   <h1 className="cvb-page-title">Upload your baseline CV</h1>
                   <p className="cvb-page-sub">
                     The baseline is the trunk of your CV history — every per-job tailored version branches from it.
