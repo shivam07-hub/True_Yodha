@@ -46,6 +46,25 @@ async def _verify_taxonomy_integrity() -> None:
         raise RuntimeError(f"Taxonomy integrity check failed on boot: {exc}") from exc
 
 
+@app.on_event("startup")
+async def _sweep_orphaned_cv_upload_jobs() -> None:
+    """Recover any cv_upload_jobs left in `processing` by a prior crash/restart.
+    Refunds XP via the idempotent refund_xp RPC and marks the rows failed.
+    Bounded sweep — safe to run on every boot.
+    """
+    try:
+        from app.repositories import cv_upload_jobs as upload_jobs_repo
+        swept = upload_jobs_repo.sweep_stale_processing_jobs(minutes=5)
+        if swept:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Startup sweep: recovered %d orphaned cv_upload_jobs", len(swept),
+            )
+    except Exception:  # pragma: no cover — sweep failure must not block boot
+        import logging
+        logging.getLogger(__name__).exception("Startup orphan-sweep failed")
+
+
 @app.get("/health")
 async def health_check() -> dict:
     return {"status": "ok"}

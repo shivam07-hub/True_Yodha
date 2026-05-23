@@ -107,13 +107,19 @@ async def start_cv_upload_job(
     *,
     file_bytes: bytes,
     file_type: str,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Phase 1. Returns one of:
-      - {status: "done", job_id?, skills_detected, score, redirect_to}  ← hash cache hit
-      - {status: "processing", job_id}                                   ← LLM job queued
-    Raises 400 if user has insufficient XP for an LLM-bearing upload.
-    Raises 422 if the file has no readable text (scanned PDF).
+      - {status: "done", skills_detected, score, redirect_to}      ← hash cache hit
+      - {status: "processing", job_id}                              ← LLM job queued
+      - existing job's status payload                               ← idempotency hit
+    Raises 400 on insufficient XP, 422 on unreadable text.
     """
+    if idempotency_key:
+        existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
+        if existing:
+            return _idem_response(existing)
+
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
     _assert_cv_text_extractable(raw_text, source="upload")
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
@@ -131,7 +137,24 @@ async def start_cv_upload_job(
 
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload",
+        idempotency_key=idempotency_key,
     )
+
+
+def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
+    """Translate a cached job row back into the upload-response shape so the
+    frontend's state machine doesn't have to special-case retries."""
+    status = existing["status"]
+    if status == "done":
+        return {
+            "status": "done",
+            "skills_detected": existing.get("skills_detected") or 0,
+            "score": float(existing.get("score") or 0),
+            "redirect_to": "/onboarding/score",
+            "xp_charged": existing.get("xp_charged", 0),
+        }
+    # processing or failed — return job_id so client polls / surfaces failure
+    return {"status": "processing", "job_id": str(existing["id"])}
 
 
 async def start_cv_upload_job_from_text(
@@ -139,8 +162,14 @@ async def start_cv_upload_job_from_text(
     user_id: str,
     *,
     raw_text: str,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Phase 1 for the typed-text variant. Mirrors start_cv_upload_job."""
+    if idempotency_key:
+        existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
+        if existing:
+            return _idem_response(existing)
+
     _assert_cv_text_extractable(raw_text, source="text")
 
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
@@ -157,6 +186,7 @@ async def start_cv_upload_job_from_text(
 
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
+        idempotency_key=idempotency_key,
     )
 
 
@@ -166,6 +196,7 @@ async def _start_async_upload_job(
     raw_text: str,
     content_hash: str,
     action: str,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """Shared job-creation path for both upload + typed-text flows.
 
@@ -181,6 +212,7 @@ async def _start_async_upload_job(
     job_id = upload_jobs_repo.create_processing_job(
         user_id=user_id,
         content_hash=content_hash,
+        idempotency_key=idempotency_key,
     )
 
     try:

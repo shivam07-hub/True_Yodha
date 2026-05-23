@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
@@ -22,6 +22,7 @@ MAX_FILE_BYTES = 10 * 1024 * 1024  # 10MB
 
 class CVTextRequest(BaseModel):
     text: str
+    idempotency_key: str | None = None
 
 
 @router.post(
@@ -37,6 +38,7 @@ async def upload_cv(
     file: UploadFile,
     principal: Principal = Depends(get_principal),
     cv_repo: CVRepository = Depends(get_token_cv_repository),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> CVUploadResponse:
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
@@ -57,8 +59,8 @@ async def upload_cv(
         user_id=principal.id,
         file_bytes=file_bytes,
         file_type=file_type,
+        idempotency_key=idempotency_key,
     )
-    # Response is a union; FastAPI serialises whichever fields are present.
     return CVUploadResponse(**payload)
 
 
@@ -77,6 +79,7 @@ async def submit_cv_text(
         cv_repo=cv_repo,
         user_id=principal.id,
         raw_text=raw_text,
+        idempotency_key=body.idempotency_key,
     )
     return CVUploadResponse(**payload)
 

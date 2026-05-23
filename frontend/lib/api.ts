@@ -495,19 +495,68 @@ export const cv = {
  * Throws CVUploadFailure on terminal "failed" so the caller can surface the
  * refund context. Throws Error for transport / 4xx errors.
  */
+const CV_UPLOAD_JOB_KEY = "myro_cv_upload_job_v1"
+const CV_UPLOAD_IDEM_KEY = "myro_cv_upload_idem_v1"
+
+function _newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
+function _persistUploadJob(jobId: string): void {
+  try { localStorage.setItem(CV_UPLOAD_JOB_KEY, jobId) } catch { /* private mode */ }
+}
+
+function _clearUploadJob(): void {
+  try { localStorage.removeItem(CV_UPLOAD_JOB_KEY); localStorage.removeItem(CV_UPLOAD_IDEM_KEY) } catch { /* */ }
+}
+
+/** Returns the in-flight job_id stored from a prior session, if any. */
+export function getPersistedCVUploadJobId(): string | null {
+  try { return localStorage.getItem(CV_UPLOAD_JOB_KEY) } catch { return null }
+}
+
 export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
   const safeFile = await _normalizeUploadFile(file)
-  const initial = await _postCVUpload(token, safeFile)
-  return _resolveUploadResult(token, initial)
+  // Idempotency key persists across the page reload that mobile Chrome
+  // sometimes triggers mid-upload, so a retry returns the same job_id.
+  let idemKey: string
+  try { idemKey = localStorage.getItem(CV_UPLOAD_IDEM_KEY) ?? _newIdempotencyKey() } catch { idemKey = _newIdempotencyKey() }
+  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, idemKey) } catch { /* */ }
+
+  const initial = await _postCVUpload(token, safeFile, idemKey)
+  if (initial.status === "processing") _persistUploadJob(initial.job_id)
+  try {
+    const result = await _resolveUploadResult(token, initial)
+    _clearUploadJob()
+    return result
+  } catch (err) {
+    _clearUploadJob()
+    throw err
+  }
 }
 
 export async function uploadCVText(token: string, text: string): Promise<CVUploadResult> {
+  let idemKey: string
+  try { idemKey = localStorage.getItem(CV_UPLOAD_IDEM_KEY) ?? _newIdempotencyKey() } catch { idemKey = _newIdempotencyKey() }
+  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, idemKey) } catch { /* */ }
+
   const initial = await request<CVUploadResponse>("/cv/text", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, idempotency_key: idemKey }),
   })
-  return _resolveUploadResult(token, initial)
+  if (initial.status === "processing") _persistUploadJob(initial.job_id)
+  try {
+    const result = await _resolveUploadResult(token, initial)
+    _clearUploadJob()
+    return result
+  } catch (err) {
+    _clearUploadJob()
+    throw err
+  }
 }
 
 async function _normalizeUploadFile(file: File): Promise<File> {
@@ -523,28 +572,23 @@ async function _normalizeUploadFile(file: File): Promise<File> {
   return new File([file], safeName, { type: detected })
 }
 
-async function _postCVUpload(token: string, file: File): Promise<CVUploadResponse> {
+async function _postCVUpload(token: string, file: File, idempotencyKey: string): Promise<CVUploadResponse> {
   if (!BASE) {
     throw new Error("Upload misconfigured: missing API URL. Reload the app.")
   }
   const url = `${BASE}/cv/upload`
   const form = new FormData()
   form.append("file", file)
-  // 30s is the realistic mobile cellular socket TTL. Phase-1 should return in
-  // ~1s; any longer is a transport problem worth surfacing fast.
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Idempotency-Key": idempotencyKey,
+  }
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
   let res: Response
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      body: form,
-      signal: controller.signal,
-      mode: "cors",
-      credentials: "omit",
-      cache: "no-store",
-    })
+    res = await fetch(url, { method: "POST", headers, body: form, signal: controller.signal, mode: "cors", credentials: "omit", cache: "no-store" })
   } catch (err) {
     throw _wrapNetworkError(err)
   } finally {
@@ -557,11 +601,9 @@ async function _postCVUpload(token: string, file: File): Promise<CVUploadRespons
       retryForm.append("file", file)
       const retryRes = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${newToken}`, Accept: "application/json" },
+        headers: { ...headers, Authorization: `Bearer ${newToken}` },
         body: retryForm,
-        mode: "cors",
-        credentials: "omit",
-        cache: "no-store",
+        mode: "cors", credentials: "omit", cache: "no-store",
       })
       if (retryRes.ok) return retryRes.json() as Promise<CVUploadResponse>
     }

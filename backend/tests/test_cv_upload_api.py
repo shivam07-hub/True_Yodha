@@ -387,6 +387,36 @@ def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
     assert body["redirect_to"] == "/onboarding/score"
 
 
+def test_upload_with_idempotency_key_returns_existing_job_without_recharging(monkeypatch) -> None:
+    """Same idempotency_key + same user → return existing job, no second charge."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "X" * 200)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "find_by_idempotency_key",
+        lambda user_id, key: {"id": "existing-job-1", "status": "processing"},
+    )
+    # If charging happened, this would be incremented; assertion below pins it at 0.
+    _patch_jobs_create(monkeypatch, job_id="new-job-should-not-fire")
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+                headers={"Idempotency-Key": "client-uuid-123"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202
+    body = res.json()
+    assert body["status"] == "processing"
+    assert body["job_id"] == "existing-job-1"
+    assert state["charged"] == 0  # critical: no double-charge on retry
+
+
 def test_status_endpoint_404_when_not_owner(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     monkeypatch.setattr(

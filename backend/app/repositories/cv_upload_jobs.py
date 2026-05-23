@@ -24,27 +24,51 @@ def create_processing_job(
     *,
     user_id: str,
     content_hash: str | None,
+    idempotency_key: str | None = None,
 ) -> str:
     """Insert a row in `processing` status with xp_charged=0. Caller charges
     XP against this job_id immediately after; mark_charged updates the column
-    once the RPC returns. This ordering means an under-funded user gets a job
-    row marked `failed` (with audit) rather than an invisible 400."""
+    once the RPC returns."""
     admin = get_supabase_admin()
-    result = (
-        admin.table(_TABLE)
-        .insert({
-            "user_id": user_id,
-            "status": "processing",
-            "xp_charged": 0,
-            "content_hash": content_hash,
-        })
-        .execute()
-    )
+    payload: dict[str, Any] = {
+        "user_id": user_id,
+        "status": "processing",
+        "xp_charged": 0,
+        "content_hash": content_hash,
+    }
+    if idempotency_key:
+        payload["idempotency_key"] = idempotency_key
+    result = admin.table(_TABLE).insert(payload).execute()
     row = (result.data or [{}])[0]
     job_id = row.get("id")
     if not job_id:
         raise RuntimeError("cv_upload_jobs insert returned no id")
     return str(job_id)
+
+
+def find_by_idempotency_key(user_id: str, idempotency_key: str) -> dict[str, Any] | None:
+    """Lookup an existing job for the (user, key) pair. Returns the full row or None."""
+    admin = get_supabase_admin()
+    result = (
+        admin.table(_TABLE)
+        .select("id, status, skills_detected, score, xp_charged, xp_refunded, error_code, error_detail")
+        .eq("user_id", user_id)
+        .eq("idempotency_key", idempotency_key)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    return rows[0] if rows else None
+
+
+def sweep_stale_processing_jobs(minutes: int = 5) -> list[dict[str, Any]]:
+    """Mark processing jobs older than `minutes` as failed + refund.
+    Returns the list of swept rows. Safe to call repeatedly (refund RPC is
+    idempotent on ref_table/ref_id).
+    """
+    admin = get_supabase_admin()
+    result = admin.rpc("sweep_stale_cv_upload_jobs", {"p_minutes": minutes}).execute()
+    return result.data or []
 
 
 def mark_charged(job_id: str, amount: int) -> None:
