@@ -1,5 +1,5 @@
 .tm-domain-accordion-row {
-  grid-template-columns: 20px minmax(0, 1fr) auto 90px 32px;
+  grid-template-columns: minmax(0, 1fr) auto 90px 32px;
 }
 
 .tm-domain-accordion-row-bar {
@@ -9,17 +9,17 @@
 
 @media (max-width: 720px) {
   .tm-domain-accordion-row {
-    grid-template-columns: 16px minmax(0, 1fr) auto 28px;
+    grid-template-columns: minmax(0, 1fr) auto 28px;
     gap: 8px;
     padding: 12px 14px;
   }
 
-  .tm-domain-accordion-row > div:nth-child(3) {
+  .tm-domain-accordion-row > div:nth-child(2) {
     min-width: 0 !important;
     max-width: 92px;
   }
 
-  .tm-domain-accordion-row > div:nth-child(3) span {
+  .tm-domain-accordion-row > div:nth-child(2) span {
     max-width: 92px;
     overflow: hidden;
     text-overflow: ellipsis;

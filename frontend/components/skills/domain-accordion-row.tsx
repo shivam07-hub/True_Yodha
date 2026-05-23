@@ -49,10 +49,6 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
         padding: "14px 16px", background: "none", border: "none",
         cursor: "pointer", fontFamily: "inherit", textAlign: "left",
       }}>
-        <span style={{ fontSize: 11, color: isExpanded ? "var(--tm-accent)" : "var(--tm-text-faint)", transition: "color 200ms" }}>
-          {isExpanded ? "▼" : "▶"}
-        </span>
-
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>
             {domain}
@@ -71,7 +67,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
               border: "1px solid rgba(239,68,68,0.3)", textTransform: "uppercase",
             }}>BIGGEST GAP</span>
           ) : (
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.07em", color: "var(--tm-text-faint)", textTransform: "uppercase" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color, textTransform: "uppercase" }}>
               {status}
             </span>
           )}

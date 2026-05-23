@@ -158,6 +158,24 @@
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius);
   padding: 14px;
+  text-align: left;
+  font-family: inherit;
+  color: var(--tm-text);
+  text-decoration: none;
+  display: block;
+}
+.cvb-stat-card-interactive {
+  cursor: pointer;
+  transition: border-color 160ms var(--tm-ease), background 160ms var(--tm-ease), transform 160ms var(--tm-ease);
+}
+.cvb-stat-card-interactive:hover {
+  border-color: var(--tm-accent-ring);
+  background: var(--tm-surface-2);
+  transform: translateY(-1px);
+}
+.cvb-stat-card-interactive:focus-visible {
+  outline: 2px solid var(--tm-accent-ring);
+  outline-offset: 2px;
 }
 .cvb-stat-value { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; color: var(--tm-text); line-height: 1; }
 .cvb-stat-sub { font-size: 11px; color: var(--tm-text-faint); margin-top: 4px; }

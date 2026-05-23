@@ -491,6 +491,44 @@
 }
 .mc-all-matches:hover { color: var(--tm-text); border-color: var(--tm-border); }
 
+/* ─── Forge cart footer — persistent CTA when user has staged skills ─── */
+.mc-forge-cart-footer {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: var(--tm-radius);
+  border: 1px solid var(--tm-accent);
+  background: var(--tm-accent-wash);
+  color: var(--tm-text);
+  text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 0 24px var(--tm-accent-glow);
+  transition: background 160ms var(--tm-ease), transform 160ms var(--tm-ease);
+}
+.mc-forge-cart-footer:hover { background: color-mix(in srgb, var(--tm-accent-wash) 70%, transparent); transform: translateY(-1px); }
+.mc-forge-cart-footer .lhs {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 14px; color: var(--tm-text);
+}
+.mc-forge-cart-footer .lhs .dot {
+  width: 8px; height: 8px; border-radius: 999px; background: var(--tm-accent);
+  box-shadow: 0 0 12px var(--tm-accent-glow);
+}
+.mc-forge-cart-footer .lhs strong {
+  font-family: var(--tm-font-mono);
+  font-weight: 800; color: var(--tm-accent);
+}
+.mc-forge-cart-footer .rhs {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--tm-accent);
+  font-family: var(--tm-font-mono); letter-spacing: 0.04em;
+}
+
 /* ─── Focused job ─── */
 .mc-focus-row {
   margin-top: 16px;
@@ -549,7 +587,11 @@
   letter-spacing: -0.02em;
   line-height: 1.1;
   color: var(--tm-text);
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
+.mc-focus-title:hover { color: var(--tm-accent); }
+.mc-focus-title:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; border-radius: 4px; }
 .mc-focus-sub {
   display: flex;
   flex-wrap: wrap;
@@ -711,7 +753,12 @@
   line-height: 1.65;
   max-width: 56ch;
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  min-width: 0;
 }
+.mc-focus-card { min-width: 0; overflow: hidden; }
+.mc-focus-head > div { min-width: 0; }
 .mc-count-bub {
   font-family: var(--tm-font-mono);
   background: var(--tm-accent-wash);

@@ -21,10 +21,13 @@ export function XpExplainerModal({
         className="sm:max-w-[760px] max-w-[calc(100%-1.5rem)] p-0 bg-transparent ring-0"
         style={{
           background: "var(--tm-surface)",
-          border: "1px solid var(--tm-accent-ring)",
+          border: "1px solid var(--tm-border-soft)",
           borderRadius: "var(--tm-radius-lg)",
           boxShadow: "0 0 60px rgba(0,0,0,0.62)",
           overflow: "hidden",
+          maxHeight: "calc(100dvh - 32px)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div style={{
@@ -33,6 +36,11 @@ export function XpExplainerModal({
           display: "flex",
           alignItems: "center",
           gap: 14,
+          flexShrink: 0,
+          background: "var(--tm-surface)",
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
         }}>
           <div style={{
             width: 38,
@@ -88,12 +96,15 @@ export function XpExplainerModal({
           </button>
         </div>
 
-        <div style={{ padding: 22 }}>
+        <div style={{ padding: 22, overflowY: "auto", flex: 1, minHeight: 0 }}>
           <XpGuideLists compact />
         </div>
 
         <div style={{
-          margin: "0 22px 22px",
+          padding: "16px 22px",
+          borderTop: "1px solid var(--tm-border-soft)",
+          background: "var(--tm-surface)",
+          flexShrink: 0,
           display: "grid",
           gridTemplateColumns: "minmax(0,1fr) auto",
           gap: 12,
