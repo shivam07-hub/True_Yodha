@@ -14,6 +14,7 @@ import { useForgeSession } from "@/lib/hooks/use-forge-session"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
+import { XPGateModal } from "@/components/xp/XPGateModal"
 import { MyroLogo } from "@/components/myro-logo"
 import { FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT, openFeedbackHub as openFeedbackHubEvent, type FeedbackCategory, type OpenFeedbackDetail } from "@/components/feedback"
 import { useXPStore } from "@/store/xpStore"
@@ -875,6 +876,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="tm-shell-enter" style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
       <ForgeClockDriver />
+      <XPGateModal />
 
       <div className="tm-sidebar-wrap">
         <Sidebar

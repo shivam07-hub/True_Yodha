@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cv, diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { useRecomputeStore } from "@/store/recomputeStore"
@@ -47,6 +48,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const [appealResult, setAppealResult] = useState<import("@/lib/api").SkillAppealResponse | null>(null)
 
   const isFree = skill.forged_level_up_available
+  const gate = useXPGate({ cost: XP_POLICY.skillAdviceCost, action: "polish_skill" })
   const nextLevel = Math.min(skill.level + 1, 5)
   const tier = skillTier(skill.level)
   const nextTier = skillTier(nextLevel)
@@ -213,7 +215,9 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         <ActionBtn
           label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} XP`}
           icon={askAdvice.isPending ? "…" : "✦"}
-          onClick={() => askAdvice.mutate()}
+          onClick={() => isFree
+            ? askAdvice.mutate()
+            : gate.attempt(() => askAdvice.mutate())}
           disabled={askAdvice.isPending || !!advice}
           accent={isFree}
         />

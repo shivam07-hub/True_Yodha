@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { diary, users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
+import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
@@ -14,6 +15,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
   const [advice, setAdvice] = useState<string | null>(null)
   // queryClient not used in compact SkillCard — level correction moved to InlineSkillCard.
   const { setBalance } = useXPStore()
+  const gate = useXPGate({ cost: XP_POLICY.skillAdviceCost, action: "polish_skill" })
 
   const logToForge = useMutation({
     mutationFn: () =>
@@ -107,7 +109,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
           {/* AI advice */}
           {!skill.forged_level_up_available && (
             <button
-              onClick={() => askAdvice.mutate(false)}
+              onClick={() => gate.attempt(() => askAdvice.mutate(false))}
               disabled={askAdvice.isPending}
               style={{
                 padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",

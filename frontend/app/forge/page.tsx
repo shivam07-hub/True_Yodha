@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
+import { RequiresCV } from "@/components/empty/RequiresCV"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type {
   DiaryEntry,
@@ -383,6 +384,7 @@ function ForgePageInner() {
         </div>
       )}
 
+      <RequiresCV>
       <div className="tm-page-enter" style={{ minHeight: "100%", padding: "var(--tm-page-py) var(--tm-page-px)", display: "flex", flexDirection: "column", gap: 18 }}>
         <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
           <div>
@@ -715,6 +717,7 @@ function ForgePageInner() {
           </aside>
         </div>
       </div>
+      </RequiresCV>
     </AppShell>
   )
 }

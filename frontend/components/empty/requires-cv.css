@@ -1,0 +1,88 @@
+/* ─────────────────────────────────────────────────────────────
+   <RequiresCV> — canonical empty state for personal surfaces
+   that need a parsed CV. Replaces ad-hoc "Upload your CV"
+   copy across Forge, Skills, Intel, Tracker, Home, Market.
+   ───────────────────────────────────────────────────────────── */
+
+.tm-requires-cv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  min-height: 60vh;
+  max-width: 480px;
+  margin: 0 auto;
+  gap: 16px;
+}
+
+.tm-requires-cv-logo {
+  filter: drop-shadow(0 0 14px var(--tm-accent-glow, rgba(0, 245, 212, 0.35)));
+  margin-bottom: 4px;
+}
+
+.tm-requires-cv-heading {
+  font-family: var(--tm-font-display);
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--tm-text);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.tm-requires-cv-body {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.tm-requires-cv-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 24px;
+  height: 50px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tm-accent-fg);
+  background: var(--tm-accent);
+  border: 1px solid var(--tm-accent);
+  text-decoration: none;
+  margin-top: 8px;
+  box-shadow: 0 0 18px var(--tm-accent-glow, rgba(0, 245, 212, 0.32));
+  transition: background var(--tm-dur-fast) var(--tm-ease),
+              box-shadow var(--tm-dur-fast) var(--tm-ease),
+              transform var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-requires-cv-cta:hover {
+  background: var(--tm-accent-hover, var(--tm-accent));
+  box-shadow: 0 0 26px var(--tm-accent-glow, rgba(0, 245, 212, 0.45));
+}
+
+.tm-requires-cv-cta:active {
+  transform: scale(0.99);
+}
+
+@media (max-width: 480px) {
+  .tm-requires-cv {
+    padding: 48px 16px;
+    gap: 14px;
+  }
+
+  .tm-requires-cv-heading {
+    font-size: 24px;
+  }
+
+  .tm-requires-cv-cta {
+    height: 48px;
+    font-size: 15px;
+  }
+}

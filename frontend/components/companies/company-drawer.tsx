@@ -7,12 +7,12 @@ import { jobs as jobsApi, users } from "@/lib/api"
 import type { ApplicationResponse, CompanyPage } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { useViewport } from "@/mobile"
 import { useXPStore } from "@/store/xpStore"
+import { XP_POLICY } from "@/lib/xp-policy"
 
-const MAX_FOLLOWED = 10
-const FOLLOW_XP_COST = 10
-const XP_FLOOR = -30
+const MAX_FOLLOWED = XP_POLICY.followedCompanyLimit
 
 const LIVE_STAGES = ["saved", "applied", "screening", "interviewing", "final_round"] as const
 
@@ -34,8 +34,12 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { isDesktop } = useViewport()
-  const xpBalance = useXPStore(s => s.balance)
   const setBalance = useXPStore(s => s.setBalance)
+  const gate = useXPGate({
+    cost: XP_POLICY.followCompanyCost,
+    action: "follow_company",
+    floor: XP_POLICY.followCompanyFloor,
+  })
   const [dragOffset, setDragOffset] = useState(0)
   const dragStart = useRef<number | null>(null)
 
@@ -49,7 +53,6 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const isFollowed = (followingQuery.data?.companies ?? []).some(c => c.company_name.toLowerCase() === company.toLowerCase())
   const followedCount = followingQuery.data?.total ?? 0
   const atCap = !isFollowed && followedCount >= MAX_FOLLOWED
-  const atFloor = !isFollowed && xpBalance - FOLLOW_XP_COST < XP_FLOOR
 
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
@@ -192,20 +195,22 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
           {/* Follow toggle */}
           <button
             type="button"
-            onClick={() => isFollowed ? unfollowMutation.mutate() : followMutation.mutate()}
-            disabled={(atCap || atFloor) || followMutation.isPending || unfollowMutation.isPending}
+            onClick={() => isFollowed
+              ? unfollowMutation.mutate()
+              : gate.attempt(() => followMutation.mutate())}
+            disabled={atCap || followMutation.isPending || unfollowMutation.isPending}
             style={{
               width: "100%", padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
               border: `1px solid ${isFollowed ? "var(--tm-warning-border)" : "var(--tm-accent-ring)"}`,
               background: isFollowed ? "var(--tm-warning-wash)" : "var(--tm-accent-wash)",
               color: isFollowed ? "var(--tm-warning)" : "var(--tm-accent)",
               fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              opacity: (atCap || atFloor) ? 0.55 : 1,
+              opacity: atCap ? 0.55 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}
-            title={atCap ? `Cap: ${MAX_FOLLOWED} companies` : atFloor ? `XP floor (${XP_FLOOR}) would be breached` : ""}
+            title={atCap ? `Cap: ${MAX_FOLLOWED} companies` : ""}
           >
-            {isFollowed ? "★ Following" : `☆ Follow · -${FOLLOW_XP_COST} XP`}
+            {isFollowed ? "★ Following" : `☆ Follow · -${XP_POLICY.followCompanyCost} XP`}
           </button>
 
           {/* Saved jobs section */}

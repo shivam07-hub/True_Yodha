@@ -185,6 +185,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 13. **Anonymous trial flow — upload before signup (priority, parked 2026-05-23):** Visitor lands on `/about`, taps Upload your CV, picks a file, sees the full first-time-user value moment (skills extracted → domain map → top 3 job matches) BEFORE any signup prompt. Account creation arrives only after the value has landed; parsed CV + score data is held client-side through signup and persisted as the new account's first state. **Current /about hero rewrite ships Pattern 2 (auth-first redirect: `/signup?next=/cv?upload=1`) as the conservative interim.** Scope when picked up: client-side `File` + parsed-CV state holding through signup redirect, deferred persist after auth resolves, abandoned-signup fallback (keep the artifact in local storage for next visit), all four downstream `<RequiresCV>` boundary sites become `<RequiresUpload>` instead so anonymous + uploaded users get the same surface. Pick up after the /about hero + the four downstream Ousterhout-driven fixes have shipped and signup conversion stabilises.
 
+14. **Match refresh stuck at 2 results (bug, reported 2026-05-24):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded (because backend returns "no new matches"), but the matches list never grows past 2 entries. Expected behaviour: show 10–15 matches per the original product decision. Investigate the matches pipeline (likely either (a) `scores.compute` is silently capping at 2 due to filter mismatch, (b) skill-overlap threshold is too strict for this user's skill set, or (c) job pool for this user's target_role/target_location is genuinely tiny and we need a fallback widening rule). Touches `backend/app/services/scoring/` + the match-refresh endpoint + frontend invalidation. Pick up after Implementation #3 (useXPGate) lands — separate PR, backend-heavy.
+
 ---
 
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
@@ -264,7 +266,57 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-23 · ADR-0004 phase 1 + structural hardening A/B/C)
+## LAST SESSION SUMMARY (2026-05-24 · Batch-1 user-feedback close + Ousterhout primitives)
+
+Full diagnostic + implementation pass on the first batch of 11+ user-feedback messages (the eleven testers Shivam consolidated into the original post), running side-by-side with Codex while they shipped the CV Hub first-use story (`e2c7b00`) and mobile feedback reachability (`4ceab03`). Five commits to Develop on top of Codex's three.
+
+### Phase 1 — Four diagnostic steps
+
+Each step locked decisions that the implementation phase then executed against. Outputs preserved as memory entries + ADRs for future sessions.
+
+- **`/review`** — Audited the two showstopper bugs (user 10's "about page only shows logo" + "forge mobile button dead"). `/about` proven not a code defect (production serves full 30 KB HTML). Forge silent-no-op pinned to `if (skill) startSession(...)` at `app/forge/page.tsx:394` and `disabled={!selectedCandidate && !sessionActive}` at line 512 — both unreachable past a future `<RequiresCV>` gate. `app/forge/page.tsx` flagged at 758 lines (CLAUDE.md 300-line cap violation) for Implementation #4.
+- **`/brooks-design`** — Three Brooks questions answered. **Scarce resource = CV-version hub** (matches strongest beta signal u4/u5/u6/ux). **Exemplar = Strava** (vocabulary + feel, but later design step revealed commit-graph carries the multi-version message more honestly). **Value-prop home = `/about` above the fold.** Stake sentence locked: *"Myro is the home for every version of your CV — scored against live jobs."* `docs/adr/0005-myro-is-not.md` queued as the NOT-list ADR (Implementation #7).
+- **`/ousterhout-design`** — Five red flags. **Shallow Module (XPStore)** + **Information Leakage (CV precondition)** identified as the two root causes; everything else cascades. Fixes converged on two primitives: `useXPGate` hook + `<RequiresCV>` boundary. Design-it-twice confirmed: hook over HOC for XP gate, component boundary over route layout for CV gate.
+- **`/design-an-interface`** — Three parallel `UI Designer` subagents drafted the `/about` hero (Strava-faithful · Wise-faithful · GitHub-commit-graph-faithful). Synthesis locked: **commit-graph spine + Strava-flavored vocabulary**. The commit-graph visualises the locked scarce resource (multi-CV) more precisely than any other metaphor; Strava-flavored labels soften the engineering feel.
+
+### Phase 2 — `/grill-me` on `/about` hero (13 branches locked)
+
+Drove every branch of the hero design tree to a confirmed answer before any code: graph topology (A + ghost — 1 baseline + 2 tailored + 1 dashed invitation branch) · vocab γ (mono lowercase, no `#` sigils) · headline-subhead-chip-CTA-secondary-trust-hook copy · ParticleBg dropped · `/intel` nav renamed to `Live Job Data` w/ today's date when logged in · steps strip rewritten as `baseline / tailored / scored` · ghost-branch slow pulse animation · file plan (cv-hub-page wrapper + about-hero + about-steps + about-hero.css) · single-PR migration.
+
+Codex took the locked branches and shipped `e2c7b00 — feat: make cv hub the first-use story`, including a `CVHubPage` wrapper that mounts on both `/` and `/about`, removed `noindex, nofollow` from robots, and added sitemap entries. Copy was pivoted to intern audience (`content intern · 78 +16`, `marketing intern · 82 +20`, "Start your CV hub" CTA). Codex deliberately left two of my in-flight files uncommitted (`?next=` in auth-form, `?upload=1` in `cv/page`) and called them out in the beta report so I could land them cleanly.
+
+### Phase 3 — Five commits this session (all on `origin/Develop`)
+
+- **`332cfec` — feat(onboarding): anonymous CV hub CTA flow + cleanup.** Three uncommitted pieces Codex preserved: same-origin `?next=` whitelist + propagation through signup/login cross-link in `auth-form.tsx`; once-only `?upload=1` auto-open effect in `cv/page.tsx` that normalises the URL after firing; deletion of legacy `about-section.tsx` superseded by Codex's hero composition. Completes the path `/about → tap Start your CV hub → /signup?next=/cv?upload=1 → signup → /cv with file picker open`.
+- **`e34e021` — fix(beta): three quick wins from first beta testing report.** P0 + P1 surgical fixes from `docs/beta-testing/2026-05-24-first-beta-testing-report.md`: removed `"Wi-Fi is recommended for the first upload"` copy from `lib/api.ts:625` (network-shaming, contradicted product promise of first success on weak mobile data); added a privacy footnote in the upload modal linking to `/privacy` in a new tab so modal state survives (P0 trust); fixed `"Step 2 of 3"` → `"Step 2 of 4"` in `step-role.tsx:114` to match the four progress dots above.
+- **`8b4a1c2` — fix(auth): signup unreadable on light surface + missing theme toggle.** `design-tokens.css [data-surface="light"]` was missing the `--tm-bg-inset` override — input wells defaulted to `#030712` (near-black) on white, making typed text invisible (user 10's `Screenshot 2026-05-24 at 3.26.38 AM.png`). Added `--tm-bg-inset: #F4F7FA` to the light surface block. Also mounted `<SurfaceToggle>` inside `AuthForm` with a `Background` label — signup previously had no working toggle (login already had one in its own custom page). Now both modes expose the same toggle.
+- **`c3abff7` — feat(empty): RequiresCV boundary — single canonical pre-CV invitation.** Implementation #2. New primitives: `components/empty/RequiresCV.tsx` + `.css`. Plain wrapper API (Branch 1 lock: A). Reads `users.me().cv_parsed_at` from the shared `dataKeys.profile()` cache (Branch 2 lock: i). Renders the canonical empty state with Brooks-locked vocab ("Start your CV hub" + master / tailored / scored framing) when no CV (Branch 3 v1 lock: minimal text+button). Mounted on `/forge` (wraps everything past `<AppShell>`) and `/skills` (wraps the page body + deleted two ad-hoc `"Upload your CV…"` fallback strings + reframed the rare CV-but-no-skills empty state to "No skills mapped from your CV yet — re-upload to re-parse"). Intel / Tracker / Home / Market mounts deferred per Branch 4a tight recommendation.
+- **`8fa7a2c` — feat(xp): useXPGate hook — single source of truth for XP cost policy.** Implementation #3. New primitives: `store/xpGateStore.ts` (zustand singleton), `lib/hooks/use-xp-gate.ts` (`{ canAfford, attempt }` + optional `floor` param), `components/xp/XPGateModal.tsx` + `.css` (canonical "Not enough XP" dialog — generic copy per Branch 2 lock + Esc / click-outside dismiss + `prefers-reduced-motion`). Mounted once in `AppShell` (Branch 4a lock: i). Telemetry fires `xp_gate_passed / blocked / modal_dismissed / guide_opened`. Migrated the two highest-traffic call sites: `company-drawer.tsx` follow (dropped local `FOLLOW_XP_COST / XP_FLOOR / xpBalance / atFloor` — derived from `XP_POLICY` now; button stays clickable at-floor; cap of 10 keeps disabled treatment); `skill-card.tsx` + `skill-card-inline.tsx` Polish-with-AI (gates non-free path; free path bypasses).
+
+### Memories saved (cross-session)
+
+- `feedback_continuous-improvement-loop` — *"Every user interaction should produce signal that makes Myro better."* Shipped because Shivam stated it explicitly during the `/about` grill: every user surface must plan its feedback loop. Applies to testimonials, error states, in-product surveys, and observed behaviour.
+- `project_testimonial-reframe-outreach` — Before Implementation #6 (Trust strip), re-collect testimonials from 3–5 beta users shaped to the new Brooks-locked frame. Old quotes were captured under the *"Career Intelligence Platform"* positioning and won't all translate.
+
+### Backlog additions
+
+- **#13 — Anonymous trial flow (priority).** Upload → see skills / domain map / job matching BEFORE signup. Replaces Pattern 2 (auth-first redirect) currently shipping. Scope when picked up: client-side `File` + parsed-CV holding through signup, deferred persist after auth, abandoned-signup fallback, all `<RequiresCV>` sites become `<RequiresUpload>` for the anonymous-uploaded case.
+- **#14 — Match refresh stuck at 2 results (bug).** Reported 2026-05-24 by `shivam.mit20@gmail.com`. Match refresh charges XP, refunds (no new matches), but list never grows past 2. Expected 10–15 per original product decision. Investigate `backend/app/services/scoring/` + match-refresh endpoint + frontend invalidation. Backend-heavy, separate PR.
+
+### Open carry-over for next session
+
+- **Visual verification** (Shivam): walk `/about`, `/forge`, `/skills` at 375px + 1280px both with and without a CV; verify the gate empty state renders cleanly, the XPGateModal fires on follow / polish when balance is short, ghost-branch pulse respects reduced-motion, signup→cv?upload=1 still flows end-to-end. Two prior visual checkpoints already passed; this is the third.
+- **Implementation #4** — `/forge` page split into `<ForgeStage>` + `<ForgeCandidates>` + `<ForgeDiaryRail>` + view-model hooks (`useForgeCandidates`, `useForgeActions`). The `<RequiresCV>` gate makes the silent-no-op branches dead code; deletion lands as part of the split. Splits the 758-line monolith below the 300-line cap.
+- **Implementation #5** — first-run guided onboarding overlay around the CV hub story (matches beta P1 "Add a short guided onboarding around the CV hub story").
+- **Implementation #6** — trust strip / social proof. Blocked on testimonial outreach kickoff (see memory entry above).
+- **Implementation #7** — `docs/adr/0005-myro-is-not.md`. Explicit NOTs include "not a job board / not a CV builder from scratch / not a feed / not a coaching service / not a generic AI rewriter". The "not a CV builder from scratch" call is the one with active user demand (u6) — needs an explicit decision moment with Shivam, not autonomous.
+- **P0 follow-ups (separate PRs)** — forgot-password + change-password flows; Score methodology page ("Why this score?"); durable / resumable upload for slow networks (Backlog #14 reroute path); rename / explain Forge / Intel / Skills / Ninja Name jargon; mobile tap-target audit at 375px; CV version label clarity; "How to reach 20/50" score-improvement guidance.
+
+Verify: `tsc --noEmit` clean across all 5 session commits · `next lint` 0/0 across all 5 · backend untouched this session · 5 commits pushed cleanly with one rebase mid-session (Codex sync merges).
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-23 · ADR-0004 phase 1 + structural hardening A/B/C)
 
 End-to-end overhaul of CV upload + XP economy, kicked off by a mobile-upload bug report. 13 commits to Develop across two arcs.
 
@@ -314,7 +366,7 @@ A 27-min deploy gap on 2026-05-23 (migration applied at 12:48 UTC, backend code 
 - **80-char text guard is heuristic.** OCR-garbage PDFs can still pass and fail at the LLM; valid CVs with > 80 chars of mostly visual layout sail through. Long-term: gate on `skills_detected >= 1` BEFORE finalising the charge (would require charge-after-LLM, breaks "no LLM call without funding" — needs separate ADR).
 - **`spend_xp` / `spend_xp_to_floor`** (legacy) still in use by skill advice + follow company. Phase 2 sweep should migrate them onto the new `charge_xp` RPC for consistency.
 
-## OLDER SESSION SUMMARY (2026-05-23 · Saturday-morning mobile audit + 4 deepenings)
+## EARLIER SESSION SUMMARY (2026-05-23 · Saturday-morning mobile audit + 4 deepenings)
 
 End-to-end audit on 12 Saturday-morning screenshots (`reference/Saturday morning phone bugs/`) plus the landing-page WhatsApp shot from the night before. Shipped 7 commits to Develop: `aa7a87...` style mobile QA fixes followed by `d994558` (image 2-12 batch), `28ecf10` (image 5 CompanyDrawer), `b2c0512` (image 7 ForgeChip + LevelDots), `927ee6f` (image 8b FilterBar), `4bd6895` (image 10 triad foundation + ADR 0003), and a final wrap-up commit closing Phase 2 + ubiquitous-language pass.
 

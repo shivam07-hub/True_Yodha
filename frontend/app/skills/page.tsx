@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/app-shell"
-import { Button } from "@/components/ui/button"
+import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { ScoreRing } from "@/components/skills/score-ring"
@@ -138,6 +138,7 @@ export default function SkillsPage() {
 
   return (
     <AppShell>
+      <RequiresCV>
       <div className="tm-page-enter tm-skills-page">
 
         {/* Header */}
@@ -148,7 +149,7 @@ export default function SkillsPage() {
             <p className="tm-meta text-pretty">
               {scoreData
                 ? `${domainEntries.length} domains · ${totalSkills} skills · ${needProofCount} need proof · ${weakDomainCount} below 40%`
-                : "Upload your CV to see your Myro Score"}
+                : ""}
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -249,9 +250,9 @@ export default function SkillsPage() {
             ) : totalSkills === 0 ? (
               <div style={{ height: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)" }}>
                 <div style={{ fontSize: 36 }}>⬡</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped yet</div>
-                <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV to generate your skill constellation</div>
-                <Button variant="solid" size="lg" render={<Link href="/cv" />}>Upload CV</Button>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped from your CV yet</div>
+                <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Re-upload your CV to re-parse — different file formats can yield different results.</div>
+                <Link href="/cv?upload=1" style={{ marginTop: 6, padding: "0 18px", height: 42, display: "inline-flex", alignItems: "center", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Re-upload CV</Link>
               </div>
             ) : view === "audit" ? (
               <SkillAuditView allSkills={allSkills} />
@@ -304,6 +305,7 @@ export default function SkillsPage() {
 
         </div>
       </div>
+      </RequiresCV>
     </AppShell>
   )
 }
