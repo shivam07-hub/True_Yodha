@@ -10,6 +10,7 @@ import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { useRecomputeStore } from "@/store/recomputeStore"
 import { useCartStore } from "@/store/cartStore"
+import { LevelDots } from "@/components/skills/level-dots"
 import { LEVEL_THRESHOLDS } from "@/lib/level-thresholds"
 import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
 import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
@@ -51,7 +52,6 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const nextTier = skillTier(nextLevel)
   const tierTokens = TIER_TOKENS[tier]
   const nextTierTokens = TIER_TOKENS[nextTier]
-  const levelPct = (skill.level / 5) * 100
   const ladder = LADDER_DESCRIPTOR[`${skill.level}-${nextLevel}`] ?? LADDER_DESCRIPTOR["3-4"]
 
   const appealLocked = (skill.correction_count ?? 0) >= 2
@@ -143,11 +143,11 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       padding: "16px 18px",
       display: "flex", flexDirection: "column", gap: 12,
     }}>
-      {/* Row 1 — name + L · Gap pill */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>
-          <span style={{ marginRight: 8, color: tierTokens.fg }}>●</span>
-          {skill.display_name}
+      {/* Row 1 — name + level dots + tier pill */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <LevelDots level={skill.level} skillName={skill.display_name} size={8} color={tierTokens.fg} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{skill.display_name}</span>
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, fontFamily: "var(--tm-font-mono)",
@@ -158,15 +158,6 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         }}>
           L{skill.level} · {skillTierLabel(skill.level)}
         </span>
-      </div>
-
-      {/* Row 2 — slim progress bar */}
-      <div style={{ height: 2, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
-        <div style={{
-          height: "100%", width: `${levelPct}%`,
-          background: tierTokens.fg,
-          transition: "width 500ms var(--tm-ease)",
-        }} />
       </div>
 
       {/* Row 3 — HOW TO REACH … descriptor */}

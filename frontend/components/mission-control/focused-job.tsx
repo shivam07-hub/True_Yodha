@@ -10,6 +10,8 @@ import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
+import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
+import { useForgeTimerStore } from "@/store/forgeTimerStore"
 
 function stripTaxonomySuffix(s: string): string {
   return s.replace(/\s*\((Programming Language|Software|Framework|Library)\)\s*$/i, "")
@@ -55,6 +57,9 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
   const matchedDisplay = matchedSkills.slice(0, 2)
   const buildSkills = skills.filter((s) => (s.user_level ?? 0) === 0).slice(0, 4)
   const [companyDrawerOpen, setCompanyDrawerOpen] = React.useState(false)
+  const activeForgeSkill = useForgeTimerStore(s => s.skillName)
+  const sessionActive = useForgeTimerStore(s => s.sessionActive)
+  const totalCartSkills = cartSkillNames.size
 
   return (
     <div className="mc-focus-row" ref={ref}>
@@ -212,18 +217,21 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             const fromLvl = s.user_level ?? 0
             const toLvl = s.required_level ?? 1
             const sessions = sessionsForGap(fromLvl, toLvl)
+            const activeSkillLower = activeForgeSkill?.toLowerCase()
+            const isForging = sessionActive && activeSkillLower === s.skill.toLowerCase()
+            const state: ForgeChipState = isForging ? "active" : inCart ? "cart" : "idle"
             return (
               <div className="mc-skill-build-row" key={s.skill}>
                 <div className="name">{stripTaxonomySuffix(s.skill)}</div>
                 <div className="meta">
                   <span className="lvl">L{fromLvl}→L{toLvl}</span>
-                  <button
-                    type="button"
-                    className={`mc-lock-btn tm-control-focus${inCart ? " is-active" : ""}`}
+                  <ForgeChip
+                    skillName={s.skill}
+                    level={fromLvl}
+                    sessionsToNext={sessions}
+                    state={state}
                     onClick={() => onSkillToggle(s)}
-                  >
-                    {inCart ? "Locked ✓" : `Lock in · ${sessions} ses`}
-                  </button>
+                  />
                 </div>
               </div>
             )
@@ -231,6 +239,20 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
         )}
 
       </aside>
+
+      {totalCartSkills > 0 && (
+        <Link href="/forge" className="mc-forge-cart-footer">
+          <span className="lhs">
+            <span className="dot" aria-hidden />
+            <span className="lbl">
+              <strong>{totalCartSkills}</strong> skill{totalCartSkills === 1 ? "" : "s"} locked
+            </span>
+          </span>
+          <span className="rhs">
+            Open Forge <Icon name="arrowRight" size={12} />
+          </span>
+        </Link>
+      )}
 
       {job.company && (
         <CompanyDrawer
@@ -251,30 +273,23 @@ interface SkillMatchRowProps {
 
 function SkillMatchRow({ skill, inCart, onDominate }: SkillMatchRowProps) {
   const level = Math.max(0, Math.min(MAX_LEVEL, Math.round(skill.user_level ?? 0)))
-  const atMax = level >= MAX_LEVEL
-  const sessions = atMax ? 0 : sessionsForGap(level, level + 1)
+  const sessions = level >= MAX_LEVEL ? 0 : sessionsForGap(level, level + 1)
+  const activeSkill = useForgeTimerStore(s => s.skillName)
+  const sessionActive = useForgeTimerStore(s => s.sessionActive)
+  const isForging = sessionActive && activeSkill?.toLowerCase() === skill.skill.toLowerCase()
+  const state: ForgeChipState = isForging ? "active" : inCart ? "cart" : "idle"
   return (
     <div className="mc-skill-match-row">
       <div className="name">{stripTaxonomySuffix(skill.skill)}</div>
       <div className="right">
-        <div className="mc-lvl-dots">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span key={i} className={`d${i < level ? " on" : ""}`} />
-          ))}
-        </div>
-        <span className="mc-lvl-label">L{level}</span>
-        {atMax ? (
-          <span className="mc-lvl-status">Maxed</span>
-        ) : (
-          <button
-            type="button"
-            className={`mc-dominate-btn tm-control-focus${inCart ? " is-active" : ""}`}
-            onClick={onDominate}
-            title={`Push L${level} → L${level + 1} · ${sessions} session${sessions === 1 ? "" : "s"}`}
-          >
-            {inCart ? `Locked · ${sessions} ses` : `Dominate · ${sessions} ses`}
-          </button>
-        )}
+        <ForgeChip
+          skillName={skill.skill}
+          level={level}
+          sessionsToNext={sessions}
+          state={state}
+          onClick={onDominate}
+          ariaLabel={`${skill.skill} · push L${level} → L${level + 1} · ${sessions} session${sessions === 1 ? "" : "s"}`}
+        />
       </div>
     </div>
   )
