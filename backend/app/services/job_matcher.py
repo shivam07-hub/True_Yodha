@@ -70,6 +70,13 @@ def get_top_matches(
         main_hits = [s for s in main if s.lower() in user_lower]
         side_hits = [s for s in side if s.lower() in user_lower]
 
+        # MIN_SKILL_OVERLAP=3. Hard floor: jobs with <3 matched skills are dropped.
+        # Beta-3 "stuck at 2 results" (Backlog #14, shivam.mit20@gmail.com 2026-05-24)
+        # surfaces when this floor + top_n cap + excluded_job_ids accumulation
+        # collapse the pool. Users with narrow/junior CVs may only ever clear this
+        # floor on 1-2 jobs even with a healthy candidate pool. Fix path under
+        # design: tiered floor (3 default → 2 if fewer than top_n/2 candidates
+        # qualify), bigger top_n, reset excluded_job_ids on batch_week boundary.
         if len(main_hits) + len(side_hits) < 3:
             continue
 
