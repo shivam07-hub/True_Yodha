@@ -143,6 +143,7 @@ class RefreshStateResponse(BaseModel):
     matches_written: int | None = None
     refund: int | None = None
     new_xp_balance: int | None = None
+    outcome_kind: Literal["written", "cache_hit", "exhausted", "needs_onboarding"] | None = None
     error: str | None = None
     debug: dict[str, Any] | None = None
 

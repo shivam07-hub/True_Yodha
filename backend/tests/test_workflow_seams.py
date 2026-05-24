@@ -8,6 +8,7 @@ from typing import Any
 
 from app.repositories.scores import ScoresRepository
 from app.services import cv_workflow, jobs_workflow
+from app.services.job_refresh import _dispatch
 
 
 def test_router_modules_do_not_reference_repository_clients() -> None:
@@ -201,3 +202,15 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
     assert result.debug["user_skills_count"] == 1
     assert result.debug["candidate_jobs_count"] == 2
     assert result.debug["top_jobs_count"] == 2
+
+
+def test_refresh_state_carries_match_outcome_kind() -> None:
+    state = _dispatch._state(
+        "ticket-1",
+        "done",
+        date(2026, 5, 25),
+        matches_written=0,
+        outcome_kind="exhausted",
+    )
+
+    assert state.outcome_kind == "exhausted"

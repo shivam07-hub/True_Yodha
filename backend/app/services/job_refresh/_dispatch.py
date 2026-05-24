@@ -24,6 +24,7 @@ from app.services.job_refresh import _pipeline, _xp_charge
 from app.services.job_refresh.types import (
     PROGRESS_LABELS,
     RefreshLifecycle,
+    RefreshOutcomeKind,
     RefreshState,
     RefreshTicket,
 )
@@ -89,6 +90,7 @@ def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
         matches_written=raw.get("matches_written"),
         refund=raw.get("refund"),
         new_xp_balance=raw.get("new_xp_balance"),
+        outcome_kind=raw.get("outcome_kind"),
         error=raw.get("error"),
         debug=raw.get("debug") or {},
     )
@@ -102,6 +104,7 @@ def _state(
     matches_written: int | None = None,
     refund: int | None = None,
     new_xp_balance: int | None = None,
+    outcome_kind: RefreshOutcomeKind | None = None,
     error: str | None = None,
     debug: dict[str, Any] | None = None,
 ) -> RefreshState:
@@ -113,6 +116,7 @@ def _state(
         matches_written=matches_written,
         refund=refund,
         new_xp_balance=new_xp_balance,
+        outcome_kind=outcome_kind,
         error=error,
         debug=debug or {},
     )
@@ -154,6 +158,7 @@ async def _run_inline(
             matches_written=outcome.matches_written,
             refund=xp_charged,
             new_xp_balance=refunded_balance,
+            outcome_kind=outcome.kind,
             debug=outcome.debug,
         )
     else:
@@ -162,6 +167,7 @@ async def _run_inline(
             "done",
             batch_week,
             matches_written=outcome.matches_written,
+            outcome_kind=outcome.kind,
             debug=outcome.debug,
         )
     _write_state(user_id, final)
@@ -270,6 +276,7 @@ def run_pipeline_worker(
             matches_written=outcome.matches_written,
             refund=xp_charged,
             new_xp_balance=refunded_balance,
+            outcome_kind=outcome.kind,
             debug=outcome.debug,
         )
     else:
@@ -278,6 +285,7 @@ def run_pipeline_worker(
             "done",
             batch_week,
             matches_written=outcome.matches_written,
+            outcome_kind=outcome.kind,
             debug=outcome.debug,
         )
     _write_state(user_id, final)

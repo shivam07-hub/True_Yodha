@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { type QueryClient } from "@tanstack/react-query"
-import { jobs, type RefreshStateResponse } from "@/lib/api"
+import { jobs, type RefreshOutcomeKind, type RefreshStateResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
 import { XP_POLICY } from "@/lib/xp-policy"
@@ -21,12 +21,15 @@ export type RefreshState =
   | "error_insufficient_xp"
   | "error_failed"
 
+export type { RefreshOutcomeKind }
+
 export interface UseJobRefreshResult {
   state: RefreshState
   progressLabel: string | null
   cost: number
   canAfford: boolean
   matchesWritten: number | null
+  outcomeKind: RefreshOutcomeKind | null
   errorMessage: string | null
   refresh: () => void
   reset: () => void
@@ -43,6 +46,7 @@ export function useJobRefresh(
   const [state, setState] = useState<RefreshState>("idle")
   const [progressLabel, setProgressLabel] = useState<string | null>(null)
   const [matchesWritten, setMatchesWritten] = useState<number | null>(null)
+  const [outcomeKind, setOutcomeKind] = useState<RefreshOutcomeKind | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -65,11 +69,13 @@ export function useJobRefresh(
         setState("error_failed")
         setErrorMessage(payload.error || "Refresh failed. Please try again.")
         setProgressLabel(null)
+        setOutcomeKind(null)
         return
       }
       setState("done")
       setProgressLabel(payload.progress_label)
       setMatchesWritten(payload.matches_written ?? 0)
+      setOutcomeKind(payload.outcome_kind)
       if (token) clearLocalCache(userCacheKey(token, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
@@ -87,6 +93,7 @@ export function useJobRefresh(
       setState("error_failed")
       setErrorMessage("Refresh timed out. Try again — XP will be refunded if compute didn't run.")
       setProgressLabel(null)
+      setOutcomeKind(null)
       return
     }
     try {
@@ -101,6 +108,7 @@ export function useJobRefresh(
       setState("error_failed")
       setErrorMessage((err as Error).message || "Lost connection to refresh status.")
       setProgressLabel(null)
+      setOutcomeKind(null)
     }
   }, [handleTerminal, stopPolling, token])
 
@@ -123,11 +131,13 @@ export function useJobRefresh(
         `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP (refunded if no new matches are found).`,
       )
       setProgressLabel(null)
+      setOutcomeKind(null)
       return
     }
     setState("charging")
     setErrorMessage(null)
     setMatchesWritten(null)
+    setOutcomeKind(null)
     setProgressLabel("Charging XP")
     try {
       const ticket = await jobs.refresh(token)
@@ -147,6 +157,7 @@ export function useJobRefresh(
         setErrorMessage(msg || "Refresh failed. Please try again.")
       }
       setProgressLabel(null)
+      setOutcomeKind(null)
     }
   }, [balance, setBalance, startPolling, state, token])
 
@@ -155,6 +166,7 @@ export function useJobRefresh(
     setState("idle")
     setProgressLabel(null)
     setMatchesWritten(null)
+    setOutcomeKind(null)
     setErrorMessage(null)
   }, [stopPolling])
 
@@ -166,6 +178,7 @@ export function useJobRefresh(
     cost: REFRESH_XP_COST,
     canAfford: balance >= REFRESH_XP_COST,
     matchesWritten,
+    outcomeKind,
     errorMessage,
     refresh,
     reset,
