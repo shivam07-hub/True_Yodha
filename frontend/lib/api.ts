@@ -152,12 +152,12 @@ export interface UserProfile {
   target_roles: string[]
   target_location: string | null
   cv_url: string | null
-  cv_parsed_at: string | null
   onboarding_complete: boolean
   created_at: string
   last_active_at: string
   ninja_name: string | null
   referred_by_user_id: string | null
+  has_cv: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -572,27 +572,51 @@ async function _normalizeUploadFile(file: File): Promise<File> {
   return new File([file], safeName, { type: detected })
 }
 
+// 90s budget covers Railway cold-start (~20-30s worst case) + a slow 3G PUT of
+// a multi-MB CV. Aligns with the beta-2 SLO: 99% of valid CVs reach a parsed
+// terminal status within 90s on a 3G connection. A first AbortError triggers
+// one automatic retry with the same Idempotency-Key (server dedups, never
+// double-charges) so a single slow leg never becomes a user-visible failure.
+const _CV_UPLOAD_POST_TIMEOUT_MS = 90_000
+
 async function _postCVUpload(token: string, file: File, idempotencyKey: string): Promise<CVUploadResponse> {
   if (!BASE) {
     throw new Error("Upload misconfigured: missing API URL. Reload the app.")
   }
   const url = `${BASE}/cv/upload`
-  const form = new FormData()
-  form.append("file", file)
+  const buildForm = (): FormData => {
+    const f = new FormData()
+    f.append("file", file)
+    return f
+  }
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: "application/json",
     "Idempotency-Key": idempotencyKey,
   }
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30_000)
+  const attempt = async (): Promise<Response> => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), _CV_UPLOAD_POST_TIMEOUT_MS)
+    try {
+      return await fetch(url, { method: "POST", headers, body: buildForm(), signal: controller.signal, mode: "cors", credentials: "omit", cache: "no-store" })
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
   let res: Response
   try {
-    res = await fetch(url, { method: "POST", headers, body: form, signal: controller.signal, mode: "cors", credentials: "omit", cache: "no-store" })
+    res = await attempt()
   } catch (err) {
-    throw _wrapNetworkError(err)
-  } finally {
-    clearTimeout(timeout)
+    const name = (err as Error)?.name
+    if (name === "AbortError" || name === "TypeError") {
+      try {
+        res = await attempt()
+      } catch (retryErr) {
+        throw _wrapNetworkError(retryErr)
+      }
+    } else {
+      throw _wrapNetworkError(err)
+    }
   }
   if (res.status === 401 && typeof window !== "undefined") {
     const newToken = await tryRefreshToken()

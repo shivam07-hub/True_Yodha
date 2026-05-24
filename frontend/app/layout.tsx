@@ -29,6 +29,10 @@ export const metadata: Metadata = {
     title: "Myro",
   },
   robots: { index: true, follow: true },
+  // OG + Twitter images are produced by app/opengraph-image.tsx (and the
+  // per-profile override at app/profile/[ninja]/opengraph-image.tsx) via the
+  // Next 14 file convention. Do NOT set `images:` here — the file convention
+  // takes precedence only when no manual URL overrides it.
   openGraph: {
     type: "website",
     url: "https://www.himyro.com",
@@ -36,14 +40,12 @@ export const metadata: Metadata = {
     description:
       "Save your master CV, tailor versions for internships and jobs, and know which resume to send next.",
     siteName: "Myro",
-    images: [{ url: "/brand/og-image.png", width: 1200, height: 630, alt: "Myro — Career Intelligence" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Myro - One hub for every CV version",
     description:
       "Save your master CV, tailor versions for internships and jobs, and know which resume to send next.",
-    images: ["/brand/og-image.png"],
   },
   icons: {
     icon: [

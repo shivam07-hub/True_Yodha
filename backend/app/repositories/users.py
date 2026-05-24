@@ -39,6 +39,25 @@ class UsersRepository:
         )
         return (result.data if result else None) or None
 
+    def has_baseline_cv(self, user_id: str) -> bool:
+        """True iff the user owns at least one baseline cv_versions row.
+
+        Canonical signal for the `<RequiresCV>` boundary primitive. Replaces
+        the dropped `user_profiles.cv_parsed_at` column (removed in
+        20260518_cv_versions_unify) — that field's absence silently broke
+        the gate so every CV-uploaded user kept seeing the upload nag on
+        Forge / Skills.
+        """
+        result = (
+            self._db.table("cv_versions")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .limit(1)
+            .execute()
+        )
+        return (result.count or 0) > 0
+
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
         if "target_location" in payload:

@@ -40,6 +40,7 @@ async def get_me(
     profile = users_repo.get_profile(principal.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
+    profile["has_cv"] = users_repo.has_baseline_cv(principal.id)
     return UserProfileResponse(**profile)
 
 

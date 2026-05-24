@@ -95,6 +95,7 @@ function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setUploadResult({ skills_detected: result.skills_detected, score: result.score })
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
@@ -161,6 +162,7 @@ function CVPage() {
         queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
         queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
         setUploadResult({ skills_detected: result.skills_detected, score: result.score })
         setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
       })
