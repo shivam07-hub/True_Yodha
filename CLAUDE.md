@@ -266,7 +266,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 · Batch-1 user-feedback close + Ousterhout primitives)
+## LAST SESSION SUMMARY (2026-05-24 evening · Beta-2 intake + two P0 production fixes)
+
+Short evening session on top of the morning's Ousterhout primitives. Folded the second wave of beta feedback (10 new respondents — Palak, Shilpa, Hiya, Rohan, User C, User CX, Y, Navya, Vaibhav, Sanika) into the existing beta-testing report as Appendix A, then closed the two production regressions the new batch exposed.
+
+### Two commits landed on Develop
+
+- **`0684d9e` — fix(cv-upload): 90s timeout + single auto-retry on abort.** Vaibhav (mobile + desktop, both PDF + DOCX) and an anonymous reviewer hit "Upload was interrupted. Tap to try again." on every attempt. Root cause: the phase-1 `POST /cv/upload` aborted at 30s, too tight for a Railway cold-start (~20-30s worst case) stacked on a multi-MB CV upload over weak mobile data. `_postCVUpload` in `frontend/lib/api.ts` now uses a 90s `_CV_UPLOAD_POST_TIMEOUT_MS` budget (aligned with the new beta-2 SLO of 99% terminal in <90s on 3G) and auto-retries once on `AbortError` or `TypeError` with the same `Idempotency-Key`. CVUP1's server-side dedup makes the retry double-charge-proof.
+- **`f0e4158` — fix(og): render og + twitter image via app/opengraph-image.tsx.** Vaibhav and Y both reported broken share unfurls. Root cause: `frontend/app/layout.tsx:39` referenced `/brand/og-image.png` but the file never existed under `frontend/public/brand/`. New `app/opengraph-image.tsx` produces a 1200x630 edge-generated PNG (dark gradient, aperture mark, wordmark, hero "One hub for every CV version.", master/tailored/scored footer) for the root and every child route. Hardcoded `images:` arrays removed from layout's `openGraph` + `twitter` so the Next 14 file convention can take precedence. Per-profile override at `app/profile/[ninja]/opengraph-image.tsx` (SH6) keeps working unchanged. The same commit also lands the beta-report Appendix A.
+
+### Beta report Appendix A (172 new lines in `docs/beta-testing/2026-05-24-first-beta-testing-report.md`)
+
+Five sub-sections: **A.1 P0 regressions** (upload broken, OG image confirmed missing in code, blank homepage, Razorpay auth failure from Rohan's screenshot, Mission CTAs dead-ending at upload, persistent "Upload CV" CTA after upload, mobile preview overlap, noindex flag verified as already removed in code). **A.2 Per-user reports** for all 10 new respondents. **A.3 18 stable-numbered JTBDs** (first success, hub, landing comprehension, score legibility + improvement, vocab, mobile editing, persistence, state-aware CTAs, tracker, share, light-mode default, pricing, career-identity-not-resume-tool, cross-device, feedback-visible, intel filters, walkthrough). **A.4 16 decisions to lock** (theme default split, public 10-domain taxonomy, vocab swap, upload SLO, pricing surface, escalate anonymous-trial to P0, empty-state contract, state-aware CTAs, walkthrough mount, Mission CTA reroute, OG pipeline, score methodology page, Career Identity positioning, testimonial reframe, shipped-from-feedback log, mobile editor architecture). **A.5 Perplexity Jobs plugin readiness** (surface prereqs, public `/v1/` API contracts, well-known manifest, newsletter authoring bar).
+
+Newsletter intentionally NOT drafted — CLAUDE.md absolute rule plus VOICE-NOTES.md require an angle/dashboards/heading agreement with Shivam before writing. Appendix A is the input brief, not the article.
+
+### Open carry-over for the next session
+
+- **Verify both fixes in prod:** share `https://www.himyro.com` to WhatsApp + iMessage and confirm the new OG image renders; upload a CV from a throttled (Slow 3G) Chrome DevTools profile and confirm the 90s + auto-retry path lands a `processing` status, not the interrupted error.
+- **Backlog #14 (match refresh stuck at 2)** is downstream of the upload fix. If upload now reliably parses, Shilpa's "no matches that reflected my profile" report should be re-tested before any scoring change.
+- **Razorpay auth failure (Rohan)** is the highest-severity unknown still open — no live receipt of payment testing this session.
+- **Pending decisions from Appendix A.4 that block engineering:** theme default split, public 10-domain taxonomy naming, vocab-swap final word list, Career Identity positioning lock. All require Shivam, not autonomous.
+- The morning carry-over (visual verification of `/about`, `/forge`, `/skills`; Implementations #4, #5, #6, #7) is unchanged — none of it was touched this evening.
+
+Verify: `tsc --noEmit` clean across both commits · `next lint` 0/0 · backend untouched · 2 commits pushed cleanly to `origin/Develop` after a fast-forward pull.
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-24 · Batch-1 user-feedback close + Ousterhout primitives)
 
 Full diagnostic + implementation pass on the first batch of 11+ user-feedback messages (the eleven testers Shivam consolidated into the original post), running side-by-side with Codex while they shipped the CV Hub first-use story (`e2c7b00`) and mobile feedback reachability (`4ceab03`). Five commits to Develop on top of Codex's three.
 
