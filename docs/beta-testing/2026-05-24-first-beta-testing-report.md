@@ -1,7 +1,7 @@
 # Myro First Beta Testing Report
 
 Date: 2026-05-24
-Source: Internshala fellowship outreach, WhatsApp user replies, attached mobile screenshot, and Karthikeya Konda's Notion QA report link shared in the product thread.
+Source: Internshala fellowship outreach, WhatsApp user replies, attached mobile screenshot, Karthikeya Konda's Notion QA report link, Bibi mobile editor feedback, User X onboarding jargon feedback, and User 2's LinkyHost screenshot shared in the product thread.
 Audience: Shivam, Claude, Codex, and every future agent improving Myro.
 
 ## Celebration
@@ -41,9 +41,64 @@ The intelligence layer should be introduced after this story is understood. Myro
 - A user could not send feedback properly on phone; the attached screenshot showed the Settings modal squeezed into an unusable desktop layout.
 - Users do not understand why they got a low score or how to move from a score like 9 to a better score.
 - CV version creation, saving, switching, and comparison need clearer labels.
+- Mobile CV editing is too hard when it depends on finger drag-and-drop or small text boxes.
+- Users do not see enough draft-safety reassurance; they worry app close or refresh can lose work.
+- Mission/onboarding terminology like "Forge Product Family Engineering" and "L0 -> L1" can intimidate first-time job seekers.
+- Gamified systems like XP, streaks, locked features, heatmaps, missions, and score systems can motivate, but can also create pressure if they appear before the user understands value.
+- Company/job recommendation trust needs clearer explanation so freshers understand why a company, role, or match is shown.
+- CV upload and AI processing interruptions make the whole product feel blocked because many features depend on CV-based analysis.
+- Feedback collection should appear naturally during onboarding and feature usage, not only as a separate end-of-flow form.
 - Password recovery/change-password flows are missing.
 - Public trust is underdeveloped: privacy policy visibility, data handling explanation, score methodology, social proof, accessibility, and SEO.
 - `noindex, nofollow` on the public site was a critical discovery risk.
+
+## Additional Feedback Logged After Initial Report
+
+### User Bibi - Mobile CV Editing
+
+- Drag-and-drop is not working well on mobile; moving sections with a finger is hard.
+- Typing and editing text in small boxes is difficult on a phone screen.
+- The user could not find a "Save Draft" button and worried that accidental app close would lose all work.
+- Direct recommendation: improve mobile drag-and-drop and add auto-save.
+
+Product interpretation:
+
+- Treat drag-only section movement as a mobile accessibility failure. Add explicit reorder controls or a bottom-sheet reorder mode rather than relying only on touch drag precision.
+- Treat draft safety as part of trust. Auto-save needs a visible saved/saving/error state and a recovery path after refresh or app close.
+- Mobile text editing should use larger fields, stronger focus states, and preferably full-screen edit affordances for dense CV sections.
+
+### User 2 - LinkyHost Screenshot
+
+Source link: `https://sparkling-grass-437.linkyhost.com/`
+
+- Praised the modern concept, visual polish, CV analysis, skill intelligence, job matching, tracker, bottom navigation, and organized feel.
+- Felt confused by corporate-heavy terminology such as stakeholder management, agile project management, product strategy, go-to-market strategy, data/business analysis, and user research/discovery.
+- Felt XP, streaks, heatmaps, missions, progression tracking, locked features, and score systems are creative but can feel pressure-like for anxious students if introduced too early.
+- Asked for clearer company/job clarity and trust: explain company recommendations and role matching.
+- Reported a major CV upload and AI processing issue; the upload did not complete smoothly and made the experience feel interrupted.
+- Said screens can feel messy and overwhelming because many tabs, metrics, and tracking elements are visible together.
+- Recommended beginner-friendly walkthroughs or accessibility guidance before users enter the platform deeply.
+- Recommended embedding small feedback questions during onboarding and feature usage, because separate feedback forms are often skipped.
+
+Product interpretation:
+
+- Introduce career intelligence gradually after the CV hub first-use story.
+- Simplify beginner-facing language and add plain-English definitions where terminology is unavoidable.
+- Make the first CV upload reliable, resumable, and transparent before pushing deeper intelligence features.
+- Reduce early dashboard density and reveal advanced metrics after the user has a working CV and first score.
+- Add contextual feedback prompts at moments of friction, such as after upload, first score, first saved job, first edit, and first failed action.
+
+### User X - Onboarding Jargon
+
+- First-time or general job seekers can find Mission page terms intimidating or confusing.
+- Specific examples: "Forge Product Family Engineering" and "L0 -> L1".
+- Recommendation: add clear onboarding tooltips or brief explainers so the platform is accessible from day one.
+
+Product interpretation:
+
+- Do not assume product-management or game-system vocabulary is beginner-safe.
+- Prefer plain labels first, with branded terms second. Example: "Practice session" can carry "Forge" after the user understands the action.
+- Tooltips should explain non-visible meaning only; avoid redundant helper text when a visual state already communicates the fact.
 
 ## What We Already Shipped From This Report
 
@@ -81,7 +136,9 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 
 ### P0 - Trust, Access, and First Successful CV
 
+- Make first CV upload and AI processing resumable, retryable, and transparent on weak mobile data.
 - Make CV delivery/download durable and resumable for slow networks in India.
+- Add CV draft auto-save with visible saved/saving/error state and recovery after app close or refresh.
 - Remove any "Wi-Fi recommended" first-upload copy; the product promise is that first success works even on weak mobile data.
 - Add forgot-password and change-password flows.
 - Make privacy/data-handling clear before CV upload.
@@ -92,8 +149,10 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 - Add a short guided onboarding around the CV hub story.
 - Fix onboarding step mismatch: four dots but "Step 2 of 3".
 - Rename or explain jargon: Forge, Intel, Skills, Ninja Name.
+- Rename or explain Mission terminology: Forge Product Family Engineering, L0 -> L1, missions, XP, streaks, heatmaps, and locked features.
 - Split mental model: "CV Hub" first, "Career Intelligence" second.
 - Add low-score improvement guidance like "How to reach 20/50".
+- Add beginner-friendly walkthroughs that introduce advanced tabs and metrics only after the first CV moment.
 - Consider Hindi/simple-language support for tier-2 students.
 
 ### P1 - Mobile Usability
@@ -103,6 +162,9 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 - Reorder cards/tabs so the fastest and most important content appears first.
 - Reduce crowded mobile spacing on Skills, Intel, CV preview, and Settings.
 - Make "Pick a target job" highly visible on mobile.
+- Fix mobile CV editor drag-and-drop with explicit touch-safe reorder controls.
+- Increase mobile CV text-editing comfort with larger fields or full-screen edit mode.
+- Add visible auto-save/draft recovery states for CV editing.
 
 ### P1 - CV Version Management
 
@@ -118,6 +180,7 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 - Keep Instagram reels, before/after resume transformations, college WhatsApp groups, LinkedIn, internship communities, and success stories as GTM channels.
 - Position: "One Hub, All Your CVs - Apply Faster" or "One CV for every job" as testable messaging.
 - Build shareable improvement loops around score -> explain -> improve -> share.
+- Add in-context feedback prompts during onboarding and key feature moments instead of depending only on separate feedback forms.
 
 ## System Principle Going Forward
 
