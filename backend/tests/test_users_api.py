@@ -20,7 +20,6 @@ def _profile_row(**overrides: Any) -> dict[str, Any]:
         "target_roles": ["Data Analyst"],
         "target_location": None,
         "cv_url": None,
-        "cv_parsed_at": None,
         "onboarding_complete": True,
         "created_at": now,
         "last_active_at": now,
@@ -34,15 +33,21 @@ class _FakeUsersRepository:
         self,
         profile: dict[str, Any] | None = None,
         records: list[UserSkillRecord] | None = None,
+        *,
+        has_cv: bool = False,
     ) -> None:
         self.profile = profile
         self.records = records or []
         self.updates: list[tuple[str, dict[str, Any]]] = []
         self.followed_companies: list[dict[str, Any]] = []
         self.followed_writes: list[tuple[str, str]] = []
+        self._has_cv = has_cv
 
     def get_profile(self, _user_id: str) -> dict[str, Any] | None:
         return self.profile
+
+    def has_baseline_cv(self, _user_id: str) -> bool:
+        return self._has_cv
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         self.updates.append((user_id, updates))
@@ -83,6 +88,25 @@ def test_get_me_reads_through_token_repository() -> None:
 
     assert response.status_code == 200
     assert response.json()["email"] == "u@example.com"
+    assert response.json()["has_cv"] is False
+
+
+def test_get_me_reports_has_cv_when_baseline_exists() -> None:
+    """Regression: with no baseline cv_versions row the gate stays closed;
+    once a baseline exists, has_cv flips True so RequiresCV unlocks Forge/Skills.
+    """
+    repo = _FakeUsersRepository(profile=_profile_row(), has_cv=True)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["has_cv"] is True
 
 
 def test_update_profile_writes_through_token_repository() -> None:

@@ -21,9 +21,12 @@ interface RequiresCVProps {
  * Home, Market) each with its own ad-hoc empty state. This boundary collapses
  * those into one canonical pre-CV invitation.
  *
- * Signal: `users.me().cv_parsed_at` non-null = user has a usable parsed CV.
- * Uses the same `dataKeys.profile()` key every authed page shares, so the
- * gate decision comes from cache on warm pages.
+ * Signal: `users.me().has_cv` — backend derives this from cv_versions
+ * (any row with kind='baseline_upload'). The original `cv_parsed_at`
+ * column was dropped in 20260518_cv_versions_unify; reading the dead
+ * field silently blocked every CV-uploaded user on Forge / Skills.
+ * Uses the same `dataKeys.profile()` key every authed page shares, so
+ * the gate decision comes from cache on warm pages.
  */
 export function RequiresCV({ children }: RequiresCVProps) {
   const { token, ready } = useAuth()
@@ -37,7 +40,7 @@ export function RequiresCV({ children }: RequiresCVProps) {
   if (!ready || !token) return null
   if (profileQuery.isLoading) return null
 
-  const hasCV = !!profileQuery.data?.cv_parsed_at
+  const hasCV = !!profileQuery.data?.has_cv
   if (hasCV) return <>{children}</>
 
   return <CVRequiredEmpty />

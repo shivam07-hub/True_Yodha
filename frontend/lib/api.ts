@@ -152,12 +152,12 @@ export interface UserProfile {
   target_roles: string[]
   target_location: string | null
   cv_url: string | null
-  cv_parsed_at: string | null
   onboarding_complete: boolean
   created_at: string
   last_active_at: string
   ninja_name: string | null
   referred_by_user_id: string | null
+  has_cv: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
