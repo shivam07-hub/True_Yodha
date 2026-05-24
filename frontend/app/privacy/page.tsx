@@ -25,7 +25,18 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--tm-bg)", fontFamily: "var(--tm-font-sans)", display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--tm-bg)",
+        fontFamily: "var(--tm-font-sans)",
+        display: "flex",
+        flexDirection: "column",
+        ["--tm-fs-heading" as string]: "1.125rem",
+        ["--tm-fs-body" as string]: "0.8125rem",
+        ["--tm-fs-meta" as string]: "0.6875rem",
+      }}
+    >
 
       <PublicTopNav active="privacy" showSignIn />
 
@@ -52,7 +63,7 @@ export default function PrivacyPage() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 12 }}>
             Legal
           </div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
+          <h1 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
             Privacy Policy
           </h1>
           <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", margin: 0 }}>
