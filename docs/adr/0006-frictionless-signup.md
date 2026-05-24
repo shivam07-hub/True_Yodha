@@ -1,6 +1,6 @@
 # ADR-0006 — Frictionless signup (OAuth + magic-link primary; anon trial killed)
 
-Date: 2026-05-24
+Date: 2026-05-24 (LinkedIn add-on locked same day)
 Status: Accepted
 Supersedes: Backlog #13 (Anonymous trial flow — upload before signup)
 
@@ -21,7 +21,7 @@ Replace Backlog #13 (anon trial) with frictionless signup. 18 sub-decisions, sum
 
 ### Auth surface
 
-1. **Signup paths = 2** (Google OAuth + magic-link). **Login paths = 3** (+ password for legacy 110 users). Password is preserved for login but not offered as a new-signup option.
+1. **Signup paths = 3** (Google OAuth + LinkedIn OAuth + magic-link). **Login paths = 4** (+ password for legacy 110 users). Password is preserved for login but not offered as a new-signup option. **Button order** = Google → LinkedIn → magic-link (familiarity-first, surface-aware ordering rejected as premature optimization).
 2. **`/signup` route survives** as the magic-link landing twin + SEO surface + no-JS fallback. Modal is the primary conversion surface; route mounts the same `<SignupForm/>` component.
 3. **Modal trigger = high-intent surfaces only**: `/about` hero "Start your CV hub" CTA · `/cv` upload tap (anon) · `/profile/{ninja}` ghost radar tap (SH4) · `?share=` deep-links. Incidental anon hits to `/intel`, `/forge`, `/skills`, `/companies/*` redirect to `/about?next=…`.
 4. **Auth-before-file order.** Modal asks for auth method first; post-auth, file picker auto-opens via existing `?upload=1` query (shipped in `c3abff7`). Eliminates the OAuth round-trip state-preservation problem instead of solving it (Ousterhout: best modules eliminate complexity, don't manage it).
@@ -60,6 +60,36 @@ signup_in_app_browser_warning_shown { agent }
 ```
 
 Email hashed `sha256[:8]` for corp-vs-personal cohort segmentation without storing addresses (PV1 alignment).
+
+### LinkedIn integration (add-on grill, 7 decisions)
+
+Same-day grill walked LinkedIn-as-third-pathway because OAuth provider was enabled on Supabase. Stake sentence (*"home for every CV version, scored against live jobs"*) survives — LinkedIn-derived data = synthetic CV v0; user retains version history.
+
+L1. **LinkedIn OAuth scope = identity only** (`openid profile email`). Partner-tier `r_fullprofile` is gatekept by LinkedIn (6-12mo application, mostly rejected). Scraping LinkedIn profile URL is ToS-violating (HiQ Labs 2022). **C4 of mini-grill**: OAuth = identity; "Import from LinkedIn" = onboarding-time data path, parallel to PDF upload + paste text.
+
+L2. **Import mechanism = LinkedIn "Save to PDF"**, NOT data-export ZIP. LinkedIn's native Profile → More → Save to PDF generates a styled CV-like PDF instantly. Reuses the existing PDF upload pipeline unchanged (CVUP1 idempotency, CVUP3 orphan sweep, scanned-PDF guard, refund-on-fail). Zero new parser code. ZIP export rejected because: 10-min email delay violates beta-2 <90s SLO; new CSV parser surface; same data delivered by Save-to-PDF.
+
+L3. **Onboarding `StepCV` = 3-segment toggle** (`Upload` | `Describe` | `LinkedIn`) instead of current 2-segment. Default segment auto-selects from auth method (LinkedIn OAuth → LinkedIn segment pre-selected). LinkedIn segment UI = numbered instruction list (`1. LinkedIn → Profile → More → Save to PDF · 2. Drop the file below`) + identical dropzone. No time promises in copy (loading page owns time-perception; see `project_optimistic_reveal` memory).
+
+L4. **`/auth/post-signin` auto-derives `linkedin_url`** for LinkedIn-OAuth users. New `app/services/linkedin_api.py::fetch_vanity_name(access_token)` calls `api.linkedin.com/v2/me?projection=(vanityName)` with 2s timeout. Writes `linkedin_url = https://linkedin.com/in/{vanityName}`. Triggers existing 50-XP grant (`xp_service.grant_linkedin_profile_xp`). Failure-graceful — API down → silent skip → manual entry later. Same `linkedin_xp_granted` flag prevents double-grant.
+
+L5. **PV1 disclosure = tiered.** Plain `<details>` expander under LinkedIn button in modal:
+```
+[ Continue with LinkedIn ]
+  ↳ Shares name, photo, LinkedIn profile link
+    [ What else? ]  ← expand
+        We read: name, email, profile picture, LinkedIn vanity URL.
+        We grant: 50 XP for connecting your LinkedIn profile.
+        We don't: post on your behalf, message your connections, or
+        scrape your network.
+```
+Same pattern under `StepCV` LinkedIn segment discloses PDF contents (positions, skills, education). Sets the disclosure template for future integrations (Apple, GitHub, Calendar sync).
+
+L6. **Telemetry extended** — `method` enum gains `linkedin`; 3 new events: `signup_linkedin_vanity_fetched { success, latency_ms }`, `signup_linkedin_disclosure_expanded { surface }`, `cv_input_source_selected { source }`. 12 GA4 events total.
+
+L7. **`cv_versions.source` migration** — `20260524_cv_versions_source.sql` adds `source TEXT CHECK (source IN ('pdf_upload', 'text_describe', 'linkedin_pdf'))` + partial index. Existing 110 rows = NULL (unknown). Going-forward every baseline_upload tagged. Enables cohort retention analysis by entry path. `uploadCV(token, file, source)` signature extended.
+
+**Onboarding step ordering unchanged** — `cv → role → ninja → score` preserved. Restructuring rejected: beta evidence shows skip-CV users rarely return; current order matches `<RequiresCV>` gate semantics throughout the app.
 
 ### Components
 
@@ -106,27 +136,34 @@ Email hashed `sha256[:8]` for corp-vs-personal cohort segmentation without stori
 
 ## Supabase configuration required (manual, pre-PR)
 
-- Enable Google OAuth provider in Auth → Providers
+- ✅ Enable Google OAuth provider in Auth → Providers (done 2026-05-24)
+- ✅ Enable LinkedIn OAuth provider (`linkedin_oidc` preferred over legacy `linkedin`) (done 2026-05-24)
 - Enable Identity Linking (Auth → Settings → "Enable Manual Linking" ON; automatic identity linking on verified email)
 - Configure custom SMTP (Resend or AWS SES) in Auth → Email
 - Add SPF/DKIM/DMARC DNS records for the sending domain
 - Verify magic-link template copy aligns with PV1 (no real-name placeholder)
 - PKCE flow type confirmed in Supabase client SDK (`flowType: 'pkce'`)
+- LinkedIn OAuth app permissions: `openid`, `profile`, `email` (default OIDC scope set; partner-tier scopes NOT requested)
 
 ## Implementation surface (single PR)
 
 ### Backend
-- `app/routers/auth.py`: `POST /auth/post-signin`, `POST /auth/magic-link-request`
-- `app/services/cv_workflow.py`: 5/hour/user upload cap in `_start_async_upload_job`
+- `app/routers/auth.py`: `POST /auth/post-signin` (provider-aware: branches on `linkedin` for L4 vanity fetch), `POST /auth/magic-link-request`
+- `app/services/linkedin_api.py` NEW: `fetch_vanity_name(access_token) -> str | None` (2s timeout, fail-graceful)
+- `app/services/user_provisioning.py`: extend `ensure_user_provisioned` with optional `linkedin_url` param
+- `app/services/cv_workflow.py`: 5/hour/user upload cap in `_start_async_upload_job`; accept `source` param on upload + text endpoints
 - Migration `20260524_magic_link_attempts.sql`
-- Tests for both endpoints + rate-limit boundaries
+- Migration `20260524_cv_versions_source.sql`
+- Tests for both endpoints + rate-limit boundaries + LinkedIn API failure paths
 
 ### Frontend
 - `store/signupGateStore.ts`, `lib/hooks/use-signup-gate.ts`, `lib/is-in-app-browser.ts`
-- `lib/analytics.ts`: add 10 signup events (use existing `trackEvent`)
+- `lib/analytics.ts`: add 12 signup events (use existing `trackEvent`); extend method enum to include `linkedin`
 - `components/auth/signup-form.tsx`, `login-form.tsx`
-- `components/auth/shared/{google-button,magic-link-input,check-inbox-panel,in-app-browser-warning}.tsx`
+- `components/auth/shared/{google-button,linkedin-button,magic-link-input,check-inbox-panel,in-app-browser-warning,linkedin-disclosure}.tsx`
 - `components/auth/signup-modal.tsx`
+- `components/onboarding/step-cv.tsx`: 2-segment → 3-segment toggle; auto-select default from auth provider; LinkedIn segment renders instruction list + identical dropzone + `<LinkedInDisclosure/>`
+- `lib/api.ts`: `uploadCV(token, file, source)` + `uploadCVText(token, text, source)` signatures extended
 - `app/auth/callback/page.tsx`, `app/signup/page.tsx`, `app/login/page.tsx`
 - DELETE `components/auth/auth-form.tsx`
 - Wire 4 trigger surfaces
