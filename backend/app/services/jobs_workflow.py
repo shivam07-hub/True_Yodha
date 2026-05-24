@@ -215,12 +215,14 @@ async def compute_job_matches(
         )
 
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=candidate_job_ids)
+    match_debug: dict[str, int] = {}
     top_jobs = job_matcher.get_top_matches(
         job_skill_rows,
         user_skill_map,
         job_meta_fetcher=repo.get_jobs_by_ids,
         target_roles=profile.get("target_roles") or [],
-        top_n=5,
+        top_n=12,
+        debug=match_debug,
     )
     logger.info(
         "compute_job_matches: user=%s skills=%d candidates=%d top_jobs=%d",
@@ -236,6 +238,7 @@ async def compute_job_matches(
                 "candidate_jobs_count": len(candidate_job_ids),
                 "top_jobs_count": 0,
                 "target_roles_count": target_roles_count,
+                **match_debug,
             },
         )
 
@@ -251,6 +254,7 @@ async def compute_job_matches(
             "candidate_jobs_count": len(candidate_job_ids),
             "top_jobs_count": len(top_jobs),
             "target_roles_count": target_roles_count,
+            **match_debug,
         },
     )
 
