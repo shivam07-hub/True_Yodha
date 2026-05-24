@@ -11,6 +11,7 @@ import { setSessionTokens } from "@/lib/session"
 import { PublicFooter } from "@/components/public/public-footer"
 import { SurfaceToggle } from "@/components/surface-toggle"
 import { capturePendingReferral, getStoredReferral } from "@/lib/referral"
+import "./auth-form.css"
 
 interface Props {
   mode: "login" | "signup"
@@ -227,22 +228,13 @@ export function AuthForm({ mode }: Props) {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              style={{
-                minHeight: 46, padding: "11px", borderRadius: 10,
-                background: loading ? "var(--tm-accent-wash)" : "var(--tm-accent)",
-                border: `1px solid ${loading ? "var(--tm-border)" : "var(--tm-accent)"}`,
-                color: loading ? "var(--tm-text-muted)" : "var(--tm-accent-fg)",
-                fontSize: 15, fontWeight: 700,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                opacity: loading ? 0.6 : 1,
-              }}
+              className={`tm-auth-btn tm-auth-submit${loading ? " tm-auth-submit--loading" : ""}`}
             >
               {loading ? (
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
-                  <span aria-hidden style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid currentColor", borderRightColor: "transparent", animation: "spin 800ms linear infinite" }} />
+                <>
+                  <span aria-hidden className="tm-auth-spinner" />
                   {mode === "login" ? "Signing in…" : "Creating account…"}
-                </span>
+                </>
               ) : mode === "login" ? "Sign in →" : "Create account →"}
             </button>
 
@@ -256,20 +248,7 @@ export function AuthForm({ mode }: Props) {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              style={{
-                minHeight: 46, padding: "11px", borderRadius: 10,
-                background: "var(--tm-bg-surface-hover)",
-                border: "1px solid var(--tm-border)",
-                color: "var(--tm-text)",
-                fontSize: 15, fontWeight: 600,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                opacity: loading ? 0.6 : 1,
-                transition: "border-color var(--tm-dur) var(--tm-ease)",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
+              className="tm-auth-btn tm-auth-oauth"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

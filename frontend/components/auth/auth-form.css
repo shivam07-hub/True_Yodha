@@ -1,0 +1,95 @@
+/* Submit + OAuth buttons — instant press feedback eliminates "did I click?" lag.
+ *
+ * Inline styles can't express :active, so the visible press effect waited on the
+ * React re-render after setLoading(true). On a phone that's 50-200ms of "button
+ * looks identical" — perceived as broken. CSS :active fires at <16ms regardless
+ * of React state. */
+
+.tm-auth-btn {
+  min-height: 46px;
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition:
+    transform 80ms var(--tm-ease),
+    filter 80ms var(--tm-ease),
+    background var(--tm-dur) var(--tm-ease),
+    border-color var(--tm-dur) var(--tm-ease),
+    opacity var(--tm-dur) var(--tm-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tm-auth-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.9);
+}
+
+.tm-auth-btn:disabled {
+  cursor: not-allowed;
+}
+
+/* Primary submit — accent fill */
+.tm-auth-submit {
+  background: var(--tm-accent);
+  border: 1px solid var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-weight: 700;
+}
+
+.tm-auth-submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+/* Loading modifier — clearly distinct from idle. Stronger delta so the user
+ * sees the state change even in daylight. */
+.tm-auth-submit--loading {
+  background: var(--tm-bg-inset);
+  border: 1px dashed var(--tm-border);
+  color: var(--tm-text-muted);
+  opacity: 0.85;
+}
+
+/* OAuth (Google / LinkedIn) — outline */
+.tm-auth-oauth {
+  background: var(--tm-bg-surface-hover);
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text);
+  font-weight: 600;
+}
+
+.tm-auth-oauth:hover:not(:disabled) {
+  border-color: var(--tm-accent-ring);
+}
+
+.tm-auth-oauth:disabled {
+  opacity: 0.6;
+}
+
+/* Spinner — 18px (was 14px) so it's clearly visible during the wait */
+.tm-auth-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 800ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-auth-btn,
+  .tm-auth-btn:active:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+  .tm-auth-spinner {
+    animation: none;
+    border-right-color: currentColor;
+    opacity: 0.6;
+  }
+}

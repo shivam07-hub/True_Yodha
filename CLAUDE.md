@@ -183,7 +183,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
 
-13. **~~Anonymous trial flow~~ — REPLACED 2026-05-24 by ADR-0006 (frictionless signup).** `/grill-me` walked 18 design forks; competitor scan (LinkedIn/Indeed/Jobscan/Teal/ZipRecruiter) confirmed industry never lets AI/LLM cost fire pre-identity. Anon trial is the wrong abstraction; modern primitive = one-tap OAuth + magic-link, then AI. New scope: `<SignupModal/>` mounted in AppShell (mirrors XPGate); 4 high-intent surfaces fire modal in place; `/auth/callback` single consumer; `/auth/post-signin` preserves SH7 referral on OAuth; magic-link IS forgot-password (closes that P0); IP rate-limit + per-user upload cap for abuse; auto-link verified-email collision; 10 GA4 telemetry events. Big-bang single PR. Pre-PR Supabase config: enable Google OAuth provider, enable identity linking, configure Resend SMTP, SPF/DKIM/DMARC on sending domain. See `docs/adr/0006-frictionless-signup.md`.
+13. **~~Anonymous trial flow~~ — REPLACED 2026-05-24 by ADR-0006 (frictionless signup; LinkedIn add-on locked same day).** `/grill-me` walked 18 design forks for signup primitive + 7 forks for LinkedIn-as-third-pathway. Competitor scan (LinkedIn/Indeed/Jobscan/Teal/ZipRecruiter) confirmed industry never lets AI/LLM cost fire pre-identity. Anon trial is the wrong abstraction; modern primitive = one-tap OAuth + magic-link, then AI. New scope: `<SignupModal/>` mounted in AppShell (mirrors XPGate); 3 auth paths (Google + LinkedIn + magic-link, order locked); LinkedIn OAuth = identity-only + auto-derive `linkedin_url` via `api.linkedin.com/v2/me` at `/auth/post-signin` (failure-graceful, triggers existing 50-XP grant); `StepCV` becomes 3-segment toggle (Upload | Describe | LinkedIn) with default segment auto-selecting from auth method; LinkedIn segment uses Save-to-PDF mechanism reusing existing PDF pipeline unchanged; tiered `<details>` PV1 disclosure under LinkedIn button + StepCV segment; 4 high-intent surfaces fire modal in place; `/auth/callback` single consumer; `/auth/post-signin` preserves SH7 referral on OAuth; magic-link IS forgot-password (closes that P0); IP rate-limit + per-user upload cap for abuse; auto-link verified-email collision; 12 GA4 telemetry events; new `cv_versions.source` column for cohort analysis. Big-bang single PR. Google + LinkedIn OAuth providers already enabled on Supabase (2026-05-24); remaining manual config: identity linking, Resend SMTP, SPF/DKIM/DMARC. See `docs/adr/0006-frictionless-signup.md`.
 
 14. **Match refresh stuck at 2 results (bug, reported 2026-05-24):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded (because backend returns "no new matches"), but the matches list never grows past 2 entries. Expected behaviour: show 10–15 matches per the original product decision. Investigate the matches pipeline (likely either (a) `scores.compute` is silently capping at 2 due to filter mismatch, (b) skill-overlap threshold is too strict for this user's skill set, or (c) job pool for this user's target_role/target_location is genuinely tiny and we need a fallback widening rule). Touches `backend/app/services/scoring/` + the match-refresh endpoint + frontend invalidation. Pick up after Implementation #3 (useXPGate) lands — separate PR, backend-heavy.
 
@@ -266,7 +266,66 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 evening · Beta-2 intake + two P0 production fixes)
+## LAST SESSION SUMMARY (2026-05-24 late · ADR-0006 frictionless signup locked + LinkedIn partner scopes + auth button fix)
+
+End-to-end design session that closed Backlog #13 (anon trial) with ADR-0006 (frictionless signup). 25 design decisions locked across two grills (18 base signup + 7 LinkedIn add-on), plus a third grill once LinkedIn partner-tier scopes turned out to be already granted. Shipped 4 commits on Develop and finished ALL 7 pre-PR Supabase manual config items together. PR ready to open next session.
+
+### Decision arc — three grills
+
+1. **Base signup primitive (18 forks).** Competitor scan (LinkedIn, Indeed, Workday, Glassdoor, ZipRecruiter, Jobscan, Teal, Rezi, Resume.io) showed no serious peer allows AI/LLM cost pre-identity. Anon trial = wrong abstraction; industry norm = frictionless signup (OAuth + magic-link). All forks locked: signup = 2 paths · login = 3 paths (+ password legacy) · modal+page hybrid · auth-before-file order · `/auth/callback` single consumer · `/auth/post-signin` for SH7 referral preservation · UA-sniff in-app browsers + PKCE · Esc+X dismiss · 12 GA4 events · IP rate-limit + per-user upload cap · auto-link verified email collision · forgot-password dropped (magic-link IS recovery) · magic-link failure UX · split AuthForm → SignupForm + LoginForm + auth/shared/ atoms · useSignupGate + zustand mirroring XPGate · big-bang single PR. Saved as `f9aa241`.
+
+2. **LinkedIn add-on (7 forks).** Same-day grill triggered when Shivam mentioned LinkedIn OAuth was enabled on Supabase too. Brooks stake sentence holds (LinkedIn = synthetic CV v0). Ousterhout deep-module win: `parse_cv_text` chokepoint absorbs three thin adapters (PDF/text/LinkedIn-PDF). Decisions: OAuth = identity-only (partner scopes assumed gatekept) · LinkedIn import = Save-to-PDF reusing existing PDF pipeline (not ZIP-export — 10min email delay kills the value moment) · 3-segment StepCV toggle auto-selecting default from auth provider · auto-derive `linkedin_url` via separate `/v2/me` API call at `/auth/post-signin` · tiered `<details>` PV1 disclosure · `cv_versions.source` migration for cohort analysis · 12 GA4 events total (10 base + 2 LinkedIn). Saved as `8041c7b`.
+
+3. **LinkedIn partner scopes (mid-session revision).** Turned out LinkedIn had already granted `r_profile_basicinfo` + `r_verify` + `w_member_social` to the Myro Intelligence app. Three updates to ADR: (a) L4 simplified — `r_profile_basicinfo` returns vanity URL + headline directly in OIDC ID token, the separate `/v2/me` API call drops entirely; (b) L5 disclosure expanded to honestly cover headline + verification status; (c) `w_member_social` deferred to incremental authorization at the moment user taps "Share to LinkedIn" — contextual scope-requests convert at 60-80% vs ~30% for write-scope at initial signup screen. Binding write-scope principles locked: never auto-post · preview modal mandatory on first share per type · quick-share shortcut allowed thereafter (virality requirement Shivam called out explicitly) · granular per-feature gating · one-click disconnect via Settings → Integrations panel (modeled like a billing surface). New v2 backlog items: "Share to Myro" feature (Score first, expand to milestone + CV-update shares once Score validates) · Settings → Integrations panel for LinkedIn + Google connections. Saved as `31fd399`.
+
+### Auth button fix (`37831c3` — code, not docs)
+
+Shivam reported beta-1 complaint: "small lag, user confused whether click worked" on signup/login submit button. Diagnosed three causes: (1) no `:active` press state — inline-styled `<button>` couldn't express it, so visible feedback waited on the React re-render after `setLoading(true)` — 50-200ms of "did I click?"; (2) loading visual delta too subtle — old state went accent → accent-wash + opacity 0.6 (barely visible on phone in daylight); (3) Railway cold-start latency (5-15s on free tier). Fix 1 + 2 shipped as `frontend/components/auth/auth-form.css` with `.tm-auth-btn` primitive — CSS `:active` does `scale(0.97)` + `brightness(0.9)` at <16ms regardless of React state; loading state goes accent solid → bg-inset dark + dashed border + muted text + 18px spinner (was 14px). Applied to both submit button and OAuth (Google) button for consistency. `prefers-reduced-motion` honored. Page-scoped CSS pattern matches ADR-0003 (`domain-accordion-row.css`, `forge-xp-pill.css`, `intel-pane.css`). Fix 3 = infra not code; requires Railway Hobby+ plan ($5/mo no sleep) or Uptime Robot pinging /health every 5min. Documented in commit message. Also: `backend/.env.example` — `RESEND_API_KEY` placeholder replaces unused `SENDGRID_API_KEY` per ADR-0006 magic-link decision.
+
+### Supabase manual config — ALL 7 ITEMS CLOSED THIS SESSION
+
+| # | Item | State |
+|---|---|---|
+| 1 | Google OAuth provider | ✅ done pre-session |
+| 2 | LinkedIn OAuth (`linkedin_oidc`) + partner scopes granted (`r_profile_basicinfo`, `r_verify`, `w_member_social`) | ✅ done pre-session, scopes confirmed mid-session |
+| 3 | Identity Linking ON | ✅ done this session |
+| 4 | Resend SMTP (smtp.resend.com:465, `noreply@himyro.com`) | ✅ done this session (API key rotated after initial paste-in-chat leak — security incident handled cleanly) |
+| 5 | SPF/DKIM/DMARC DNS on GoDaddy (`send.himyro.com` subdomain MX preserves root inbox; `_dmarc` TXT added; all 3 Resend records verified green) | ✅ done this session |
+| 6 | Magic-link template (`{{ .ConfirmationURL }}` + `{{ .Email }}` echo; PV1-aligned — no real-name placeholders) | ✅ done this session |
+| 7 | LinkedIn OAuth app scopes verified + Supabase Client ID/Secret confirmed + redirect URLs include `/auth/callback` for both supabase + himyro + localhost | ✅ done this session |
+
+### Memory entries created/updated
+
+- `feedback_competitor_scan_before_primitives.md` NEW — Before designing a foundational primitive (signup, pricing, sharing), scan 5-10 serious peers first. Industry norm encodes constraints worth honoring or explicitly rejecting. Triggered when Shivam pushed back on my first anon-trial recommendation by asking "what would Workday/LinkedIn/Indeed do?"
+- `project_frictionless_signup_2026_05_24.md` NEW (then twice updated through session) — Tracks ADR-0006 scope, all 7 Supabase config items (with completion checkmarks), v2 backlog (Share-to-LinkedIn + Integrations panel), parked escalations (Turnstile, XP-defer, disposable-email blocker, refresh-vanity-on-signin), LinkedIn partner-scope binding principles.
+
+### Commits landed on `origin/Develop`
+
+- `f9aa241` — ADR-0006 frictionless signup + CLAUDE.md Backlog #13 close-out
+- `8041c7b` — ADR-0006 LinkedIn add-on (7 forks)
+- `37831c3` — fix(auth): instant tap feedback button fix
+- `31fd399` — ADR-0006 LinkedIn partner scopes granted; `w_member_social` lazy
+
+(Plus `403327b` — merge commit from Codex landing in parallel, no conflict.)
+
+### Open carry-over for next session
+
+- **Open the big-bang PR** per ADR-0006. All 25 decisions locked. Pre-PR config 100% done. Scope (~1500-2000 LOC, single commit):
+  - Backend: `/auth/post-signin` (provider-aware JWT parser branching on `linkedin_oidc`) · `/auth/magic-link-request` (IP rate-limit wrapper around Supabase `signInWithOtp`) · `/auth/integrations/{provider}` DELETE for v2 disconnect-button
+  - Backend: 3 migrations — `magic_link_attempts` · `cv_versions.source` · `user_profiles linkedin_meta` (`linkedin_headline TEXT`, `linkedin_verified BOOLEAN`)
+  - Frontend: `store/signupGateStore.ts` · `lib/hooks/use-signup-gate.ts` · `lib/is-in-app-browser.ts` · `components/auth/signup-form.tsx` · `login-form.tsx` · `auth/shared/{google-button,linkedin-button,magic-link-input,check-inbox-panel,in-app-browser-warning,linkedin-disclosure}.tsx` · `components/auth/signup-modal.tsx` · `app/auth/callback/page.tsx`
+  - Frontend: `components/onboarding/step-cv.tsx` → 3-segment toggle (Upload | Describe | LinkedIn) with auto-default from auth provider · `lib/api.ts` extends `uploadCV(token, file, source)` signature
+  - Telemetry: `lib/analytics.ts` adds 12 GA4 events; method enum extends to `linkedin`
+  - DELETE: `components/auth/auth-form.tsx`
+  - Wire 4 trigger surfaces: `/about` hero · `/cv` upload tap · `/profile/{ninja}` ghost radar · `?share=` deep-links
+- **Beta-2 P0 follow-ups still open from prior session** — match refresh stuck at 2 results (Backlog #14, backend scoring), Razorpay auth failure (Rohan screenshot, not investigated), share-unfurl + upload-fix verification in prod (after the morning's OG + 90s-timeout commits).
+- **Implementation #4-#7 from morning session unchanged** — `/forge` page split (#4), guided onboarding overlay (#5), trust strip outreach (#6), ADR-0005 `myro-is-not.md` (#7, requires Shivam discussion not autonomous).
+
+Verify: 4 commits pushed to `origin/Develop` cleanly · local + remote in sync at close · all 7 Supabase manual config items closed · 2 memory entries persisted · ADR-0006 self-consistent across 3 same-day revisions.
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-24 evening · Beta-2 intake + two P0 production fixes)
 
 Short evening session on top of the morning's Ousterhout primitives. Folded the second wave of beta feedback (10 new respondents — Palak, Shilpa, Hiya, Rohan, User C, User CX, Y, Navya, Vaibhav, Sanika) into the existing beta-testing report as Appendix A, then closed the two production regressions the new batch exposed.
 
