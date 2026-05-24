@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
-import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { RequiresCV } from "@/components/empty/RequiresCV"
 import { Hero } from "@/components/mission-control/hero"
 import { Topbar } from "@/components/mission-control/topbar"
 import { MatchesRows, type ChipJob, type SelfChip } from "@/components/mission-control/matches-rows"
@@ -102,7 +102,6 @@ function MissionControlInner() {
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const streak = computeStreak(entries)
   const score = Math.round(scoreData?.total_score ?? 0)
-  const hasCv = !!scoreData
   const cartSkillNames = useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
   const appsByJobId = useMemo(() => {
@@ -329,6 +328,7 @@ function MissionControlInner() {
 
   return (
     <AppShell>
+      <RequiresCV>
       {toast && (
         <div
           style={{
@@ -375,8 +375,6 @@ function MissionControlInner() {
               sessions={entries.length}
               diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
             />
-
-            <CVRequiredNudge hasCv={hasCv} feature="job matching" />
 
             {topJobs.length > 0 && (
               <MatchesRows
@@ -470,6 +468,7 @@ function MissionControlInner() {
           <span className="count">{sections.length}</span>
         </div>
       ) : null}
+      </RequiresCV>
     </AppShell>
   )
 }

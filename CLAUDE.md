@@ -185,7 +185,12 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 13. **~~Anonymous trial flow~~ — REPLACED 2026-05-24 by ADR-0006 (frictionless signup; LinkedIn add-on locked same day).** `/grill-me` walked 18 design forks for signup primitive + 7 forks for LinkedIn-as-third-pathway. Competitor scan (LinkedIn/Indeed/Jobscan/Teal/ZipRecruiter) confirmed industry never lets AI/LLM cost fire pre-identity. Anon trial is the wrong abstraction; modern primitive = one-tap OAuth + magic-link, then AI. New scope: `<SignupModal/>` mounted in AppShell (mirrors XPGate); 3 auth paths (Google + LinkedIn + magic-link, order locked); LinkedIn OAuth = identity-only + auto-derive `linkedin_url` via `api.linkedin.com/v2/me` at `/auth/post-signin` (failure-graceful, triggers existing 50-XP grant); `StepCV` becomes 3-segment toggle (Upload | Describe | LinkedIn) with default segment auto-selecting from auth method; LinkedIn segment uses Save-to-PDF mechanism reusing existing PDF pipeline unchanged; tiered `<details>` PV1 disclosure under LinkedIn button + StepCV segment; 4 high-intent surfaces fire modal in place; `/auth/callback` single consumer; `/auth/post-signin` preserves SH7 referral on OAuth; magic-link IS forgot-password (closes that P0); IP rate-limit + per-user upload cap for abuse; auto-link verified-email collision; 12 GA4 telemetry events; new `cv_versions.source` column for cohort analysis. Big-bang single PR. Google + LinkedIn OAuth providers already enabled on Supabase (2026-05-24); remaining manual config: identity linking, Resend SMTP, SPF/DKIM/DMARC. See `docs/adr/0006-frictionless-signup.md`.
 
-14. **Match refresh stuck at 2 results (bug, reported 2026-05-24):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded (because backend returns "no new matches"), but the matches list never grows past 2 entries. Expected behaviour: show 10–15 matches per the original product decision. Investigate the matches pipeline (likely either (a) `scores.compute` is silently capping at 2 due to filter mismatch, (b) skill-overlap threshold is too strict for this user's skill set, or (c) job pool for this user's target_role/target_location is genuinely tiny and we need a fallback widening rule). Touches `backend/app/services/scoring/` + the match-refresh endpoint + frontend invalidation. Pick up after Implementation #3 (useXPGate) lands — separate PR, backend-heavy.
+14. **Match refresh stuck at 2 results (bug, root-caused 2026-05-25):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded ("no new matches"), but matches never grow past 2. **Root cause = compound pruning stack inside `job_matcher.get_top_matches`** (commented inline at `backend/app/services/job_matcher.py:73`):
+    1. **MIN_SKILL_OVERLAP = 3** — hard floor. Jobs sharing <3 skills with the user are dropped before scoring. Narrow/junior CVs may only ever clear this on 1-2 jobs.
+    2. **`top_n=5` cap** in `jobs_workflow.compute_job_matches` (line 213).
+    3. **`COMPANY_CAP_RATIO`** anti-bias (30% per company) prunes further.
+    4. **`excluded_job_ids` accumulates** across refreshes within the same batch_week (line 189-191) — by refresh N the pool may be empty.
+    Not aspirations-related. Independent of the 2026-05-25 retry/fallback PR. Fix path under design: **tiered overlap floor (3 default → 2 if fewer than top_n/2 candidates qualify)**, raise `top_n` to 10-15, surface "pool exhausted" signal to frontend instead of silent refund, reset `excluded_job_ids` on batch_week boundary. Touches `backend/app/services/job_matcher.py` + `jobs_workflow.compute_job_matches` + match-refresh frontend invalidation. Pick up as standalone PR after Shilpa is re-tested with the 2026-05-25 fallback fix in production.
 
 ---
 
@@ -266,7 +271,82 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 late · ADR-0006 frictionless signup locked + LinkedIn partner scopes + auth button fix)
+## LAST SESSION SUMMARY (2026-05-25 late · Railway beta fixes + refresh recovery)
+
+Codex implemented the Railway/Beta Fix Plan in five scoped commits on `Develop`, explicitly preserving Claude's `9194938` aspiration retry/fallback work and the Backlog #14 root-cause notes from `541c30d`.
+
+### Commits shipped
+
+- `12b38b4 fix(db): repair cv upload orphan sweep` — new `20260525_fix_cv_upload_orphan_sweep.sql` recreates `sweep_stale_cv_upload_jobs` with non-conflicting `swept_user_id`, qualified aliases, bounded updates, idempotent refund behavior, and `NOTIFY pgrst, 'reload schema'`.
+- `d9898a8 fix(db): reassert job import schema contract` — new `20260525_reassert_job_import_schema_contract.sql` guarantees `jobs.created_by_user_id`, FK, index, comment, and PostgREST schema reload for the Railway `PGRST204` manual-import failure.
+- `b51bf81 fix(jobs): surface refresh outcomes` — `outcome_kind` now flows from `MatchComputeOutcome` through refresh state, API response, TS API types, `useJobRefresh`, and `RefreshMatchesButton`; frontend notices now distinguish cache-hit, needs-onboarding, and exhausted-pool outcomes.
+- `6a78aa7 fix(matches): prevent narrow cvs from exhausting refresh pool` — Backlog #14 behavior landed: strict floor 3, fallback floor 2 when strict pool underfills, refresh `top_n=12`, and debug fields `min_skill_overlap` / `qualified_jobs_count`.
+- `b799488 fix(frontend): add route failure recovery` — retryable error boundaries added for `/jobs`, `/tracker`, `/skills`, and public `/intel` through shared `AppRouteError`.
+
+### Notes for next agent
+
+- Supabase CLI is installed (`2.99.0`), but `supabase migration new repair_cv_upload_orphan_sweep` spawned a recursive process chain in this repo. Codex killed the runaway and created the two migrations manually using the repo's timestamp naming convention.
+- Do not rework Claude's aspiration path unless new evidence appears; `repositories/scores.py`, `services/scoring/aspirations.py`, and the market-demand fallback in `jobs_workflow.py` remain Claude's canonical fix.
+- Backlog #14 is no longer just root-caused: the tiered floor and top_n raise are implemented. The only remaining related product work is any richer exhausted-pool UI beyond the compact refresh notice.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `node --test tests/route-error-boundaries.test.mjs` pass · `npx tsx --test tests/job-refresh-notice.test.ts` pass · `git diff --check` clean. Extra broad `node --test tests/*.test.mjs` still has pre-existing failures unrelated to this work: direct `localStorage` text in `frontend/lib/api.ts`, raw query key in `frontend/app/companies/[slug]/page.tsx`, and two `.mjs` tests importing `.tsx` without a loader. Pre-existing unrelated dirty state remains: `.gitignore` adds `docs/free-llm-api-resources`, and `docs/free-llm-api-resources/` is local/untracked.
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-25 evening · aspiration cluster closed + ADR-0005 NOT-list + Backlog #14 root-caused)
+
+End-to-end grill of every open decision blocking the match-quality cluster + Implementation #5/#6/#7 + cross-product positioning. Three commits to Develop (`9194938`, `30208b8`, `541c30d`). Builds on the morning's `55e4b0b` RequiresCV gate fix.
+
+### The trigger
+
+Beta-3 7.04 PM screenshots showed a CV-uploaded user with v1 baseline visible on `/cv` still seeing "Start your CV hub" empty state on `/forge` + `/skills`. Morning commit `55e4b0b` fixed that gate (dropped `cv_parsed_at` column → derived `has_cv` from `cv_versions`). Evening Railway log surfaced a deeper class: `Aspiration skill lookup failed for role 'Communication': ... Cloudflare error 1101 'Worker threw exception'` from PostgREST. `aspirations.py:36` had a bare `except Exception` swallowing it. Silent degradation. Same root drove Shilpa's "no matches that reflected my profile" beta report.
+
+### Grill outcome — 13 decisions locked
+
+- **D1 scope** = A (fold cluster — aspiration bug + Backlog #14 + Shilpa as one workstream).
+- **D2 fix** = D (retry + classify + trigram defensive). Trigram deferred (27k jobs / 111 hits / fast enough today).
+- **D3 retry** = D (repo layer, classify APIError 5xx + PGRST5xx + ConnectionError/TimeoutError, 3 attempts w/ 250+500ms exp backoff).
+- **D4 observability** = METRIC1 pattern extended. Two metrics: `aspiration.exhausted` (per-role, ERROR) + `aspiration.full_fallback` (per-recompute, WARNING). Plus `supabase.retry` heartbeat.
+- **D6 fallback wiring verified** — gap.py:42-48 already had market-demand fallback; `build_user_skill_demand` did NOT. Added.
+- **D7 UX** = i + iv combo. Silent on transient (auto-refetch). Banner ONLY on persistent failure via future `mirror_scores.aspiration_status` col. Banner UX deferred to next PR.
+- **D8 RequiresCV expansion** = `/home` only. Intel/Tracker/Market stay ungated (anonymous trial / browse-before-commit surfaces).
+- **#7 ADR-0005** = C: NOT-list authored with Onboarding Baseline Generator carve-out for users with no CV. Doubles as guided nav explainer per Shivam.
+- **E9 theme** = `prefers-color-scheme` system default. Toggle persists everywhere. Contract: zero yellow/white foreground on `[data-surface="light"]`.
+- **E10 domains** = 10 public domains (Tech / Engineering / Growth / Sales / Finance / People / Design / Law / Research / Health). Hybrid label scheme: short Brooks-γ default, click expands to user-language full. Backend `PUBLIC_DOMAIN_MAP` constant authoritative.
+- **E11 vocab** = Forge→Practice · session→burst (Pomodoro framing) · Intel→Live Job Data (date computed inline now) · Ninja Name→Public Name · Mission Control→Tackle Today · XP kept.
+- **E12 Career Identity** = C layered. CV-hub stays primary stake; `/profile/{public_name}` is the identity surface; new `/profile/me` nav lets logged-in users preview their own public surface.
+- **Razorpay** = C: code audit + `triage-issue` skill first before live re-test.
+
+### Ship order γ — what actually landed this session
+
+- **PR1 · `9194938` · aspiration cluster:** `_retry_supabase` helper in `repositories/scores.py` with exception classification (APIError 5xx + PGRST5xx + raw ConnectionError/TimeoutError → retry; everything else → raise immediately). 3 attempts, 250+500ms exp backoff. Caller-side metrics `aspiration.exhausted` (ERROR) + `aspiration.full_fallback` (WARNING). Market-demand fallback added to `build_user_skill_demand` (mirrors `gap.py` pattern). `/home` wrapped in `<RequiresCV>` — replaces the per-section `<CVRequiredNudge>` limb. Intel date freeze fix in `top-nav.tsx` — `formatTodayShort()` now computed inline per render instead of useEffect-once (long-lived tabs no longer freeze on yesterday's date past midnight).
+- **PR4 · `30208b8` · ADR-0005:** 8 explicit NOTs + Onboarding Baseline Generator carve-out as the only v1 lane that touches a NOT. Carve-out doubles as guided navigation tour per Shivam — first-time users meet Practice / Tackle Today / Public Name / Live Job Data in context.
+- **PR9 · `541c30d` · Backlog #14 root-cause:** Investigation only, no behavior change. Inline comment at `job_matcher.py:73` documents the 4-layer pruning stack — MIN_SKILL_OVERLAP=3 hard floor + top_n=5 cap + COMPANY_CAP_RATIO 30% anti-bias + cumulative excluded_job_ids per batch_week. Backlog #14 in CLAUDE.md now carries the full root cause and proposed fix direction (tiered floor 3→2 if <top_n/2 qualify, raise top_n to 10-15, surface exhausted-pool to frontend, reset excluded_job_ids on batch_week boundary).
+
+### Memory entries written (3 new + index updated)
+
+- `project_vocab_theme_identity_locks.md` — E9/E10/E11/E12 locks consolidated.
+- `adr_0005_myro_is_not.md` — NOT-list reference + Onboarding Baseline Generator carve-out.
+- `feedback_silent_degradation_pattern.md` — three-piece rule (classified retry + structured metric + documented degradation path) for every catch-all exception handler. Beta-3 paid for this.
+
+### Open carry-over for next session
+
+- **PR2 · naming surfaces** — code-only refactor implementing E10 hybrid domain labels + E11 vocab swap (Forge→Practice across surfaces + `<MissionControlInner>` "Tackle Today" eyebrow + Ninja Name → Public Name across settings/profile/share) + E12 Career Identity sub-line on `/about` + `/profile/me` nav entry. Pure copy + tokens. Largest single design PR.
+- **PR3 · theme default** — flip default to `prefers-color-scheme`. Audit fallout: grep `#fff`/`white`/hardcoded yellows. Lint guardrail.
+- **PR5 · Forge→Practice split** — bundle Implementation #4 (758-line `/forge` monolith → `<PracticeStage>` + `<PracticeCandidates>` + `<PracticeDiaryRail>` + view-model hooks) with the vocab rename. After PR2 lands so vocab is authoritative.
+- **PR6 · Onboarding Baseline Generator** — ADR-0005 carve-out v1. Needs PR4 (locked stake) + PR5 (vocab clean). Implementation #5 absorbs into this.
+- **PR7 · trust strip** — blocked on testimonial reframe outreach memory.
+- **PR8 · Razorpay** — `triage-issue` skill: env wiring + signature verify + webhook secret + test-vs-live keys. Then live test.
+- **PR9.5 · Backlog #14 fix** — separate PR after PR1 lands in production and Shilpa re-tests. Tiered floor + top_n raise + exhausted-pool signal + weekly exclusion reset.
+- **Aspiration banner UX** — `mirror_scores.aspiration_status` migration + Skills page persistent-failure banner ("Showing market-demand priorities — role-specific data refreshes shortly."). Deferred from PR1 per D7 i+iv lock; needs design tap before implementation.
+- **Trigram GIN index on `jobs.job_title`** — defensive 1-line migration matching `idx_jobs_company_name_trgm` precedent. Deferred from PR1; cheap to add when next migration window opens.
+- **Light-surface foreground audit** — E9 rider task. Stylelint rule or PR-time grep against raw `#fff` / `white` / hardcoded yellows.
+
+Verify: 360 backend tests pass · `tsc --noEmit` clean · `next lint` 0/0 · 3 commits pushed cleanly to `origin/Develop` on top of morning's `55e4b0b`.
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-24 late · ADR-0006 frictionless signup locked + LinkedIn partner scopes + auth button fix)
 
 End-to-end design session that closed Backlog #13 (anon trial) with ADR-0006 (frictionless signup). 25 design decisions locked across two grills (18 base signup + 7 LinkedIn add-on), plus a third grill once LinkedIn partner-tier scopes turned out to be already granted. Shipped 4 commits on Develop and finished ALL 7 pre-PR Supabase manual config items together. PR ready to open next session.
 

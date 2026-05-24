@@ -19,19 +19,20 @@ const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
 ]
 
 function formatTodayShort(): string {
+  // Computed at every render — long-lived tabs that survive past midnight no
+  // longer freeze on yesterday's date (beta-3 finding: Intel label stuck on
+  // "24 May" the morning after).
   return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })
 }
 
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
   const [isAuthed, setIsAuthed] = useState(false)
-  const [today, setToday] = useState("")
 
   useEffect(() => {
     setIsAuthed(!!getAccessToken())
-    setToday(formatTodayShort())
   }, [])
 
-  const intelLabel = isAuthed && today ? `Live Job Data · ${today}` : "Live Job Data"
+  const intelLabel = isAuthed ? `Live Job Data · ${formatTodayShort()}` : "Live Job Data"
 
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">

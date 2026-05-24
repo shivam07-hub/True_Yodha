@@ -2,11 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  REFRESH_XP_COST,
-  type RefreshState,
-  type UseJobRefreshResult,
-} from "@/lib/hooks/use-job-refresh"
+import { deriveRefreshNotice, type RefreshNoticeKind } from "@/lib/job-refresh-notice"
+import { type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
 /* ─── Icons ──────────────────────────────────────────────────────── */
 
@@ -31,9 +28,7 @@ const IconScan = () => (
 
 /* ─── Notice derivation ───────────────────────────────────────────── */
 
-type NoticeKind = "success" | "error" | "info"
-
-const NOTICE_STYLES: Record<NoticeKind, { color: string; bg: string; border: string }> = {
+const NOTICE_STYLES: Record<RefreshNoticeKind, { color: string; bg: string; border: string }> = {
   success: {
     color: "var(--tm-success)",
     bg:    "rgba(74,222,128,0.06)",
@@ -51,22 +46,6 @@ const NOTICE_STYLES: Record<NoticeKind, { color: string; bg: string; border: str
   },
 }
 
-function deriveNotice(state: RefreshState, progressLabel: string | null, matches: number | null, error: string | null): { msg: string; kind: NoticeKind } | null {
-  if (state === "computing" || state === "charging") {
-    return { msg: progressLabel ?? "Refreshing…", kind: "info" }
-  }
-  if (state === "done") {
-    if (matches != null && matches > 0) {
-      return { msg: `+${matches} new matches · -${REFRESH_XP_COST} XP`, kind: "success" }
-    }
-    return { msg: "No new matches · XP refunded", kind: "info" }
-  }
-  if (state === "error_insufficient_xp" || state === "error_failed") {
-    return { msg: error ?? "Refresh failed. Please try again.", kind: "error" }
-  }
-  return null
-}
-
 /* ─── Component ───────────────────────────────────────────────────── */
 
 interface RefreshMatchesButtonProps {
@@ -81,7 +60,13 @@ export function RefreshMatchesButton({
   variant = "header",
 }: RefreshMatchesButtonProps) {
   const isWorking = vm.state === "charging" || vm.state === "computing"
-  const notice = deriveNotice(vm.state, vm.progressLabel, vm.matchesWritten, vm.errorMessage)
+  const notice = deriveRefreshNotice({
+    state: vm.state,
+    progressLabel: vm.progressLabel,
+    matchesWritten: vm.matchesWritten,
+    errorMessage: vm.errorMessage,
+    outcomeKind: vm.outcomeKind,
+  })
   const styles = notice ? NOTICE_STYLES[notice.kind] : null
   const cannotClick = disabled || isWorking || !vm.canAfford
 

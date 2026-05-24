@@ -748,6 +748,7 @@ export interface JobMatchesResponse {
 }
 
 export type RefreshLifecycle = "queued" | "computing" | "done" | "failed"
+export type RefreshOutcomeKind = "written" | "cache_hit" | "exhausted" | "needs_onboarding"
 
 export interface RefreshTicketResponse {
   id: string
@@ -767,6 +768,7 @@ export interface RefreshStateResponse {
   matches_written: number | null
   refund: number | null
   new_xp_balance: number | null
+  outcome_kind: RefreshOutcomeKind | null
   error: string | null
   debug: Record<string, unknown> | null
 }

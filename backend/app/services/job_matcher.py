@@ -30,6 +30,9 @@ def get_top_matches(
     job_meta_fetcher: Callable[[list[str]], list[dict]],
     target_roles: list[str] | None = None,
     top_n: int = 10,
+    min_skill_overlap: int = 3,
+    fallback_min_skill_overlap: int = 2,
+    debug: dict[str, int] | None = None,
 ) -> list[dict]:
     """
     Returns top N jobs sorted by boosted overlap_score descending.
@@ -69,8 +72,8 @@ def get_top_matches(
 
         main_hits = [s for s in main if s.lower() in user_lower]
         side_hits = [s for s in side if s.lower() in user_lower]
-
-        if len(main_hits) + len(side_hits) < 3:
+        match_count = len(main_hits) + len(side_hits)
+        if match_count == 0:
             continue
 
         max_possible = PRIMARY_WEIGHT * len(main) + SECONDARY_WEIGHT * len(side)
@@ -81,15 +84,35 @@ def get_top_matches(
             "job_id": jid,
             "overlap_score": score,
             "matched_skills": list({s for s in main_hits + side_hits}),
+            "_match_count": match_count,
         })
 
     if not scored:
         return []
 
-    scored.sort(key=lambda x: x["overlap_score"], reverse=True)
+    selected_floor = min_skill_overlap
+    qualified = [job for job in scored if job["_match_count"] >= min_skill_overlap]
+    min_viable_pool = max(1, top_n // 2)
+    if len(qualified) < min_viable_pool and fallback_min_skill_overlap < min_skill_overlap:
+        fallback_qualified = [
+            job for job in scored
+            if job["_match_count"] >= fallback_min_skill_overlap
+        ]
+        if len(fallback_qualified) > len(qualified):
+            selected_floor = fallback_min_skill_overlap
+            qualified = fallback_qualified
+
+    if debug is not None:
+        debug["min_skill_overlap"] = selected_floor
+        debug["qualified_jobs_count"] = len(qualified)
+
+    if not qualified:
+        return []
+
+    qualified.sort(key=lambda x: x["overlap_score"], reverse=True)
 
     # Generous candidate window to survive boosts + company cap
-    candidates = scored[:min(len(scored), top_n * 10)]
+    candidates = qualified[:min(len(qualified), top_n * 10)]
     candidate_ids = [j["job_id"] for j in candidates]
 
     jobs_data = job_meta_fetcher(candidate_ids)

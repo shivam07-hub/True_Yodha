@@ -90,6 +90,7 @@ async def get_job_refresh_status(
         matches_written=state.matches_written,
         refund=state.refund,
         new_xp_balance=state.new_xp_balance,
+        outcome_kind=state.outcome_kind,
         error=state.error,
         debug=state.debug or None,
     )

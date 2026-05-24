@@ -120,6 +120,22 @@ class TestBasic:
         assert len(result) == 1
         assert result[0]["job_id"] == "j1"
 
+    def test_falls_back_to_two_skill_floor_when_three_skill_floor_underfills(self) -> None:
+        jobs = [
+            _job("j1", "Senior Data", "Co1", ["Python", "SQL", "Go"], []),
+            _job("j2", "Junior Data", "Co2", ["Python", "SQL", "Java"], []),
+            _job("j3", "Analyst", "Co3", ["Python", "SQL", "Scala"], []),
+            _job("j4", "BI Analyst", "Co4", ["Python", "SQL", "Looker"], []),
+            _job("j5", "Ops Analyst", "Co5", ["Python", "SQL", "Excel"], []),
+        ]
+        debug: dict[str, int] = {}
+
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=6, debug=debug)
+
+        assert len(result) == 5
+        assert debug["min_skill_overlap"] == 2
+        assert debug["qualified_jobs_count"] == 5
+
 
 # ── Aspiration rerank ─────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ from typing import Any
 
 from app.repositories.scores import ScoresRepository
 from app.services import cv_workflow, jobs_workflow
+from app.services.job_refresh import _dispatch
 
 
 def test_router_modules_do_not_reference_repository_clients() -> None:
@@ -182,15 +183,22 @@ def test_compute_job_matches_includes_debug_when_no_candidates(monkeypatch: Any)
 
 def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None:
     repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
+    captured: dict[str, Any] = {}
 
     async def _fake_rank_and_persist(*_args: Any, **_kwargs: Any) -> int:
         return 2
 
     monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
-    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", lambda *_args, **_kwargs: [
-        {"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python (Programming Language)"]},
-        {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
-    ])
+
+    def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        captured["top_n"] = kwargs.get("top_n")
+        kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
+        return [
+            {"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python (Programming Language)"]},
+            {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
+        ]
+
+    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
     monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
 
     result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
@@ -201,3 +209,18 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
     assert result.debug["user_skills_count"] == 1
     assert result.debug["candidate_jobs_count"] == 2
     assert result.debug["top_jobs_count"] == 2
+    assert result.debug["min_skill_overlap"] == 2
+    assert result.debug["qualified_jobs_count"] == 2
+    assert captured["top_n"] == 12
+
+
+def test_refresh_state_carries_match_outcome_kind() -> None:
+    state = _dispatch._state(
+        "ticket-1",
+        "done",
+        date(2026, 5, 25),
+        matches_written=0,
+        outcome_kind="exhausted",
+    )
+
+    assert state.outcome_kind == "exhausted"

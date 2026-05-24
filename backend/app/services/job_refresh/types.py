@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any, Literal
 
 RefreshLifecycle = Literal["queued", "computing", "done", "failed"]
+RefreshOutcomeKind = Literal["written", "cache_hit", "exhausted", "needs_onboarding"]
 
 PROGRESS_LABELS: dict[RefreshLifecycle, str] = {
     "queued": "Queued",
@@ -38,5 +39,6 @@ class RefreshState:
     matches_written: int | None = None
     refund: int | None = None
     new_xp_balance: int | None = None
+    outcome_kind: RefreshOutcomeKind | None = None
     error: str | None = None
     debug: dict[str, Any] = field(default_factory=dict)

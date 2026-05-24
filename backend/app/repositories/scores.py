@@ -1,14 +1,67 @@
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from fastapi import Depends
+from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.database import get_supabase_admin
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_job_skill_rows, group_job_skill_rows
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+# Transient upstream errors (Cloudflare 1101 / PostgREST 5xx) → retry. Bug-class
+# errors (4xx, query shape, auth) → never retry. Classification keeps blind
+# retry from masking real logic errors.
+_RETRYABLE_HTTP_PREFIXES = ("5", "PGRST5")
+
+
+def _is_transient(exc: BaseException) -> bool:
+    """True iff the exception looks like a transient upstream blip worth retrying.
+
+    Covers:
+      - postgrest.exceptions.APIError with 5xx http code OR PGRST5xx code
+      - generic network errors that don't expose status (ConnectionError, TimeoutError)
+    Excludes:
+      - APIError with 4xx (auth, query shape, RLS)
+      - any other Exception subclass — real bugs should not be retried
+    """
+    if isinstance(exc, APIError):
+        code = str(getattr(exc, "code", "") or "")
+        return any(code.startswith(prefix) for prefix in _RETRYABLE_HTTP_PREFIXES)
+    return isinstance(exc, (ConnectionError, TimeoutError))
+
+
+def _retry_supabase(fn: Callable[[], T], *, attempts: int = 3, base_delay: float = 0.25) -> T:
+    """Exponential backoff retry around a Supabase read, classified by `_is_transient`.
+
+    Default: 3 attempts → 250ms + 500ms backoffs (worst case ~750ms latency cost).
+    Single-source-of-truth for transient-blip handling on PostgREST reads. Callers
+    stay dumb (Ousterhout deep-module: retry is part of the repo's contract).
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except BaseException as exc:
+            last_exc = exc
+            if not _is_transient(exc) or attempt == attempts - 1:
+                raise
+            delay = base_delay * (2 ** attempt)
+            logger.warning(
+                "metric supabase.retry attempt=%d/%d delay_ms=%d exc=%s",
+                attempt + 1, attempts, int(delay * 1000), exc.__class__.__name__,
+            )
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
 
 
 @dataclass(frozen=True)
@@ -90,23 +143,32 @@ class ScoresRepository:
         )
 
     def find_role_skill_rows(self, role: str) -> list[dict[str, Any]]:
+        """Job-skill rows for jobs whose title matches `role`.
+
+        Wrapped in `_retry_supabase` because the upstream PostgREST worker on
+        gipvxuugajkugntwkeiz.supabase.co occasionally throws Cloudflare 1101
+        ('Worker threw exception') on this ILIKE path even though the actual
+        query is fast (27k jobs, ~111 hits on '%Communication%'). Transient.
+        A single retry rescues it. See aspirations.py for the caller-side
+        observability + market-demand fallback.
+        """
         pattern = f"%{role}%"
-        jobs = (
+        jobs = _retry_supabase(lambda: (
             self._db.table("jobs")
             .select("job_id")
             .ilike("job_title", pattern)
             .limit(100)
             .execute()
-        ).data or []
+        ).data or [])
         if not jobs:
             return []
         job_ids = [j["job_id"] for j in jobs]
-        rows = (
+        rows = _retry_supabase(lambda: (
             self._db.table("job_skills")
             .select("job_id, is_primary, skills(taxonomy_key)")
             .in_("job_id", job_ids)
             .execute()
-        ).data or []
+        ).data or [])
         return group_job_skill_rows(rows)
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
