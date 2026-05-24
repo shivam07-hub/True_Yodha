@@ -271,7 +271,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 evening · aspiration cluster closed + ADR-0005 NOT-list + Backlog #14 root-caused)
+## LAST SESSION SUMMARY (2026-05-25 late · Railway beta fixes + refresh recovery)
+
+Codex implemented the Railway/Beta Fix Plan in five scoped commits on `Develop`, explicitly preserving Claude's `9194938` aspiration retry/fallback work and the Backlog #14 root-cause notes from `541c30d`.
+
+### Commits shipped
+
+- `12b38b4 fix(db): repair cv upload orphan sweep` — new `20260525_fix_cv_upload_orphan_sweep.sql` recreates `sweep_stale_cv_upload_jobs` with non-conflicting `swept_user_id`, qualified aliases, bounded updates, idempotent refund behavior, and `NOTIFY pgrst, 'reload schema'`.
+- `d9898a8 fix(db): reassert job import schema contract` — new `20260525_reassert_job_import_schema_contract.sql` guarantees `jobs.created_by_user_id`, FK, index, comment, and PostgREST schema reload for the Railway `PGRST204` manual-import failure.
+- `b51bf81 fix(jobs): surface refresh outcomes` — `outcome_kind` now flows from `MatchComputeOutcome` through refresh state, API response, TS API types, `useJobRefresh`, and `RefreshMatchesButton`; frontend notices now distinguish cache-hit, needs-onboarding, and exhausted-pool outcomes.
+- `6a78aa7 fix(matches): prevent narrow cvs from exhausting refresh pool` — Backlog #14 behavior landed: strict floor 3, fallback floor 2 when strict pool underfills, refresh `top_n=12`, and debug fields `min_skill_overlap` / `qualified_jobs_count`.
+- `b799488 fix(frontend): add route failure recovery` — retryable error boundaries added for `/jobs`, `/tracker`, `/skills`, and public `/intel` through shared `AppRouteError`.
+
+### Notes for next agent
+
+- Supabase CLI is installed (`2.99.0`), but `supabase migration new repair_cv_upload_orphan_sweep` spawned a recursive process chain in this repo. Codex killed the runaway and created the two migrations manually using the repo's timestamp naming convention.
+- Do not rework Claude's aspiration path unless new evidence appears; `repositories/scores.py`, `services/scoring/aspirations.py`, and the market-demand fallback in `jobs_workflow.py` remain Claude's canonical fix.
+- Backlog #14 is no longer just root-caused: the tiered floor and top_n raise are implemented. The only remaining related product work is any richer exhausted-pool UI beyond the compact refresh notice.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `node --test tests/route-error-boundaries.test.mjs` pass · `npx tsx --test tests/job-refresh-notice.test.ts` pass · `git diff --check` clean. Extra broad `node --test tests/*.test.mjs` still has pre-existing failures unrelated to this work: direct `localStorage` text in `frontend/lib/api.ts`, raw query key in `frontend/app/companies/[slug]/page.tsx`, and two `.mjs` tests importing `.tsx` without a loader. Pre-existing unrelated dirty state remains: `.gitignore` adds `docs/free-llm-api-resources`, and `docs/free-llm-api-resources/` is local/untracked.
+
+---
+
+## OLDER SESSION SUMMARY (2026-05-25 evening · aspiration cluster closed + ADR-0005 NOT-list + Backlog #14 root-caused)
 
 End-to-end grill of every open decision blocking the match-quality cluster + Implementation #5/#6/#7 + cross-product positioning. Three commits to Develop (`9194938`, `30208b8`, `541c30d`). Builds on the morning's `55e4b0b` RequiresCV gate fix.
 

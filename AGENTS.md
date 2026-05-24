@@ -254,7 +254,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 - Beta feedback memory + fellowship interview prep)
+## LAST SESSION SUMMARY (2026-05-25 late - Railway beta fixes + refresh recovery)
+
+Implemented the Railway/Beta Fix Plan in five scoped commits on `Develop`, aligned with Claude's latest pushed state and preserving Claude's aspiration retry/fallback work:
+
+- `12b38b4 fix(db): repair cv upload orphan sweep` — added `20260525_fix_cv_upload_orphan_sweep.sql`, replacing ambiguous `sweep_stale_cv_upload_jobs` output `user_id` with `swept_user_id`, qualifying table aliases, preserving bounded orphan sweep/refund behavior, and reloading PostgREST schema.
+- `d9898a8 fix(db): reassert job import schema contract` — added `20260525_reassert_job_import_schema_contract.sql`, guaranteeing `jobs.created_by_user_id`, FK, index, comment, and `NOTIFY pgrst, 'reload schema'` for the Railway `PGRST204` import failure.
+- `b51bf81 fix(jobs): surface refresh outcomes` — threaded `outcome_kind` through `MatchComputeOutcome` → refresh state → API schema → frontend API/hook, and moved refresh notices into `frontend/lib/job-refresh-notice.ts` so users see cache-hit, onboarding, or exhausted-pool reasons instead of generic "No new matches".
+- `6a78aa7 fix(matches): prevent narrow cvs from exhausting refresh pool` — implemented Claude's Backlog #14 fix direction: tiered skill-overlap floor 3→2 when the strict pool underfills, `top_n=12` for refresh compute, and debug fields `min_skill_overlap` / `qualified_jobs_count`.
+- `b799488 fix(frontend): add route failure recovery` — added retryable route error boundaries for `/jobs`, `/tracker`, `/skills`, and public `/intel` via shared `AppRouteError`.
+
+Supabase note: `supabase --version` returned `2.99.0`, but `supabase migration new repair_cv_upload_orphan_sweep` spawned a recursive process chain in this repo. The runaway was killed and migrations were created manually using the repo's timestamp naming convention.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `node --test tests/route-error-boundaries.test.mjs` pass · `npx tsx --test tests/job-refresh-notice.test.ts` pass · `git diff --check` clean. Extra broad `node --test tests/*.test.mjs` still has pre-existing failures unrelated to this work: direct `localStorage` text in `frontend/lib/api.ts`, raw query key in `frontend/app/companies/[slug]/page.tsx`, and two `.mjs` tests importing `.tsx` without a loader. Pre-existing unrelated dirty state remains: `.gitignore` adds `docs/free-llm-api-resources`, and `docs/free-llm-api-resources/` is local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-24 - Beta feedback memory + fellowship interview prep)
 
 Added new May 24 beta feedback to the canonical report: Bibi's mobile CV editor concerns (touch drag-and-drop, small text boxes, missing draft confidence), User X's Mission/onboarding jargon concern (`Forge Product Family Engineering`, `L0 -> L1`), and User 2's LinkyHost screenshot feedback. User 2 praised the modern CV/skills/job ecosystem but flagged corporate-heavy terminology, gamification pressure, company/job trust, CV upload interruptions, crowded screens, and the need for in-context feedback prompts.
 
