@@ -254,17 +254,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-24 - CV hub story + mobile feedback)
+## LAST SESSION SUMMARY (2026-05-24 - Beta feedback memory + fellowship interview prep)
 
-Made "CV hub" the simple public first-use story. Root `/` now renders the CV hub page directly instead of serving redirect scaffolding, while `/about` reuses the same `CVHubPage` composition. Public metadata now says "One hub for every CV version", removes the site-wide `noindex, nofollow`, and keeps private/app routes out of discovery through `robots.txt`. Sitemap now includes `/about`, `/intel`, and `/terms`.
+Added new May 24 beta feedback to the canonical report: Bibi's mobile CV editor concerns (touch drag-and-drop, small text boxes, missing draft confidence), User X's Mission/onboarding jargon concern (`Forge Product Family Engineering`, `L0 -> L1`), and User 2's LinkyHost screenshot feedback. User 2 praised the modern CV/skills/job ecosystem but flagged corporate-heavy terminology, gamification pressure, company/job trust, CV upload interruptions, crowded screens, and the need for in-context feedback prompts.
 
-Reframed the public hero, steps, nav, and sample diagnostic around the beginner story: save one master CV, tailor versions for each internship/job, compare score/gaps, then apply. Split the hero/steps CSS so no new public file exceeds the 300-line repo rule. Verified true 375px mobile emulation: root renders with `documentElement.scrollWidth === 375`, no horizontal overflow, correct H1 text, `index, follow`, and canonical `https://www.himyro.com/`.
+Extracted the new to-do list into the beta backlog: touch-safe mobile CV reordering, larger/full-screen mobile CV editing, visible auto-save and draft recovery, beginner-friendly Mission terminology, gradual career-intelligence disclosure, resilient CV upload/AI processing, clearer role/company match trust, and contextual feedback prompts during onboarding and feature usage.
 
-Infrastructure note: Vercel MCP was present but exposed no teams/projects in this session, and Railway CLI/MCP were not available locally. Live backend health checks still returned OK from Railway, and no relevant Supabase backend errors appeared during the sampled window.
+Created `docs/beta-testing/2026-05-24-fellowship-group-interview-prep.md` for 30-minute group interviews with 10-12 prospective interns. It defines Gemini transcript/note duties, Shivam's human observation checklist, no-AI and AI-assisted rounds, prompts for use-case reality and offline virality, a scorecard, reject signals, and strong fellowship hire signals.
 
-Also fixed the phone feedback blocker from the attached screenshot. Root cause: `SettingsModal` used a fixed desktop two-column layout on mobile, so the 200px sidebar squeezed Account/Feedback content into an unusable right rail; the mobile profile sheet could also stack above the settings dialog because of z-index ordering. Added a mobile settings stylesheet that turns Settings into a full-width phone sheet, hides the desktop profile/autosave rail, makes Account/Following/Feedback/Billing reachable as a compact top tab row, restores full-width Account fields, and raises the dialog above the mobile sheet. The Feedback Hub now uses a mobile CSS file for a full-height phone layout with a compact top rail. Verified at 375px: Settings and Feedback Hub both render with `documentElement.scrollWidth === 375`, tabs reachable, no horizontal overflow.
-
-Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 359/359 pass. Remaining production issues from fellowship feedback are still open: durable/resumable CV delivery, upload copy that mentions Wi-Fi, onboarding step count mismatch, role-search ranking, forgot/reset password, score methodology explanation, mobile CTA/tab ordering across the main app, and CV version labels/compare/application tracking.
+Verify: `git diff --check` clean · `npm run lint` clean · `npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 359/359 pass. Pre-existing unrelated dirty state remains under `docs/free-llm-api-resources`.
 
 ## EARLIER SESSION SUMMARIES
 
