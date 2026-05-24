@@ -29,13 +29,27 @@ def fetch_aspiration_skills(
         return {}
 
     all_rows: list[dict] = []
+    exhausted_roles: list[str] = []
     for role in target_roles:
         try:
             page1 = scores_repo.find_role_skill_rows(role)
         except Exception as exc:
-            logger.warning("Aspiration skill lookup failed for role %r: %s", role, exc)
+            # `find_role_skill_rows` already retried per _retry_supabase. If we land
+            # here, the retries didn't rescue → emit alarm-worthy `exhausted` metric.
+            logger.error(
+                "metric aspiration.exhausted role=%r reason=%s attempts=3 fallback_used=true",
+                role, exc.__class__.__name__,
+            )
+            exhausted_roles.append(role)
             continue
         all_rows.extend(page1 or [])
+
+    if exhausted_roles and not all_rows:
+        # Every target role failed → caller (gap.py) will fall back to market demand.
+        logger.warning(
+            "metric aspiration.full_fallback roles=%r reason=all_exhausted fallback_used=true",
+            exhausted_roles,
+        )
 
     if not all_rows:
         return {}
