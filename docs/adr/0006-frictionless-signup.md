@@ -71,17 +71,20 @@ L2. **Import mechanism = LinkedIn "Save to PDF"**, NOT data-export ZIP. LinkedIn
 
 L3. **Onboarding `StepCV` = 3-segment toggle** (`Upload` | `Describe` | `LinkedIn`) instead of current 2-segment. Default segment auto-selects from auth method (LinkedIn OAuth → LinkedIn segment pre-selected). LinkedIn segment UI = numbered instruction list (`1. LinkedIn → Profile → More → Save to PDF · 2. Drop the file below`) + identical dropzone. No time promises in copy (loading page owns time-perception; see `project_optimistic_reveal` memory).
 
-L4. **`/auth/post-signin` auto-derives `linkedin_url`** for LinkedIn-OAuth users. New `app/services/linkedin_api.py::fetch_vanity_name(access_token)` calls `api.linkedin.com/v2/me?projection=(vanityName)` with 2s timeout. Writes `linkedin_url = https://linkedin.com/in/{vanityName}`. Triggers existing 50-XP grant (`xp_service.grant_linkedin_profile_xp`). Failure-graceful — API down → silent skip → manual entry later. Same `linkedin_xp_granted` flag prevents double-grant.
+L4. **`/auth/post-signin` reads `linkedin_url` + headline + verification status from the OIDC ID token directly.** REVISED 2026-05-24 evening: LinkedIn granted partner access including `r_profile_basicinfo` + `r_verify` scopes. The vanity URL ships in the standard OIDC claims when those scopes are present — NO separate `api.linkedin.com/v2/me` call needed. Dropped: `app/services/linkedin_api.py::fetch_vanity_name`. New behavior: `/auth/post-signin` parses JWT claims (`vanityName`, `headline`, `verified`), writes `linkedin_url = https://linkedin.com/in/{vanityName}` + (optionally) `linkedin_headline` + `linkedin_verified`. Triggers existing 50-XP grant. Failure-graceful — missing claims → silent skip. Same `linkedin_xp_granted` flag prevents double-grant.
 
-L5. **PV1 disclosure = tiered.** Plain `<details>` expander under LinkedIn button in modal:
+L5. **PV1 disclosure = tiered.** Plain `<details>` expander under LinkedIn button in modal. Updated copy reflects expanded scope set granted by LinkedIn:
 ```
 [ Continue with LinkedIn ]
-  ↳ Shares name, photo, LinkedIn profile link
+  ↳ Shares name, headline, photo, profile link, verification status
     [ What else? ]  ← expand
-        We read: name, email, profile picture, LinkedIn vanity URL.
+        We read: name, email, profile picture, LinkedIn vanity URL,
+                 headline, verification status.
         We grant: 50 XP for connecting your LinkedIn profile.
-        We don't: post on your behalf, message your connections, or
-        scrape your network.
+        We don't: post on your behalf, message your connections,
+                  scrape your network, or read your work history.
+                  (You can share to LinkedIn from inside Myro — only
+                  when you tap the button.)
 ```
 Same pattern under `StepCV` LinkedIn segment discloses PDF contents (positions, skills, education). Sets the disclosure template for future integrations (Apple, GitHub, Calendar sync).
 
@@ -90,6 +93,43 @@ L6. **Telemetry extended** — `method` enum gains `linkedin`; 3 new events: `si
 L7. **`cv_versions.source` migration** — `20260524_cv_versions_source.sql` adds `source TEXT CHECK (source IN ('pdf_upload', 'text_describe', 'linkedin_pdf'))` + partial index. Existing 110 rows = NULL (unknown). Going-forward every baseline_upload tagged. Enables cohort retention analysis by entry path. `uploadCV(token, file, source)` signature extended.
 
 **Onboarding step ordering unchanged** — `cv → role → ninja → score` preserved. Restructuring rejected: beta evidence shows skip-CV users rarely return; current order matches `<RequiresCV>` gate semantics throughout the app.
+
+### LinkedIn partner-tier scopes (granted 2026-05-24 evening — added to ADR)
+
+LinkedIn approved Myro Intelligence app for these scopes beyond standard OIDC: `r_profile_basicinfo` · `r_verify` · `w_member_social`. Strategic posture:
+
+**Granted scopes used at signup (read-only set):**
+- `openid` · `profile` · `email` — standard OIDC identity
+- `r_profile_basicinfo` — name + headline + photo URL + vanity URL (replaces the Q5 separate API call)
+- `r_verify` — verification status (low-adoption today, exposed as opt-in badge on `/profile/{ninja}` for future-proofing)
+
+**Write scope (`w_member_social`) — incremental authorization pattern.** NOT requested at signup. Requested lazily at the moment user taps "Share to LinkedIn" inside Myro. Rationale: write-scope in initial OAuth screen drops conversion ~30% (industry data); contextual scope request when user has already indicated intent converts at 60-80%. Code shape:
+```ts
+// Initial signup:
+supabase.auth.signInWithOAuth({
+  provider: 'linkedin_oidc',
+  options: { scopes: 'openid profile email r_profile_basicinfo r_verify' }
+})
+
+// Later, on user-initiated "Share to LinkedIn" tap:
+supabase.auth.signInWithOAuth({
+  provider: 'linkedin_oidc',
+  options: { scopes: 'openid profile email r_profile_basicinfo r_verify w_member_social' }
+})
+```
+
+### LinkedIn write-scope principles (binding)
+
+1. **Never auto-post.** No scheduled posts, no "share my weekly progress automatically," no toggle that defaults ON. Every post fires from an explicit user tap.
+2. **Preview modal mandatory on first share per type.** Each new post type (score share, milestone share, CV-update share) requires user-confirmed preview the first time.
+3. **Quick-share shortcut allowed AFTER first preview.** Subsequent shares of the same type can fire with a one-tap "Quick Share" button bypassing the modal — virality requirement. User can re-enable preview-always per type in Settings → Integrations.
+4. **Granular per-feature gating.** Each new shareable feature (Score, milestone, CV update, weekly digest, etc.) ships with its own opt-in moment, NOT a blanket "allow all LinkedIn shares" toggle.
+5. **Easy disconnect** — Settings → Integrations panel one-click revoke. Removes the lazy scope grant from Supabase identities table. User retains identity-only LinkedIn login.
+
+### v2 backlog adds
+
+- **"Share to Myro" → v2 PR.** First shareable surface = Myro Score. Triggers incremental `w_member_social` scope grant on first tap; preview modal once; quick-share thereafter. Telemetry: `linkedin_share_initiated { surface, type }` · `linkedin_share_scope_granted { granted }` · `linkedin_share_posted { type, latency_ms }` · `linkedin_share_revoked { type, time_since_grant_ms }`. Expand to milestone share + CV-update share once Score share validates.
+- **Settings → Integrations panel** (modeled after a billing panel — connections as first-class management surface). Lists active integrations (LinkedIn, Google) with: connection status · scopes granted · last sync · per-feature preview/quick-share preferences · disconnect button. Per integration, "Connect" CTA shown if not connected. New file: `components/settings/integrations-panel.tsx`. Supabase identity revocation via `supabase.auth.admin.deleteIdentity(identityId)` from a thin backend endpoint. Mirrors industry pattern (Stripe Connections, Linear Integrations, Notion Settings → Connections).
 
 ### Components
 
@@ -138,6 +178,7 @@ L7. **`cv_versions.source` migration** — `20260524_cv_versions_source.sql` add
 
 - ✅ Enable Google OAuth provider in Auth → Providers (done 2026-05-24)
 - ✅ Enable LinkedIn OAuth provider (`linkedin_oidc` preferred over legacy `linkedin`) (done 2026-05-24)
+- ✅ LinkedIn app partner-tier scopes granted: `r_profile_basicinfo`, `r_verify`, `w_member_social` (done 2026-05-24 evening; v1 PR requests `openid profile email r_profile_basicinfo r_verify` at signup; `w_member_social` deferred to lazy incremental request per binding write-scope principles above)
 - Enable Identity Linking (Auth → Settings → "Enable Manual Linking" ON; automatic identity linking on verified email)
 - Configure custom SMTP (Resend or AWS SES) in Auth → Email
 - Add SPF/DKIM/DMARC DNS records for the sending domain
@@ -148,13 +189,13 @@ L7. **`cv_versions.source` migration** — `20260524_cv_versions_source.sql` add
 ## Implementation surface (single PR)
 
 ### Backend
-- `app/routers/auth.py`: `POST /auth/post-signin` (provider-aware: branches on `linkedin` for L4 vanity fetch), `POST /auth/magic-link-request`
-- `app/services/linkedin_api.py` NEW: `fetch_vanity_name(access_token) -> str | None` (2s timeout, fail-graceful)
-- `app/services/user_provisioning.py`: extend `ensure_user_provisioned` with optional `linkedin_url` param
+- `app/routers/auth.py`: `POST /auth/post-signin` (provider-aware: branches on `linkedin_oidc` to read `vanityName`/`headline`/`verified` directly from JWT claims; preserves SH7 ref attribution on all providers), `POST /auth/magic-link-request`, `DELETE /auth/integrations/{provider}` (revokes Supabase identity for v2 disconnect-button)
+- `app/services/user_provisioning.py`: extend `ensure_user_provisioned` with optional `linkedin_url`, `linkedin_headline`, `linkedin_verified` params
 - `app/services/cv_workflow.py`: 5/hour/user upload cap in `_start_async_upload_job`; accept `source` param on upload + text endpoints
 - Migration `20260524_magic_link_attempts.sql`
 - Migration `20260524_cv_versions_source.sql`
-- Tests for both endpoints + rate-limit boundaries + LinkedIn API failure paths
+- Migration `20260524_user_profiles_linkedin_meta.sql` — adds `linkedin_headline TEXT`, `linkedin_verified BOOLEAN DEFAULT FALSE` to user_profiles (idempotent ALTER, default-safe for existing rows)
+- Tests for both endpoints + rate-limit boundaries + JWT claim extraction edge cases (missing vanityName, missing headline, verified=false)
 
 ### Frontend
 - `store/signupGateStore.ts`, `lib/hooks/use-signup-gate.ts`, `lib/is-in-app-browser.ts`
