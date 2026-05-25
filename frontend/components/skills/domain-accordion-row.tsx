@@ -49,8 +49,8 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
         padding: "14px 16px", background: "none", border: "none",
         cursor: "pointer", fontFamily: "inherit", textAlign: "left",
       }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>
+        <div className="tm-domain-accordion-row-main">
+          <div className="tm-domain-accordion-row-title" style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {domain}
           </div>
           <div style={{ fontSize: 10, letterSpacing: "0.06em", color: "var(--tm-text-faint)", textTransform: "uppercase" }}>
@@ -58,9 +58,9 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
           </div>
         </div>
 
-        <div style={{ minWidth: 80, textAlign: "right" }}>
+        <div className="tm-domain-accordion-row-status" style={{ minWidth: 80, textAlign: "right" }}>
           {isBiggestGap ? (
-            <span style={{
+            <span className="tm-domain-gap-badge" style={{
               display: "inline-block", padding: "3px 8px", borderRadius: 4,
               fontSize: 9, fontWeight: 800, letterSpacing: "0.1em",
               background: "rgba(239,68,68,0.15)", color: "#f87171",
@@ -77,7 +77,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
           <div style={{ flex: 1, height: 3, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden", minWidth: 0 }}>
             <div style={{ height: "100%", width: `${avg}%`, borderRadius: 99, background: color, transition: "width 500ms var(--tm-ease)" }} />
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "var(--tm-font-mono)", minWidth: 32, textAlign: "right" }}>
+          <span className="tm-domain-accordion-row-pct" style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "var(--tm-font-mono)", minWidth: 32, textAlign: "right" }}>
             {avg}%
           </span>
         </div>
