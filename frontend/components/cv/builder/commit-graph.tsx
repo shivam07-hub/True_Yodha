@@ -1,6 +1,6 @@
 /**
- * Commit-graph atoms: KindDot, CommitRow.
- * Used by BaselineView's left column to draw the immutable version history.
+ * CV Library atoms: KindDot, CommitRow.
+ * Used by BaselineView's left column to draw saved CV copies.
  */
 "use client"
 
@@ -45,8 +45,8 @@ export function CommitRow({ v, isCurrentBaseline, selected, onSelect, drawTop, d
     ? "Master CV"
     : (v.title?.trim() || formatGlobalVersionLabel(v))
   const context = isMaster
-    ? "Master baseline"
-    : [v.company_name, v.job_title].filter(Boolean).join(" · ") || "Job-tailored version"
+    ? "Main CV"
+    : [v.company_name, v.job_title].filter(Boolean).join(" · ") || "Tailored CV"
 
   return (
     <button

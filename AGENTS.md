@@ -254,7 +254,30 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - CI stability hotfix: CV upload + feed timestamp)
+## LAST SESSION SUMMARY (2026-05-26 - CV Library vocabulary pass)
+
+Closed the open CV-builder vocabulary blocker that was holding the onboarding discovery layer behind "PR2 vocab swap":
+
+- Used `design-an-interface` with parallel interface sketches plus the `/grill-me` rule to verify the product direction from code/backlog context instead of adding a broad redesign.
+- Reframed `/cv` around a familiar document-library model:
+  - "commit graph" / branch language → **CV Library** / tailored CV
+  - "baseline CV" in user-facing copy → **Main CV**
+  - "Save commit" / "version" labels → **Save copy** / saved copy
+  - small global labels like `CV v16` → `Copy 16`
+- Replaced visible git branch/commit icon usage in the CV builder with folder/save icons while preserving the existing immutable `cv_versions` backend model.
+- Updated CV formatter tests so future UI copy regressions keep the student-friendly labels.
+- Marked the CV-builder slice as shipped in the canonical beta report while leaving the broader Lightcast/Forge/Intel/Ninja Name vocabulary pass open.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-version-picker-labels.test.mjs tests/cv-version-ledger.test.mjs tests/cv-baseline-display.test.mjs` → `11 passed`
+- `cd frontend && npm run lint` clean
+- `cd frontend && npx tsc --noEmit` clean
+- `.venv/bin/pytest backend/tests -q` → `378 passed`
+
+Unrelated workspace state still present: `CLAUDE.md` and `docs/session-history/2026-05.md` modified by Claude/onboarding work, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - CI stability hotfix: CV upload + feed timestamp)
 
 Closed the GitHub CI failure set (6 failing tests) with root-cause fixes and regression coverage:
 

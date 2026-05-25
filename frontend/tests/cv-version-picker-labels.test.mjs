@@ -54,14 +54,14 @@ const sanofiVersion = {
 const companyVersions = [baseline, autodeskV2, autodeskV1]
 const allVersions = [autodeskV2, autodeskV1, sanofiVersion, baseline]
 
-test("thread labels expose the master CV and company-local CV versions", () => {
+test("thread labels expose the master CV and job-local tailored CV copies", () => {
   assert.equal(helpers.formatThreadVersionLabel(baseline, companyVersions), "Master CV")
-  assert.equal(helpers.formatThreadVersionLabel(autodeskV1, companyVersions), "Company CV v1")
-  assert.equal(helpers.formatThreadVersionLabel(autodeskV2, companyVersions), "Company CV v2")
+  assert.equal(helpers.formatThreadVersionLabel(autodeskV1, companyVersions), "Tailored copy 1")
+  assert.equal(helpers.formatThreadVersionLabel(autodeskV2, companyVersions), "Tailored copy 2")
 })
 
-test("global CV version is still available as metadata", () => {
-  assert.equal(helpers.formatGlobalVersionLabel(autodeskV2), "CV v16")
+test("global saved-copy label is still available as metadata", () => {
+  assert.equal(helpers.formatGlobalVersionLabel(autodeskV2), "Copy 16")
 })
 
 test("parent labels resolve baseline parents outside the job-scoped list", () => {
@@ -71,17 +71,17 @@ test("parent labels resolve baseline parents outside the job-scoped list", () =>
   )
 })
 
-test("parent labels prefer company-thread names when the parent belongs to this company", () => {
+test("parent labels prefer tailored CV names when the parent belongs to this job", () => {
   assert.equal(
     helpers.formatParentVersionLabel(autodeskV1.id, companyVersions, allVersions),
-    "Company CV v1",
+    "Tailored copy 1",
   )
 })
 
-test("version subtitles name the job behind a company CV version", () => {
+test("copy subtitles name the job behind a tailored CV", () => {
   assert.equal(
     helpers.formatVersionContext(autodeskV2),
     "Workplace Events Lead · Autodesk",
   )
-  assert.equal(helpers.formatVersionContext(baseline), "Master baseline")
+  assert.equal(helpers.formatVersionContext(baseline), "Main CV")
 })

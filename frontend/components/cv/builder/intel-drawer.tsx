@@ -1,7 +1,7 @@
 /**
  * Intel drawer — slides from right on desktop, full-screen on mobile.
  * Renders the JD match gauge, matched/missing keyword chips, JD source
- * text, and a tiny lineage view of this thread's versions.
+ * text, and a compact saved-copy view for this job.
  */
 "use client"
 
@@ -67,7 +67,7 @@ export function IntelDrawer({
           </div>
           <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)" }}>
             <span style={{ color: fitColor }}>{fitLabel}</span>{" · "}
-            <span>baseline {baseScore}%</span>
+            <span>Main CV {baseScore}%</span>
           </div>
 
           <section className="cvb-intel-section">
@@ -123,7 +123,7 @@ export function IntelDrawer({
           )}
 
           <section className="cvb-intel-section">
-            <h4>lineage · {threadVersions.length}</h4>
+            <h4>saved copies · {threadVersions.length}</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {threadVersions.map(v => (
                 <div key={v.id} style={{
@@ -134,11 +134,11 @@ export function IntelDrawer({
                   <span className="mono" style={{ fontSize: 11 }}>{formatGlobalVersionLabel(v)}</span>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {v.kind === "baseline_upload"
-                      ? "Master baseline"
+                      ? "Main CV"
                       : (v.title?.trim()
                           || (v.kind === "polished" ? "AI polished"
-                            : v.kind === "edited" ? "Manually edited"
-                            : v.kind === "deterministic" ? "Auto-tailored"
+                            : v.kind === "edited" ? "Edited copy"
+                            : v.kind === "deterministic" ? "Tailored CV"
                             : v.kind))}
                   </span>
                   <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
