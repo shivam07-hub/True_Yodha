@@ -119,15 +119,31 @@
   --tm-shadow-2:      0 8px 24px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.4);
   --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
 
-  /* ── Default accent = SIGNAL (teal) ──────────────────────── */
-  --tm-accent:          #00F5D4;
-  --tm-accent-hover:    #53FFE3;
-  --tm-accent-pressed:  #00C7AE;
-  --tm-accent-glow:     rgba(0, 245, 212, 0.35);
-  --tm-accent-wash:     rgba(0, 245, 212, 0.08);
-  --tm-accent-ring:     rgba(0, 245, 212, 0.45);
-  --tm-accent-grid:     rgba(0, 245, 212, 0.025);
-  --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
+  /* ── Brand + interactive split (PR1) ───────────────────────
+     Brand is reserved for rare moments (XP/completion/logo).
+     Interactive owns CTAs/links/focus by default.
+     Keep --tm-accent* as a legacy alias bridge for zero-delta rollout. */
+  --tm-brand:              #00F5D4;
+  --tm-brand-glow:         rgba(0, 245, 212, 0.35);
+  --tm-brand-fg:           #050A18;
+
+  --tm-interactive:        #00F5D4;
+  --tm-interactive-hover:  #53FFE3;
+  --tm-interactive-press:  #00C7AE;
+  --tm-interactive-glow:   rgba(0, 245, 212, 0.35);
+  --tm-interactive-wash:   rgba(0, 245, 212, 0.08);
+  --tm-interactive-ring:   rgba(0, 245, 212, 0.45);
+  --tm-interactive-grid:   rgba(0, 245, 212, 0.025);
+  --tm-interactive-fg:     #050A18;
+
+  --tm-accent:             var(--tm-interactive);
+  --tm-accent-hover:       var(--tm-interactive-hover);
+  --tm-accent-pressed:     var(--tm-interactive-press);
+  --tm-accent-glow:        var(--tm-interactive-glow);
+  --tm-accent-wash:        var(--tm-interactive-wash);
+  --tm-accent-ring:        var(--tm-interactive-ring);
+  --tm-accent-grid:        var(--tm-interactive-grid);
+  --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
   --tm-bg-inset:        #030712;
   --tm-bg-surface-hover: var(--tm-surface-2);
@@ -177,52 +193,68 @@
 }
 
 :root[data-surface="light"][data-accent="signal"] {
-  --tm-accent:          #126E68;
-  --tm-accent-hover:    #0D5E59;
-  --tm-accent-pressed:  #0A4C48;
-  --tm-accent-glow:     rgba(18, 110, 104, 0.18);
-  --tm-accent-wash:     rgba(18, 110, 104, 0.09);
-  --tm-accent-ring:     rgba(18, 110, 104, 0.34);
-  --tm-accent-grid:     rgba(18, 110, 104, 0.022);
-  --tm-accent-fg:       #FFFFFF;
+  --tm-brand:              #126E68;
+  --tm-brand-glow:         rgba(18, 110, 104, 0.18);
+  --tm-brand-fg:           #FFFFFF;
+
+  --tm-interactive:        #126E68;
+  --tm-interactive-hover:  #0D5E59;
+  --tm-interactive-press:  #0A4C48;
+  --tm-interactive-glow:   rgba(18, 110, 104, 0.18);
+  --tm-interactive-wash:   rgba(18, 110, 104, 0.09);
+  --tm-interactive-ring:   rgba(18, 110, 104, 0.34);
+  --tm-interactive-grid:   rgba(18, 110, 104, 0.022);
+  --tm-interactive-fg:     #FFFFFF;
 }
 
 /* ── Accent: SIGNAL (teal/electric mint) ───────────────────── */
 :root[data-accent="signal"] {
-  --tm-accent:          #00F5D4;
-  --tm-accent-hover:    #53FFE3;
-  --tm-accent-pressed:  #00C7AE;
-  --tm-accent-glow:     rgba(0, 245, 212, 0.35);
-  --tm-accent-wash:     rgba(0, 245, 212, 0.08);
-  --tm-accent-ring:     rgba(0, 245, 212, 0.45);
-  --tm-accent-grid:     rgba(0, 245, 212, 0.025);
-  --tm-accent-fg:       #050A18;
+  --tm-brand:              #00F5D4;
+  --tm-brand-glow:         rgba(0, 245, 212, 0.35);
+  --tm-brand-fg:           #050A18;
+
+  --tm-interactive:        #00F5D4;
+  --tm-interactive-hover:  #53FFE3;
+  --tm-interactive-press:  #00C7AE;
+  --tm-interactive-glow:   rgba(0, 245, 212, 0.35);
+  --tm-interactive-wash:   rgba(0, 245, 212, 0.08);
+  --tm-interactive-ring:   rgba(0, 245, 212, 0.45);
+  --tm-interactive-grid:   rgba(0, 245, 212, 0.025);
+  --tm-interactive-fg:     #050A18;
 }
 
 /* ── Accent: FORGE (amber/warm gold) ───────────────────────── */
 :root[data-accent="forge"] {
-  --tm-accent:          #FFB347;
-  --tm-accent-hover:    #FFD07A;
-  --tm-accent-pressed:  #E08E1F;
-  --tm-accent-glow:     rgba(255, 179, 71, 0.38);
-  --tm-accent-wash:     rgba(255, 179, 71, 0.10);
-  --tm-accent-ring:     rgba(255, 179, 71, 0.50);
-  --tm-accent-grid:     rgba(255, 179, 71, 0.030);
-  --tm-accent-fg:       #1A0F00;
+  --tm-brand:              #00F5D4;
+  --tm-brand-glow:         rgba(0, 245, 212, 0.35);
+  --tm-brand-fg:           #050A18;
+
+  --tm-interactive:        #FFB347;
+  --tm-interactive-hover:  #FFD07A;
+  --tm-interactive-press:  #E08E1F;
+  --tm-interactive-glow:   rgba(255, 179, 71, 0.38);
+  --tm-interactive-wash:   rgba(255, 179, 71, 0.10);
+  --tm-interactive-ring:   rgba(255, 179, 71, 0.50);
+  --tm-interactive-grid:   rgba(255, 179, 71, 0.030);
+  --tm-interactive-fg:     #1A0F00;
 }
 
 /* ── Accent + Surface combo: FORGE on LIGHT (contrast-safe) ──
    First-time users default here. Darken the interactive amber
    so links/buttons remain readable on light surfaces. */
 :root[data-surface="light"][data-accent="forge"] {
-  --tm-accent:          #8F541F;
-  --tm-accent-hover:    #774417;
-  --tm-accent-pressed:  #5F3510;
-  --tm-accent-glow:     rgba(143, 84, 31, 0.20);
-  --tm-accent-wash:     rgba(143, 84, 31, 0.09);
-  --tm-accent-ring:     rgba(143, 84, 31, 0.34);
-  --tm-accent-grid:     rgba(143, 84, 31, 0.022);
-  --tm-accent-fg:       #FFFFFF;
+  --tm-brand:              #126E68;
+  --tm-brand-glow:         rgba(18, 110, 104, 0.18);
+  --tm-brand-fg:           #FFFFFF;
+
+  --tm-interactive:        #8F541F;
+  --tm-interactive-hover:  #774417;
+  --tm-interactive-press:  #5F3510;
+  --tm-interactive-glow:   rgba(143, 84, 31, 0.20);
+  --tm-interactive-wash:   rgba(143, 84, 31, 0.09);
+  --tm-interactive-ring:   rgba(143, 84, 31, 0.34);
+  --tm-interactive-grid:   rgba(143, 84, 31, 0.022);
+  --tm-interactive-fg:     #FFFFFF;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────

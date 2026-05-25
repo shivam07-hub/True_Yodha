@@ -83,6 +83,17 @@ const config: Config = {
           "text-muted":    "var(--tm-text-muted)",
           "text-faint":    "var(--tm-text-faint)",
 
+          brand:           "var(--tm-brand)",
+          "brand-glow":    "var(--tm-brand-glow)",
+          "brand-fg":      "var(--tm-brand-fg)",
+
+          interactive:        "var(--tm-interactive)",
+          "interactive-hover":"var(--tm-interactive-hover)",
+          "interactive-press":"var(--tm-interactive-press)",
+          "interactive-wash": "var(--tm-interactive-wash)",
+          "interactive-ring": "var(--tm-interactive-ring)",
+          "interactive-fg":   "var(--tm-interactive-fg)",
+
           accent:          "var(--tm-accent)",
           "accent-hover":  "var(--tm-accent-hover)",
           "accent-pressed":"var(--tm-accent-pressed)",
