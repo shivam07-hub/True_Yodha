@@ -10,7 +10,7 @@ import type { CVAnalysisStatus } from "@/components/onboarding/step-companies"
 import { StepScore } from "@/components/onboarding/step-score"
 import { NinjaNameStep } from "@/components/onboarding/NinjaNameStep"
 import { uploadCV, uploadCVText, scores, users } from "@/lib/api"
-import type { CVUploadResult, ScoreResponse } from "@/lib/api"
+import type { CVUploadResult, CVUploadSource, ScoreResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
@@ -43,15 +43,17 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("cv")
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [cvText, setCvText] = useState<string | null>(null)
+  const [cvSource, setCvSource] = useState<CVUploadSource>("pdf_upload")
   const [profileSaving, setProfileSaving] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scoreData, setScoreData] = useState<ScoreResponse | null>(null)
   const [cvUploadTask, setCVUploadTask] = useState<CVUploadTask>(INITIAL_CV_UPLOAD_TASK)
 
-  function handleCVNext(file: File) {
+  function handleCVNext(file: File, source: CVUploadSource = "pdf_upload") {
     setCvFile(file)
     setCvText(null)
+    setCvSource(source)
     setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
     setStep("role")
   }
@@ -59,6 +61,7 @@ export default function OnboardingPage() {
   function handleCVTextNext(text: string) {
     setCvText(text)
     setCvFile(null)
+    setCvSource("text_describe")
     setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
     setStep("role")
   }
@@ -69,9 +72,9 @@ export default function OnboardingPage() {
     if (cvUploadTask.status === "failed") return Promise.resolve({ ok: false, message: cvUploadTask.message })
 
     const runner = cvFile
-      ? uploadCV(currentToken, cvFile)
+      ? uploadCV(currentToken, cvFile, cvSource)
       : cvText
-        ? uploadCVText(currentToken, cvText)
+        ? uploadCVText(currentToken, cvText, "text_describe")
         : Promise.reject(new Error("Add a CV before continuing."))
 
     const promise = runner

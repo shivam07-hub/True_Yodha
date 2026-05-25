@@ -1,0 +1,217 @@
+/* ADR-0006 shared auth atoms — Razorpay-Rize-inspired calm aesthetic.
+   Tactile primary buttons, neutral seconds, clear hierarchy on white. */
+
+.tm-auth-provider-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition:
+    transform 80ms var(--tm-ease),
+    background 120ms var(--tm-ease),
+    border-color 120ms var(--tm-ease),
+    box-shadow 120ms var(--tm-ease);
+}
+
+.tm-auth-provider-btn:hover {
+  border-color: var(--tm-accent-ring);
+  background: var(--tm-bg-inset);
+}
+
+.tm-auth-provider-btn:active {
+  transform: scale(0.985);
+  filter: brightness(0.96);
+}
+
+.tm-auth-provider-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tm-accent-wash);
+  border-color: var(--tm-accent-ring);
+}
+
+.tm-auth-provider-btn:disabled,
+.tm-auth-provider-btn[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.tm-auth-provider-btn--primary {
+  background: var(--tm-accent);
+  color: var(--tm-bg);
+  border-color: var(--tm-accent);
+}
+
+.tm-auth-provider-btn--primary:hover {
+  background: var(--tm-accent);
+  filter: brightness(1.04);
+}
+
+.tm-auth-provider-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.tm-auth-magic-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-bg-inset);
+  color: var(--tm-text);
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 120ms var(--tm-ease), box-shadow 120ms var(--tm-ease);
+}
+
+.tm-auth-magic-input:focus-visible {
+  border-color: var(--tm-accent-ring);
+  box-shadow: 0 0 0 3px var(--tm-accent-wash);
+}
+
+.tm-auth-magic-input[aria-invalid="true"] {
+  border-color: var(--tm-danger);
+}
+
+.tm-auth-magic-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .tm-auth-magic-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tm-auth-disclosure {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+  background: var(--tm-bg-inset);
+}
+
+.tm-auth-disclosure > summary {
+  cursor: pointer;
+  color: var(--tm-text);
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tm-auth-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tm-auth-disclosure > summary::after {
+  content: "›";
+  margin-left: auto;
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 120ms var(--tm-ease);
+}
+
+.tm-auth-disclosure[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.tm-auth-disclosure-body {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.tm-auth-disclosure-body dl {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  row-gap: 4px;
+  column-gap: 12px;
+  margin: 0;
+}
+
+.tm-auth-disclosure-body dt {
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.tm-auth-disclosure-body dd {
+  margin: 0;
+}
+
+.tm-auth-warning {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-warning, #f7b500);
+  background: rgba(247, 181, 0, 0.08);
+  color: var(--tm-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tm-auth-warning a {
+  color: var(--tm-accent);
+  text-decoration: underline;
+}
+
+.tm-auth-check-inbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.tm-auth-check-inbox__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tm-accent-wash);
+  color: var(--tm-accent-text);
+  font-size: 28px;
+}
+
+.tm-auth-check-inbox__resend {
+  background: none;
+  border: none;
+  color: var(--tm-accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.tm-auth-check-inbox__resend:disabled {
+  color: var(--tm-text-faint);
+  text-decoration: none;
+  cursor: not-allowed;
+}

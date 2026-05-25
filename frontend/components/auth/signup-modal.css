@@ -1,0 +1,235 @@
+/* ADR-0006 §15 — SignupModal.
+   Razorpay-Rize signature: calm white surface, concept-explainer side card,
+   single dominant CTA. Mobile = full-sheet with side card collapsed. */
+
+.tm-signup-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(8, 12, 20, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: tm-signup-fade-in 160ms var(--tm-ease) both;
+}
+
+@keyframes tm-signup-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tm-signup-modal {
+  position: relative;
+  width: min(880px, 100%);
+  max-height: calc(100dvh - 48px);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 18px;
+  box-shadow: var(--tm-shadow-3, 0 24px 60px -16px rgba(0, 0, 0, 0.4));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  overflow: hidden;
+  animation: tm-signup-rise 200ms var(--tm-ease) both;
+}
+
+@keyframes tm-signup-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.tm-signup-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+  color: var(--tm-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 120ms var(--tm-ease), color 120ms var(--tm-ease);
+}
+
+.tm-signup-modal__close:hover {
+  background: var(--tm-bg-inset);
+  color: var(--tm-text);
+}
+
+.tm-signup-modal__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tm-accent-wash);
+}
+
+.tm-signup-modal__main {
+  padding: 36px 36px 28px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.tm-signup-modal__crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  font-weight: 600;
+}
+
+.tm-signup-modal__crumb-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+}
+
+.tm-signup-modal__title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--tm-text);
+}
+
+.tm-signup-modal__title em {
+  font-style: normal;
+  color: var(--tm-accent-text);
+}
+
+.tm-signup-modal__lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+
+.tm-signup-modal__ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  font-size: 12px;
+  color: var(--tm-text);
+  letter-spacing: 0.01em;
+}
+
+.tm-signup-modal__ref-chip strong {
+  font-family: var(--tm-font-mono);
+  color: var(--tm-accent-text);
+}
+
+/* ── side concept-explainer (Razorpay Rize signature) ──────────────────── */
+.tm-signup-modal__aside {
+  background: linear-gradient(180deg, var(--tm-bg-inset) 0%, var(--tm-surface) 100%);
+  border-left: 1px solid var(--tm-border-soft);
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.tm-signup-modal__aside-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--tm-text-faint);
+}
+
+.tm-signup-modal__aside-glyph {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tm-accent-text);
+}
+
+.tm-signup-modal__concept {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px;
+  border-radius: 12px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+}
+
+.tm-signup-modal__concept h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-text);
+  letter-spacing: -0.005em;
+}
+
+.tm-signup-modal__concept p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+}
+
+.tm-signup-modal__trust {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--tm-text-faint);
+  line-height: 1.5;
+}
+
+/* ── mobile + responsive ─────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .tm-signup-modal-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+  .tm-signup-modal {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+  .tm-signup-modal__main {
+    padding: 26px 22px 32px;
+  }
+  .tm-signup-modal__aside {
+    border-left: none;
+    border-top: 1px solid var(--tm-border-soft);
+    padding: 24px 22px 36px;
+  }
+  .tm-signup-modal__title {
+    font-size: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-signup-modal-backdrop,
+  .tm-signup-modal {
+    animation: none;
+  }
+}

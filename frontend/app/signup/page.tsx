@@ -1,11 +1,19 @@
 import type { Metadata } from "next"
-import { AuthForm } from "@/components/auth/auth-form"
+import { Suspense } from "react"
+import { SignupRoute } from "./signup-route"
 
 export const metadata: Metadata = {
   title: "Sign Up — Myro",
-  robots: { index: false, follow: false },
+  description: "Start your CV hub. Score your CV against live jobs and keep every version you tailor.",
+  // ADR-0006 §2 — /signup is the magic-link landing twin + SEO surface +
+  // no-JS fallback. Indexable so search engines crawl the calm public CTA.
+  robots: { index: true, follow: true },
 }
 
 export default function SignupPage() {
-  return <AuthForm mode="signup" />
+  return (
+    <Suspense fallback={null}>
+      <SignupRoute />
+    </Suspense>
+  )
 }

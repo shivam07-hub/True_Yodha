@@ -1,4 +1,15 @@
-from app.schemas.auth import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
+from app.schemas.auth import (
+    AuthResponse,
+    IntegrationRevokeResponse,
+    LoginRequest,
+    MagicLinkRequest,
+    MagicLinkResponse,
+    PostSigninRequest,
+    PostSigninResponse,
+    RefreshRequest,
+    RefreshResponse,
+    SignupRequest,
+)
 from app.schemas.cv import (
     CVEvidenceSummaryResponse,
     CVUploadAcceptedResponse,

@@ -2,8 +2,11 @@
 
 import { useRef, useState, useCallback, useEffect } from "react"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
+import { signupEvents } from "@/lib/analytics"
+import { LinkedInDisclosure } from "@/components/auth/shared/linkedin-disclosure"
+import type { CVUploadSource } from "@/lib/api"
 
-type Mode = "upload" | "describe"
+type Mode = "upload" | "describe" | "linkedin"
 
 const MIN_WORDS = 30
 
@@ -17,15 +20,28 @@ const PROMPTS = [
 
 const NUDGES = ["A role you've held", "Something you shipped", "Skills you use daily", "What you're learning", "Where you want to go"]
 
+const LINKEDIN_STEPS = [
+  "Open your LinkedIn profile on desktop or mobile.",
+  "Tap More → Save to PDF (under the contact button).",
+  "Drop the saved file below.",
+]
+
 interface Props {
-  onNext: (file: File) => void
+  /** Called with (file, source) so the upload pipeline can tag the cohort. */
+  onNext: (file: File, source: CVUploadSource) => void
   onNextText?: (text: string) => void
+  /** ADR-0006 L3 — auto-select segment from auth provider. */
+  defaultMode?: Mode
 }
 
-export function StepCV({ onNext, onNextText }: Props) {
-  const [mode, setMode] = useState<Mode>("upload")
+export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
+  const [mode, setMode] = useState<Mode>(defaultMode)
 
-  // upload state
+  useEffect(() => {
+    setMode(defaultMode)
+  }, [defaultMode])
+
+  // upload state (shared by upload + linkedin segments)
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -49,6 +65,19 @@ export function StepCV({ onNext, onNextText }: Props) {
     return () => clearInterval(id)
   }, [text])
 
+  function selectMode(next: Mode) {
+    if (next === mode) return
+    setMode(next)
+    setUploadError(null)
+    setDescribeError(null)
+    const sourceMap: Record<Mode, CVUploadSource> = {
+      upload: "pdf_upload",
+      describe: "text_describe",
+      linkedin: "linkedin_pdf",
+    }
+    signupEvents.cvInputSourceSelected({ source: sourceMap[next] })
+  }
+
   async function handleFile(file: File) {
     const preflight = await preflightCVUploadFile(file)
     if (!preflight.ok) { setUploadError(preflight.message); return }
@@ -57,7 +86,8 @@ export function StepCV({ onNext, onNextText }: Props) {
       file.type === preflight.mime && file.name === preflight.safeName
         ? file
         : new File([file], preflight.safeName, { type: preflight.mime })
-    onNext(safeFile)
+    const source: CVUploadSource = mode === "linkedin" ? "linkedin_pdf" : "pdf_upload"
+    onNext(safeFile, source)
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -66,7 +96,7 @@ export function StepCV({ onNext, onNextText }: Props) {
     const file = e.dataTransfer.files[0]
     if (file) void handleFile(file)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onNext])
+  }, [mode])
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0
   const canSubmit = wordCount >= MIN_WORDS
@@ -77,28 +107,36 @@ export function StepCV({ onNext, onNextText }: Props) {
     onNextText?.(text.trim())
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, width: "100%", maxWidth: 520 }}>
+  const segments: Array<{ id: Mode; label: string }> = [
+    { id: "upload", label: "Upload PDF" },
+    { id: "describe", label: "Describe" },
+    { id: "linkedin", label: "LinkedIn" },
+  ]
 
-      {/* Mode toggle */}
-      <div style={{
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, width: "100%", maxWidth: 560 }}>
+
+      {/* Mode toggle — 3 segments */}
+      <div role="tablist" style={{
         display: "flex", gap: 2, padding: 3,
         borderRadius: 999,
         background: "rgba(255,255,255,0.04)",
         border: "1px solid var(--tm-border-soft)",
       }}>
-        {(["upload", "describe"] as Mode[]).map((m) => (
+        {segments.map(({ id, label }) => (
           <button
-            key={m}
+            key={id}
+            role="tab"
             type="button"
-            onClick={() => setMode(m)}
+            aria-selected={mode === id}
+            onClick={() => selectMode(id)}
             style={{
-              padding: "7px 20px",
+              padding: "7px 18px",
               borderRadius: 999,
               border: "none",
-              background: mode === m ? "var(--tm-accent)" : "transparent",
-              color: mode === m ? "var(--tm-bg)" : "var(--tm-text-muted)",
-              fontSize: 13, fontWeight: mode === m ? 600 : 400,
+              background: mode === id ? "var(--tm-accent)" : "transparent",
+              color: mode === id ? "var(--tm-bg)" : "var(--tm-text-muted)",
+              fontSize: 13, fontWeight: mode === id ? 600 : 400,
               cursor: "pointer",
               fontFamily: "inherit",
               letterSpacing: "0.01em",
@@ -106,20 +144,31 @@ export function StepCV({ onNext, onNextText }: Props) {
               whiteSpace: "nowrap",
             }}
           >
-            {m === "upload" ? "Upload CV" : "Write about yourself"}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* ── UPLOAD MODE ── */}
-      {mode === "upload" && (
+      {(mode === "upload" || mode === "linkedin") && (
         <>
           <div style={{ textAlign: "center" }}>
             <h2 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 700, color: "var(--tm-text)", marginBottom: 8, letterSpacing: "var(--tm-tracking-tight)" }}>
-              Upload your CV
+              {mode === "upload" ? "Upload your CV" : "Import from LinkedIn"}
             </h2>
-            <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>PDF or DOCX · max 10MB</p>
+            <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
+              {mode === "upload" ? "PDF or DOCX · max 10MB" : "Save your LinkedIn as PDF, then drop it here"}
+            </p>
           </div>
+
+          {mode === "linkedin" && (
+            <ol style={{
+              listStyle: "decimal", paddingLeft: 20, margin: 0,
+              fontSize: 13.5, lineHeight: 1.65, color: "var(--tm-text-muted)",
+              width: "100%", maxWidth: 440, alignSelf: "center",
+            }}>
+              {LINKEDIN_STEPS.map((s) => <li key={s}>{s}</li>)}
+            </ol>
+          )}
 
           <button
             type="button"
@@ -129,12 +178,14 @@ export function StepCV({ onNext, onNextText }: Props) {
             onDrop={onDrop}
             onClick={() => inputRef.current?.click()}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inputRef.current?.click() } }}
-            aria-label="Upload CV — click or drag and drop a PDF or DOCX file"
+            aria-label={mode === "upload"
+              ? "Upload CV — click or drag and drop a PDF or DOCX file"
+              : "Drop your LinkedIn PDF here, or click to browse"}
             style={{
               width: "100%",
               border: `2px dashed ${dragging ? "var(--tm-accent)" : "var(--tm-border)"}`,
               borderRadius: "var(--tm-radius-lg)",
-              padding: "56px 32px",
+              padding: "48px 32px",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
               cursor: "pointer",
               background: dragging ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
@@ -144,12 +195,14 @@ export function StepCV({ onNext, onNextText }: Props) {
             }}
             onFocus={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--tm-accent-wash)" }}
             onBlur={(e) => { e.currentTarget.style.borderColor = dragging ? "var(--tm-accent)" : "var(--tm-border)"; e.currentTarget.style.boxShadow = "none" }}
-            onMouseEnter={(e) => { if (!dragging) e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
-            onMouseLeave={(e) => { if (!dragging) e.currentTarget.style.borderColor = "var(--tm-border)" }}
           >
-            <span aria-hidden="true" style={{ fontSize: 37, lineHeight: 1 }}>📄</span>
-            <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 500, color: "var(--tm-text)" }}>Drag and drop your CV here</span>
-            <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>or press Enter / Space to browse</span>
+            <span aria-hidden="true" style={{ fontSize: 37, lineHeight: 1 }}>{mode === "linkedin" ? "in" : "📄"}</span>
+            <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 500, color: "var(--tm-text)" }}>
+              {mode === "linkedin" ? "Drop the LinkedIn PDF" : "Drag and drop your CV here"}
+            </span>
+            <span style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
+              or press Enter / Space to browse
+            </span>
           </button>
 
           <input
@@ -165,10 +218,11 @@ export function StepCV({ onNext, onNextText }: Props) {
           {uploadError && (
             <p role="alert" style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{uploadError}</p>
           )}
+
+          {mode === "linkedin" && <LinkedInDisclosure surface="step_cv" variant="cv" />}
         </>
       )}
 
-      {/* ── DESCRIBE MODE ── */}
       {mode === "describe" && (
         <>
           <div style={{ textAlign: "center", width: "100%" }}>
@@ -181,7 +235,6 @@ export function StepCV({ onNext, onNextText }: Props) {
             </h2>
           </div>
 
-          {/* Nudge chips */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, width: "100%", justifyContent: "center" }}>
             {NUDGES.map((n) => (
               <span key={n} style={{
@@ -195,7 +248,6 @@ export function StepCV({ onNext, onNextText }: Props) {
             ))}
           </div>
 
-          {/* Textarea with animated placeholder */}
           <div style={{ position: "relative", width: "100%" }}>
             <textarea
               value={text}
@@ -222,7 +274,6 @@ export function StepCV({ onNext, onNextText }: Props) {
               }}
             />
 
-            {/* Animated placeholder overlay — only shown when textarea is empty */}
             {!text && (
               <div
                 aria-hidden="true"
@@ -241,7 +292,6 @@ export function StepCV({ onNext, onNextText }: Props) {
               </div>
             )}
 
-            {/* Word count bar */}
             <div style={{
               position: "absolute", bottom: 0, left: 0, right: 0,
               padding: "10px 16px",

@@ -134,6 +134,34 @@ export interface AuthResponse {
   message: string | null
 }
 
+export interface PostSigninResponse {
+  user_id: string
+  provider: string | null
+  referral_attributed: boolean
+  linkedin_xp_granted: boolean
+  linkedin_url_set: boolean
+}
+
+export interface PostSigninRequestBody {
+  provider?: string | null
+  myro_ref?: string | null
+  linkedin_vanity?: string | null
+  linkedin_headline?: string | null
+  linkedin_verified?: boolean | null
+}
+
+export interface MagicLinkResponse {
+  sent: boolean
+  message: string
+  retry_after_seconds?: number | null
+}
+
+export interface IntegrationRevokeResponse {
+  provider: string
+  revoked: boolean
+  message: string
+}
+
 export const auth = {
   signup: (email: string, password: string, fullName?: string | null, myroRef?: string | null) =>
     request<AuthResponse>("/auth/signup", {
@@ -144,6 +172,23 @@ export const auth = {
     request<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    }),
+  /** ADR-0006 — runs after Supabase returns the session. */
+  postSignin: (token: string, body: PostSigninRequestBody) =>
+    request<PostSigninResponse>("/auth/post-signin", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  magicLinkRequest: (email: string, redirectTo?: string | null) =>
+    request<MagicLinkResponse>("/auth/magic-link-request", {
+      method: "POST",
+      body: JSON.stringify({ email, redirect_to: redirectTo ?? null }),
+    }),
+  revokeIntegration: (token: string, provider: "google" | "linkedin_oidc") =>
+    request<IntegrationRevokeResponse>(`/auth/integrations/${provider}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 
@@ -641,7 +686,9 @@ function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUpload
   return new CVUploadFailureBase("Upload failed unexpectedly. Tap to try again.", "upload_unknown_error", false, null, true, phase)
 }
 
-export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
+export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf"
+
+export async function uploadCV(token: string, file: File, source: CVUploadSource = "pdf_upload"): Promise<CVUploadResult> {
   const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
   _persistUploadIdemKey(idempotencyKey)
   _emitCVUploadTelemetry(token, {
@@ -680,7 +727,7 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadResul
   }
 
   try {
-    const initial = await _postCVUpload(token, safeFile, idempotencyKey)
+    const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
     if (initial.status === "processing") _persistUploadJob(initial.job_id)
     const result = await _resolveUploadResult(
       token,
@@ -696,14 +743,14 @@ export async function uploadCV(token: string, file: File): Promise<CVUploadResul
   }
 }
 
-export async function uploadCVText(token: string, text: string): Promise<CVUploadResult> {
+export async function uploadCVText(token: string, text: string, source: CVUploadSource = "text_describe"): Promise<CVUploadResult> {
   const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
   _persistUploadIdemKey(idempotencyKey)
   try {
     const initial = await request<CVUploadResponse>("/cv/text", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ text, idempotency_key: idempotencyKey }),
+      body: JSON.stringify({ text, idempotency_key: idempotencyKey, source }),
     })
     if (initial.status === "processing") _persistUploadJob(initial.job_id)
     const result = await _resolveUploadResult(token, initial, { idempotencyKey })
@@ -788,7 +835,7 @@ function _wrapNetworkError(err: unknown): CVUploadFailureBase {
   )
 }
 
-async function _postCVUpload(token: string, file: File, idempotencyKey: string): Promise<CVUploadResponse> {
+async function _postCVUpload(token: string, file: File, idempotencyKey: string, source: CVUploadSource = "pdf_upload"): Promise<CVUploadResponse> {
   if (!BASE) {
     throw new CVUploadFailureBase(
       "Upload misconfigured: missing API URL. Reload the app.",
@@ -826,6 +873,7 @@ async function _postCVUpload(token: string, file: File, idempotencyKey: string):
     Authorization: `Bearer ${token}`,
     Accept: "application/json",
     "Idempotency-Key": idempotencyKey,
+    "X-Myro-CV-Source": source,
   }
   const attempt = async (authToken: string): Promise<Response> => {
     const controller = new AbortController()

@@ -12,6 +12,7 @@ import {
   radarShape,
 } from "@/lib/radar-geometry"
 import { useViewport } from "@/mobile"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 
 export interface GhostRadarProps {
   domains: string[]
@@ -33,6 +34,7 @@ export function GhostRadar({ domains, refNinjaName }: GhostRadarProps) {
   const { reducedMotion } = useViewport()
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const signup = useSignupGate()
 
   useEffect(() => {
     if (reducedMotion) {
@@ -63,6 +65,15 @@ export function GhostRadar({ domains, refNinjaName }: GhostRadarProps) {
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+        e.preventDefault()
+        signup.open({
+          surface: "ghost_radar",
+          next: "/skills",
+          source: `ref:${refNinjaName}`,
+        })
+      }}
     >
       <svg
         width={RADAR_SVG_SIZE}
