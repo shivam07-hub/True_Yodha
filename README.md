@@ -1,55 +1,32 @@
-# Mirror — Career Intelligence Platform
+# True_Yodha
 
-Upload your CV → skills extracted against Skill taxonomy → top job matches by skill overlap + LLM ranking → Mirror Score across 10 domains → 7-day action plan to close skill gaps.
+True_Yodha is the codebase behind a career-intelligence product (Myro; earlier iterations used the name "Mirror") that helps job seekers understand what skills companies are hiring for in the age of AI.
 
----
+At a high level it:
+1. Ingests a user's CV.
+2. Extracts skills against a large skills taxonomy.
+3. Finds job matches via skill overlap and ranking.
+4. Computes a score and breakdowns that make the gaps actionable.
 
-## Project Structure
+This repository exists because the hiring market changes fast, and "what to learn next" is only useful if it is grounded in real job demand and a consistent skill taxonomy.
 
-```
-True_Yodha/
-├── backend/                   FastAPI API — Railway hosting
-│   ├── app/
-│   │   ├── routers/           auth, cv, diary, jobs, scores, skills, users
-│   │   ├── services/          cv_parser, scoring_engine, job_matcher, llm_ranker,
-│   │   │                      skill_tagger, taxonomy_loader, diary_processor, csv_importer
-│   │   ├── schemas/           Pydantic models per domain
-│   │   ├── config.py          Settings (pydantic-settings, loads backend/.env)
-│   │   ├── database.py        Supabase client factory (anon + admin)
-│   │   └── main.py            FastAPI app, CORS, router registration
-│   └── tests/                 pytest — cv_parser, scoring, job_matcher, health
-├── frontend/                  Next.js 14 — Vercel hosting
-│   ├── app/                   App Router pages
-│   │   ├── cv/                CV upload + extracted skills + upload history
-│   │   ├── dashboard/         Domain radar + Skill Intelligence (side-by-side) + skill upgrades
-│   │   ├── tracker/           Jobs Tracker — top 5 matches + application status (nav: "Jobs")
-│   │   ├── jobs/              Full job list with search (not in nav)
-│   │   ├── market/            Market Intel panel
-│   │   ├── diary/             Daily skill diary
-│   │   ├── onboarding/        CV → role → score reveal flow
-│   │   └── mission/           About / mission statement
-│   └── components/            Shared React components (see frontend/README.md)
-├── database/
-│   ├── schema.sql             PostgreSQL schema v4.0 (apply in Supabase SQL Editor)
-│   ├── seed_skills.sql        Seed data for skills table
-│   └── migrations/            Incremental migration scripts
-├── docs/
-│   ├── TECH_STACK.md          Full architecture + service map
-│   ├── SCORING_ALGORITHM.md   Mirror Score algorithm (cluster-coverage model)
-│   └── DEPLOYMENT_GUIDE.md    Git → GitHub → Vercel/Railway deploy steps
-├── lightcast_skills_taxonomy.json   35,108 skills (L1/L2/L3 hierarchy) — taxonomy source
-└── lightcast_skills_flat.csv        Flat export of same taxonomy
-```
+## What’s In This Repo
 
----
+This is a monorepo:
 
-## Quick Start
+- `backend/`: FastAPI API (Supabase/Postgres for storage, background worker for compute)
+- `frontend/`: Next.js 14 web app (Tailwind + shadcn/ui)
+- `database/`: schema and migration scripts for Supabase
+- `docs/`: architecture, scoring algorithm notes, deployment guide
+- `lightcast_skills_taxonomy.json`, `lightcast_skills_flat.csv`: skills taxonomy artifacts used by the system
 
-### Backend
+## Quick Start (Local Dev)
+
+### Backend API
 ```bash
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-# edit backend/.env with Supabase keys + LLM config + REDIS_URL
+# create backend/.env (do not commit) with Supabase keys + LLM config + REDIS_URL
 cd backend && uvicorn app.main:app --reload
 ```
 
@@ -65,30 +42,30 @@ python -m app.workers.jobs_compute_worker
 ```bash
 cd frontend
 npm install
-# edit frontend/.env.local with NEXT_PUBLIC_API_URL
+# create frontend/.env.local (do not commit) with NEXT_PUBLIC_API_URL
 npm run dev
 ```
 
----
+## How To Use
 
-## Environments
+This repo is primarily designed to be run as a web app (local or deployed).
 
-| Branch | Environment | URL |
-|--------|-------------|-----|
-| `main` | Production | Vercel auto-deploy |
-| `develop` | Active development / staging | Vercel preview URL |
-| `feature/*` | Local only | localhost |
+1. Start the backend API.
+2. Start the frontend.
+3. Use the frontend flow to upload a CV, view extracted skills, see matches, and explore skill intelligence.
 
-## Branch Rules
+For deeper detail, start here:
+- `docs/TECH_STACK.md`
+- `docs/SCORING_ALGORITHM.md`
+- `docs/DEPLOYMENT_GUIDE.md`
 
-- Never push directly to `main` — PR from `develop` only
-- `main` = Vercel production. Treat as sacred.
-- All work on `develop` branch
+## Contributing
 
-## Deployment
+Contributions are welcome. Please read `CONTRIBUTING.md` for:
+- dev setup and checks
+- code style and conventions
+- PR process and what makes a change reviewable
 
-- **Frontend:** Vercel (auto-deploys on push to `main`)
-- **Backend:** Railway (auto-deploys from `backend/` via Dockerfile)
-- **Database:** Supabase (PostgreSQL, free tier, schema v4.0)
+## License
 
-Full deployment guide: `docs/DEPLOYMENT_GUIDE.md`
+MIT. See `LICENSE`.
