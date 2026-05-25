@@ -11,7 +11,6 @@ seed the state synchronously.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import threading
 import uuid
@@ -199,7 +198,7 @@ async def dispatch(
                 excluded_job_ids=excluded_job_ids,
                 xp_charged=xp_charged,
             )
-        except Exception as exc:
+        except Exception:
             _log.exception("Enqueue failed user=%s ticket=%s", user_id, tid)
             new_balance = await _xp_charge.refund(user_id, xp_charged)
             failed = _state(
