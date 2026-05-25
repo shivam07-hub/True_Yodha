@@ -108,7 +108,10 @@ test("timeout throws once the deadline lapses without a terminal status", async 
     )
   } catch (e) {
     didThrow = true
-    assert.match((e as Error).message, /taking unusually long/)
+    assert.ok(e instanceof CVUploadFailureBase)
+    const err = e as CVUploadFailureBase
+    assert.equal(err.code, "poll_timeout")
+    assert.equal(err.retryable, true)
   }
   assert.ok(didThrow, "must surface timeout")
 })
@@ -135,4 +138,21 @@ test("failed status with missing detail falls back to a generic message", async 
     assert.match(err.message, /failed/i)
   }
   assert.ok(didThrow)
+})
+
+test("transient poll failures are retried until a terminal status arrives", async () => {
+  let call = 0
+  const result = await resolveCVUploadResult(
+    { status: "processing", job_id: "job-net" },
+    async () => {
+      call += 1
+      if (call <= 2) throw new Error("network blip")
+      return makeStatus({ status: "done", skills_detected: 9, score: 67.8, redirect_to: "/onboarding/score" })
+    },
+    { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
+  )
+
+  assert.equal(call, 3)
+  assert.equal(result.skills_detected, 9)
+  assert.equal(result.score, 67.8)
 })

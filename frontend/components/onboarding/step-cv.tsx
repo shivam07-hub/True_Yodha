@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useCallback, useEffect } from "react"
+import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 
 type Mode = "upload" | "describe"
 
@@ -48,26 +49,22 @@ export function StepCV({ onNext, onNextText }: Props) {
     return () => clearInterval(id)
   }, [text])
 
-  function validate(file: File): string | null {
-    if (!["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type)) {
-      return "Only PDF or DOCX files are supported."
-    }
-    if (file.size > 10 * 1024 * 1024) return "File must be under 10MB."
-    return null
-  }
-
-  function handleFile(file: File) {
-    const err = validate(file)
-    if (err) { setUploadError(err); return }
+  async function handleFile(file: File) {
+    const preflight = await preflightCVUploadFile(file)
+    if (!preflight.ok) { setUploadError(preflight.message); return }
     setUploadError(null)
-    onNext(file)
+    const safeFile =
+      file.type === preflight.mime && file.name === preflight.safeName
+        ? file
+        : new File([file], preflight.safeName, { type: preflight.mime })
+    onNext(safeFile)
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
+    if (file) void handleFile(file)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onNext])
 
@@ -162,7 +159,7 @@ export function StepCV({ onNext, onNextText }: Props) {
             style={{ display: "none" }}
             aria-hidden="true"
             tabIndex={-1}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f) }}
           />
 
           {uploadError && (

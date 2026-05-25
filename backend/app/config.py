@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
     allowed_origins: str = "*"
 
+    # CV upload fallback + observability
+    cv_upload_support_email: str = "support@himyro.com"
+    cv_upload_fallback_form_url: str = ""
+    cv_upload_alert_window_minutes: int = 15
+    cv_upload_alert_min_samples: int = 25
+    cv_upload_alert_failure_ratio: float = 0.25
+
     @property
     def cors_origins(self) -> list[str]:
         if self.allowed_origins.strip() == "*":

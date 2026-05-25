@@ -1,7 +1,7 @@
 # Myro First Beta Testing Report
 
 Date: 2026-05-24
-Source: Internshala fellowship outreach, WhatsApp user replies, attached mobile screenshot, Karthikeya Konda's Notion QA report link, Bibi mobile editor feedback, User X onboarding jargon feedback, and User 2's LinkyHost screenshot shared in the product thread.
+Source: Internshala fellowship outreach, WhatsApp user replies, attached mobile screenshot, Karthikeya Konda's Notion QA report link, Bibi mobile editor feedback, User X onboarding jargon feedback, User 2's LinkyHost screenshot, and 2026-05-25 follow-up feedback on Skills, Intel, Tracker, onboarding, CV hub confidence, mobile performance, templates, version discovery, save confirmations, visual proof, differentiation, and fresher CV creation.
 Audience: Shivam, Claude, Codex, and every future agent improving Myro.
 
 ## Celebration
@@ -38,15 +38,27 @@ The intelligence layer should be introduced after this story is understood. Myro
 - CV management and career intelligence are currently blended in a way that can confuse new users.
 - Mobile layout is crowded in places; buttons and tabs can be too small or easy to mistap.
 - Some pages and tabs feel slow on mobile data.
+- The Skills tab can feel like the wrong destination when it opens with a CV upload gate instead of a skills-specific state.
+- Intel can feel stuck on mobile when "Fetching open jobs..." stays visible without progressive content or a clear fallback.
+- Tracker can feel empty and lifeless for first-time users if it has no demo data, sample state, or guided first action.
+- Users need the difference between "CV hub" and "job intelligence" to click faster.
+- Users do not know whether scoring is ATS-based, AI-based, recruiter-based, or a blend.
+- Users want concrete before/after tailoring examples, not only claims about tailored CVs.
+- Mobile pages can feel text-heavy or too stretched vertically, creating long-scroll fatigue.
+- Public pages need stronger visual proof: dashboards, real CV version previews, interaction demos, testimonials, student outcomes, and placement success signals.
 - A user could not send feedback properly on phone; the attached screenshot showed the Settings modal squeezed into an unusable desktop layout.
 - Users do not understand why they got a low score or how to move from a score like 9 to a better score.
 - CV version creation, saving, switching, and comparison need clearer labels.
+- Users are still unclear where separate CV versions are saved, organized, and managed.
+- Some save/edit actions lack strong visual confirmation after the system has accepted a change.
 - Mobile CV editing is too hard when it depends on finger drag-and-drop or small text boxes.
 - Users do not see enough draft-safety reassurance; they worry app close or refresh can lose work.
 - Mission/onboarding terminology like "Forge Product Family Engineering" and "L0 -> L1" can intimidate first-time job seekers.
 - Gamified systems like XP, streaks, locked features, heatmaps, missions, and score systems can motivate, but can also create pressure if they appear before the user understands value.
 - Company/job recommendation trust needs clearer explanation so freshers understand why a company, role, or match is shown.
 - CV upload and AI processing interruptions make the whole product feel blocked because many features depend on CV-based analysis.
+- Freshers without an existing CV need a "Build CV from Scratch" path, not only "Upload CV".
+- Upload failure plus no create-from-scratch path can push users to competitors before Myro shows value.
 - Feedback collection should appear naturally during onboarding and feature usage, not only as a separate end-of-flow form.
 - Password recovery/change-password flows are missing.
 - Public trust is underdeveloped: privacy policy visibility, data handling explanation, score methodology, social proof, accessibility, and SEO.
@@ -151,6 +163,11 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 - Rename or explain jargon: Forge, Intel, Skills, Ninja Name.
 - Rename or explain Mission terminology: Forge Product Family Engineering, L0 -> L1, missions, XP, streaks, heatmaps, and locked features.
 - Split mental model: "CV Hub" first, "Career Intelligence" second.
+- Explain the CV Hub vs Job Intelligence relationship with one simple visual model.
+- Clarify the scoring model in plain language: ATS signals, AI review, recruiter-readiness, or the exact blend.
+- Keep gated routes route-specific: `/skills` with no CV should still feel like Skills, not a generic CV upload page.
+- Add a lightweight first-run walkthrough or tooltip layer that introduces CV Hub -> Score -> Improve -> Track without blocking confident users.
+- Use progress states like "Upload -> Analyze -> Improve" during first use.
 - Add low-score improvement guidance like "How to reach 20/50".
 - Add beginner-friendly walkthroughs that introduce advanced tabs and metrics only after the first CV moment.
 - Consider Hindi/simple-language support for tier-2 students.
@@ -162,6 +179,9 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 - Reorder cards/tabs so the fastest and most important content appears first.
 - Reduce crowded mobile spacing on Skills, Intel, CV preview, and Settings.
 - Make "Pick a target job" highly visible on mobile.
+- Audit mobile loading states and time-to-useful-content on Skills, Intel, Tracker, Jobs, and CV Hub.
+- Replace long static spinners with progressive shells, cached last-good data where available, and retryable error states.
+- Reduce paragraph-heavy mobile sections with visual cards, chips, collapsible blocks, and tighter segmentation.
 - Fix mobile CV editor drag-and-drop with explicit touch-safe reorder controls.
 - Increase mobile CV text-editing comfort with larger fields or full-screen edit mode.
 - Add visible auto-save/draft recovery states for CV editing.
@@ -170,15 +190,21 @@ Codex did not overwrite or commit those files. Future agents should preserve and
 
 - Add clear CV version labels: date, target role, tags.
 - Make saved versions easy to find and switch.
+- Add an obvious CV version directory/home so users know where tailored versions live.
 - Add side-by-side preview/compare.
 - Add application tracking: "This CV was sent to Company A on 24 May".
 - Add templates for internships, freshers, and industries.
+- Expand design customization over time: more resume templates, layout choices, and controlled styling options.
+- Add "Create New CV" / "Build CV from Scratch" for freshers who do not yet have a resume file.
+- Add real before/after CV transformation examples so users can see what tailoring changes.
 - Improve document format recognition and upload format suggestions.
 
 ### P2 - Growth Loop
 
 - Keep Instagram reels, before/after resume transformations, college WhatsApp groups, LinkedIn, internship communities, and success stories as GTM channels.
 - Position: "One Hub, All Your CVs - Apply Faster" or "One CV for every job" as testable messaging.
+- Differentiate against LinkedIn, Internshala, and BetterCV by making Myro's wedge explicit: CV version hub + scoring + tailoring + job-readiness loop.
+- Add trust proof early: testimonials, resumes analyzed, students helped, placement outcomes, and visible shipped-from-feedback updates.
 - Build shareable improvement loops around score -> explain -> improve -> share.
 - Add in-context feedback prompts during onboarding and key feature moments instead of depending only on separate feedback forms.
 
@@ -465,3 +491,188 @@ Both are structural defects in the **functional layer**, not the **presentation 
 - **Session after that:** with the functional layer green, run `/ousterhout-design` on `compute_job_matches` (it is a textbook deep-vs-shallow case) and `/design-an-interface` on the new empty states the user will now actually see.
 
 The skills are queued, not skipped. They will land more leverage on a working surface than on a silent one.
+
+---
+
+# Appendix C - Beta Batch 4 (2026-05-25 follow-up)
+
+This batch is not a new thesis. It is a confidence boost on the same product truth: users want Myro as a CV hub and career intelligence surface, but first-use clarity, mobile performance, and state feedback decide whether they trust it.
+
+## C.1 Anonymous Follow-Up - Skills, Intel, Tracker, Onboarding
+
+- Skills tab opened with a CV upload screen, which felt confusing. The user expected to see skills, not generic CV options.
+- Intel was slow on mobile and stayed on "Fetching open jobs..." long enough to feel stuck.
+- Tracker felt empty and lifeless with no sample data; new users may assume it is broken and leave.
+- The product still felt like it had no onboarding, so first-time users did not know where to begin.
+- The CV hub promise is compelling: tailoring a CV for each job and scoring it sounds useful if upload and scoring work reliably.
+
+Product interpretation:
+
+- A prerequisite gate should preserve the user's destination. If `/skills` needs a CV first, the no-CV state still needs to look and behave like a Skills entry point with one obvious upload action.
+- Intel needs a mobile performance pass focused on time-to-useful-content, not only final API completion. A static spinner can read as broken even when the request eventually succeeds.
+- Tracker's empty state needs activation, not decoration: sample job data, a one-tap demo, or a guided "add first application" flow.
+- Onboarding is now a repeated signal across batches. The minimal shape remains a skippable walkthrough: Upload -> Score -> Improve -> Track.
+- CV hub demand depends on reliability. Upload, parsing, scoring, version saving, and score explanation must be treated as one first-success chain.
+
+## C.2 User 2 - Platform Feedback Report 1
+
+- Mobile pages sometimes loaded slower than desktop.
+- Some sections need clearer labels or brief directional copy for new users.
+- More resume templates and layout/design customization would improve retention.
+- Interactive onboarding, guided walkthroughs, or tooltips would help first-time users adopt advanced features faster.
+- Mobile editing needs smoother scrolling mechanics and easier input handling.
+- It was unclear where separate CV versions were saved, organized, and managed.
+- Certain saves and edits lack robust visual or micro-interaction confirmation.
+- Overall assessment stayed positive: Myro addresses a real friction point for students and job-hunting professionals, and targeted UI/UX polish plus customization can make it competitive.
+
+Product interpretation:
+
+- "Where did my version go?" is a navigation problem, not just a label problem. The CV Hub needs a visible version directory or saved-versions home.
+- Save confidence should come from stateful UI: saved timestamps, button transitions, check states, optimistic update rollback, and recovery paths after failed saves.
+- Template customization is a retention feature after first success, not a blocker before upload reliability and score trust are fixed.
+- Mobile performance should be tracked route-by-route because users compare it directly against desktop.
+
+## C.3 Backlog Deltas From This Batch
+
+- **P1 - Skills route gate.** Replace the generic CV upload landing on `/skills` with a skills-specific no-CV state that explains the prerequisite and shows the future value of the page.
+- **P1 - Intel mobile loading.** Measure `/intel` on a 375px mobile viewport and weak network profile; add progressive shells, cached last-good data where available, and retryable error states.
+- **P1 - Tracker guided empty state.** Add sample/demo activation and a clear "add first application" path so an empty tracker does not read as a broken tracker.
+- **P1 - CV version directory.** Make saved tailored versions discoverable from the CV Hub without requiring the user to infer where versions live.
+- **P1 - Save confirmations.** Add visual confirmations for save/edit actions where the current UI does not make completion visible.
+- **P2 - Resume customization.** Expand templates and controlled layout/design options after the first-success chain is stable.
+
+## C.4 Utility-First Follow-Up - CV Hub Still Works
+
+- Centralized resume management feels practical.
+- The core idea is easy to understand.
+- It is especially helpful for people applying to multiple jobs.
+- First-time onboarding can be more guided.
+- Some features took time to understand at first.
+- The user would use Myro as a hub to store and manage multiple CV versions for different applications.
+
+Product interpretation:
+
+- The CV hub remains the clearest promise. Keep it as the front door.
+- "Easy idea to understand" is fragile: the product becomes harder once advanced intelligence surfaces appear. The onboarding job is to preserve that first clarity.
+- Multiple-CV management is a repeated willingness-to-use signal and should stay above generic career-intelligence language in public copy.
+
+## C.5 Visual Proof + Scoring Clarity Follow-Up
+
+- The difference between "CV hub" and "job intelligence" takes a few seconds to click.
+- It is unclear whether scoring is ATS-based, AI-based, recruiter-based, or a blend.
+- The user wanted a clearer before/after tailoring example.
+- Some sections feel text-heavy, especially on mobile.
+- The page needs stronger visual proof: dashboards, actual CV version previews, or interaction demos.
+- Mobile spacing sometimes feels too stretched, which makes scrolling longer than needed.
+- Trust-building content appears too late: testimonials, student outcomes, placement success, and similar proof should show earlier.
+- Desktop feels cleaner, easier to understand, and better spaced.
+- Mobile is usable, but long-scroll fatigue appears faster. Collapsible cards or clearer visual segmentation would help.
+
+Direct recommendations:
+
+- Show a real CV transformation example.
+- Add progress states like "Upload -> Analyze -> Improve".
+- Use more visual cards/chips and less paragraph text on mobile.
+- Add testimonials early: students helped, resumes analyzed, placement results, or similar proof.
+
+Product interpretation:
+
+- A "before vs after" tailoring demo can teach the product faster than another paragraph.
+- Score trust requires naming the score's basis. If it is a blend, say what is blended and where the limits are.
+- Mobile copy should compress into scannable proof objects: chips, samples, states, previews, and short cards.
+
+## C.6 Honest Skeptic - Differentiation Risk
+
+- Experience was mixed: some parts felt smooth and useful, while navigation and workflow were confusing.
+- After login, there were no clear onboarding steps explaining where to begin.
+- The one-place hub for multiple CV versions feels useful and organized for students/job seekers.
+- The idea does not feel entirely new.
+- Compared with LinkedIn, the current UX feels more complicated and less intuitive for first-time users.
+- The user does not currently see themselves using HiMyro regularly because LinkedIn and Internshala already combine networking, opportunities, resume feedback, job recommendations, internships, and resume-based recommendations.
+- The interface looks modern and professional.
+- The platform could become valuable with stronger unique features, simpler navigation, and clearer differentiation.
+
+Product interpretation:
+
+- This is the strongest differentiation warning in the batch. Myro cannot win by being "LinkedIn plus resume feedback"; it needs a sharper wedge.
+- The wedge should be explicit: versioned CV hub + tailoring per application + score diagnostics + improvement loop. LinkedIn and Internshala are ecosystems; Myro must be the specialist workbench.
+- Simpler navigation is not cosmetic. If the workflow is harder than incumbent platforms, the unique value has to appear very early.
+
+## C.7 Fresher Feedback - Build From Scratch + BetterCV Signal
+
+- At the start, HiMyro only shows "Upload CV"; there is no "Create New CV" path.
+- As a fresher, the user had to use BetterCV first.
+- HiMyro upload failed repeatedly with "Upload was interrupted". The user tried a 106 KB PDF and a JPG image.
+- BetterCV asked for INR 195 to download the generated PDF.
+- The user would use HiMyro if the upload bug is fixed and a "Build CV from Scratch" option exists.
+- For freshers, this would be very useful.
+
+Product interpretation:
+
+- "Upload CV" assumes the user already has a CV. Freshers often need creation before upload.
+- The BetterCV comparison is important: the market already charges at PDF download time. Myro can win this wedge by making first CV creation, storage, tailoring, and export feel generous and reliable before monetization.
+- Upload reliability remains P0. The user tried a very small PDF and still failed, so size alone is not the issue.
+- JPG upload should either be supported intentionally with OCR or rejected upfront with a clear accepted-format state. Silent/interrupted failure destroys trust.
+
+## C.8 Additional Backlog Deltas From This Batch
+
+- **P0 - Upload reliability verification.** Re-test the production upload path with a small PDF on mobile; confirm whether the "Upload was interrupted" failure is still active after recent fixes.
+- **P0 - Accepted format clarity.** State accepted formats before upload and handle unsupported JPG/image uploads with a specific message or OCR path.
+- **P1 - Build CV from Scratch.** Add a fresher-safe creation path for users without an existing CV file.
+- **P1 - Before/after tailoring demo.** Show a real CV transformation example on the public surface and in onboarding.
+- **P1 - Score basis clarity.** Explain whether scoring is ATS-based, AI-based, recruiter-readiness-based, or a defined blend.
+- **P1 - Mobile public-page compression.** Replace long paragraphs with visual proof cards, chips, collapsible sections, and actual product previews.
+- **P1 - Differentiation pass.** Position Myro against LinkedIn, Internshala, and BetterCV as the versioned CV workbench for tailoring and score improvement.
+- **P2 - Trust proof.** Surface testimonials, students helped, resumes analyzed, placement results, and shipped-from-feedback proof earlier in the public journey.
+
+# Appendix D - Beta Batch 5 (2026-05-25 urgent upload + mobile regression intake)
+
+This intake adds a high-severity trust signal: users are reporting that the CV upload failure still persists **after** being told the issue was fixed. This is now both a product reliability issue and a communication-risk issue.
+
+## D.1 User Escalation - Upload Still Failing, Deadline Risk
+
+Escalation summary received on 2026-05-25:
+
+- User retried CV upload 5+ times with different files and different networks.
+- The same error persisted: **"Upload was interrupted. Tap to try again."**
+- User has an Intel assignment deadline on **2026-05-26** and asked for immediate recovery or an alternate submission path.
+- Message quality is urgent and high trust-risk: user explicitly called out mismatch between "issue resolved" communication and current product behavior.
+
+Product interpretation:
+
+- This cannot stay as a generic retry toast. It needs root-cause visibility and a deterministic fallback path.
+- Deadline-driven users need a "get unblocked now" path in-product, not only support chat back-and-forth.
+- The user-success chain (upload -> parse -> score -> Intel) currently has no resilient emergency rail when upload fails repeatedly.
+
+## D.2 Screenshot Evidence Added (folder: `reference/User issues_25th May/`)
+
+Key visual confirmations from this intake:
+
+- Multiple Android screenshots show repeated upload modal failure on `/cv` with identical interrupted state (`Screenshot_20260525_130735.jpg`, `Screenshot_20260525_130859.jpg`, `Screenshot_20260525_131054.jpg`, `WhatsApp Image 2026-05-25 at 14.42.06.jpeg`).
+- iPhone browser screenshots show account/settings surfaces rendering as split desktop-like panes with clipped/overflowing content on mobile (`WhatsApp Image 2026-05-25 at 14.24.27.jpeg`, `... (1).jpeg`, `... (2).jpeg`).
+
+Product interpretation:
+
+- Upload is reproducibly stuck for at least one live user cohort on May 25.
+- Mobile settings/feedback/billing layout still has a browser-specific overflow regression despite prior mobile modal fixes.
+- This is a cross-platform quality issue: Android upload reliability + iOS layout resilience.
+
+## D.3 Immediate Backlog Deltas From This Intake
+
+- **P0 - Upload incident re-open.** Re-open CV upload incident until mobile-first repro pass is green on production for PDF and DOCX, not just local/dev.
+- **P0 - Assignment-safe fallback.** Add a temporary alternate submission path for deadline users when upload fails repeatedly (support upload endpoint + confirmed receipt state).
+- **P0 - Retry transparency.** Replace generic interruption copy with an actionable error envelope: file type, size, network state, retry count, and support token.
+- **P0 - Upload telemetry.** Emit structured client/server events for each phase (`pick`, `signed-url`, `put`, `poll`, `parse_done`, `parse_failed`) with reason codes.
+- **P1 - Mobile settings overflow fix (iOS).** Force single-column full-screen sheet + safe-area constraints for account/following/feedback/billing on <=768px.
+- **P1 - Upload format contract.** Explicit accepted-format chips before file picker; deterministic unsupported-format rejection before network upload starts.
+
+## D.4 Top Coding Fixes To Ship Next (priority order)
+
+1. **Harden CV upload state machine (P0).** Ensure every upload attempt terminates in a deterministic success/failure state with reason codes; no indefinite interrupted loop.
+2. **Add deadline fallback submission rail (P0).** When upload fails N times, expose alternate assignment submission path with acknowledgment ID and manual processing SLA.
+3. **Instrument end-to-end upload telemetry (P0).** Add client + backend phase logging and alert when production upload failure rate crosses threshold.
+4. **Fix mobile settings/modal layout regression on iOS Safari (P1).** Convert split desktop panels to single-column mobile sheets with overflow-safe containers.
+5. **Ship upload preflight validation (P1).** Validate MIME/extension/size locally before upload; show exact allowed formats and why a file is rejected.
+6. **Add resumable/retryable transport behavior (P1).** Retry network phase with bounded backoff and idempotency keys so weak networks do not force full restart.
+7. **Add visible recovery UX after repeated failures (P1).** Present "Try another format", "Use text paste", and "Submit via fallback" actions in the same modal.
+8. **Protect Intel flow from CV upload dependency shock (P1).** Show explicit prerequisite state and safe alternative route when CV parse is pending/failed.

@@ -11,7 +11,16 @@ import { BaselineView } from "@/components/cv/builder/baseline-view"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
 import { Icon } from "@/components/cv/builder/icons"
-import { CVUploadFailure, getPersistedCVUploadJobId, pollCVUploadStatus, uploadCV, users } from "@/lib/api"
+import {
+  CVUploadFailure,
+  clearPersistedCVUploadState,
+  type CVUploadFallbackSubmissionResponse,
+  cv,
+  getPersistedCVUploadJobId,
+  pollCVUploadStatus,
+  uploadCV,
+  users,
+} from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
@@ -34,6 +43,12 @@ function CVPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadFailureCount, setUploadFailureCount] = useState(0)
+  const [lastFailureCode, setLastFailureCode] = useState<string>("unknown")
+  const [lastUploadMeta, setLastUploadMeta] = useState<{ name: string; type: string; size: number } | null>(null)
+  const [fallbackSubmitting, setFallbackSubmitting] = useState(false)
+  const [fallbackError, setFallbackError] = useState<string | null>(null)
+  const [fallbackReceipt, setFallbackReceipt] = useState<CVUploadFallbackSubmissionResponse | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // Reentry guard: setUploading(true) is async, mobile Chrome can fire change
   // twice; the ref blocks the second call synchronously.
@@ -76,6 +91,7 @@ function CVPage() {
   function openFilePicker() {
     setShowUpload(true)
     setUploadError(null)
+    setFallbackError(null)
     // Defer click so dialog mount doesn't intercept the activation gesture
     requestAnimationFrame(() => fileInputRef.current?.click())
   }
@@ -83,6 +99,7 @@ function CVPage() {
   async function handleUpload(file: File) {
     if (!token) return
     if (uploadInFlightRef.current) return  // double-fire guard
+    setLastUploadMeta({ name: file.name, type: file.type, size: file.size })
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
@@ -97,14 +114,21 @@ function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setUploadResult({ skills_detected: result.skills_detected, score: result.score })
+      setUploadFailureCount(0)
+      setLastFailureCode("unknown")
+      setFallbackError(null)
+      setFallbackReceipt(null)
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
       if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) setXPBalance(err.newXpBalance)
+        setLastFailureCode(err.code)
         setUploadError(err.message)
       } else {
+        setLastFailureCode("upload_unknown_error")
         setUploadError(err instanceof Error ? err.message : "Could not upload CV")
       }
+      setUploadFailureCount((n) => n + 1)
     } finally {
       setUploading(false)
       uploadInFlightRef.current = false
@@ -126,6 +150,28 @@ function CVPage() {
       { versionId: editTarget.versionId, edits: { [editTarget.text]: editDraft } },
       { onSuccess: () => { setEditOpen(false); setEditTarget(null); setEditDraft("") } },
     )
+  }
+
+  async function requestUploadFallback() {
+    if (!token) return
+    setFallbackSubmitting(true)
+    setFallbackError(null)
+    try {
+      const payload = await cv.requestUploadFallback(token, {
+        attempts: Math.max(1, uploadFailureCount),
+        reason_code: lastFailureCode || "upload_unknown_error",
+        last_error: uploadError ?? undefined,
+        file_name: lastUploadMeta?.name,
+        file_mime: lastUploadMeta?.type,
+        file_size_bytes: lastUploadMeta?.size,
+        route: "/cv",
+      })
+      setFallbackReceipt(payload)
+    } catch (err) {
+      setFallbackError(err instanceof Error ? err.message : "Could not open alternate submission path.")
+    } finally {
+      setFallbackSubmitting(false)
+    }
   }
 
   // If user lands directly on ?view=pdf without a baseline, drop them back to baseline.
@@ -164,10 +210,20 @@ function CVPage() {
         queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
         queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
         setUploadResult({ skills_detected: result.skills_detected, score: result.score })
+        setUploadFailureCount(0)
+        clearPersistedCVUploadState()
         setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
       })
       .catch((err) => {
-        if (err instanceof CVUploadFailure && err.newXpBalance != null) setXPBalance(err.newXpBalance)
+        if (err instanceof CVUploadFailure) {
+          if (err.newXpBalance != null) setXPBalance(err.newXpBalance)
+          setLastFailureCode(err.code)
+          if (!err.retryable) clearPersistedCVUploadState()
+        } else {
+          setLastFailureCode("upload_unknown_error")
+          clearPersistedCVUploadState()
+        }
+        setUploadFailureCount((n) => n + 1)
         setUploadError(err instanceof Error ? err.message : "Upload could not be resumed.")
       })
       .finally(() => {
@@ -340,6 +396,56 @@ function CVPage() {
                     >
                       Earn 30 XP in 5min via a diary entry →
                     </button>
+                  )}
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 11, color: "var(--tm-text-faint)" }}>
+                Accepted formats: PDF, DOCX · Max size: 10MB
+              </div>
+              {uploadFailureCount >= 3 && (
+                <div style={{
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  borderRadius: "var(--tm-radius-sm)",
+                  border: "1px solid var(--tm-accent-ring)",
+                  background: "var(--tm-accent-wash)",
+                }}>
+                  <div style={{ fontSize: 12, color: "var(--tm-text)", marginBottom: 8 }}>
+                    Still blocked after multiple tries? Open alternate submission fallback.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={requestUploadFallback}
+                    disabled={fallbackSubmitting}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "var(--tm-radius-sm)",
+                      border: "none",
+                      background: "var(--tm-accent)",
+                      color: "var(--tm-accent-fg)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: fallbackSubmitting ? "not-allowed" : "pointer",
+                      opacity: fallbackSubmitting ? 0.72 : 1,
+                    }}
+                  >
+                    {fallbackSubmitting ? "Opening fallback…" : "Get alternate submission link"}
+                  </button>
+                  {fallbackError && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-danger)" }}>{fallbackError}</div>
+                  )}
+                  {fallbackReceipt && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: "var(--tm-text)" }}>
+                      Ticket {fallbackReceipt.support_token} created.{" "}
+                      <a
+                        href={fallbackReceipt.alternate_submission_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+                      >
+                        Open alternate submission ↗
+                      </a>
+                    </div>
                   )}
                 </div>
               )}

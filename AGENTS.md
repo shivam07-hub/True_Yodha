@@ -254,7 +254,75 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 night - onboarding target-company setup)
+## LAST SESSION SUMMARY (2026-05-25 - Razorpay checkout auth + reliability hardening)
+
+Shipped a production-grade hardening pass for Razorpay Standard Checkout after live `POST /api/create-order` failures on Railway:
+
+- Root-cause validated: provided Razorpay test credentials are valid against Razorpay Orders API; failure path was integration handling/deploy-config sensitivity.
+- Hardened `backend/app/routers/payments.py`:
+  - Added credential normalization (trims whitespace/accidental wrapping quotes) before auth/signature usage.
+  - Mapped Razorpay auth failures to `401 Unauthorized` (was `502`) for deterministic operator signal.
+  - Added network-failure mapping to controlled `502` with stable message.
+  - Added SDK retry config + order request timeout (`RAZORPAY_ORDER_TIMEOUT_SECONDS=12`).
+  - Moved blocking Razorpay + Supabase payment calls off the async event loop via `run_in_threadpool` in create/verify paths.
+  - Added structured logging on create-order failure modes without leaking secrets.
+- Updated `backend/tests/test_payments_router.py`:
+  - Auth failure contract updated to `401`.
+  - Asserted create-order timeout is passed through to Razorpay SDK.
+  - Added regression test for quote/space-trim credential normalization.
+
+Commit: `b30da1c fix: harden razorpay checkout auth and runtime flow`
+
+Verify: `.venv/bin/pytest backend/tests` 369/369 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 - enterprise CV upload hardening + fallback rail)
+
+Shipped the first enterprise-scale reliability slice for the upload incident and mobile settings overflow regression:
+
+- Hardened the CV upload state machine with deterministic failure codes and retryability semantics (`CVUploadFailureBase` now carries `code`, `retryable`, and `phase`), including transient poll retry handling and terminal `poll_timeout` / `poll_network_interrupted`.
+- Added strict client preflight before network upload (`empty_file`, `file_too_large`, `unsupported_format`) with canonical MIME/extension normalization reused by both `/cv` and onboarding upload flows.
+- Upgraded upload transport resilience in `frontend/lib/api.ts`: multi-attempt retry/backoff, idempotency-key persistence, resume-safe job persistence, and no state wipe on retryable interruptions.
+- Added end-to-end CV upload telemetry pipeline (`pick` → `signed-url` → `put` → `poll` → `parse`) via `POST /v1/telemetry/cv-upload-phase`, with structured failure metrics and rolling failure-rate alert emission.
+- Added fallback assignment submission rail: new `POST /cv/upload/fallback`, DB-backed fallback tickets (`cv_upload_fallback_requests`), support token issuance, and alternate submission URL return.
+- Added migration `database/migrations/20260525e_cv_upload_observability_and_fallback.sql` to provision telemetry and fallback tables with indexes + RLS policies.
+- Fixed iOS mobile settings overflow by forcing single-column modal behavior on small/coarse-pointer devices and tightening overflow constraints.
+- Updated beta report and code surface to expose alternate submission path in the CV upload modal after repeated failures.
+
+Verify: `.venv/bin/pytest backend/tests` 368/368 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `cd frontend && npx tsx --test tests/cv-file-detect.test.ts tests/cv-upload-state.test.ts` pass · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 - beta batch 5 urgent upload + mobile regressions)
+
+Integrated the newest 25 May intake into the canonical beta report at `docs/beta-testing/2026-05-24-first-beta-testing-report.md` as **Appendix D**.
+
+- Added urgent escalation context: user retried CV upload 5+ times across files/networks and still hit `"Upload was interrupted"`.
+- Captured deadline risk explicitly (Intel assignment due **2026-05-26**) and logged need for an alternate submission fallback when upload repeatedly fails.
+- Added screenshot-backed findings from `reference/User issues_25th May/`: repeated Android upload interruption and iOS mobile settings/feedback/billing overflow/clipping regression.
+- Added immediate backlog deltas (incident re-open, fallback submission rail, retry transparency, phase telemetry, iOS modal fix, upload format contract).
+- Added prioritized "Top Coding Fixes To Ship Next" list (8 items) for near-term execution.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 - repo docs + licensing)
+
+Added top-level repository hygiene and contributor onramp docs:
+
+- Added `LICENSE` (MIT, 2026 Shivam).
+- Rewrote `README.md` to clearly explain what True_Yodha is, why it exists, how to run it locally (backend, worker, frontend), and where to look for deeper docs.
+- Added `CONTRIBUTING.md` with dev setup, required checks, branch/PR conventions, and code-style expectations.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 night - beta batch 4 feedback memory)
+
+Added the latest user feedback into the canonical beta report at `docs/beta-testing/2026-05-24-first-beta-testing-report.md` as Appendix C. Preserved the high-signal themes: `/skills` should not feel like a generic CV upload page when gated, `/intel` mobile loading reads as stuck when "Fetching open jobs..." persists, `/tracker` needs a guided/demo empty state, first-run onboarding is still missing, CV hub value is strong if upload/scoring reliability holds, mobile performance needs route-by-route attention, separate CV version storage is unclear, save/edit confirmations need stronger micro-interactions, and template/layout customization is a retention lever.
+
+Added the second wave of same-session feedback into Appendix C as C.4-C.8. Newest signals: the CV hub is still easy to understand and useful for multi-application users, but CV Hub vs Job Intelligence takes a few seconds to click; scoring needs to say whether it is ATS/AI/recruiter-based or a blend; users want real before/after tailoring examples; mobile public pages are text-heavy and create long-scroll fatigue; trust proof needs to appear earlier; one honest skeptic sees LinkedIn/Internshala as easier and more complete; freshers need `Create New CV` / `Build CV from Scratch`, not only upload; upload still failed for one fresher with a 106 KB PDF and JPG; BetterCV charged INR 195 for PDF download, which is an important competitor wedge for Myro's CV onboarding/export strategy.
+
+Threaded the same signals into the main concerns and priority backlog: route-specific gates, skippable first-run walkthrough, mobile time-to-useful-content audit, progressive loading shells, CV version directory, save confirmations, score-basis clarity, visual proof, before/after tailoring demos, fresher CV creation, BetterCV/LinkedIn/Internshala differentiation, and resume customization. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+Verify: `git diff --check` clean · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 364/364 pass.
+
+## OLDER SESSION SUMMARY (2026-05-25 night - onboarding target-company setup)
 
 Shipped the first onboarding-priority slice on `Develop`: CV upload/text capture now moves to role targeting first, saves target roles/location, then starts CV extraction in the background while the user chooses target companies. Added a new `StepCompanies` onboarding screen that reuses the Market follow/star company contract (`followed_companies`, 10 XP follow cost, 10-company cap) so a first-time user's Market heatmap is seeded before they arrive there.
 
