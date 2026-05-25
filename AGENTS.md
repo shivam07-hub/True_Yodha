@@ -254,7 +254,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 - repo docs + licensing)
+## LAST SESSION SUMMARY (2026-05-25 - enterprise CV upload hardening + fallback rail)
+
+Shipped the first enterprise-scale reliability slice for the upload incident and mobile settings overflow regression:
+
+- Hardened the CV upload state machine with deterministic failure codes and retryability semantics (`CVUploadFailureBase` now carries `code`, `retryable`, and `phase`), including transient poll retry handling and terminal `poll_timeout` / `poll_network_interrupted`.
+- Added strict client preflight before network upload (`empty_file`, `file_too_large`, `unsupported_format`) with canonical MIME/extension normalization reused by both `/cv` and onboarding upload flows.
+- Upgraded upload transport resilience in `frontend/lib/api.ts`: multi-attempt retry/backoff, idempotency-key persistence, resume-safe job persistence, and no state wipe on retryable interruptions.
+- Added end-to-end CV upload telemetry pipeline (`pick` → `signed-url` → `put` → `poll` → `parse`) via `POST /v1/telemetry/cv-upload-phase`, with structured failure metrics and rolling failure-rate alert emission.
+- Added fallback assignment submission rail: new `POST /cv/upload/fallback`, DB-backed fallback tickets (`cv_upload_fallback_requests`), support token issuance, and alternate submission URL return.
+- Added migration `database/migrations/20260525e_cv_upload_observability_and_fallback.sql` to provision telemetry and fallback tables with indexes + RLS policies.
+- Fixed iOS mobile settings overflow by forcing single-column modal behavior on small/coarse-pointer devices and tightening overflow constraints.
+- Updated beta report and code surface to expose alternate submission path in the CV upload modal after repeated failures.
+
+Verify: `.venv/bin/pytest backend/tests` 368/368 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `cd frontend && npx tsx --test tests/cv-file-detect.test.ts tests/cv-upload-state.test.ts` pass · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 - beta batch 5 urgent upload + mobile regressions)
+
+Integrated the newest 25 May intake into the canonical beta report at `docs/beta-testing/2026-05-24-first-beta-testing-report.md` as **Appendix D**.
+
+- Added urgent escalation context: user retried CV upload 5+ times across files/networks and still hit `"Upload was interrupted"`.
+- Captured deadline risk explicitly (Intel assignment due **2026-05-26**) and logged need for an alternate submission fallback when upload repeatedly fails.
+- Added screenshot-backed findings from `reference/User issues_25th May/`: repeated Android upload interruption and iOS mobile settings/feedback/billing overflow/clipping regression.
+- Added immediate backlog deltas (incident re-open, fallback submission rail, retry transparency, phase telemetry, iOS modal fix, upload format contract).
+- Added prioritized "Top Coding Fixes To Ship Next" list (8 items) for near-term execution.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 - repo docs + licensing)
 
 Added top-level repository hygiene and contributor onramp docs:
 

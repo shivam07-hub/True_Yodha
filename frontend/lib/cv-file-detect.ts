@@ -14,6 +14,26 @@ export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 export type CVFileMime = typeof PDF_MIME | typeof DOCX_MIME
+export const CV_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+export type CVUploadPreflightErrorCode =
+  | "empty_file"
+  | "file_too_large"
+  | "unsupported_format"
+
+export type CVUploadPreflightResult =
+  | {
+      ok: true
+      mime: CVFileMime
+      safeName: string
+    }
+  | {
+      ok: false
+      code: CVUploadPreflightErrorCode
+      message: string
+      fileBytes: number
+      maxBytes: number
+    }
 
 export function detectCVFileTypeByName(name: string): CVFileMime | null {
   const lower = name.toLowerCase()
@@ -61,5 +81,50 @@ export async function detectCVFile(file: {
     return detectCVMimeByMagic(head)
   } catch {
     return null
+  }
+}
+
+export async function preflightCVUploadFile(
+  file: {
+    name: string
+    type: string
+    size: number
+    slice: (start: number, end: number) => Blob
+  },
+  opts: { maxBytes?: number } = {},
+): Promise<CVUploadPreflightResult> {
+  const maxBytes = opts.maxBytes ?? CV_UPLOAD_MAX_BYTES
+  if (file.size <= 0) {
+    return {
+      ok: false,
+      code: "empty_file",
+      message: "This file appears empty. Pick a non-empty PDF or DOCX and try again.",
+      fileBytes: file.size,
+      maxBytes,
+    }
+  }
+  if (file.size > maxBytes) {
+    return {
+      ok: false,
+      code: "file_too_large",
+      message: `File too large — maximum size is ${Math.floor(maxBytes / (1024 * 1024))}MB.`,
+      fileBytes: file.size,
+      maxBytes,
+    }
+  }
+  const detected = await detectCVFile(file)
+  if (!detected) {
+    return {
+      ok: false,
+      code: "unsupported_format",
+      message: "Only PDF and DOCX files are supported.",
+      fileBytes: file.size,
+      maxBytes,
+    }
+  }
+  return {
+    ok: true,
+    mime: detected,
+    safeName: ensureCVExtension(file.name, detected),
   }
 }

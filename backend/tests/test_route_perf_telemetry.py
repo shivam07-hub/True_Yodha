@@ -89,3 +89,32 @@ def test_record_route_perf_stores_occurred_at(authed_client) -> None:
     client.post("/v1/telemetry/route-perf", json={"route": "/jobs", "ttfa_ms": 950})
     assert chain.inserted is not None
     assert "occurred_at" in chain.inserted
+
+
+def test_record_cv_upload_phase_event(authed_client, monkeypatch: pytest.MonkeyPatch) -> None:
+    client, chain = authed_client
+    monkeypatch.setattr(telemetry_module, "_maybe_emit_cv_upload_alert", lambda *_args, **_kwargs: False)
+    payload = {
+        "phase": "put",
+        "outcome": "failed",
+        "attempt": 3,
+        "reason_code": "upload_post_interrupted",
+        "idempotency_key": "idem-123",
+        "file_size_bytes": 102400,
+        "file_mime": "application/pdf",
+        "route": "/cv",
+    }
+    res = client.post("/v1/telemetry/cv-upload-phase", json=payload)
+    assert res.status_code == 201
+    assert res.json()["ok"] is True
+    assert chain.inserted is not None
+    assert chain.inserted["phase"] == "put"
+    assert chain.inserted["outcome"] == "failed"
+    assert chain.inserted["user_id"] == "u-test"
+    assert chain.inserted["reason_code"] == "upload_post_interrupted"
+
+
+def test_record_cv_upload_phase_event_validation(authed_client) -> None:
+    client, _ = authed_client
+    res = client.post("/v1/telemetry/cv-upload-phase", json={"phase": "unknown", "outcome": "failed"})
+    assert res.status_code == 422

@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  CV_UPLOAD_MAX_BYTES,
   DOCX_MIME,
   PDF_MIME,
   detectCVFile,
@@ -9,6 +10,7 @@ import {
   detectCVMimeByMagic,
   detectCVMimeByType,
   ensureCVExtension,
+  preflightCVUploadFile,
 } from "../lib/cv-file-detect"
 
 // Minimal File stand-in for node:test — Blob shape with .name + .type fields.
@@ -85,4 +87,31 @@ test("detectCVFile — image file rejected at every layer", async () => {
 test("detectCVFile — extensionless file with correct MIME (Drive happy path)", async () => {
   const file = fakeFile({ name: "shared-cv", type: PDF_MIME })
   assert.equal(await detectCVFile(file), PDF_MIME)
+})
+
+test("preflightCVUploadFile rejects empty files before network upload", async () => {
+  const file = fakeFile({ name: "resume.pdf", type: PDF_MIME, bytes: new Uint8Array() })
+  ;(file as unknown as { size: number }).size = 0
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.code, "empty_file")
+})
+
+test("preflightCVUploadFile rejects files above max bytes", async () => {
+  const file = fakeFile({ name: "resume.pdf", type: PDF_MIME, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]) })
+  ;(file as unknown as { size: number }).size = CV_UPLOAD_MAX_BYTES + 1
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.code, "file_too_large")
+})
+
+test("preflightCVUploadFile returns normalized name + mime for valid files", async () => {
+  const file = fakeFile({ name: "resume", type: PDF_MIME, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]) })
+  ;(file as unknown as { size: number }).size = 4096
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.mime, PDF_MIME)
+    assert.equal(result.safeName, "resume.pdf")
+  }
 })

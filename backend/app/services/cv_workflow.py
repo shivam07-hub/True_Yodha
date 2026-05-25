@@ -97,7 +97,11 @@ def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
             detail = "Please write at least a few sentences about yourself."
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=detail,
+            detail={
+                "code": "unreadable_text" if source == "upload" else "text_too_short",
+                "message": detail,
+            },
+            headers={"X-Myro-Error-Code": "unreadable_text" if source == "upload" else "text_too_short"},
         )
 
 
@@ -234,10 +238,14 @@ async def _start_async_upload_job(
         # company first") — that's why xp_service stays CTA-free.
         raise HTTPException(
             status_code=exc.status_code,
-            detail=(
-                f"{exc.detail} Earn 30 XP in 5min via a diary entry, or "
-                "complete a forge session for +50 XP."
-            ),
+            detail={
+                "code": "insufficient_xp",
+                "message": (
+                    f"{exc.detail} Earn 30 XP in 5min via a diary entry, or "
+                    "complete a forge session for +50 XP."
+                ),
+            },
+            headers={"X-Myro-Error-Code": "insufficient_xp"},
         ) from exc
 
     upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
@@ -344,7 +352,11 @@ async def _fail_and_refund(
 async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
     row = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Upload job not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "job_not_found", "message": "Upload job not found."},
+            headers={"X-Myro-Error-Code": "job_not_found"},
+        )
     balance = await get_xp_balance(user_id)
     return {
         "status": row["status"],

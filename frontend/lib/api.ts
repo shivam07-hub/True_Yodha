@@ -19,7 +19,7 @@ import {
   CVUploadFailureBase,
   resolveCVUploadResult,
 } from "./cv-upload-state"
-import { detectCVFile, ensureCVExtension } from "./cv-file-detect"
+import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 
 const BASE =
@@ -31,6 +31,11 @@ function extractError(body: unknown, status: number): string {
   if (typeof body !== "object" || body === null) return `HTTP ${status}`
   const detail = (body as Record<string, unknown>).detail
   if (typeof detail === "string") return detail
+  if (typeof detail === "object" && detail !== null) {
+    const maybeMessage = (detail as Record<string, unknown>).message
+    if (typeof maybeMessage === "string") return maybeMessage
+    return `HTTP ${status}`
+  }
   if (Array.isArray(detail)) return detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
   return `HTTP ${status}`
 }
@@ -406,6 +411,24 @@ export interface SkillEditConflictDetail {
 
 export type SkillEditConflict = SkillEditConflictDetail & { conflict: true }
 
+export interface CVUploadFallbackSubmissionRequest {
+  attempts: number
+  reason_code: string
+  last_error?: string
+  file_name?: string
+  file_mime?: string
+  file_size_bytes?: number
+  route?: string
+  assignment_deadline?: string
+}
+
+export interface CVUploadFallbackSubmissionResponse {
+  ticket_id: string
+  support_token: string
+  alternate_submission_url: string
+  sla_hours: number
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -414,6 +437,15 @@ export const cv = {
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  requestUploadFallback: (
+    token: string,
+    body: CVUploadFallbackSubmissionRequest,
+  ) =>
+    request<CVUploadFallbackSubmissionResponse>("/cv/upload/fallback", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     }),
   versions: {
     list: (token: string, jobId?: string | null) => {
@@ -497,6 +529,7 @@ export const cv = {
  */
 const CV_UPLOAD_JOB_KEY = "myro_cv_upload_job_v1"
 const CV_UPLOAD_IDEM_KEY = "myro_cv_upload_idem_v1"
+const CV_UPLOAD_TELEMETRY_PATH = "/v1/telemetry/cv-upload-phase"
 
 function _newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -509,8 +542,21 @@ function _persistUploadJob(jobId: string): void {
   try { localStorage.setItem(CV_UPLOAD_JOB_KEY, jobId) } catch { /* private mode */ }
 }
 
-function _clearUploadJob(): void {
-  try { localStorage.removeItem(CV_UPLOAD_JOB_KEY); localStorage.removeItem(CV_UPLOAD_IDEM_KEY) } catch { /* */ }
+function _readUploadIdemKey(): string | null {
+  try { return localStorage.getItem(CV_UPLOAD_IDEM_KEY) } catch { return null }
+}
+
+function _persistUploadIdemKey(key: string): void {
+  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, key) } catch { /* private mode */ }
+}
+
+function _clearUploadPersistence(opts: { clearIdem: boolean }): void {
+  try {
+    localStorage.removeItem(CV_UPLOAD_JOB_KEY)
+    if (opts.clearIdem) localStorage.removeItem(CV_UPLOAD_IDEM_KEY)
+  } catch {
+    /* private mode */
+  }
 }
 
 /** Returns the in-flight job_id stored from a prior session, if any. */
@@ -518,58 +564,169 @@ export function getPersistedCVUploadJobId(): string | null {
   try { return localStorage.getItem(CV_UPLOAD_JOB_KEY) } catch { return null }
 }
 
-export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
-  const safeFile = await _normalizeUploadFile(file)
-  // Idempotency key persists across the page reload that mobile Chrome
-  // sometimes triggers mid-upload, so a retry returns the same job_id.
-  let idemKey: string
-  try { idemKey = localStorage.getItem(CV_UPLOAD_IDEM_KEY) ?? _newIdempotencyKey() } catch { idemKey = _newIdempotencyKey() }
-  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, idemKey) } catch { /* */ }
+export function clearPersistedCVUploadState(opts: { clearIdem?: boolean } = {}): void {
+  _clearUploadPersistence({ clearIdem: opts.clearIdem ?? true })
+}
 
-  const initial = await _postCVUpload(token, safeFile, idemKey)
-  if (initial.status === "processing") _persistUploadJob(initial.job_id)
+type CVUploadTelemetryPhase = "pick" | "signed-url" | "put" | "poll" | "parse"
+type CVUploadTelemetryOutcome = "started" | "succeeded" | "failed" | "retrying" | "skipped"
+
+function _routePath(): string | null {
+  if (typeof window === "undefined") return null
+  return window.location.pathname
+}
+
+function _networkType(): string | null {
+  if (typeof navigator === "undefined") return null
+  const nav = navigator as Navigator & {
+    connection?: { effectiveType?: string }
+    mozConnection?: { effectiveType?: string }
+    webkitConnection?: { effectiveType?: string }
+  }
+  return nav.connection?.effectiveType ?? nav.mozConnection?.effectiveType ?? nav.webkitConnection?.effectiveType ?? null
+}
+
+function _emitCVUploadTelemetry(
+  token: string,
+  payload: {
+    phase: CVUploadTelemetryPhase
+    outcome: CVUploadTelemetryOutcome
+    attempt?: number
+    jobId?: string | null
+    idempotencyKey?: string | null
+    reasonCode?: string | null
+    errorDetail?: string | null
+    httpStatus?: number | null
+    fileName?: string | null
+    fileMime?: string | null
+    fileBytes?: number | null
+    route?: string | null
+  },
+): void {
+  if (!BASE) return
+  const body = JSON.stringify({
+    phase: payload.phase,
+    outcome: payload.outcome,
+    attempt: payload.attempt ?? null,
+    job_id: payload.jobId ?? null,
+    idempotency_key: payload.idempotencyKey ?? null,
+    reason_code: payload.reasonCode ?? null,
+    error_detail: payload.errorDetail ?? null,
+    http_status: payload.httpStatus ?? null,
+    file_name: payload.fileName ?? null,
+    file_mime: payload.fileMime ?? null,
+    file_size_bytes: payload.fileBytes ?? null,
+    route: payload.route ?? _routePath(),
+    network_type: _networkType(),
+  })
+  fetch(`${BASE}${CV_UPLOAD_TELEMETRY_PATH}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body,
+    keepalive: true,
+  }).catch(() => {})
+}
+
+function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUploadFailureBase {
+  if (err instanceof CVUploadFailureBase) return err
+  if (err instanceof Error) {
+    return new CVUploadFailureBase(err.message, "upload_unknown_error", false, null, false, phase)
+  }
+  return new CVUploadFailureBase("Upload failed unexpectedly. Tap to try again.", "upload_unknown_error", false, null, true, phase)
+}
+
+export async function uploadCV(token: string, file: File): Promise<CVUploadResult> {
+  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
+  _persistUploadIdemKey(idempotencyKey)
+  _emitCVUploadTelemetry(token, {
+    phase: "pick",
+    outcome: "started",
+    idempotencyKey,
+    fileName: file.name,
+    fileMime: file.type,
+    fileBytes: file.size,
+  })
+  let safeFile: File
   try {
-    const result = await _resolveUploadResult(token, initial)
-    _clearUploadJob()
+    safeFile = await _normalizeUploadFile(file)
+    _emitCVUploadTelemetry(token, {
+      phase: "pick",
+      outcome: "succeeded",
+      idempotencyKey,
+      fileName: safeFile.name,
+      fileMime: safeFile.type,
+      fileBytes: safeFile.size,
+    })
+  } catch (err) {
+    const failure = _asUploadFailure(err, "pick")
+    _emitCVUploadTelemetry(token, {
+      phase: "pick",
+      outcome: "failed",
+      idempotencyKey,
+      reasonCode: failure.code,
+      errorDetail: failure.message,
+      fileName: file.name,
+      fileMime: file.type,
+      fileBytes: file.size,
+    })
+    _clearUploadPersistence({ clearIdem: true })
+    throw failure
+  }
+
+  try {
+    const initial = await _postCVUpload(token, safeFile, idempotencyKey)
+    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    const result = await _resolveUploadResult(
+      token,
+      initial,
+      { idempotencyKey, fileName: safeFile.name, fileMime: safeFile.type, fileBytes: safeFile.size },
+    )
+    _clearUploadPersistence({ clearIdem: true })
     return result
   } catch (err) {
-    _clearUploadJob()
-    throw err
+    const failure = _asUploadFailure(err, "put")
+    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    throw failure
   }
 }
 
 export async function uploadCVText(token: string, text: string): Promise<CVUploadResult> {
-  let idemKey: string
-  try { idemKey = localStorage.getItem(CV_UPLOAD_IDEM_KEY) ?? _newIdempotencyKey() } catch { idemKey = _newIdempotencyKey() }
-  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, idemKey) } catch { /* */ }
-
-  const initial = await request<CVUploadResponse>("/cv/text", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ text, idempotency_key: idemKey }),
-  })
-  if (initial.status === "processing") _persistUploadJob(initial.job_id)
+  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
+  _persistUploadIdemKey(idempotencyKey)
   try {
-    const result = await _resolveUploadResult(token, initial)
-    _clearUploadJob()
+    const initial = await request<CVUploadResponse>("/cv/text", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text, idempotency_key: idempotencyKey }),
+    })
+    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    const result = await _resolveUploadResult(token, initial, { idempotencyKey })
+    _clearUploadPersistence({ clearIdem: true })
     return result
   } catch (err) {
-    _clearUploadJob()
-    throw err
+    const failure = _asUploadFailure(err, "poll")
+    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    throw failure
   }
 }
 
 async function _normalizeUploadFile(file: File): Promise<File> {
-  const detected = await detectCVFile(file)
-  if (!detected) {
-    throw new Error(
-      "We couldn't detect a PDF or DOCX in this file. " +
-      "If you picked it from Google Drive, download it to your phone first, then upload.",
+  const preflight = await preflightCVUploadFile(file)
+  if (!preflight.ok) {
+    throw new CVUploadFailureBase(
+      preflight.message,
+      preflight.code,
+      false,
+      null,
+      false,
+      "pick",
     )
   }
-  const safeName = ensureCVExtension(file.name, detected)
-  if (file.type === detected && safeName === file.name) return file
-  return new File([file], safeName, { type: detected })
+  if (file.type === preflight.mime && file.name === preflight.safeName) return file
+  return new File([file], preflight.safeName, { type: preflight.mime })
 }
 
 // 90s budget covers Railway cold-start (~20-30s worst case) + a slow 3G PUT of
@@ -578,12 +735,85 @@ async function _normalizeUploadFile(file: File): Promise<File> {
 // one automatic retry with the same Idempotency-Key (server dedups, never
 // double-charges) so a single slow leg never becomes a user-visible failure.
 const _CV_UPLOAD_POST_TIMEOUT_MS = 90_000
+const _CV_UPLOAD_POST_MAX_ATTEMPTS = 3
+const _CV_UPLOAD_RETRY_BACKOFF_MS = [700, 1800, 3000]
+
+function _sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function _extractUploadError(body: unknown, status: number): {
+  code: string
+  message: string
+  retryable: boolean
+} {
+  const fallbackMessage = extractError(body, status)
+  let code = `upload_http_${status}`
+  let message = fallbackMessage
+  if (typeof body === "object" && body !== null) {
+    const detail = (body as Record<string, unknown>).detail
+    if (typeof detail === "object" && detail !== null) {
+      const maybeCode = (detail as Record<string, unknown>).code
+      const maybeMessage = (detail as Record<string, unknown>).message
+      if (typeof maybeCode === "string" && maybeCode.trim()) code = maybeCode
+      if (typeof maybeMessage === "string" && maybeMessage.trim()) message = maybeMessage
+    }
+  }
+  const retryable = status >= 500 || status === 429 || code === "provider_unavailable"
+  return { code, message, retryable }
+}
+
+function _wrapNetworkError(err: unknown): CVUploadFailureBase {
+  const name = (err as Error)?.name
+  if (name === "AbortError") {
+    return new CVUploadFailureBase(
+      "Upload took too long. Tap to try again.",
+      "upload_post_timeout",
+      false,
+      null,
+      true,
+      "put",
+    )
+  }
+  return new CVUploadFailureBase(
+    "Upload was interrupted. Tap to try again.",
+    "upload_post_interrupted",
+    false,
+    null,
+    true,
+    "put",
+  )
+}
 
 async function _postCVUpload(token: string, file: File, idempotencyKey: string): Promise<CVUploadResponse> {
   if (!BASE) {
-    throw new Error("Upload misconfigured: missing API URL. Reload the app.")
+    throw new CVUploadFailureBase(
+      "Upload misconfigured: missing API URL. Reload the app.",
+      "upload_misconfigured",
+      false,
+      null,
+      false,
+      "signed-url",
+    )
   }
   const url = `${BASE}/cv/upload`
+  _emitCVUploadTelemetry(token, {
+    phase: "signed-url",
+    outcome: "started",
+    idempotencyKey,
+    fileName: file.name,
+    fileMime: file.type,
+    fileBytes: file.size,
+  })
+  _emitCVUploadTelemetry(token, {
+    phase: "signed-url",
+    outcome: "skipped",
+    idempotencyKey,
+    reasonCode: "direct_multipart_post",
+    fileName: file.name,
+    fileMime: file.type,
+    fileBytes: file.size,
+  })
   const buildForm = (): FormData => {
     const f = new FormData()
     f.append("file", file)
@@ -594,74 +824,231 @@ async function _postCVUpload(token: string, file: File, idempotencyKey: string):
     Accept: "application/json",
     "Idempotency-Key": idempotencyKey,
   }
-  const attempt = async (): Promise<Response> => {
+  const attempt = async (authToken: string): Promise<Response> => {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), _CV_UPLOAD_POST_TIMEOUT_MS)
     try {
-      return await fetch(url, { method: "POST", headers, body: buildForm(), signal: controller.signal, mode: "cors", credentials: "omit", cache: "no-store" })
+      return await fetch(url, {
+        method: "POST",
+        headers: { ...headers, Authorization: `Bearer ${authToken}` },
+        body: buildForm(),
+        signal: controller.signal,
+        mode: "cors",
+        credentials: "omit",
+        cache: "no-store",
+      })
     } finally {
       clearTimeout(timeout)
     }
   }
-  let res: Response
-  try {
-    res = await attempt()
-  } catch (err) {
-    const name = (err as Error)?.name
-    if (name === "AbortError" || name === "TypeError") {
-      try {
-        res = await attempt()
-      } catch (retryErr) {
-        throw _wrapNetworkError(retryErr)
-      }
-    } else {
-      throw _wrapNetworkError(err)
-    }
-  }
-  if (res.status === 401 && typeof window !== "undefined") {
-    const newToken = await tryRefreshToken()
-    if (newToken) {
-      const retryForm = new FormData()
-      retryForm.append("file", file)
-      const retryRes = await fetch(url, {
-        method: "POST",
-        headers: { ...headers, Authorization: `Bearer ${newToken}` },
-        body: retryForm,
-        mode: "cors", credentials: "omit", cache: "no-store",
+  let authToken = token
+  for (let i = 0; i < _CV_UPLOAD_POST_MAX_ATTEMPTS; i += 1) {
+    const attemptNo = i + 1
+    _emitCVUploadTelemetry(token, {
+      phase: "put",
+      outcome: "started",
+      attempt: attemptNo,
+      idempotencyKey,
+      fileName: file.name,
+      fileMime: file.type,
+      fileBytes: file.size,
+    })
+    let res: Response
+    try {
+      res = await attempt(authToken)
+    } catch (err) {
+      const wrapped = _wrapNetworkError(err)
+      _emitCVUploadTelemetry(token, {
+        phase: "put",
+        outcome: "failed",
+        attempt: attemptNo,
+        idempotencyKey,
+        reasonCode: wrapped.code,
+        errorDetail: wrapped.message,
+        fileName: file.name,
+        fileMime: file.type,
+        fileBytes: file.size,
       })
-      if (retryRes.ok) return retryRes.json() as Promise<CVUploadResponse>
+      if (attemptNo < _CV_UPLOAD_POST_MAX_ATTEMPTS) {
+        _emitCVUploadTelemetry(token, {
+          phase: "put",
+          outcome: "retrying",
+          attempt: attemptNo,
+          idempotencyKey,
+          reasonCode: wrapped.code,
+        })
+        await _sleep(_CV_UPLOAD_RETRY_BACKOFF_MS[Math.min(i, _CV_UPLOAD_RETRY_BACKOFF_MS.length - 1)])
+        continue
+      }
+      throw wrapped
     }
-    forceLogout()
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(extractError(body, res.status))
-  }
-  return res.json() as Promise<CVUploadResponse>
-}
 
-function _wrapNetworkError(err: unknown): Error {
-  const name = (err as Error)?.name
-  if (name === "AbortError") {
-    return new Error("Upload took too long. Tap to try again.")
+    if (res.status === 401 && typeof window !== "undefined") {
+      const newToken = await tryRefreshToken()
+      if (newToken) {
+        authToken = newToken
+        _emitCVUploadTelemetry(token, {
+          phase: "put",
+          outcome: "retrying",
+          attempt: attemptNo,
+          idempotencyKey,
+          reasonCode: "auth_refreshed_retry",
+        })
+        await _sleep(200)
+        continue
+      }
+      forceLogout()
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }))
+      const parsed = _extractUploadError(body, res.status)
+      _emitCVUploadTelemetry(token, {
+        phase: "put",
+        outcome: "failed",
+        attempt: attemptNo,
+        idempotencyKey,
+        reasonCode: parsed.code,
+        errorDetail: parsed.message,
+        httpStatus: res.status,
+        fileName: file.name,
+        fileMime: file.type,
+        fileBytes: file.size,
+      })
+      if (parsed.retryable && attemptNo < _CV_UPLOAD_POST_MAX_ATTEMPTS) {
+        _emitCVUploadTelemetry(token, {
+          phase: "put",
+          outcome: "retrying",
+          attempt: attemptNo,
+          idempotencyKey,
+          reasonCode: parsed.code,
+          httpStatus: res.status,
+        })
+        await _sleep(_CV_UPLOAD_RETRY_BACKOFF_MS[Math.min(i, _CV_UPLOAD_RETRY_BACKOFF_MS.length - 1)])
+        continue
+      }
+      throw new CVUploadFailureBase(
+        parsed.message,
+        parsed.code,
+        false,
+        null,
+        parsed.retryable,
+        "put",
+      )
+    }
+
+    _emitCVUploadTelemetry(token, {
+      phase: "put",
+      outcome: "succeeded",
+      attempt: attemptNo,
+      idempotencyKey,
+      fileName: file.name,
+      fileMime: file.type,
+      fileBytes: file.size,
+    })
+    return res.json() as Promise<CVUploadResponse>
   }
-  // TypeError "Failed to fetch" is the most common mobile-cellular drop.
-  // Beta-1 feedback: do not blame the user's network. The product promise is
-  // that first success works on weak mobile data — say what happened, say what
-  // to do, never recommend Wi-Fi.
-  return new Error("Upload was interrupted. Tap to try again.")
+  throw new CVUploadFailureBase(
+    "Upload was interrupted. Tap to try again.",
+    "upload_post_interrupted",
+    false,
+    null,
+    true,
+    "put",
+  )
 }
 
 async function _resolveUploadResult(
   token: string,
   initial: CVUploadResponse,
+  telemetry: {
+    idempotencyKey?: string
+    fileName?: string
+    fileMime?: string
+    fileBytes?: number
+  } = {},
 ): Promise<CVUploadResult> {
-  return resolveCVUploadResult(initial, (jobId) =>
-    request<CVUploadStatusResponse>(
-      `/cv/upload/status/${encodeURIComponent(jobId)}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    ),
-  )
+  if (initial.status === "done") {
+    _emitCVUploadTelemetry(token, {
+      phase: "parse",
+      outcome: "succeeded",
+      idempotencyKey: telemetry.idempotencyKey ?? null,
+      reasonCode: "hash_cache_hit",
+      fileName: telemetry.fileName ?? null,
+      fileMime: telemetry.fileMime ?? null,
+      fileBytes: telemetry.fileBytes ?? null,
+    })
+  } else {
+    _emitCVUploadTelemetry(token, {
+      phase: "poll",
+      outcome: "started",
+      jobId: initial.job_id,
+      idempotencyKey: telemetry.idempotencyKey ?? null,
+      fileName: telemetry.fileName ?? null,
+      fileMime: telemetry.fileMime ?? null,
+      fileBytes: telemetry.fileBytes ?? null,
+    })
+  }
+  try {
+    const result = await resolveCVUploadResult(initial, async (jobId) => {
+      try {
+        return await request<CVUploadStatusResponse>(
+          `/cv/upload/status/${encodeURIComponent(jobId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        )
+      } catch (err) {
+        const wrapped = _asUploadFailure(err, "poll")
+        _emitCVUploadTelemetry(token, {
+          phase: "poll",
+          outcome: "retrying",
+          jobId,
+          idempotencyKey: telemetry.idempotencyKey ?? null,
+          reasonCode: wrapped.code,
+          errorDetail: wrapped.message,
+          fileName: telemetry.fileName ?? null,
+          fileMime: telemetry.fileMime ?? null,
+          fileBytes: telemetry.fileBytes ?? null,
+        })
+        throw wrapped
+      }
+    })
+    if (initial.status === "processing") {
+      _emitCVUploadTelemetry(token, {
+        phase: "poll",
+        outcome: "succeeded",
+        jobId: initial.job_id,
+        idempotencyKey: telemetry.idempotencyKey ?? null,
+        fileName: telemetry.fileName ?? null,
+        fileMime: telemetry.fileMime ?? null,
+        fileBytes: telemetry.fileBytes ?? null,
+      })
+    }
+    _emitCVUploadTelemetry(token, {
+      phase: "parse",
+      outcome: "succeeded",
+      jobId: initial.status === "processing" ? initial.job_id : null,
+      idempotencyKey: telemetry.idempotencyKey ?? null,
+      fileName: telemetry.fileName ?? null,
+      fileMime: telemetry.fileMime ?? null,
+      fileBytes: telemetry.fileBytes ?? null,
+    })
+    return result
+  } catch (err) {
+    const failure = _asUploadFailure(err, "poll")
+    const phase = failure.phase ?? "poll"
+    _emitCVUploadTelemetry(token, {
+      phase,
+      outcome: "failed",
+      jobId: initial.status === "processing" ? initial.job_id : null,
+      idempotencyKey: telemetry.idempotencyKey ?? null,
+      reasonCode: failure.code,
+      errorDetail: failure.message,
+      fileName: telemetry.fileName ?? null,
+      fileMime: telemetry.fileMime ?? null,
+      fileBytes: telemetry.fileBytes ?? null,
+    })
+    throw failure
+  }
 }
 
 /** Imperative status poll for callers that already have a job_id. */
@@ -670,14 +1057,61 @@ export async function pollCVUploadStatus(
   jobId: string,
   opts: { intervalMs?: number; timeoutMs?: number } = {},
 ): Promise<CVUploadResult> {
-  return resolveCVUploadResult(
-    { status: "processing", job_id: jobId },
-    (jid) => request<CVUploadStatusResponse>(
-      `/cv/upload/status/${encodeURIComponent(jid)}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    ),
-    opts,
-  )
+  _emitCVUploadTelemetry(token, {
+    phase: "poll",
+    outcome: "started",
+    jobId,
+    idempotencyKey: _readUploadIdemKey(),
+  })
+  try {
+    const result = await resolveCVUploadResult(
+      { status: "processing", job_id: jobId },
+      async (jid) => {
+        try {
+          return await request<CVUploadStatusResponse>(
+            `/cv/upload/status/${encodeURIComponent(jid)}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          )
+        } catch (err) {
+          const failure = _asUploadFailure(err, "poll")
+          _emitCVUploadTelemetry(token, {
+            phase: "poll",
+            outcome: "retrying",
+            jobId: jid,
+            idempotencyKey: _readUploadIdemKey(),
+            reasonCode: failure.code,
+            errorDetail: failure.message,
+          })
+          throw failure
+        }
+      },
+      opts,
+    )
+    _emitCVUploadTelemetry(token, {
+      phase: "poll",
+      outcome: "succeeded",
+      jobId,
+      idempotencyKey: _readUploadIdemKey(),
+    })
+    _emitCVUploadTelemetry(token, {
+      phase: "parse",
+      outcome: "succeeded",
+      jobId,
+      idempotencyKey: _readUploadIdemKey(),
+    })
+    return result
+  } catch (err) {
+    const failure = _asUploadFailure(err, "poll")
+    _emitCVUploadTelemetry(token, {
+      phase: failure.phase ?? "poll",
+      outcome: "failed",
+      jobId,
+      idempotencyKey: _readUploadIdemKey(),
+      reasonCode: failure.code,
+      errorDetail: failure.message,
+    })
+    throw failure
+  }
 }
 
 // ── Scores ────────────────────────────────────────────────────────────────────

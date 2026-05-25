@@ -43,6 +43,8 @@ export class CVUploadFailureBase extends Error {
     public readonly code: string,
     public readonly xpRefunded: boolean,
     public readonly newXpBalance: number | null,
+    public readonly retryable: boolean = false,
+    public readonly phase: "pick" | "signed-url" | "put" | "poll" | "parse" | null = null,
   ) {
     super(message)
     this.name = "CVUploadFailure"
@@ -52,6 +54,7 @@ export class CVUploadFailureBase extends Error {
 export interface ResolveUploadOptions {
   intervalMs?: number
   timeoutMs?: number
+  maxTransientFailures?: number
   /** Injectable clock — defaults to Date.now + setTimeout. Tests override. */
   now?: () => number
   sleep?: (ms: number) => Promise<void>
@@ -59,6 +62,7 @@ export interface ResolveUploadOptions {
 
 const DEFAULT_INTERVAL_MS = 2_000
 const DEFAULT_TIMEOUT_MS = 180_000
+const DEFAULT_MAX_TRANSIENT_FAILURES = 4
 
 export async function resolveCVUploadResult(
   initial: CVUploadInitial,
@@ -79,11 +83,30 @@ export async function resolveCVUploadResult(
   const timeout = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const now = opts.now ?? (() => Date.now())
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)))
+  const maxTransientFailures = opts.maxTransientFailures ?? DEFAULT_MAX_TRANSIENT_FAILURES
   const deadline = now() + timeout
+  let transientFailures = 0
 
   while (now() < deadline) {
     await sleep(interval)
-    const status = await fetchStatus(initial.job_id)
+    let status: CVUploadPolledStatus
+    try {
+      status = await fetchStatus(initial.job_id)
+      transientFailures = 0
+    } catch {
+      transientFailures += 1
+      if (transientFailures > maxTransientFailures) {
+        throw new CVUploadFailureBase(
+          "Upload status checks were interrupted. Tap to try again.",
+          "poll_network_interrupted",
+          false,
+          null,
+          true,
+          "poll",
+        )
+      }
+      continue
+    }
     if (status.status === "done") {
       return {
         skills_detected: status.skills_detected ?? 0,
@@ -99,9 +122,18 @@ export async function resolveCVUploadResult(
         status.error_code ?? "unknown",
         status.xp_refunded,
         status.new_xp_balance,
+        false,
+        "parse",
       )
     }
     // processing — loop
   }
-  throw new Error("CV analysis is taking unusually long. Refresh and try again.")
+  throw new CVUploadFailureBase(
+    "CV analysis is taking unusually long. Tap to resume this upload.",
+    "poll_timeout",
+    false,
+    null,
+    true,
+    "poll",
+  )
 }

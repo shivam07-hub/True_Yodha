@@ -202,7 +202,9 @@ def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> 
         app.dependency_overrides.clear()
 
     assert res.status_code == 422
-    assert "couldn't read any text" in res.json()["detail"].lower()
+    detail = res.json()["detail"]
+    assert detail["code"] == "unreadable_text"
+    assert "couldn't read any text" in detail["message"].lower()
     assert state["charged"] == 0  # critical: no charge on rejected upload
 
 

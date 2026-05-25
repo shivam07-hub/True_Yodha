@@ -624,3 +624,55 @@ Product interpretation:
 - **P1 - Mobile public-page compression.** Replace long paragraphs with visual proof cards, chips, collapsible sections, and actual product previews.
 - **P1 - Differentiation pass.** Position Myro against LinkedIn, Internshala, and BetterCV as the versioned CV workbench for tailoring and score improvement.
 - **P2 - Trust proof.** Surface testimonials, students helped, resumes analyzed, placement results, and shipped-from-feedback proof earlier in the public journey.
+
+# Appendix D - Beta Batch 5 (2026-05-25 urgent upload + mobile regression intake)
+
+This intake adds a high-severity trust signal: users are reporting that the CV upload failure still persists **after** being told the issue was fixed. This is now both a product reliability issue and a communication-risk issue.
+
+## D.1 User Escalation - Upload Still Failing, Deadline Risk
+
+Escalation summary received on 2026-05-25:
+
+- User retried CV upload 5+ times with different files and different networks.
+- The same error persisted: **"Upload was interrupted. Tap to try again."**
+- User has an Intel assignment deadline on **2026-05-26** and asked for immediate recovery or an alternate submission path.
+- Message quality is urgent and high trust-risk: user explicitly called out mismatch between "issue resolved" communication and current product behavior.
+
+Product interpretation:
+
+- This cannot stay as a generic retry toast. It needs root-cause visibility and a deterministic fallback path.
+- Deadline-driven users need a "get unblocked now" path in-product, not only support chat back-and-forth.
+- The user-success chain (upload -> parse -> score -> Intel) currently has no resilient emergency rail when upload fails repeatedly.
+
+## D.2 Screenshot Evidence Added (folder: `reference/User issues_25th May/`)
+
+Key visual confirmations from this intake:
+
+- Multiple Android screenshots show repeated upload modal failure on `/cv` with identical interrupted state (`Screenshot_20260525_130735.jpg`, `Screenshot_20260525_130859.jpg`, `Screenshot_20260525_131054.jpg`, `WhatsApp Image 2026-05-25 at 14.42.06.jpeg`).
+- iPhone browser screenshots show account/settings surfaces rendering as split desktop-like panes with clipped/overflowing content on mobile (`WhatsApp Image 2026-05-25 at 14.24.27.jpeg`, `... (1).jpeg`, `... (2).jpeg`).
+
+Product interpretation:
+
+- Upload is reproducibly stuck for at least one live user cohort on May 25.
+- Mobile settings/feedback/billing layout still has a browser-specific overflow regression despite prior mobile modal fixes.
+- This is a cross-platform quality issue: Android upload reliability + iOS layout resilience.
+
+## D.3 Immediate Backlog Deltas From This Intake
+
+- **P0 - Upload incident re-open.** Re-open CV upload incident until mobile-first repro pass is green on production for PDF and DOCX, not just local/dev.
+- **P0 - Assignment-safe fallback.** Add a temporary alternate submission path for deadline users when upload fails repeatedly (support upload endpoint + confirmed receipt state).
+- **P0 - Retry transparency.** Replace generic interruption copy with an actionable error envelope: file type, size, network state, retry count, and support token.
+- **P0 - Upload telemetry.** Emit structured client/server events for each phase (`pick`, `signed-url`, `put`, `poll`, `parse_done`, `parse_failed`) with reason codes.
+- **P1 - Mobile settings overflow fix (iOS).** Force single-column full-screen sheet + safe-area constraints for account/following/feedback/billing on <=768px.
+- **P1 - Upload format contract.** Explicit accepted-format chips before file picker; deterministic unsupported-format rejection before network upload starts.
+
+## D.4 Top Coding Fixes To Ship Next (priority order)
+
+1. **Harden CV upload state machine (P0).** Ensure every upload attempt terminates in a deterministic success/failure state with reason codes; no indefinite interrupted loop.
+2. **Add deadline fallback submission rail (P0).** When upload fails N times, expose alternate assignment submission path with acknowledgment ID and manual processing SLA.
+3. **Instrument end-to-end upload telemetry (P0).** Add client + backend phase logging and alert when production upload failure rate crosses threshold.
+4. **Fix mobile settings/modal layout regression on iOS Safari (P1).** Convert split desktop panels to single-column mobile sheets with overflow-safe containers.
+5. **Ship upload preflight validation (P1).** Validate MIME/extension/size locally before upload; show exact allowed formats and why a file is rejected.
+6. **Add resumable/retryable transport behavior (P1).** Retry network phase with bounded backoff and idempotency keys so weak networks do not force full restart.
+7. **Add visible recovery UX after repeated failures (P1).** Present "Try another format", "Use text paste", and "Submit via fallback" actions in the same modal.
+8. **Protect Intel flow from CV upload dependency shock (P1).** Show explicit prerequisite state and safe alternative route when CV parse is pending/failed.

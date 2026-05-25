@@ -14,7 +14,7 @@ body:has(.tm-settings-dialog) [data-slot="dialog-overlay"] {
   z-index: 360 !important;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px), (pointer: coarse) and (hover: none) {
   .tm-settings-dialog {
     width: calc(100vw - 16px) !important;
     max-width: calc(100vw - 16px) !important;
@@ -26,9 +26,18 @@ body:has(.tm-settings-dialog) [data-slot="dialog-overlay"] {
 
   .tm-settings-sidebar {
     width: 100% !important;
+    max-width: 100% !important;
     flex: 0 0 auto !important;
     border-right: none !important;
     border-bottom: 1px solid var(--tm-border-soft) !important;
+  }
+
+  .tm-settings-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    flex: 1 1 auto !important;
   }
 
   .tm-settings-profile,
@@ -68,6 +77,7 @@ body:has(.tm-settings-dialog) [data-slot="dialog-overlay"] {
 
   .tm-settings-body {
     padding: 8px 16px 20px !important;
+    overflow-x: hidden !important;
   }
 
   .tm-settings-linkedin-row {

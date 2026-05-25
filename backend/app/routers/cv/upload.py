@@ -1,6 +1,13 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, status
-from pydantic import BaseModel
+from datetime import date, datetime, timezone
+import secrets
+from urllib.parse import quote
+from uuid import uuid4
 
+from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, status
+from pydantic import BaseModel, Field
+
+from app.config import settings
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVRepository, get_token_cv_repository
 from app.schemas import (
@@ -25,6 +32,24 @@ class CVTextRequest(BaseModel):
     idempotency_key: str | None = None
 
 
+class CVUploadFallbackRequest(BaseModel):
+    attempts: int = Field(..., ge=1, le=100)
+    reason_code: str = Field(..., min_length=1, max_length=120)
+    last_error: str | None = Field(default=None, max_length=1000)
+    file_name: str | None = Field(default=None, max_length=260)
+    file_mime: str | None = Field(default=None, max_length=180)
+    file_size_bytes: int | None = Field(default=None, ge=0, le=25 * 1024 * 1024)
+    route: str | None = Field(default=None, max_length=260)
+    assignment_deadline: date | None = None
+
+
+class CVUploadFallbackResponse(BaseModel):
+    ticket_id: str
+    support_token: str
+    alternate_submission_url: str
+    sla_hours: int = 12
+
+
 @router.post(
     "/upload",
     response_model=CVUploadResponse,
@@ -43,14 +68,16 @@ async def upload_cv(
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF and DOCX files are accepted.",
+            detail={"code": "unsupported_format", "message": "Only PDF and DOCX files are accepted."},
+            headers={"X-Myro-Error-Code": "unsupported_format"},
         )
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large — maximum size is 10MB.",
+            detail={"code": "file_too_large", "message": "File too large — maximum size is 10MB."},
+            headers={"X-Myro-Error-Code": "file_too_large"},
         )
 
     file_type = "pdf" if file.content_type == "application/pdf" else "docx"
@@ -95,3 +122,46 @@ async def upload_status(
     """Poll terminal state of an async CV upload job (ADR-0004)."""
     payload = await cv_workflow.get_cv_upload_status(job_id, principal.id)
     return CVUploadStatusResponse(**payload)
+
+
+@router.post(
+    "/upload/fallback",
+    response_model=CVUploadFallbackResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_upload_fallback_submission(
+    body: CVUploadFallbackRequest,
+    principal: Principal = Depends(get_principal),
+) -> CVUploadFallbackResponse:
+    support_token = f"CV-{secrets.token_hex(4).upper()}"
+    ticket_id = str(uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    get_supabase_admin().table("cv_upload_fallback_requests").insert({
+        "id": ticket_id,
+        "user_id": principal.id,
+        "support_token": support_token,
+        "attempts": body.attempts,
+        "reason_code": body.reason_code,
+        "last_error": body.last_error,
+        "file_name": body.file_name,
+        "file_mime": body.file_mime,
+        "file_size_bytes": body.file_size_bytes,
+        "route": body.route,
+        "assignment_deadline": body.assignment_deadline.isoformat() if body.assignment_deadline else None,
+        "status": "open",
+        "created_at": now,
+        "updated_at": now,
+    }).execute()
+
+    if settings.cv_upload_fallback_form_url.strip():
+        alternate_url = settings.cv_upload_fallback_form_url.strip()
+    else:
+        subject = quote(f"Myro CV upload fallback {support_token}")
+        alternate_url = f"mailto:{settings.cv_upload_support_email}?subject={subject}"
+
+    return CVUploadFallbackResponse(
+        ticket_id=ticket_id,
+        support_token=support_token,
+        alternate_submission_url=alternate_url,
+        sla_hours=12,
+    )
