@@ -14,9 +14,13 @@ from app.routers import payments as payments_router
 class _FakeOrderApi:
     def __init__(self) -> None:
         self.created_payload: dict[str, Any] | None = None
+        self.received_timeout: int | None = None
 
-    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def create(self, payload: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         self.created_payload = payload
+        timeout = kwargs.get("timeout")
+        if isinstance(timeout, int):
+            self.received_timeout = timeout
         return {
             "id": "order_test_123",
             "amount": payload["amount"],
@@ -100,6 +104,7 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
         "receipt": "xp_123",
         "notes": {"user_id": "user-1", "xp_amount": "1000", "product": "myro_xp_launch_pack"},
     }
+    assert fake_client.order.received_timeout == payments_router.RAZORPAY_ORDER_TIMEOUT_SECONDS
     assert recorded["user_id"] == "user-1"
     assert recorded["razorpay_order_id"] == "order_test_123"
     assert recorded["amount_paise"] == 9900
@@ -109,7 +114,7 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
 
 def test_create_order_maps_razorpay_auth_failure_to_gateway_error(monkeypatch: pytest.MonkeyPatch) -> None:
     class _FailingOrderApi:
-        def create(self, _payload: dict[str, Any]) -> dict[str, Any]:
+        def create(self, _payload: dict[str, Any], **_kwargs: Any) -> dict[str, Any]:
             raise payments_router.razorpay_errors.BadRequestError("Authentication failed")
 
     class _FailingRazorpayClient:
@@ -125,8 +130,18 @@ def test_create_order_maps_razorpay_auth_failure_to_gateway_error(monkeypatch: p
             headers={"Authorization": "Bearer token"},
         )
 
-    assert response.status_code == 502
+    assert response.status_code == 401
     assert response.json()["detail"] == "Razorpay authentication failed"
+
+
+def test_razorpay_credentials_trim_quotes_and_spaces(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_key_id", "  \"rzp_test_key\" ")
+    monkeypatch.setattr(payments_router.settings, "razorpay_key_secret", " 'test_secret' ")
+
+    key_id, key_secret = payments_router._razorpay_credentials()
+
+    assert key_id == "rzp_test_key"
+    assert key_secret == "test_secret"
 
 
 def test_verify_payment_requires_all_fields() -> None:

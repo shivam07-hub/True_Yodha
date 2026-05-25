@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 import razorpay
+import requests
+from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from razorpay import errors as razorpay_errors
@@ -20,8 +23,10 @@ XP_PACK_PRICE_PAISE = 9900
 XP_PACK_AMOUNT = 1000
 XP_PACK_CURRENCY = "INR"
 XP_PACK_PRODUCT = "myro_xp_launch_pack"
+RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
 
 router = APIRouter(prefix="/api", tags=["payments"])
+logger = logging.getLogger(__name__)
 
 
 class CreateOrderRequest(BaseModel):
@@ -52,27 +57,56 @@ def _default_receipt(user_id: str) -> str:
     return f"xp_{int(time.time())}_{user_id[:8]}"
 
 
-def _razorpay_client() -> razorpay.Client:
-    if not settings.razorpay_key_id or not settings.razorpay_key_secret:
+def _clean_credential(value: str) -> str:
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
+def _razorpay_credentials() -> tuple[str, str]:
+    key_id = _clean_credential(settings.razorpay_key_id)
+    key_secret = _clean_credential(settings.razorpay_key_secret)
+    if not key_id or not key_secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Razorpay credentials are not configured",
         )
-    return razorpay.Client(auth=(settings.razorpay_key_id, settings.razorpay_key_secret))
+    return key_id, key_secret
+
+
+def _razorpay_client() -> razorpay.Client:
+    key_id, key_secret = _razorpay_credentials()
+    client = razorpay.Client(
+        auth=(key_id, key_secret),
+        max_retries=3,
+        initial_delay=0.4,
+        max_delay=2,
+        jitter=0.2,
+    )
+    client.enable_retry(True)
+    return client
+
+
+def _create_razorpay_order(payload: dict[str, Any]) -> dict[str, Any]:
+    client = _razorpay_client()
+    return client.order.create(payload, timeout=RAZORPAY_ORDER_TIMEOUT_SECONDS)
 
 
 def _razorpay_error(exc: Exception) -> HTTPException:
     message = str(exc) or "Razorpay order creation failed"
-    is_auth_error = "auth" in message.lower() or "key" in message.lower()
+    lowered = message.lower()
+    is_auth_error = any(term in lowered for term in ("auth", "key", "credential", "secret", "token"))
     return HTTPException(
-        status_code=status.HTTP_502_BAD_GATEWAY if is_auth_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=status.HTTP_401_UNAUTHORIZED if is_auth_error else status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Razorpay authentication failed" if is_auth_error else "Razorpay order creation failed",
     )
 
 
 def _signature_matches(order_id: str, payment_id: str, provided_signature: str) -> bool:
+    _, key_secret = _razorpay_credentials()
     expected = hmac.new(
-        settings.razorpay_key_secret.encode("utf-8"),
+        key_secret.encode("utf-8"),
         f"{order_id}|{payment_id}".encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
@@ -182,18 +216,27 @@ async def create_order(
     }
 
     try:
-        order = _razorpay_client().order.create(payload)
+        order = await run_in_threadpool(_create_razorpay_order, payload)
     except (razorpay_errors.BadRequestError, razorpay_errors.GatewayError, razorpay_errors.ServerError) as exc:
+        logger.warning("Razorpay order create failed for user %s: %s", principal.id, str(exc))
         raise _razorpay_error(exc) from exc
+    except requests.exceptions.RequestException as exc:
+        logger.error("Razorpay network failure for user %s: %s", principal.id, str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payment gateway is temporarily unavailable",
+        ) from exc
 
     order_id = order.get("id")
     if not order_id:
+        logger.error("Razorpay order create returned no id for user %s", principal.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Razorpay did not return an order id",
         )
 
-    _record_created_payment(
+    await run_in_threadpool(
+        _record_created_payment,
         user_id=principal.id,
         razorpay_order_id=order_id,
         amount_paise=int(order.get("amount", body.amount)),
@@ -219,13 +262,14 @@ async def verify_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing payment verification fields",
         )
-    if not settings.razorpay_key_secret:
+    if not _clean_credential(settings.razorpay_key_secret):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Razorpay credentials are not configured",
         )
 
-    payment = _find_payment_by_order(
+    payment = await run_in_threadpool(
+        _find_payment_by_order,
         user_id=principal.id,
         razorpay_order_id=body.razorpay_order_id,
     )
@@ -245,13 +289,15 @@ async def verify_payment(
         balance = await xp_service.get_xp_balance(principal.id)
         return VerifyPaymentResponse(success=True, xp_earned=0, new_xp_balance=balance)
 
-    updated = _mark_payment_verified(
+    updated = await run_in_threadpool(
+        _mark_payment_verified,
         payment_row_id=payment["id"],
         razorpay_payment_id=body.razorpay_payment_id,
         razorpay_signature=body.razorpay_signature,
     )
     if not updated:
-        latest = _find_payment_by_order(
+        latest = await run_in_threadpool(
+            _find_payment_by_order,
             user_id=principal.id,
             razorpay_order_id=body.razorpay_order_id,
         )
