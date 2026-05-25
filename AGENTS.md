@@ -254,7 +254,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 late - Railway beta fixes + refresh recovery)
+## LAST SESSION SUMMARY (2026-05-25 night - onboarding target-company setup)
+
+Shipped the first onboarding-priority slice on `Develop`: CV upload/text capture now moves to role targeting first, saves target roles/location, then starts CV extraction in the background while the user chooses target companies. Added a new `StepCompanies` onboarding screen that reuses the Market follow/star company contract (`followed_companies`, 10 XP follow cost, 10-company cap) so a first-time user's Market heatmap is seeded before they arrive there.
+
+Design direction followed the referenced LinkedIn + Resend screenshots: focused enterprise setup pane, compact search/selection surfaces, status strip for background CV analysis, responsive 375px mobile stack, and a direct "Change CV" recovery action if extraction fails. Added pure helpers + tests in `frontend/lib/onboarding-company-selection.ts` and `frontend/tests/onboarding-company-selection.test.ts`.
+
+Verify: `cd frontend && npx tsx --test tests/onboarding-company-selection.test.ts` 6/6 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 364/364 pass · `git diff --check` clean. Visual check: Chrome/Playwright on `http://127.0.0.1:3020/onboarding`, desktop 1440px and mobile 375px screenshots, no horizontal overflow/offscreen controls; screenshots saved to `/tmp/myro-onboarding-company-desktop.png` and `/tmp/myro-onboarding-company-mobile.png`. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 late - Railway beta fixes + refresh recovery)
 
 Implemented the Railway/Beta Fix Plan in five scoped commits on `Develop`, aligned with Claude's latest pushed state and preserving Claude's aspiration retry/fallback work:
 

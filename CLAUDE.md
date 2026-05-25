@@ -271,7 +271,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 late · Railway beta fixes + refresh recovery)
+## LAST SESSION SUMMARY (2026-05-25 night · onboarding target-company setup)
+
+Codex shipped the first onboarding-priority slice on `Develop`: CV upload/text capture no longer blocks on extraction immediately after Step CV. The flow now saves target roles/location first, starts CV extraction in the background, and uses that wait window for a new target-company selection step. The company step uses the existing Market follow/star contract (`followed_companies`, 10 XP follow cost, 10-company cap) so first-time users can arrive at Market with a pre-seeded followed-company heatmap.
+
+### What changed
+
+- `frontend/app/onboarding/page.tsx` now has a 5-step flow: CV → role → companies → ninja name → score. It tracks background CV upload state (`idle/running/done/failed`) and only gates final score generation when the user continues past companies.
+- `frontend/components/onboarding/step-companies.tsx` adds the enterprise setup pane for company search + starred companies, using `users.followedCompanies`, `users.followCompany`, `users.unfollowCompany`, `jobs.searchCompanies`, and the shared XP store.
+- `frontend/components/onboarding/step-role.tsx` no longer displays the old extraction loading stage; it saves targets and passes the user into company mapping while extraction runs.
+- `frontend/lib/onboarding-company-selection.ts` centralizes company normalization, dedupe, initials, add/remove, and followed-row mapping. `frontend/tests/onboarding-company-selection.test.ts` covers those helpers.
+- `step-companies.css` + `step-companies.states.css` keep the new UI responsive at 375px and under the 300-line ceiling per new file.
+
+### Design notes
+
+- Direction followed the referenced LinkedIn Developer setup and Resend signup screenshots: focused setup surface, compact rows, strong visual states, minimal explanatory copy, and no landing-page framing.
+- Background CV state is surfaced as a status strip. If extraction fails, users get a direct `Change CV` recovery action instead of a disabled dead end.
+- Visual verification used local Chrome/Playwright against `http://127.0.0.1:3020/onboarding`; desktop 1440px and mobile 375px screenshots showed no horizontal overflow/offscreen controls. Screenshots: `/tmp/myro-onboarding-company-desktop.png`, `/tmp/myro-onboarding-company-mobile.png`.
+
+Verify: `cd frontend && npx tsx --test tests/onboarding-company-selection.test.ts` 6/6 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 364/364 pass · `git diff --check` clean. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 late · Railway beta fixes + refresh recovery)
 
 Codex implemented the Railway/Beta Fix Plan in five scoped commits on `Develop`, explicitly preserving Claude's `9194938` aspiration retry/fallback work and the Backlog #14 root-cause notes from `541c30d`.
 
