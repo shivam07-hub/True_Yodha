@@ -18,6 +18,38 @@ Raw accounts matter, but activation proves that the user reached the first usefu
 - **Activation target:** 5,000 onboarding or CV completions by 2026-07-16.
 - **First checkpoint:** 300-500 accounts and 150-250 activations by 2026-05-31.
 
+## 10,000 User Acquisition Strategy (Memory)
+
+**Strategy name:** HiMyro 0 to 10k User Acquisition Strategy  
+**Prepared by:** Konda Karthikeya
+
+To reach the first 10,000 active users without heavy ad spend, focus on:
+- product-led growth hooks,
+- batch acquisition through trusted college networks,
+- high-retention organic short-form content.
+
+### 1) Resume Roaster Hook (Product-Led Growth)
+
+- Package AI skill extraction as a standalone free tool.
+- User uploads CV and gets an instant skill score or resume roast.
+- Gate detailed breakdown and fix workflows behind account creation.
+- Treat this flow as the primary lead magnet.
+
+### 2) Campus Pipeline (Bulk Acquisition)
+
+- Prioritize institutional acquisition over one-by-one user outreach.
+- Target placement cells and trusted student networks.
+- Start pilot outreach via SR University and IITM BS community.
+- Pitch HiMyro as the default CV formatting and readiness tool before placement season.
+- Win a few networks to unlock thousands of users in batches.
+
+### 3) High-Retention Reels (Organic Social)
+
+- Drive organic traffic through short-form video algorithms.
+- Publish fast-paced before/after resume transformation reels.
+- Optimize edits for retention and watch time using dynamic pacing and relevant trending audio.
+- Use each reel as an entry path to the Resume Roaster and signup flow.
+
 ## Modes
 
 ### `content_growth_mode`
