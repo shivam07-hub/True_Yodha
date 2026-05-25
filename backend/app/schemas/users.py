@@ -16,6 +16,9 @@ class UserProfileResponse(BaseModel):
     ninja_name: str | None = None
     referred_by_user_id: str | None = None
     has_cv: bool = False
+    cv_readiness: str = "missing"  # ready | missing | processing | failed
+    cv_upload_job_id: str | None = None
+    cv_upload_error_code: str | None = None
 
 
 class UpdateProfileResponse(UserProfileResponse):

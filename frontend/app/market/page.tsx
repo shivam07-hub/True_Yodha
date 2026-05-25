@@ -283,6 +283,83 @@ function ShimmerCell() {
   )
 }
 
+function CVPrerequisiteCard({
+  readiness,
+  errorCode,
+}: {
+  readiness: "missing" | "processing" | "failed"
+  errorCode?: string | null
+}) {
+  const title =
+    readiness === "processing"
+      ? "Your CV analysis is running"
+      : readiness === "failed"
+        ? "CV analysis needs retry"
+        : "Upload a CV to unlock personalized Intel"
+
+  const body =
+    readiness === "processing"
+      ? "We are still mapping your skills. You can keep exploring market demand while your personal heatmap prepares."
+      : readiness === "failed"
+        ? "Your last CV analysis did not complete. Re-upload to restore skill-to-company heatmap personalization."
+        : "Your company heatmap is built from skills extracted from your CV. Upload once to activate personalized demand mapping."
+
+  return (
+    <div
+      style={{
+        background: "var(--tm-surface)",
+        border: "1px solid var(--tm-border-soft)",
+        borderRadius: "var(--tm-radius-lg)",
+        marginTop: 14,
+        padding: "28px 24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>{title}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-faint)", maxWidth: 720 }}>{body}</div>
+      {readiness === "failed" && errorCode ? (
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", color: "var(--tm-warning)" }}>
+          LAST ERROR · {errorCode.toUpperCase()}
+        </div>
+      ) : null}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+        <Link
+          href={readiness === "failed" ? "/cv?upload=1" : "/cv"}
+          style={{
+            padding: "8px 14px",
+            borderRadius: "var(--tm-radius-sm)",
+            background: "var(--tm-accent)",
+            color: "var(--tm-accent-fg)",
+            border: "1px solid var(--tm-accent)",
+            textDecoration: "none",
+            fontSize: 12,
+            fontWeight: 700,
+          }}
+        >
+          {readiness === "processing" ? "View upload status →" : readiness === "failed" ? "Retry CV upload →" : "Upload CV →"}
+        </Link>
+        <Link
+          href="/about"
+          style={{
+            padding: "8px 14px",
+            borderRadius: "var(--tm-radius-sm)",
+            background: "transparent",
+            color: "var(--tm-text-faint)",
+            border: "1px solid var(--tm-border-soft)",
+            textDecoration: "none",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          See how Intel works
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // ── Skill × Company heatmap ──────────────────────────────────────────────────
 
 function SkillHeatmap({
@@ -818,6 +895,12 @@ function IntelPageInner() {
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles]
   )
+  const cvReadiness = useMemo<"ready" | "missing" | "processing" | "failed">(() => {
+    if (!token) return "ready"
+    if (profileData?.has_cv) return "ready"
+    return profileData?.cv_readiness ?? "missing"
+  }, [token, profileData?.cv_readiness, profileData?.has_cv])
+  const cvReadyForPersonalization = cvReadiness === "ready"
 
   const locFilters = useMemo(
     () => ({
@@ -871,7 +954,7 @@ function IntelPageInner() {
   const { data: skillDemandData, isLoading: skillDemandLoading } = useQuery({
     queryKey: ["mySkillDemand", token],
     queryFn: () => jobs.mySkillDemand(token!),
-    enabled: !!token,
+    enabled: !!token && cvReadyForPersonalization,
     staleTime: 30 * 60 * 1000,
   })
 
@@ -913,6 +996,7 @@ function IntelPageInner() {
 
   // Heatmap columns: always CV skills (user-curated via Skill Lens)
   const heatmapSkills = useMemo(() => {
+    if (!cvReadyForPersonalization) return []
     if (!skillDemandData?.skills?.length) return []
     const base = skillDemandData.skills
       .filter(s => selectedSkillNames.size === 0 || selectedSkillNames.has(s.display_name))
@@ -923,7 +1007,7 @@ function IntelPageInner() {
       return [paramSkill, ...base.filter(s => s !== paramSkill)]
     }
     return base
-  }, [selectedSkillNames, skillDemandData, paramSkill])
+  }, [cvReadyForPersonalization, selectedSkillNames, skillDemandData, paramSkill])
 
   const skillLevels = useMemo(() => {
     const map: Record<string, number> = {}
@@ -1050,6 +1134,10 @@ function IntelPageInner() {
     setSelectedCell(prev => (prev?.ci === ci && prev?.si === si ? null : { ci, si }))
   }, [])
 
+  useEffect(() => {
+    if (!cvReadyForPersonalization && selectedCell) setSelectedCell(null)
+  }, [cvReadyForPersonalization, selectedCell])
+
   const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
 
   const moversCompanies = useMemo(() => analytics?.by_company ?? [], [analytics])
@@ -1175,18 +1263,22 @@ function IntelPageInner() {
 
         {analytics && <PulseStrip analytics={analytics} followedCount={followedNames.length} />}
 
-        <SkillHeatmap
-          companies={followedCompanies}
-          rowDataMap={rowDataMap}
-          skills={heatmapSkills}
-          skillLevels={skillLevels}
-          selectedCell={selectedCell}
-          onCellSelect={handleCellSelect}
-          allSkills={skillDemandData?.skills ?? []}
-          selectedSkillNames={selectedSkillNames}
-          onToggleSkill={handleToggleSkill}
-          isLoggedIn={!!token}
-        />
+        {token && !cvReadyForPersonalization ? (
+          <CVPrerequisiteCard readiness={cvReadiness} errorCode={profileData?.cv_upload_error_code ?? null} />
+        ) : (
+          <SkillHeatmap
+            companies={followedCompanies}
+            rowDataMap={rowDataMap}
+            skills={heatmapSkills}
+            skillLevels={skillLevels}
+            selectedCell={selectedCell}
+            onCellSelect={handleCellSelect}
+            allSkills={skillDemandData?.skills ?? []}
+            selectedSkillNames={selectedSkillNames}
+            onToggleSkill={handleToggleSkill}
+            isLoggedIn={!!token}
+          />
+        )}
 
         {resolvedCell && (
           <JobDrillPanel

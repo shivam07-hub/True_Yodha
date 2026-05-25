@@ -163,6 +163,9 @@ export interface UserProfile {
   ninja_name: string | null
   referred_by_user_id: string | null
   has_cv: boolean
+  cv_readiness?: "ready" | "missing" | "processing" | "failed"
+  cv_upload_job_id?: string | null
+  cv_upload_error_code?: string | null
 }
 
 export interface ProfileUpdateResponse extends UserProfile {

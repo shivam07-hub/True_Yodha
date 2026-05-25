@@ -35,6 +35,7 @@ class _FakeUsersRepository:
         records: list[UserSkillRecord] | None = None,
         *,
         has_cv: bool = False,
+        latest_upload_job: dict[str, Any] | None = None,
     ) -> None:
         self.profile = profile
         self.records = records or []
@@ -42,12 +43,16 @@ class _FakeUsersRepository:
         self.followed_companies: list[dict[str, Any]] = []
         self.followed_writes: list[tuple[str, str]] = []
         self._has_cv = has_cv
+        self._latest_upload_job = latest_upload_job
 
     def get_profile(self, _user_id: str) -> dict[str, Any] | None:
         return self.profile
 
     def has_baseline_cv(self, _user_id: str) -> bool:
         return self._has_cv
+
+    def latest_cv_upload_job(self, _user_id: str) -> dict[str, Any] | None:
+        return self._latest_upload_job
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         self.updates.append((user_id, updates))
@@ -89,6 +94,9 @@ def test_get_me_reads_through_token_repository() -> None:
     assert response.status_code == 200
     assert response.json()["email"] == "u@example.com"
     assert response.json()["has_cv"] is False
+    assert response.json()["cv_readiness"] == "missing"
+    assert response.json()["cv_upload_job_id"] is None
+    assert response.json()["cv_upload_error_code"] is None
 
 
 def test_get_me_reports_has_cv_when_baseline_exists() -> None:
@@ -107,6 +115,53 @@ def test_get_me_reports_has_cv_when_baseline_exists() -> None:
 
     assert response.status_code == 200
     assert response.json()["has_cv"] is True
+    assert response.json()["cv_readiness"] == "ready"
+
+
+def test_get_me_reports_processing_when_cv_upload_is_in_flight() -> None:
+    repo = _FakeUsersRepository(
+        profile=_profile_row(),
+        has_cv=False,
+        latest_upload_job={"id": "job-123", "status": "processing", "error_code": None},
+    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_cv"] is False
+    assert body["cv_readiness"] == "processing"
+    assert body["cv_upload_job_id"] == "job-123"
+    assert body["cv_upload_error_code"] is None
+
+
+def test_get_me_reports_failed_when_latest_upload_failed_and_no_baseline() -> None:
+    repo = _FakeUsersRepository(
+        profile=_profile_row(),
+        has_cv=False,
+        latest_upload_job={"id": "job-999", "status": "failed", "error_code": "poll_timeout"},
+    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_cv"] is False
+    assert body["cv_readiness"] == "failed"
+    assert body["cv_upload_job_id"] == "job-999"
+    assert body["cv_upload_error_code"] == "poll_timeout"
 
 
 def test_update_profile_writes_through_token_repository() -> None:
