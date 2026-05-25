@@ -178,12 +178,11 @@ async def post_signin(
     grant flag (linkedin_xp_granted) prevents double-grants.
 
     Idempotent on every axis — safe to retry."""
+    # principal is already validated by Depends(get_principal) — no extra
+    # auth round-trip needed here. full_name flows from Supabase user_metadata
+    # via ensure_user_provisioned's own admin read; pass None and let it stay
+    # whatever the row already had.
     full_name: str | None = None
-    try:
-        user_resp = get_supabase().auth.get_user(principal.id)  # noqa: F841 — health touch
-    except Exception:  # pragma: no cover — already authenticated by Depends
-        pass
-
     referrer = body.myro_ref or myro_ref
     try:
         referral_attributed = ensure_user_provisioned(
@@ -246,7 +245,7 @@ async def magic_link_request(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "rate_limited",
-                "message": f"Too many sign-in attempts from this network. Try again in an hour.",
+                "message": "Too many sign-in attempts from this network. Try again in an hour.",
             },
             headers={"Retry-After": str(_MAGIC_LINK_WINDOW_MINUTES * 60)},
         )

@@ -254,7 +254,31 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 - beta closure batch: skills/intel/cv discoverability)
+## LAST SESSION SUMMARY (2026-05-26 - CI stability hotfix: CV upload + feed timestamp)
+
+Closed the GitHub CI failure set (6 failing tests) with root-cause fixes and regression coverage:
+
+- Fixed CV upload rate-limit fail-open behavior in `backend/app/services/cv_workflow.py` by moving `get_supabase_admin()` inside the existing `try` block in `_enforce_user_upload_rate_limit()`. Missing Supabase env in CI no longer crashes request handling before validation.
+- Hardened startup sweep in `backend/app/main.py` to skip orphan-job sweep when Supabase URL/service key are not configured, removing noisy startup exceptions in test/CI contexts.
+- Fixed feed timestamp cache cold-start edge case in `backend/app/repositories/jobs.py`: `(0.0, None)` now behaves as an uninitialized cache sentinel instead of a warm cache hit (which previously could return `None` on fresh CI runners with low monotonic uptime).
+- Added regression tests:
+  - `test_submit_text_rate_limit_fail_open_when_supabase_unavailable` in `backend/tests/test_cv_upload_api.py`
+  - `test_get_feed_updated_at_refreshes_when_cache_timestamp_is_zero` in `backend/tests/test_jobs_list_router.py`
+
+Commit:
+
+- `a7c63c4 fix: harden upload rate-limit and feed timestamp cache`
+
+Validation:
+
+- `SUPABASE_URL='' SUPABASE_ANON_KEY='' SUPABASE_SERVICE_KEY='' pytest backend/tests -q` → `378 passed`
+- `.venv/bin/pytest backend/tests -q` → `378 passed`
+- `cd frontend && npm run lint` clean
+- `cd frontend && npx tsc --noEmit` clean
+
+Unrelated workspace state still present: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 - beta closure batch: skills/intel/cv discoverability)
 
 Shipped the selected fixed-scope closure batch for beta feedback, with explicit architecture seams for durability and report-status updates:
 

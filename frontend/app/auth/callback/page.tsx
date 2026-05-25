@@ -26,10 +26,26 @@ function safeNext(raw: string | null): string | null {
   return raw
 }
 
+/**
+ * Wrap a promise with a hard timeout. Resolves with `fallback` when the
+ * underlying promise doesn't settle before `ms`. Prevents an SDK call that
+ * silently hangs (network glitch / WebSocket retry / extension blocking)
+ * from freezing the entire callback flow.
+ */
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false
+    const t = setTimeout(() => { if (!settled) { settled = true; resolve(fallback) } }, ms)
+    p.then((v) => { if (!settled) { settled = true; clearTimeout(t); resolve(v) } })
+     .catch(() => { if (!settled) { settled = true; clearTimeout(t); resolve(fallback) } })
+  })
+}
+
 function CallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const handled = useRef(false)
+  const routed = useRef(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -37,75 +53,82 @@ function CallbackInner() {
     const arrivedAt = Date.now()
     const isMagicLink = typeof window !== "undefined" && window.location.hash.includes("access_token")
 
+    function routeOnce(dest: string) {
+      if (routed.current) return
+      routed.current = true
+      router.replace(dest)
+    }
+
     async function finish(session: { access_token: string; refresh_token: string }, provider: string | null) {
       if (handled.current) return
       handled.current = true
 
       setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
 
-      // Extract LinkedIn identity claims from the provider's ID token. Supabase
-      // surfaces these on `user.identities[].identity_data` for OAuth signins.
+      // Best-effort identity read — bounded so a hung getUser() can't freeze
+      // the flow. Defaults preserve null/null so post-signin still fires.
       let linkedinVanity: string | null = null
       let linkedinHeadline: string | null = null
       let linkedinVerified: boolean | null = null
       let createdAt: string | null = null
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        createdAt = user?.created_at ?? null
-        if ((provider ?? "") === "linkedin_oidc" || (provider ?? "") === "linkedin") {
-          const ident = (user?.identities ?? []).find(
-            (i) => i.provider === "linkedin_oidc" || i.provider === "linkedin",
-          )
-          const claims = (ident?.identity_data ?? {}) as Record<string, unknown>
-          linkedinVanity = (claims.vanityName as string | undefined) ?? null
-          if (!linkedinVanity && typeof claims.sub === "string") {
-            // OIDC `sub` doubles as the stable LinkedIn person URN — fall back.
-            linkedinVanity = String(claims.sub).split(":").pop() ?? null
-          }
-          linkedinHeadline = (claims.headline as string | undefined) ?? null
-          if (typeof claims.email_verified === "boolean") {
-            linkedinVerified = claims.email_verified as boolean
-          }
+      type UserRead = { user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] | null }
+      const userRead = await withTimeout<UserRead>(
+        supabase.auth.getUser().then((r) => ({ user: r.data?.user ?? null })),
+        3500,
+        { user: null },
+      )
+      const user = userRead.user
+      createdAt = user?.created_at ?? null
+      if (user && ((provider ?? "") === "linkedin_oidc" || (provider ?? "") === "linkedin")) {
+        const ident = (user.identities ?? []).find(
+          (i) => i.provider === "linkedin_oidc" || i.provider === "linkedin",
+        )
+        const claims = (ident?.identity_data ?? {}) as Record<string, unknown>
+        // Only write a real vanity URL. Standard OIDC `sub` for LinkedIn is
+        // `urn:li:person:<id>` — that's NOT a vanity slug, so falling back
+        // would persist a broken /in/<id> URL. Better to leave it empty and
+        // let the user set it later via Settings.
+        if (typeof claims.vanityName === "string" && claims.vanityName.length > 0) {
+          linkedinVanity = claims.vanityName
         }
-      } catch {
-        // identity read is best-effort; post-signin still fires
+        if (typeof claims.headline === "string") linkedinHeadline = claims.headline
+        if (typeof claims.email_verified === "boolean") linkedinVerified = claims.email_verified as boolean
       }
 
       const refSlug = getStoredReferral()
-      try {
-        const result = await auth.postSignin(session.access_token, {
+      const result = await withTimeout(
+        auth.postSignin(session.access_token, {
           provider,
           myro_ref: refSlug,
           linkedin_vanity: linkedinVanity,
           linkedin_headline: linkedinHeadline,
           linkedin_verified: linkedinVerified,
-        })
-        const method = provider === "google" ? "google" : provider?.startsWith("linkedin") ? "linkedin" : "magic_link"
-        signupEvents.oauthCallbackReturned({
-          success: "1",
-          provider: provider ?? "magic_link",
-        })
-        const firstSignup = createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000 ? "1" : "0"
+        }),
+        5000,
+        null,
+      )
+
+      const method = provider === "google" ? "google" : provider?.startsWith("linkedin") ? "linkedin" : "magic_link"
+      const firstSignup = createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000 ? "1" : "0"
+      if (result) {
+        signupEvents.oauthCallbackReturned({ success: "1", provider: provider ?? "magic_link" })
         signupEvents.completed({
           method,
           first_signup: firstSignup,
           ref_attributed: result.referral_attributed ? "1" : "0",
           surface: "callback",
         })
-        if (isMagicLink) {
-          signupEvents.magicLinkConsumed({ latency_ms: Date.now() - arrivedAt })
-        }
-        const dest = next ?? (firstSignup === "1" ? "/onboarding" : "/home")
-        router.replace(dest)
-      } catch (err) {
+      } else {
         signupEvents.oauthCallbackReturned({
           success: "0",
           provider: provider ?? "magic_link",
-          error_code: err instanceof Error ? err.message.slice(0, 60) : "post_signin_failed",
+          error_code: "post_signin_timeout_or_error",
         })
-        // Still land the user — they're authenticated, post-signin is best-effort.
-        router.replace(next ?? "/home")
       }
+      if (isMagicLink) {
+        signupEvents.magicLinkConsumed({ latency_ms: Date.now() - arrivedAt })
+      }
+      routeOnce(next ?? (firstSignup === "1" ? "/onboarding" : "/home"))
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -128,13 +151,22 @@ function CallbackInner() {
       }
     })
 
-    const timeout = setTimeout(() => {
-      if (!handled.current) router.replace("/login")
-    }, 8000)
+    // Two safety nets:
+    //   1. handled never flips    → no SIGNED_IN event arrived       → /login
+    //   2. handled flipped but routed didn't fire after 10s total    → /home
+    //      (auth succeeded but a downstream await stalled — user is
+    //      authenticated, send them to the app instead of /login).
+    const noSignInTimeout = setTimeout(() => {
+      if (!handled.current && !routed.current) routeOnce("/login")
+    }, 6000)
+    const stuckRouteTimeout = setTimeout(() => {
+      if (handled.current && !routed.current) routeOnce(next ?? "/home")
+    }, 10000)
 
     return () => {
       subscription.unsubscribe()
-      clearTimeout(timeout)
+      clearTimeout(noSignInTimeout)
+      clearTimeout(stuckRouteTimeout)
     }
   }, [router, searchParams])
 

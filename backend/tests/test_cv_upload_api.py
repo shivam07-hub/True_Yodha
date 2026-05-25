@@ -185,6 +185,24 @@ def test_submit_text_below_min_length_returns_422(monkeypatch) -> None:
     assert res.status_code == 422
 
 
+def test_submit_text_rate_limit_fail_open_when_supabase_unavailable(monkeypatch) -> None:
+    _override_principal_and_repo(_FakeCVRepository())
+    _patch_xp(monkeypatch, balance=3000)
+
+    def _raise_supabase_unavailable():
+        raise RuntimeError("supabase unavailable")
+
+    monkeypatch.setattr(cv_workflow, "get_supabase_admin", _raise_supabase_unavailable)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post("/cv/text", json={"text": "too short"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 422
+
+
 def test_upload_returns_422_without_charge_when_pdf_has_no_text(monkeypatch) -> None:
     """Scanned/image-only PDFs extract to empty string. Reject in phase 1
     so the user is not charged-refunded in a retry loop."""

@@ -105,9 +105,9 @@ def _enforce_user_upload_rate_limit(user_id: str) -> None:
     rate-limit credit; otherwise repeat failures would burn unlimited
     LLM tokens at the provider chain.
     """
-    admin = get_supabase_admin()
     cutoff_iso = _utc_minutes_ago_iso(60)
     try:
+        admin = get_supabase_admin()
         result = (
             admin.table("cv_upload_jobs")
             .select("id", count="exact")
@@ -344,7 +344,7 @@ async def _run_cv_upload_job(
 
     try:
         parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
-    except Exception as exc:  # network / provider library blew up
+    except Exception:  # network / provider library blew up
         _log.exception("CV parse crashed for job=%s user=%s", job_id, user_id)
         await _fail_and_refund(
             job_id, user_id,
