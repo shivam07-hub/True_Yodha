@@ -246,13 +246,13 @@ function CVPage() {
             <>
               <div className="cvb-page-head">
                 <div>
-                  <h1 className="cvb-page-title">Upload your baseline CV</h1>
+                  <h1 className="cvb-page-title">Add your Main CV</h1>
                   <p className="cvb-page-sub">
-                    The baseline is the trunk of your CV history — every per-job tailored version branches from it.
+                    Keep the CV you already use, then let Myro organize tailored copies for each job.
                   </p>
                 </div>
                 <button type="button" className="cvb-btn primary" onClick={openFilePicker}>
-                  <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload baseline CV
+                  <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload Main CV
                 </button>
               </div>
               <div style={{
@@ -353,10 +353,10 @@ function CVPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{hasBaseline ? "Replace your baseline CV" : "Upload your baseline CV"}</DialogTitle>
+            <DialogTitle>{hasBaseline ? "Replace your Main CV" : "Upload your Main CV"}</DialogTitle>
             <DialogDescription>
               {hasBaseline
-                ? "This becomes your new baseline. Existing per-job versions stay intact."
+                ? "This becomes your new Main CV. Existing tailored CVs stay in your library."
                 : "We extract skills, map them to the Lightcast taxonomy, and parse your CV into sections."}
             </DialogDescription>
           </DialogHeader>
@@ -478,7 +478,7 @@ function CVPage() {
           <DialogHeader>
             <DialogTitle>Edit polished CV</DialogTitle>
             <DialogDescription>
-              Edits create a new immutable version. Baseline stays untouched.
+              Edits save a new copy. Your Main CV stays untouched.
             </DialogDescription>
           </DialogHeader>
           <textarea
@@ -496,7 +496,7 @@ function CVPage() {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
             <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
-              Save as new version
+              Save copy
             </Button>
           </div>
         </DialogContent>

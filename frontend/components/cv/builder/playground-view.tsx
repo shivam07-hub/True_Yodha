@@ -48,10 +48,10 @@ interface PlaygroundViewProps {
 
 function humanKind(kind: CVVersion["kind"]): string {
   switch (kind) {
-    case "baseline_upload": return "baseline"
+    case "baseline_upload": return "Main CV"
     case "polished":        return "AI polished"
-    case "edited":          return "manually edited"
-    case "deterministic":   return "auto-tailored"
+    case "edited":          return "edited copy"
+    case "deterministic":   return "tailored CV"
     default:                return kind
   }
 }
@@ -68,9 +68,9 @@ function slugCV(s: string | null | undefined): string {
 }
 
 function writeVerb(action: CVWriteAction): string {
-  if (action === "polish") return "Polished"
-  if (action === "edit") return "Edited"
-  return "Saved"
+  if (action === "polish") return "Polished copy"
+  if (action === "edit") return "Edited copy"
+  return "Saved copy"
 }
 
 export function PlaygroundView({
@@ -189,7 +189,7 @@ export function PlaygroundView({
           <div style={{ minWidth: 0 }}>
             <div className="cvb-crumbs">
               <button type="button" className="cvb-btn ghost sm" onClick={onBackToBaseline} style={{ padding: "2px 8px" }}>
-                <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/> baseline
+                <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/> CV Library
               </button>
               <span className="sep">/</span>
               <span className="accent">{company}</span>
@@ -198,12 +198,12 @@ export function PlaygroundView({
             </div>
             <h1 className="cvb-page-title" style={{ marginTop: 8 }}>Tailor for {company}</h1>
             <p className="cvb-page-sub">
-              Toggle bullets to include/exclude · live JD-match score on the right.
+              Choose the proof this job needs. Myro keeps the saved copies in your CV Library.
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open version directory">
-              <Icon name="git-branch" size={13}/> Version directory
+            <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open CV Library">
+              <Icon name="folder" size={13}/> CV Library
             </button>
             <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD intel">
               <Icon name="intel" size={13}/> Intel
@@ -236,14 +236,14 @@ export function PlaygroundView({
               onClick={handleSave}
               disabled={!canSave || playground.saveVersion.isPending}
             >
-              <Icon name="git-commit" size={13}/>
-              {playground.saveVersion.isPending ? "Saving…" : "Save commit"}
+              <Icon name="save" size={13}/>
+              {playground.saveVersion.isPending ? "Saving…" : "Save copy"}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="cvb-version-tabs" role="tablist" aria-label="CV versions">
+      <div className="cvb-version-tabs" role="tablist" aria-label="Saved CV copies">
         {threadVersions.map(v => {
           const active = selectedVersionId === v.id
           const dirty = active && isDirty
@@ -262,7 +262,7 @@ export function PlaygroundView({
               </span>
               <span className="v-meta">
                 {v.kind === "baseline_upload"
-                  ? `baseline · ${formatGlobalVersionLabel(v)}`
+                  ? `Main CV · ${formatGlobalVersionLabel(v)}`
                   : `${formatGlobalVersionLabel(v)} · ${humanKind(v.kind)}`}
                 {" · "}{timeAgo(v.created_at)}
               </span>
@@ -272,8 +272,8 @@ export function PlaygroundView({
         <button
           type="button"
           className="cvb-version-tab new-tab"
-          title="Save as new version"
-          aria-label="Save as new version"
+          title="Save as new copy"
+          aria-label="Save as new copy"
           onClick={handleSave}
           disabled={!canSave || playground.saveVersion.isPending}
         >
@@ -283,7 +283,7 @@ export function PlaygroundView({
 
       {writeReceipt && (
         <div className="cvb-save-confirm" role="status" aria-live="polite">
-          <span>{writeVerb(writeReceipt.action)} as CV v{writeReceipt.userVersionNumber}</span>
+          <span>{writeVerb(writeReceipt.action)} to CV Library · Copy {writeReceipt.userVersionNumber}</span>
           <span style={{ opacity: 0.45 }}>·</span>
           <button type="button" className="cvb-save-confirm-dismiss" onClick={playground.clearLastWrite} aria-label="Dismiss save confirmation">
             Dismiss
@@ -328,7 +328,7 @@ export function PlaygroundView({
           <div className="cvb-card" style={{ overflow: "hidden" }}>
             {cv.experience.length === 0 && (
               <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-                No experience extracted from your baseline yet.
+                No experience extracted from your Main CV yet.
               </div>
             )}
             {cv.experience.map((exp, ei) => (
@@ -387,8 +387,8 @@ export function PlaygroundView({
                 onClick={handleSave}
                 disabled={!canSave || playground.saveVersion.isPending}
               >
-                <Icon name="git-commit" size={11}/>
-                {playground.saveVersion.isPending ? "Saving…" : "Save commit"}
+                <Icon name="save" size={11}/>
+                {playground.saveVersion.isPending ? "Saving…" : "Save copy"}
               </button>
             </div>
           </div>
@@ -489,7 +489,7 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
           <div>
             {delta > 0 ? (
               <>
-                <strong>+{delta}</strong>{" "}vs. baseline
+                <strong>+{delta}</strong>{" "}vs. Main CV
               </>
             ) : scoreLabel}
           </div>

@@ -16,7 +16,7 @@ export interface CVVersionLedgerStats {
 }
 
 export function formatGlobalVersionLabel(version: CVVersion): string {
-  return `CV v${version.user_version_number}`
+  return `Copy ${version.user_version_number}`
 }
 
 function oldestFirst(versions: CVVersion[]): CVVersion[] {
@@ -35,11 +35,11 @@ export function formatThreadVersionLabel(version: CVVersion, threadVersions: CVV
   if (version.kind === "baseline_upload") return "Master CV"
   const index = oldestFirst(companyVersions(threadVersions)).findIndex(v => v.id === version.id)
   if (index === -1) return formatGlobalVersionLabel(version)
-  return `Company CV v${index + 1}`
+  return `Tailored copy ${index + 1}`
 }
 
 export function formatVersionContext(version: CVVersion): string {
-  if (version.kind === "baseline_upload") return "Master baseline"
+  if (version.kind === "baseline_upload") return "Main CV"
   return [version.job_title, version.company_name].filter(Boolean).join(" · ") || "Job-specific version"
 }
 
@@ -83,10 +83,10 @@ export function formatLedgerVersionName(version: CVVersion): string {
 }
 
 export function formatLedgerVersionKind(version: CVVersion): string {
-  if (version.kind === "baseline_upload") return "Master baseline"
+  if (version.kind === "baseline_upload") return "Main CV"
   if (version.kind === "polished") return "AI polished"
-  if (version.kind === "edited") return "Edited CV"
-  return "Company CV"
+  if (version.kind === "edited") return "Edited copy"
+  return "Tailored CV"
 }
 
 export function formatLedgerVersionContext(version: CVVersion): string {

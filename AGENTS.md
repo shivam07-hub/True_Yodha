@@ -254,7 +254,50 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - CI stability hotfix: CV upload + feed timestamp)
+## LAST SESSION SUMMARY (2026-05-26 - CV Library draft drawer toggle)
+
+Refined the `/cv` left-side library drawer to match the intended Google Drive / macOS draft-folder mental model rather than a timeline:
+
+- Added `frontend/components/cv/builder/library-drawer.tsx` as the dedicated CV Drafts drawer.
+- Default drawer mode is **Files**: familiar file rows with document icons, folder headers for tailored CV groups, copy metadata, and last-updated timestamps.
+- Added **Previews** mode: a toggleable visual thumbnail/card grid for the same saved CVs, matching the "image version" / visual browsing behavior Shivam asked for.
+- Reused the existing `cv_versions` data and selection behavior; no backend model changes.
+- Updated the inline CV viewer title/kind labels to use the same library projection helpers, so ugly draft titles like raw `v35 · timestamp` no longer lead the UI when company/role data exists.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-version-picker-labels.test.mjs tests/cv-version-ledger.test.mjs tests/cv-baseline-display.test.mjs` → `11 passed`
+- `cd frontend && npm run lint` clean
+- `cd frontend && npx tsc --noEmit` clean
+- `.venv/bin/pytest backend/tests -q` → `378 passed`
+- Local render attempt at `http://127.0.0.1:3000/cv` redirected to `/login` in this browser session, so authenticated visual QA remains blocked without a logged-in local session.
+
+Unrelated workspace state still present: `CLAUDE.md` and `docs/session-history/2026-05.md` modified by Claude/onboarding work, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - CV Library vocabulary pass)
+
+Closed the open CV-builder vocabulary blocker that was holding the onboarding discovery layer behind "PR2 vocab swap":
+
+- Used `design-an-interface` with parallel interface sketches plus the `/grill-me` rule to verify the product direction from code/backlog context instead of adding a broad redesign.
+- Reframed `/cv` around a familiar document-library model:
+  - "commit graph" / branch language → **CV Library** / tailored CV
+  - "baseline CV" in user-facing copy → **Main CV**
+  - "Save commit" / "version" labels → **Save copy** / saved copy
+  - small global labels like `CV v16` → `Copy 16`
+- Replaced visible git branch/commit icon usage in the CV builder with folder/save icons while preserving the existing immutable `cv_versions` backend model.
+- Updated CV formatter tests so future UI copy regressions keep the student-friendly labels.
+- Marked the CV-builder slice as shipped in the canonical beta report while leaving the broader Lightcast/Forge/Intel/Ninja Name vocabulary pass open.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-version-picker-labels.test.mjs tests/cv-version-ledger.test.mjs tests/cv-baseline-display.test.mjs` → `11 passed`
+- `cd frontend && npm run lint` clean
+- `cd frontend && npx tsc --noEmit` clean
+- `.venv/bin/pytest backend/tests -q` → `378 passed`
+
+Unrelated workspace state still present: `CLAUDE.md` and `docs/session-history/2026-05.md` modified by Claude/onboarding work, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - CI stability hotfix: CV upload + feed timestamp)
 
 Closed the GitHub CI failure set (6 failing tests) with root-cause fixes and regression coverage:
 

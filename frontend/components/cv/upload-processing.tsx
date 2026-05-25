@@ -131,7 +131,7 @@ export function CVUploadProcessing({ success, result }: Props) {
             lineHeight: 1.5,
           }}>
             {success
-              ? "Your baseline is set. Loading your profile…"
+              ? "Your Main CV is set. Loading your profile…"
               : STAGES[Math.min(stage, STAGES.length - 1)].sub
             }
           </p>

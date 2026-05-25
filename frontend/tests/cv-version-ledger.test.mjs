@@ -59,7 +59,7 @@ const sanofiVersion = {
 
 const versions = [autodeskVersion, sanofiVersion, baseline, legacyBaseline]
 
-test("/cv ledger counts every visible CV commit", () => {
+test("/cv ledger counts every visible saved CV", () => {
   assert.deepEqual(helpers.summarizeCVVersionLedger(versions), {
     totalVersions: 4,
     masterVersions: 2,
@@ -69,11 +69,11 @@ test("/cv ledger counts every visible CV commit", () => {
   })
 })
 
-test("/cv ledger uses global CV version names and master baseline context", () => {
-  assert.equal(helpers.formatLedgerVersionName(autodeskVersion), "CV v16")
-  assert.equal(helpers.formatLedgerVersionKind(autodeskVersion), "Company CV")
+test("/cv ledger uses global saved-copy names and library-friendly context", () => {
+  assert.equal(helpers.formatLedgerVersionName(autodeskVersion), "Copy 16")
+  assert.equal(helpers.formatLedgerVersionKind(autodeskVersion), "Tailored CV")
   assert.equal(helpers.formatLedgerVersionName(baseline), "Master CV")
-  assert.equal(helpers.formatLedgerVersionKind(baseline), "Master baseline")
+  assert.equal(helpers.formatLedgerVersionKind(baseline), "Main CV")
   assert.equal(helpers.formatLedgerVersionContext(autodeskVersion), "Workplace Events Lead · Autodesk")
 })
 

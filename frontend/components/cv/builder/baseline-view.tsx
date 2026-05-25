@@ -1,8 +1,8 @@
 /**
  * BaselineView — landing surface for /cv with no jobId.
  *
- * LEFT col: immutable commit graph — always visible, acts as navigation rail.
- * RIGHT col: default = saved target jobs. When a commit is selected, swaps
+ * LEFT col: CV Library list — always visible, acts as navigation rail.
+ * RIGHT col: default = saved target jobs. When a CV is selected, swaps
  *            to an inline CV viewer (no modal). Escape deselects.
  */
 "use client"
@@ -13,13 +13,16 @@ import { useQuery } from "@tanstack/react-query"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import {
-  formatGlobalVersionLabel,
-  timeAgo,
-} from "@/lib/cv/version-format"
+import { timeAgo } from "@/lib/cv/version-format"
 import { Icon } from "./icons"
-import { CommitRow, KindDot, LegendDot } from "./commit-graph"
+import { KindDot } from "./commit-graph"
 import { CVRender } from "./cv-render"
+import {
+  CVLibraryDrawer,
+  formatLibraryDocumentKind,
+  formatLibraryDocumentTitle,
+  type CVLibraryRow,
+} from "./library-drawer"
 
 interface BaselineViewProps {
   token: string
@@ -32,9 +35,7 @@ interface BaselineViewProps {
   focusSkill?: string | null
 }
 
-interface OrderedRow { v: CVVersion; thread: string }
-
-function orderRows(versions: CVVersion[]): OrderedRow[] {
+function orderRows(versions: CVVersion[]): CVLibraryRow[] {
   const masters = versions
     .filter(v => v.kind === "baseline_upload")
     .sort((a, b) => b.user_version_number - a.user_version_number)
@@ -49,15 +50,15 @@ function orderRows(versions: CVVersion[]): OrderedRow[] {
     else threads.set(key, [v])
   }
   const entries: Array<[string, CVVersion[]]> = Array.from(threads.entries())
-  // Newest commit first within each thread.
+  // Newest copy first within each job folder.
   entries.forEach(([, arr]) => arr.sort((a, b) => b.user_version_number - a.user_version_number))
-  // Thread ordering: thread with the most recent commit first.
+  // Folder ordering: folder with the most recent copy first.
   entries.sort((a, b) => {
     const aLast = a[1][0].user_version_number
     const bLast = b[1][0].user_version_number
     return bLast - aLast
   })
-  const ordered: OrderedRow[] = [...masters]
+  const ordered: CVLibraryRow[] = [...masters]
   entries.forEach(([key, arr]) => arr.forEach(v => ordered.push({ v, thread: key })))
   return ordered
 }
@@ -139,10 +140,10 @@ export function BaselineView({
     <>
       <div className="cvb-page-head cvb-fade-in">
         <div>
-          <h1 className="cvb-page-title">Your Master CV</h1>
+          <h1 className="cvb-page-title">Your CV Library</h1>
           <p className="cvb-page-sub">
-            The trunk. Every job-tailored version branches from here.{" "}
-            <span style={{ color: "var(--tm-text-faint)" }}>Tailoring is per-company.</span>
+            Your CV Library keeps your Main CV and every job-specific copy in one place.{" "}
+            <span style={{ color: "var(--tm-text-faint)" }}>Myro adds the intelligence layer on top.</span>
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -151,71 +152,31 @@ export function BaselineView({
             <Icon name="arrow-right" size={14}/>
           </Link>
           <button type="button" className="cvb-btn" onClick={onRework}>
-            <Icon name="edit" size={14}/> Rework baseline
+            <Icon name="edit" size={14}/> Update Main CV
           </button>
         </div>
       </div>
 
       <div className="cvb-stats">
-        <StatCard label={stats.total === 1 ? "version" : "versions"} value={stats.total} sub="immutable commits" href="#commit-graph"/>
-        <StatCard label={stats.companies === 1 ? "company" : "companies"} value={stats.companies} sub="branches tracked" href="/tracker"/>
-        <StatCard label={stats.jobs === 1 ? "job" : "jobs"} value={stats.jobs} sub="tailored threads" href="/tracker?stage=saved"/>
+        <StatCard label={stats.total === 1 ? "saved CV" : "saved CVs"} value={stats.total} sub="in your library" href="#cv-library"/>
+        <StatCard label={stats.companies === 1 ? "company" : "companies"} value={stats.companies} sub="with tailored CVs" href="/tracker"/>
+        <StatCard label={stats.jobs === 1 ? "job" : "jobs"} value={stats.jobs} sub="job-specific copies" href="/tracker?stage=saved"/>
         <StatCard
-          label="master"
-          value={currentBaseline ? `v${currentBaseline.user_version_number}` : "—"}
-          sub={currentBaseline ? `baseline · ${timeAgo(currentBaseline.created_at)}` : "no baseline"}
+          label="Main CV"
+          value={currentBaseline ? `Copy ${currentBaseline.user_version_number}` : "—"}
+          sub={currentBaseline ? `Main CV · ${timeAgo(currentBaseline.created_at)}` : "no Main CV"}
           mono
           onClick={currentBaseline ? () => setSelectedVId(currentBaseline.id) : undefined}
         />
       </div>
 
       <div className="cvb-graph-wrap">
-        {/* LEFT: commit graph — always visible as navigation rail */}
-        <div className="cvb-graph-col">
-          <div className="cvb-section-head">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="git-branch" size={14} style={{ color: "var(--tm-accent)" }}/>
-              <span className="eyebrow">commit graph</span>
-            </div>
-            <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-              {rows.length} {rows.length === 1 ? "entry" : "entries"}
-            </span>
-          </div>
-          <div className="cvb-graph-scroll">
-            {rows.length === 0 && (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-                No commits yet — upload a baseline to begin.
-              </div>
-            )}
-            {rows.map(({ v, thread }, i) => {
-              const prev = rows[i - 1]
-              const next = rows[i + 1]
-              const isFirstOfThread = !prev || prev.thread !== thread
-              const isLastOfThread = !next || next.thread !== thread
-              const header = isFirstOfThread && v.kind !== "baseline_upload" && (
-                <div key={`head-${thread}`} className="cvb-graph-thread-head">
-                  <Icon name="git-branch" size={11} style={{ color: "var(--tm-text-faint)" }}/>
-                  <span className="eyebrow" style={{ fontSize: 10 }}>
-                    branch · {v.company_name ?? "untagged"}
-                  </span>
-                </div>
-              )
-              return (
-                <div key={v.id}>
-                  {header}
-                  <CommitRow
-                    v={v}
-                    isCurrentBaseline={currentBaseline?.id === v.id}
-                    selected={selectedVId === v.id}
-                    onSelect={setSelectedVId}
-                    drawTop={!isFirstOfThread || i > 0}
-                    drawBottom={!isLastOfThread}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <CVLibraryDrawer
+          rows={rows}
+          currentBaselineId={currentBaseline?.id ?? null}
+          selectedVId={selectedVId}
+          onSelect={setSelectedVId}
+        />
 
         {/* RIGHT: swaps between target jobs list and inline CV viewer */}
         <div className="cvb-graph-col cvb-right-col">
@@ -238,19 +199,6 @@ export function BaselineView({
             />
           )}
         </div>
-      </div>
-
-      <div style={{
-        marginTop: 14, display: "flex", gap: 16, fontSize: 11,
-        color: "var(--tm-text-faint)", flexWrap: "wrap", alignItems: "center",
-      }}>
-        <LegendDot cls="master" label="baseline upload"/>
-        <LegendDot cls="det" label="deterministic"/>
-        <LegendDot cls="polished" label="AI polished"/>
-        <LegendDot cls="edited" label="manually edited"/>
-        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span className="cvb-kbd">click</span> any commit to preview
-        </span>
       </div>
     </>
   )
@@ -286,7 +234,7 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
       <div className="cvb-section-head" style={{ background: "transparent" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="target" size={14} style={{ color: "var(--tm-accent)" }}/>
-          <span className="eyebrow">target jobs · open thread</span>
+          <span className="eyebrow">target jobs · create tailored CV</span>
         </div>
         <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
           {applications.length} active
@@ -356,7 +304,7 @@ function TargetJobCard({ app, onOpen }: TargetJobCardProps) {
           </span>
         )}
         <span style={{ fontSize: 11, color: "var(--tm-accent)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-          Open thread <Icon name="arrow-right" size={11}/>
+          Tailor CV <Icon name="arrow-right" size={11}/>
         </span>
       </div>
     </button>
@@ -374,12 +322,8 @@ interface CVInlineViewerProps {
 
 function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }: CVInlineViewerProps) {
   const isMaster = version.kind === "baseline_upload"
-  const kindLabel =
-    isMaster ? "Master baseline"
-    : version.kind === "polished" ? "AI polished"
-    : version.kind === "edited" ? "Manually edited"
-    : "Deterministic"
-  const titleLabel = version.title?.trim() || (isMaster ? "Master CV" : formatGlobalVersionLabel(version))
+  const kindLabel = formatLibraryDocumentKind(version)
+  const titleLabel = formatLibraryDocumentTitle(version)
 
   return (
     <>
@@ -407,7 +351,7 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
             onClick={() => onOpenJob(version.job_id!)}
             style={{ flexShrink: 0 }}
           >
-            <Icon name="git-branch" size={11}/> Open thread
+            <Icon name="folder" size={11}/> Open tailored CV
           </button>
         )}
       </div>
@@ -415,7 +359,7 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
       <div style={{ padding: "6px 14px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)" }}>
           {isMaster
-            ? "master baseline · trunk every tailored version branches from"
+            ? "Main CV · source for every tailored copy"
             : `${version.company_name ?? "Company"} · ${version.job_title ?? "Job"}`}
           {" · "}{timeAgo(version.created_at)}
         </span>
