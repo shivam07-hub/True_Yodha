@@ -701,3 +701,45 @@ This section tracks which feedback items from this report are now shipped vs sti
 
 - Backend contract tests: `/users/me` readiness coverage passing (`pytest backend/tests/test_users_api.py`).
 - Full suite pass after closure batch: `pytest backend/tests`, `frontend lint`, `frontend tsc --noEmit`.
+
+---
+
+## Appendix E — YAML user-feedback intake (2026-05-26)
+
+Source: `reference/User_feedback_report.yml` — 16 distinct users (user 1, user 2, adithyasing, user y, Arun Dhami, ridhi, Aditya, "honest user", "honest skeptic", "honest feedback", user fresher, arham, bharat, user t, shilpa, user r, krish).
+
+### E.1 Signals already closed (cross-mapped to prior commits)
+
+- Upload-was-interrupted error → 90s timeout + auto-retry (`0684d9e`)
+- Broken share-link unfurl → OG image route (`f0e4158`)
+- Mobile theme toggle missing → mobile profile sheet + signup card toggle (`8b4a1c2`, `aa7a879`)
+- "About page only shows logo" → CV hub first-use story (`e2c7b00`)
+- Mobile UI overflow on Skills accordion → row layout tightening (`9605f3b`)
+
+### E.2 Shipped in this closure batch (2026-05-26)
+
+- **Skills empty state — ghost domain teaser.** arham reported the Skills tab opens with a CV upload screen, which felt like a mismatch ("I expected to see skills, not CV options"). Per design-over-words, padding more copy was rejected; instead the empty state now renders a 10-tile ghost grid of the public domain taxonomy (Tech / Engineering / Growth / Sales / Finance / People / Design / Law / Research / Health) under the upload CTA. The user now sees the *shape* of what waits behind upload.
+  Files: `components/empty/RequiresCV.tsx`, `components/empty/requires-cv.css`
+- **Tracker empty state — ghost rows.** arham reported the Tracker felt "empty and lifeless with no sample data — new users might just leave thinking it's broken". Added 3 muted dashed ghost rows (Stripe / Razorpay / Linear at applied/screening/interviewing) under the existing CTA pair, with an explicit "preview · saved jobs will appear like this" mono label. No fake data hits state; rows are aria-hidden purely visual scaffold.
+  File: `app/tracker/page.tsx`
+- **PDF filename fix (mobile).** user 2 reported the downloaded PDF saved as `document.pdf` on mobile. Two-axis fix:
+  - Backend `/cv/download-pdf` now accepts `filename` in the request body and echoes it through Content-Disposition with RFC 5987 encoding (`filename="..."; filename*=UTF-8''...`) for browsers that read the header.
+  - Frontend wraps the response Blob in a `File` named with the slug `{name}__{company}__{role}.pdf` before `URL.createObjectURL`, since Safari iOS and Chrome Android frequently ignore the `<a download>` attr on bare blob: URLs.
+  - Filename sanitization unit-verified (`Shivam Pathak…` → `Shivam_Pathak__stripe__product_designer.pdf`; path-traversal hardened: `../../etc/passwd` → `etc_passwd.pdf`).
+  Files: `backend/app/routers/cv/export.py`, `frontend/lib/api.ts`, `frontend/components/cv/builder/pdf-preview-view.tsx`
+- **Share copy fallback — visible toast.** user 2 reported it wasn't clear whether the share button copied a link or shared directly. Desktop fallback path (`navigator.share` absent → `clipboard.writeText`) was silent except for the button icon flip. Added a transient "Link copied" mono chip below the button with `role="status"` + `aria-live="polite"` so both sighted and AT users get the confirmation.
+  File: `components/profile/ShareButton.tsx`
+
+### E.3 Open from this intake (not closed this session)
+
+- **CV draft persistence (user 2).** Report: "Once I logged out and logged back in, my previous draft wasn't saved." Not reproduced this session. `useCVPlayground` state lives in Zustand without a `persist` middleware, so any in-progress edit is wiped on hard reload (let alone logout). Right path: (a) decide which playground state is worth persisting (`hiddenItems`, `playgroundDirty`, edit/polish targets) — saved tailored versions already persist server-side via `cv_versions`; (b) gate persistence on `user_id` so a logged-out anonymous draft is not cross-bled into a different signed-in account. Needs a design decision (Shivam) before coding.
+- **Upload still failing for Arun Dhami on Android 5G+ at 6.94 KB/s.** Even after the 90s timeout + auto-retry shipped in `0684d9e`. At 6.94 KB/s sustained, a 106 KB PDF needs ~15 s of raw transfer plus TLS/handshake + Railway cold-start latency, which *should* fit in 90 s — but the screenshot still shows "Upload was interrupted." Likely real causes worth investigating in priority order:
+  1. Cellular intermediate proxy stripping/aborting long-running multipart POSTs.
+  2. iOS/Android Chrome dropping the request when the browser is backgrounded mid-upload.
+  3. Phase-1 server-side timeout (Railway ingress / uvicorn) firing before the client-side 90 s.
+  4. The user's effective throughput dropping intermittently to ~0 KB/s, causing the underlying socket to RST.
+  Useful next move: enable a real-time XHR upload-progress bar on phase-1 so we can distinguish "data still flowing" from "socket died." Backlog item only — no code this session.
+- **No onboarding walkthrough.** Loudest signal (~10 of 16 users explicitly asked for it). Tracked as Implementation #5 in CLAUDE.md carry-over — blocked on Shivam design lock before any code is written.
+- **Jargon (Forge / Intel / Mission Control / XP / Ninja Name).** Multiple users (bharat, user r, adithyasing, Aditya) flagged the cool-but-opaque labels. Already locked in `project_vocab_theme_identity_locks` memory (E11 in this report) — pending PR2 vocab swap.
+- **"Build CV from scratch" (user fresher).** Triaged against ADR-0005 NOT-list: the carve-out is the Onboarding Baseline Generator. Picked up alongside Implementation #6 in CLAUDE.md backlog.
+- **Job match shows 0 results (user t).** Backlog #14 in CLAUDE.md. Root-caused in `541c30d`; fix queued behind PR1 in production validation.

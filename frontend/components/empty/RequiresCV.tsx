@@ -104,8 +104,22 @@ export function RequiresCV({ children, surface = "generic" }: RequiresCVProps) {
   return <CVRequiredEmpty surface={surface} readiness={readiness} />
 }
 
+const SKILLS_TEASER_DOMAINS = [
+  "Tech",
+  "Engineering",
+  "Growth",
+  "Sales",
+  "Finance",
+  "People",
+  "Design",
+  "Law",
+  "Research",
+  "Health",
+]
+
 function CVRequiredEmpty({ surface, readiness }: { surface: RequiresCVProps["surface"]; readiness: CVReadiness }) {
   const copy = copyFor(surface, readiness)
+  const showSkillsTeaser = surface === "skills" && readiness !== "processing"
   return (
     <div className="tm-requires-cv">
       <div className="tm-requires-cv-logo">
@@ -114,6 +128,13 @@ function CVRequiredEmpty({ surface, readiness }: { surface: RequiresCVProps["sur
       {copy.statusLabel ? <div className="tm-requires-cv-status">{copy.statusLabel}</div> : null}
       <h2 className="tm-requires-cv-heading">{copy.heading}</h2>
       <p className="tm-requires-cv-body">{copy.body}</p>
+      {showSkillsTeaser ? (
+        <div className="tm-requires-cv-teaser" aria-hidden>
+          {SKILLS_TEASER_DOMAINS.map((d) => (
+            <span key={d} className="tm-requires-cv-teaser-tile">{d}</span>
+          ))}
+        </div>
+      ) : null}
       <Link href={copy.ctaHref} className="tm-requires-cv-cta">
         {copy.ctaLabel}
         <span aria-hidden>→</span>

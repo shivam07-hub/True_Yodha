@@ -293,39 +293,74 @@ function TrackerPageInner() {
   )
 }
 
+const TRACKER_GHOST_ROWS: Array<{ company: string; title: string; stage: string }> = [
+  { company: "Stripe", title: "Product Designer", stage: "applied" },
+  { company: "Razorpay", title: "Growth Analyst", stage: "screening" },
+  { company: "Linear", title: "Frontend Engineer", stage: "interviewing" },
+]
+
 function EmptyBoard({ onAddManually }: { onAddManually: () => void }) {
   return (
-    <div style={{
-      padding: "48px 28px", textAlign: "center", borderRadius: 12,
-      border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)",
-      display: "flex", flexDirection: "column", gap: 12, alignItems: "center",
-    }}>
-      <div style={{ fontFamily: "var(--tm-font-serif, inherit)", fontSize: 18, color: "var(--tm-text)" }}>
-        Your tracker is empty
-      </div>
-      <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 380 }}>
-        Save a job from Matched Jobs, or add one manually from any portal —
-        Stripe, Greenhouse, a referral. Everything you&apos;re tracking lives here.
-      </div>
-      <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-        <a href="/jobs" style={{
-          padding: "8px 16px", borderRadius: 99,
-          background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
-          fontSize: 12, fontWeight: 600, textDecoration: "none",
-        }}>
-          Browse matches →
-        </a>
-        <button
-          onClick={onAddManually}
-          style={{
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{
+        padding: "32px 28px 20px", textAlign: "center", borderRadius: 12,
+        border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)",
+        display: "flex", flexDirection: "column", gap: 12, alignItems: "center",
+      }}>
+        <div style={{ fontFamily: "var(--tm-font-serif, inherit)", fontSize: 18, color: "var(--tm-text)" }}>
+          Your tracker is empty
+        </div>
+        <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 380 }}>
+          Save a job from Matched Jobs, or add one manually from any portal —
+          Stripe, Greenhouse, a referral. Everything you&apos;re tracking lives here.
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <a href="/jobs" style={{
             padding: "8px 16px", borderRadius: 99,
-            background: "transparent", border: "1px solid var(--tm-border)",
-            color: "var(--tm-text-muted)", cursor: "pointer",
-            fontSize: 12, fontFamily: "inherit",
-          }}
-        >
-          + Add manually
-        </button>
+            background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+            fontSize: 12, fontWeight: 600, textDecoration: "none",
+          }}>
+            Browse matches →
+          </a>
+          <button
+            onClick={onAddManually}
+            style={{
+              padding: "8px 16px", borderRadius: 99,
+              background: "transparent", border: "1px solid var(--tm-border)",
+              color: "var(--tm-text-muted)", cursor: "pointer",
+              fontSize: 12, fontFamily: "inherit",
+            }}
+          >
+            + Add manually
+          </button>
+        </div>
+      </div>
+      <div aria-hidden style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.42 }}>
+        <div style={{
+          fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: "var(--tm-text-faint)", textAlign: "center",
+        }}>
+          Preview · saved jobs will appear like this
+        </div>
+        {TRACKER_GHOST_ROWS.map((r) => (
+          <div key={r.company} style={{
+            display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
+            padding: "12px 14px", borderRadius: 10,
+            border: "1px dashed var(--tm-border-soft)", background: "var(--tm-surface)",
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text-faint)" }}>{r.title}</div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{r.company}</div>
+            </div>
+            <div style={{
+              fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.06em",
+              textTransform: "uppercase", color: "var(--tm-text-faint)",
+              padding: "4px 8px", borderRadius: 99, border: "1px dashed var(--tm-border-soft)",
+            }}>
+              {r.stage}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

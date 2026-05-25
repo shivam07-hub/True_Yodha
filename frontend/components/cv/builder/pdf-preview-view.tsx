@@ -67,13 +67,19 @@ export function PdfPreviewView({
     setDownloadError(null)
     setDownloading(true)
     try {
-      const blob = await cvApi.downloadPdf(token, snapshotText)
-      const url = URL.createObjectURL(blob)
+      const blob = await cvApi.downloadPdf(token, snapshotText, filename)
+      // Wrap in File so mobile Safari + Android Chrome pick up the name
+      // when the `download` attr alone is ignored on blob: URLs.
+      const file = new File([blob], filename, { type: "application/pdf" })
+      const url = URL.createObjectURL(file)
       const a = document.createElement("a")
       a.href = url
       a.download = filename
+      a.rel = "noopener"
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "Could not generate PDF.")
     } finally {

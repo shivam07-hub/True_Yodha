@@ -553,11 +553,11 @@ export const cv = {
       `/cv/skill-edit/recompute-status/${baselineId}`,
       { headers: { Authorization: `Bearer ${token}` } },
     ),
-  downloadPdf: async (token: string, cvText: string): Promise<Blob> => {
+  downloadPdf: async (token: string, cvText: string, filename?: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ cv_text: cvText }),
+      body: JSON.stringify({ cv_text: cvText, filename }),
     })
     if (!res.ok) {
       const msg = await res.text().catch(() => "PDF generation failed")
