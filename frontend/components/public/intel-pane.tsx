@@ -10,6 +10,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
 import { useRotatingMessage } from "@/lib/hooks/use-rotating-message"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import "./intel-pane.css"
@@ -127,6 +128,7 @@ function buildLists(analytics: MarketAnalytics | undefined) {
 }
 
 export function IntelPane() {
+  const signup = useSignupGate()
   const [view, setView] = useState<"companies" | "industries">("companies")
   const [selected, setSelected] = useState<DrillEntity | null>(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -407,7 +409,15 @@ export function IntelPane() {
           <div style={{ fontSize: 17, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>How do you stack up?</div>
           <div style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>Upload your CV. 60 seconds. Free.</div>
         </div>
-        <Link href="/signup" style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+        <Link
+          href="/signup?next=/cv?upload=1"
+          style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+            e.preventDefault()
+            signup.open({ surface: "cv_upload_tap", next: "/cv?upload=1", source: "intel_pane_cta" })
+          }}
+        >
           Get my Myro Score →
         </Link>
       </div>
