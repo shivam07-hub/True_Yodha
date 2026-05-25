@@ -2,37 +2,103 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
+import { StepCompanies } from "@/components/onboarding/step-companies"
+import type { CVAnalysisStatus } from "@/components/onboarding/step-companies"
 import { StepScore } from "@/components/onboarding/step-score"
 import { NinjaNameStep } from "@/components/onboarding/NinjaNameStep"
 import { uploadCV, uploadCVText, scores, users } from "@/lib/api"
-import type { ScoreResponse } from "@/lib/api"
+import type { CVUploadResult, ScoreResponse } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useXPStore } from "@/store/xpStore"
 import { MyroLogo } from "@/components/myro-logo"
 
-type Step = "cv" | "role" | "ninja" | "score"
+type Step = "cv" | "role" | "companies" | "ninja" | "score"
+
+type CVUploadCompletion =
+  | { ok: true; result: CVUploadResult }
+  | { ok: false; message: string }
+
+type CVUploadTask =
+  | { status: "idle"; promise: null; result: null; message: null }
+  | { status: "running"; promise: Promise<CVUploadCompletion>; result: null; message: null }
+  | { status: "done"; promise: null; result: CVUploadResult; message: null }
+  | { status: "failed"; promise: null; result: null; message: string }
+
+const INITIAL_CV_UPLOAD_TASK: CVUploadTask = {
+  status: "idle",
+  promise: null,
+  result: null,
+  message: null,
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { token, ready } = useAuth()
+  const setXPBalance = useXPStore((s) => s.setBalance)
   const [step, setStep] = useState<Step>("cv")
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [cvText, setCvText] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scoreData, setScoreData] = useState<ScoreResponse | null>(null)
+  const [cvUploadTask, setCVUploadTask] = useState<CVUploadTask>(INITIAL_CV_UPLOAD_TASK)
 
   function handleCVNext(file: File) {
     setCvFile(file)
     setCvText(null)
+    setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
     setStep("role")
   }
 
   function handleCVTextNext(text: string) {
     setCvText(text)
     setCvFile(null)
+    setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
     setStep("role")
+  }
+
+  function beginCVUpload(currentToken: string): Promise<CVUploadCompletion> {
+    if (cvUploadTask.status === "running") return cvUploadTask.promise
+    if (cvUploadTask.status === "done") return Promise.resolve({ ok: true, result: cvUploadTask.result })
+    if (cvUploadTask.status === "failed") return Promise.resolve({ ok: false, message: cvUploadTask.message })
+
+    const runner = cvFile
+      ? uploadCV(currentToken, cvFile)
+      : cvText
+        ? uploadCVText(currentToken, cvText)
+        : Promise.reject(new Error("Add a CV before continuing."))
+
+    const promise = runner
+      .then((result): CVUploadCompletion => {
+        if (typeof result.new_xp_balance === "number") {
+          setXPBalance(result.new_xp_balance)
+        }
+        queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+        queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+        setCVUploadTask({ status: "done", promise: null, result, message: null })
+        return { ok: true, result }
+      })
+      .catch((err): CVUploadCompletion => {
+        const message = err instanceof Error ? err.message : "CV analysis failed."
+        setCVUploadTask({ status: "failed", promise: null, result: null, message })
+        return { ok: false, message }
+      })
+
+    setCVUploadTask({ status: "running", promise, result: null, message: null })
+    return promise
+  }
+
+  async function finishCVUpload(currentToken: string): Promise<CVUploadResult> {
+    const completion = await beginCVUpload(currentToken)
+    if (!completion.ok) throw new Error(completion.message)
+    return completion.result
   }
 
   async function handleRoleNext(roles: string[], location: string) {
@@ -43,7 +109,7 @@ export default function OnboardingPage() {
       return
     }
 
-    setLoading(true)
+    setProfileSaving(true)
     setError(null)
 
     try {
@@ -52,29 +118,44 @@ export default function OnboardingPage() {
         target_roles: roles,
         target_location: location,
       })
+      beginCVUpload(token)
+      setStep("companies")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
+    } finally {
+      setProfileSaving(false)
+    }
+  }
 
-      // 2. Upload CV or text description
-      if (cvFile) {
-        await uploadCV(token, cvFile)
-      } else if (cvText) {
-        await uploadCVText(token, cvText)
-      }
-
-      // 3. CV upload already persisted the score — fetch it directly.
-      // scores.compute is not needed here; it was already run inside cv_workflow.
+  async function handleCompaniesNext() {
+    if (!token) {
+      router.push("/login")
+      return
+    }
+    setFinishing(true)
+    setError(null)
+    try {
+      await finishCVUpload(token)
       const result = await scores.me(token)
-      // Job matching refresh is user-initiated (costs 100 XP) — not auto-triggered here
       setScoreData(result)
       setStep("ninja")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {
-      setLoading(false)
+      setFinishing(false)
     }
   }
 
-  const STEPS: Step[] = ["cv", "role", "ninja", "score"]
+  function restartCVUpload() {
+    setError(null)
+    setFinishing(false)
+    setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
+    setStep("cv")
+  }
+
+  const STEPS: Step[] = ["cv", "role", "companies", "ninja", "score"]
   const stepIndex = STEPS.indexOf(step)
+  const cvStatus = cvUploadTask.status as CVAnalysisStatus
 
   if (!ready) return null
 
@@ -131,7 +212,18 @@ export default function OnboardingPage() {
         )}
 
         {step === "cv" && <StepCV onNext={handleCVNext} onNextText={handleCVTextNext} />}
-        {step === "role" && <StepRole onNext={handleRoleNext} loading={loading} />}
+        {step === "role" && <StepRole onNext={handleRoleNext} loading={profileSaving} />}
+        {step === "companies" && token && (
+          <StepCompanies
+            token={token}
+            cvStatus={cvStatus}
+            cvError={cvUploadTask.message}
+            finishing={finishing}
+            onBack={() => setStep("role")}
+            onRestartCV={restartCVUpload}
+            onNext={handleCompaniesNext}
+          />
+        )}
         {step === "ninja" && (
           <NinjaNameStep
             onAccept={() => setStep("score")}

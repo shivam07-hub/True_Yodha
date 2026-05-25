@@ -1,0 +1,119 @@
+.tm-company-empty,
+.tm-company-muted-row,
+.tm-company-error {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--tm-text-faint);
+  font-size: 13px;
+}
+
+.tm-company-empty {
+  flex: 1;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.tm-company-error {
+  color: var(--tm-danger);
+}
+
+.tm-company-footer {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--tm-text-faint);
+  font-size: 12px;
+}
+
+.tm-company-footer button {
+  min-width: 136px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--tm-accent);
+  border-radius: 8px;
+  background: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tm-company-footer button:hover:not(:disabled),
+.tm-company-footer button:focus-visible {
+  background: var(--tm-accent-hover);
+  border-color: var(--tm-accent-hover);
+  outline: none;
+}
+
+.tm-company-footer button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.tm-company-spin {
+  animation: tm-company-spin 900ms linear infinite;
+}
+
+@keyframes tm-company-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .tm-onboarding-company {
+    gap: 14px;
+  }
+
+  .tm-onboarding-company-head {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .tm-onboarding-company-head h2 {
+    font-size: 23px;
+  }
+
+  .tm-company-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tm-company-panel {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .tm-company-selected-panel {
+    min-height: 180px;
+  }
+
+  .tm-cv-status {
+    align-items: flex-start;
+  }
+
+  .tm-cv-status-error {
+    max-width: none;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .tm-cv-status {
+    flex-wrap: wrap;
+  }
+
+  .tm-company-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tm-company-footer button {
+    width: 100%;
+  }
+}

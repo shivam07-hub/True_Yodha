@@ -1,17 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Bot, Briefcase, ChartNetwork } from "lucide-react"
-import { ProcessLoading } from "@/components/loading/process-loading"
+import { useRef, useState } from "react"
 import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
-
-const CV_STAGES = [
-  { id: "reading",  label: "Reading your CV",           description: "Parsing document structure and text",       icon: Bot },
-  { id: "skills",   label: "Extracting your skills",    description: "Mapping evidence to the skill taxonomy",    icon: Briefcase },
-  { id: "scoring",  label: "Computing your Myro Score", description: "Ranking across 10 career domains",          icon: ChartNetwork },
-]
-// Advance stages at 8 s and 18 s into the ~29 s backend wait
-const CV_STAGE_MS = [8000, 18000]
 
 const PRESET_LOCATIONS = [
   "India (All)",
@@ -43,18 +33,8 @@ export function StepRole({ onNext, loading }: Props) {
   const [locFocused, setLocFocused] = useState(false)
   const [showCustomLoc, setShowCustomLoc] = useState(false)
   const [customLoc, setCustomLoc] = useState("")
-  const [cvStage, setCvStage] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Advance CV analysis stage display while backend processes
-  useEffect(() => {
-    if (!loading) { setCvStage(0); return }
-    const timers = CV_STAGE_MS.map((ms, i) =>
-      setTimeout(() => setCvStage(i + 1), ms)
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [loading])
 
   const atMax = roles.length >= MAX_ROLES
   const canSubmit = roles.length > 0 && location.trim().length > 0 && !loading
@@ -111,7 +91,7 @@ export function StepRole({ onNext, loading }: Props) {
           background: "var(--tm-accent-wash)",
           border: "1px solid var(--tm-accent-ring)",
         }}>
-          Step 2 of 4
+          Step 2 of 5
         </div>
         <h2 style={{
           fontSize: "var(--tm-fs-title)", fontWeight: 700,
@@ -378,36 +358,24 @@ export function StepRole({ onNext, loading }: Props) {
           )}
         </div>
 
-        {loading ? (
-          <ProcessLoading
-            message={CV_STAGES[cvStage].label}
-            stages={CV_STAGES}
-            activeStageIndex={cvStage}
-            showActiveStageDetail
-            timingHint="Usually takes 20–40 seconds"
-            size="compact"
-            style={{ animation: "loadIn 300ms var(--tm-ease) both" }}
-          />
-        ) : (
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            style={{
-              marginTop: 4, padding: "14px",
-              borderRadius: "var(--tm-radius-sm)",
-              background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-              border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-              color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
-              fontSize: "var(--tm-fs-meta)", fontWeight: 700,
-              cursor: canSubmit ? "pointer" : "default",
-              fontFamily: "inherit",
-              transition: "all var(--tm-dur) var(--tm-ease)",
-              letterSpacing: "0.02em",
-            }}
-          >
-            Get my Myro Score →
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          style={{
+            marginTop: 4, padding: "14px",
+            borderRadius: "var(--tm-radius-sm)",
+            background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+            color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
+            fontSize: "var(--tm-fs-meta)", fontWeight: 700,
+            cursor: canSubmit ? "pointer" : "default",
+            fontFamily: "inherit",
+            transition: "all var(--tm-dur) var(--tm-ease)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          {loading ? "Saving targets..." : "Continue →"}
+        </button>
       </form>
 
       <style>{`
