@@ -40,7 +40,23 @@ async def get_me(
     profile = users_repo.get_profile(principal.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
-    profile["has_cv"] = users_repo.has_baseline_cv(principal.id)
+    has_cv = users_repo.has_baseline_cv(principal.id)
+    profile["has_cv"] = has_cv
+    profile["cv_readiness"] = "ready" if has_cv else "missing"
+    profile["cv_upload_job_id"] = None
+    profile["cv_upload_error_code"] = None
+
+    # Optional seam: older test fakes may not implement this repository method.
+    latest_job = users_repo.latest_cv_upload_job(principal.id) if hasattr(users_repo, "latest_cv_upload_job") else None
+    if not has_cv and latest_job:
+        status_value = str(latest_job.get("status") or "").strip().lower()
+        profile["cv_upload_job_id"] = str(latest_job.get("id") or "") or None
+        if status_value == "processing":
+            profile["cv_readiness"] = "processing"
+        elif status_value == "failed":
+            profile["cv_readiness"] = "failed"
+            profile["cv_upload_error_code"] = latest_job.get("error_code")
+
     return UserProfileResponse(**profile)
 
 

@@ -49,6 +49,8 @@ export interface CVPlaygroundState {
   livePreviewText: string
   isDirty: boolean
   canSave: boolean
+  lastWrite: CVWriteReceipt | null
+  clearLastWrite: () => void
 
   // Mutations
   saveVersion: ReturnType<typeof useMutation<CVVersion, Error, void>>
@@ -63,6 +65,16 @@ export interface CVPlaygroundState {
   error: string | null
 }
 
+export type CVWriteAction = "save" | "polish" | "edit"
+
+export interface CVWriteReceipt {
+  action: CVWriteAction
+  versionId: number
+  userVersionNumber: number
+  createdAt: string
+  atMs: number
+}
+
 function chooseDefault(thread: CVVersion[], baseline: CVVersion | null): CVVersion | null {
   return thread[0] ?? baseline ?? null
 }
@@ -72,6 +84,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [lastWrite, setLastWrite] = useState<CVWriteReceipt | null>(null)
 
   // Tracks the last id we hydrated FROM. If a refetch arrives with the same selection,
   // we skip the redundant setHiddenItems write — preserves user toggles in-flight.
@@ -169,32 +182,41 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
 
   const canSave = isDirty || companyVersions.length === 0
 
-  const onMutationSuccess = useCallback((v: CVVersion) => {
+  const onMutationSuccess = useCallback((action: CVWriteAction, v: CVVersion) => {
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
     setSelectedVersionId(v.id)
     setHiddenItems(new Set(v.hidden_items))
     lastHydratedRef.current = v.id
+    setLastWrite({
+      action,
+      versionId: v.id,
+      userVersionNumber: v.user_version_number,
+      createdAt: v.created_at,
+      atMs: Date.now(),
+    })
     setError(null)  // clear any prior mutation error now that we have a successful write
   }, [jobId, queryClient])
 
   const saveVersion = useMutation({
     mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems)),
-    onSuccess: onMutationSuccess,
+    onSuccess: (v) => onMutationSuccess("save", v),
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save version."),
   })
 
   const polishVersion = useMutation({
     mutationFn: (versionId: number) => cv.versions.polish(token!, versionId),
-    onSuccess: onMutationSuccess,
+    onSuccess: (v) => onMutationSuccess("polish", v),
     onError: (err) => setError(err instanceof Error ? err.message : "Could not polish version."),
   })
 
   const editVersion = useMutation({
     mutationFn: ({ versionId, edits }: { versionId: number; edits: Record<string, string> }) =>
       cv.versions.edit(token!, versionId, edits),
-    onSuccess: onMutationSuccess,
+    onSuccess: (v) => onMutationSuccess("edit", v),
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
   })
+
+  const clearLastWrite = useCallback(() => setLastWrite(null), [])
 
   return {
     structuredQuery,
@@ -210,6 +232,8 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     livePreviewText,
     isDirty,
     canSave,
+    lastWrite,
+    clearLastWrite,
     saveVersion,
     polishVersion,
     editVersion,

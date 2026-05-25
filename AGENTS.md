@@ -254,7 +254,30 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 - Razorpay checkout auth + reliability hardening)
+## LAST SESSION SUMMARY (2026-05-25 - beta closure batch: skills/intel/cv discoverability)
+
+Shipped the selected fixed-scope closure batch for beta feedback, with explicit architecture seams for durability and report-status updates:
+
+- Closed **Skills route gate** with surface-specific no-CV states (`missing | processing | failed`) and clear next actions (`/skills` now preserves Skills context): `e294afd`.
+- Closed **CV version discoverability + save confidence** by adding a visible Version Directory entry and durable write receipts for save/polish/edit actions in CV Builder: `b72f04d`.
+- Closed **Intel prerequisite resilience** by adding `cv_readiness` + latest upload metadata to `/users/me` and rendering an explicit prerequisite card on Intel when personalization is unsafe: `afaed26`.
+- Closed **mobile Skills row overflow regression** for 375px-class layouts by hardening domain accordion grid/width constraints and clipping behavior: `9605f3b`.
+- Updated canonical beta report with a new closure tracker section in `docs/beta-testing/2026-05-24-first-beta-testing-report.md` (`D.5 Closure Tracker Update`) so solved/open items are visible and auditable.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` 371/371 pass
+- `cd frontend && npm run lint` clean
+- `cd frontend && npx tsc --noEmit` clean
+
+Render QA notes:
+
+- Browser runtime navigation/DOM/console checks ran, but Browser screenshot capture is currently timing out at runtime (including non-localhost pages).
+- Playwright fallback screenshots confirm `/market` and `/skills` in this local session are auth/splash-gated without an authenticated test user, so full interaction QA on newly shipped gated states remains partially blocked in this environment.
+
+Unrelated workspace state still present: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 - Razorpay checkout auth + reliability hardening)
 
 Shipped a production-grade hardening pass for Razorpay Standard Checkout after live `POST /api/create-order` failures on Railway:
 

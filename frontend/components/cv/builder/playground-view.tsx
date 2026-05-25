@@ -25,7 +25,7 @@ import { jobs as jobsApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { formatGlobalVersionLabel, formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
-import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
+import type { CVPlaygroundState, CVWriteAction } from "@/lib/hooks/use-cv-playground"
 import { Icon } from "./icons"
 import { BulletRow } from "./bullet-row"
 import { LivePreview } from "./live-preview"
@@ -65,6 +65,12 @@ function tabKindDot(kind: CVVersion["kind"]) {
 
 function slugCV(s: string | null | undefined): string {
   return (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+}
+
+function writeVerb(action: CVWriteAction): string {
+  if (action === "polish") return "Polished"
+  if (action === "edit") return "Edited"
+  return "Saved"
 }
 
 export function PlaygroundView({
@@ -160,6 +166,7 @@ export function PlaygroundView({
 
   const selectedVersion = playground.selectedVersion
   const isEditableSelection = selectedVersion?.kind !== "baseline_upload"
+  const writeReceipt = playground.lastWrite
 
   // ATS checks — deterministic, client-side, no backend needed.
   const cvFilename = useMemo(() => {
@@ -195,6 +202,9 @@ export function PlaygroundView({
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open version directory">
+              <Icon name="git-branch" size={13}/> Version directory
+            </button>
             <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD intel">
               <Icon name="intel" size={13}/> Intel
               {missingTargets.length > 0 && (
@@ -270,6 +280,16 @@ export function PlaygroundView({
           <Icon name="plus" size={14}/>
         </button>
       </div>
+
+      {writeReceipt && (
+        <div className="cvb-save-confirm" role="status" aria-live="polite">
+          <span>{writeVerb(writeReceipt.action)} as CV v{writeReceipt.userVersionNumber}</span>
+          <span style={{ opacity: 0.45 }}>·</span>
+          <button type="button" className="cvb-save-confirm-dismiss" onClick={playground.clearLastWrite} aria-label="Dismiss save confirmation">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="cvb-pg-seg">
         <button

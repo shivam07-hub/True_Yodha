@@ -58,6 +58,24 @@ class UsersRepository:
         )
         return (result.count or 0) > 0
 
+    def latest_cv_upload_job(self, user_id: str) -> dict[str, Any] | None:
+        """Newest async CV upload job for this user (if any).
+
+        The Job Refresh and CV Upload seams are intentionally decoupled; this
+        read is only for route-level UX state (processing vs failed), not for
+        scoring or matching logic.
+        """
+        result = (
+            self._db.table("cv_upload_jobs")
+            .select("id, status, error_code, created_at, finished_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
         if "target_location" in payload:

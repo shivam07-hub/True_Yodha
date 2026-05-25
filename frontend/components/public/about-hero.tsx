@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./about-hero.css"
 
 const UPLOAD_CTA_HREF = `/signup?next=${encodeURIComponent("/cv?upload=1")}`
+const NEXT_AFTER_SIGNUP = "/cv?upload=1"
 
 const BRANCHES = [
   { y: 22, label: "baseline", score: "62", delta: null, baseline: true },
@@ -14,6 +16,7 @@ const BRANCHES = [
 const GHOST_Y = 142
 
 export function AboutHero() {
+  const signup = useSignupGate()
   return (
     <section className="tm-about-hero">
       <div className="tm-about-hero-inner">
@@ -130,8 +133,17 @@ export function AboutHero() {
           </svg>
         </div>
 
-        {/* ── Primary CTA ──────────────────────────────────── */}
-        <Link href={UPLOAD_CTA_HREF} className="tm-about-cta-primary">
+        {/* ── Primary CTA — opens SignupModal, falls back to /signup ── */}
+        <Link
+          href={UPLOAD_CTA_HREF}
+          className="tm-about-cta-primary"
+          onClick={(e) => {
+            // Hijack only when JS is live + modal is mountable.
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+            e.preventDefault()
+            signup.open({ surface: "about_hero", next: NEXT_AFTER_SIGNUP })
+          }}
+        >
           Start your CV hub
           <span aria-hidden>→</span>
         </Link>

@@ -27,9 +27,19 @@ ALLOWED_TYPES = {
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10MB
 
 
+_VALID_SOURCES = {"pdf_upload", "text_describe", "linkedin_pdf"}
+
+
+def _normalize_source(value: str | None, default: str) -> str:
+    if value and value in _VALID_SOURCES:
+        return value
+    return default
+
+
 class CVTextRequest(BaseModel):
     text: str
     idempotency_key: str | None = None
+    source: str | None = Field(default=None, max_length=40)
 
 
 class CVUploadFallbackRequest(BaseModel):
@@ -64,6 +74,7 @@ async def upload_cv(
     principal: Principal = Depends(get_principal),
     cv_repo: CVRepository = Depends(get_token_cv_repository),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    x_myro_cv_source: str | None = Header(default=None, alias="X-Myro-CV-Source"),
 ) -> CVUploadResponse:
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
@@ -81,12 +92,14 @@ async def upload_cv(
         )
 
     file_type = "pdf" if file.content_type == "application/pdf" else "docx"
+    source = _normalize_source(x_myro_cv_source, default="pdf_upload")
     payload = await cv_workflow.start_cv_upload_job(
         cv_repo=cv_repo,
         user_id=principal.id,
         file_bytes=file_bytes,
         file_type=file_type,
         idempotency_key=idempotency_key,
+        source=source,
     )
     return CVUploadResponse(**payload)
 
@@ -102,11 +115,13 @@ async def submit_cv_text(
     cv_repo: CVRepository = Depends(get_token_cv_repository),
 ) -> CVUploadResponse:
     raw_text = body.text.strip()
+    source = _normalize_source(body.source, default="text_describe")
     payload = await cv_workflow.start_cv_upload_job_from_text(
         cv_repo=cv_repo,
         user_id=principal.id,
         raw_text=raw_text,
         idempotency_key=body.idempotency_key,
+        source=source,
     )
     return CVUploadResponse(**payload)
 

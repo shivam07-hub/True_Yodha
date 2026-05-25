@@ -676,3 +676,28 @@ Product interpretation:
 6. **Add resumable/retryable transport behavior (P1).** Retry network phase with bounded backoff and idempotency keys so weak networks do not force full restart.
 7. **Add visible recovery UX after repeated failures (P1).** Present "Try another format", "Use text paste", and "Submit via fallback" actions in the same modal.
 8. **Protect Intel flow from CV upload dependency shock (P1).** Show explicit prerequisite state and safe alternative route when CV parse is pending/failed.
+
+## D.5 Closure Tracker Update (2026-05-25)
+
+This section tracks which feedback items from this report are now shipped vs still open, so users can see concrete closure progress.
+
+### Shipped in this closure batch
+
+- **Skills route gate shipped (C.3 #1).** `/skills` now renders a skills-specific prerequisite state (missing/processing/failed CV readiness) instead of a generic upload landing.  
+  Commits: `e294afd`, `afaed26`
+- **CV version discoverability + save confidence shipped (C.3 #4 + #5).** CV Builder now exposes a visible Version Directory entry and explicit write confirmations after save/polish/edit actions.  
+  Commit: `b72f04d`
+- **Intel dependency shock guard shipped (D.4 #8).** `/users/me` now returns CV readiness (`ready|missing|processing|failed`) + latest upload metadata, and Intel shows explicit prerequisite UX when personalization is not safe.  
+  Commit: `afaed26`
+- **Skills mobile overflow hardening shipped (Skill Intelligence mobile QA finding).** Domain accordion row layout was tightened for 375px-class viewports to prevent status/progress clipping.  
+  Commit: `9605f3b`
+
+### Still open from this report
+
+- **Tracker guided empty state (C.3 #3)** remains open.
+- **Intel mobile time-to-useful-content performance pass (C.3 #2)** remains open (prerequisite/error-state resilience shipped; performance tuning still pending).
+
+### Verification notes
+
+- Backend contract tests: `/users/me` readiness coverage passing (`pytest backend/tests/test_users_api.py`).
+- Full suite pass after closure batch: `pytest backend/tests`, `frontend lint`, `frontend tsc --noEmit`.

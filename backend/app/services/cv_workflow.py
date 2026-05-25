@@ -55,6 +55,7 @@ def _persist_baseline_cv(
     raw_text: str,
     content_hash: str,
     cv_structured: dict | None,
+    source: str = "pdf_upload",
 ) -> None:
     """Write a new baseline_upload row into cv_versions."""
     cv_repo.update_cv_profile(user_id, {"onboarding_complete": True})
@@ -67,7 +68,19 @@ def _persist_baseline_cv(
         title="Uploaded baseline CV",
         snapshot_hash=content_hash,
     )
-    cv_repo.create(user_id, spec)
+    new_row = cv_repo.create(user_id, spec)
+
+    # ADR-0006 L7 — tag the entry-path cohort. Done via direct admin update
+    # because CVVersionWriteSpec is a stable contract; new column threads
+    # through without spec churn.
+    version_id = (new_row or {}).get("id") if isinstance(new_row, dict) else None
+    if version_id:
+        try:
+            get_supabase_admin().table("cv_versions").update(
+                {"source": source}
+            ).eq("id", version_id).execute()
+        except Exception as exc:  # pragma: no cover — cohort tag is best-effort
+            _log.warning("cv_versions.source tag failed for version=%s: %s", version_id, exc)
 
 
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
@@ -77,6 +90,55 @@ def _persist_baseline_cv(
 #   Refund XP on provider failure or empty extraction.
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
+
+# ADR-0006 §11 — abuse cap on a single user spamming uploads. 5/hour matches
+# the worst-case legitimate iteration cycle (CV → review → re-upload) while
+# making it impossible to drain LLM budget through one compromised account.
+_CV_UPLOAD_MAX_PER_HOUR = 5
+
+
+def _enforce_user_upload_rate_limit(user_id: str) -> None:
+    """Raise 429 if the user has already burned the hourly upload cap.
+
+    Counted against `cv_upload_jobs.created_at` regardless of outcome — a
+    failed job still consumed an attempt slot. Refunds are about XP, not
+    rate-limit credit; otherwise repeat failures would burn unlimited
+    LLM tokens at the provider chain.
+    """
+    admin = get_supabase_admin()
+    cutoff_iso = _utc_minutes_ago_iso(60)
+    try:
+        result = (
+            admin.table("cv_upload_jobs")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .gte("created_at", cutoff_iso)
+            .execute()
+        )
+    except Exception as exc:  # pragma: no cover — fail-open
+        _log.warning("Upload rate-limit read failed for %s: %s", user_id, exc)
+        return
+    count = result.count if result.count is not None else len(result.data or [])
+    if count >= _CV_UPLOAD_MAX_PER_HOUR:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "upload_rate_limited",
+                "message": (
+                    f"You've started {count} uploads in the last hour. "
+                    "Take a moment to review the latest result before trying again."
+                ),
+            },
+            headers={
+                "X-Myro-Error-Code": "upload_rate_limited",
+                "Retry-After": "1800",
+            },
+        )
+
+
+def _utc_minutes_ago_iso(minutes: int) -> str:
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
 
 
 def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
@@ -112,17 +174,20 @@ async def start_cv_upload_job(
     file_bytes: bytes,
     file_type: str,
     idempotency_key: str | None = None,
+    source: str = "pdf_upload",
 ) -> dict[str, Any]:
     """Phase 1. Returns one of:
       - {status: "done", skills_detected, score, redirect_to}      ← hash cache hit
       - {status: "processing", job_id}                              ← LLM job queued
       - existing job's status payload                               ← idempotency hit
-    Raises 400 on insufficient XP, 422 on unreadable text.
+    Raises 400 on insufficient XP, 422 on unreadable text, 429 on rate-limit.
     """
     if idempotency_key:
         existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
         if existing:
             return _idem_response(existing)
+
+    _enforce_user_upload_rate_limit(user_id)
 
     raw_text = cv_parser.extract_raw_text(file_bytes, file_type)
     _assert_cv_text_extractable(raw_text, source="upload")
@@ -141,7 +206,7 @@ async def start_cv_upload_job(
 
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload",
-        idempotency_key=idempotency_key,
+        idempotency_key=idempotency_key, source=source,
     )
 
 
@@ -167,6 +232,7 @@ async def start_cv_upload_job_from_text(
     *,
     raw_text: str,
     idempotency_key: str | None = None,
+    source: str = "text_describe",
 ) -> dict[str, Any]:
     """Phase 1 for the typed-text variant. Mirrors start_cv_upload_job."""
     if idempotency_key:
@@ -174,6 +240,7 @@ async def start_cv_upload_job_from_text(
         if existing:
             return _idem_response(existing)
 
+    _enforce_user_upload_rate_limit(user_id)
     _assert_cv_text_extractable(raw_text, source="text")
 
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
@@ -190,7 +257,7 @@ async def start_cv_upload_job_from_text(
 
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
-        idempotency_key=idempotency_key,
+        idempotency_key=idempotency_key, source=source,
     )
 
 
@@ -201,6 +268,7 @@ async def _start_async_upload_job(
     content_hash: str,
     action: str,
     idempotency_key: str | None = None,
+    source: str = "pdf_upload",
 ) -> dict[str, Any]:
     """Shared job-creation path for both upload + typed-text flows.
 
@@ -255,6 +323,7 @@ async def _start_async_upload_job(
         user_id=user_id,
         raw_text=raw_text,
         content_hash=content_hash,
+        source=source,
     ))
 
     return {"status": "processing", "job_id": job_id}
@@ -266,6 +335,7 @@ async def _run_cv_upload_job(
     user_id: str,
     raw_text: str,
     content_hash: str,
+    source: str = "pdf_upload",
 ) -> None:
     """Phase 2 — runs in a background task. Owns its own admin-scoped repo."""
     admin_db = get_supabase_admin()
@@ -316,6 +386,7 @@ async def _run_cv_upload_job(
         raw_text=raw_text,
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
+        source=source,
     )
     upload_jobs_repo.mark_done(job_id, skills_detected=len(skills_detected), score=score_total)
     asyncio.create_task(_trigger_initial_match_compute(user_id))

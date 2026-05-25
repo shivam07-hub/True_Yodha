@@ -11,6 +11,7 @@ import "./requires-cv.css"
 
 interface RequiresCVProps {
   children: ReactNode
+  surface?: "skills" | "forge" | "home" | "generic"
 }
 
 /**
@@ -28,7 +29,63 @@ interface RequiresCVProps {
  * Uses the same `dataKeys.profile()` key every authed page shares, so
  * the gate decision comes from cache on warm pages.
  */
-export function RequiresCV({ children }: RequiresCVProps) {
+type CVReadiness = "ready" | "missing" | "processing" | "failed"
+
+interface EmptyCopy {
+  heading: string
+  body: string
+  ctaLabel: string
+  ctaHref: string
+  secondaryLabel?: string
+  secondaryHref?: string
+  statusLabel?: string
+}
+
+function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): EmptyCopy {
+  const s = surface ?? "generic"
+  if (s === "skills") {
+    if (readiness === "processing") {
+      return {
+        heading: "Building your Skill Intelligence map",
+        body: "Your CV is still being analyzed. Once parsing completes, this page will show your domain gaps and progression plan.",
+        ctaLabel: "Check CV status",
+        ctaHref: "/cv",
+        secondaryLabel: "Explore market demand",
+        secondaryHref: "/market",
+        statusLabel: "CV analysis in progress",
+      }
+    }
+    if (readiness === "failed") {
+      return {
+        heading: "Skill Intelligence setup needs retry",
+        body: "Your last CV analysis did not complete. Re-upload your CV to unlock your domain map and skill recommendations.",
+        ctaLabel: "Retry CV upload",
+        ctaHref: "/cv?upload=1",
+        secondaryLabel: "See how scoring works",
+        secondaryHref: "/about",
+        statusLabel: "Last analysis failed",
+      }
+    }
+    return {
+      heading: "Skill Intelligence starts with your CV",
+      body: "Upload your baseline CV once to unlock domain scoring, gap detection, and skill-by-skill progression insights.",
+      ctaLabel: "Upload CV to unlock Skills",
+      ctaHref: "/cv?upload=1",
+      secondaryLabel: "See the product flow",
+      secondaryHref: "/about",
+      statusLabel: "CV required",
+    }
+  }
+
+  return {
+    heading: "Start your CV hub",
+    body: "Upload your master CV. Tailor a version for every job you target. See each one scored.",
+    ctaLabel: "Upload your CV",
+    ctaHref: "/cv?upload=1",
+  }
+}
+
+export function RequiresCV({ children, surface = "generic" }: RequiresCVProps) {
   const { token, ready } = useAuth()
   const profileQuery = useQuery({
     queryKey: dataKeys.profile(),
@@ -41,25 +98,31 @@ export function RequiresCV({ children }: RequiresCVProps) {
   if (profileQuery.isLoading) return null
 
   const hasCV = !!profileQuery.data?.has_cv
+  const readiness: CVReadiness = hasCV ? "ready" : (profileQuery.data?.cv_readiness ?? "missing")
   if (hasCV) return <>{children}</>
 
-  return <CVRequiredEmpty />
+  return <CVRequiredEmpty surface={surface} readiness={readiness} />
 }
 
-function CVRequiredEmpty() {
+function CVRequiredEmpty({ surface, readiness }: { surface: RequiresCVProps["surface"]; readiness: CVReadiness }) {
+  const copy = copyFor(surface, readiness)
   return (
     <div className="tm-requires-cv">
       <div className="tm-requires-cv-logo">
         <MyroLogo size={56} />
       </div>
-      <h2 className="tm-requires-cv-heading">Start your CV hub</h2>
-      <p className="tm-requires-cv-body">
-        Upload your master CV. Tailor a version for every job you target. See each one scored.
-      </p>
-      <Link href="/cv?upload=1" className="tm-requires-cv-cta">
-        Upload your CV
+      {copy.statusLabel ? <div className="tm-requires-cv-status">{copy.statusLabel}</div> : null}
+      <h2 className="tm-requires-cv-heading">{copy.heading}</h2>
+      <p className="tm-requires-cv-body">{copy.body}</p>
+      <Link href={copy.ctaHref} className="tm-requires-cv-cta">
+        {copy.ctaLabel}
         <span aria-hidden>→</span>
       </Link>
+      {copy.secondaryHref && copy.secondaryLabel ? (
+        <Link href={copy.secondaryHref} className="tm-requires-cv-secondary">
+          {copy.secondaryLabel}
+        </Link>
+      ) : null}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { MyroLogo } from "@/components/myro-logo"
 import { getAccessToken } from "@/lib/session"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
 
 export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login"
@@ -27,6 +28,7 @@ function formatTodayShort(): string {
 
 export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
   const [isAuthed, setIsAuthed] = useState(false)
+  const signup = useSignupGate()
 
   useEffect(() => {
     setIsAuthed(!!getAccessToken())
@@ -62,7 +64,15 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
       </div>
 
       <div className="tm-public-nav-auth">
-        <Link href="/signup" className="tm-public-nav-signup">
+        <Link
+          href="/signup"
+          className="tm-public-nav-signup"
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+            e.preventDefault()
+            signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
+          }}
+        >
           Sign up
         </Link>
         {showSignIn && (

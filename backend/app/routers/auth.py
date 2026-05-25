@@ -1,12 +1,65 @@
-from fastapi import APIRouter, Cookie, HTTPException, status
+"""Auth router.
 
-from app.database import get_supabase
-from app.schemas import AuthResponse, LoginRequest, RefreshRequest, RefreshResponse, SignupRequest
-from app.services.user_provisioning import ensure_user_provisioned
+Conventions:
+- Email/password signup + login stay for legacy compatibility (110 users).
+- ADR-0006 frictionless flow: OAuth (Google/LinkedIn) + magic-link land on
+  Supabase, then call POST /auth/post-signin for SH7 ref attribution +
+  LinkedIn metadata + one-time XP grants.
+- POST /auth/magic-link-request wraps Supabase signInWithOtp with a
+  3/hour/IP rate limit (magic_link_attempts table).
+- DELETE /auth/integrations/{provider} revokes the linked Supabase
+  identity (powers the v2 Settings → Integrations panel).
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, status
+
+from app.database import get_supabase, get_supabase_admin
+from app.deps import Principal, get_principal
+from app.schemas import (
+    AuthResponse,
+    IntegrationRevokeResponse,
+    LoginRequest,
+    MagicLinkRequest,
+    MagicLinkResponse,
+    PostSigninRequest,
+    PostSigninResponse,
+    RefreshRequest,
+    RefreshResponse,
+    SignupRequest,
+)
+from app.services.user_provisioning import ensure_user_provisioned, set_linkedin_identity
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_log = logging.getLogger(__name__)
 
 _REF_COOKIE = "myro_ref"
+_MAGIC_LINK_WINDOW_MINUTES = 60
+_MAGIC_LINK_MAX_PER_WINDOW = 3
+_SUPPORTED_REVOKE_PROVIDERS = {"google", "linkedin_oidc"}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real = request.headers.get("x-real-ip")
+    if real:
+        return real.strip()
+    return request.client.host if request.client else "0.0.0.0"
+
+
+def _safe_user_agent(value: str | None) -> str | None:
+    if not value:
+        return None
+    return value[:240]
+
+
+# ─── legacy email/password signup + login ──────────────────────────────────
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -30,8 +83,6 @@ async def signup(
         )
 
     if not response.session:
-        # Email confirmation required — auth.users row not yet confirmed.
-        # Profile (and ninja_name) created on first authenticated request.
         return AuthResponse(
             user_id=response.user.id,
             email=response.user.email,
@@ -39,7 +90,6 @@ async def signup(
             message="Check your email for a confirmation link, then sign in.",
         )
 
-    # Body field wins (cross-origin CORS strips cookies); cookie is the fallback.
     referrer = body.myro_ref or myro_ref
     try:
         ensure_user_provisioned(
@@ -105,4 +155,217 @@ async def refresh_token(body: RefreshRequest) -> RefreshResponse:
     return RefreshResponse(
         access_token=response.session.access_token,
         refresh_token=response.session.refresh_token,
+    )
+
+
+# ─── ADR-0006 ──────────────────────────────────────────────────────────────
+
+
+@router.post("/post-signin", response_model=PostSigninResponse)
+async def post_signin(
+    body: PostSigninRequest,
+    principal: Principal = Depends(get_principal),
+    myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
+) -> PostSigninResponse:
+    """One-shot post-auth bootstrap.
+
+    Always: provisions user_profiles (idempotent — first call inserts; later
+    calls refresh email/full_name only). SH7 referral attribution flows
+    from body.myro_ref first (CORS-stripped cookie fallback second).
+
+    LinkedIn-only: persists `linkedin_url` + headline + verified status when
+    the frontend mirrors the OIDC ID-token claims into the body. The XP
+    grant flag (linkedin_xp_granted) prevents double-grants.
+
+    Idempotent on every axis — safe to retry."""
+    full_name: str | None = None
+    try:
+        user_resp = get_supabase().auth.get_user(principal.id)  # noqa: F841 — health touch
+    except Exception:  # pragma: no cover — already authenticated by Depends
+        pass
+
+    referrer = body.myro_ref or myro_ref
+    try:
+        referral_attributed = ensure_user_provisioned(
+            principal.id,
+            principal.email,
+            full_name,
+            myro_ref=referrer,
+        )
+    except Exception as exc:
+        _log.warning("post-signin provisioning failed for %s: %s", principal.id, exc)
+        referral_attributed = False
+
+    linkedin_xp_granted = False
+    linkedin_url_set = False
+    is_linkedin = (body.provider or "").lower() in {"linkedin_oidc", "linkedin"}
+    if is_linkedin and (body.linkedin_vanity or body.linkedin_headline):
+        try:
+            linkedin_xp_granted, linkedin_url_set = await set_linkedin_identity(
+                principal.id,
+                vanity=body.linkedin_vanity,
+                headline=body.linkedin_headline,
+                verified=body.linkedin_verified,
+            )
+        except Exception as exc:
+            _log.warning("LinkedIn identity write failed for %s: %s", principal.id, exc)
+
+    return PostSigninResponse(
+        user_id=principal.id,
+        provider=body.provider,
+        referral_attributed=bool(referral_attributed),
+        linkedin_xp_granted=linkedin_xp_granted,
+        linkedin_url_set=linkedin_url_set,
+    )
+
+
+@router.post("/magic-link-request", response_model=MagicLinkResponse)
+async def magic_link_request(
+    body: MagicLinkRequest,
+    request: Request,
+    user_agent: str | None = Header(default=None, alias="User-Agent"),
+) -> MagicLinkResponse:
+    """ADR-0006 §10 — rate-limited magic-link send. 3 per hour per IP."""
+    admin = get_supabase_admin()
+    ip = _client_ip(request)
+    email = body.email.lower().strip()
+
+    try:
+        count_resp = admin.rpc(
+            "count_magic_link_attempts_ip",
+            {"p_ip": ip, "p_minutes": _MAGIC_LINK_WINDOW_MINUTES},
+        ).execute()
+        attempts = int(count_resp.data or 0)
+    except Exception as exc:
+        _log.warning("Magic-link rate check failed for ip=%s: %s", ip, exc)
+        attempts = 0
+
+    if attempts >= _MAGIC_LINK_MAX_PER_WINDOW:
+        _record_attempt(admin, email=email, ip=ip, ua=_safe_user_agent(user_agent), outcome="rate_limited")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "rate_limited",
+                "message": f"Too many sign-in attempts from this network. Try again in an hour.",
+            },
+            headers={"Retry-After": str(_MAGIC_LINK_WINDOW_MINUTES * 60)},
+        )
+
+    options: dict[str, Any] = {}
+    if body.redirect_to:
+        options["email_redirect_to"] = body.redirect_to
+
+    try:
+        get_supabase().auth.sign_in_with_otp({
+            "email": email,
+            "options": options,
+        })
+    except Exception as exc:
+        _log.warning("Supabase OTP send failed for %s: %s", email, exc)
+        _record_attempt(admin, email=email, ip=ip, ua=_safe_user_agent(user_agent), outcome="failed")
+        # Always return success-shaped response so attackers can't enumerate.
+        return MagicLinkResponse(sent=True, message="If that email is reachable, a sign-in link is on its way.")
+
+    _record_attempt(admin, email=email, ip=ip, ua=_safe_user_agent(user_agent), outcome="sent")
+    return MagicLinkResponse(
+        sent=True,
+        message="Check your inbox — your sign-in link arrives in seconds.",
+    )
+
+
+def _record_attempt(admin: Any, *, email: str, ip: str, ua: str | None, outcome: str) -> None:
+    try:
+        admin.table("magic_link_attempts").insert({
+            "email": email,
+            "ip": ip,
+            "user_agent": ua,
+            "outcome": outcome,
+        }).execute()
+    except Exception as exc:  # pragma: no cover — audit table is best-effort
+        _log.warning("magic_link_attempts insert failed: %s", exc)
+
+
+@router.delete("/integrations/{provider}", response_model=IntegrationRevokeResponse)
+async def revoke_integration(
+    provider: str,
+    principal: Principal = Depends(get_principal),
+) -> IntegrationRevokeResponse:
+    """v2 disconnect button. Removes the linked Supabase identity for the
+    given provider while preserving the primary identity (email-password or
+    other linked provider). Refuses to revoke if it would orphan the user.
+    """
+    provider_norm = provider.strip().lower()
+    if provider_norm not in _SUPPORTED_REVOKE_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "unsupported_provider", "message": "Only google and linkedin_oidc can be revoked."},
+        )
+
+    admin = get_supabase_admin()
+    try:
+        identities_resp = admin.auth.admin.list_identities(principal.id)
+        identities = getattr(identities_resp, "identities", None) or identities_resp or []
+    except Exception as exc:
+        _log.warning("list_identities failed for %s: %s", principal.id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "revoke_failed", "message": "Could not read your linked accounts. Try again."},
+        )
+
+    matching = [
+        i for i in identities
+        if (getattr(i, "provider", None) or (i.get("provider") if isinstance(i, dict) else None)) == provider_norm
+    ]
+    if not matching:
+        return IntegrationRevokeResponse(
+            provider=provider_norm,
+            revoked=False,
+            message="That account isn't connected.",
+        )
+
+    if len(identities) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "last_identity",
+                "message": (
+                    "This is your only sign-in method. Add another (email + password or another provider) "
+                    "before disconnecting."
+                ),
+            },
+        )
+
+    identity_id = (
+        getattr(matching[0], "identity_id", None)
+        or (matching[0].get("identity_id") if isinstance(matching[0], dict) else None)
+    )
+    if not identity_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "revoke_failed", "message": "Identity ID missing. Try again."},
+        )
+
+    try:
+        admin.auth.admin.delete_identity(identity_id)
+    except Exception as exc:  # pragma: no cover — depends on SDK version
+        _log.warning("delete_identity failed for %s/%s: %s", principal.id, identity_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "revoke_failed", "message": "Disconnect failed. Try again."},
+        )
+
+    # Clear LinkedIn metadata when LinkedIn is revoked so the next connect
+    # starts clean (XP grant remains burned — one-time only by design).
+    if provider_norm == "linkedin_oidc":
+        try:
+            admin.table("user_profiles").update(
+                {"linkedin_url": None, "linkedin_headline": None, "linkedin_verified": False}
+            ).eq("id", principal.id).execute()
+        except Exception as exc:  # pragma: no cover
+            _log.warning("LinkedIn metadata clear failed for %s: %s", principal.id, exc)
+
+    return IntegrationRevokeResponse(
+        provider=provider_norm,
+        revoked=True,
+        message="Disconnected.",
     )

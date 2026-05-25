@@ -138,7 +138,7 @@ export default function SkillsPage() {
 
   return (
     <AppShell>
-      <RequiresCV>
+      <RequiresCV surface="skills">
       <div className="tm-page-enter tm-skills-page">
 
         {/* Header */}
