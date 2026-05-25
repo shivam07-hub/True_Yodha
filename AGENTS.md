@@ -254,7 +254,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 night - beta batch 4 feedback memory)
+## LAST SESSION SUMMARY (2026-05-25 - repo docs + licensing)
+
+Added top-level repository hygiene and contributor onramp docs:
+
+- Added `LICENSE` (MIT, 2026 Shivam).
+- Rewrote `README.md` to clearly explain what True_Yodha is, why it exists, how to run it locally (backend, worker, frontend), and where to look for deeper docs.
+- Added `CONTRIBUTING.md` with dev setup, required checks, branch/PR conventions, and code-style expectations.
+
+Verify: `.venv/bin/pytest backend/tests` 364/364 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean.
+
+## OLDER SESSION SUMMARY (2026-05-25 night - beta batch 4 feedback memory)
 
 Added the latest user feedback into the canonical beta report at `docs/beta-testing/2026-05-24-first-beta-testing-report.md` as Appendix C. Preserved the high-signal themes: `/skills` should not feel like a generic CV upload page when gated, `/intel` mobile loading reads as stuck when "Fetching open jobs..." persists, `/tracker` needs a guided/demo empty state, first-run onboarding is still missing, CV hub value is strong if upload/scoring reliability holds, mobile performance needs route-by-route attention, separate CV version storage is unclear, save/edit confirmations need stronger micro-interactions, and template/layout customization is a retention lever.
 
