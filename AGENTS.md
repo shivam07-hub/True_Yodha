@@ -254,7 +254,28 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 - enterprise CV upload hardening + fallback rail)
+## LAST SESSION SUMMARY (2026-05-25 - Razorpay checkout auth + reliability hardening)
+
+Shipped a production-grade hardening pass for Razorpay Standard Checkout after live `POST /api/create-order` failures on Railway:
+
+- Root-cause validated: provided Razorpay test credentials are valid against Razorpay Orders API; failure path was integration handling/deploy-config sensitivity.
+- Hardened `backend/app/routers/payments.py`:
+  - Added credential normalization (trims whitespace/accidental wrapping quotes) before auth/signature usage.
+  - Mapped Razorpay auth failures to `401 Unauthorized` (was `502`) for deterministic operator signal.
+  - Added network-failure mapping to controlled `502` with stable message.
+  - Added SDK retry config + order request timeout (`RAZORPAY_ORDER_TIMEOUT_SECONDS=12`).
+  - Moved blocking Razorpay + Supabase payment calls off the async event loop via `run_in_threadpool` in create/verify paths.
+  - Added structured logging on create-order failure modes without leaking secrets.
+- Updated `backend/tests/test_payments_router.py`:
+  - Auth failure contract updated to `401`.
+  - Asserted create-order timeout is passed through to Razorpay SDK.
+  - Added regression test for quote/space-trim credential normalization.
+
+Commit: `b30da1c fix: harden razorpay checkout auth and runtime flow`
+
+Verify: `.venv/bin/pytest backend/tests` 369/369 pass · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `git diff --check` clean. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-25 - enterprise CV upload hardening + fallback rail)
 
 Shipped the first enterprise-scale reliability slice for the upload incident and mobile settings overflow regression:
 
