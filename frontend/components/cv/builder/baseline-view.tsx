@@ -13,13 +13,16 @@ import { useQuery } from "@tanstack/react-query"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import {
-  formatGlobalVersionLabel,
-  timeAgo,
-} from "@/lib/cv/version-format"
+import { timeAgo } from "@/lib/cv/version-format"
 import { Icon } from "./icons"
-import { CommitRow, KindDot, LegendDot } from "./commit-graph"
+import { KindDot } from "./commit-graph"
 import { CVRender } from "./cv-render"
+import {
+  CVLibraryDrawer,
+  formatLibraryDocumentKind,
+  formatLibraryDocumentTitle,
+  type CVLibraryRow,
+} from "./library-drawer"
 
 interface BaselineViewProps {
   token: string
@@ -32,9 +35,7 @@ interface BaselineViewProps {
   focusSkill?: string | null
 }
 
-interface OrderedRow { v: CVVersion; thread: string }
-
-function orderRows(versions: CVVersion[]): OrderedRow[] {
+function orderRows(versions: CVVersion[]): CVLibraryRow[] {
   const masters = versions
     .filter(v => v.kind === "baseline_upload")
     .sort((a, b) => b.user_version_number - a.user_version_number)
@@ -57,7 +58,7 @@ function orderRows(versions: CVVersion[]): OrderedRow[] {
     const bLast = b[1][0].user_version_number
     return bLast - aLast
   })
-  const ordered: OrderedRow[] = [...masters]
+  const ordered: CVLibraryRow[] = [...masters]
   entries.forEach(([key, arr]) => arr.forEach(v => ordered.push({ v, thread: key })))
   return ordered
 }
@@ -170,52 +171,12 @@ export function BaselineView({
       </div>
 
       <div className="cvb-graph-wrap">
-        {/* LEFT: CV Library list — always visible as navigation rail */}
-        <div id="cv-library" className="cvb-graph-col">
-          <div className="cvb-section-head">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="folder" size={14} style={{ color: "var(--tm-accent)" }}/>
-              <span className="eyebrow">CV Library</span>
-            </div>
-            <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-              {rows.length} {rows.length === 1 ? "entry" : "entries"}
-            </span>
-          </div>
-          <div className="cvb-graph-scroll">
-            {rows.length === 0 && (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-                No CVs yet — upload your Main CV to begin.
-              </div>
-            )}
-            {rows.map(({ v, thread }, i) => {
-              const prev = rows[i - 1]
-              const next = rows[i + 1]
-              const isFirstOfThread = !prev || prev.thread !== thread
-              const isLastOfThread = !next || next.thread !== thread
-              const header = isFirstOfThread && v.kind !== "baseline_upload" && (
-                <div key={`head-${thread}`} className="cvb-graph-thread-head">
-                  <Icon name="folder" size={11} style={{ color: "var(--tm-text-faint)" }}/>
-                  <span className="eyebrow" style={{ fontSize: 10 }}>
-                    tailored CV · {v.company_name ?? "untagged"}
-                  </span>
-                </div>
-              )
-              return (
-                <div key={v.id}>
-                  {header}
-                  <CommitRow
-                    v={v}
-                    isCurrentBaseline={currentBaseline?.id === v.id}
-                    selected={selectedVId === v.id}
-                    onSelect={setSelectedVId}
-                    drawTop={!isFirstOfThread || i > 0}
-                    drawBottom={!isLastOfThread}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <CVLibraryDrawer
+          rows={rows}
+          currentBaselineId={currentBaseline?.id ?? null}
+          selectedVId={selectedVId}
+          onSelect={setSelectedVId}
+        />
 
         {/* RIGHT: swaps between target jobs list and inline CV viewer */}
         <div className="cvb-graph-col cvb-right-col">
@@ -238,19 +199,6 @@ export function BaselineView({
             />
           )}
         </div>
-      </div>
-
-      <div style={{
-        marginTop: 14, display: "flex", gap: 16, fontSize: 11,
-        color: "var(--tm-text-faint)", flexWrap: "wrap", alignItems: "center",
-      }}>
-        <LegendDot cls="master" label="Main CV"/>
-        <LegendDot cls="det" label="Tailored CV"/>
-        <LegendDot cls="polished" label="AI polished"/>
-        <LegendDot cls="edited" label="edited copy"/>
-        <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span className="cvb-kbd">click</span> any CV to preview
-        </span>
       </div>
     </>
   )
@@ -374,12 +322,8 @@ interface CVInlineViewerProps {
 
 function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }: CVInlineViewerProps) {
   const isMaster = version.kind === "baseline_upload"
-  const kindLabel =
-    isMaster ? "Main CV"
-    : version.kind === "polished" ? "AI polished"
-    : version.kind === "edited" ? "Edited copy"
-    : "Tailored CV"
-  const titleLabel = isMaster ? "Master CV" : version.title?.trim() || formatGlobalVersionLabel(version)
+  const kindLabel = formatLibraryDocumentKind(version)
+  const titleLabel = formatLibraryDocumentTitle(version)
 
   return (
     <>
