@@ -1,6 +1,7 @@
 # Myro Growth Mission Control
 
 **Active mode:** `content_growth_mode`  
+**Always-on mode:** `ca_mode` (CA / Indian law / grants / partnerships — see `ca-agent/README.md`)  
 **Launch-gated mode:** `fellowship_mode`  
 **Review mode:** always on
 
@@ -64,6 +65,21 @@ The agent:
 - Sends post previews before scheduled publishing.
 - Writes daily and weekly growth reports.
 
+### `ca_mode`
+
+Always on from 2026-05-25 until Myro is recognized, tax-optimised, and through its first annual ROC + IT cycle. Owns everything between "company does not legally exist" and "non-dilutive capital fully captured".
+
+The agent:
+
+- Tracks SPICe+ → CoI → DIN → PAN → TAN → GSTIN → DPIIT → 80-IAC → 56(2)(viib) milestones.
+- Drafts DPIIT pitch, grant narratives, partnership emails, MOU drafts, ToS / Privacy / DPA reviews.
+- Maintains weekly compliance calendar (Companies Act, IT, GST, Labour, DPDP, TM).
+- Scans central + state + incubator + cloud + corporate-CSR grant programs weekly and scores against Myro stage.
+- Escalates anything statutory, dated, or financially material to Shivam same day.
+- Never auto-files with any government authority. Tier-3 review always.
+
+Full agent definition: `ca-agent/README.md`. Sub-files: `registration-status.md`, `grants-and-schemes.md`, `compliance-calendar.md`, `partnerships-playbook.md`, `legal-watch.md`.
+
 ### `fellowship_mode`
 
 Launches only after company registration is ready for public internship language.
@@ -124,6 +140,7 @@ When a future Codex or Claude session is asked to run Myro Growth Mission Contro
 - `Myro Newsletter/issues/`
 - `Myro Newsletter/Myro - SEO Sales Engine Playbook.md`
 - `Myro Newsletter/VOICE-NOTES.md`
+- `Myro Newsletter/growth-agent/ca-agent/` (registration / grants / compliance / partnerships / legal)
 - `docs/NEWSLETTER_AUTHORING.md`
 - `docs/NEWSLETTER_METRICS.md`
 - `docs/superpowers/specs/2026-05-17-myro-growth-mission-control-design.md`
