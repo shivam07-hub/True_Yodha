@@ -53,6 +53,9 @@ async def _sweep_orphaned_cv_upload_jobs() -> None:
     Bounded sweep — safe to run on every boot.
     """
     try:
+        from app.config import settings
+        if not settings.supabase_url or not settings.supabase_service_key:
+            return
         from app.repositories import cv_upload_jobs as upload_jobs_repo
         swept = upload_jobs_repo.sweep_stale_processing_jobs(minutes=5)
         if swept:

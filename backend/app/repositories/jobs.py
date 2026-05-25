@@ -55,7 +55,8 @@ def get_feed_updated_at(db: Client) -> str | None:
     """Returns an ISO date for the latest job feed marker. Cached 5 min."""
     global _feed_ts_cache
     cached_at, cached_value = _feed_ts_cache
-    if (time.monotonic() - cached_at) < _FEED_TS_TTL:
+    cache_initialized = cached_at > 0.0 or cached_value is not None
+    if cache_initialized and (time.monotonic() - cached_at) < _FEED_TS_TTL:
         return cached_value
     try:
         result = db.table("jobs").select("last_seen").order("last_seen", desc=True).limit(1).execute()

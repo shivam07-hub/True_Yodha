@@ -318,6 +318,19 @@ def test_get_feed_updated_at_uses_last_seen_date() -> None:
     assert JobsRepository(db).get_feed_updated_at() == "2026-05-20"
 
 
+def test_get_feed_updated_at_refreshes_when_cache_timestamp_is_zero(monkeypatch) -> None:
+    jobs_module._feed_ts_cache = (0.0, None)
+    monkeypatch.setattr(jobs_module.time, "monotonic", lambda: 10.0)
+    db = _SearchFakeDB({
+        "jobs": [
+            {"last_seen": 20260519},
+            {"last_seen": 20260520},
+        ]
+    })
+
+    assert JobsRepository(db).get_feed_updated_at() == "2026-05-20"
+
+
 def _make_search_db(num_acme_jobs: int = 3) -> "_SearchFakeDB":
     jobs = [
         {

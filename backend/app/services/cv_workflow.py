@@ -105,9 +105,9 @@ def _enforce_user_upload_rate_limit(user_id: str) -> None:
     rate-limit credit; otherwise repeat failures would burn unlimited
     LLM tokens at the provider chain.
     """
-    admin = get_supabase_admin()
     cutoff_iso = _utc_minutes_ago_iso(60)
     try:
+        admin = get_supabase_admin()
         result = (
             admin.table("cv_upload_jobs")
             .select("id", count="exact")
