@@ -254,7 +254,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 night - onboarding target-company setup)
+## LAST SESSION SUMMARY (2026-05-25 night - beta batch 4 feedback memory)
+
+Added the latest user feedback into the canonical beta report at `docs/beta-testing/2026-05-24-first-beta-testing-report.md` as Appendix C. Preserved the high-signal themes: `/skills` should not feel like a generic CV upload page when gated, `/intel` mobile loading reads as stuck when "Fetching open jobs..." persists, `/tracker` needs a guided/demo empty state, first-run onboarding is still missing, CV hub value is strong if upload/scoring reliability holds, mobile performance needs route-by-route attention, separate CV version storage is unclear, save/edit confirmations need stronger micro-interactions, and template/layout customization is a retention lever.
+
+Added the second wave of same-session feedback into Appendix C as C.4-C.8. Newest signals: the CV hub is still easy to understand and useful for multi-application users, but CV Hub vs Job Intelligence takes a few seconds to click; scoring needs to say whether it is ATS/AI/recruiter-based or a blend; users want real before/after tailoring examples; mobile public pages are text-heavy and create long-scroll fatigue; trust proof needs to appear earlier; one honest skeptic sees LinkedIn/Internshala as easier and more complete; freshers need `Create New CV` / `Build CV from Scratch`, not only upload; upload still failed for one fresher with a 106 KB PDF and JPG; BetterCV charged INR 195 for PDF download, which is an important competitor wedge for Myro's CV onboarding/export strategy.
+
+Threaded the same signals into the main concerns and priority backlog: route-specific gates, skippable first-run walkthrough, mobile time-to-useful-content audit, progressive loading shells, CV version directory, save confirmations, score-basis clarity, visual proof, before/after tailoring demos, fresher CV creation, BetterCV/LinkedIn/Internshala differentiation, and resume customization. Existing unrelated dirty state remains: `docs/free-llm-api-resources/` local/untracked.
+
+Verify: `git diff --check` clean · `cd frontend && npm run lint` clean · `cd frontend && npx tsc --noEmit` clean · `.venv/bin/pytest backend/tests` 364/364 pass.
+
+## OLDER SESSION SUMMARY (2026-05-25 night - onboarding target-company setup)
 
 Shipped the first onboarding-priority slice on `Develop`: CV upload/text capture now moves to role targeting first, saves target roles/location, then starts CV extraction in the background while the user chooses target companies. Added a new `StepCompanies` onboarding screen that reuses the Market follow/star company contract (`followed_companies`, 10 XP follow cost, 10-company cap) so a first-time user's Market heatmap is seeded before they arrive there.
 
