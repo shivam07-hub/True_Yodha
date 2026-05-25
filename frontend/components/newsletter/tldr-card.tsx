@@ -26,14 +26,14 @@ export function TldrCard({ items }: TldrCardProps) {
     }}>
       <div style={{
         fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
-        textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 16,
+        textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 16,
       }}>
         TL;DR
       </div>
       <ul style={{ display: "flex", flexDirection: "column", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
         {items.map((item, i) => (
           <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, fontSize: 15, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>
-            <div aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", marginTop: 7, flexShrink: 0 }} />
+            <div aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-interactive)", marginTop: 7, flexShrink: 0 }} />
             <span>{parseBold(item.text)}</span>
           </li>
         ))}

@@ -70,7 +70,7 @@ export function CVUploadProcessing({ success, result }: Props) {
                 position: "absolute",
                 inset: -10,
                 borderRadius: "50%",
-                border: "2px solid var(--tm-accent)",
+                border: "2px solid var(--tm-interactive)",
                 animation: "tm-pulse-ring 1.6s ease-out infinite",
               }}
             />
@@ -80,15 +80,15 @@ export function CVUploadProcessing({ success, result }: Props) {
             aria-hidden="true"
             style={{
               width: 72, height: 72, borderRadius: "50%",
-              background: success ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-              border: `1.5px solid ${success ? "var(--tm-accent)" : "var(--tm-accent-ring)"}`,
+              background: success ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.04)",
+              border: `1.5px solid ${success ? "var(--tm-interactive)" : "var(--tm-int-border)"}`,
               display: "flex", alignItems: "center", justifyContent: "center",
               transition: "all 600ms ease",
-              boxShadow: success ? "0 0 24px var(--tm-accent-glow)" : "none",
+              boxShadow: success ? "0 0 24px var(--tm-int-bg-hover)" : "none",
             }}
           >
             {success ? (
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tm-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--tm-interactive)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline
                   points="4 13 9 18 20 7"
                   strokeDasharray="24"
@@ -100,7 +100,7 @@ export function CVUploadProcessing({ success, result }: Props) {
               <svg
                 className="tm-spinner"
                 width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="var(--tm-accent)" strokeWidth="2" strokeLinecap="round"
+                stroke="var(--tm-interactive)" strokeWidth="2" strokeLinecap="round"
                 aria-hidden="true"
                 style={{ animation: "tm-spin-slow 1.8s linear infinite" }}
               >
@@ -158,7 +158,7 @@ export function CVUploadProcessing({ success, result }: Props) {
                   gap: 12,
                   padding: "12px 16px",
                   background: status === "active"
-                    ? "var(--tm-accent-wash)"
+                    ? "var(--tm-int-bg-wash)"
                     : "transparent",
                   borderBottom: i < STAGES.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
                   transition: "background 400ms ease",
@@ -168,15 +168,15 @@ export function CVUploadProcessing({ success, result }: Props) {
                 <div style={{ width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {status === "done" && (
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <circle cx="8" cy="8" r="7" fill="var(--tm-accent)" fillOpacity="0.15" />
-                      <polyline points="4.5 8.5 7 11 11.5 6" stroke="var(--tm-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <circle cx="8" cy="8" r="7" fill="var(--tm-interactive)" fillOpacity="0.15" />
+                      <polyline points="4.5 8.5 7 11 11.5 6" stroke="var(--tm-interactive)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                   {status === "active" && (
                     <div style={{
                       width: 8, height: 8, borderRadius: "50%",
-                      background: "var(--tm-accent)",
-                      boxShadow: "0 0 6px var(--tm-accent-glow)",
+                      background: "var(--tm-interactive)",
+                      boxShadow: "0 0 6px var(--tm-int-bg-hover)",
                     }} aria-hidden="true" />
                   )}
                   {status === "pending" && (
@@ -205,7 +205,7 @@ export function CVUploadProcessing({ success, result }: Props) {
                     fontVariantNumeric: "tabular-nums",
                     letterSpacing: "0.05em",
                     color: status === "done"
-                      ? "var(--tm-accent)"
+                      ? "var(--tm-interactive)"
                       : status === "active"
                         ? "var(--tm-text-muted)"
                         : "transparent",

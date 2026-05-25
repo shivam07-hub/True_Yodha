@@ -22,7 +22,7 @@ const OUTCOME_OPTIONS: { value: ApplicationStatus; label: string }[] = [
 ]
 
 function statusColor(s: ApplicationStatus): string {
-  if (s === "applied" || s === "screening") return "var(--tm-accent)"
+  if (s === "applied" || s === "screening") return "var(--tm-interactive)"
   if (s === "interviewing" || s === "final_round" || s === "offer") return "var(--tm-success)"
   if (s === "rejected" || s === "ghosted" || s === "withdrew") return "var(--tm-danger)"
   return "var(--tm-text-muted)"
@@ -52,12 +52,12 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
 
   return (
     <div style={{
-      border: "1.5px solid var(--tm-accent-ring)", borderRadius: 10,
+      border: "1.5px solid var(--tm-int-border)", borderRadius: 10,
       padding: "24px 26px", position: "relative", overflow: "hidden",
     }}>
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse at 100% 0%, rgba(0,245,212,0.06), transparent 50%)",
+        background: "radial-gradient(ellipse at 100% 0%, var(--tm-int-bg-wash), transparent 50%)",
       }} />
 
       {/* Header row */}
@@ -65,7 +65,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.12em",
-            textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 6,
+            textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 6,
           }}>
             Focused on: {job.company ?? ""}
           </div>
@@ -154,9 +154,9 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
           style={{
             display: "inline-flex", alignItems: "center",
             padding: "9px 20px", borderRadius: 99,
-            background: "var(--tm-accent)", textDecoration: "none",
-            color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700,
-            boxShadow: "0 0 12px rgba(0,245,212,0.25)",
+            background: "var(--tm-interactive)", textDecoration: "none",
+            color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 700,
+            boxShadow: "0 0 12px var(--tm-int-border)",
             transition: "opacity 150ms",
           }}
           onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
@@ -181,7 +181,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
             </div>
             <p style={{
               margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65,
-              paddingLeft: 12, borderLeft: "2px solid var(--tm-accent)",
+              paddingLeft: 12, borderLeft: "2px solid var(--tm-interactive)",
             }}>
               {job.llm_explanation ?? (
                 <span style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>No explanation available.</span>

@@ -36,7 +36,7 @@ export function ParticleBg() {
 
     function readAccent() {
       const hex = getComputedStyle(document.documentElement)
-        .getPropertyValue("--tm-accent").trim()
+        .getPropertyValue("--tm-interactive").trim()
       accentRgb = hexToRgb(hex)
     }
     readAccent()

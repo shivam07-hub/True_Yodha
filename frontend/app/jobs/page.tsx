@@ -118,7 +118,7 @@ export default function JobsPage() {
             <CVRequiredNudge hasCv={hasCv} feature="your job matches" />
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontSize: 12, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
+                <div style={{ fontSize: 12, color: "var(--tm-interactive)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6, opacity: 0.7 }}>
                   Full Job List
                 </div>
                 <h1 style={{ fontSize: "var(--tm-fs-title)", fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", marginBottom: 4 }}>
@@ -201,7 +201,7 @@ export default function JobsPage() {
             </div>
           ) : (
             <div style={{ padding: "48px 24px", textAlign: "center", borderRadius: "var(--tm-radius)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-              <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-accent)" }}>◆</div>
+              <div style={{ fontSize: 33, marginBottom: 12, opacity: 0.2, color: "var(--tm-interactive)" }}>◆</div>
               <p style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>No matches yet</p>
               <p style={{ fontSize: 14, color: "var(--tm-text-faint)" }}>
                 Upload your CV, then refresh after market data import.
@@ -217,7 +217,7 @@ export default function JobsPage() {
           style={{
             position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
             background: "var(--tm-surface)", color: "var(--tm-text)",
-            border: "1px solid var(--tm-accent-ring)",
+            border: "1px solid var(--tm-int-border)",
             padding: "8px 18px", borderRadius: 99,
             fontSize: 13, fontFamily: "inherit",
             boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
@@ -228,7 +228,7 @@ export default function JobsPage() {
           <Link
             href="/tracker?stage=saved"
             style={{
-              color: "var(--tm-accent)", textDecoration: "none", fontWeight: 600,
+              color: "var(--tm-interactive)", textDecoration: "none", fontWeight: 600,
             }}
           >
             View in Tracker →

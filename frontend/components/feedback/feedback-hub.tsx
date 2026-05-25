@@ -109,9 +109,9 @@ export function FeedbackHub({
           height: "min(680px, calc(100dvh - 48px))",
           zIndex: 401,
           background: "var(--tm-surface)",
-          border: "1px solid var(--tm-accent-ring)",
+          border: "1px solid var(--tm-int-border)",
           borderRadius: "var(--tm-radius-lg)",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.6), 0 0 40px rgba(0,245,212,0.08)",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.6), 0 0 40px var(--tm-int-bg-wash)",
           display: "flex",
           overflow: "hidden",
           animation: "modal-in 280ms var(--tm-ease) both",
@@ -136,12 +136,12 @@ export function FeedbackHub({
                   width: 26,
                   height: 26,
                   borderRadius: 6,
-                  border: "1px solid var(--tm-accent-ring)",
+                  border: "1px solid var(--tm-int-border)",
                   background: "var(--tm-bg)",
                   display: "grid",
                   placeItems: "center",
-                  color: "var(--tm-accent)",
-                  filter: "drop-shadow(0 0 6px var(--tm-accent-glow))",
+                  color: "var(--tm-interactive)",
+                  filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
                 }}
               >
                 <HubGlyph size={14} />
@@ -179,9 +179,9 @@ export function FeedbackHub({
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: "var(--tm-radius-sm)",
-                  background: tab === t.id ? "var(--tm-accent-wash)" : "transparent",
-                  border: `1px solid ${tab === t.id ? "var(--tm-accent-ring)" : "transparent"}`,
-                  color: tab === t.id ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                  background: tab === t.id ? "var(--tm-int-bg-wash)" : "transparent",
+                  border: `1px solid ${tab === t.id ? "var(--tm-int-border)" : "transparent"}`,
+                  color: tab === t.id ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                   fontSize: 13,
                   fontWeight: tab === t.id ? 600 : 400,
                   cursor: "pointer",
@@ -205,7 +205,7 @@ export function FeedbackHub({
             }}
           >
             <div className="eyebrow">Response time</div>
-            <div className="mono" style={{ color: "var(--tm-accent)", fontSize: 18, fontWeight: 700, marginTop: 4 }}>
+            <div className="mono" style={{ color: "var(--tm-interactive)", fontSize: 18, fontWeight: 700, marginTop: 4 }}>
               14h
             </div>
             <div style={{ marginTop: 2 }}>median · 1 human reads</div>

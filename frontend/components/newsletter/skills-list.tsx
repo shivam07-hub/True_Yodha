@@ -23,7 +23,7 @@ export function SkillsList({ skills }: SkillsListProps) {
           <div style={{ width: 100, height: 4, background: "var(--tm-border-soft)", borderRadius: 999, overflow: "hidden", flexShrink: 0 }}>
             <div style={{
               height: "100%", borderRadius: 999,
-              background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-hover))",
+              background: "linear-gradient(90deg, var(--data-1), var(--data-6))",
               width: `${(skill.count / max) * 100}%`,
             }} />
           </div>

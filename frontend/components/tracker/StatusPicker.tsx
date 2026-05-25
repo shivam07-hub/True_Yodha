@@ -105,9 +105,9 @@ function Row({
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 10,
         padding: "10px 12px", borderRadius: 8,
-        background: active ? "var(--tm-accent-wash)" : "transparent",
+        background: active ? "var(--tm-int-bg-wash)" : "transparent",
         border: "1px solid transparent",
-        color: active ? "var(--tm-accent)" : terminal ? "var(--tm-text-muted)" : "var(--tm-text)",
+        color: active ? "var(--tm-interactive)" : terminal ? "var(--tm-text-muted)" : "var(--tm-text)",
         cursor: active ? "default" : "pointer",
         textAlign: "left", fontSize: 14, fontFamily: "inherit",
         transition: "background 100ms ease",
@@ -115,7 +115,7 @@ function Row({
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.03)" }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent" }}
     >
-      <span style={{ width: 14, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>{marker}</span>
+      <span style={{ width: 14, color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)" }}>{marker}</span>
       <span style={{ flex: 1 }}>{label}</span>
       {active && <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>current</span>}
     </button>

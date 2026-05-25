@@ -55,12 +55,12 @@ function Sparkline({ values, width = 300, height = 48 }: { values: number[]; wid
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
       <defs>
         <linearGradient id="spk-fill-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--tm-accent)" stopOpacity="0.32" />
-          <stop offset="100%" stopColor="var(--tm-accent)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--data-1)" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="var(--data-1)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={areaD} fill="url(#spk-fill-grad)" />
-      <path d={d} fill="none" stroke="var(--tm-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={d} fill="none" stroke="var(--data-1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -146,10 +146,10 @@ function ProgressBanner({
           <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
-              background: s.done ? "var(--tm-accent)" : "var(--tm-border)",
+              background: s.done ? "var(--tm-success)" : "var(--tm-border)",
               transition: "background 300ms ease",
             }} />
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: s.done ? "var(--tm-accent)" : "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: s.done ? "var(--tm-success)" : "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
               {s.label}
             </span>
           </div>
@@ -172,7 +172,7 @@ function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; 
     }}>
       <div>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>OPEN ROLES</div>
-        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-accent)", marginTop: 6, lineHeight: 1 }}>{analytics.total_jobs.toLocaleString()}</div>
+        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-interactive)", marginTop: 6, lineHeight: 1 }}>{analytics.total_jobs.toLocaleString()}</div>
         <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>across {analytics.total_companies} companies</div>
       </div>
       <div>
@@ -204,7 +204,7 @@ function LocationBadge({ mode }: { mode: string | null | undefined }) {
   if (!mode || mode === "unknown") return null
   const labels: Record<string, string> = { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" }
   const colors: Record<string, string> = {
-    remote: "rgba(0,245,212,0.12)",
+    remote: "var(--tm-int-border-soft)",
     hybrid: "rgba(255,200,60,0.12)",
     onsite: "rgba(180,180,200,0.12)",
   }
@@ -229,7 +229,7 @@ function JobDrillPanel({
     <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", marginTop: 4, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{companyName}</span>
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{companyName}</span>
           <span style={{ color: "var(--tm-text-faint)", fontSize: 11 }}>×</span>
           <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{skillName}</span>
           {!isLoading && <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", marginLeft: 4 }}>· {drillJobs.length} jobs</span>}
@@ -260,7 +260,7 @@ function JobDrillPanel({
                   {job.job_description && <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{job.job_description}</div>}
                 </div>
                 {isLoggedIn && (
-                  <button onClick={() => onSave(job)} disabled={isSaved} style={{ flexShrink: 0, fontSize: 11, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em", padding: "5px 14px", borderRadius: "var(--tm-radius-sm)", cursor: isSaved ? "default" : "pointer", background: isSaved ? "rgba(0,245,212,0.08)" : "transparent", border: `1px solid ${isSaved ? "var(--tm-accent)" : "var(--tm-border-soft)"}`, color: isSaved ? "var(--tm-accent)" : "var(--tm-text-muted)", transition: "all 150ms ease" }}>
+                  <button onClick={() => onSave(job)} disabled={isSaved} style={{ flexShrink: 0, fontSize: 11, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em", padding: "5px 14px", borderRadius: "var(--tm-radius-sm)", cursor: isSaved ? "default" : "pointer", background: isSaved ? "var(--tm-int-bg-wash)" : "transparent", border: `1px solid ${isSaved ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, color: isSaved ? "var(--tm-interactive)" : "var(--tm-text-muted)", transition: "all 150ms ease" }}>
                     {isSaved ? "Saved ✓" : "Save →"}
                   </button>
                 )}
@@ -330,9 +330,9 @@ function CVPrerequisiteCard({
           style={{
             padding: "8px 14px",
             borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-accent)",
-            color: "var(--tm-accent-fg)",
-            border: "1px solid var(--tm-accent)",
+            background: "var(--tm-interactive)",
+            color: "var(--tm-interactive-fg)",
+            border: "1px solid var(--tm-interactive)",
             textDecoration: "none",
             fontSize: 12,
             fontWeight: 700,
@@ -436,9 +436,9 @@ function SkillHeatmap({
                 onClick={() => setShowSkillPicker(p => !p)}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6,
-                  background: showSkillPicker ? "rgba(0,245,212,0.08)" : "transparent",
-                  border: `1px solid ${showSkillPicker ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                  color: showSkillPicker ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  background: showSkillPicker ? "var(--tm-int-bg-wash)" : "transparent",
+                  border: `1px solid ${showSkillPicker ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
+                  color: showSkillPicker ? "var(--tm-interactive)" : "var(--tm-text-faint)",
                   fontFamily: "var(--tm-font-mono)", fontSize: 10, cursor: "pointer",
                   letterSpacing: "0.06em", transition: "all 120ms ease",
                 }}
@@ -476,8 +476,8 @@ function SkillHeatmap({
                         >
                           <span style={{
                             width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                            background: active ? "var(--tm-accent)" : "transparent",
-                            border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+                            background: active ? "var(--tm-interactive)" : "transparent",
+                            border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
                             {active && <span style={{ fontSize: 8, color: "var(--tm-bg)", fontWeight: 800 }}>✓</span>}
@@ -496,7 +496,7 @@ function SkillHeatmap({
             LOW
             <div style={{ display: "flex", gap: 2 }}>
               {[0.1, 0.3, 0.5, 0.7, 0.95].map(o => (
-                <div key={o} style={{ width: 14, height: 12, background: `rgba(0, 245, 212, ${o})`, borderRadius: 2 }} />
+                <div key={o} style={{ width: 14, height: 12, background: `color-mix(in oklab, var(--data-1) ${Math.round(o * 100)}%, transparent)`, borderRadius: 2 }} />
               ))}
             </div>
             HIGH
@@ -531,7 +531,7 @@ function SkillHeatmap({
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-accent)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-interactive)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
                         {isHovered && canRemove ? "×" : `L${level}`}
                       </span>
                       <span style={{ display: "block", maxWidth: 82, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sk}</span>
@@ -553,7 +553,7 @@ function SkillHeatmap({
                   <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
-                      <Link href={`/companies/${encodeURIComponent(co.company_name)}`} style={{ color: "inherit", textDecoration: "none" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                      <Link href={`/companies/${encodeURIComponent(co.company_name)}`} style={{ color: "inherit", textDecoration: "none" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
                         {co.company_name}
                       </Link>
                     </span>
@@ -590,8 +590,8 @@ function SkillHeatmap({
                           onClick={() => onCellSelect(ci, si)}
                           style={{
                             width: 44, height: 32, cursor: "pointer", textAlign: "center",
-                            background: `rgba(0, 245, 212, ${0.06 + o * 0.85})`,
-                            border: isSel ? "1px solid var(--tm-accent)" : isHover ? "1px solid var(--tm-accent-ring)" : "1px solid transparent",
+                            background: `color-mix(in oklab, var(--data-1) ${Math.round((0.06 + o * 0.85) * 100)}%, transparent)`,
+                            border: isSel ? "1px solid var(--tm-interactive)" : isHover ? "1px solid var(--tm-int-border)" : "1px solid transparent",
                             borderRadius: 4, fontSize: 11,
                             color: o > 0.5 ? "var(--tm-bg)" : "var(--tm-text)",
                             fontWeight: 600, transition: "background 150ms ease",
@@ -707,7 +707,7 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
               <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Link href={`/companies/${encodeURIComponent(co.name)}`} style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
+                  <Link href={`/companies/${encodeURIComponent(co.name)}`} style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
                     {co.name}
                   </Link>
                   {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
@@ -715,7 +715,7 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
                 <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>+{co.added}</div>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-interactive)", fontWeight: 600 }}>+{co.added}</div>
                 <TrendChip pct={co.pct} up={true} />
               </div>
               <FollowStarBtn
@@ -799,15 +799,15 @@ function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, i
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px",
                   borderRadius: 999, cursor: "pointer",
-                  background: selected ? "rgba(0,245,212,0.08)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
-                  border: `1px solid ${selected ? "var(--tm-accent)" : hovered ? "rgba(255,255,255,0.18)" : "var(--tm-border-soft)"}`,
-                  color: selected ? "var(--tm-accent)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
+                  background: selected ? "var(--tm-int-bg-wash)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
+                  border: `1px solid ${selected ? "var(--tm-interactive)" : hovered ? "rgba(255,255,255,0.18)" : "var(--tm-border-soft)"}`,
+                  color: selected ? "var(--tm-interactive)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
                 }}
               >
                 {role}
                 {count != null && (
-                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: selected ? "rgba(0,245,212,0.6)" : "var(--tm-text-faint)", fontWeight: 600 }}>
+                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: selected ? "var(--tm-int-bg-wash)" : "var(--tm-text-faint)", fontWeight: 600 }}>
                     {count.toLocaleString()}
                   </span>
                 )}
@@ -1228,7 +1228,7 @@ function IntelPageInner() {
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>CAREER INTELLIGENCE</div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Intel</h1>
           {analytics && (
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", marginTop: 6, letterSpacing: "0.06em" }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginTop: 6, letterSpacing: "0.06em" }}>
               {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
             </div>
           )}

@@ -273,7 +273,7 @@ function TrackerPageInner() {
           style={{
             position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
             background: "var(--tm-surface)", color: "var(--tm-text)",
-            border: "1px solid var(--tm-accent-ring)",
+            border: "1px solid var(--tm-int-border)",
             padding: "8px 16px", borderRadius: 99,
             fontSize: 13, fontFamily: "inherit",
             boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
@@ -317,7 +317,7 @@ function EmptyBoard({ onAddManually }: { onAddManually: () => void }) {
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <a href="/jobs" style={{
             padding: "8px 16px", borderRadius: 99,
-            background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+            background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
             fontSize: 12, fontWeight: 600, textDecoration: "none",
           }}>
             Browse matches →

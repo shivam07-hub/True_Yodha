@@ -44,6 +44,7 @@ export default async function OG({ params }: { params: { ninja: string } }) {
   const name = profile?.ninja_name ?? params.ninja
   const score = profile?.mirror_score != null ? Math.round(profile.mirror_score) : null
   const tier = profile?.tier_label ?? ""
+  const chartColor = "#1E8A84"
 
   const domains = Object.keys(profile?.domain_scores ?? {}).sort()
   const normalized = normalizeDomainScoresMap(profile?.domain_scores ?? null)
@@ -87,7 +88,7 @@ export default async function OG({ params }: { params: { ninja: string } }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {score != null ? (
               <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
-                <span style={{ fontSize: 96, fontWeight: 700, color: "#00F5D4" }}>{score}</span>
+                <span style={{ fontSize: 96, fontWeight: 700, color: chartColor }}>{score}</span>
                 <span style={{ fontSize: 22, color: "#6F7891" }}>/ 100</span>
               </div>
             ) : (
@@ -135,9 +136,9 @@ export default async function OG({ params }: { params: { ninja: string } }) {
             ))}
             <polygon
               points={pointsToPolygonAttr(polygon)}
-              fill="#00F5D4"
+              fill={chartColor}
               fillOpacity="0.18"
-              stroke="#00F5D4"
+              stroke={chartColor}
               strokeWidth="2.5"
             />
           </svg>

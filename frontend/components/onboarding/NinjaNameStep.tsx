@@ -120,7 +120,7 @@ export function NinjaNameStep({ onAccept, onSkip }: NinjaNameStepProps) {
             padding: "10px 20px",
             fontSize: 14,
             color: "var(--tm-bg)",
-            background: "var(--tm-accent)",
+            background: "var(--tm-interactive)",
             border: "none",
             borderRadius: 8,
             cursor: busy ? "not-allowed" : "pointer",

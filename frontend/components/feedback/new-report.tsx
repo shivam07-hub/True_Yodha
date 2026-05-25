@@ -412,7 +412,7 @@ export function NewReport({
                 <path d="M21 16 L16 11 L7 19" />
               </svg>
               Drop, paste, or{" "}
-              <span style={{ color: "var(--tm-accent)", textDecoration: "underline" }}>browse</span> screenshots
+              <span style={{ color: "var(--tm-interactive)", textDecoration: "underline" }}>browse</span> screenshots
               <input type="file" accept="image/*" multiple hidden onChange={onFilePick} />
             </label>
           ) : (
@@ -505,7 +505,7 @@ export function NewReport({
               color: "var(--tm-text-muted)",
             }}
           >
-            <span style={{ color: "var(--tm-accent)" }}>
+            <span style={{ color: "var(--tm-interactive)" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <polyline points="16 18 22 12 16 6" />
                 <polyline points="8 6 2 12 8 18" />
@@ -617,7 +617,7 @@ export function NewReport({
               borderRadius: "var(--tm-radius-sm)",
               border: "none",
               background: canSubmit && !mutation.isPending ? c.color : "var(--tm-surface-2)",
-              color: canSubmit && !mutation.isPending ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
+              color: canSubmit && !mutation.isPending ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
               fontSize: 13,
               fontWeight: 600,
               cursor: canSubmit && !mutation.isPending ? "pointer" : "not-allowed",

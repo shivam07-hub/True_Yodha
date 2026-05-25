@@ -52,8 +52,8 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
           <span style={{
             flexShrink: 0, fontSize: 11, fontWeight: 600,
             padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
-            background: "var(--tm-accent-wash)",
-            color: "var(--tm-accent)",
+            background: "var(--tm-int-bg-wash)",
+            color: "var(--tm-interactive)",
             border: "1px solid var(--tm-border-soft)",
           }}>
             Rank {job.llm_rank}
@@ -102,7 +102,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             fontSize: 13, fontWeight: 600,
-            color: "var(--tm-accent)", textDecoration: "none",
+            color: "var(--tm-interactive)", textDecoration: "none",
             transition: "opacity var(--tm-dur) var(--tm-ease)",
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
@@ -116,7 +116,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
             target="_blank"
             rel="noreferrer"
             style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "var(--tm-text-muted)", textDecoration: "none", transition: "color var(--tm-dur) var(--tm-ease)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-accent)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-interactive)" }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
           >
             Open role <ExternalLink style={{ width: 12, height: 12 }} />

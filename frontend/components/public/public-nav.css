@@ -61,9 +61,9 @@
 
 .tm-public-nav-link[data-active="true"] {
   font-weight: 600;
-  color: var(--tm-accent);
-  background: var(--tm-accent-wash);
-  border-color: var(--tm-accent-ring);
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
 }
 
 .tm-public-nav-auth {
@@ -92,8 +92,8 @@
 }
 
 .tm-public-nav-signup:hover {
-  color: var(--tm-accent);
-  border-color: var(--tm-accent-ring);
+  color: var(--tm-interactive);
+  border-color: var(--tm-int-border);
 }
 
 .tm-public-nav-signin {
@@ -104,9 +104,9 @@
   border-radius: var(--tm-radius-pill);
   font-size: 15px;
   font-weight: 700;
-  color: var(--tm-accent-fg);
-  background: var(--tm-accent);
-  border: 1px solid var(--tm-accent);
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  border: 1px solid var(--tm-interactive);
   text-decoration: none;
   white-space: nowrap;
   transition: background var(--tm-dur-fast) var(--tm-ease),
@@ -114,8 +114,8 @@
 }
 
 .tm-public-nav-signin:hover {
-  background: var(--tm-accent-hover);
-  border-color: var(--tm-accent-hover);
+  background: var(--tm-interactive-hover);
+  border-color: var(--tm-interactive-hover);
 }
 
 @media (max-width: 720px) {

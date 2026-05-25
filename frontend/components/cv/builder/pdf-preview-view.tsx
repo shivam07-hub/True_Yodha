@@ -106,7 +106,7 @@ export function PdfPreviewView({
           <div>
             <div className="eyebrow mono">pdf preview</div>
             <div style={{ fontSize: 13, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="file" size={14} style={{ color: "var(--tm-accent)" }}/>
+              <Icon name="file" size={14} style={{ color: "var(--tm-interactive)" }}/>
               <span className="mono">{filename}</span>
             </div>
           </div>
@@ -151,8 +151,8 @@ export function PdfPreviewView({
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="sparkle" size={14} style={{ color: "var(--tm-accent)" }}/>
-              <span className="eyebrow" style={{ color: "var(--tm-accent)" }}>ATS &amp; AI audit</span>
+              <Icon name="sparkle" size={14} style={{ color: "var(--tm-interactive)" }}/>
+              <span className="eyebrow" style={{ color: "var(--tm-interactive)" }}>ATS &amp; AI audit</span>
             </div>
             <span
               className="mono"

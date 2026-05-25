@@ -18,8 +18,8 @@ export function SkillRow({ skill, inCart, onToggle }: SkillRowProps) {
       <div style={{
         display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
         borderRadius: 7,
-        background: inCart ? "rgba(0,245,212,0.06)" : "rgba(251,113,133,0.04)",
-        border: `1px solid ${inCart ? "var(--tm-accent-ring)" : "rgba(251,113,133,0.25)"}`,
+        background: inCart ? "var(--tm-int-bg-wash)" : "rgba(251,113,133,0.04)",
+        border: `1px solid ${inCart ? "var(--tm-int-border)" : "rgba(251,113,133,0.25)"}`,
         transition: "all 150ms var(--tm-ease)",
       }}>
         <span style={{ flex: 1, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--tm-text)" }}>
@@ -46,13 +46,13 @@ export function SkillRow({ skill, inCart, onToggle }: SkillRowProps) {
               whiteSpace: "nowrap",
               transition: "all 150ms var(--tm-ease)",
               ...(inCart ? {
-                background: "var(--tm-accent-wash)",
-                border: "1.5px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)",
+                background: "var(--tm-int-bg-wash)",
+                border: "1.5px solid var(--tm-int-border)",
+                color: "var(--tm-interactive)",
               } : {
-                background: "linear-gradient(135deg, rgba(0,245,212,0.14) 0%, rgba(0,245,212,0.04) 100%)",
-                border: "1.5px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)",
+                background: "linear-gradient(135deg, var(--tm-int-border-soft) 0%, var(--tm-int-bg-subtle) 100%)",
+                border: "1.5px solid var(--tm-int-border)",
+                color: "var(--tm-interactive)",
               }),
             }}
           >

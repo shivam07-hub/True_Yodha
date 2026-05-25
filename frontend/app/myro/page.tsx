@@ -99,15 +99,15 @@ export default function MyroPage() {
                   transition: "border-color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-                  e.currentTarget.style.background = "var(--tm-accent-wash)"
+                  e.currentTarget.style.borderColor = "var(--tm-int-border)"
+                  e.currentTarget.style.background = "var(--tm-int-bg-wash)"
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "var(--tm-border-soft)"
                   e.currentTarget.style.background = "var(--tm-surface)"
                 }}
               >
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 8 }}>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 8 }}>
                   {resource.kicker}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{resource.label}</div>
@@ -142,7 +142,7 @@ export default function MyroPage() {
                   textDecoration: "none",
                   transition: "border-color var(--tm-dur) var(--tm-ease)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
               >
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{s.label}</div>

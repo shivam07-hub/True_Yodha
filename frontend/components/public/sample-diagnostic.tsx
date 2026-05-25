@@ -74,7 +74,7 @@ export function SampleDiagnostic() {
             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
               <span style={{
                 fontSize: "2.25rem", fontWeight: 700,
-                letterSpacing: 0, color: "var(--tm-accent)",
+                letterSpacing: 0, color: "var(--tm-interactive)",
                 lineHeight: 1,
               }}>
                 {SCORE}
@@ -91,7 +91,7 @@ export function SampleDiagnostic() {
         <div style={{ height: 4, background: "var(--tm-border-soft)" }}>
           <div style={{
             height: "100%", width: `${pct}%`,
-            background: "var(--tm-accent)",
+            background: "var(--tm-interactive)",
             borderRadius: "0 2px 2px 0",
           }} />
         </div>
@@ -166,7 +166,7 @@ export function SampleDiagnostic() {
         fontSize: 18, fontWeight: 600,
         color: "var(--tm-text)", lineHeight: 1.6,
         margin: "0 0 20px",
-        borderLeft: "3px solid var(--tm-accent)",
+        borderLeft: "3px solid var(--tm-interactive)",
         paddingLeft: 16,
       }}>
         The simple story is the CV hub. The intelligence layer tells you which version to send and what to improve next.

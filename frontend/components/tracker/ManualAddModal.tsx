@@ -91,7 +91,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
         style={{
           position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
           zIndex: 61, width: "min(560px, 94vw)", maxHeight: "90vh", overflowY: "auto",
-          background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)",
           borderRadius: 14, padding: 24,
           display: "flex", flexDirection: "column", gap: 14,
           boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
@@ -99,7 +99,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
               {step === 1 ? "Add application" : "Confirm skills"}
             </div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", marginTop: 4 }}>
@@ -142,9 +142,9 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                     onClick={() => setStatus(s)}
                     style={{
                       padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-                      background: status === s ? "var(--tm-accent)" : "rgba(255,255,255,0.03)",
-                      border: status === s ? "1px solid var(--tm-accent)" : "1px solid var(--tm-border)",
-                      color: status === s ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
+                      background: status === s ? "var(--tm-interactive)" : "rgba(255,255,255,0.03)",
+                      border: status === s ? "1px solid var(--tm-interactive)" : "1px solid var(--tm-border)",
+                      color: status === s ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
                     }}
                   >
                     {STAGE_LABEL[s as StageKey]}
@@ -273,9 +273,9 @@ function SkillSection({
               onClick={() => onToggle(s.label)}
               style={{
                 padding: "5px 10px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-                background: on ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.025)",
-                border: `1px solid ${on ? "var(--tm-accent-ring)" : "var(--tm-border)"}`,
-                color: on ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                background: on ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)",
+                border: `1px solid ${on ? "var(--tm-int-border)" : "var(--tm-border)"}`,
+                color: on ? "var(--tm-interactive)" : "var(--tm-text-muted)",
               }}
             >
               {s.label} {on ? "✓" : "✗"}
@@ -311,7 +311,7 @@ const buttonOutlineStyle: React.CSSProperties = {
 
 const buttonPrimaryStyle: React.CSSProperties = {
   padding: "8px 18px", borderRadius: 8,
-  background: "var(--tm-accent)", border: "none",
-  color: "var(--tm-accent-fg)", cursor: "pointer",
+  background: "var(--tm-interactive)", border: "none",
+  color: "var(--tm-interactive-fg)", cursor: "pointer",
   fontSize: 13, fontWeight: 600, fontFamily: "inherit",
 }

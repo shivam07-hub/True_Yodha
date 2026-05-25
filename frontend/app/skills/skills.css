@@ -125,7 +125,7 @@
     line-height: 1;
   }
   .tm-skills-stat-tile:hover { background: var(--tm-surface-2); }
-  .tm-skills-stat-tile:hover::after { color: var(--tm-accent); }
+  .tm-skills-stat-tile:hover::after { color: var(--tm-interactive); }
 
   .tm-skills-stat-tile:nth-child(2n) {
     border-right: 0;

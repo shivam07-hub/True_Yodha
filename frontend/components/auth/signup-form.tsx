@@ -140,7 +140,7 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
           Already have an account?{" "}
           <Link
             href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
-            style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+            style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Sign in
           </Link>

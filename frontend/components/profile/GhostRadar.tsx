@@ -119,7 +119,7 @@ export function GhostRadar({ domains, refNinjaName }: GhostRadarProps) {
             y={RADAR_CY + 10}
             textAnchor="middle"
             fontSize="28"
-            fill="var(--tm-accent)"
+            fill="var(--tm-interactive)"
             opacity={visible || reducedMotion ? 0.55 : 0}
             style={{ transition }}
             fontFamily="inherit"

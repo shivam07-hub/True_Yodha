@@ -64,7 +64,7 @@ export function CommitRow({ v, isCurrentBaseline, selected, onSelect, drawTop, d
         <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span className="mono" style={{
             fontSize: 12.5, fontWeight: 500,
-            color: selected ? "var(--tm-accent)" : "var(--tm-text)",
+            color: selected ? "var(--tm-interactive)" : "var(--tm-text)",
             whiteSpace: "nowrap",
           }}>{title}</span>
         </span>

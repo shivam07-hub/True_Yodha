@@ -58,7 +58,7 @@ export function CVLibraryDrawer({ rows, currentBaselineId, selectedVId, onSelect
     <div id="cv-library" className="cvb-graph-col cvb-library-drawer">
       <div className="cvb-section-head cvb-library-head">
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <Icon name="folder" size={14} style={{ color: "var(--tm-accent)" }}/>
+          <Icon name="folder" size={14} style={{ color: "var(--tm-interactive)" }}/>
           <span className="eyebrow">CV Drafts</span>
         </div>
         <div className="cvb-library-head-actions">

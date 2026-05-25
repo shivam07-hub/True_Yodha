@@ -4,7 +4,7 @@
   gap: 10px;
   padding: 16px 18px;
   border-radius: var(--tm-radius);
-  background: var(--tm-accent-wash);
+  background: var(--tm-int-bg-wash);
   border: 1px solid var(--tm-border-soft);
   margin-bottom: 20px;
   position: relative;
@@ -23,7 +23,7 @@
   font-size: 26px;
   line-height: 1.05;
   font-weight: 700;
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }

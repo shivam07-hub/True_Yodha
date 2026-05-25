@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const Section = ({ id, n, title, children }: { id: string; n: string; title: string; children: React.ReactNode }) => (
   <section id={id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
     <h2 style={{ fontSize: "var(--tm-fs-h3)", fontWeight: 700, color: "var(--tm-text)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "var(--tm-accent)", minWidth: 28 }}>{n}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "var(--tm-interactive)", minWidth: 28 }}>{n}</span>
       {title}
     </h2>
     <div style={{ paddingLeft: 38, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -42,11 +42,11 @@ export default function TermsPage() {
       <header className="relative overflow-hidden px-4 lg:px-8 pt-16 lg:pt-20 pb-12">
         <div style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(ellipse at 12% 50%, var(--tm-accent-wash) 0%, transparent 55%)",
+          background: "radial-gradient(ellipse at 12% 50%, var(--tm-int-bg-wash) 0%, transparent 55%)",
           pointerEvents: "none",
         }} />
         <div style={{ position: "relative", zIndex: 1, maxWidth: "var(--tm-content-max)", margin: "0 auto" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
             Legal
           </div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.25rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
@@ -70,7 +70,7 @@ export default function TermsPage() {
           </Section>
 
           <Section id="account" n="03" title="Your Account">
-            <P>You must provide accurate information when creating an account. You are responsible for keeping your credentials secure. Notify us immediately at <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)" }}>hello@himyro.com</a> if you suspect unauthorised access.</P>
+            <P>You must provide accurate information when creating an account. You are responsible for keeping your credentials secure. Notify us immediately at <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)" }}>hello@himyro.com</a> if you suspect unauthorised access.</P>
           </Section>
 
           <Section id="conduct" n="04" title="Acceptable Use">
@@ -104,7 +104,7 @@ export default function TermsPage() {
           <Section id="contact" n="11" title="Contact">
             <P>Questions? Email us at:</P>
             <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", display: "inline-block" }}>
-              <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
+              <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
                 hello@himyro.com
               </a>
             </div>
@@ -114,7 +114,7 @@ export default function TermsPage() {
       </div>
 
       <footer style={{ borderTop: "1px solid var(--tm-border-soft)", padding: "24px 32px", textAlign: "center" }}>
-        <Link href="/" style={{ color: "var(--tm-accent)", textDecoration: "none", fontSize: "var(--tm-fs-meta)", fontWeight: 500 }}>
+        <Link href="/" style={{ color: "var(--tm-interactive)", textDecoration: "none", fontSize: "var(--tm-fs-meta)", fontWeight: 500 }}>
           ← Back to Myro
         </Link>
         <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", margin: "8px 0 0" }}>

@@ -146,8 +146,8 @@ export default async function IssuePage({ params }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
           <span style={{
             fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
-            color: "var(--tm-accent)", background: "var(--tm-accent-wash)",
-            border: "1px solid var(--tm-accent-ring)", padding: "3px 10px", borderRadius: "var(--tm-radius-pill)",
+            color: "var(--tm-interactive)", background: "var(--tm-int-bg-wash)",
+            border: "1px solid var(--tm-int-border)", padding: "3px 10px", borderRadius: "var(--tm-radius-pill)",
           }}>
             {themeLabel(issue.theme)}
           </span>
@@ -171,9 +171,9 @@ export default async function IssuePage({ params }: Props) {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div aria-hidden="true" style={{
-              width: 36, height: 36, borderRadius: "50%", background: "var(--tm-accent-wash)",
-              border: "1px solid var(--tm-accent-ring)", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 13, fontWeight: 600, color: "var(--tm-accent)", flexShrink: 0,
+              width: 36, height: 36, borderRadius: "50%", background: "var(--tm-int-bg-wash)",
+              border: "1px solid var(--tm-int-border)", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, fontWeight: 600, color: "var(--tm-interactive)", flexShrink: 0,
             }}>
               {initials}
             </div>
@@ -194,11 +194,11 @@ export default async function IssuePage({ params }: Props) {
 
         {/* Bottom CTA */}
         <div style={{
-          background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
           borderRadius: "var(--tm-radius-lg)", padding: "28px 32px",
           display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 40,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
             Free · No credit card
           </div>
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
@@ -212,8 +212,8 @@ export default async function IssuePage({ params }: Props) {
             className="nl-cta-btn"
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
-              fontSize: 14, fontWeight: 600, color: "var(--tm-accent-fg)",
-              background: "var(--tm-accent)", padding: "10px 22px",
+              fontSize: 14, fontWeight: 600, color: "var(--tm-interactive-fg)",
+              background: "var(--tm-interactive)", padding: "10px 22px",
               borderRadius: "var(--tm-radius)", textDecoration: "none",
               transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
             }}

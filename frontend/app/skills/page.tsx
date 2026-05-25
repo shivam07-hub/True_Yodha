@@ -106,9 +106,9 @@ export default function SkillsPage() {
       style={{
         width: 32, height: 32, borderRadius: 8, fontSize: 14, fontWeight: active ? 700 : 500,
         fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-        background: active ? "var(--tm-accent)" : "transparent",
-        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
-        border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+        background: active ? "var(--tm-interactive)" : "transparent",
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
+        border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
         transition: "all 150ms var(--tm-ease)",
         flexShrink: 0,
       }}
@@ -124,14 +124,14 @@ export default function SkillsPage() {
       style={{
         height: 32, padding: "0 10px", borderRadius: 8, fontSize: 11, fontWeight: active ? 700 : 500,
         fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-        background: active ? "var(--tm-accent)" : "transparent",
-        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
-        border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+        background: active ? "var(--tm-interactive)" : "transparent",
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
+        border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
         transition: "all 150ms var(--tm-ease)",
         flexShrink: 0,
       }}
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? "var(--tm-accent-fg)" : color, flexShrink: 0 }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? "var(--tm-interactive-fg)" : color, flexShrink: 0 }} />
       {count}
     </button>
   )
@@ -226,12 +226,12 @@ export default function SkillsPage() {
               padding: "7px 16px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)",
               transition: "all 150ms",
             }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
             >CV →</Link>
             <Link href="/forge?diary=1" style={{
-              fontSize: 12, fontWeight: 700, color: "var(--tm-accent-fg)", textDecoration: "none",
-              padding: "7px 16px", background: "var(--tm-accent)", border: "1px solid var(--tm-accent)",
+              fontSize: 12, fontWeight: 700, color: "var(--tm-interactive-fg)", textDecoration: "none",
+              padding: "7px 16px", background: "var(--tm-interactive)", border: "1px solid var(--tm-interactive)",
               borderRadius: "var(--tm-radius-sm)", transition: "all 150ms",
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
@@ -252,7 +252,7 @@ export default function SkillsPage() {
                 <div style={{ fontSize: 36 }}>⬡</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)" }}>No skills mapped from your CV yet</div>
                 <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Re-upload your CV to re-parse — different file formats can yield different results.</div>
-                <Link href="/cv?upload=1" style={{ marginTop: 6, padding: "0 18px", height: 42, display: "inline-flex", alignItems: "center", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Re-upload CV</Link>
+                <Link href="/cv?upload=1" style={{ marginTop: 6, padding: "0 18px", height: 42, display: "inline-flex", alignItems: "center", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 14, fontWeight: 700, textDecoration: "none" }}>Re-upload CV</Link>
               </div>
             ) : view === "audit" ? (
               <SkillAuditView allSkills={allSkills} />

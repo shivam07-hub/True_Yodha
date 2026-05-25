@@ -82,7 +82,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
           </span>
         </div>
 
-        <span style={{ fontSize: 14, color: isExpanded ? "var(--tm-accent)" : "var(--tm-text-faint)", fontWeight: 500, textAlign: "center" }}>
+        <span style={{ fontSize: 14, color: isExpanded ? "var(--tm-interactive)" : "var(--tm-text-faint)", fontWeight: 500, textAlign: "center" }}>
           {isExpanded ? "−" : "+"}
         </span>
       </button>
@@ -101,7 +101,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
               padding: "6px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)",
               transition: "all 150ms", fontFamily: "inherit",
             }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
             >CV →</Link>
             <Link href={`/market?skill=${encodeURIComponent(items[0]?.display_name ?? "")}`} style={{
@@ -109,16 +109,16 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
               padding: "6px 14px", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)",
               transition: "all 150ms", fontFamily: "inherit",
             }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
             >Intel →</Link>
             <button onClick={() => !logged && mutate()} disabled={isPending || logged}
               style={{
                 marginLeft: "auto", padding: "7px 16px", borderRadius: "var(--tm-radius-sm)",
                 fontSize: 12, fontWeight: 700, fontFamily: "inherit", cursor: logged ? "default" : "pointer",
-                background: logged ? "transparent" : "var(--tm-accent)",
-                color: logged ? "var(--tm-success)" : "var(--tm-accent-fg)",
-                border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-accent)"}`,
+                background: logged ? "transparent" : "var(--tm-interactive)",
+                color: logged ? "var(--tm-success)" : "var(--tm-interactive-fg)",
+                border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-interactive)"}`,
                 transition: "all 200ms var(--tm-ease)",
               }}>
               {logged ? "✓ Logged to Forge" : isPending ? "Logging…" : "★ Log proof to Forge"}

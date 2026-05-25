@@ -262,7 +262,7 @@ function CVPage() {
                 borderRadius: 16,
                 background: "var(--tm-surface)",
               }}>
-                <Icon name="file" size={28} style={{ color: "var(--tm-accent)", marginBottom: 12 }}/>
+                <Icon name="file" size={28} style={{ color: "var(--tm-interactive)", marginBottom: 12 }}/>
                 <div style={{ fontSize: 16, color: "var(--tm-text)", marginBottom: 6 }}>No CV uploaded yet</div>
                 <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
                   Upload to extract skills, see your Myro Score, and start tailoring per job.
@@ -390,7 +390,7 @@ function CVPage() {
                       onClick={() => router.push("/diary")}
                       style={{
                         marginTop: 8, padding: 0, background: "none", border: "none",
-                        color: "var(--tm-accent)", fontSize: 12, cursor: "pointer",
+                        color: "var(--tm-interactive)", fontSize: 12, cursor: "pointer",
                         textDecoration: "underline",
                       }}
                     >
@@ -407,8 +407,8 @@ function CVPage() {
                   marginTop: 12,
                   padding: "10px 12px",
                   borderRadius: "var(--tm-radius-sm)",
-                  border: "1px solid var(--tm-accent-ring)",
-                  background: "var(--tm-accent-wash)",
+                  border: "1px solid var(--tm-int-border)",
+                  background: "var(--tm-int-bg-wash)",
                 }}>
                   <div style={{ fontSize: 12, color: "var(--tm-text)", marginBottom: 8 }}>
                     Still blocked after multiple tries? Open alternate submission fallback.
@@ -421,8 +421,8 @@ function CVPage() {
                       padding: "8px 12px",
                       borderRadius: "var(--tm-radius-sm)",
                       border: "none",
-                      background: "var(--tm-accent)",
-                      color: "var(--tm-accent-fg)",
+                      background: "var(--tm-interactive)",
+                      color: "var(--tm-interactive-fg)",
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: fallbackSubmitting ? "not-allowed" : "pointer",
@@ -441,7 +441,7 @@ function CVPage() {
                         href={fallbackReceipt.alternate_submission_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+                        style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
                       >
                         Open alternate submission ↗
                       </a>
@@ -462,7 +462,7 @@ function CVPage() {
                   href="/privacy"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+                  style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
                 >
                   How we handle your data ↗
                 </a>

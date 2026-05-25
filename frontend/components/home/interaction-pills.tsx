@@ -26,9 +26,9 @@ function restoreButtonStyles(
   active: boolean,
   disabled?: boolean,
 ) {
-  el.style.background = active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.025)"
-  el.style.borderColor = active ? "var(--tm-accent-ring)" : "var(--tm-border)"
-  el.style.color = active ? "var(--tm-accent)" : "var(--tm-text-muted)"
+  el.style.background = active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)"
+  el.style.borderColor = active ? "var(--tm-int-border)" : "var(--tm-border)"
+  el.style.color = active ? "var(--tm-interactive)" : "var(--tm-text-muted)"
   el.style.opacity = disabled ? "0.55" : "1"
 }
 
@@ -73,29 +73,29 @@ export function SelectionChip({
         ...basePill,
         position: "relative",
         cursor: "pointer",
-        background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.025)",
-        border: `1.5px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border)"}`,
-        color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
-        boxShadow: active ? "inset 0 0 0 1px rgba(0,245,212,0.12)" : "none",
+        background: active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)",
+        border: `1.5px solid ${active ? "var(--tm-int-border)" : "var(--tm-border)"}`,
+        color: active ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+        boxShadow: active ? "inset 0 0 0 1px var(--tm-int-border-soft)" : "none",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--tm-accent-wash)"
-        e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-        e.currentTarget.style.color = "var(--tm-accent)"
+        e.currentTarget.style.background = "var(--tm-int-bg-wash)"
+        e.currentTarget.style.borderColor = "var(--tm-int-border)"
+        e.currentTarget.style.color = "var(--tm-interactive)"
       }}
       onMouseLeave={(e) => restoreButtonStyles(e.currentTarget, active)}
     >
       {active && (
         <span
           aria-hidden="true"
-          style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)" }}
+          style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tm-interactive)", boxShadow: "0 0 6px var(--tm-int-bg-hover)" }}
         />
       )}
       {children}
       {alertDot && (
         <span
           aria-hidden="true"
-          style={{ position: "absolute", top: -2, right: -2, width: 7, height: 7, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 6px var(--tm-accent-glow)", border: "1.5px solid var(--tm-bg)" }}
+          style={{ position: "absolute", top: -2, right: -2, width: 7, height: 7, borderRadius: "50%", background: "var(--tm-interactive)", boxShadow: "0 0 6px var(--tm-int-bg-hover)", border: "1.5px solid var(--tm-bg)" }}
         />
       )}
     </button>
@@ -113,7 +113,7 @@ export function InfoPill({
 }) {
   const toneStyles: Record<PillTone, CSSProperties> = {
     muted: { background: "rgba(255,255,255,0.025)", borderColor: "var(--tm-border-soft)", color: "var(--tm-text-faint)" },
-    accent: { background: "var(--tm-accent-wash)", borderColor: "var(--tm-accent-ring)", color: "var(--tm-accent)" },
+    accent: { background: "var(--tm-int-bg-wash)", borderColor: "var(--tm-int-border)", color: "var(--tm-interactive)" },
     success: { background: "rgba(74,222,128,0.08)", borderColor: "rgba(74,222,128,0.28)", color: "var(--tm-success)" },
     danger: { background: "rgba(251,113,133,0.07)", borderColor: "rgba(251,113,133,0.28)", color: "var(--tm-danger)" },
     warning: { background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.28)", color: "var(--tm-warning)" },
@@ -151,9 +151,9 @@ export function AddChip({ href, children }: { href: string; children: ReactNode 
         color: "var(--tm-text-faint)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.color = "var(--tm-accent)"
-        e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-        e.currentTarget.style.background = "var(--tm-accent-wash)"
+        e.currentTarget.style.color = "var(--tm-interactive)"
+        e.currentTarget.style.borderColor = "var(--tm-int-border)"
+        e.currentTarget.style.background = "var(--tm-int-bg-wash)"
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.color = "var(--tm-text-faint)"
@@ -189,19 +189,19 @@ export function InlineActionPill({
         minHeight: 30,
         padding: "0 12px",
         cursor: disabled ? "not-allowed" : "pointer",
-        background: disabled ? "rgba(255,255,255,0.025)" : "var(--tm-accent-wash)",
-        border: "1.5px solid var(--tm-accent-ring)",
-        color: "var(--tm-accent)",
+        background: disabled ? "rgba(255,255,255,0.025)" : "var(--tm-int-bg-wash)",
+        border: "1.5px solid var(--tm-int-border)",
+        color: "var(--tm-interactive)",
         opacity: disabled ? 0.55 : 1,
       }}
       onMouseEnter={(e) => {
         if (disabled) return
-        e.currentTarget.style.background = "rgba(0,245,212,0.14)"
-        e.currentTarget.style.borderColor = "var(--tm-accent)"
+        e.currentTarget.style.background = "var(--tm-int-border-soft)"
+        e.currentTarget.style.borderColor = "var(--tm-interactive)"
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = disabled ? "rgba(255,255,255,0.025)" : "var(--tm-accent-wash)"
-        e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
+        e.currentTarget.style.background = disabled ? "rgba(255,255,255,0.025)" : "var(--tm-int-bg-wash)"
+        e.currentTarget.style.borderColor = "var(--tm-int-border)"
       }}
     >
       {children}

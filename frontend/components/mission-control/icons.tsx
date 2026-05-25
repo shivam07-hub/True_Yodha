@@ -129,12 +129,12 @@ export function Sparkline({ data = [22, 22, 23, 23, 24, 23, 24, 24, 25, 25, 25, 
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
         <defs>
           <linearGradient id="mc-spark-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--tm-accent)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--tm-accent)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--data-1)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--data-1)" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={fillPath} fill="url(#mc-spark-fill)" />
-        <path d={linePath} fill="none" stroke="var(--tm-accent)" strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round" opacity="0.95" />
+        <path d={linePath} fill="none" stroke="var(--data-1)" strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round" opacity="0.95" />
       </svg>
     </div>
   )

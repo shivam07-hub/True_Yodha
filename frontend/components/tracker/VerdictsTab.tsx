@@ -79,7 +79,7 @@ export function VerdictsTab({ apps, reviewedJobIds, onOpenReview, onDelete }: Pr
                       <Link
                         href={`/companies/${encodeURIComponent(v.company)}`}
                         style={{ color: "inherit", textDecoration: "none" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}
                       >
                         {v.company}
@@ -92,8 +92,8 @@ export function VerdictsTab({ apps, reviewedJobIds, onOpenReview, onDelete }: Pr
                     onClick={() => onOpenReview(v.job_id)}
                     style={{
                       fontSize: 12, padding: "4px 10px", borderRadius: 99,
-                      background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-                      color: "var(--tm-accent)", cursor: "pointer", fontFamily: "inherit",
+                      background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+                      color: "var(--tm-interactive)", cursor: "pointer", fontFamily: "inherit",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -129,9 +129,9 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
         flexShrink: 0,
         padding: "6px 14px", borderRadius: 99,
         fontSize: 12, fontFamily: "inherit",
-        background: active ? "var(--tm-accent)" : "rgba(255,255,255,0.025)",
-        border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border)"}`,
-        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
+        background: active ? "var(--tm-interactive)" : "rgba(255,255,255,0.025)",
+        border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border)"}`,
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
         cursor: "pointer",
       }}
     >

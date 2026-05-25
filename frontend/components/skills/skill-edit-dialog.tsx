@@ -110,10 +110,10 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
                     color: "var(--tm-text)", fontFamily: "inherit",
                     cursor: "pointer", transition: "all 150ms var(--tm-ease)",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--tm-accent)"; e.currentTarget.style.background = "var(--tm-accent-wash)" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--tm-interactive)"; e.currentTarget.style.background = "var(--tm-int-bg-wash)" }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.background = "rgba(255,255,255,0.02)" }}
                 >
-                  <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-accent)" }}>{c.label}</div>
+                  <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-interactive)" }}>{c.label}</div>
                   <div style={{ fontSize: 12, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>{c.text}</div>
                 </button>
               ))}
@@ -152,13 +152,13 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
             <div style={{
               marginTop: 6, padding: "10px 12px",
               fontSize: 12, lineHeight: 1.55, color: "var(--tm-text)",
-              background: "rgba(0,245,212,0.04)",
-              border: "1px solid var(--tm-accent-ring)",
-              borderLeft: "3px solid var(--tm-accent)",
+              background: "var(--tm-int-bg-subtle)",
+              border: "1px solid var(--tm-int-border)",
+              borderLeft: "3px solid var(--tm-interactive)",
               borderRadius: "var(--tm-radius-sm)",
               fontFamily: "var(--tm-font-mono)",
             }}>
-              <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-accent)" }}>Currently in your CV</div>
+              <div className="tm-label-caps" style={{ marginBottom: 4, color: "var(--tm-interactive)" }}>Currently in your CV</div>
               {original || <em style={{ fontStyle: "italic", color: "var(--tm-text-faint)" }}>No evidence text on file</em>}
             </div>
           </div>

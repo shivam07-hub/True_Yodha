@@ -20,8 +20,8 @@ export function CVRequiredNudge({ variant = "banner", feature = "personalised in
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
           padding: "10px 14px",
-          background: "var(--tm-accent-wash)",
-          border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-wash)",
+          border: "1px solid var(--tm-int-border)",
           borderRadius: "var(--tm-radius)",
           color: "var(--tm-text)",
           marginBottom: 16,
@@ -59,11 +59,11 @@ export function CVRequiredNudge({ variant = "banner", feature = "personalised in
     >
       <div style={{
         width: 48, height: 48, borderRadius: "var(--tm-radius)",
-        background: "var(--tm-accent-wash)",
-        border: "1px solid var(--tm-accent-ring)",
+        background: "var(--tm-int-bg-wash)",
+        border: "1px solid var(--tm-int-border)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 22, color: "var(--tm-accent)",
-        filter: "drop-shadow(0 0 8px var(--tm-accent-glow))",
+        fontSize: 22, color: "var(--tm-interactive)",
+        filter: "drop-shadow(0 0 8px var(--tm-int-bg-hover))",
       }}>
         ◈
       </div>

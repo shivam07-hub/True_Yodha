@@ -39,7 +39,7 @@
 }
 
 .tm-about-chip-tag {
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
   font-weight: 600;
 }
 
@@ -100,15 +100,15 @@
 }
 
 .tm-about-graph-branch {
-  stroke: var(--tm-accent);
+  stroke: var(--tm-interactive);
   stroke-width: 2;
   fill: none;
   stroke-linecap: round;
 }
 
 .tm-about-graph-dot {
-  fill: var(--tm-accent);
-  filter: drop-shadow(0 0 6px var(--tm-accent-glow, rgba(0, 245, 212, 0.4)));
+  fill: var(--tm-interactive);
+  filter: drop-shadow(0 0 6px var(--tm-int-bg-hover, var(--tm-int-border)));
 }
 
 .tm-about-graph-dot-baseline {
@@ -160,7 +160,7 @@
 .tm-about-graph-delta {
   font-family: var(--tm-font-mono);
   font-size: 11px;
-  fill: var(--tm-accent);
+  fill: var(--tm-interactive);
   font-variant-numeric: tabular-nums;
 }
 
@@ -183,19 +183,19 @@
   border-radius: var(--tm-radius-pill);
   font-size: 17px;
   font-weight: 700;
-  color: var(--tm-accent-fg);
-  background: var(--tm-accent);
-  border: 1px solid var(--tm-accent);
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  border: 1px solid var(--tm-interactive);
   text-decoration: none;
-  box-shadow: 0 0 20px var(--tm-accent-glow, rgba(0, 245, 212, 0.32));
+  box-shadow: 0 0 20px var(--tm-int-bg-hover, var(--tm-int-border));
   transition: background var(--tm-dur-fast) var(--tm-ease),
               box-shadow var(--tm-dur-fast) var(--tm-ease),
               transform var(--tm-dur-fast) var(--tm-ease);
 }
 
 .tm-about-cta-primary:hover {
-  background: var(--tm-accent-hover, var(--tm-accent));
-  box-shadow: 0 0 28px var(--tm-accent-glow, rgba(0, 245, 212, 0.48));
+  background: var(--tm-interactive-hover, var(--tm-interactive));
+  box-shadow: 0 0 28px var(--tm-int-bg-hover, var(--tm-int-border));
 }
 
 .tm-about-cta-primary:active {
@@ -219,7 +219,7 @@
 }
 
 .tm-about-cta-secondary:hover {
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
 }
 
 .tm-about-cta-secondary-arrow {

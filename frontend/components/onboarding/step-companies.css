@@ -38,7 +38,7 @@
 
 .tm-onboarding-back:hover, .tm-onboarding-back:focus-visible {
   color: var(--tm-text);
-  border-color: var(--tm-accent-ring);
+  border-color: var(--tm-int-border);
   outline: none;
 }
 
@@ -69,7 +69,7 @@
 
 .tm-cv-status-running .tm-cv-status-icon,
 .tm-cv-status-idle .tm-cv-status-icon {
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
 }
 
 .tm-cv-status-running svg,
@@ -170,8 +170,8 @@
 }
 
 .tm-company-search:focus-within {
-  border-color: var(--tm-accent-ring);
-  box-shadow: 0 0 0 3px var(--tm-accent-wash);
+  border-color: var(--tm-int-border);
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
 }
 
 .tm-company-search input {
@@ -218,8 +218,8 @@
 }
 
 .tm-company-result:hover:not(:disabled), .tm-company-result:focus-visible {
-  border-color: var(--tm-accent-ring);
-  background: var(--tm-accent-wash);
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
   outline: none;
 }
 
@@ -236,7 +236,7 @@
   justify-content: center;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.28);
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
   font-family: var(--tm-font-mono);
   font-size: 11px;
   font-weight: 800;
@@ -260,7 +260,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
 }
 
 .tm-company-selected-panel {

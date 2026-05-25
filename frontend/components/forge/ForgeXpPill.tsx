@@ -65,7 +65,7 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
         >
           <span
             className="tm-forge-xp-pill-ring"
-            style={{ background: `conic-gradient(var(--tm-accent) ${ringPct}%, rgba(0,245,212,0.12) ${ringPct}%)` }}
+            style={{ background: `conic-gradient(var(--tm-interactive) ${ringPct}%, var(--tm-int-border-soft) ${ringPct}%)` }}
             aria-hidden
           />
           <span className="tm-forge-xp-pill-time">

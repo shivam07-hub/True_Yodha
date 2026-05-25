@@ -254,25 +254,31 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - CV Library draft drawer toggle)
+## LAST SESSION SUMMARY (2026-05-26 - Backlog #17 PR1/PR2 shipped)
 
-Refined the `/cv` left-side library drawer to match the intended Google Drive / macOS draft-folder mental model rather than a timeline:
+Closed both requested Color Theory slices from Backlog #17 in two commits:
 
-- Added `frontend/components/cv/builder/library-drawer.tsx` as the dedicated CV Drafts drawer.
-- Default drawer mode is **Files**: familiar file rows with document icons, folder headers for tailored CV groups, copy metadata, and last-updated timestamps.
-- Added **Previews** mode: a toggleable visual thumbnail/card grid for the same saved CVs, matching the "image version" / visual browsing behavior Shivam asked for.
-- Reused the existing `cv_versions` data and selection behavior; no backend model changes.
-- Updated the inline CV viewer title/kind labels to use the same library projection helpers, so ugly draft titles like raw `v35 · timestamp` no longer lead the UI when company/role data exists.
+- **PR1 (split + alias bridge)** shipped via `588f922`:
+  - Added `--tm-brand` and `--tm-interactive` token families in `frontend/app/design-tokens.css`.
+  - Kept legacy compatibility by aliasing `--tm-accent*` to interactive tokens so existing UI compiled with zero breakage.
+  - Exposed new token names in `frontend/tailwind.config.ts`.
+
+- **PR2 (ramp migration + leak cleanup)** shipped in this session:
+  - Added interactive ramp (`--int-01..09` + `--tm-int-*` aliases), OKLCH status ramps, and `--data-1..6` viz palette in `frontend/app/design-tokens.css`.
+  - Migrated frontend component usage from raw `--tm-accent*` references to interactive/ramp tokens.
+  - Replaced literal cyan leaks (`#00F5D4`, `rgba(0,245,212,...)`) across frontend with semantic tokens.
+  - Reassigned milestone-complete visuals to success tokens (e.g. Market step chips, Milestone cards, RightRail achievement chips).
+  - Moved chart/radar surfaces to `--data-*` where applicable (Market sparkline/heatmap, radar overlays, score rings/gauges, newsletter chart bars, mission-control sparkline).
 
 Validation:
 
-- `cd frontend && npx tsx --test tests/cv-version-picker-labels.test.mjs tests/cv-version-ledger.test.mjs tests/cv-baseline-display.test.mjs` → `11 passed`
-- `cd frontend && npm run lint` clean
-- `cd frontend && npx tsc --noEmit` clean
+- `bash "Myro Newsletter/brand-guidelines.skill/validator/lint-color.sh" frontend` → both checks pass (`5-i`, `5-ii`)
 - `.venv/bin/pytest backend/tests -q` → `378 passed`
-- Local render attempt at `http://127.0.0.1:3000/cv` redirected to `/login` in this browser session, so authenticated visual QA remains blocked without a logged-in local session.
+- `cd frontend && npx tsc --noEmit` clean
+- `cd frontend && npm run lint` clean
+- `git diff --check` clean
 
-Unrelated workspace state still present: `CLAUDE.md` and `docs/session-history/2026-05.md` modified by Claude/onboarding work, plus `docs/free-llm-api-resources/` local/untracked.
+Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
 
 ## OLDER SESSION SUMMARY (2026-05-26 - CV Library vocabulary pass)
 

@@ -76,7 +76,7 @@ export default function XpPage() {
                 background: "var(--tm-surface)",
               }}
             >
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-accent)", marginBottom: 8 }}>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginBottom: 8 }}>
                 0{index + 1}
               </div>
               <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--tm-text-muted)" }}>{principle}</div>

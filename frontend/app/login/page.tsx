@@ -16,7 +16,7 @@ function LoginRoute() {
           New here?{" "}
           <Link
             href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
-            style={{ color: "var(--tm-accent)", textDecoration: "none" }}
+            style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Create an account
           </Link>

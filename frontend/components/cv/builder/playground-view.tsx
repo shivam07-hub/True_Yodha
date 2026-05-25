@@ -57,7 +57,7 @@ function humanKind(kind: CVVersion["kind"]): string {
 }
 
 function tabKindDot(kind: CVVersion["kind"]) {
-  if (kind === "baseline_upload") return { background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)" }
+  if (kind === "baseline_upload") return { background: "var(--tm-interactive)", boxShadow: "0 0 4px var(--tm-int-bg-hover)" }
   if (kind === "polished") return { background: "#A78BFA", boxShadow: "none" }
   if (kind === "edited") return { background: "var(--tm-warning)", boxShadow: "none" }
   return { background: "var(--tm-text-muted)", boxShadow: "none" }
@@ -406,7 +406,7 @@ export function PlaygroundView({
           />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <span className="eyebrow" style={{ color: isDirty ? "var(--tm-warning)" : "var(--tm-accent)" }}>
+            <span className="eyebrow" style={{ color: isDirty ? "var(--tm-warning)" : "var(--tm-interactive)" }}>
               live preview · {isDirty ? "unsaved" : "synced"}
             </span>
             <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
@@ -437,7 +437,7 @@ export function PlaygroundView({
                 color: "var(--tm-text-faint)", textDecoration: "none",
               }}
             >
-              No target skills set for this job. <span style={{ color: "var(--tm-accent)" }}>Pick targets →</span>
+              No target skills set for this job. <span style={{ color: "var(--tm-interactive)" }}>Pick targets →</span>
             </Link>
           )}
         </div>

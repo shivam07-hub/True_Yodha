@@ -72,7 +72,7 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string;
       borderRadius: 12, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 6,
       position: "relative", overflow: "hidden",
     }}>
-      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 100% 0%, ${accent ?? "rgba(0,245,212,0.04)"}, transparent 60%)`, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 100% 0%, ${accent ?? "var(--tm-int-bg-subtle)"}, transparent 60%)`, pointerEvents: "none" }} />
       <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>{label}</div>
       <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.03em", color: "var(--tm-text)", lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>{sub}</div>}
@@ -88,7 +88,7 @@ function FunnelBar({ stage, count, max }: { stage: string; count: number; max: n
         {STAGE_LABELS[stage] ?? stage}
       </div>
       <div style={{ flex: 1, height: 6, borderRadius: 99, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: "var(--tm-accent)", transition: "width 600ms cubic-bezier(0.16,1,0.3,1)", boxShadow: "0 0 8px rgba(0,245,212,0.3)" }} />
+        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: "var(--tm-interactive)", transition: "width 600ms cubic-bezier(0.16,1,0.3,1)", boxShadow: "0 0 8px var(--tm-int-border)" }} />
       </div>
       <div style={{ width: 24, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", textAlign: "right", flexShrink: 0 }}>{count}</div>
     </div>
@@ -127,7 +127,7 @@ function ReviewCard({ review, index }: { review: CompanyReviewItem; index: numbe
       {review.written_note && (
         <p style={{
           margin: 0, fontSize: 13, lineHeight: 1.7, color: "var(--tm-text-muted)",
-          borderLeft: "2px solid var(--tm-accent-ring)", paddingLeft: 14,
+          borderLeft: "2px solid var(--tm-int-border)", paddingLeft: 14,
         }}>
           {review.written_note}
         </p>
@@ -147,8 +147,8 @@ function EmptyState({ name }: { name: string }) {
         <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 320 }}>No verified reviews yet. Be the first to share your candidate experience.</div>
       </div>
       <Link href="/home" style={{
-        padding: "10px 22px", borderRadius: 99, background: "var(--tm-accent)",
-        color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none",
+        padding: "10px 22px", borderRadius: 99, background: "var(--tm-interactive)",
+        color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none",
         fontFamily: "inherit",
       }}>
         Track your application →
@@ -195,15 +195,15 @@ export default function CompanyPageRoute() {
       <div style={{ minHeight: "100vh", background: "var(--tm-bg)", color: "var(--tm-text)" }}>
         {/* Hero band */}
         <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "32px 32px 28px", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 0%, rgba(0,245,212,0.05), transparent 60%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 0%, var(--tm-int-bg-wash), transparent 60%)", pointerEvents: "none" }} />
           <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
             <Link href="/market" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
             >
               ← Myro
             </Link>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 8 }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 8 }}>
               CANDIDATE EXPERIENCE
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
@@ -272,15 +272,15 @@ export default function CompanyPageRoute() {
           </div>
 
           {/* CTA */}
-          <div style={{ marginTop: 48, padding: "28px 32px", background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 0% 50%, rgba(0,245,212,0.05), transparent 50%)", pointerEvents: "none" }} />
+          <div style={{ marginTop: 48, padding: "28px 32px", background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 0% 50%, var(--tm-int-bg-wash), transparent 50%)", pointerEvents: "none" }} />
             <div style={{ position: "relative" }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>Applied to {data.company_name}?</div>
               <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Track your application. Leave a verified review when it closes.</div>
             </div>
             <Link href="/home" style={{
               flexShrink: 0, padding: "10px 22px", borderRadius: 99,
-              background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+              background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
               fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit",
               position: "relative",
             }}>

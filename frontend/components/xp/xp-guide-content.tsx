@@ -51,9 +51,9 @@ function XpActionRow({
           borderRadius: 8,
           display: "grid",
           placeItems: "center",
-          background: "var(--tm-accent-wash)",
-          color: "var(--tm-accent)",
-          border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-wash)",
+          color: "var(--tm-interactive)",
+          border: "1px solid var(--tm-int-border)",
         }}
       >
         <Icon size={iconSize} aria-hidden />
@@ -95,7 +95,7 @@ function XpActionRow({
           fontVariantNumeric: "tabular-nums",
           fontSize: compact ? 12 : 13,
           fontWeight: 800,
-          color: item.amount.startsWith("+") ? "var(--tm-success)" : "var(--tm-accent)",
+          color: item.amount.startsWith("+") ? "var(--tm-success)" : "var(--tm-interactive)",
           whiteSpace: "nowrap",
           paddingTop: 2,
           textAlign: "right",

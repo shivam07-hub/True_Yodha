@@ -15,9 +15,9 @@ interface JobFitPanelProps {
 const P = {
   surf: "var(--tm-surface)",
   border: "var(--tm-border-soft)",
-  ac: "var(--tm-accent)",
-  acw: "var(--tm-accent-wash)",
-  acr: "var(--tm-accent-ring)",
+  ac: "var(--tm-interactive)",
+  acw: "var(--tm-int-bg-wash)",
+  acr: "var(--tm-int-border)",
   text: "var(--tm-text)",
   muted: "var(--tm-text-muted)",
   faint: "var(--tm-text-faint)",
@@ -113,7 +113,7 @@ export function JobFitPanel({ job, matchData, gapSkills, onClose, onTrack, track
               height: "100%", borderRadius: 999,
               width: `${overlapPct}%`,
               background: `linear-gradient(90deg, ${P.acr}, ${P.ac})`,
-              boxShadow: `0 0 8px var(--tm-accent-glow)`,
+              boxShadow: `0 0 8px var(--tm-int-bg-hover)`,
               transition: "width 800ms cubic-bezier(0.16,1,0.3,1)",
             }} />
           </div>

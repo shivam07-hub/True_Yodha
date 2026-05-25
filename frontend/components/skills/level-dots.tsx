@@ -35,7 +35,7 @@ export function LevelDots({
   total = 5,
   size = 8,
   gap = 4,
-  color = "var(--tm-accent)",
+  color = "var(--tm-interactive)",
 }: Props) {
   const activeSkill = useForgeTimerStore(s => s.skillName)
   const pendingMinutes = useForgeTimerStore(s => s.pendingMinutes)

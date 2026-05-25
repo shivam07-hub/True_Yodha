@@ -116,16 +116,16 @@ export function MyReports() {
           padding: "12px 16px",
           marginBottom: 6,
           borderRadius: "var(--tm-radius-sm)",
-          background: "var(--tm-accent-wash)",
-          border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-wash)",
+          border: "1px solid var(--tm-int-border)",
           flexWrap: "wrap",
           gap: 8,
         }}
       >
         <div>
-          <div className="eyebrow" style={{ color: "var(--tm-accent)" }}>Operator stats</div>
+          <div className="eyebrow" style={{ color: "var(--tm-interactive)" }}>Operator stats</div>
           <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
-            <span className="mono" style={{ color: "var(--tm-accent)", fontWeight: 700 }}>
+            <span className="mono" style={{ color: "var(--tm-interactive)", fontWeight: 700 }}>
               {reports.length}
             </span>{" "}
             dispatch{reports.length === 1 ? "" : "es"} ·
@@ -140,8 +140,8 @@ export function MyReports() {
             style={{
               padding: "5px 10px",
               borderRadius: 99,
-              background: "var(--tm-accent)",
-              color: "var(--tm-accent-fg)",
+              background: "var(--tm-interactive)",
+              color: "var(--tm-interactive-fg)",
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.08em",

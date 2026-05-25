@@ -17,12 +17,12 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
         margin: "32px 0",
         padding: "24px 28px",
         borderRadius: "var(--tm-radius-lg)",
-        background: "var(--tm-accent-wash)",
-        border: "1px solid var(--tm-accent-ring)",
+        background: "var(--tm-int-bg-wash)",
+        border: "1px solid var(--tm-int-border)",
         display: "flex", flexDirection: "column", gap: 12,
       }}
     >
-      <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
         Free · No credit card
       </div>
       <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>
@@ -38,18 +38,18 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
           alignSelf: "flex-start",
           padding: "10px 20px",
           borderRadius: "var(--tm-radius-pill)",
-          background: "var(--tm-accent)",
-          color: "var(--tm-accent-fg)",
+          background: "var(--tm-interactive)",
+          color: "var(--tm-interactive-fg)",
           fontSize: 13, fontWeight: 600,
           textDecoration: "none",
           transition: "background var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--tm-accent-hover)"
+          e.currentTarget.style.background = "var(--tm-interactive-hover)"
           e.currentTarget.style.boxShadow = "var(--tm-shadow-glow)"
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--tm-accent)"
+          e.currentTarget.style.background = "var(--tm-interactive)"
           e.currentTarget.style.boxShadow = "none"
         }}
       >

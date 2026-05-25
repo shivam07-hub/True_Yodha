@@ -40,9 +40,9 @@ const NOTICE_STYLES: Record<RefreshNoticeKind, { color: string; bg: string; bord
     border:"rgba(251,113,133,0.25)",
   },
   info: {
-    color: "var(--tm-accent)",
-    bg:    "var(--tm-accent-wash)",
-    border:"var(--tm-accent-ring)",
+    color: "var(--tm-interactive)",
+    bg:    "var(--tm-int-bg-wash)",
+    border:"var(--tm-int-border)",
   },
 }
 
@@ -88,7 +88,7 @@ export function RefreshMatchesButton({
       fontFamily: "var(--tm-font-mono)",
       fontSize: 10,
       letterSpacing: "0.07em",
-      color: vm.canAfford ? "rgba(0,245,212,0.5)" : "var(--tm-danger)",
+      color: vm.canAfford ? "var(--tm-int-bg-wash)" : "var(--tm-danger)",
       fontWeight: 400,
     }}>
       -{vm.cost} XP{vm.canAfford ? " if new" : " (need more)"}
@@ -116,8 +116,8 @@ export function RefreshMatchesButton({
           }}
           onMouseEnter={(e) => {
             if (!cannotClick) {
-              e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-              e.currentTarget.style.color = "var(--tm-accent)"
+              e.currentTarget.style.borderColor = "var(--tm-int-border)"
+              e.currentTarget.style.color = "var(--tm-interactive)"
             }
           }}
           onMouseLeave={(e) => {
@@ -176,11 +176,11 @@ export function RefreshMatchesButton({
               alignItems: "center",
               marginLeft: 2,
               paddingLeft: 8,
-              borderLeft: "1px solid var(--tm-accent-ring)",
+              borderLeft: "1px solid var(--tm-int-border)",
               fontFamily: "var(--tm-font-mono)",
               fontSize: 11,
               letterSpacing: "0.07em",
-              color: vm.canAfford ? "rgba(0,245,212,0.55)" : "var(--tm-danger)",
+              color: vm.canAfford ? "var(--tm-int-border)" : "var(--tm-danger)",
               fontWeight: 400,
               lineHeight: 1,
             }}>

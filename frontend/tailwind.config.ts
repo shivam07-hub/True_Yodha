@@ -94,6 +94,23 @@ const config: Config = {
           "interactive-ring": "var(--tm-interactive-ring)",
           "interactive-fg":   "var(--tm-interactive-fg)",
 
+          "int-bg-subtle":   "var(--tm-int-bg-subtle)",
+          "int-bg-wash":     "var(--tm-int-bg-wash)",
+          "int-bg-hover":    "var(--tm-int-bg-hover)",
+          "int-border-soft": "var(--tm-int-border-soft)",
+          "int-border":      "var(--tm-int-border)",
+          "int-solid":       "var(--tm-int-solid)",
+          "int-solid-hover": "var(--tm-int-solid-hover)",
+          "int-text":        "var(--tm-int-text)",
+          "int-text-strong": "var(--tm-int-text-strong)",
+
+          "data-1": "var(--data-1)",
+          "data-2": "var(--data-2)",
+          "data-3": "var(--data-3)",
+          "data-4": "var(--data-4)",
+          "data-5": "var(--data-5)",
+          "data-6": "var(--data-6)",
+
           accent:          "var(--tm-accent)",
           "accent-hover":  "var(--tm-accent-hover)",
           "accent-pressed":"var(--tm-accent-pressed)",

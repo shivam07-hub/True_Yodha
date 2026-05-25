@@ -70,8 +70,8 @@ export function FilterBar({ groups = [], toggles = [], trailing }: Props) {
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                   width: 28, height: 26, borderRadius: 999,
                   border: "none",
-                  background: active ? "var(--tm-accent-wash)" : "transparent",
-                  color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  background: active ? "var(--tm-int-bg-wash)" : "transparent",
+                  color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
                   cursor: "pointer", fontFamily: "inherit",
                   transition: "background 120ms var(--tm-ease), color 120ms var(--tm-ease)",
                 }}
@@ -96,9 +96,9 @@ export function FilterBar({ groups = [], toggles = [], trailing }: Props) {
           style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 32, height: 30, borderRadius: 999,
-            background: t.value ? "var(--tm-accent-wash)" : "var(--tm-surface-2)",
-            border: `1px solid ${t.value ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-            color: t.value ? "var(--tm-accent)" : "var(--tm-text-faint)",
+            background: t.value ? "var(--tm-int-bg-wash)" : "var(--tm-surface-2)",
+            border: `1px solid ${t.value ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+            color: t.value ? "var(--tm-interactive)" : "var(--tm-text-faint)",
             cursor: "pointer", fontFamily: "inherit",
             transition: "background 120ms var(--tm-ease), color 120ms var(--tm-ease), border-color 120ms var(--tm-ease)",
           }}
