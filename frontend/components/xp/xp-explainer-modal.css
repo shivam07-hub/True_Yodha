@@ -1,0 +1,37 @@
+/* M12 — mobile layout for XpExplainerModal.
+   Header is icon + title + balance + close in one row on desktop.
+   At <=480px the row collapses to two rows: icon + title + close on top,
+   balance pill on its own row below. */
+
+@media (max-width: 480px) {
+  .tm-xp-explainer-header {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    padding: 16px 16px !important;
+  }
+
+  .tm-xp-explainer-header-title h2 {
+    font-size: 17px !important;
+  }
+
+  .tm-xp-explainer-header-title p {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  .tm-xp-explainer-header-balance {
+    order: 4;
+    width: 100%;
+    text-align: center;
+  }
+
+  .tm-xp-explainer-footer {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .tm-xp-explainer-footer-cta {
+    justify-self: stretch;
+    justify-content: center;
+  }
+}
