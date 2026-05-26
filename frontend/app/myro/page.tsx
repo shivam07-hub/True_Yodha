@@ -47,7 +47,7 @@ export default function MyroPage() {
               marginBottom: 6,
             }}
           >
-            Myro · Career Intelligence
+            Myro · career intelligence
           </div>
           <h1
             style={{

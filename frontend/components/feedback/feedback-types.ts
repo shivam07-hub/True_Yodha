@@ -54,7 +54,7 @@ export const CATEGORIES: Record<FeedbackCategory, CategoryMeta> = {
     wash: "var(--tm-success-wash)",
     placeholder: "What made your day?\nWhat should we do more of?",
     submitVerb: "Send praise",
-    triageHint: "we screenshot these for the team",
+    triageHint: "",
   },
 }
 

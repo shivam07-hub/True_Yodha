@@ -940,6 +940,27 @@ function BillingTabContent({
     <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
       <div style={SECTION_HEADER}>XP packs</div>
 
+      <Link
+        href="/xp"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "10px 14px",
+          borderRadius: "var(--tm-radius-sm)",
+          border: "1px solid var(--tm-int-border)",
+          background: "var(--tm-int-bg-wash)",
+          color: "var(--tm-interactive)",
+          fontSize: 12,
+          fontWeight: 700,
+          textDecoration: "none",
+        }}
+      >
+        <span>New to XP? See how it works first.</span>
+        <span aria-hidden>→</span>
+      </Link>
+
       <div style={{
         padding: 18,
         borderRadius: "var(--tm-radius)",

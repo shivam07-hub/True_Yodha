@@ -36,6 +36,7 @@ function ContextRow({ label, value, mono = true }: { label: string; value: strin
         {label}
       </span>
       <span
+        className="tm-feedback-context-value"
         style={{
           fontFamily: mono ? "var(--tm-font-mono)" : "inherit",
           fontSize: 12,
@@ -187,7 +188,7 @@ export function NewReport({
       {/* Category picker */}
       <div>
         <div className="eyebrow" style={{ marginBottom: 10 }}>What kind of signal?</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="tm-feedback-category-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {CATEGORY_ORDER.map((id) => (
             <CategoryCard key={id} category={id} active={category === id} onClick={() => setCategory(id)} />
           ))}
@@ -263,7 +264,10 @@ export function NewReport({
       <div>
         <div className="eyebrow" style={{ marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
           <span>Details</span>
-          <span style={{ textTransform: "none", letterSpacing: 0, fontSize: 11, color: "var(--tm-text-faint)" }}>
+          <span
+            className="tm-feedback-paste-hint"
+            style={{ textTransform: "none", letterSpacing: 0, fontSize: 11, color: "var(--tm-text-faint)" }}
+          >
             Cmd+V to paste a screenshot
           </span>
         </div>
@@ -411,8 +415,13 @@ export function NewReport({
                 <circle cx="9" cy="11" r="2" />
                 <path d="M21 16 L16 11 L7 19" />
               </svg>
-              Drop, paste, or{" "}
-              <span style={{ color: "var(--tm-interactive)", textDecoration: "underline" }}>browse</span> screenshots
+              <span className="tm-feedback-dropzone-desktop">
+                Drop, paste, or{" "}
+                <span style={{ color: "var(--tm-interactive)", textDecoration: "underline" }}>browse</span> screenshots
+              </span>
+              <span className="tm-feedback-dropzone-touch">
+                <span style={{ color: "var(--tm-interactive)", textDecoration: "underline" }}>Attach</span> a screenshot
+              </span>
               <input type="file" accept="image/*" multiple hidden onChange={onFilePick} />
             </label>
           ) : (
@@ -604,10 +613,15 @@ export function NewReport({
           Email me when triaged
         </label>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-            {c.triageHint}
-          </span>
+        <div className="tm-feedback-send-row" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {c.triageHint && (
+            <span
+              className="tm-feedback-triage-hint"
+              style={{ fontSize: 11, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}
+            >
+              {c.triageHint}
+            </span>
+          )}
           <button
             type="button"
             disabled={!canSubmit || mutation.isPending}
@@ -626,7 +640,10 @@ export function NewReport({
               fontFamily: "inherit",
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {mutation.isPending ? "Sending…" : c.submitVerb}

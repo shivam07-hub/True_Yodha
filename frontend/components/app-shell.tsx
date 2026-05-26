@@ -641,7 +641,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
           <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 24, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
-          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 11, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis" }}>Career Intelligence</div>
+          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 11, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis" }}>career intelligence</div>
         </div>
       </Link>
 
@@ -859,6 +859,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
+
+  // First-XP discovery: open the explainer once when an authed user has
+  // earned their first XP and hasn't seen the guide yet. localStorage flag
+  // makes this idempotent across sessions and devices that share the browser.
+  useEffect(() => {
+    if (!token || xpBalance <= 0) return
+    try {
+      if (window.localStorage.getItem("myro_xp_modal_seen_v1")) return
+      window.localStorage.setItem("myro_xp_modal_seen_v1", String(Date.now()))
+      setXPModalOpen(true)
+    } catch {
+      // localStorage unavailable (private mode / blocked) — skip silently.
+    }
+  }, [token, xpBalance])
 
   if (!ready) return <AppShellSkeleton />
 

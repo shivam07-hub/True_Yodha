@@ -18,8 +18,8 @@ export function CategoryCard({
       className="hover-lift"
       aria-pressed={active}
       style={{
-        flex: 1,
-        minWidth: 0,
+        flex: "1 1 0",
+        minWidth: 72,
         padding: "16px 14px 14px",
         background: active ? c.wash : "transparent",
         border: `1px solid ${active ? c.color : "var(--tm-border-soft)"}`,
