@@ -254,7 +254,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
+## LAST SESSION SUMMARY (2026-05-26 - Website Ops Agent design)
+
+Started the repo-native **Myro Website Ops Agent** track requested from the Answer This-style ops-agent transcript, scoped intentionally to a safe local CLI first rather than a fully autonomous Slack/email worker.
+
+- Added and committed the design spec at `docs/superpowers/specs/2026-05-26-myro-website-ops-agent-design.md` (`53ad008`).
+- Locked v1 direction:
+  - repo-native `ops-agent/` Python CLI,
+  - local/repo-only by default,
+  - read-only against production systems,
+  - durable Markdown reports,
+  - editable `ops-agent/instructions.md` behavioral memory,
+  - permanent tested tools as procedural memory,
+  - no autonomous production writes, support replies, Slack/email sends, or service-role access in v1.
+- Planned initial commands: `brief`, `health`, `feedback`, `cv-upload`, `release`, and deterministic `ask`.
+- Open decisions captured in the spec: Python-only v1, whether generated reports stay local/ignored, and whether future Supabase access uses anon+RLS or a dedicated read-only path.
+
+Next step: Shivam reviews the spec, then Codex writes the implementation plan under `docs/superpowers/plans/` before coding the CLI.
+
+Unrelated workspace state still present and untouched: frontend/onboarding edits in progress plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
 
 Closed the refresh-match incident and aligned Jobs card UX with Mission Control card language in one production-hardening slice:
 
