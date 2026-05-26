@@ -43,7 +43,7 @@ function resolveMove(
       headline: "Find your target role",
       sub: "See exactly which skills to close to get there",
       xp: null,
-      action: { label: "Browse Intel →", href: "/market" },
+      action: { label: "Browse Live Job Data →", href: "/market" },
     }
   }
   if (!loggedToday) {

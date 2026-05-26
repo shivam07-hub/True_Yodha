@@ -310,7 +310,7 @@ function MissionControlInner() {
       icon: "forge",
       title: "Read one skill gap",
       meta: "Open your weakest domain",
-      reward: "Intel",
+      reward: "Live Job Data",
       href: "/skills",
     })
     addIfRoom({

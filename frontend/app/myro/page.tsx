@@ -8,7 +8,7 @@ const RESOURCES = [
     href: "/newsletter",
     label: "Newsletter",
     kicker: "Myro Weekly",
-    detail: "Weekly hiring intel, market maps, and skill-demand shifts.",
+    detail: "Weekly hiring live job data, market maps, and skill-demand shifts.",
   },
   {
     href: "/about",
@@ -26,7 +26,7 @@ const RESOURCES = [
 
 const SHORTCUTS = [
   { href: "/home", label: "Dashboard", detail: "Today's mission control." },
-  { href: "/market", label: "Intel", detail: "Live company + skill demand." },
+  { href: "/market", label: "Live Job Data", detail: "Live company + skill demand." },
   { href: "/skills", label: "Skills", detail: "Score, gaps, and the 12-domain map." },
   { href: "/cv", label: "CV Builder", detail: "Tailor a version per job." },
   { href: "/tracker", label: "Tracker", detail: "Applications by stage." },

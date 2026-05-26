@@ -111,7 +111,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
             }}
               onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
-            >Intel →</Link>
+            >Live Job Data →</Link>
             <button onClick={() => !logged && mutate()} disabled={isPending || logged}
               style={{
                 marginLeft: "auto", padding: "7px 16px", borderRadius: "var(--tm-radius-sm)",

@@ -205,8 +205,8 @@ export function PlaygroundView({
             <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open CV Library">
               <Icon name="folder" size={13}/> CV Library
             </button>
-            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD intel">
-              <Icon name="intel" size={13}/> Intel
+            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD live job data">
+              <Icon name="intel" size={13}/> Live Job Data
               {missingTargets.length > 0 && (
                 <span style={{
                   display: "inline-grid", placeItems: "center",
@@ -534,7 +534,7 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
         </Link>
       ) : null}
       <button type="button" className="cvb-btn ghost sm" onClick={onOpenDrawer}>
-        <Icon name="intel" size={12}/> View intel
+        <Icon name="intel" size={12}/> View live job data
       </button>
     </div>
   )

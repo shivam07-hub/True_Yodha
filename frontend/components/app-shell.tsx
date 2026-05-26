@@ -32,7 +32,7 @@ import {
 const NAV_ITEMS = [
   { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
   { href: "/forge",   label: "Forge",      desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
-  { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
+  { href: "/market",  label: "Live Job Data", desc: "Market intelligence", icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
   { href: "/tracker", label: "Tracker",    desc: "Application pipeline",   icon: "▤",  hideLabel: false, nudge: false, stalePill: true },
