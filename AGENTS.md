@@ -254,7 +254,46 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
+## LAST SESSION SUMMARY (2026-05-26 - LinkedIn company-page automation from outbox)
+
+Closed the LinkedIn automation integration so company-page posting now runs from the existing growth outbox workflow with policy enforcement:
+
+- **Automation scripts shipped:**
+  - Added `scripts/linkedin-outbox.ts` for parsing/validation of LinkedIn outbox drafts (`Channel`, publish/review times, status, CTA + UTM alignment, review-window guardrails).
+  - Added `scripts/linkedin-client.ts` for LinkedIn OAuth refresh-token exchange + organization post publish via `POST /rest/posts`.
+  - Added `scripts/linkedin-publish-due.ts` runner with 3 modes:
+    - `--check-only` for validation
+    - dry-run (default) for due-post preview
+    - `--execute` for live publish + status writeback (`published`, URN, timestamp)
+
+- **Repo wiring shipped:**
+  - `frontend/package.json` scripts:
+    - `linkedin:lint`
+    - `linkedin:publish-due`
+    - `linkedin:publish-due:live`
+  - New scheduled workflow `.github/workflows/linkedin-outbox-publisher.yml`:
+    - cron every 15 minutes
+    - manual `workflow_dispatch` with `execute` toggle (dry-run vs live)
+    - consumes LinkedIn secrets (`LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REFRESH_TOKEN`, `LINKEDIN_ORGANIZATION_URN`, optional `LINKEDIN_API_VERSION`)
+
+- **Docs + ops clarity:**
+  - Added `docs/LINKEDIN_OUTBOX_AUTOMATION.md` runbook (required fields, env vars, commands, workflow behavior, safety model).
+  - Updated `Myro Newsletter/growth-agent/outbox/README.md` with timestamp guidance + automation checks.
+
+Commit:
+
+- `c47c182 feat: automate linkedin company page posting from outbox`
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` → `383 passed`
+- `cd frontend && npx tsc --noEmit` clean
+- `cd frontend && npm run lint` clean
+- `cd frontend && npm run linkedin:lint` clean
+
+Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
 
 Closed the refresh-match incident and aligned Jobs card UX with Mission Control card language in one production-hardening slice:
 
