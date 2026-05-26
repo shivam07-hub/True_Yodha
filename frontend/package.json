@@ -12,6 +12,9 @@
     "newsletter:sync": "tsx ../scripts/sync-newsletter.ts",
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
     "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
+    "linkedin:lint": "tsx ../scripts/linkedin-publish-due.ts --check-only",
+    "linkedin:publish-due": "tsx ../scripts/linkedin-publish-due.ts",
+    "linkedin:publish-due:live": "tsx ../scripts/linkedin-publish-due.ts --execute",
     "prebuild": "npm run newsletter:feed"
   },
   "dependencies": {
