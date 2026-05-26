@@ -157,6 +157,7 @@ export default function SkillsPage() {
               <ShareButton
                 url={typeof window !== "undefined" ? `${window.location.origin}/profile/${profile.ninja_name}` : `/profile/${profile.ninja_name}`}
                 ninjaName={profile.ninja_name}
+                score={totalScore}
               />
             ) : null}
             {totalScore !== null && <ScoreRing score={totalScore} />}

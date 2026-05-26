@@ -7,6 +7,8 @@ export interface ShareButtonProps {
   url: string
   /** Optional ninja_name to use in the share title; defaults to "Myro". */
   ninjaName?: string
+  /** Optional Myro Score to surface in the share body. */
+  score?: number | null
 }
 
 /**
@@ -16,14 +18,17 @@ export interface ShareButtonProps {
  * share sheet. Elsewhere → copy URL to clipboard with a transient "Copied"
  * label.
  */
-export function ShareButton({ url, ninjaName }: ShareButtonProps) {
+export function ShareButton({ url, ninjaName, score }: ShareButtonProps) {
   const [copied, setCopied] = useState(false)
-  const title = ninjaName ? `${ninjaName} on Myro` : "My Myro domain map"
+  const title = ninjaName ? `@${ninjaName} on Myro` : "My Myro domain map"
+  const text = score != null
+    ? `Myro Score ${score} · live job data + skill map`
+    : undefined
 
   const onClick = async () => {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
-        await navigator.share({ title, url })
+        await navigator.share(text ? { title, text, url } : { title, url })
         return
       } catch {
         // user cancelled or the API rejected — fall through to clipboard.

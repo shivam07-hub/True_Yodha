@@ -621,7 +621,7 @@ export function SettingsModal({ open, onClose, profile }: {
                 </div>
 
                 <div style={ROW_STYLE}>
-                  <div style={ROW_LABEL}>Ninja Name</div>
+                  <div style={ROW_LABEL}>Public Name</div>
                   <input
                     id="sm-ninja-name" type="text" value={name}
                     onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
