@@ -42,7 +42,7 @@ interface CommitRowProps {
 export function CommitRow({ v, isCurrentBaseline, selected, onSelect, drawTop, drawBottom }: CommitRowProps) {
   const isMaster = v.kind === "baseline_upload"
   const title = isMaster
-    ? "Master CV"
+    ? "Main CV"
     : (v.title?.trim() || formatGlobalVersionLabel(v))
   const context = isMaster
     ? "Main CV"

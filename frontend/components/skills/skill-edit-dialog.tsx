@@ -88,7 +88,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
         <DialogHeader>
           <DialogTitle>Edit CV pointer · {skill.display_name}</DialogTitle>
           <DialogDescription>
-            Rewrite the bullet that proves this skill. Saved as a new Master CV baseline — your previous CV stays in the ledger.
+            Rewrite the bullet that proves this skill. Saved as a new Main CV baseline — your previous CV stays in the ledger.
           </DialogDescription>
         </DialogHeader>
 

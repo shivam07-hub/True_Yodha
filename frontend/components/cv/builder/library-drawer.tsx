@@ -24,7 +24,7 @@ interface CVLibraryDrawerProps {
 }
 
 export function formatLibraryDocumentTitle(version: CVVersion): string {
-  if (version.kind === "baseline_upload") return "Master CV"
+  if (version.kind === "baseline_upload") return "Main CV"
   const company = version.company_name?.trim()
   const role = version.job_title?.trim()
   if (company && role) return `${company} · ${role}`
