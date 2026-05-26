@@ -261,6 +261,7 @@ Closed the refresh-match incident and aligned Jobs card UX with Mission Control 
 - **Root cause fixed (schema drift):**
   - Added `database/migrations/20260526_user_job_matches_weekly_uniqueness.sql` to reconcile `user_job_matches` uniqueness with the weekly cache contract.
   - Migration now drops any legacy UNIQUE constraints/indexes on `(user_id, job_id)` via catalog introspection (name-agnostic), preserves weekly uniqueness `(user_id, job_id, batch_week)`, dedupes drift rows safely, and reloads PostgREST schema cache.
+  - Supabase hotfix applied: cast `att.attname` to `text` in catalog `array_agg(...)` comparisons to avoid `name[] = text[]` operator errors during migration execution.
 
 - **Write-path contract aligned:**
   - `backend/app/services/llm_ranker.py` keeps weekly upsert key and now defensively dedupes repeated `job_id` rows before write.

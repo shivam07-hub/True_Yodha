@@ -34,7 +34,7 @@ BEGIN
         JOIN pg_class tbl ON tbl.oid = con.conrelid
         JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
         JOIN LATERAL (
-            SELECT array_agg(att.attname ORDER BY key_pos.ordinality) AS cols
+            SELECT array_agg(att.attname::text ORDER BY key_pos.ordinality) AS cols
             FROM unnest(con.conkey) WITH ORDINALITY AS key_pos(attnum, ordinality)
             JOIN pg_attribute att
               ON att.attrelid = con.conrelid
@@ -60,7 +60,7 @@ BEGIN
         JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
         LEFT JOIN pg_constraint con ON con.conindid = ind.indexrelid
         JOIN LATERAL (
-            SELECT array_agg(att.attname ORDER BY key_pos.ordinality) AS cols
+            SELECT array_agg(att.attname::text ORDER BY key_pos.ordinality) AS cols
             FROM unnest(ind.indkey) WITH ORDINALITY AS key_pos(attnum, ordinality)
             JOIN pg_attribute att
               ON att.attrelid = ind.indrelid
