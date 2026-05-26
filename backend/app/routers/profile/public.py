@@ -16,6 +16,7 @@ PII discipline:
 from __future__ import annotations
 
 import logging
+from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -107,17 +108,44 @@ def _fetch_job_summaries(admin: Client, job_ids: list[str]) -> dict[str, dict]:
     return {r["job_id"]: r for r in (result.data or [])}
 
 
+def _last_monday_iso() -> str:
+    today = date.today()
+    return (today - timedelta(days=today.weekday())).isoformat()
+
+
 def _fetch_match_scores(admin: Client, user_id: str, job_ids: list[str]) -> dict[str, float]:
     if not job_ids:
         return {}
-    result = (
+    this_week = (
         admin.table("user_job_matches")
         .select("job_id, overlap_score")
         .eq("user_id", user_id)
         .in_("job_id", job_ids)
+        .eq("batch_week", _last_monday_iso())
         .execute()
     )
-    return {r["job_id"]: float(r.get("overlap_score") or 0) for r in (result.data or [])}
+
+    rows = this_week.data or []
+    if not rows:
+        # Fallback for users whose most recent match set predates current week.
+        history = (
+            admin.table("user_job_matches")
+            .select("job_id, overlap_score, batch_week, computed_at")
+            .eq("user_id", user_id)
+            .in_("job_id", job_ids)
+            .order("batch_week", desc=True)
+            .order("computed_at", desc=True)
+            .execute()
+        )
+        rows = history.data or []
+
+    latest_scores: dict[str, float] = {}
+    for row in rows:
+        job_id = str(row.get("job_id") or "")
+        if not job_id or job_id in latest_scores:
+            continue
+        latest_scores[job_id] = float(row.get("overlap_score") or 0)
+    return latest_scores
 
 
 @router.get("/{ninja_name}/overlap", response_model=JobOverlapResponse)

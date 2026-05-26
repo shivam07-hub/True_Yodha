@@ -254,7 +254,41 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - Backlog #17 PR1/PR2 shipped)
+## LAST SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
+
+Closed the refresh-match incident and aligned Jobs card UX with Mission Control card language in one production-hardening slice:
+
+- **Root cause fixed (schema drift):**
+  - Added `database/migrations/20260526_user_job_matches_weekly_uniqueness.sql` to reconcile `user_job_matches` uniqueness with the weekly cache contract.
+  - Migration now drops any legacy UNIQUE constraints/indexes on `(user_id, job_id)` via catalog introspection (name-agnostic), preserves weekly uniqueness `(user_id, job_id, batch_week)`, dedupes drift rows safely, and reloads PostgREST schema cache.
+
+- **Write-path contract aligned:**
+  - `backend/app/services/llm_ranker.py` keeps weekly upsert key and now defensively dedupes repeated `job_id` rows before write.
+  - `backend/app/repositories/jobs.py` `upsert_job_match()` now uses `on_conflict=\"user_id,job_id,batch_week\"` so all match writes follow one canonical key.
+
+- **Overlap read-path hardened:**
+  - `backend/app/routers/profile/public.py` now prefers current-week match scores first, with ordered historical fallback only when needed.
+
+- **Jobs page card parity shipped (design consistency):**
+  - `frontend/components/jobs/JobCard.tsx` redesigned to mirror Mission/Home control card vocabulary and structure:
+    - Focused-on header
+    - Large Fit score + fit bar
+    - Apply row
+    - matched skills chips
+    - Why-this-fits (LLM) block
+    - Tailor CV + Save + Open role actions
+  - Match-retained metadata (location/mode/industry/rank/explanation/skills/description/source) is now surfaced directly in each Jobs card.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests -q` → `383 passed`
+- `cd frontend && npx tsc --noEmit` clean
+- `cd frontend && npm run lint` clean
+- `git diff --check` clean
+
+Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - Backlog #17 PR1/PR2 shipped)
 
 Closed both requested Color Theory slices from Backlog #17 in two commits:
 
@@ -279,6 +313,15 @@ Validation:
 - `git diff --check` clean
 
 Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
+
+### Brand-guidelines wiring — CLOSED 2026-05-26
+
+All three integration carry-over steps are done:
+1. **Pre-commit hook (Codex)** — `.git/hooks/pre-commit` execs `Myro Newsletter/brand-guidelines.skill/validator/pre-commit.sh`.
+2. **CI workflow (Codex)** — `.github/workflows/brand-check.yml` copied from the skill's `validator/ci.yml`; gates PRs to Develop + main.
+3. **Dependent-skill frontmatter (Claude)** — every weekday newsletter skill + page-anatomy + voice-and-anti-slop + seo-and-distribution + `myro-newsletter.skill` + every `growth-agent/` file carries `reads: brand-guidelines` in frontmatter. Any new LinkedIn/X/Instagram drafting skill must add the line at creation.
+
+Validator now active at all 3 checkpoints. Drafts that bypass it require `--no-verify`, which is forbidden by CLAUDE.md absolute rules.
 
 ## OLDER SESSION SUMMARY (2026-05-26 - CV Library vocabulary pass)
 

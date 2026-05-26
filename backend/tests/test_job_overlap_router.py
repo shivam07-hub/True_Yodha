@@ -23,22 +23,30 @@ class _Tape:
     def __init__(self, table_data: dict[str, list[dict] | dict | None]) -> None:
         self._table_data = table_data
         self._table: str | None = None
-        self._user_filter: str | None = None
+        self._eq_filters: dict[str, Any] = {}
+        self._in_filters: dict[str, set[Any]] = {}
+        self._orders: list[tuple[str, bool]] = []
 
     def table(self, name: str) -> "_Tape":
         self._table = name
-        self._user_filter = None
+        self._eq_filters = {}
+        self._in_filters = {}
+        self._orders = []
         return self
 
     def select(self, *_a: Any, **_kw: Any) -> "_Tape":
         return self
 
     def eq(self, col: str, val: Any) -> "_Tape":
-        if col == "user_id":
-            self._user_filter = val
+        self._eq_filters[col] = val
         return self
 
-    def in_(self, _col: str, _vals: list[Any]) -> "_Tape":
+    def in_(self, col: str, vals: list[Any]) -> "_Tape":
+        self._in_filters[col] = set(vals)
+        return self
+
+    def order(self, col: str, desc: bool = False) -> "_Tape":
+        self._orders.append((col, desc))
         return self
 
     def limit(self, _n: int) -> "_Tape":
@@ -55,7 +63,18 @@ class _Tape:
             return _Result(self._table_data.get("user_profiles"))
         if self._table in ("job_applications", "user_job_matches"):
             rows = self._table_data.get(self._table, []) or []
-            return _Result([r for r in rows if r.get("user_id") == self._user_filter])
+            filtered = rows
+            for col, val in self._eq_filters.items():
+                filtered = [row for row in filtered if row.get(col) == val]
+            for col, vals in self._in_filters.items():
+                filtered = [row for row in filtered if row.get(col) in vals]
+            for col, desc in reversed(self._orders):
+                filtered = sorted(
+                    filtered,
+                    key=lambda row: row.get(col) if row.get(col) is not None else "",
+                    reverse=desc,
+                )
+            return _Result(filtered)
         if self._table == "jobs":
             return _Result(self._table_data.get("jobs") or [])
         if self._table == "public_profile_v":
@@ -182,3 +201,98 @@ def test_overlap_caps_at_three_rows_sorted_by_viewer_pct(monkeypatch: Any, _clea
     assert len(rows) == 3
     # Sorted by viewer_match_pct desc
     assert [r["job_id"] for r in rows] == ["j4", "j2", "j3"]
+
+
+def test_overlap_uses_latest_match_score_per_job(monkeypatch: Any, _clear_overrides: Any) -> None:
+    table_data = {
+        "user_profiles": {"id": "owner-u"},
+        "job_applications": [
+            {"user_id": "owner-u", "job_id": "j1", "status": "applied"},
+            {"user_id": "viewer-u", "job_id": "j1", "status": "applied"},
+        ],
+        "jobs": [
+            {"job_id": "j1", "job_title": "ML Eng", "company_name": "Acme"},
+        ],
+        "user_job_matches": [
+            {
+                "user_id": "viewer-u",
+                "job_id": "j1",
+                "overlap_score": 42,
+                "batch_week": "2026-05-19",
+                "computed_at": "2026-05-19T10:00:00+00:00",
+            },
+            {
+                "user_id": "viewer-u",
+                "job_id": "j1",
+                "overlap_score": 86,
+                "batch_week": "2026-05-26",
+                "computed_at": "2026-05-26T10:00:00+00:00",
+            },
+            {
+                "user_id": "owner-u",
+                "job_id": "j1",
+                "overlap_score": 71,
+                "batch_week": "2026-05-26",
+                "computed_at": "2026-05-26T11:00:00+00:00",
+            },
+        ],
+    }
+    monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="viewer-u", email=None, token="t")
+
+    with TestClient(app) as client:
+        response = client.get("/profile/silent-fox-9k2x/overlap")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["viewer_match_pct"] == 86
+    assert rows[0]["owner_match_pct"] == 71
+
+
+def test_overlap_prefers_current_week_scores_when_available(monkeypatch: Any, _clear_overrides: Any) -> None:
+    monkeypatch.setattr(public_router, "_last_monday_iso", lambda: "2026-05-25")
+    table_data = {
+        "user_profiles": {"id": "owner-u"},
+        "job_applications": [
+            {"user_id": "owner-u", "job_id": "j1", "status": "applied"},
+            {"user_id": "viewer-u", "job_id": "j1", "status": "applied"},
+        ],
+        "jobs": [
+            {"job_id": "j1", "job_title": "ML Eng", "company_name": "Acme"},
+        ],
+        "user_job_matches": [
+            {
+                "user_id": "viewer-u",
+                "job_id": "j1",
+                "overlap_score": 90,
+                "batch_week": "2026-05-19",
+                "computed_at": "2026-05-19T10:00:00+00:00",
+            },
+            {
+                "user_id": "viewer-u",
+                "job_id": "j1",
+                "overlap_score": 73,
+                "batch_week": "2026-05-25",
+                "computed_at": "2026-05-25T11:00:00+00:00",
+            },
+            {
+                "user_id": "owner-u",
+                "job_id": "j1",
+                "overlap_score": 67,
+                "batch_week": "2026-05-25",
+                "computed_at": "2026-05-25T11:00:00+00:00",
+            },
+        ],
+    }
+    monkeypatch.setattr(public_router, "_admin", lambda: _make_admin(table_data))
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="viewer-u", email=None, token="t")
+
+    with TestClient(app) as client:
+        response = client.get("/profile/silent-fox-9k2x/overlap")
+
+    assert response.status_code == 200
+    rows = response.json()["rows"]
+    assert len(rows) == 1
+    assert rows[0]["viewer_match_pct"] == 73
+    assert rows[0]["owner_match_pct"] == 67
