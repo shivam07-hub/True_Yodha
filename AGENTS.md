@@ -254,25 +254,49 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - Website Ops Agent design)
+## LAST SESSION SUMMARY (2026-05-27 - Website Ops Agent v1 CLI)
 
-Started the repo-native **Myro Website Ops Agent** track requested from the Answer This-style ops-agent transcript, scoped intentionally to a safe local CLI first rather than a fully autonomous Slack/email worker.
+Built the repo-native **Myro Website Ops Agent** v1 as a safe local CLI under `ops-agent/`, then ran it against the repo health surface.
 
-- Added and committed the design spec at `docs/superpowers/specs/2026-05-26-myro-website-ops-agent-design.md` (`53ad008`).
-- Locked v1 direction:
-  - repo-native `ops-agent/` Python CLI,
-  - local/repo-only by default,
-  - read-only against production systems,
-  - durable Markdown reports,
-  - editable `ops-agent/instructions.md` behavioral memory,
-  - permanent tested tools as procedural memory,
-  - no autonomous production writes, support replies, Slack/email sends, or service-role access in v1.
-- Planned initial commands: `brief`, `health`, `feedback`, `cv-upload`, `release`, and deterministic `ask`.
-- Open decisions captured in the spec: Python-only v1, whether generated reports stay local/ignored, and whether future Supabase access uses anon+RLS or a dedicated read-only path.
+- Design and plan:
+  - `53ad008` — `docs/superpowers/specs/2026-05-26-myro-website-ops-agent-design.md`
+  - `f408135` — `docs/superpowers/plans/2026-05-27-myro-website-ops-agent-implementation.md`
+- Implementation commits:
+  - `5692477 feat(ops): scaffold website ops agent`
+  - `62c7d63 feat(ops): add core agent runtime`
+  - `72eeb3e feat(ops): add repo health tools`
+  - `ee47e84 feat(ops): add website ops cli`
 
-Next step: Shivam reviews the spec, then Codex writes the implementation plan under `docs/superpowers/plans/` before coding the CLI.
+What shipped:
 
-Unrelated workspace state still present and untouched: frontend/onboarding edits in progress plus `docs/free-llm-api-resources/` local/untracked.
+- `ops-agent/` Python package with stdlib-only runtime and pytest suite.
+- Commands:
+  - `cd ops-agent && python -m myro_ops.cli health`
+  - `cd ops-agent && python -m myro_ops.cli feedback`
+  - `cd ops-agent && python -m myro_ops.cli cv-upload`
+  - `cd ops-agent && python -m myro_ops.cli release`
+  - `cd ops-agent && python -m myro_ops.cli brief`
+  - `cd ops-agent && python -m myro_ops.cli ask "what broke?"`
+- Local behavioral memory: `ops-agent/instructions.md`.
+- Generated reports are ignored by git under `ops-agent/reports/`.
+- Redaction layer covers emails, token-like secrets, JWTs, and UUIDs.
+- Deterministic `ask` router maps known founder questions to concrete tools; unsupported questions return supported patterns instead of pretending to chat.
+
+Agent health run:
+
+- `cd ops-agent && python -m myro_ops.cli health` → status `Degraded`.
+- Reason: repo required paths are present, but workspace has 8 unrelated dirty entries and live checks were skipped because `MYRO_API_BASE_URL` / `MYRO_WEB_BASE_URL` are not configured.
+- Generated brief: `ops-agent/reports/daily/2026-05-27.md` (gitignored).
+
+Validation:
+
+- `cd ops-agent && python -m pytest -q` → `16 passed`
+- `.venv/bin/pytest backend/tests -q` → `383 passed`
+- `cd frontend && npx tsc --noEmit` clean
+- `cd frontend && npm run lint` clean
+- `git diff --check` clean
+
+Unrelated workspace state still present and untouched: `docs/free-llm-api-resources/`, `frontend/app/home/page.tsx`, `frontend/components/mission-control/topbar.tsx`, `frontend/lib/api.ts`, `frontend/lib/domain-data.ts`, and new onboarding component files.
 
 ## OLDER SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
 
