@@ -432,7 +432,7 @@ function ForgePageInner() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Link href="/home" style={{ height: 36, display: "inline-flex", alignItems: "center", padding: "0 14px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", textDecoration: "none", fontSize: 13, fontWeight: 650 }}>
-              Mission control
+              Tackle Today
             </Link>
             <button
               type="button"

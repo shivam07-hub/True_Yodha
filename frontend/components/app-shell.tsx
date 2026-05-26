@@ -30,7 +30,7 @@ import {
 } from "@/mobile"
 
 const NAV_ITEMS = [
-  { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
+  { href: "/home",    label: "Dashboard",  desc: "Tackle Today",           icon: null, hideLabel: true,  nudge: true  },
   { href: "/forge",   label: "Forge",      desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
   { href: "/market",  label: "Live Job Data", desc: "Market intelligence", icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },

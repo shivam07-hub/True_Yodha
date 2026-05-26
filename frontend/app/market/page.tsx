@@ -183,7 +183,7 @@ function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; 
       <div>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>TRACKED</div>
         <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text)", marginTop: 6, lineHeight: 1 }}>{followedCount}</div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>in Mission Control</div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>in Tackle Today</div>
       </div>
       <div style={{ borderLeft: "1px solid var(--tm-border-soft)", paddingLeft: 24 }}>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>14-DAY POSTING</div>
