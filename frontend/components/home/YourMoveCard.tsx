@@ -50,10 +50,10 @@ function resolveMove(
     const skill = topGapSkill ?? "a gap skill"
     return {
       tag: "YOUR MOVE",
-      headline: `Forge ${skill}`,
+      headline: `Practice ${skill}`,
       sub: "Practice the skill · log the session · earn XP · keeps streak",
       xp: "+50 XP",
-      action: { label: "Enter Forge ↗", onClick: onForge },
+      action: { label: "Enter Practice ↗", onClick: onForge },
     }
   }
   return {

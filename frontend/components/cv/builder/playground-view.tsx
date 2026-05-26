@@ -530,7 +530,7 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
       </div>
       {missing.length > 0 ? (
         <Link href="/skills" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
-          <Icon name="sparkle" size={12}/> Forge them
+          <Icon name="sparkle" size={12}/> Practice them
         </Link>
       ) : null}
       <button type="button" className="cvb-btn ghost sm" onClick={onOpenDrawer}>
