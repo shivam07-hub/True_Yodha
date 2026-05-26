@@ -6,19 +6,19 @@ import { IssueCard } from "@/components/newsletter/issue-card"
 const BASE = "https://www.himyro.com"
 
 export const metadata: Metadata = {
-  title: "Myro Weekly — Free AI Hiring Intel",
+  title: "Myro Weekly — Free AI Hiring Live Job Data",
   description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings. No fluff.",
   alternates: { canonical: `${BASE}/newsletter` },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Myro Weekly — Free AI Hiring Intel",
+    title: "Myro Weekly — Free AI Hiring Live Job Data",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
     type: "website",
     url: `${BASE}/newsletter`,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Myro Weekly — Free AI Hiring Intel",
+    title: "Myro Weekly — Free AI Hiring Live Job Data",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
   },
 }
@@ -30,7 +30,7 @@ export default async function NewsletterIndexPage() {
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "48px var(--tm-page-px)" }}>
       <div style={{ marginBottom: 40 }}>
-        <div style={{ fontSize: 11, color: "var(--tm-accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10, opacity: 0.8 }}>
+        <div style={{ fontSize: 11, color: "var(--tm-interactive)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10, opacity: 0.8 }}>
           Free · Weekly
         </div>
         <h1 style={{ fontSize: "var(--tm-fs-display)", fontWeight: 700, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", lineHeight: "var(--tm-lh-display)", marginBottom: 12 }}>
@@ -46,12 +46,12 @@ export default async function NewsletterIndexPage() {
           padding: "48px 32px", borderRadius: "var(--tm-radius-lg)",
           border: "1px solid var(--tm-border-soft)", textAlign: "center",
         }}>
-          <div style={{ fontSize: 32, marginBottom: 16, color: "var(--tm-accent)", opacity: 0.4 }}>◉</div>
+          <div style={{ fontSize: 32, marginBottom: 16, color: "var(--tm-interactive)", opacity: 0.4 }}>◉</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 8 }}>First issue coming soon</div>
           <p style={{ fontSize: 14, color: "var(--tm-text-muted)", marginBottom: 20 }}>
             Sign up to get notified when Issue 001 drops.
           </p>
-          <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", padding: "9px 20px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+          <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", padding: "9px 20px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
             Sign up free →
           </Link>
         </div>

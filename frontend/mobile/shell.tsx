@@ -98,7 +98,7 @@ function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: bool
     strokeWidth: 1.7,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    style: { filter: active ? "drop-shadow(0 0 6px var(--tm-accent-glow))" : "none" },
+    style: { filter: active ? "drop-shadow(0 0 6px var(--tm-int-bg-hover))" : "none" },
   }
 
   if (name === "mission") {
@@ -159,7 +159,7 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
   return (
     <header className="tm-mobile-topbar">
       <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 }}>
-        <div style={{ filter: "drop-shadow(0 0 6px var(--tm-accent-glow))" }}>
+        <div style={{ filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}>
           <MyroLogo size={30} />
         </div>
         <span style={{ fontFamily: "var(--tm-font-sans)", fontSize: 22, fontWeight: 650, color: "var(--tm-text)" }}>
@@ -174,7 +174,7 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
         onClick={onAvatarClick}
         style={{
           width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-          background: "linear-gradient(135deg, var(--tm-border), var(--tm-accent-wash))",
+          background: "linear-gradient(135deg, var(--tm-border), var(--tm-int-bg-wash))",
           border: "1px solid var(--tm-border)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 12, fontWeight: 700, color: "var(--tm-text)", cursor: "pointer",
@@ -218,7 +218,7 @@ export function MobileBottomNav() {
     <nav className="tm-mobile-bottomnav">
       {MOBILE_NAV.map(item => {
         const active = pathname.startsWith(item.href)
-        const color = active ? "var(--tm-accent)" : "var(--tm-text-faint)"
+        const color = active ? "var(--tm-interactive)" : "var(--tm-text-faint)"
 
         return (
           <Link
@@ -308,8 +308,8 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--tm-border-soft)" }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-            background: "linear-gradient(135deg, var(--tm-accent-wash), var(--tm-accent-ring))",
-            border: "1.5px solid var(--tm-accent-ring)",
+            background: "linear-gradient(135deg, var(--tm-int-bg-wash), var(--tm-int-border))",
+            border: "1.5px solid var(--tm-int-border)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 16, fontWeight: 700, color: "var(--tm-text)",
           }}>

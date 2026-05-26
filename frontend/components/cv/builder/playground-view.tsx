@@ -57,7 +57,7 @@ function humanKind(kind: CVVersion["kind"]): string {
 }
 
 function tabKindDot(kind: CVVersion["kind"]) {
-  if (kind === "baseline_upload") return { background: "var(--tm-accent)", boxShadow: "0 0 4px var(--tm-accent-glow)" }
+  if (kind === "baseline_upload") return { background: "var(--tm-interactive)", boxShadow: "0 0 4px var(--tm-int-bg-hover)" }
   if (kind === "polished") return { background: "#A78BFA", boxShadow: "none" }
   if (kind === "edited") return { background: "var(--tm-warning)", boxShadow: "none" }
   return { background: "var(--tm-text-muted)", boxShadow: "none" }
@@ -205,8 +205,8 @@ export function PlaygroundView({
             <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open CV Library">
               <Icon name="folder" size={13}/> CV Library
             </button>
-            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD intel">
-              <Icon name="intel" size={13}/> Intel
+            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD live job data">
+              <Icon name="intel" size={13}/> Live Job Data
               {missingTargets.length > 0 && (
                 <span style={{
                   display: "inline-grid", placeItems: "center",
@@ -406,7 +406,7 @@ export function PlaygroundView({
           />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <span className="eyebrow" style={{ color: isDirty ? "var(--tm-warning)" : "var(--tm-accent)" }}>
+            <span className="eyebrow" style={{ color: isDirty ? "var(--tm-warning)" : "var(--tm-interactive)" }}>
               live preview · {isDirty ? "unsaved" : "synced"}
             </span>
             <span className="mono" style={{ fontSize: 10.5, color: "var(--tm-text-faint)" }}>
@@ -437,7 +437,7 @@ export function PlaygroundView({
                 color: "var(--tm-text-faint)", textDecoration: "none",
               }}
             >
-              No target skills set for this job. <span style={{ color: "var(--tm-accent)" }}>Pick targets →</span>
+              No target skills set for this job. <span style={{ color: "var(--tm-interactive)" }}>Pick targets →</span>
             </Link>
           )}
         </div>
@@ -530,11 +530,11 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
       </div>
       {missing.length > 0 ? (
         <Link href="/skills" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
-          <Icon name="sparkle" size={12}/> Forge them
+          <Icon name="sparkle" size={12}/> Practice them
         </Link>
       ) : null}
       <button type="button" className="cvb-btn ghost sm" onClick={onOpenDrawer}>
-        <Icon name="intel" size={12}/> View intel
+        <Icon name="intel" size={12}/> View live job data
       </button>
     </div>
   )

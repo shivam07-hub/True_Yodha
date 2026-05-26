@@ -80,9 +80,9 @@ export function OwnerRadar({ domains, scores }: OwnerRadarProps) {
       {/* Data polygon */}
       <polygon
         points={polygonPts}
-        fill="var(--tm-accent)"
+        fill="var(--data-1)"
         fillOpacity="0.12"
-        stroke="var(--tm-accent)"
+        stroke="var(--data-1)"
         strokeWidth="2"
         strokeDasharray={dashLen}
         strokeDashoffset={drawn ? 0 : dashLen}
@@ -100,7 +100,7 @@ export function OwnerRadar({ domains, scores }: OwnerRadarProps) {
           cx={pt.x}
           cy={pt.y}
           r={4}
-          fill="var(--tm-accent)"
+          fill="var(--data-1)"
           opacity={drawn ? 1 : 0}
           style={{ transition: reducedMotion ? undefined : "opacity 400ms ease 600ms" }}
         />

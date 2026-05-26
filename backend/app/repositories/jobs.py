@@ -887,7 +887,7 @@ class JobsRepository:
     def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
         self._admin_db.table("user_job_matches").upsert(
             {"user_id": user_id, "job_id": job_id, **data},
-            on_conflict="user_id,job_id",
+            on_conflict="user_id,job_id,batch_week",
         ).execute()
 
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:

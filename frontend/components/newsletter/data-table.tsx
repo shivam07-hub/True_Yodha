@@ -33,7 +33,7 @@ function HeatCell({ val, heat }: { val: string | number; heat: number }) {
       <div style={{ width: 72, height: 4, background: "var(--tm-border-soft)", borderRadius: 999, overflow: "hidden", flexShrink: 0 }}>
         <div style={{
           height: "100%", borderRadius: 999,
-          background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-hover))",
+          background: "linear-gradient(90deg, var(--data-1), var(--data-6))",
           width: `${heat}%`,
         }} />
       </div>
@@ -94,7 +94,7 @@ export function DataTable({ cols, rows }: DataTableProps) {
 
                   let cellColor = "var(--tm-text-muted)"
                   if (isMuted) cellColor = "var(--tm-text-faint)"
-                  if (isBold && isFirstCol) cellColor = "var(--tm-accent)"
+                  if (isBold && isFirstCol) cellColor = "var(--data-1)"
                   if (isBold && !isFirstCol) cellColor = "var(--tm-text)"
                   if (raw.muted) cellColor = "var(--tm-text-faint)"
 

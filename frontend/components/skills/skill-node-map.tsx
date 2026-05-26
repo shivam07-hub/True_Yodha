@@ -118,7 +118,7 @@ export function SkillNodeMap({ userSkills, gapSkills = [], selectedDomain = null
     let mdPos = { x: 0, y: 0 }
 
     const readAccent = () => {
-      accentRgb = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue("--tm-accent").trim())
+      accentRgb = hexToRgb(getComputedStyle(document.documentElement).getPropertyValue("--tm-interactive").trim())
     }
     readAccent()
     const mo = new MutationObserver(() => setTimeout(readAccent, 210))

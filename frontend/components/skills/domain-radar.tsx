@@ -57,7 +57,7 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
         const isActive = activeDomain === domain
         return (
           <line key={i} x1={RADAR_CX} y1={RADAR_CY} x2={outer.x} y2={outer.y}
-            stroke={isActive ? "var(--tm-accent)" : "var(--tm-border)"}
+            stroke={isActive ? "var(--data-1)" : "var(--tm-border)"}
             strokeWidth={isActive ? "1.5" : "1"}
             opacity={activeDomain && !isActive ? 0.25 : 0.6}
             style={{ transition: "opacity 250ms, stroke 250ms" }}
@@ -67,8 +67,8 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
 
       {/* Data polygon */}
       <polygon points={polygonPts}
-        fill="var(--tm-accent)" fillOpacity="0.12"
-        stroke="var(--tm-accent)" strokeWidth="2"
+        fill="var(--data-1)" fillOpacity="0.12"
+        stroke="var(--data-1)" strokeWidth="2"
         filter="url(#radarGlow)"
         style={{ transition: "all 400ms var(--tm-ease)" }}
       />
@@ -80,7 +80,7 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
         return (
           <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: "pointer" }}>
             <circle cx={pt.x} cy={pt.y} r={isActive ? 7 : 4}
-              fill="var(--tm-accent)"
+              fill="var(--data-1)"
               opacity={activeDomain && !isActive ? 0.3 : 1}
               filter={isActive ? "url(#radarGlow)" : undefined}
               style={{ transition: "r 200ms, opacity 250ms" }}
@@ -95,7 +95,7 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
         return (
           <text key={domain} x={x} y={y + 4}
             textAnchor="middle" fontSize="9"
-            fill={isActive ? "var(--tm-accent)" : "var(--tm-text-faint)"}
+            fill={isActive ? "var(--data-1)" : "var(--tm-text-faint)"}
             fontFamily="inherit"
             opacity={activeDomain && !isActive ? 0.4 : 1}
             onClick={() => onDomainClick?.(domain)}

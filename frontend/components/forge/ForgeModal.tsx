@@ -95,7 +95,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
       setSessionsDone((prev) => [...prev, { skill: currentSkill, result }])
       onXPEarned(result.xp_earned, result.new_xp_balance)
       if (result.leveled_up) {
-        setLevelUpSkill("Forge")
+        setLevelUpSkill("Practice")
         setTimeout(() => setLevelUpSkill(null), 2500)
       }
       setSessionIdx((s) => cartSkills.length ? (s + 1) % cartSkills.length : 0)
@@ -128,7 +128,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
       {/* Cursor glow */}
       <div style={{
         position: "absolute", width: 480, height: 480, borderRadius: "50%", pointerEvents: "none",
-        background: "radial-gradient(circle, rgba(0,245,212,0.13) 0%, transparent 68%)",
+        background: "radial-gradient(circle, var(--tm-int-border-soft) 0%, transparent 68%)",
         transform: `translate(${glowX - 240}px, ${glowY - 240}px)`,
         transition: "transform 60ms linear",
       }} />
@@ -137,9 +137,9 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
       {PARTICLES.map((p, i) => {
         const s: React.CSSProperties = {
           position: "absolute", width: 3, height: 3, borderRadius: "50%",
-          background: "var(--tm-accent)", opacity: 0,
+          background: "var(--tm-interactive)", opacity: 0,
           animation: `forge-particle ${p.dur}s ${p.delay}s infinite ease-in-out`,
-          boxShadow: "0 0 5px rgba(0,245,212,0.9)",
+          boxShadow: "0 0 5px var(--tm-int-border)",
         }
         if (p.edge === 0) { s.top = 0; s.left = `${p.pct}%` }
         else if (p.edge === 1) { s.right = 0; s.top = `${p.pct}%` }
@@ -159,12 +159,12 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           <div style={{
             textAlign: "center", padding: "40px 64px",
             borderRadius: "var(--tm-radius-xl)",
-            border: "1px solid var(--tm-accent-ring)",
-            background: "rgba(0,245,212,0.05)",
-            boxShadow: "0 0 60px rgba(0,245,212,0.15)",
+            border: "1px solid var(--tm-int-border)",
+            background: "var(--tm-int-bg-wash)",
+            boxShadow: "0 0 60px var(--tm-int-border-soft)",
           }}>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 52, color: "var(--tm-accent)", lineHeight: 1, marginBottom: 12, filter: "drop-shadow(0 0 16px rgba(0,245,212,0.6))" }}>◆</div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, color: "var(--tm-accent)", letterSpacing: "0.15em", marginBottom: 8 }}>LEVEL UP</div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 52, color: "var(--tm-interactive)", lineHeight: 1, marginBottom: 12, filter: "drop-shadow(0 0 16px var(--tm-int-bg-wash))" }}>◆</div>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 22, color: "var(--tm-interactive)", letterSpacing: "0.15em", marginBottom: 8 }}>LEVEL UP</div>
           </div>
         </div>
       )}
@@ -174,11 +174,11 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", gap: 32 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.18em", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              FORGE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
+              PRACTICE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
             </div>
-            <div style={{ width: 220, height: 220, borderRadius: "50%", border: "1px solid var(--tm-accent-ring)", display: "grid", placeItems: "center", margin: "24px auto 0", boxShadow: "0 0 48px rgba(0,245,212,0.14), inset 0 0 40px rgba(0,245,212,0.04)" }}>
+            <div style={{ width: 220, height: 220, borderRadius: "50%", border: "1px solid var(--tm-int-border)", display: "grid", placeItems: "center", margin: "24px auto 0", boxShadow: "0 0 48px var(--tm-int-border-soft), inset 0 0 40px var(--tm-int-bg-subtle)" }}>
               <div>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 44, color: "var(--tm-accent)", fontWeight: 700, lineHeight: 1 }}>+0</div>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 44, color: "var(--tm-interactive)", fontWeight: 700, lineHeight: 1 }}>+0</div>
                 <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 8 }}>XP ready</div>
               </div>
             </div>
@@ -193,10 +193,10 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
               disabled={!hasForgeTarget}
               style={{
                 padding: "14px 40px", borderRadius: "var(--tm-radius-pill)",
-                background: hasForgeTarget ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: "none",
-                color: hasForgeTarget ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", fontSize: 15, fontWeight: 700,
+                background: hasForgeTarget ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)", border: "none",
+                color: hasForgeTarget ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)", fontSize: 15, fontWeight: 700,
                 cursor: hasForgeTarget ? "pointer" : "default", fontFamily: "inherit",
-                boxShadow: hasForgeTarget ? "0 0 28px rgba(0,245,212,0.35)" : "none",
+                boxShadow: hasForgeTarget ? "0 0 28px var(--tm-int-border)" : "none",
               }}
             >
               Start forging ↗
@@ -218,7 +218,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             </div>
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               {totalXP > 0 && (
-                <div style={{ padding: "3px 10px", borderRadius: 999, background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)", fontSize: 11, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>
+                <div style={{ padding: "3px 10px", borderRadius: 999, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 11, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)" }}>
                   +{totalXP} XP today
                 </div>
               )}
@@ -233,17 +233,17 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             <div style={{ position: "relative", width: "min(60vh,60vw,420px)", aspectRatio: "1/1" }}>
               <svg width="100%" height="100%" viewBox="0 0 200 200" style={{ transform: "rotate(-90deg)" }}>
                 <circle cx={100} cy={100} r={RING_R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={2} />
-                <circle cx={100} cy={100} r={RING_R} fill="none" stroke="rgba(0,245,212,0.06)" strokeWidth={8} />
-                <circle cx={100} cy={100} r={RING_R} fill="none" stroke="var(--tm-accent)" strokeWidth={5}
+                <circle cx={100} cy={100} r={RING_R} fill="none" stroke="var(--tm-int-bg-wash)" strokeWidth={8} />
+                <circle cx={100} cy={100} r={RING_R} fill="none" stroke="var(--tm-interactive)" strokeWidth={5}
                   strokeLinecap="round" strokeDasharray={`${RING_CIRC} ${RING_CIRC}`}
                   strokeDashoffset={dashOffset}
                   style={{ transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 300ms var(--tm-ease)" }}
                 />
                 {running && (
-                  <circle cx={100} cy={100} r={RING_R} fill="none" stroke="var(--tm-accent)" strokeWidth={5}
+                  <circle cx={100} cy={100} r={RING_R} fill="none" stroke="var(--tm-interactive)" strokeWidth={5}
                     strokeLinecap="round" strokeDasharray={`${RING_CIRC} ${RING_CIRC}`}
                     strokeDashoffset={dashOffset} aria-hidden
-                    style={{ filter: "drop-shadow(0 0 10px rgba(0,245,212,0.7))", opacity: 0.4, transition: "stroke-dashoffset 1s linear" }}
+                    style={{ filter: "drop-shadow(0 0 10px var(--tm-int-bg-wash))", opacity: 0.4, transition: "stroke-dashoffset 1s linear" }}
                   />
                 )}
               </svg>
@@ -266,9 +266,9 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 <button key={d.label} onClick={() => changeDuration(i)} disabled={running} style={{
                   padding: "4px 14px", borderRadius: 999, fontSize: 12, fontFamily: "inherit",
                   cursor: running ? "default" : "pointer",
-                  background: i === durIdx ? "rgba(0,245,212,0.08)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${i === durIdx ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                  color: i === durIdx ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                  background: i === durIdx ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${i === durIdx ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+                  color: i === durIdx ? "var(--tm-interactive)" : "var(--tm-text-faint)",
                   opacity: running && i !== durIdx ? 0.3 : 1,
                 }}>{d.label}</button>
               ))}
@@ -277,19 +277,19 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center" }}>
               <button onClick={() => setRunning((r) => !r)} style={{
                 padding: "12px 28px", borderRadius: "var(--tm-radius-pill)",
-                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-accent)", border: running ? "1px solid rgba(255,255,255,0.1)" : "none",
-                color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg)", fontSize: 14, fontWeight: 700,
+                background: running ? "rgba(255,255,255,0.06)" : "var(--tm-interactive)", border: running ? "1px solid rgba(255,255,255,0.1)" : "none",
+                color: running ? "var(--tm-text-muted)" : "var(--tm-interactive-fg)", fontSize: 14, fontWeight: 700,
                 cursor: "pointer", fontFamily: "inherit",
-                boxShadow: running ? "none" : "0 0 20px rgba(0,245,212,0.3)",
+                boxShadow: running ? "none" : "0 0 20px var(--tm-int-border)",
               }}>
                 {running ? "⏸ Pause" : "▶ Start"}
               </button>
               <button onClick={completeSession} disabled={!canClaim || saving} style={{
                 padding: "12px 34px", borderRadius: "var(--tm-radius-pill)",
-                background: canClaim && !saving ? "var(--tm-accent)" : "rgba(255,255,255,0.05)", border: canClaim && !saving ? "none" : "1px solid rgba(255,255,255,0.08)",
-                color: canClaim && !saving ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", fontSize: 14, fontWeight: 700,
+                background: canClaim && !saving ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)", border: canClaim && !saving ? "none" : "1px solid rgba(255,255,255,0.08)",
+                color: canClaim && !saving ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)", fontSize: 14, fontWeight: 700,
                 cursor: canClaim && !saving ? "pointer" : "default", fontFamily: "inherit",
-                boxShadow: canClaim && !saving ? "0 0 20px rgba(0,245,212,0.3)" : "none",
+                boxShadow: canClaim && !saving ? "0 0 20px var(--tm-int-border)" : "none",
                 opacity: saving ? 0.7 : 1,
               }}>
                 {saving ? "Saving…" : `Claim +${readyXP} XP`}
@@ -309,7 +309,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.18em", color: "var(--tm-text-faint)", marginBottom: 8 }}>
               FORGE COMPLETE · {sessionsDone.length} SESSION{sessionsDone.length !== 1 ? "S" : ""}
             </div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 36, color: "var(--tm-accent)", fontWeight: 700, filter: "drop-shadow(0 0 16px rgba(0,245,212,0.4))" }}>
+            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 36, color: "var(--tm-interactive)", fontWeight: 700, filter: "drop-shadow(0 0 16px var(--tm-int-border))" }}>
               +{totalXP} XP
             </div>
           </div>
@@ -318,11 +318,11 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             {sessionsDone.map(({ result }, idx) => (
               <div key={idx} style={{
                 padding: "14px 16px", borderRadius: "var(--tm-radius)",
-                border: "1px solid var(--tm-accent-ring)",
-                background: "rgba(0,245,212,0.04)", display: "flex", flexDirection: "column", gap: 4,
+                border: "1px solid var(--tm-int-border)",
+                background: "var(--tm-int-bg-subtle)", display: "flex", flexDirection: "column", gap: 4,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Forge claim</div>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-accent)" }}>+{result.xp_earned} XP</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Practice claim</div>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-interactive)" }}>+{result.xp_earned} XP</div>
                 {result.leveled_up && (
                   <div style={{ fontSize: 11, color: "var(--tm-success)" }}>◆ L{result.level_before} → L{result.level_after}</div>
                 )}
@@ -334,8 +334,8 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             {onOpenDiary && (
               <button onClick={() => { onClose(); onOpenDiary() }} style={{
                 padding: "10px 24px", borderRadius: "var(--tm-radius-pill)",
-                background: "var(--tm-accent)", border: "none",
-                color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700,
+                background: "var(--tm-interactive)", border: "none",
+                color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 700,
                 cursor: "pointer", fontFamily: "inherit",
               }}>
                 Log in diary →

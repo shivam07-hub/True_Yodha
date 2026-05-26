@@ -137,7 +137,7 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [], selectedDomain =
     let mx = -1, my = -1, hovIdx = -1
 
     function readAccent() {
-      const v = getComputedStyle(document.documentElement).getPropertyValue("--tm-accent").trim()
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--tm-interactive").trim()
       accentRgb = hexToRgb(v)
     }
     readAccent()

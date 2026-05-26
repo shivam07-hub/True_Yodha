@@ -201,9 +201,9 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             disabled={atCap || followMutation.isPending || unfollowMutation.isPending}
             style={{
               width: "100%", padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
-              border: `1px solid ${isFollowed ? "var(--tm-warning-border)" : "var(--tm-accent-ring)"}`,
-              background: isFollowed ? "var(--tm-warning-wash)" : "var(--tm-accent-wash)",
-              color: isFollowed ? "var(--tm-warning)" : "var(--tm-accent)",
+              border: `1px solid ${isFollowed ? "var(--tm-warning-border)" : "var(--tm-int-border)"}`,
+              background: isFollowed ? "var(--tm-warning-wash)" : "var(--tm-int-bg-wash)",
+              color: isFollowed ? "var(--tm-warning)" : "var(--tm-interactive)",
               fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
               opacity: atCap ? 0.55 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -258,7 +258,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             onClick={onClose}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              fontSize: 12, fontWeight: 600, color: "var(--tm-accent)", textDecoration: "none",
+              fontSize: 12, fontWeight: 600, color: "var(--tm-interactive)", textDecoration: "none",
             }}
           >
             See reviews + funnel →

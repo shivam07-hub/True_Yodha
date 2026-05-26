@@ -27,7 +27,7 @@ export function ForgeStrip({ streak, sessions, score, evidenceData, onEnterForge
 
   return (
     <div style={{
-      background: "linear-gradient(135deg, rgba(0,245,212,0.04) 0%, var(--tm-surface) 60%)",
+      background: "linear-gradient(135deg, var(--tm-int-bg-subtle) 0%, var(--tm-surface) 60%)",
       border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)",
       padding: "14px 18px", display: "flex", alignItems: "center", gap: 0,
     }}>
@@ -55,10 +55,10 @@ export function ForgeStrip({ streak, sessions, score, evidenceData, onEnterForge
           onClick={onEnterForge}
           style={{
             padding: "8px 18px", borderRadius: "var(--tm-radius-pill)",
-            background: "var(--tm-accent)", border: "none",
-            color: "var(--tm-accent-fg)", fontSize: 12, fontWeight: 700,
+            background: "var(--tm-interactive)", border: "none",
+            color: "var(--tm-interactive-fg)", fontSize: 12, fontWeight: 700,
             cursor: "pointer", fontFamily: "inherit",
-            whiteSpace: "nowrap", boxShadow: "0 0 12px rgba(0,245,212,0.25)",
+            whiteSpace: "nowrap", boxShadow: "0 0 12px var(--tm-int-border)",
           }}
         >
           Enter Forge ↗
@@ -73,7 +73,7 @@ export function ForgeStrip({ streak, sessions, score, evidenceData, onEnterForge
             transition: "border-color var(--tm-dur) var(--tm-ease)",
             display: "flex", alignItems: "center", gap: 7,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
         >
           Diary + cart
@@ -81,7 +81,7 @@ export function ForgeStrip({ streak, sessions, score, evidenceData, onEnterForge
             <span style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               minWidth: 18, height: 18, borderRadius: 99, padding: "0 5px",
-              background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+              background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
               fontSize: 10, fontWeight: 700, fontFamily: "var(--tm-font-mono)",
               animation: "pulseRing 2.4s ease infinite",
             }}>

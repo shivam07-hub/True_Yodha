@@ -43,17 +43,17 @@ function resolveMove(
       headline: "Find your target role",
       sub: "See exactly which skills to close to get there",
       xp: null,
-      action: { label: "Browse Intel →", href: "/market" },
+      action: { label: "Browse Live Job Data →", href: "/market" },
     }
   }
   if (!loggedToday) {
     const skill = topGapSkill ?? "a gap skill"
     return {
       tag: "YOUR MOVE",
-      headline: `Forge ${skill}`,
+      headline: `Practice ${skill}`,
       sub: "Practice the skill · log the session · earn XP · keeps streak",
       xp: "+50 XP",
-      action: { label: "Enter Forge ↗", onClick: onForge },
+      action: { label: "Enter Practice ↗", onClick: onForge },
     }
   }
   return {
@@ -92,9 +92,9 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
   return (
     <div style={{
       position: "relative", overflow: "hidden",
-      background: "linear-gradient(120deg, rgba(0,245,212,0.05) 0%, var(--tm-surface) 55%)",
-      border: "1px solid var(--tm-accent-ring)",
-      borderLeft: "3px solid var(--tm-accent)",
+      background: "linear-gradient(120deg, var(--tm-int-bg-wash) 0%, var(--tm-surface) 55%)",
+      border: "1px solid var(--tm-int-border)",
+      borderLeft: "3px solid var(--tm-interactive)",
       borderRadius: "var(--tm-radius)",
       padding: "14px 18px",
       display: "flex", alignItems: "center", gap: 16,
@@ -102,7 +102,7 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
       {/* Ambient glow */}
       <div style={{
         position: "absolute", top: 0, left: 0, width: 180, height: "100%",
-        background: "radial-gradient(ellipse at 0% 50%, rgba(0,245,212,0.07), transparent 70%)",
+        background: "radial-gradient(ellipse at 0% 50%, var(--tm-int-bg-wash), transparent 70%)",
         pointerEvents: "none",
       }} />
 
@@ -110,7 +110,7 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
         <div style={{
           fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.7, marginBottom: 4,
+          textTransform: "uppercase", color: "var(--tm-interactive)", opacity: 0.7, marginBottom: 4,
         }}>
           {move.tag}
         </div>
@@ -127,8 +127,8 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
         {move.xp && (
           <div style={{
             fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 700,
-            color: "var(--tm-accent)", letterSpacing: "0.04em",
-            background: "rgba(0,245,212,0.08)", border: "1px solid var(--tm-accent-ring)",
+            color: "var(--tm-interactive)", letterSpacing: "0.04em",
+            background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
             borderRadius: 99, padding: "2px 10px",
           }}>
             {move.xp} ◆

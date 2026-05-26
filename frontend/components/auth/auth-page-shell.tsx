@@ -53,7 +53,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
             alignItems: "center",
             marginBottom: 22,
           }}>
-            <div style={{ marginBottom: 10, filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }}>
+            <div style={{ marginBottom: 10, filter: "drop-shadow(0 0 12px var(--tm-int-bg-hover))" }}>
               <MyroLogo size={42} />
             </div>
             <div style={{

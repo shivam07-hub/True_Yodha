@@ -30,9 +30,9 @@ import {
 } from "@/mobile"
 
 const NAV_ITEMS = [
-  { href: "/home",    label: "Dashboard",  desc: "Mission control",        icon: null, hideLabel: true,  nudge: true  },
-  { href: "/forge",   label: "Forge",      desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
-  { href: "/market",  label: "Intel",      desc: "Market intelligence",    icon: "◉",  hideLabel: false, nudge: false },
+  { href: "/home",    label: "Dashboard",  desc: "Tackle Today",           icon: null, hideLabel: true,  nudge: true  },
+  { href: "/forge",   label: "Practice",   desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
+  { href: "/market",  label: "Live Job Data", desc: "Market intelligence", icon: "◉",  hideLabel: false, nudge: false },
   { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
   { href: "/cv",      label: "CV Builder", desc: "Your skill profile",     icon: "◈",  hideLabel: false, nudge: false },
   { href: "/tracker", label: "Tracker",    desc: "Application pipeline",   icon: "▤",  hideLabel: false, nudge: false, stalePill: true },
@@ -51,7 +51,7 @@ export const FEEDBACK_QUICK_ACTIONS: {
   bg: string
 }[] = [
   { id: "bug",   category: "bug",   icon: "⚠",  label: "Report a bug",   color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
-  { id: "idea",  category: "idea",  icon: "✦",  label: "Suggest an idea", color: "var(--tm-accent)",  bg: "var(--tm-accent-wash)"  },
+  { id: "idea",  category: "idea",  icon: "✦",  label: "Suggest an idea", color: "var(--tm-interactive)",  bg: "var(--tm-int-bg-wash)"  },
   { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)", bg: "var(--tm-success-wash)" },
 ]
 
@@ -154,13 +154,13 @@ function UserFooter({
           <div style={{
             width: 32, height: 32, minWidth: 32, borderRadius: "50%",
             background: menuOpen
-              ? "linear-gradient(135deg, var(--tm-accent-wash), var(--tm-accent-ring))"
-              : "linear-gradient(135deg, var(--tm-border), var(--tm-accent-wash))",
-            border: `1px solid ${menuOpen ? "var(--tm-accent-ring)" : "var(--tm-border)"}`,
+              ? "linear-gradient(135deg, var(--tm-int-bg-wash), var(--tm-int-border))"
+              : "linear-gradient(135deg, var(--tm-border), var(--tm-int-bg-wash))",
+            border: `1px solid ${menuOpen ? "var(--tm-int-border)" : "var(--tm-border)"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 12, fontWeight: 700, color: "var(--tm-text)",
             transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-            boxShadow: menuOpen ? "0 0 12px var(--tm-accent-glow)" : "none",
+            boxShadow: menuOpen ? "0 0 12px var(--tm-int-bg-hover)" : "none",
           }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}</div>
           <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
@@ -260,9 +260,9 @@ function SidebarForgeTimer({
   if (!sessionActive || dismissed) return null
 
   const progress = ringPct / 100
-  const accent = isComplete ? "var(--tm-success)" : "var(--tm-accent)"
-  const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-accent-wash)"
-  const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-accent-ring)"
+  const accent = isComplete ? "var(--tm-success)" : "var(--tm-interactive)"
+  const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-int-bg-wash)"
+  const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-int-border)"
 
   async function handleClaim() {
     if (!skillName || !canClaim) return
@@ -315,7 +315,7 @@ function SidebarForgeTimer({
         boxShadow: isComplete
           ? "0 0 18px rgba(74,222,128,0.10), inset 0 1px 0 rgba(255,255,255,0.04)"
           : running
-          ? "0 0 14px var(--tm-accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)"
+          ? "0 0 14px var(--tm-int-bg-hover), inset 0 1px 0 rgba(255,255,255,0.04)"
           : "inset 0 1px 0 rgba(255,255,255,0.04)",
         transition: "box-shadow 500ms ease, border-color 500ms ease",
         overflow: "hidden",
@@ -350,13 +350,13 @@ function SidebarForgeTimer({
             boxShadow: running ? `0 0 6px ${accent}` : "none",
             animation: running ? "loop-pulse 1.6s ease-in-out infinite" : "none",
           }} />
-          {isComplete ? "Ready" : running ? "Forging" : "Paused"}
+          {isComplete ? "Ready" : running ? "Practicing" : "Paused"}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             type="button"
             onClick={() => (running ? pause() : resume())}
-            aria-label={running ? "Pause forge" : "Resume forge"}
+            aria-label={running ? "Pause practice" : "Resume practice"}
             title={running ? "Pause" : "Resume"}
             className="tm-control-focus"
             style={{
@@ -377,7 +377,7 @@ function SidebarForgeTimer({
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Dismiss forge timer"
+            aria-label="Dismiss practice timer"
             title="Dismiss"
             className="tm-control-focus"
             style={{
@@ -484,7 +484,7 @@ function SidebarForgeTimer({
         </svg>
         <Link
           href="/forge"
-          aria-label="Enter Forge"
+          aria-label="Enter Practice"
           className="tm-control-focus"
           style={{
             position: "absolute",
@@ -510,7 +510,7 @@ function SidebarForgeTimer({
             boxShadow: running ? `0 0 10px ${accentSoft}` : "none",
           }}
         >
-          Forge ↗
+          Practice ↗
         </Link>
       </div>
 
@@ -540,7 +540,7 @@ function SidebarForgeTimer({
             width: "100%", height: 40, padding: "0 14px",
             borderRadius: 10,
             background: canClaim && !claiming
-              ? `linear-gradient(90deg, ${accent} 0%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-accent-hover)"} 50%, ${accent} 100%)`
+              ? `linear-gradient(90deg, ${accent} 0%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-interactive-hover)"} 50%, ${accent} 100%)`
               : "var(--tm-surface-2)",
             backgroundSize: canClaim && !claiming ? "200% 100%" : "auto",
             animation: canClaim && !claiming ? "forge-aurora 6s ease-in-out infinite alternate" : "none",
@@ -548,7 +548,7 @@ function SidebarForgeTimer({
               ? "1px solid transparent"
               : `1px dashed ${accentRing}`,
             color: canClaim && !claiming
-              ? "var(--tm-accent-fg)"
+              ? "var(--tm-interactive-fg)"
               : "var(--tm-text-muted)",
             fontSize: 12, fontWeight: 700,
             letterSpacing: "0.22em", textTransform: "uppercase",
@@ -633,10 +633,10 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
           transition: "background var(--tm-dur) var(--tm-ease)",
           textDecoration: "none",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)" }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)" }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
       >
-        <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}>
+        <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-int-bg-hover))" }}>
           <MyroLogo size={32} />
         </div>
         <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
@@ -653,9 +653,9 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
         style={{
         margin: "10px 8px", padding: "10px 12px",
         borderRadius: "var(--tm-radius)",
-        background: forgeRunning ? "rgba(0,245,212,0.08)" : "var(--tm-accent-wash)",
-        border: `1px solid ${forgeRunning ? "var(--tm-accent)" : "var(--tm-accent-ring)"}`,
-        boxShadow: forgeRunning ? "0 0 14px rgba(0,245,212,0.2), inset 0 0 8px rgba(0,245,212,0.04)" : "none",
+        background: forgeRunning ? "var(--tm-int-bg-wash)" : "var(--tm-int-bg-wash)",
+        border: `1px solid ${forgeRunning ? "var(--tm-interactive)" : "var(--tm-int-border)"}`,
+        boxShadow: forgeRunning ? "0 0 14px var(--tm-int-border), inset 0 0 8px var(--tm-int-bg-subtle)" : "none",
         display: "flex", alignItems: "center", gap: 10,
         transition: "background 400ms ease, border-color 400ms ease, box-shadow 400ms ease",
         cursor: "pointer",
@@ -667,7 +667,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
           fontFamily: "var(--tm-font-mono)",
           fontSize: 22, fontWeight: 700,
           color: "var(--tm-text)", lineHeight: 1,
-          filter: "drop-shadow(0 0 6px var(--tm-accent-glow))",
+          filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
         }}>
           ◆ {xpBalance}
         </div>
@@ -696,8 +696,8 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                   display: "flex", alignItems: "center", justifyContent: "flex-start",
                   gap: 12, padding: "10px 8px",
                   borderRadius: "var(--tm-radius-sm)",
-                  background: active ? "var(--tm-accent-wash)" : "transparent",
-                  boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
+                  background: active ? "var(--tm-int-bg-wash)" : "transparent",
+                  boxShadow: active ? "inset 3px 0 0 var(--tm-interactive)" : "none",
                   transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
                   textDecoration: "none", position: "relative",
                 }}
@@ -708,8 +708,8 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                   <svg
                     width="22" height="22" viewBox="0 0 24 24" fill="none"
                     style={{
-                      color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
-                      filter: active ? "drop-shadow(0 0 6px var(--tm-accent-glow))" : "none",
+                      color: active ? "var(--tm-interactive)" : "var(--tm-icon-muted)",
+                      filter: active ? "drop-shadow(0 0 6px var(--tm-int-bg-hover))" : "none",
                       transition: "color var(--tm-dur) var(--tm-ease), filter var(--tm-dur) var(--tm-ease)",
                     }}
                   >
@@ -725,15 +725,15 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                       style={{
                         position: "absolute", top: -3, right: -3,
                         width: 7, height: 7, borderRadius: "50%",
-                        background: "var(--tm-accent)",
-                        boxShadow: "0 0 6px var(--tm-accent-glow)",
+                        background: "var(--tm-interactive)",
+                        boxShadow: "0 0 6px var(--tm-int-bg-hover)",
                       }}
                     />
                   )}
                 </span>
                 <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)" }}>
-                    {item.nudge && !active ? <span style={{ color: "var(--tm-accent)" }}>Log today →</span> : item.desc}
+                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)" }}>
+                    {item.nudge && !active ? <span style={{ color: "var(--tm-interactive)" }}>Log today →</span> : item.desc}
                   </div>
                 </div>
               </Link>
@@ -747,8 +747,8 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                 style={{
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "9px 8px", borderRadius: "var(--tm-radius-sm)",
-                  background: active ? "var(--tm-accent-wash)" : "transparent",
-                  boxShadow: active ? "inset 3px 0 0 var(--tm-accent)" : "none",
+                  background: active ? "var(--tm-int-bg-wash)" : "transparent",
+                  boxShadow: active ? "inset 3px 0 0 var(--tm-interactive)" : "none",
                   transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
                   textDecoration: "none",
                   position: "relative",
@@ -759,8 +759,8 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                 <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{
                     fontSize: 18,
-                    color: active ? "var(--tm-accent)" : "var(--tm-icon-muted)",
-                    filter: active ? "drop-shadow(0 0 5px var(--tm-accent-glow))" : "none",
+                    color: active ? "var(--tm-interactive)" : "var(--tm-icon-muted)",
+                    filter: active ? "drop-shadow(0 0 5px var(--tm-int-bg-hover))" : "none",
                     transition: "color var(--tm-dur) var(--tm-ease)",
                   }}>
                     {item.icon}
@@ -769,7 +769,7 @@ function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { x
                 </span>
 
                 <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: active ? "var(--tm-accent)" : "var(--tm-text)" }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: active ? "var(--tm-interactive)" : "var(--tm-text)" }}>
                     {item.label}
                   </div>
                   <div style={{ fontSize: 13, marginTop: 1, color: "var(--tm-text-faint)" }}>

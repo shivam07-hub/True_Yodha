@@ -205,7 +205,7 @@ function MissionControlInner() {
       queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
       handlePick(jobId)
     },
-    onError: () => showToast("Not enough XP — forge a session to earn more"),
+    onError: () => showToast("Not enough XP — practice a session to earn more"),
   })
 
   function handleSkillToggle(skill: SkillGapItem) {
@@ -247,7 +247,7 @@ function MissionControlInner() {
 
   const checkpoints = [
     { label: "Find Job", done: topJobs.length > 0 },
-    { label: "Forge", done: hasForged },
+    { label: "Practice", done: hasForged },
     { label: "Log", done: loggedToday },
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0 },
     { label: "Apply", done: hasApplied },
@@ -277,7 +277,7 @@ function MissionControlInner() {
       const seedSkill = cartSkills[0]?.skill_name ?? firstMissing ?? "your next skill"
       moves.push({
         icon: "forge",
-        title: `Forge ${seedSkill}`,
+        title: `Practice ${seedSkill}`,
         meta: "L0 → L1 · 12 sessions",
         reward: "+30 XP",
         href: "/forge",
@@ -310,7 +310,7 @@ function MissionControlInner() {
       icon: "forge",
       title: "Read one skill gap",
       meta: "Open your weakest domain",
-      reward: "Intel",
+      reward: "Live Job Data",
       href: "/skills",
     })
     addIfRoom({
@@ -338,13 +338,13 @@ function MissionControlInner() {
             transform: "translateX(-50%)",
             zIndex: "var(--z-toast)" as never,
             background: "var(--tm-surface-2)",
-            border: "1px solid var(--tm-accent-ring)",
+            border: "1px solid var(--tm-int-border)",
             borderRadius: "var(--tm-radius-pill)",
             padding: "10px 20px",
             fontSize: 13,
-            color: "var(--tm-accent)",
+            color: "var(--tm-interactive)",
             fontWeight: 600,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 12px rgba(0,245,212,0.15)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 12px var(--tm-int-border-soft)",
             whiteSpace: "nowrap",
             pointerEvents: "none",
           }}

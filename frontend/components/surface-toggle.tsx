@@ -53,7 +53,7 @@ export function SurfaceToggle() {
       <button
         type="button"
         aria-pressed={variation === "signal"}
-        aria-label="Dark (Signal)"
+        aria-label="Dark"
         title="Dark"
         onClick={() => choose("signal")}
         style={{ padding: "0.375rem 0.625rem", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -66,7 +66,7 @@ export function SurfaceToggle() {
       <button
         type="button"
         aria-pressed={variation === "forge"}
-        aria-label="Light (Forge)"
+        aria-label="Light"
         title="Light"
         onClick={() => choose("forge")}
         style={{ padding: "0.375rem 0.625rem", display: "flex", alignItems: "center", justifyContent: "center" }}

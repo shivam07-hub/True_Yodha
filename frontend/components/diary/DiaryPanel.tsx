@@ -119,7 +119,7 @@ export function DiaryPanel({
                 transition: "border-color var(--tm-dur) var(--tm-ease)",
                 boxSizing: "border-box",
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--tm-accent)")}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--tm-interactive)")}
               onBlur={(e) => (e.currentTarget.style.borderColor = "var(--tm-border)")}
             />
           </div>
@@ -140,7 +140,7 @@ export function DiaryPanel({
                   <div key={skill.skill_name} style={{
                     display: "flex", alignItems: "center", gap: 8,
                     padding: "7px 10px", borderRadius: "var(--tm-radius-sm)",
-                    background: "rgba(0,245,212,0.05)", border: "1px solid var(--tm-accent-ring)",
+                    background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
                   }}>
                     <span style={{ flex: 1, fontSize: 13, color: "var(--tm-text)", fontWeight: 500 }}>{skill.skill_name}</span>
                     <span style={{ fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", flexShrink: 0 }}>
@@ -175,9 +175,9 @@ export function DiaryPanel({
                           key={g.skill}
                           style={{
                             padding: "4px 10px", borderRadius: 999, fontSize: 11,
-                            background: "rgba(0,245,212,0.08)",
-                            border: "1px solid var(--tm-accent-ring)",
-                            color: "var(--tm-accent)",
+                            background: "var(--tm-int-bg-wash)",
+                            border: "1px solid var(--tm-int-border)",
+                            color: "var(--tm-interactive)",
                           }}
                         >
                           ✓ {g.skill}
@@ -214,11 +214,11 @@ export function DiaryPanel({
               disabled={!entryText.trim() || submitting}
               style={{
                 width: "100%", padding: "11px 0", borderRadius: "var(--tm-radius)",
-                background: entryText.trim() ? "var(--tm-accent)" : "rgba(255,255,255,0.06)",
-                border: "none", color: entryText.trim() ? "var(--tm-accent-fg)" : "var(--tm-text-faint)",
+                background: entryText.trim() ? "var(--tm-interactive)" : "rgba(255,255,255,0.06)",
+                border: "none", color: entryText.trim() ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
                 fontSize: 13, fontWeight: 700, cursor: entryText.trim() && !submitting ? "pointer" : "default",
                 fontFamily: "inherit", transition: "all var(--tm-dur) var(--tm-ease)",
-                boxShadow: entryText.trim() ? "0 0 16px rgba(0,245,212,0.25)" : "none",
+                boxShadow: entryText.trim() ? "0 0 16px var(--tm-int-border)" : "none",
                 opacity: submitting ? 0.7 : 1,
               }}
             >
@@ -242,7 +242,7 @@ export function DiaryPanel({
                     {entry.skills_delta.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
                         {entry.skills_delta.map((sd) => (
-                          <span key={sd.taxonomy_key} style={{ padding: "1px 7px", borderRadius: 999, background: "rgba(0,245,212,0.06)", border: "1px solid var(--tm-accent-ring)", fontSize: 10, color: "var(--tm-accent)" }}>
+                          <span key={sd.taxonomy_key} style={{ padding: "1px 7px", borderRadius: 999, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 10, color: "var(--tm-interactive)" }}>
                             {sd.taxonomy_key} +{sd.xp_added}
                           </span>
                         ))}

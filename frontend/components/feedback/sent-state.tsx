@@ -71,8 +71,8 @@ export function SentState({
           style={{
             padding: "9px 18px",
             borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-accent)",
-            color: "var(--tm-accent-fg)",
+            background: "var(--tm-interactive)",
+            color: "var(--tm-interactive-fg)",
             border: "none",
             fontSize: 12,
             fontWeight: 600,

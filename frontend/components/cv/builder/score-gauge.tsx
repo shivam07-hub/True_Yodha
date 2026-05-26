@@ -22,12 +22,12 @@ export function ScoreGauge({ value, size = 120, label = "JD MATCH" }: ScoreGauge
         <circle cx={cx} cy={cy} r={radius} stroke="var(--tm-border)" strokeWidth="6" fill="none"/>
         <circle
           cx={cx} cy={cy} r={radius}
-          stroke="var(--tm-accent)" strokeWidth="6" fill="none"
+          stroke="var(--data-1)" strokeWidth="6" fill="none"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={offset}
           style={{
-            filter: "drop-shadow(0 0 6px var(--tm-accent-glow))",
+            filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
             transition: "stroke-dashoffset 600ms var(--tm-ease)",
           }}
         />

@@ -11,13 +11,13 @@ Next.js 14 (App Router) · Tailwind CSS · shadcn/ui · TanStack Query · Zustan
 | `/cv` | CV | Upload CV (PDF/DOCX), view extracted skills grouped by Lightcast domain, evidence toggle, upload history score timeline |
 | `/dashboard` | Dashboard | Domain Breakdown radar chart **+** Skill Intelligence panel side-by-side (lg:grid-cols-2); Top 5 Skills to Upgrade below |
 | `/tracker` | Jobs | Jobs Tracker — top 5 matched jobs with application status (pending → applied → interviewing → offer/rejected) |
-| `/market` | Intel | Market intelligence — skill demand, trending roles |
+| `/market` | Live Job Data | Market intelligence — skill demand, trending roles |
 | `/diary` | Diary | Daily skill diary — free-text entry → XP awarded per skill |
 | `/onboarding` | — | Step flow: CV upload → role selection → Myro Score reveal |
 | `/mission` | — | About + mission statement |
 | `/jobs` | — | Full job list with search/filter (not in main nav) |
 
-Nav order: **CV → Dashboard → Jobs → Intel → Diary**
+Nav order: **CV → Dashboard → Jobs → Live Job Data → Diary**
 
 Myro Score always visible in header (color-coded: red < 40, amber < 70, green ≥ 70).
 

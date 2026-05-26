@@ -134,7 +134,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
               padding: "7px 18px",
               borderRadius: 999,
               border: "none",
-              background: mode === id ? "var(--tm-accent)" : "transparent",
+              background: mode === id ? "var(--tm-interactive)" : "transparent",
               color: mode === id ? "var(--tm-bg)" : "var(--tm-text-muted)",
               fontSize: 13, fontWeight: mode === id ? 600 : 400,
               cursor: "pointer",
@@ -183,18 +183,18 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
               : "Drop your LinkedIn PDF here, or click to browse"}
             style={{
               width: "100%",
-              border: `2px dashed ${dragging ? "var(--tm-accent)" : "var(--tm-border)"}`,
+              border: `2px dashed ${dragging ? "var(--tm-interactive)" : "var(--tm-border)"}`,
               borderRadius: "var(--tm-radius-lg)",
               padding: "48px 32px",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
               cursor: "pointer",
-              background: dragging ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
+              background: dragging ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.02)",
               fontFamily: "inherit",
               outline: "none",
               transition: "border-color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--tm-accent-ring)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--tm-accent-wash)" }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = dragging ? "var(--tm-accent)" : "var(--tm-border)"; e.currentTarget.style.boxShadow = "none" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--tm-int-border)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--tm-int-bg-wash)" }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = dragging ? "var(--tm-interactive)" : "var(--tm-border)"; e.currentTarget.style.boxShadow = "none" }}
           >
             <span aria-hidden="true" style={{ fontSize: 37, lineHeight: 1 }}>{mode === "linkedin" ? "in" : "📄"}</span>
             <span style={{ fontSize: "var(--tm-fs-body)", fontWeight: 500, color: "var(--tm-text)" }}>
@@ -260,7 +260,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
                 width: "100%",
                 padding: "18px 20px 48px",
                 borderRadius: "var(--tm-radius-lg)",
-                border: `1px solid ${textFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                border: `1px solid ${textFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
                 background: "rgba(255,255,255,0.025)",
                 color: "var(--tm-text)",
                 fontSize: "var(--tm-fs-body)",
@@ -268,7 +268,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
                 lineHeight: 1.75,
                 resize: "vertical",
                 outline: "none",
-                boxShadow: textFocused ? "0 0 0 3px var(--tm-accent-wash)" : "none",
+                boxShadow: textFocused ? "0 0 0 3px var(--tm-int-bg-wash)" : "none",
                 transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
                 boxSizing: "border-box",
               }}
@@ -305,7 +305,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
                 {Array.from({ length: MIN_WORDS }).map((_, i) => (
                   <div key={i} style={{
                     flex: 1, height: 2, borderRadius: 1,
-                    background: i < wordCount ? "var(--tm-accent)" : "rgba(255,255,255,0.1)",
+                    background: i < wordCount ? "var(--tm-interactive)" : "rgba(255,255,255,0.1)",
                     transition: "background 150ms",
                   }} />
                 ))}
@@ -337,8 +337,8 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
               width: "100%",
               padding: "14px",
               borderRadius: "var(--tm-radius-sm)",
-              background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-              border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+              background: canSubmit ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)",
+              border: `1px solid ${canSubmit ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
               color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
               fontSize: "var(--tm-fs-meta)", fontWeight: 700,
               cursor: canSubmit ? "pointer" : "default",

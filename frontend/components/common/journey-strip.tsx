@@ -41,9 +41,9 @@ export function JourneyStrip() {
               transition: "all 0.15s var(--tm-ease)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--tm-accent)"
-              e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-              e.currentTarget.style.background = "var(--tm-accent-wash)"
+              e.currentTarget.style.color = "var(--tm-interactive)"
+              e.currentTarget.style.borderColor = "var(--tm-int-border)"
+              e.currentTarget.style.background = "var(--tm-int-bg-wash)"
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = "var(--tm-text-faint)"

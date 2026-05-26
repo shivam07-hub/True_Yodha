@@ -107,7 +107,7 @@ export function PublicProfilePage({ initial, shareUrl }: PublicProfilePageProps)
             {initial.ninja_name}
           </h1>
         </div>
-        <ShareButton url={shareUrl} ninjaName={initial.ninja_name} />
+        <ShareButton url={shareUrl} ninjaName={initial.ninja_name} score={initial.mirror_score != null ? Math.round(initial.mirror_score) : null} />
       </header>
 
       <section
@@ -198,7 +198,7 @@ function CountersStrip({ forge, diary, tracker }: { forge: number; diary: number
         textTransform: "uppercase",
       }}
     >
-      <Counter value={forge} label="Forge" />
+      <Counter value={forge} label="Practice" />
       <Counter value={diary} label="Diary" />
       <Counter value={tracker} label="Tracker" />
     </div>

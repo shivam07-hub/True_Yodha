@@ -35,38 +35,38 @@ const buttonVariants = cva(
       variant: {
         // ── solid · the cast button ─────────────────────────────────────────
         solid: cn(
-          "bg-[var(--tm-accent)] text-[var(--tm-accent-fg)] border-[var(--tm-accent)]",
+          "bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)] border-[var(--tm-interactive)]",
           "shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_0_rgba(0,0,0,0.08)]",
-          "hover:bg-[var(--tm-accent-hover)] hover:border-[var(--tm-accent-hover)]",
+          "hover:bg-[var(--tm-interactive-hover)] hover:border-[var(--tm-interactive-hover)]",
           "hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_2px_6px_rgba(0,0,0,0.10)]",
-          "active:bg-[var(--tm-accent-pressed)] active:border-[var(--tm-accent-pressed)]",
+          "active:bg-[var(--tm-interactive-press)] active:border-[var(--tm-interactive-press)]",
           "active:shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]",
-          "focus-visible:outline-2 focus-visible:outline-[var(--tm-accent-ring)] focus-visible:outline-offset-2",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
         ),
         // ── outline · the considered button ─────────────────────────────────
         outline: cn(
-          "bg-transparent text-[var(--tm-accent)] border-[var(--tm-accent-ring)]",
-          "hover:bg-[var(--tm-accent-wash)] hover:border-[var(--tm-accent)]",
-          "active:bg-[var(--tm-accent-wash)] active:border-[var(--tm-accent-pressed)] active:text-[var(--tm-accent-pressed)]",
-          "focus-visible:outline-2 focus-visible:outline-[var(--tm-accent-ring)] focus-visible:outline-offset-2",
+          "bg-transparent text-[var(--tm-interactive)] border-[var(--tm-int-border)]",
+          "hover:bg-[var(--tm-int-bg-wash)] hover:border-[var(--tm-interactive)]",
+          "active:bg-[var(--tm-int-bg-wash)] active:border-[var(--tm-interactive-press)] active:text-[var(--tm-interactive-press)]",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
         ),
         // ── ghost · the utility button ──────────────────────────────────────
         ghost: cn(
           "bg-transparent text-[var(--tm-text-muted)] border-transparent",
           "hover:bg-[var(--tm-hover)] hover:text-[var(--tm-text)]",
           "active:bg-[var(--tm-hover)]",
-          "aria-pressed:bg-[var(--tm-accent-wash)] aria-pressed:text-[var(--tm-accent)] aria-pressed:border-[var(--tm-accent-ring)]",
-          "focus-visible:outline-2 focus-visible:outline-[var(--tm-accent-ring)] focus-visible:outline-offset-2",
+          "aria-pressed:bg-[var(--tm-int-bg-wash)] aria-pressed:text-[var(--tm-interactive)] aria-pressed:border-[var(--tm-int-border)]",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
         ),
         // ── inline · the prose link (NOT a box) ─────────────────────────────
         inline: cn(
           "!inline !p-0 !h-auto !rounded-none !border-0 !shadow-none !min-w-0",
-          "bg-transparent text-[var(--tm-accent)] font-[inherit] text-[length:inherit]",
+          "bg-transparent text-[var(--tm-interactive)] font-[inherit] text-[length:inherit]",
           "underline underline-offset-[3px] decoration-1",
-          "hover:text-[var(--tm-accent-hover)] hover:decoration-2",
-          "active:text-[var(--tm-accent-pressed)]",
+          "hover:text-[var(--tm-interactive-hover)] hover:decoration-2",
+          "active:text-[var(--tm-interactive-press)]",
           "motion-safe:active:!translate-y-0",
-          "focus-visible:outline-2 focus-visible:outline-[var(--tm-accent-ring)] focus-visible:outline-offset-[3px] focus-visible:!rounded-[2px]",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-[3px] focus-visible:!rounded-[2px]",
         ),
       },
       size: {

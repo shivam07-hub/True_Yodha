@@ -52,8 +52,8 @@ export function TrackerHeader({ tab, onTab, activeCount, verdictsCount, pendingR
           onClick={onAddManually}
           style={{
             padding: "8px 14px", borderRadius: 99,
-            background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-            color: "var(--tm-accent)", cursor: "pointer",
+            background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+            color: "var(--tm-interactive)", cursor: "pointer",
             fontSize: 12, fontFamily: "inherit", fontWeight: 600,
             whiteSpace: "nowrap",
           }}
@@ -76,9 +76,9 @@ function TabPill({
         display: "inline-flex", alignItems: "center", gap: 8,
         padding: "6px 14px", borderRadius: 99,
         fontSize: 12, fontFamily: "inherit", cursor: "pointer",
-        background: active ? "var(--tm-accent)" : "transparent",
+        background: active ? "var(--tm-interactive)" : "transparent",
         border: "none",
-        color: active ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
       }}
     >
       <span>{label}</span>

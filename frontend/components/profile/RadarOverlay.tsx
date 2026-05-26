@@ -72,18 +72,18 @@ export function RadarOverlay({
         {/* Viewer polygon — drawn first so owner sits visually on top */}
         <polygon
           points={pointsToPolygonAttr(viewerPolygon)}
-          fill="#F2B66B"
+          fill="var(--data-3)"
           fillOpacity="0.10"
-          stroke="#F2B66B"
+          stroke="var(--data-3)"
           strokeWidth="2"
         />
 
         {/* Owner polygon */}
         <polygon
           points={pointsToPolygonAttr(ownerPolygon)}
-          fill="var(--tm-accent)"
+          fill="var(--data-1)"
           fillOpacity="0.14"
-          stroke="var(--tm-accent)"
+          stroke="var(--data-1)"
           strokeWidth="2"
         />
       </svg>
@@ -100,11 +100,11 @@ export function RadarOverlay({
         }}
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--tm-accent)" }} />
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--data-1)" }} />
           {ownerLabel}
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: "#F2B66B" }} />
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--data-3)" }} />
           {viewerLabel}
         </span>
       </figcaption>

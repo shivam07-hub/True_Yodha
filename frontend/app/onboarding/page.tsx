@@ -168,7 +168,7 @@ export default function OnboardingPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <MyroLogo size={24} />
-          <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-accent)" }}>
+          <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: "var(--tm-tracking-tight)", color: "var(--tm-interactive)" }}>
             Myro
           </span>
         </div>
@@ -179,7 +179,7 @@ export default function OnboardingPage() {
                 key={s}
                 style={{
                   width: 8, height: 8, borderRadius: "50%",
-                  background: i <= stepIndex ? "var(--tm-accent)" : "var(--tm-border)",
+                  background: i <= stepIndex ? "var(--tm-interactive)" : "var(--tm-border)",
                   transition: "background var(--tm-dur) var(--tm-ease)",
                 }}
               />

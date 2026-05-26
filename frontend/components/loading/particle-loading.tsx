@@ -33,7 +33,7 @@ export function ParticleLoading({ message = "Loading…", height = 400 }: Partic
     let accentRgb = "0,245,212"
 
     function readAccent() {
-      const hex = getComputedStyle(document.documentElement).getPropertyValue("--tm-accent").trim()
+      const hex = getComputedStyle(document.documentElement).getPropertyValue("--tm-interactive").trim()
       accentRgb = hexToRgb(hex)
     }
     readAccent()

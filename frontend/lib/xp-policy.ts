@@ -17,8 +17,8 @@ export const XP_POLICY = {
 
 export const XP_EARN_ACTIONS = [
   {
-    title: "Forge a skill",
-    detail: "Forge XP builds in the background and can be claimed during the session.",
+    title: "Practice a skill",
+    detail: "Practice XP builds in the background and can be claimed during the session.",
     amount: `+${XP_POLICY.forgeFocusedMinutes * XP_POLICY.forgeFocusedRate} XP`,
     meta: "soft cap 25 min",
     status: "live",

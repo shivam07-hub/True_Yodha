@@ -94,9 +94,9 @@ export function ProcessLoading({
                 width: 36,
                 height: 36,
                 borderRadius: "50%",
-                border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                background: active ? "var(--tm-accent-wash)" : "var(--tm-surface)",
-                color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                border: `1px solid ${active ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+                background: active ? "var(--tm-int-bg-wash)" : "var(--tm-surface)",
+                color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
                 transform: active ? "translateY(-2px) scale(1.03)" : "none",
                 opacity: active ? 1 : 0.7,
                 transition: "transform var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease), background-color var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
@@ -112,7 +112,7 @@ export function ProcessLoading({
         <Spinner
           aria-hidden="true"
           className={cn(
-            "size-4 text-[var(--tm-accent)]",
+            "size-4 text-[var(--tm-interactive)]",
             allowLoopingMotion ? "animate-spin" : "animate-none",
           )}
         />

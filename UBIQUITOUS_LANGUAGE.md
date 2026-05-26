@@ -79,6 +79,22 @@ Domain glossary for Mirror, the Intelligence-as-a-Service platform for job seeke
 | **Jobs Tracking Dashboard** | User-facing surface listing Applications with status, readiness, and last activity. | tracker |
 | **Chrome Extension** | Manifest V3 extension at `/Chrome_extension/` that captures a JobPosting page into Mirror. | scraper |
 
+## Public Vocab Lock (PR2, 2026-05-26)
+
+User-facing labels for four surfaces. Code identifiers (file names, components, hooks, CSS classes, DB columns, routes, GA4 event keys) are **frozen** at their old names — only visible copy moved. Backend service `forge_service.py`, table `forge_sessions`, column `user_profiles.ninja_name`, routes `/forge` / `/intel` (alias for `/market`) / `/home` / `/profile/{ninja_name}` are durable contracts and intentionally retain the old vocabulary.
+
+| Surface | User-facing label | Old aliases to avoid in copy |
+|---------|------------------|------------------------------|
+| **Practice** | A bounded deep-work session block, the timer page, and the verb for working on a Skill (`/forge` route). Loop-bar stage label. Sidebar widget. | Forge (UI), Forge XP, Forge session, Forge claim, Log to Forge, Skills to forge, Tap to forge, Forging, Forge a skill |
+| **Live Job Data** | The market intelligence surface — heatmap + live job demand (`/market` route). View-triad "intel" key. Newsletter taxonomy. CV-builder JD lens. | Intel (UI), Job Intelligence (UI), Hiring Intel, Browse Intel, View intel |
+| **Tackle Today** | The /home page concept and the eyebrow / nav-desc / "in {page}" descriptor. Renames the dashboard from a control-room metaphor to an action-oriented daily surface. | Mission Control (UI), Today's mission control |
+| **Public Name** | The user's vanity slug shown as their public handle. Onboarding step label, Settings field, share-sheet handle. Slug pattern `^[a-z0-9-]{3,32}$` unchanged. | Ninja Name (UI), ninja name placeholder |
+
+Carve-outs that intentionally keep their old word:
+- The dark theme aesthetic is still `data-accent="signal"` in CSS; the parenthetical "(Signal)" / "(Forge)" was stripped from `aria-label` so the sun/moon icon carries the affordance. Theme keys remain internal-only.
+- The phrase **"Intelligence"** as a standalone word survives (the "Intelligence-as-a-Service" tagline, "Career Intelligence" eyebrow on `/about` and `/market`, "Market intelligence" nav desc). Only the bare word "Intel" and the compound "Job Intelligence" moved.
+- Comments, ADRs, session-history, and beta-testing docs are historical record and use the old vocabulary as it was at write-time.
+
 ## Architecture
 
 | Term | Definition | Aliases to avoid |

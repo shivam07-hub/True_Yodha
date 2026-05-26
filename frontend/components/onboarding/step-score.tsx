@@ -53,7 +53,7 @@ export function StepScore({ score }: Props) {
                 <div
                   style={{
                     height: "100%", width: "100%",
-                    background: "var(--tm-accent)",
+                    background: "var(--tm-interactive)",
                     borderRadius: 999,
                     transform: `scaleX(${val / 100})`,
                     transformOrigin: "left",
@@ -90,8 +90,8 @@ export function StepScore({ score }: Props) {
                   flexShrink: 0, marginLeft: 12,
                   padding: "3px 10px", borderRadius: "var(--tm-radius-pill)",
                   fontSize: "var(--tm-fs-meta)", fontWeight: 600,
-                  color: "var(--tm-accent)", background: "var(--tm-accent-wash)",
-                  border: "1px solid var(--tm-accent-ring)",
+                  color: "var(--tm-interactive)", background: "var(--tm-int-bg-wash)",
+                  border: "1px solid var(--tm-int-border)",
                   whiteSpace: "nowrap",
                 }}>
                   L{g.current_level} → L{g.target_level}
@@ -106,13 +106,13 @@ export function StepScore({ score }: Props) {
         onClick={() => router.push("/skills")}
         style={{
           width: "100%", padding: "14px",
-          background: "var(--tm-accent)", border: "1px solid var(--tm-accent)",
-          color: "var(--tm-accent-fg)", borderRadius: "var(--tm-radius)",
+          background: "var(--tm-interactive)", border: "1px solid var(--tm-interactive)",
+          color: "var(--tm-interactive-fg)", borderRadius: "var(--tm-radius)",
           fontSize: "var(--tm-fs-body)", fontWeight: 600,
           cursor: "pointer", fontFamily: "inherit",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-hover)"; e.currentTarget.style.borderColor = "var(--tm-accent-hover)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent)" }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-interactive-hover)"; e.currentTarget.style.borderColor = "var(--tm-interactive-hover)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-interactive)" }}
       >
         See Full Skill Intelligence →
       </button>

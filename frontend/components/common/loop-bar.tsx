@@ -13,7 +13,7 @@ interface LoopNode {
 
 const NODES: LoopNode[] = [
   { id: "find-job", label: "Find job",  href: "/market" },
-  { id: "forge",    label: "Forge",     xp: "+50 XP" },
+  { id: "forge",    label: "Practice",  xp: "+50 XP" },
   { id: "log",      label: "Log",       xp: "+30 XP" },
   { id: "level",    label: "Level up" },
   { id: "apply",    label: "Apply",     href: "/tracker" },
@@ -58,8 +58,8 @@ export function LoopBar({ hasCv, hasJob, loggedToday, hasApplied }: LoopBarProps
         const dot = (
           <div style={{
             width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-            background: isNext ? "var(--tm-accent)" : isDone ? "var(--tm-success, #22c55e)" : "var(--tm-border)",
-            boxShadow: isNext ? "0 0 8px var(--tm-accent-glow)" : "none",
+            background: isNext ? "var(--tm-interactive)" : isDone ? "var(--tm-success, #22c55e)" : "var(--tm-border)",
+            boxShadow: isNext ? "0 0 8px var(--tm-int-bg-hover)" : "none",
             animation: isNext ? "loop-pulse 2s ease-out infinite" : "none",
             transition: "background 0.2s, box-shadow 0.2s",
           }} />
@@ -69,14 +69,14 @@ export function LoopBar({ hasCv, hasJob, loggedToday, hasApplied }: LoopBarProps
           <span style={{
             fontSize: 10, fontWeight: isNext ? 700 : 500,
             letterSpacing: isNext ? "0.04em" : "0.02em",
-            color: isNext ? "var(--tm-accent)" : isDone ? "var(--tm-text-faint)" : "var(--tm-text-faint)",
+            color: isNext ? "var(--tm-interactive)" : isDone ? "var(--tm-text-faint)" : "var(--tm-text-faint)",
             opacity: isDone && !isNext ? 0.45 : 1,
             textDecoration: isDone && !isNext ? "line-through" : "none",
             whiteSpace: "nowrap",
           }}>
             {node.label}
             {isNext && node.xp && (
-              <span style={{ marginLeft: 4, fontSize: 9, color: "var(--tm-accent)", opacity: 0.75, fontFamily: "var(--tm-font-mono)" }}>
+              <span style={{ marginLeft: 4, fontSize: 9, color: "var(--tm-interactive)", opacity: 0.75, fontFamily: "var(--tm-font-mono)" }}>
                 {node.xp}
               </span>
             )}

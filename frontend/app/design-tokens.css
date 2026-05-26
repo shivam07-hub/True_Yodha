@@ -34,27 +34,30 @@
   --tm-text-faint:    #6F7891;
   --tm-accent-text:   #67E8F9;
 
-  /* ── Status (constant across accent modes) ───────────────── */
-  --tm-success:       #4ADE80;
-  --tm-warning:       #F59E0B;
-  --tm-danger:        #FB7185;
+  /* ── Status ramps (OKLCH) ────────────────────────────────── */
+  --tm-success:         oklch(0.74 0.14 145);
+  --tm-success-wash:    oklch(0.97 0.02 145);
+  --tm-success-border:  oklch(0.85 0.07 145);
+  --tm-success-text:    oklch(0.46 0.11 145);
 
-  --tm-success-wash:  rgba(74, 222, 128, 0.12);
-  --tm-warning-wash:  rgba(245, 158, 11, 0.12);
-  --tm-danger-wash:   rgba(251, 113, 133, 0.12);
+  --tm-warning:         oklch(0.78 0.13 75);
+  --tm-warning-wash:    oklch(0.97 0.04 75);
+  --tm-warning-border:  oklch(0.85 0.10 75);
+  --tm-warning-text:    oklch(0.52 0.11 75);
 
-  --tm-success-border: rgba(74, 222, 128, 0.30);
-  --tm-warning-border: rgba(245, 158, 11, 0.40);
-  --tm-danger-border:  rgba(251, 113, 133, 0.30);
+  --tm-danger:          oklch(0.66 0.17 25);
+  --tm-danger-wash:     oklch(0.97 0.03 25);
+  --tm-danger-border:   oklch(0.74 0.16 25);
+  --tm-danger-text:     oklch(0.52 0.15 25);
 
   /* ── Skill tier (semantic — gap / building / strong) ────────── */
   --tm-tier-gap-fg:        var(--tm-danger);
   --tm-tier-gap-bg:        var(--tm-danger-wash);
   --tm-tier-gap-border:    var(--tm-danger-border);
 
-  --tm-tier-building-fg:     #FBBF24;
-  --tm-tier-building-bg:     rgba(217, 119, 6, 0.14);
-  --tm-tier-building-border: rgba(217, 119, 6, 0.45);
+  --tm-tier-building-fg:     var(--tm-warning-text);
+  --tm-tier-building-bg:     var(--tm-warning-wash);
+  --tm-tier-building-border: var(--tm-warning-border);
 
   --tm-tier-strong-fg:     var(--tm-success);
   --tm-tier-strong-bg:     var(--tm-success-wash);
@@ -119,15 +122,58 @@
   --tm-shadow-2:      0 8px 24px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.4);
   --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
 
-  /* ── Default accent = SIGNAL (teal) ──────────────────────── */
-  --tm-accent:          #00F5D4;
-  --tm-accent-hover:    #53FFE3;
-  --tm-accent-pressed:  #00C7AE;
-  --tm-accent-glow:     rgba(0, 245, 212, 0.35);
-  --tm-accent-wash:     rgba(0, 245, 212, 0.08);
-  --tm-accent-ring:     rgba(0, 245, 212, 0.45);
-  --tm-accent-grid:     rgba(0, 245, 212, 0.025);
-  --tm-accent-fg:       #050A18; /* text on accent-filled surfaces */
+  /* ── Brand + interactive split (PR1) ───────────────────────
+     Brand is reserved for rare moments (XP/completion/logo).
+     Interactive owns CTAs/links/focus by default.
+     Keep --tm-accent* as a legacy alias bridge for zero-delta rollout. */
+  --tm-brand:              oklch(0.88 0.18 175);
+  --tm-brand-glow:         oklch(0.88 0.18 175 / 0.35);
+  --tm-brand-fg:           oklch(0.07 0.005 250);
+
+  --int-01:                oklch(0.97 0.02 185);
+  --int-02:                oklch(0.92 0.04 185);
+  --int-03:                oklch(0.85 0.07 185);
+  --int-04:                oklch(0.76 0.10 185);
+  --int-05:                oklch(0.66 0.13 185);
+  --int-06:                oklch(0.55 0.13 185);
+  --int-07:                oklch(0.46 0.11 185);
+  --int-08:                oklch(0.38 0.09 185);
+  --int-09:                oklch(0.32 0.07 185);
+
+  --tm-int-bg-subtle:      var(--int-01);
+  --tm-int-bg-wash:        var(--int-02);
+  --tm-int-bg-hover:       var(--int-03);
+  --tm-int-border-soft:    var(--int-04);
+  --tm-int-border:         var(--int-05);
+  --tm-int-solid:          var(--int-06);
+  --tm-int-solid-hover:    var(--int-07);
+  --tm-int-text:           var(--int-08);
+  --tm-int-text-strong:    var(--int-09);
+
+  --tm-interactive:        var(--tm-int-solid);
+  --tm-interactive-hover:  var(--tm-int-solid-hover);
+  --tm-interactive-press:  var(--tm-int-solid-hover);
+  --tm-interactive-glow:   var(--tm-int-bg-hover);
+  --tm-interactive-wash:   var(--tm-int-bg-wash);
+  --tm-interactive-ring:   var(--tm-int-border);
+  --tm-interactive-grid:   oklch(0.97 0.02 185 / 0.28);
+  --tm-interactive-fg:     var(--tm-brand-fg);
+
+  --data-1:                oklch(0.62 0.13 185);
+  --data-2:                oklch(0.62 0.14 145);
+  --data-3:                oklch(0.62 0.13 75);
+  --data-4:                oklch(0.62 0.17 25);
+  --data-5:                oklch(0.62 0.13 285);
+  --data-6:                oklch(0.62 0.12 245);
+
+  --tm-accent:             var(--tm-interactive);
+  --tm-accent-hover:       var(--tm-interactive-hover);
+  --tm-accent-pressed:     var(--tm-interactive-press);
+  --tm-accent-glow:        var(--tm-interactive-glow);
+  --tm-accent-wash:        var(--tm-interactive-wash);
+  --tm-accent-ring:        var(--tm-interactive-ring);
+  --tm-accent-grid:        var(--tm-interactive-grid);
+  --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
   --tm-bg-inset:        #030712;
   --tm-bg-surface-hover: var(--tm-surface-2);
@@ -165,64 +211,18 @@
   --tm-shadow-1:      0 1px 2px rgba(15, 23, 42, 0.10);
   --tm-shadow-2:      0 18px 44px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
 
-  /* Status — legibility tuned for white surface */
-  --tm-warning:        #92400E;
-  --tm-warning-wash:   rgba(146, 64, 14, 0.10);
-  --tm-warning-border: rgba(146, 64, 14, 0.34);
+  --tm-brand:         oklch(0.55 0.18 175);
+  --tm-brand-glow:    oklch(0.55 0.18 175 / 0.22);
+  --tm-brand-fg:      oklch(0.99 0.002 250);
 
-  /* Tier — building re-tuned for light bg; gap/strong inherit from danger/success (already surface-correct) */
-  --tm-tier-building-fg:     #92400E;
-  --tm-tier-building-bg:     rgba(146, 64, 14, 0.08);
-  --tm-tier-building-border: rgba(146, 64, 14, 0.32);
-}
-
-:root[data-surface="light"][data-accent="signal"] {
-  --tm-accent:          #126E68;
-  --tm-accent-hover:    #0D5E59;
-  --tm-accent-pressed:  #0A4C48;
-  --tm-accent-glow:     rgba(18, 110, 104, 0.18);
-  --tm-accent-wash:     rgba(18, 110, 104, 0.09);
-  --tm-accent-ring:     rgba(18, 110, 104, 0.34);
-  --tm-accent-grid:     rgba(18, 110, 104, 0.022);
-  --tm-accent-fg:       #FFFFFF;
-}
-
-/* ── Accent: SIGNAL (teal/electric mint) ───────────────────── */
-:root[data-accent="signal"] {
-  --tm-accent:          #00F5D4;
-  --tm-accent-hover:    #53FFE3;
-  --tm-accent-pressed:  #00C7AE;
-  --tm-accent-glow:     rgba(0, 245, 212, 0.35);
-  --tm-accent-wash:     rgba(0, 245, 212, 0.08);
-  --tm-accent-ring:     rgba(0, 245, 212, 0.45);
-  --tm-accent-grid:     rgba(0, 245, 212, 0.025);
-  --tm-accent-fg:       #050A18;
-}
-
-/* ── Accent: FORGE (amber/warm gold) ───────────────────────── */
-:root[data-accent="forge"] {
-  --tm-accent:          #FFB347;
-  --tm-accent-hover:    #FFD07A;
-  --tm-accent-pressed:  #E08E1F;
-  --tm-accent-glow:     rgba(255, 179, 71, 0.38);
-  --tm-accent-wash:     rgba(255, 179, 71, 0.10);
-  --tm-accent-ring:     rgba(255, 179, 71, 0.50);
-  --tm-accent-grid:     rgba(255, 179, 71, 0.030);
-  --tm-accent-fg:       #1A0F00;
-}
-
-/* ── Accent + Surface combo: FORGE on LIGHT (contrast-safe) ──
-   First-time users default here. Darken the interactive amber
-   so links/buttons remain readable on light surfaces. */
-:root[data-surface="light"][data-accent="forge"] {
-  --tm-accent:          #8F541F;
-  --tm-accent-hover:    #774417;
-  --tm-accent-pressed:  #5F3510;
-  --tm-accent-glow:     rgba(143, 84, 31, 0.20);
-  --tm-accent-wash:     rgba(143, 84, 31, 0.09);
-  --tm-accent-ring:     rgba(143, 84, 31, 0.34);
-  --tm-accent-grid:     rgba(143, 84, 31, 0.022);
-  --tm-accent-fg:       #FFFFFF;
+  --tm-interactive:        oklch(0.46 0.13 185);
+  --tm-interactive-hover:  oklch(0.40 0.13 185);
+  --tm-interactive-press:  oklch(0.34 0.11 185);
+  --tm-interactive-glow:   oklch(0.82 0.07 185);
+  --tm-interactive-wash:   oklch(0.95 0.03 185);
+  --tm-interactive-ring:   oklch(0.60 0.13 185);
+  --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.22);
+  --tm-interactive-fg:     oklch(0.99 0.002 250);
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────

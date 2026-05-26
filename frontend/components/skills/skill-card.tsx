@@ -43,7 +43,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
     <div style={{ padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.02)", border: "1px solid var(--tm-border-soft)", display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)" }}>{skill.display_name}</div>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-accent)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)" }}>L{skill.level}</span>
       </div>
       <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{skill.proficiency_title}</div>
       <div style={{ height: 3, background: "var(--tm-border)", borderRadius: 99, overflow: "hidden" }}>
@@ -63,9 +63,9 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
             marginTop: 4, padding: "6px 12px",
             borderRadius: "var(--tm-radius-sm)",
             fontSize: 11, fontWeight: 700,
-            background: "var(--tm-accent)",
-            color: "var(--tm-accent-fg)",
-            border: "1px solid var(--tm-accent)",
+            background: "var(--tm-interactive)",
+            color: "var(--tm-interactive-fg)",
+            border: "1px solid var(--tm-interactive)",
             cursor: askAdvice.isPending ? "default" : "pointer",
             transition: "all 200ms var(--tm-ease)",
             fontFamily: "inherit", width: "100%",
@@ -82,15 +82,15 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
           marginTop: 4, padding: "6px 12px",
           borderRadius: "var(--tm-radius-sm)",
           fontSize: 11, fontWeight: 600,
-          background: logged ? "transparent" : "var(--tm-accent)",
-          color: logged ? "var(--tm-success)" : "var(--tm-accent-fg)",
-          border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-accent)"}`,
+          background: logged ? "transparent" : "var(--tm-interactive)",
+          color: logged ? "var(--tm-success)" : "var(--tm-interactive-fg)",
+          border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-interactive)"}`,
           cursor: logged ? "default" : "pointer",
           transition: "all 200ms var(--tm-ease)",
           fontFamily: "inherit", width: "100%",
         }}
       >
-        {logged ? "✓ Logged to Forge" : logToForge.isPending ? "Logging…" : "Log to Forge"}
+        {logged ? "✓ Logged to Practice" : logToForge.isPending ? "Logging…" : "Log to Practice"}
       </button>
 
       <button
@@ -113,8 +113,8 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
               disabled={askAdvice.isPending}
               style={{
                 padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
-                background: "transparent", color: "var(--tm-accent)",
-                border: "1px dashed var(--tm-accent-ring)", fontSize: 10, fontWeight: 600,
+                background: "transparent", color: "var(--tm-interactive)",
+                border: "1px dashed var(--tm-int-border)", fontSize: 10, fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >
@@ -128,7 +128,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
         <div style={{
           marginTop: 4, padding: "8px 10px", fontSize: 11,
           color: "var(--tm-text-muted)", lineHeight: 1.55,
-          background: "rgba(0,245,212,0.04)", border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-subtle)", border: "1px solid var(--tm-int-border)",
           borderRadius: "var(--tm-radius-sm)",
         }}>{advice}</div>
       )}
@@ -141,7 +141,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
       <div style={{ display: "flex", gap: 12 }}>
         <Link href="/cv"
           style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-interactive)")}
           onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
         >
           CV →
@@ -149,7 +149,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
         <Link
           href={`/market?skill=${encodeURIComponent(skill.display_name)}`}
           style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-accent)")}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-interactive)")}
           onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
         >
           Intel →

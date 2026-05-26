@@ -20,7 +20,7 @@ export function LocationChart({ rows }: LocationChartProps) {
           <div style={{ flex: 1, height: 6, background: "var(--tm-border-soft)", borderRadius: 999, overflow: "hidden" }}>
             <div style={{
               height: "100%", borderRadius: 999,
-              background: "linear-gradient(90deg, var(--tm-accent), var(--tm-accent-hover))",
+              background: "linear-gradient(90deg, var(--data-1), var(--data-6))",
               width: `${(row.count / max) * 100}%`,
               opacity: 0.7,
             }} />

@@ -43,7 +43,7 @@ export function FlowStepLoading({
           gap: 18,
         }}
       >
-        <div style={{ filter: "drop-shadow(0 0 12px var(--tm-accent-glow))" }} aria-hidden="true">
+        <div style={{ filter: "drop-shadow(0 0 12px var(--tm-int-bg-hover))" }} aria-hidden="true">
           <MyroLogo size={74} />
         </div>
         <div style={{ textAlign: "center" }}>

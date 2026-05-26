@@ -7,6 +7,8 @@ export interface ShareButtonProps {
   url: string
   /** Optional ninja_name to use in the share title; defaults to "Myro". */
   ninjaName?: string
+  /** Optional Myro Score to surface in the share body. */
+  score?: number | null
 }
 
 /**
@@ -16,14 +18,17 @@ export interface ShareButtonProps {
  * share sheet. Elsewhere → copy URL to clipboard with a transient "Copied"
  * label.
  */
-export function ShareButton({ url, ninjaName }: ShareButtonProps) {
+export function ShareButton({ url, ninjaName, score }: ShareButtonProps) {
   const [copied, setCopied] = useState(false)
-  const title = ninjaName ? `${ninjaName} on Myro` : "My Myro domain map"
+  const title = ninjaName ? `@${ninjaName} on Myro` : "My Myro domain map"
+  const text = score != null
+    ? `Myro Score ${score} · live job data + skill map`
+    : undefined
 
   const onClick = async () => {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
-        await navigator.share({ title, url })
+        await navigator.share(text ? { title, text, url } : { title, url })
         return
       } catch {
         // user cancelled or the API rejected — fall through to clipboard.
@@ -54,8 +59,8 @@ export function ShareButton({ url, ninjaName }: ShareButtonProps) {
           background: "transparent",
           border: "1px solid var(--tm-border)",
           borderRadius: 8,
-          color: copied ? "var(--tm-accent)" : "var(--tm-text)",
-          borderColor: copied ? "var(--tm-accent)" : "var(--tm-border)",
+          color: copied ? "var(--tm-interactive)" : "var(--tm-text)",
+          borderColor: copied ? "var(--tm-interactive)" : "var(--tm-border)",
           cursor: "pointer",
           fontSize: 16,
           transition: "color 200ms, border-color 200ms",
@@ -73,8 +78,8 @@ export function ShareButton({ url, ninjaName }: ShareButtonProps) {
             right: 0,
             padding: "5px 10px",
             background: "var(--tm-surface)",
-            border: "1px solid var(--tm-accent)",
-            color: "var(--tm-accent)",
+            border: "1px solid var(--tm-interactive)",
+            color: "var(--tm-interactive)",
             borderRadius: 99,
             fontSize: 11,
             fontFamily: "var(--tm-font-mono)",

@@ -76,7 +76,7 @@ export function CheckInboxPanel({ email, redirectTo, onChangeEmail }: Props) {
       </div>
       {note && (
         <p role="status" style={{
-          fontSize: 13, color: "var(--tm-accent-text)", marginTop: 4,
+          fontSize: 13, color: "var(--tm-interactive-text)", marginTop: 4,
         }}>{note}</p>
       )}
     </div>

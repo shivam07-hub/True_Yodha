@@ -29,7 +29,7 @@ export function StatCards({ cards }: StatCardsProps) {
               fontSize: 28,
               fontWeight: 700,
               letterSpacing: "-0.02em",
-              color: card.accent ? "var(--tm-accent)" : "var(--tm-text)",
+              color: card.accent ? "var(--tm-interactive)" : "var(--tm-text)",
               lineHeight: 1,
               marginBottom: 6,
             }}

@@ -44,7 +44,7 @@ export function SkillGapCol({ skillGapData, cartSkillNames, onSkillToggle }: Ski
             }}>
               <div style={{ flex: 1, height: 10, borderRadius: 4, background: "rgba(255,255,255,0.06)", maxWidth: `${w}%` }} />
               <div style={{ width: 48, height: 10, borderRadius: 4, background: "rgba(255,255,255,0.04)", flexShrink: 0 }} />
-              <div style={{ width: 68, height: 24, borderRadius: 99, background: "rgba(0,245,212,0.07)", border: "1px solid rgba(0,245,212,0.15)", flexShrink: 0 }} />
+              <div style={{ width: 68, height: 24, borderRadius: 99, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border-soft)", flexShrink: 0 }} />
             </div>
           ))}
         </div>

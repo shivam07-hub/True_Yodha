@@ -34,7 +34,7 @@ export const tocLink: CSSProperties = {
 }
 
 export const accentNum: CSSProperties = {
-  color: "var(--tm-accent)",
+  color: "var(--tm-interactive)",
   minWidth: 22,
   flexShrink: 0,
 }
@@ -46,7 +46,7 @@ export function Section({ id, n, title, children }: { id: string; n: string; tit
       style={{
         background: "var(--tm-surface)",
         border: "1px solid var(--tm-border-soft)",
-        borderLeft: "3px solid var(--tm-accent)",
+        borderLeft: "3px solid var(--tm-interactive)",
         borderRadius: "var(--tm-radius-lg)",
         padding: "24px",
         scrollMarginTop: "32px",
@@ -56,8 +56,8 @@ export function Section({ id, n, title, children }: { id: string; n: string; tit
         <span style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: 28, height: 28, borderRadius: "50%",
-          background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-          color: "var(--tm-accent)", fontSize: 11, fontWeight: 700, flexShrink: 0,
+          background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+          color: "var(--tm-interactive)", fontSize: 11, fontWeight: 700, flexShrink: 0,
         }}>
           {n}
         </span>
@@ -73,7 +73,7 @@ export function Section({ id, n, title, children }: { id: string; n: string; tit
 export function Li({ children }: { children: ReactNode }) {
   return (
     <li style={{ display: "flex", gap: 10, alignItems: "flex-start", ...muted }}>
-      <span style={{ color: "var(--tm-accent)", flexShrink: 0, marginTop: 3 }}>›</span>
+      <span style={{ color: "var(--tm-interactive)", flexShrink: 0, marginTop: 3 }}>›</span>
       <span>{children}</span>
     </li>
   )

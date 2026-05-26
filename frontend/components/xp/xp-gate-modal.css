@@ -58,15 +58,15 @@
   border-radius: var(--tm-radius-pill);
   font-size: 15px;
   font-weight: 700;
-  color: var(--tm-accent-fg);
-  background: var(--tm-accent);
-  border: 1px solid var(--tm-accent);
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  border: 1px solid var(--tm-interactive);
   text-decoration: none;
   transition: background var(--tm-dur-fast) var(--tm-ease);
 }
 
 .tm-xp-gate-primary:hover {
-  background: var(--tm-accent-hover, var(--tm-accent));
+  background: var(--tm-interactive-hover, var(--tm-interactive));
 }
 
 .tm-xp-gate-secondary {

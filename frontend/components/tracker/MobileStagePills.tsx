@@ -29,9 +29,9 @@ export function MobileStagePills({ active, counts, onChange }: Props) {
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "6px 12px", borderRadius: 99,
               fontSize: 12, fontFamily: "inherit",
-              border: `1px solid ${isActive ? "var(--tm-accent)" : "var(--tm-border)"}`,
-              background: isActive ? "var(--tm-accent)" : "rgba(255,255,255,0.025)",
-              color: isActive ? "var(--tm-accent-fg)" : "var(--tm-text-muted)",
+              border: `1px solid ${isActive ? "var(--tm-interactive)" : "var(--tm-border)"}`,
+              background: isActive ? "var(--tm-interactive)" : "rgba(255,255,255,0.025)",
+              color: isActive ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
               cursor: "pointer",
             }}
           >

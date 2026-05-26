@@ -82,7 +82,7 @@ export function HttpStatusFallback({ status, onRetry }: HttpStatusFallbackProps)
             borderRadius: 8,
             border: "1px solid var(--tm-border)",
             background: "var(--tm-surface)",
-            color: "var(--tm-accent)",
+            color: "var(--tm-interactive)",
             fontSize: 12,
             cursor: "pointer",
             fontFamily: "var(--tm-font-sans)",

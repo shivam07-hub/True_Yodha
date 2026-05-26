@@ -34,9 +34,9 @@ export function ShareButton({ url, title }: ShareButtonProps) {
         transition: "color var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.color = "var(--tm-accent)"
-        e.currentTarget.style.borderColor = "var(--tm-accent)"
-        e.currentTarget.style.background = "var(--tm-accent-wash)"
+        e.currentTarget.style.color = "var(--tm-interactive)"
+        e.currentTarget.style.borderColor = "var(--tm-interactive)"
+        e.currentTarget.style.background = "var(--tm-int-bg-wash)"
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.color = "var(--tm-text-muted)"

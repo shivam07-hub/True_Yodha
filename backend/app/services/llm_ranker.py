@@ -142,15 +142,17 @@ def persist_matches(
     top_jobs: list[dict],
     ranked: list[dict],
 ) -> int:
-    """Upsert to user_job_matches. All jobs get LLM rank + explanation. Returns count written."""
+    """Upsert weekly matches to user_job_matches. Returns count written."""
     rank_map: dict[str, dict] = {str(r["job_id"]): r for r in ranked}
     now = datetime.now(timezone.utc).isoformat()
 
-    rows = []
+    # Defensive dedupe by job_id so one payload key maps to one row, even if an
+    # upstream matcher ever returns the same job twice in top_jobs.
+    rows_by_job_id: dict[str, dict] = {}
     for job in top_jobs:
         jid = str(job["job_id"])
         llm_data = rank_map.get(jid, {})
-        rows.append({
+        rows_by_job_id[jid] = {
             "user_id": user_id,
             "job_id": jid,
             "batch_week": str(batch_week),
@@ -159,7 +161,9 @@ def persist_matches(
             "llm_explanation": llm_data.get("explanation"),
             "matched_skills": job.get("matched_skills") or [],
             "computed_at": now,
-        })
+        }
+
+    rows = list(rows_by_job_id.values())
 
     if rows:
         db.table("user_job_matches").upsert(

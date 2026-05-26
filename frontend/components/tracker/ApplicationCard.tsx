@@ -75,7 +75,7 @@ export function ApplicationCard({
               <Link
                 href={`/companies/${encodeURIComponent(app.company)}`}
                 style={{ color: "inherit", textDecoration: "none", borderBottom: "1px dotted var(--tm-border)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-accent)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-muted)" }}
               >
                 {app.company}
@@ -100,8 +100,8 @@ export function ApplicationCard({
                 padding: "4px 10px", borderRadius: 99,
                 fontSize: 11, fontFamily: "var(--tm-font-mono)",
                 letterSpacing: "0.06em", textTransform: "uppercase",
-                background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-                color: "var(--tm-accent)", cursor: "pointer",
+                background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+                color: "var(--tm-interactive)", cursor: "pointer",
               }}
             >
               {stageLabel} ▾
@@ -158,7 +158,7 @@ function CVBadgeLink({ app }: { app: ApplicationResponse }) {
         aria-label={`Tailor CV for ${ariaTitle} at ${ariaCompany}`}
         style={{
           fontSize: 12, fontWeight: 600,
-          color: "var(--tm-accent)", textDecoration: "none",
+          color: "var(--tm-interactive)", textDecoration: "none",
           transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",
         }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = "0.75" }}
@@ -181,8 +181,8 @@ function CVBadgeLink({ app }: { app: ApplicationResponse }) {
       style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         padding: "4px 10px", borderRadius: 99,
-        background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-        color: "var(--tm-accent)", textDecoration: "none",
+        background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+        color: "var(--tm-interactive)", textDecoration: "none",
         fontSize: 11, fontWeight: 600, fontFamily: "var(--tm-font-mono)",
         letterSpacing: "0.04em",
         transition: "opacity var(--tm-dur, 160ms) var(--tm-ease, ease)",

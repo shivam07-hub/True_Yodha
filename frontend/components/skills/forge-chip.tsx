@@ -16,8 +16,8 @@ interface Props {
 }
 
 const STATE_TOKENS: Record<ForgeChipState, { fg: string; border: string; bg: string }> = {
-  idle:   { fg: "var(--tm-accent)",  border: "var(--tm-accent-ring)",    bg: "transparent" },
-  cart:   { fg: "var(--tm-accent-fg)", border: "var(--tm-accent)",       bg: "var(--tm-accent)" },
+  idle:   { fg: "var(--tm-interactive)",  border: "var(--tm-int-border)",    bg: "transparent" },
+  cart:   { fg: "var(--tm-interactive-fg)", border: "var(--tm-interactive)",       bg: "var(--tm-interactive)" },
   active: { fg: "var(--tm-warning)", border: "var(--tm-warning-border)", bg: "var(--tm-warning-wash)" },
   done:   { fg: "var(--tm-success)", border: "var(--tm-success-border)", bg: "var(--tm-success-wash)" },
 }
@@ -25,7 +25,7 @@ const STATE_TOKENS: Record<ForgeChipState, { fg: string; border: string; bg: str
 function labelFor(state: ForgeChipState, sessionsToNext: number, atMax: boolean): string {
   if (atMax) return "Maxed"
   if (state === "done") return "Dominated"
-  if (state === "active") return "Forging…"
+  if (state === "active") return "Practicing…"
   if (state === "cart") return `Locked · ${sessionsToNext} ses`
   return `Lock in · ${sessionsToNext} ses`
 }

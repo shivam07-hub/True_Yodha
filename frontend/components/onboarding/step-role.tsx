@@ -86,10 +86,10 @@ export function StepRole({ onNext, loading }: Props) {
         <div style={{
           display: "inline-block",
           fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
-          color: "var(--tm-accent)", marginBottom: 12,
+          color: "var(--tm-interactive)", marginBottom: 12,
           padding: "3px 10px", borderRadius: 999,
-          background: "var(--tm-accent-wash)",
-          border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-int-bg-wash)",
+          border: "1px solid var(--tm-int-border)",
         }}>
           Step 2 of 5
         </div>
@@ -138,7 +138,7 @@ export function StepRole({ onNext, loading }: Props) {
                 padding: "11px 14px",
                 borderRadius: "var(--tm-radius-sm)",
                 background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${inputFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                border: `1px solid ${inputFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
                 color: "var(--tm-text)",
                 fontSize: "var(--tm-fs-meta)",
                 fontFamily: "inherit",
@@ -156,7 +156,7 @@ export function StepRole({ onNext, loading }: Props) {
                 style={{
                   position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
                   background: "var(--tm-surface, #0d0d12)",
-                  border: "1px solid var(--tm-accent-ring)",
+                  border: "1px solid var(--tm-int-border)",
                   borderRadius: "var(--tm-radius-sm)",
                   overflow: "hidden",
                   zIndex: 50,
@@ -181,7 +181,7 @@ export function StepRole({ onNext, loading }: Props) {
                       cursor: "pointer",
                       transition: "background var(--tm-dur)",
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                   >
                     {c}
@@ -199,9 +199,9 @@ export function StepRole({ onNext, loading }: Props) {
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "5px 8px 5px 12px",
                   borderRadius: 999,
-                  background: "var(--tm-accent-wash)",
-                  border: "1px solid var(--tm-accent-ring)",
-                  fontSize: 13, color: "var(--tm-accent)",
+                  background: "var(--tm-int-bg-wash)",
+                  border: "1px solid var(--tm-int-border)",
+                  fontSize: 13, color: "var(--tm-interactive)",
                   animation: "tagIn 180ms var(--tm-ease) both",
                 }}>
                   <span style={{ fontWeight: 500 }}>{role}</span>
@@ -212,13 +212,13 @@ export function StepRole({ onNext, loading }: Props) {
                     style={{
                       width: 16, height: 16, borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: "rgba(0,245,212,0.15)", border: "none", padding: 0,
-                      cursor: "pointer", color: "var(--tm-accent)",
+                      background: "var(--tm-int-border-soft)", border: "none", padding: 0,
+                      cursor: "pointer", color: "var(--tm-interactive)",
                       fontSize: 12, lineHeight: 1,
                       transition: "background var(--tm-dur)",
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,245,212,0.3)" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,245,212,0.15)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-border)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-int-border-soft)" }}
                   >×</button>
                 </div>
               ))}
@@ -266,16 +266,16 @@ export function StepRole({ onNext, loading }: Props) {
                     fontFamily: "inherit",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
-                    background: active ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${active ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                    color: active ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                    background: active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${active ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+                    color: active ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                     transition: "all var(--tm-dur) var(--tm-ease)",
                     outline: "none",
                   }}
                   onMouseEnter={(e) => {
                     if (!active) {
-                      e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-                      e.currentTarget.style.color = "var(--tm-accent)"
+                      e.currentTarget.style.borderColor = "var(--tm-int-border)"
+                      e.currentTarget.style.color = "var(--tm-interactive)"
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -306,16 +306,16 @@ export function StepRole({ onNext, loading }: Props) {
                 fontFamily: "inherit",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
-                background: showCustomLoc ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${showCustomLoc ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-                color: showCustomLoc ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                background: showCustomLoc ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${showCustomLoc ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+                color: showCustomLoc ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                 transition: "all var(--tm-dur) var(--tm-ease)",
                 outline: "none",
               }}
               onMouseEnter={(e) => {
                 if (!showCustomLoc) {
-                  e.currentTarget.style.borderColor = "var(--tm-accent-ring)"
-                  e.currentTarget.style.color = "var(--tm-accent)"
+                  e.currentTarget.style.borderColor = "var(--tm-int-border)"
+                  e.currentTarget.style.color = "var(--tm-interactive)"
                 }
               }}
               onMouseLeave={(e) => {
@@ -346,7 +346,7 @@ export function StepRole({ onNext, loading }: Props) {
                 padding: "11px 14px",
                 borderRadius: "var(--tm-radius-sm)",
                 background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${locFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                border: `1px solid ${locFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
                 color: "var(--tm-text)",
                 fontSize: "var(--tm-fs-meta)",
                 fontFamily: "inherit",
@@ -364,8 +364,8 @@ export function StepRole({ onNext, loading }: Props) {
           style={{
             marginTop: 4, padding: "14px",
             borderRadius: "var(--tm-radius-sm)",
-            background: canSubmit ? "var(--tm-accent)" : "rgba(255,255,255,0.05)",
-            border: `1px solid ${canSubmit ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
+            background: canSubmit ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${canSubmit ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
             color: canSubmit ? "var(--tm-bg)" : "var(--tm-text-faint)",
             fontSize: "var(--tm-fs-meta)", fontWeight: 700,
             cursor: canSubmit ? "pointer" : "default",

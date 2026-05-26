@@ -50,7 +50,7 @@ export function ApplyRow({ company, title, jobId, variant = "compact" }: ApplyRo
           href={careersHref}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ ...baseBtn, color: "var(--tm-accent)", borderColor: "var(--tm-accent-ring)" }}
+          style={{ ...baseBtn, color: "var(--tm-interactive)", borderColor: "var(--tm-int-border)" }}
           title={`Open ${company} careers in a new tab`}
         >
           ↗ Open {company} careers

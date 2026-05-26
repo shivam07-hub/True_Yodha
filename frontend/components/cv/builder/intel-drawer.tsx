@@ -39,7 +39,7 @@ export function IntelDrawer({
   }, [open, onClose])
 
   const fitLabel = score >= 75 ? "Strong fit" : score >= 60 ? "Good fit" : "Needs work"
-  const fitColor = score >= 75 ? "var(--tm-success)" : score >= 60 ? "var(--tm-accent)" : "var(--tm-warning)"
+  const fitColor = score >= 75 ? "var(--tm-success)" : score >= 60 ? "var(--tm-interactive)" : "var(--tm-warning)"
 
   return (
     <>
@@ -53,7 +53,7 @@ export function IntelDrawer({
       >
         <div className="cvb-drawer-head">
           <div>
-            <div className="eyebrow" style={{ color: "var(--tm-accent)" }}>jd intel</div>
+            <div className="eyebrow" style={{ color: "var(--tm-interactive)" }}>jd intel</div>
             <div style={{ fontSize: 14, color: "var(--tm-text)", marginTop: 4 }}>{jobLabel}</div>
           </div>
           <button type="button" className="cvb-btn ghost sm" onClick={onClose} aria-label="Close drawer">
@@ -96,7 +96,7 @@ export function IntelDrawer({
             </div>
             {missing.length > 0 && (
               <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
-                <Link href="/skills" style={{ color: "var(--tm-accent-text)", textDecoration: "none" }}>
+                <Link href="/skills" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
                   Forge these gaps in Skills →
                 </Link>{" "}
                 to earn XP and unlock new bullet drafts.
@@ -128,7 +128,7 @@ export function IntelDrawer({
               {threadVersions.map(v => (
                 <div key={v.id} style={{
                   display: "flex", alignItems: "center", gap: 8, fontSize: 11.5,
-                  color: selectedVId === v.id ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                  color: selectedVId === v.id ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                 }}>
                   <KindDot kind={v.kind} inline/>
                   <span className="mono" style={{ fontSize: 11 }}>{formatGlobalVersionLabel(v)}</span>

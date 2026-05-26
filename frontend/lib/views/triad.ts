@@ -26,7 +26,7 @@ export interface TriadSemantics {
 export const TRIAD: Record<TriadView, TriadSemantics> = {
   intel: {
     key: "intel",
-    label: "Intel",
+    label: "Live Job Data",
     glyph: "⊞",
     meaning: "Signal density — high-throughput lists, deltas, leaderboards.",
   },

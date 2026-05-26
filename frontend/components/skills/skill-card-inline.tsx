@@ -194,7 +194,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
               No CV evidence yet ·{" "}
               <Link
                 href={`/cv?skill=${encodeURIComponent(skill.display_name)}`}
-                style={{ color: "var(--tm-accent-text)", textDecoration: "none" }}
+                style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}
               >
                 Add a bullet in CV →
               </Link>
@@ -222,7 +222,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           accent={isFree}
         />
         <ActionBtn
-          label={logged ? "Queued in Forge" : "Track in diary"}
+          label={logged ? "Queued in Practice" : "Track in diary"}
           icon={logged ? "✓" : logDiary.isPending ? "…" : "☆"}
           onClick={() => !logged && logDiary.mutate()}
           disabled={logDiary.isPending || logged}
@@ -239,8 +239,8 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           <div style={{
             padding: "10px 12px", fontSize: 12, lineHeight: 1.6,
             color: "var(--tm-text-muted)",
-            background: "rgba(0,245,212,0.04)",
-            border: "1px solid var(--tm-accent-ring)",
+            background: "var(--tm-int-bg-subtle)",
+            border: "1px solid var(--tm-int-border)",
             borderRadius: "var(--tm-radius-sm)",
             wordBreak: "break-word", overflowWrap: "anywhere",
             display: "flex", flexDirection: "column", gap: 6,
@@ -252,7 +252,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
                 onClick={() => setAdviceExpanded((v) => !v)}
                 style={{
                   alignSelf: "flex-start", padding: 0, background: "transparent", border: "none",
-                  fontSize: 11, fontWeight: 600, color: "var(--tm-accent)", cursor: "pointer",
+                  fontSize: 11, fontWeight: 600, color: "var(--tm-interactive)", cursor: "pointer",
                   fontFamily: "inherit", letterSpacing: "0.02em",
                 }}
               >
@@ -286,7 +286,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
 
       {appealOpen && !appealResult && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
-          <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-accent)" }}>
+          <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-interactive)" }}>
             Appeal level · {(skill.correction_count ?? 0) + 1} of 2
           </div>
 
@@ -301,9 +301,9 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
                   title={`L${lvl} · ${PROFICIENCY_TITLES[lvl] ?? ""}`}
                   style={{
                     width: 32, height: 32, borderRadius: "var(--tm-radius-sm)",
-                    border: `1px solid ${appealLevel === lvl ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-                    background: appealLevel === lvl ? "var(--tm-accent-wash)" : "transparent",
-                    color: appealLevel === lvl ? "var(--tm-accent)" : "var(--tm-text-faint)",
+                    border: `1px solid ${appealLevel === lvl ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
+                    background: appealLevel === lvl ? "var(--tm-int-bg-wash)" : "transparent",
+                    color: appealLevel === lvl ? "var(--tm-interactive)" : "var(--tm-text-faint)",
                     fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700, cursor: "pointer",
                   }}
                 >L{lvl}</button>
@@ -338,8 +338,8 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
               style={{
                 padding: "8px 14px", borderRadius: "var(--tm-radius-sm)",
                 fontSize: 12, fontWeight: 700, fontFamily: "inherit",
-                background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
-                border: "1px solid var(--tm-accent)", cursor: submitAppeal.isPending ? "default" : "pointer",
+                background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
+                border: "1px solid var(--tm-interactive)", cursor: submitAppeal.isPending ? "default" : "pointer",
                 opacity: (submitAppeal.isPending || !appealBullet.trim() || appealLevel === skill.level) ? 0.5 : 1,
                 transition: "all 150ms var(--tm-ease)",
               }}
@@ -387,8 +387,8 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
                   style={{
                     marginTop: 8, padding: "5px 10px", borderRadius: "var(--tm-radius-sm)",
                     fontSize: 11, fontWeight: 600, fontFamily: "inherit",
-                    background: "transparent", color: "var(--tm-accent)",
-                    border: "1px dashed var(--tm-accent-ring)", cursor: "pointer",
+                    background: "transparent", color: "var(--tm-interactive)",
+                    border: "1px dashed var(--tm-int-border)", cursor: "pointer",
                   }}
                 >
                   Try again · {appealResult.appeals_remaining} appeal{appealResult.appeals_remaining === 1 ? "" : "s"} remaining
@@ -439,9 +439,9 @@ function ActionBtn({ label, icon, onClick, disabled, active, accent, subLabel }:
         padding: "9px 16px",
         fontSize: 12, fontWeight: 600, fontFamily: "inherit",
         borderRadius: "var(--tm-radius-sm)",
-        border: `1px solid ${active ? "var(--tm-success)" : hover && !disabled ? "var(--tm-accent)" : "var(--tm-border-soft)"}`,
-        background: active ? "rgba(20,186,174,0.10)" : accent && !disabled ? "var(--tm-accent-wash)" : hover && !disabled ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)",
-        color: active ? "var(--tm-success)" : accent || (hover && !disabled) ? "var(--tm-accent)" : "var(--tm-text)",
+        border: `1px solid ${active ? "var(--tm-success)" : hover && !disabled ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
+        background: active ? "rgba(20,186,174,0.10)" : accent && !disabled ? "var(--tm-int-bg-wash)" : hover && !disabled ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.02)",
+        color: active ? "var(--tm-success)" : accent || (hover && !disabled) ? "var(--tm-interactive)" : "var(--tm-text)",
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.55 : 1,
         transition: "all 150ms var(--tm-ease)",

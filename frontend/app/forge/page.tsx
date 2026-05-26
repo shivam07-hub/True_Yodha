@@ -327,7 +327,7 @@ function ForgePageInner() {
     try {
       await forgeSession.claim({
         onClaimed: (result) => {
-          setToast(`+${result.xp_earned} XP · forge logged`)
+          setToast(`+${result.xp_earned} XP · practice logged`)
           queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
           queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
           queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
@@ -357,7 +357,7 @@ function ForgePageInner() {
     addSkill(skill)
     setSelectedSkill(candidate.skill_name)
     startSession(skill)
-    setToast(`Forging · ${candidate.skill_name}`)
+    setToast(`Practicing · ${candidate.skill_name}`)
   }
 
   function handleToggleTimer() {
@@ -379,7 +379,7 @@ function ForgePageInner() {
   return (
     <AppShell>
       {toast && (
-        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: "var(--z-toast)" as never, background: "var(--tm-surface-2)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-pill)", padding: "10px 18px", fontSize: 13, color: "var(--tm-accent)", fontWeight: 700, boxShadow: "0 10px 34px rgba(0,0,0,0.36), 0 0 18px rgba(0,245,212,0.16)", pointerEvents: "none" }}>
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: "var(--z-toast)" as never, background: "var(--tm-surface-2)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-pill)", padding: "10px 18px", fontSize: 13, color: "var(--tm-interactive)", fontWeight: 700, boxShadow: "0 10px 34px rgba(0,0,0,0.36), 0 0 18px var(--tm-int-border-soft)", pointerEvents: "none" }}>
           {toast}
         </div>
       )}
@@ -399,9 +399,9 @@ function ForgePageInner() {
                 setRunning(!running)
               }}
               aria-label={
-                !sessionActive ? "Start forge session"
-                : running ? "Pause forge session"
-                : "Resume forge session"
+                !sessionActive ? "Start practice session"
+                : running ? "Pause practice session"
+                : "Resume practice session"
               }
               style={{
                 margin: 0, padding: 0, background: "transparent", border: "none",
@@ -410,17 +410,17 @@ function ForgePageInner() {
                 letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 12,
               }}
             >
-              Forge
+              Practice
               <span aria-hidden style={{
                 fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 600,
                 padding: "3px 9px", borderRadius: 999,
                 background: !sessionActive
                   ? "rgba(255,255,255,0.04)"
-                  : running ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.06)",
+                  : running ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.06)",
                 color: !sessionActive
                   ? "var(--tm-text-faint)"
-                  : running ? "var(--tm-accent)" : "var(--tm-text-muted)",
-                border: `1px solid ${running && sessionActive ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
+                  : running ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+                border: `1px solid ${running && sessionActive ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
                 textTransform: "uppercase", letterSpacing: "0.06em",
               }}>
                 {!sessionActive ? "Tap to start" : running ? "Running" : "Paused"}
@@ -432,18 +432,18 @@ function ForgePageInner() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Link href="/home" style={{ height: 36, display: "inline-flex", alignItems: "center", padding: "0 14px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", textDecoration: "none", fontSize: 13, fontWeight: 650 }}>
-              Mission control
+              Tackle Today
             </Link>
             <button
               type="button"
               className="tm-control-focus"
               onClick={() => setDiaryRailOpen((open) => !open)}
-              style={{ height: 36, display: "inline-flex", alignItems: "center", gap: 8, padding: "0 14px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: diaryRailOpen ? "var(--tm-accent-wash)" : "transparent", color: diaryRailOpen ? "var(--tm-accent)" : "var(--tm-text-muted)", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}
+              style={{ height: 36, display: "inline-flex", alignItems: "center", gap: 8, padding: "0 14px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: diaryRailOpen ? "var(--tm-int-bg-wash)" : "transparent", color: diaryRailOpen ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}
             >
               <IconDiary />
               Diary + cart
               {cartSkills.length > 0 && (
-                <span style={{ minWidth: 18, height: 18, borderRadius: 99, display: "inline-grid", placeItems: "center", padding: "0 5px", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 800 }}>
+                <span style={{ minWidth: 18, height: 18, borderRadius: 99, display: "inline-grid", placeItems: "center", padding: "0 5px", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 800 }}>
                   {cartSkills.length}
                 </span>
               )}
@@ -453,31 +453,31 @@ function ForgePageInner() {
 
         <div className="tm-forge-layout" data-diary={diaryRailOpen ? "open" : "closed"}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            <section className="tm-forge-stage" style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", background: "linear-gradient(180deg, rgba(0,245,212,0.045), var(--tm-surface) 42%)", padding: 24, display: "grid", gridTemplateColumns: "minmax(260px, 0.9fr) minmax(280px, 1.1fr)", gap: 24, alignItems: "center", overflow: "hidden" }}>
+            <section className="tm-forge-stage" style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", background: "linear-gradient(180deg, var(--tm-int-bg-subtle), var(--tm-surface) 42%)", padding: 24, display: "grid", gridTemplateColumns: "minmax(260px, 0.9fr) minmax(280px, 1.1fr)", gap: 24, alignItems: "center", overflow: "hidden" }}>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <div style={{ position: "relative", width: DIAL_SIZE, height: DIAL_SIZE, display: "grid", placeItems: "center" }}>
                   {running && !dismissed && (
-                    <span aria-hidden className="tm-forge-breath" style={{ position: "absolute", inset: 6, borderRadius: "50%", background: "radial-gradient(circle, var(--tm-accent-wash), transparent 68%)", animation: "forge-breath 4.4s ease-in-out infinite" }} />
+                    <span aria-hidden className="tm-forge-breath" style={{ position: "absolute", inset: 6, borderRadius: "50%", background: "radial-gradient(circle, var(--tm-int-bg-wash), transparent 68%)", animation: "forge-breath 4.4s ease-in-out infinite" }} />
                   )}
                   <svg width={DIAL_SIZE} height={DIAL_SIZE} viewBox={`0 0 ${DIAL_SIZE} ${DIAL_SIZE}`} style={{ position: "relative", overflow: "visible" }}>
                     <circle cx={DIAL_SIZE / 2} cy={DIAL_SIZE / 2} r={DIAL_R} fill="rgba(5,10,24,0.28)" stroke="var(--tm-border-soft)" strokeWidth="2" />
-                    <circle cx={DIAL_SIZE / 2} cy={DIAL_SIZE / 2} r={DIAL_R} fill="none" stroke="rgba(0,245,212,0.08)" strokeWidth="14" />
+                    <circle cx={DIAL_SIZE / 2} cy={DIAL_SIZE / 2} r={DIAL_R} fill="none" stroke="var(--tm-int-bg-wash)" strokeWidth="14" />
                     <circle
                       cx={DIAL_SIZE / 2}
                       cy={DIAL_SIZE / 2}
                       r={DIAL_R}
                       fill="none"
-                      stroke="var(--tm-accent)"
+                      stroke="var(--tm-interactive)"
                       strokeWidth="5"
                       strokeLinecap="round"
                       strokeDasharray={DIAL_C}
                       strokeDashoffset={dashOffset}
                       transform={`rotate(-90 ${DIAL_SIZE / 2} ${DIAL_SIZE / 2})`}
-                      style={{ transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 300ms var(--tm-ease)", filter: "drop-shadow(0 0 8px var(--tm-accent-glow))" }}
+                      style={{ transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 300ms var(--tm-ease)", filter: "drop-shadow(0 0 8px var(--tm-int-bg-hover))" }}
                     />
                   </svg>
                   <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 6 }}>
-                    <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 58, lineHeight: 0.95, fontWeight: 800, color: "var(--tm-accent)", letterSpacing: 0, fontVariantNumeric: "tabular-nums" }}>
+                    <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 58, lineHeight: 0.95, fontWeight: 800, color: "var(--tm-interactive)", letterSpacing: 0, fontVariantNumeric: "tabular-nums" }}>
                       +{readyXP}
                     </div>
                     <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
@@ -493,11 +493,11 @@ function ForgePageInner() {
               <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
                 <div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 999, background: running ? "var(--tm-accent)" : "var(--tm-text-faint)", boxShadow: running ? "0 0 8px var(--tm-accent-glow)" : "none" }} />
-                    {running ? "Forging" : sessionActive ? "Paused" : "Ready"}
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: running ? "var(--tm-interactive)" : "var(--tm-text-faint)", boxShadow: running ? "0 0 8px var(--tm-int-bg-hover)" : "none" }} />
+                    {running ? "Practicing" : sessionActive ? "Paused" : "Ready"}
                   </div>
                   <h2 style={{ margin: 0, fontSize: 26, lineHeight: 1.15, fontWeight: 750, color: "var(--tm-text)", letterSpacing: 0 }}>
-                    {activeSessionName ?? "Choose a skill to forge"}
+                    {activeSessionName ?? "Choose a skill to practice"}
                   </h2>
                   <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: 14, lineHeight: 1.6 }}>
                     {selectedCandidate
@@ -512,16 +512,16 @@ function ForgePageInner() {
                     className="tm-control-focus"
                     onClick={handleToggleTimer}
                     disabled={!selectedCandidate && !sessionActive}
-                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: running ? "1px solid var(--tm-border-soft)" : "1px solid var(--tm-accent)", background: running ? "rgba(255,255,255,0.04)" : "var(--tm-accent)", color: running ? "var(--tm-text-muted)" : "var(--tm-accent-fg)", cursor: selectedCandidate || sessionActive ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
+                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: running ? "1px solid var(--tm-border-soft)" : "1px solid var(--tm-interactive)", background: running ? "rgba(255,255,255,0.04)" : "var(--tm-interactive)", color: running ? "var(--tm-text-muted)" : "var(--tm-interactive-fg)", cursor: selectedCandidate || sessionActive ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
                   >
-                    {running ? "Pause" : sessionActive ? "Resume" : "Start forge"}
+                    {running ? "Pause" : sessionActive ? "Resume" : "Start practice"}
                   </button>
                   <button
                     type="button"
                     className="tm-control-focus"
                     onClick={handleClaim}
                     disabled={!canClaim || forgeSession.claiming}
-                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: canClaim ? "1px solid var(--tm-accent-ring)" : "1px dashed var(--tm-border-soft)", background: canClaim ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.03)", color: canClaim ? "var(--tm-accent)" : "var(--tm-text-faint)", cursor: canClaim && !forgeSession.claiming ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
+                    style={{ height: 42, padding: "0 18px", borderRadius: 999, border: canClaim ? "1px solid var(--tm-int-border)" : "1px dashed var(--tm-border-soft)", background: canClaim ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.03)", color: canClaim ? "var(--tm-interactive)" : "var(--tm-text-faint)", cursor: canClaim && !forgeSession.claiming ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
                   >
                     {forgeSession.claiming ? "Saving..." : `Claim +${readyXP} XP`}
                   </button>
@@ -536,7 +536,7 @@ function ForgePageInner() {
                 </div>
                 {forgeSession.claimError && (
                   <div style={{ color: "var(--tm-danger)", fontSize: 12 }}>
-                    Could not save forge session. Try again in a moment.
+                    Could not save practice session. Try again in a moment.
                   </div>
                 )}
               </div>
@@ -545,7 +545,7 @@ function ForgePageInner() {
             <section style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <div className="tm-label-caps" style={{ marginBottom: 5 }}>Skills to forge</div>
+                  <div className="tm-label-caps" style={{ marginBottom: 5 }}>Skills to practice</div>
                   <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
                     {candidates.length} upgrade targets · {cartSkills.length} queued
                   </div>
@@ -567,14 +567,14 @@ function ForgePageInner() {
                   {filteredCandidates.map((candidate) => {
                     const selected = candidate.skill_name === selectedCandidate?.skill_name
                     return (
-                      <div key={candidate.skill_name} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", gap: 10, alignItems: "center", padding: "12px 12px", borderRadius: "var(--tm-radius-sm)", border: `1px solid ${selected ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`, background: selected ? "var(--tm-accent-wash)" : "rgba(255,255,255,0.02)" }}>
+                      <div key={candidate.skill_name} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto", gap: 10, alignItems: "center", padding: "12px 12px", borderRadius: "var(--tm-radius-sm)", border: `1px solid ${selected ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`, background: selected ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.02)" }}>
                         <button
                           type="button"
                           onClick={() => setSelectedSkill(candidate.skill_name)}
                           style={{ minWidth: 0, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: 999, background: candidate.inCart ? "var(--tm-accent)" : candidate.tags.includes("job") ? "var(--tm-danger)" : "var(--tm-warning)", boxShadow: candidate.inCart ? "0 0 7px var(--tm-accent-glow)" : "none", flexShrink: 0 }} />
+                            <span style={{ width: 7, height: 7, borderRadius: 999, background: candidate.inCart ? "var(--tm-interactive)" : candidate.tags.includes("job") ? "var(--tm-danger)" : "var(--tm-warning)", boxShadow: candidate.inCart ? "0 0 7px var(--tm-int-bg-hover)" : "none", flexShrink: 0 }} />
                             <span style={{ color: "var(--tm-text)", fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {candidate.skill_name}
                             </span>
@@ -601,9 +601,9 @@ function ForgePageInner() {
                             type="button"
                             className="tm-control-focus"
                             onClick={() => handleStart(candidate)}
-                            style={{ height: 30, padding: "0 10px", borderRadius: 999, border: "1px solid var(--tm-accent)", background: "var(--tm-accent)", color: "var(--tm-accent-fg)", fontSize: 11, fontWeight: 800, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ height: 30, padding: "0 10px", borderRadius: 999, border: "1px solid var(--tm-interactive)", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 11, fontWeight: 800, fontFamily: "inherit", cursor: "pointer" }}
                           >
-                            Forge
+                            Practice
                           </button>
                         </div>
                       </div>
@@ -640,20 +640,20 @@ function ForgePageInner() {
                     value={entryText}
                     onChange={(event) => setEntryText(event.target.value)}
                     placeholder="Vent, reflect, celebrate — what's going on with your search today?"
-                    style={{ width: "100%", minHeight: 116, resize: "vertical", background: "var(--tm-surface-2)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text)", fontSize: 14, lineHeight: 1.65, padding: "12px 14px", fontFamily: "inherit", outline: "none" }}
+                    style={{ width: "100%", minHeight: 116, resize: "vertical", background: "var(--tm-surface-2)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", color: "var(--tm-text)", fontSize: 14, lineHeight: 1.65, padding: "12px 14px", fontFamily: "inherit", outline: "none" }}
                   />
                 </section>
 
                 <section style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 16 }}>
                   <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                    Skill cart · Skills to forge this week
+                    Skill cart · Skills to practice this week
                   </div>
                   {cartSkills.length === 0 ? (
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.6 }}>No skills in cart — add from gaps below</div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                       {cartSkills.map((skill) => (
-                        <div key={skill.skill_name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-accent-ring)", background: "rgba(0,245,212,0.05)" }}>
+                        <div key={skill.skill_name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-int-border)", background: "var(--tm-int-bg-wash)" }}>
                           <span style={{ flex: 1, minWidth: 0, color: "var(--tm-text)", fontSize: 13, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{skill.skill_name}</span>
                           <span style={{ color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", fontSize: 10 }}>L{skill.level_from}→L{skill.level_to}</span>
                           <button type="button" aria-label={`Remove ${skill.skill_name}`} onClick={() => removeSkill(skill.skill_name)} style={{ border: "none", background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 13 }}>×</button>
@@ -678,7 +678,7 @@ function ForgePageInner() {
                     className="tm-control-focus"
                     onClick={handleDiarySubmit}
                     disabled={!entryText.trim() || saveEntry.isPending}
-                    style={{ width: "100%", height: 48, marginTop: 16, borderRadius: "var(--tm-radius)", border: "none", background: entryText.trim() ? "var(--tm-accent)" : "rgba(255,255,255,0.06)", color: entryText.trim() ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", cursor: entryText.trim() && !saveEntry.isPending ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 800 }}
+                    style={{ width: "100%", height: 48, marginTop: 16, borderRadius: "var(--tm-radius)", border: "none", background: entryText.trim() ? "var(--tm-interactive)" : "rgba(255,255,255,0.06)", color: entryText.trim() ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)", cursor: entryText.trim() && !saveEntry.isPending ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 800 }}
                   >
                     {saveEntry.isPending ? "Saving..." : `Log entry · earn +${XP_POLICY.diaryEntry} XP`}
                   </button>
@@ -728,7 +728,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
       type="button"
       className="tm-control-focus"
       onClick={onClick}
-      style={{ height: 30, padding: "0 11px", borderRadius: 999, border: `1px solid ${active ? "var(--tm-accent)" : "var(--tm-border-soft)"}`, background: active ? "var(--tm-accent)" : "transparent", color: active ? "var(--tm-accent-fg)" : "var(--tm-text-faint)", cursor: "pointer", fontSize: 12, fontWeight: 750, fontFamily: "inherit" }}
+      style={{ height: 30, padding: "0 11px", borderRadius: 999, border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: active ? "var(--tm-interactive)" : "transparent", color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)", cursor: "pointer", fontSize: 12, fontWeight: 750, fontFamily: "inherit" }}
     >
       {children}
     </button>
@@ -737,7 +737,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
 
 function MilestonePill({ active, children }: { active: boolean; children: React.ReactNode }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", minHeight: 28, padding: "0 10px", borderRadius: 999, border: active ? "1px solid var(--tm-accent-ring)" : "1px dashed var(--tm-border-soft)", background: active ? "rgba(0,245,212,0.05)" : "transparent", color: active ? "var(--tm-accent)" : "var(--tm-text-faint)", fontSize: 12, fontWeight: 750 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", minHeight: 28, padding: "0 10px", borderRadius: 999, border: active ? "1px solid var(--tm-int-border)" : "1px dashed var(--tm-border-soft)", background: active ? "var(--tm-int-bg-wash)" : "transparent", color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)", fontSize: 12, fontWeight: 750 }}>
       {children}
     </span>
   )

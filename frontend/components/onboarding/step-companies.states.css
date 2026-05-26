@@ -38,10 +38,10 @@
   justify-content: center;
   gap: 8px;
   padding: 0 16px;
-  border: 1px solid var(--tm-accent);
+  border: 1px solid var(--tm-interactive);
   border-radius: 8px;
-  background: var(--tm-accent);
-  color: var(--tm-accent-fg);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -50,8 +50,8 @@
 
 .tm-company-footer button:hover:not(:disabled),
 .tm-company-footer button:focus-visible {
-  background: var(--tm-accent-hover);
-  border-color: var(--tm-accent-hover);
+  background: var(--tm-interactive-hover);
+  border-color: var(--tm-interactive-hover);
   outline: none;
 }
 

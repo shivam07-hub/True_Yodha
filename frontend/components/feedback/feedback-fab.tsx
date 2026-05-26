@@ -105,15 +105,15 @@ export function FeedbackFAB({
           height: 56,
           borderRadius: "50%",
           background: "var(--tm-surface)",
-          border: "1px solid var(--tm-accent)",
-          color: "var(--tm-accent)",
+          border: "1px solid var(--tm-interactive)",
+          color: "var(--tm-interactive)",
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
           fontFamily: "inherit",
           boxShadow: hover
-            ? "0 0 0 4px var(--tm-accent-wash), 0 0 24px var(--tm-accent-glow), 0 10px 30px rgba(0,0,0,0.5)"
-            : "0 0 18px rgba(0,245,212,0.25), 0 8px 24px rgba(0,0,0,0.5)",
+            ? "0 0 0 4px var(--tm-int-bg-wash), 0 0 24px var(--tm-int-bg-hover), 0 10px 30px rgba(0,0,0,0.5)"
+            : "0 0 18px var(--tm-int-border), 0 8px 24px rgba(0,0,0,0.5)",
           transition: "all 200ms var(--tm-ease)",
           animation: pulse && !expanded && !hover ? "glow-pulse 3.2s ease-in-out infinite" : "none",
           transform: hover ? "scale(1.04)" : "scale(1)",
@@ -128,7 +128,7 @@ export function FeedbackFAB({
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 0 6px var(--tm-accent-glow))" }}
+          style={{ filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}
         >
           <circle cx="12" cy="12" r="9" />
           <circle cx="12" cy="12" r="5" />
@@ -161,7 +161,7 @@ export function FeedbackFAB({
             bottom: 14,
             padding: "8px 14px",
             background: "var(--tm-surface)",
-            border: "1px solid var(--tm-accent-ring)",
+            border: "1px solid var(--tm-int-border)",
             borderRadius: "var(--tm-radius-sm)",
             whiteSpace: "nowrap",
             fontSize: 12,
@@ -172,7 +172,7 @@ export function FeedbackFAB({
         >
           <div>Feedback hub</div>
           <div style={{ fontSize: 10, color: "var(--tm-text-faint)", marginTop: 2 }}>
-            <span className="mono" style={{ color: "var(--tm-accent)" }}>⌘/</span> · bug, idea, question
+            <span className="mono" style={{ color: "var(--tm-interactive)" }}>⌘/</span> · bug, idea, question
           </div>
         </div>
       )}

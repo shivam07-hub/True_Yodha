@@ -53,8 +53,8 @@ export function EmailSubscribe() {
         }}
         onFocus={(e) => {
           if (state !== "error") {
-            e.currentTarget.style.borderColor = "var(--tm-accent)"
-            e.currentTarget.style.boxShadow = "0 0 0 3px var(--tm-accent-wash)"
+            e.currentTarget.style.borderColor = "var(--tm-interactive)"
+            e.currentTarget.style.boxShadow = "0 0 0 3px var(--tm-int-bg-wash)"
           }
         }}
         onBlur={(e) => {
@@ -71,8 +71,8 @@ export function EmailSubscribe() {
         style={{
           height: 40,
           padding: "0 20px",
-          background: state === "success" ? "var(--tm-success)" : "var(--tm-accent)",
-          color: "var(--tm-accent-fg)",
+          background: state === "success" ? "var(--tm-success)" : "var(--tm-interactive)",
+          color: "var(--tm-interactive-fg)",
           border: "none",
           borderRadius: "var(--tm-radius)",
           fontFamily: "var(--tm-font-sans)",
@@ -84,13 +84,13 @@ export function EmailSubscribe() {
         }}
         onMouseEnter={(e) => {
           if (state !== "success") {
-            e.currentTarget.style.background = "var(--tm-accent-hover)"
+            e.currentTarget.style.background = "var(--tm-interactive-hover)"
             e.currentTarget.style.boxShadow = "var(--tm-shadow-glow)"
           }
         }}
         onMouseLeave={(e) => {
           if (state !== "success") {
-            e.currentTarget.style.background = "var(--tm-accent)"
+            e.currentTarget.style.background = "var(--tm-interactive)"
             e.currentTarget.style.boxShadow = "none"
           }
         }}

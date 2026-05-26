@@ -50,20 +50,20 @@ function IntelBar({ label, count, max, active, onClick }: {
       style={{
         display: "flex", alignItems: "center", gap: 12, width: "100%",
         padding: "10px 14px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
-        background: active ? "var(--tm-accent-wash)" : "transparent",
-        border: `1px solid ${active ? "var(--tm-accent-ring)" : "transparent"}`,
+        background: active ? "var(--tm-int-bg-wash)" : "transparent",
+        border: `1px solid ${active ? "var(--tm-int-border)" : "transparent"}`,
         marginBottom: 2, fontFamily: "inherit", outline: "none",
         transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)",
       }}
       onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--tm-hover)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" } }}
       onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" } }}
-      onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-accent-ring)" }}
+      onFocus={(e) => { e.currentTarget.style.boxShadow = "0 0 0 2px var(--tm-int-border)" }}
       onBlur={(e) => { e.currentTarget.style.boxShadow = "none" }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 14, fontWeight: active ? 700 : 600, marginBottom: 5, textAlign: "left",
-          color: active ? "var(--tm-accent)" : "var(--tm-text)",
+          color: active ? "var(--tm-interactive)" : "var(--tm-text)",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
           transition: "color var(--tm-dur-fast) var(--tm-ease)",
         }}>
@@ -72,13 +72,13 @@ function IntelBar({ label, count, max, active, onClick }: {
         <div style={{ height: 2, borderRadius: 999, background: "var(--tm-border-soft)", overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${pct}%`, borderRadius: 999,
-            background: active ? "var(--tm-accent)" : "var(--tm-border)",
+            background: active ? "var(--tm-interactive)" : "var(--tm-border)",
             transition: "width 0.9s var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease)",
           }} />
         </div>
       </div>
       <div style={{
-        fontSize: 13, color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        fontSize: 13, color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
         flexShrink: 0, minWidth: 36, textAlign: "right",
         fontVariantNumeric: "tabular-nums", fontWeight: 500,
         transition: "color var(--tm-dur-fast) var(--tm-ease)",
@@ -87,7 +87,7 @@ function IntelBar({ label, count, max, active, onClick }: {
       </div>
       <div style={{
         fontSize: 11, opacity: active ? 1 : 0.3,
-        color: active ? "var(--tm-accent)" : "var(--tm-text-faint)",
+        color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)",
         transition: "opacity var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease)",
         transform: active ? "translateX(2px)" : "none",
       }} aria-hidden="true">›</div>
@@ -101,13 +101,13 @@ function SkillChip({ skill, count }: { skill: string; count: number }) {
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 8,
       padding: "5px 11px", borderRadius: 999, fontSize: 13,
-      background: soft ? "var(--tm-hover)" : "var(--tm-accent-wash)",
-      border: `1px solid ${soft ? "var(--tm-border-soft)" : "var(--tm-accent-ring)"}`,
-      color: soft ? "var(--tm-text-muted)" : "var(--tm-accent)",
+      background: soft ? "var(--tm-hover)" : "var(--tm-int-bg-wash)",
+      border: `1px solid ${soft ? "var(--tm-border-soft)" : "var(--tm-int-border)"}`,
+      color: soft ? "var(--tm-text-muted)" : "var(--tm-interactive)",
     }}>
       <div style={{
         width: 4, height: 4, borderRadius: "50%", flexShrink: 0,
-        background: soft ? "var(--tm-text-faint)" : "var(--tm-accent)",
+        background: soft ? "var(--tm-text-faint)" : "var(--tm-interactive)",
       }} />
       {skill}
       <span style={{ color: "var(--tm-text-faint)", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
@@ -288,9 +288,9 @@ export function IntelPane() {
           <button key={v} onClick={() => { setView(v); setSelected(null) }}
             style={{
               padding: "9px 20px", borderRadius: 999, fontSize: 15, fontWeight: 600,
-              background: view === v ? "var(--tm-accent-wash)" : "var(--tm-hover-soft)",
-              border: `1px solid ${view === v ? "var(--tm-accent-ring)" : "var(--tm-border-soft)"}`,
-              color: view === v ? "var(--tm-accent)" : "var(--tm-text-muted)",
+              background: view === v ? "var(--tm-int-bg-wash)" : "var(--tm-hover-soft)",
+              border: `1px solid ${view === v ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
+              color: view === v ? "var(--tm-interactive)" : "var(--tm-text-muted)",
               cursor: "pointer", textTransform: "capitalize",
               transition: "color var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease)",
               fontFamily: "inherit",
@@ -310,7 +310,7 @@ export function IntelPane() {
         }}>
           <div style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: 16 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
-              <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-accent)", opacity: 0.78, fontWeight: 700 }}>
+              <div style={{ fontSize: 13, letterSpacing: 0, textTransform: "uppercase", color: "var(--tm-interactive)", opacity: 0.78, fontWeight: 700 }}>
                 {view === "companies" ? "Top Companies" : "Industries"}
               </div>
               <div style={{ fontSize: 12, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
@@ -348,7 +348,7 @@ export function IntelPane() {
               <>
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", marginBottom: 3 }}>{selected.name}</div>
-                  <div style={{ fontSize: 14, color: "var(--tm-accent)", fontWeight: 600 }}>{selected.roles.toLocaleString()} open roles</div>
+                  <div style={{ fontSize: 14, color: "var(--tm-interactive)", fontWeight: 600 }}>{selected.roles.toLocaleString()} open roles</div>
                 </div>
 
                 {skillsLoading ? (
@@ -393,7 +393,7 @@ export function IntelPane() {
                 justifyContent: "center", height: "100%", minHeight: isMobile ? 120 : 220,
                 color: "var(--tm-text-faint)",
               }}>
-                <div style={{ fontSize: 34, marginBottom: 12, opacity: 0.18, color: "var(--tm-accent)" }}>◎</div>
+                <div style={{ fontSize: 34, marginBottom: 12, opacity: 0.18, color: "var(--tm-interactive)" }}>◎</div>
                 <div style={{ fontSize: 15, color: "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.6 }}>
                   Select a {view === "companies" ? "company" : "industry"}<br />
                   <span style={{ fontSize: 14, opacity: 0.7 }}>to reveal skills in demand</span>
@@ -411,7 +411,7 @@ export function IntelPane() {
         </div>
         <Link
           href="/signup?next=/cv?upload=1"
-          style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}
+          style={{ flexShrink: 0, padding: "10px 20px", borderRadius: 999, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)", fontSize: 14, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
             e.preventDefault()

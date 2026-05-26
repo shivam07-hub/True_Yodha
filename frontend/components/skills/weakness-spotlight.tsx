@@ -55,14 +55,14 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
             style={{
               padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",
               fontSize: 12, fontWeight: 600, fontFamily: "inherit",
-              background: logged ? "transparent" : "var(--tm-accent)",
-              color: logged ? "var(--tm-success)" : "var(--tm-accent-fg)",
-              border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-accent)"}`,
+              background: logged ? "transparent" : "var(--tm-interactive)",
+              color: logged ? "var(--tm-success)" : "var(--tm-interactive-fg)",
+              border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-interactive)"}`,
               cursor: logged ? "default" : "pointer",
               transition: "all 200ms var(--tm-ease)",
             }}
           >
-            {logged ? "✓ Logged" : isPending ? "Logging…" : "Log to Forge"}
+            {logged ? "✓ Logged" : isPending ? "Logging…" : "Log to Practice"}
           </button>
           <Link href="/cv" style={{
             padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",
@@ -73,7 +73,7 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
             textDecoration: "none",
             transition: "all 200ms var(--tm-ease)",
           }}
-            onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-accent)"; e.currentTarget.style.borderColor = "var(--tm-accent-ring)" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
             onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
           >
             CV →

@@ -26,7 +26,7 @@
 }
 
 .tm-auth-provider-btn:hover {
-  border-color: var(--tm-accent-ring);
+  border-color: var(--tm-int-border);
   background: var(--tm-bg-inset);
 }
 
@@ -37,8 +37,8 @@
 
 .tm-auth-provider-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--tm-accent-wash);
-  border-color: var(--tm-accent-ring);
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
 }
 
 .tm-auth-provider-btn:disabled,
@@ -48,13 +48,13 @@
 }
 
 .tm-auth-provider-btn--primary {
-  background: var(--tm-accent);
+  background: var(--tm-interactive);
   color: var(--tm-bg);
-  border-color: var(--tm-accent);
+  border-color: var(--tm-interactive);
 }
 
 .tm-auth-provider-btn--primary:hover {
-  background: var(--tm-accent);
+  background: var(--tm-interactive);
   filter: brightness(1.04);
 }
 
@@ -81,8 +81,8 @@
 }
 
 .tm-auth-magic-input:focus-visible {
-  border-color: var(--tm-accent-ring);
-  box-shadow: 0 0 0 3px var(--tm-accent-wash);
+  border-color: var(--tm-int-border);
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
 }
 
 .tm-auth-magic-input[aria-invalid="true"] {
@@ -175,7 +175,7 @@
 }
 
 .tm-auth-warning a {
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
   text-decoration: underline;
 }
 
@@ -195,15 +195,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent-text);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive-text);
   font-size: 28px;
 }
 
 .tm-auth-check-inbox__resend {
   background: none;
   border: none;
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
   font: inherit;
   cursor: pointer;
   text-decoration: underline;

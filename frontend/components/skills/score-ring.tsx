@@ -37,7 +37,7 @@ export function ScoreRing({ score }: { score: number }) {
         }}
       >
         <circle cx={34} cy={34} r={R} fill="none" stroke="var(--tm-border)" strokeWidth={5} />
-        <circle cx={34} cy={34} r={R} fill="none" stroke="var(--tm-accent)" strokeWidth={5}
+        <circle cx={34} cy={34} r={R} fill="none" stroke="var(--data-1)" strokeWidth={5}
           strokeDasharray={CIRC} strokeDashoffset={offset}
           strokeLinecap="round"
           transform="rotate(-90 34 34)"
@@ -53,7 +53,7 @@ export function ScoreRing({ score }: { score: number }) {
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)", marginBottom: 3 }}>{tier.label}</div>
         {tier.next !== null && (
           <div style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-            Next milestone: <span style={{ color: "var(--tm-accent)", fontWeight: 600 }}>{tier.next}</span> — {tier.nextLabel}
+            Next milestone: <span style={{ color: "var(--data-1)", fontWeight: 600 }}>{tier.next}</span> — {tier.nextLabel}
           </div>
         )}
       </div>

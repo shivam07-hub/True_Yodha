@@ -44,7 +44,7 @@ export default function PrivacyPage() {
       <header className="relative overflow-hidden px-4 lg:px-8 pt-16 lg:pt-20 pb-12">
         <div style={{
           position: "absolute", inset: 0,
-          background: "radial-gradient(ellipse at 12% 50%, var(--tm-accent-wash) 0%, transparent 55%)",
+          background: "radial-gradient(ellipse at 12% 50%, var(--tm-int-bg-wash) 0%, transparent 55%)",
           pointerEvents: "none",
         }} />
         <div style={{
@@ -53,14 +53,14 @@ export default function PrivacyPage() {
           opacity: 0.065, pointerEvents: "none",
         }}>
           <svg viewBox="0 0 200 200" fill="none" aria-hidden="true">
-            <circle cx="100" cy="100" r="78" stroke="var(--tm-accent)" strokeWidth="10" strokeDasharray="3 6" />
-            <circle cx="100" cy="100" r="56" stroke="var(--tm-accent)" strokeWidth="3" strokeDasharray="2 9" opacity="0.5" />
-            <circle cx="100" cy="100" r="22" fill="var(--tm-accent)" />
-            <circle cx="100" cy="100" r="12" fill="var(--tm-accent)" opacity="0.6" />
+            <circle cx="100" cy="100" r="78" stroke="var(--tm-interactive)" strokeWidth="10" strokeDasharray="3 6" />
+            <circle cx="100" cy="100" r="56" stroke="var(--tm-interactive)" strokeWidth="3" strokeDasharray="2 9" opacity="0.5" />
+            <circle cx="100" cy="100" r="22" fill="var(--tm-interactive)" />
+            <circle cx="100" cy="100" r="12" fill="var(--tm-interactive)" opacity="0.6" />
           </svg>
         </div>
         <div style={{ position: "relative", zIndex: 1, maxWidth: "var(--tm-content-max)", margin: "0 auto" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-accent)", marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 12 }}>
             Legal
           </div>
           <h1 style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px", color: "var(--tm-text)" }}>
@@ -115,13 +115,13 @@ export default function PrivacyPage() {
           <main style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* No-sell callout */}
-            <div style={{ background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+            <div style={{ background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
-                <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z" stroke="var(--tm-accent)" strokeWidth="1.8" strokeLinejoin="round" />
-                <path d="M9 12l2 2 4-4" stroke="var(--tm-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z" stroke="var(--tm-interactive)" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M9 12l2 2 4-4" stroke="var(--tm-interactive)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div>
-                <p style={{ fontWeight: 700, color: "var(--tm-accent)", margin: "0 0 4px", fontSize: "var(--tm-fs-body)" }}>We do not sell your data.</p>
+                <p style={{ fontWeight: 700, color: "var(--tm-interactive)", margin: "0 0 4px", fontSize: "var(--tm-fs-body)" }}>We do not sell your data.</p>
                 <p style={{ margin: 0, fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
                   We do not sell, rent, or trade your personal information to any third party. We do not use your data for advertising.
                 </p>
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
 
             <Section id="who-we-are" n="01" title="Who We Are">
               <P>Myro (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is an Intelligence-as-a-Service platform for job seekers, available at{" "}
-                <a href="https://himyro.com" style={{ color: "var(--tm-accent)" }}>himyro.com</a>.
+                <a href="https://himyro.com" style={{ color: "var(--tm-interactive)" }}>himyro.com</a>.
                 {" "}We also publish the <strong>Myro Job Tracker</strong> Chrome extension.</P>
             </Section>
 
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
 
             <Section id="your-rights" n="06" title="Your Rights">
               <P>You have the right to access your data, correct inaccuracies, request deletion, and export your data.</P>
-              <P>Email <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)" }}>hello@himyro.com</a> to exercise any right.</P>
+              <P>Email <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)" }}>hello@himyro.com</a> to exercise any right.</P>
             </Section>
 
             <Section id="cookies" n="07" title="Cookies">
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
             <Section id="contact" n="11" title="Contact">
               <P>Questions about this policy? Reach us at:</P>
               <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", marginTop: 8, display: "inline-block" }}>
-                <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-accent)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
+                <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>
                   hello@himyro.com
                 </a>
               </div>
@@ -218,7 +218,7 @@ export default function PrivacyPage() {
 
       {/* Footer */}
       <footer style={{ borderTop: "1px solid var(--tm-border-soft)", padding: "24px 32px", textAlign: "center" }}>
-        <Link href="/" style={{ color: "var(--tm-accent)", textDecoration: "none", fontSize: "var(--tm-fs-meta)", fontWeight: 500 }}>
+        <Link href="/" style={{ color: "var(--tm-interactive)", textDecoration: "none", fontSize: "var(--tm-fs-meta)", fontWeight: 500 }}>
           ← Back to Myro
         </Link>
         <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", margin: "8px 0 0" }}>

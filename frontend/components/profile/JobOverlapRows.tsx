@@ -72,7 +72,7 @@ export function JobOverlapRows({ rows }: JobOverlapRowsProps) {
             <div
               style={{
                 fontSize: 12,
-                color: "var(--tm-accent)",
+                color: "var(--tm-interactive)",
                 fontVariantNumeric: "tabular-nums",
                 minWidth: 56,
                 textAlign: "right",

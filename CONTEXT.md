@@ -103,6 +103,8 @@ The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth 
 
 ## Forge Session
 
+> **User-facing label (PR2):** *Practice session*. The domain glossary keeps the DB-aligned name `Forge Session` because identifiers (`forge_sessions` table, `forge_service.py`, `useForgeSession` hook, `/forge` route) are durable contracts. See `UBIQUITOUS_LANGUAGE.md § Public Vocab Lock` for the full mapping.
+
 An open-ended interval of deliberate practice on one skill. Stored as **bursts** in `forge_sessions` rows (any `duration_minutes > 0`) and aggregated on `user_skills.total_forge_minutes`. A "session" toward level threshold is the derived unit `total_forge_minutes // 25` — partial bursts accrue across the day and survive reloads. Users are never punished for stopping mid-25-min.
 
 **Lifecycle states (orthogonal axes)**

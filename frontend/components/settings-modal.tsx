@@ -105,10 +105,10 @@ function InitialsAvatar({ name, size = 52 }: { name: string; size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+      background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: Math.round(size * 0.38), fontWeight: 700, letterSpacing: "-0.02em",
-      boxShadow: "0 0 16px var(--tm-accent-glow)",
+      boxShadow: "0 0 16px var(--tm-int-bg-hover)",
     }}>
       {initials}
     </div>
@@ -142,9 +142,9 @@ export function SortableRoleChip({
         opacity: isDragging ? 0.4 : 1, cursor: isDragging ? "grabbing" : "grab",
         display: "inline-flex", alignItems: "center", gap: 6,
         padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)",
-        background: isDragging ? "transparent" : "var(--tm-accent-wash)",
-        border: isDragging ? "1px dashed var(--tm-accent-ring)" : "1px solid var(--tm-accent-ring)",
-        fontSize: 12, color: isDragging ? "transparent" : "var(--tm-accent)", userSelect: "none",
+        background: isDragging ? "transparent" : "var(--tm-int-bg-wash)",
+        border: isDragging ? "1px dashed var(--tm-int-border)" : "1px solid var(--tm-int-border)",
+        fontSize: 12, color: isDragging ? "transparent" : "var(--tm-interactive)", userSelect: "none",
         boxShadow: isOverlay ? "0 4px 16px rgba(0,0,0,0.4)" : undefined,
       }}
       {...attributes} {...listeners}
@@ -155,8 +155,8 @@ export function SortableRoleChip({
         aria-label={`Remove ${role}`}
         style={{
           width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center",
-          justifyContent: "center", background: "rgba(0,245,212,0.15)", border: "none",
-          padding: 0, cursor: "pointer", color: "var(--tm-accent)", fontSize: 12, lineHeight: 1,
+          justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none",
+          padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1,
         }}
       >×</button>
     </div>
@@ -170,7 +170,7 @@ const INPUT_STYLE: React.CSSProperties = {
   transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
   boxSizing: "border-box" as const,
 }
-const INPUT_FOCUS_STYLE = { borderColor: "var(--tm-accent-ring)", boxShadow: "0 0 0 2px var(--tm-accent-glow)" }
+const INPUT_FOCUS_STYLE = { borderColor: "var(--tm-int-border)", boxShadow: "0 0 0 2px var(--tm-int-bg-hover)" }
 const INPUT_BLUR_STYLE = { borderColor: "var(--tm-border-soft)", boxShadow: "none" }
 
 const SECTION_HEADER: React.CSSProperties = {
@@ -440,7 +440,7 @@ export function SettingsModal({ open, onClose, profile }: {
           email: profile?.email || undefined,
         },
         theme: {
-          color: "#00F5D4",
+          color: "var(--tm-interactive)",
           backdrop_color: "#050A18",
         },
         modal: {
@@ -504,7 +504,7 @@ export function SettingsModal({ open, onClose, profile }: {
         showCloseButton={false}
         className="tm-settings-dialog sm:max-w-[740px] max-w-[calc(100%-1.5rem)] p-0 bg-transparent ring-0"
         style={{
-          background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)",
+          background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)",
           borderRadius: "var(--tm-radius-xl)", boxShadow: "0 0 60px rgba(0,0,0,0.65)",
           height: "88dvh", maxHeight: 820,
           display: "flex", overflow: "hidden",
@@ -540,9 +540,9 @@ export function SettingsModal({ open, onClose, profile }: {
                 style={{
                   display: "flex", alignItems: "center", gap: 10, width: "100%",
                   padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
-                  background: activeTab === tab ? "var(--tm-accent-wash)" : "transparent",
-                  border: `1px solid ${activeTab === tab ? "var(--tm-accent-ring)" : "transparent"}`,
-                  color: activeTab === tab ? "var(--tm-accent)" : "var(--tm-text-muted)",
+                  background: activeTab === tab ? "var(--tm-int-bg-wash)" : "transparent",
+                  border: `1px solid ${activeTab === tab ? "var(--tm-int-border)" : "transparent"}`,
+                  color: activeTab === tab ? "var(--tm-interactive)" : "var(--tm-text-muted)",
                   fontSize: 13, fontWeight: activeTab === tab ? 600 : 400,
                   fontFamily: "inherit", textAlign: "left",
                   transition: "all 180ms var(--tm-ease)",
@@ -553,7 +553,7 @@ export function SettingsModal({ open, onClose, profile }: {
                 {tab === "Following" && (followingData?.total ?? 0) > 0 && (
                   <span className="tm-settings-nav-badge" style={{
                     marginLeft: "auto", fontSize: 10, fontWeight: 600,
-                    background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+                    background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
                     borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
                   }}>
                     {followingData!.total}
@@ -621,7 +621,7 @@ export function SettingsModal({ open, onClose, profile }: {
                 </div>
 
                 <div style={ROW_STYLE}>
-                  <div style={ROW_LABEL}>Ninja Name</div>
+                  <div style={ROW_LABEL}>Public Name</div>
                   <input
                     id="sm-ninja-name" type="text" value={name}
                     onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
@@ -661,8 +661,8 @@ export function SettingsModal({ open, onClose, profile }: {
                   <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
                     style={{
                       padding: "9px 24px", borderRadius: "var(--tm-radius-sm)", border: "none",
-                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-accent)",
-                      color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-interactive)",
+                      color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                       cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
                       opacity: saveStatus === "saving" ? 0.65 : 1,
                       transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
@@ -706,18 +706,18 @@ export function SettingsModal({ open, onClose, profile }: {
                       onBlur={(e) => { roleCloseTimer.current = setTimeout(() => setRoleDropdown(false), 150); setRoleFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
                       placeholder={atMax ? `Max ${MAX_TARGET_ROLES} selected` : "Search roles…"}
                       disabled={atMax} autoComplete="off"
-                      style={{ ...INPUT_STYLE, borderColor: roleFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)", opacity: atMax ? 0.45 : 1 }}
+                      style={{ ...INPUT_STYLE, borderColor: roleFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)", opacity: atMax ? 0.45 : 1 }}
                     />
                     {roleDropdown && suggestions.length > 0 && (
                       <div
                         id="sm-role-listbox" role="listbox" aria-label="Role suggestions"
                         onMouseDown={() => { if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current) }}
-                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
                       >
                         {suggestions.map((c) => (
                           <button key={c} type="button" role="option" aria-selected={false} onClick={() => selectRole(c)}
                             style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                           >{c}</button>
                         ))}
@@ -752,7 +752,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       onChange={(e) => { setLocation(e.target.value); schedule({ target_location: normalize(e.target.value) }); setLocationDropdown(true) }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (locationSuggestions[0]) selectLocation(locationSuggestions[0]) } if (e.key === "Escape") setLocationDropdown(false) }}
                       placeholder="City, country, or Remote"
-                      style={{ ...INPUT_STYLE, borderColor: locationFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)" }}
+                      style={{ ...INPUT_STYLE, borderColor: locationFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)" }}
                       onFocus={(e) => { setLocationFocused(true); setLocationDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
                       onBlur={(e) => { locationCloseTimer.current = setTimeout(() => setLocationDropdown(false), 150); setLocationFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
                     />
@@ -760,12 +760,12 @@ export function SettingsModal({ open, onClose, profile }: {
                       <div
                         id="sm-location-listbox" role="listbox" aria-label="Location suggestions"
                         onMouseDown={() => { if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current) }}
-                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
                       >
                         {locationSuggestions.map((entry) => (
                           <button key={entry} type="button" role="option" aria-selected={entry === location} onClick={() => selectLocation(entry)}
                             style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                           >{entry}</button>
                         ))}
@@ -774,11 +774,11 @@ export function SettingsModal({ open, onClose, profile }: {
                   </div>
                   {location.trim() && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
                         <span style={{ fontWeight: 500 }}>{location.trim()}</span>
                         <button
                           type="button" onClick={() => selectLocation("")} aria-label="Clear location"
-                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,245,212,0.15)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-accent)", fontSize: 12, lineHeight: 1 }}
+                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
                         >×</button>
                       </div>
                     </div>
@@ -822,7 +822,7 @@ export function SettingsModal({ open, onClose, profile }: {
                       onBlur={(e) => { companyCloseTimer.current = setTimeout(() => setCompanyDropdown(false), 150); setCompanyFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
                       placeholder="Search companies…"
                       autoComplete="off"
-                      style={{ ...INPUT_STYLE, borderColor: companyFocused ? "var(--tm-accent-ring)" : "var(--tm-border-soft)" }}
+                      style={{ ...INPUT_STYLE, borderColor: companyFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)" }}
                     />
                     {companyDropdown && filteredSuggestions.length > 0 && (
                       <div
@@ -830,7 +830,7 @@ export function SettingsModal({ open, onClose, profile }: {
                         role="listbox"
                         aria-label="Company suggestions"
                         onMouseDown={() => { if (companyCloseTimer.current) clearTimeout(companyCloseTimer.current) }}
-                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-accent-ring)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
                       >
                         {filteredSuggestions.map((name) => (
                           <button
@@ -840,12 +840,12 @@ export function SettingsModal({ open, onClose, profile }: {
                             aria-selected={false}
                             onClick={() => selectCompany(name)}
                             style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-accent-wash)"; e.currentTarget.style.color = "var(--tm-accent)" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
                           >
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>
-                            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-accent)", whiteSpace: "nowrap" }}>
+                            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-interactive)", whiteSpace: "nowrap" }}>
                               -{XP_POLICY.followCompanyCost} XP
                             </span>
                           </button>
@@ -867,7 +867,7 @@ export function SettingsModal({ open, onClose, profile }: {
                   </div>
                 ) : followedCompanies.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
-                    <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-accent)" }}>★</div>
+                    <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
                       No companies followed yet. Following costs {XP_POLICY.followCompanyCost} XP.
                     </div>
@@ -875,8 +875,8 @@ export function SettingsModal({ open, onClose, profile }: {
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                     {followedCompanies.map((company) => (
-                      <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", fontSize: 12, color: "var(--tm-accent)" }}>
-                        <Link href="/market" onClick={flushAndClose} style={{ fontWeight: 500, color: "var(--tm-accent)", textDecoration: "none" }}>
+                      <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
+                        <Link href="/market" onClick={flushAndClose} style={{ fontWeight: 500, color: "var(--tm-interactive)", textDecoration: "none" }}>
                           {company.company_name}
                         </Link>
                         <button
@@ -884,7 +884,7 @@ export function SettingsModal({ open, onClose, profile }: {
                           onClick={() => unfollowMutation.mutate(company.company_name)}
                           disabled={unfollowMutation.isPending}
                           aria-label={`Unfollow ${company.company_name}`}
-                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,245,212,0.15)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-accent)", fontSize: 12, lineHeight: 1 }}
+                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
                         >×</button>
                       </div>
                     ))}
@@ -943,15 +943,15 @@ function BillingTabContent({
       <div style={{
         padding: 18,
         borderRadius: "var(--tm-radius)",
-        background: "linear-gradient(180deg, var(--tm-accent-wash), rgba(255,255,255,0.015))",
-        border: "1px solid var(--tm-accent-ring)",
+        background: "linear-gradient(180deg, var(--tm-int-bg-wash), rgba(255,255,255,0.015))",
+        border: "1px solid var(--tm-int-border)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start" }}>
           <div>
             <div style={{
               display: "inline-flex", alignItems: "center",
               padding: "3px 8px", borderRadius: "var(--tm-radius-pill)",
-              border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)",
+              border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)",
               fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
             }}>
               Launch price
@@ -981,10 +981,10 @@ function BillingTabContent({
             disabled={busy}
             style={{
               padding: "10px 20px", borderRadius: "var(--tm-radius-sm)", border: "none",
-              background: status === "success" ? "var(--tm-success)" : "var(--tm-accent)",
-              color: "var(--tm-accent-fg)", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+              background: status === "success" ? "var(--tm-success)" : "var(--tm-interactive)",
+              color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
               cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.72 : 1,
-              minWidth: 150, boxShadow: busy ? "none" : "0 0 18px var(--tm-accent-glow)",
+              minWidth: 150, boxShadow: busy ? "none" : "0 0 18px var(--tm-int-bg-hover)",
               transition: "opacity var(--tm-dur) var(--tm-ease), background var(--tm-dur) var(--tm-ease)",
             }}
           >
@@ -1040,12 +1040,12 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
       <div style={{
         padding: 18,
         borderRadius: "var(--tm-radius)",
-        background: "linear-gradient(180deg, var(--tm-accent-wash), transparent)",
-        border: "1px solid var(--tm-accent-ring)",
+        background: "linear-gradient(180deg, var(--tm-int-bg-wash), transparent)",
+        border: "1px solid var(--tm-int-border)",
       }}>
         <div style={{
           fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase",
-          color: "var(--tm-accent)", fontWeight: 500,
+          color: "var(--tm-interactive)", fontWeight: 500,
         }}>Direct line</div>
         <div style={{ marginTop: 6, fontSize: 18, color: "var(--tm-text)", fontWeight: 600 }}>
           Help shape Myro
@@ -1059,9 +1059,9 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
           style={{
             marginTop: 14,
             padding: "10px 18px", borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-accent)", color: "var(--tm-accent-fg)",
+            background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
             border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            boxShadow: "0 0 18px var(--tm-accent-glow)",
+            boxShadow: "0 0 18px var(--tm-int-bg-hover)",
             display: "inline-flex", alignItems: "center", gap: 8,
           }}
         >
@@ -1128,7 +1128,7 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
             color: "var(--tm-text-faint)", fontWeight: 500,
           }}>Response time</div>
           <div style={{ marginTop: 4, fontSize: 13, color: "var(--tm-text)" }}>
-            <span style={{ fontFamily: "var(--tm-font-mono)", color: "var(--tm-accent)", fontWeight: 700 }}>14h</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", color: "var(--tm-interactive)", fontWeight: 700 }}>14h</span>
             <span style={{ color: "var(--tm-text-muted)", marginLeft: 6 }}>median this week · 1 human reads</span>
           </div>
         </div>

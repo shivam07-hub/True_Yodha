@@ -187,7 +187,7 @@ function CallbackInner() {
         width: 28, height: 28,
         borderRadius: "50%",
         border: "2px solid var(--tm-border)",
-        borderTopColor: "var(--tm-accent)",
+        borderTopColor: "var(--tm-interactive)",
         animation: "tm-spin 720ms linear infinite",
       }} aria-hidden="true" />
       Signing you in…

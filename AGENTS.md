@@ -254,25 +254,75 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-26 - CV Library draft drawer toggle)
+## LAST SESSION SUMMARY (2026-05-26 - Job Refresh reliability + Jobs card parity)
 
-Refined the `/cv` left-side library drawer to match the intended Google Drive / macOS draft-folder mental model rather than a timeline:
+Closed the refresh-match incident and aligned Jobs card UX with Mission Control card language in one production-hardening slice:
 
-- Added `frontend/components/cv/builder/library-drawer.tsx` as the dedicated CV Drafts drawer.
-- Default drawer mode is **Files**: familiar file rows with document icons, folder headers for tailored CV groups, copy metadata, and last-updated timestamps.
-- Added **Previews** mode: a toggleable visual thumbnail/card grid for the same saved CVs, matching the "image version" / visual browsing behavior Shivam asked for.
-- Reused the existing `cv_versions` data and selection behavior; no backend model changes.
-- Updated the inline CV viewer title/kind labels to use the same library projection helpers, so ugly draft titles like raw `v35 · timestamp` no longer lead the UI when company/role data exists.
+- **Root cause fixed (schema drift):**
+  - Added `database/migrations/20260526_user_job_matches_weekly_uniqueness.sql` to reconcile `user_job_matches` uniqueness with the weekly cache contract.
+  - Migration now drops any legacy UNIQUE constraints/indexes on `(user_id, job_id)` via catalog introspection (name-agnostic), preserves weekly uniqueness `(user_id, job_id, batch_week)`, dedupes drift rows safely, and reloads PostgREST schema cache.
+  - Supabase hotfix applied: cast `att.attname` to `text` in catalog `array_agg(...)` comparisons to avoid `name[] = text[]` operator errors during migration execution.
+
+- **Write-path contract aligned:**
+  - `backend/app/services/llm_ranker.py` keeps weekly upsert key and now defensively dedupes repeated `job_id` rows before write.
+  - `backend/app/repositories/jobs.py` `upsert_job_match()` now uses `on_conflict=\"user_id,job_id,batch_week\"` so all match writes follow one canonical key.
+
+- **Overlap read-path hardened:**
+  - `backend/app/routers/profile/public.py` now prefers current-week match scores first, with ordered historical fallback only when needed.
+
+- **Jobs page card parity shipped (design consistency):**
+  - `frontend/components/jobs/JobCard.tsx` redesigned to mirror Mission/Home control card vocabulary and structure:
+    - Focused-on header
+    - Large Fit score + fit bar
+    - Apply row
+    - matched skills chips
+    - Why-this-fits (LLM) block
+    - Tailor CV + Save + Open role actions
+  - Match-retained metadata (location/mode/industry/rank/explanation/skills/description/source) is now surfaced directly in each Jobs card.
 
 Validation:
 
-- `cd frontend && npx tsx --test tests/cv-version-picker-labels.test.mjs tests/cv-version-ledger.test.mjs tests/cv-baseline-display.test.mjs` → `11 passed`
-- `cd frontend && npm run lint` clean
+- `.venv/bin/pytest backend/tests -q` → `383 passed`
 - `cd frontend && npx tsc --noEmit` clean
-- `.venv/bin/pytest backend/tests -q` → `378 passed`
-- Local render attempt at `http://127.0.0.1:3000/cv` redirected to `/login` in this browser session, so authenticated visual QA remains blocked without a logged-in local session.
+- `cd frontend && npm run lint` clean
+- `git diff --check` clean
 
-Unrelated workspace state still present: `CLAUDE.md` and `docs/session-history/2026-05.md` modified by Claude/onboarding work, plus `docs/free-llm-api-resources/` local/untracked.
+Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
+
+## OLDER SESSION SUMMARY (2026-05-26 - Backlog #17 PR1/PR2 shipped)
+
+Closed both requested Color Theory slices from Backlog #17 in two commits:
+
+- **PR1 (split + alias bridge)** shipped via `588f922`:
+  - Added `--tm-brand` and `--tm-interactive` token families in `frontend/app/design-tokens.css`.
+  - Kept legacy compatibility by aliasing `--tm-accent*` to interactive tokens so existing UI compiled with zero breakage.
+  - Exposed new token names in `frontend/tailwind.config.ts`.
+
+- **PR2 (ramp migration + leak cleanup)** shipped in this session:
+  - Added interactive ramp (`--int-01..09` + `--tm-int-*` aliases), OKLCH status ramps, and `--data-1..6` viz palette in `frontend/app/design-tokens.css`.
+  - Migrated frontend component usage from raw `--tm-accent*` references to interactive/ramp tokens.
+  - Replaced literal cyan leaks (`#00F5D4`, `rgba(0,245,212,...)`) across frontend with semantic tokens.
+  - Reassigned milestone-complete visuals to success tokens (e.g. Market step chips, Milestone cards, RightRail achievement chips).
+  - Moved chart/radar surfaces to `--data-*` where applicable (Market sparkline/heatmap, radar overlays, score rings/gauges, newsletter chart bars, mission-control sparkline).
+
+Validation:
+
+- `bash "Myro Newsletter/brand-guidelines.skill/validator/lint-color.sh" frontend` → both checks pass (`5-i`, `5-ii`)
+- `.venv/bin/pytest backend/tests -q` → `378 passed`
+- `cd frontend && npx tsc --noEmit` clean
+- `cd frontend && npm run lint` clean
+- `git diff --check` clean
+
+Unrelated workspace state still present and untouched: `CLAUDE.md`, `docs/session-history/2026-05.md`, plus `docs/free-llm-api-resources/` local/untracked.
+
+### Brand-guidelines wiring — CLOSED 2026-05-26
+
+All three integration carry-over steps are done:
+1. **Pre-commit hook (Codex)** — `.git/hooks/pre-commit` execs `Myro Newsletter/brand-guidelines.skill/validator/pre-commit.sh`.
+2. **CI workflow (Codex)** — `.github/workflows/brand-check.yml` copied from the skill's `validator/ci.yml`; gates PRs to Develop + main.
+3. **Dependent-skill frontmatter (Claude)** — every weekday newsletter skill + page-anatomy + voice-and-anti-slop + seo-and-distribution + `myro-newsletter.skill` + every `growth-agent/` file carries `reads: brand-guidelines` in frontmatter. Any new LinkedIn/X/Instagram drafting skill must add the line at creation.
+
+Validator now active at all 3 checkpoints. Drafts that bypass it require `--no-verify`, which is forbidden by CLAUDE.md absolute rules.
 
 ## OLDER SESSION SUMMARY (2026-05-26 - CV Library vocabulary pass)
 

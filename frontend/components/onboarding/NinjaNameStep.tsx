@@ -74,9 +74,9 @@ export function NinjaNameStep({ onAccept, onSkip }: NinjaNameStepProps) {
         textAlign: "center",
       }}
     >
-      <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Pick your ninja name</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Pick your public name</h2>
       <p style={{ margin: 0, color: "var(--tm-text-faint)", fontSize: 14, lineHeight: 1.5 }}>
-        Your public profile link. Change anytime in Settings.
+        lowercase letters, numbers, dashes — 3 to 32 chars
       </p>
 
       <label
@@ -94,7 +94,7 @@ export function NinjaNameStep({ onAccept, onSkip }: NinjaNameStepProps) {
           setValue(e.target.value.toLowerCase())
           setError(null)
         }}
-        placeholder={suggested ?? "your-ninja-name"}
+        placeholder={suggested ?? "your-public-name"}
         style={{
           padding: "10px 14px",
           fontSize: 16,
@@ -120,7 +120,7 @@ export function NinjaNameStep({ onAccept, onSkip }: NinjaNameStepProps) {
             padding: "10px 20px",
             fontSize: 14,
             color: "var(--tm-bg)",
-            background: "var(--tm-accent)",
+            background: "var(--tm-interactive)",
             border: "none",
             borderRadius: 8,
             cursor: busy ? "not-allowed" : "pointer",

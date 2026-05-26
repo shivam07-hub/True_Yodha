@@ -55,15 +55,15 @@ export function RightRail({
       {jobPath && (
         <div style={railCard}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--tm-accent)", boxShadow: "0 0 8px var(--tm-accent-glow)", display: "inline-block", flexShrink: 0 }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--tm-interactive)", boxShadow: "0 0 8px var(--tm-int-bg-hover)", display: "inline-block", flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text-muted)" }}>
               Job Path · {jobPath.company ?? job?.company ?? ""}
             </span>
             <span style={{
               marginLeft: "auto", fontFamily: "var(--tm-font-mono)", fontSize: 10,
               padding: "2px 8px", borderRadius: 99,
-              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)",
-              color: "var(--tm-accent)", letterSpacing: "0.06em",
+              background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+              color: "var(--tm-interactive)", letterSpacing: "0.06em",
             }}>
               {String((jobPath.readiness_tier as Record<string, unknown>).label ?? "building")}
             </span>
@@ -71,7 +71,7 @@ export function RightRail({
           <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
             <span style={{
               fontFamily: "var(--tm-font-mono)", fontSize: 28, fontWeight: 700,
-              color: "var(--tm-accent)", filter: "drop-shadow(0 0 6px var(--tm-accent-glow))", lineHeight: 1,
+              color: "var(--tm-interactive)", filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))", lineHeight: 1,
             }}>
               {jobPath.readiness_pct}%
             </span>
@@ -80,8 +80,8 @@ export function RightRail({
           <div style={{ height: 8, borderRadius: 99, background: "var(--tm-border)", overflow: "hidden" }}>
             <div style={{
               height: "100%", width: `${jobPath.readiness_pct}%`, borderRadius: 99,
-              background: "linear-gradient(90deg, var(--tm-accent-ring) 0%, var(--tm-accent) 100%)",
-              boxShadow: "0 0 8px var(--tm-accent-glow)", transition: "width 600ms var(--tm-ease)",
+              background: "linear-gradient(90deg, var(--tm-int-border) 0%, var(--tm-interactive) 100%)",
+              boxShadow: "0 0 8px var(--tm-int-bg-hover)", transition: "width 600ms var(--tm-ease)",
             }} />
           </div>
           <div style={{ fontSize: 12, color: "var(--tm-text-muted)", lineHeight: 1.5 }}>
@@ -116,15 +116,15 @@ export function RightRail({
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{
               width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0,
-              background: cartSkills.length > 0 ? "var(--tm-accent)" : "var(--tm-text-faint)",
-              boxShadow: cartSkills.length > 0 ? "0 0 6px var(--tm-accent-glow)" : "none",
+              background: cartSkills.length > 0 ? "var(--tm-interactive)" : "var(--tm-text-faint)",
+              boxShadow: cartSkills.length > 0 ? "0 0 6px var(--tm-int-bg-hover)" : "none",
             }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)" }}>Diary cart</span>
           </div>
           {cartSkills.length > 0 && (
             <span style={{
               fontFamily: "var(--tm-font-mono)", fontSize: 11, padding: "2px 8px", borderRadius: 99,
-              background: "var(--tm-accent-wash)", border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)",
+              background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)",
             }}>
               {cartSkills.length}
             </span>
@@ -159,9 +159,9 @@ export function RightRail({
               <button
                 onClick={onSendBatch}
                 style={{
-                  padding: "8px 16px", borderRadius: 99, background: "var(--tm-accent)", border: "none",
-                  color: "var(--tm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  fontFamily: "inherit", boxShadow: "0 0 10px rgba(0,245,212,0.25)",
+                  padding: "8px 16px", borderRadius: 99, background: "var(--tm-interactive)", border: "none",
+                  color: "var(--tm-interactive-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  fontFamily: "inherit", boxShadow: "0 0 10px var(--tm-int-border)",
                 }}
               >
                 Send batch to diary →
@@ -176,7 +176,7 @@ export function RightRail({
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)" }}>CV · quick</span>
         <Link
           href={job?.job_id ? `/cv?jobId=${job.job_id}` : "/cv"}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 0", borderRadius: 6, border: "1px solid var(--tm-accent-ring)", color: "var(--tm-accent)", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 0", borderRadius: 6, border: "1px solid var(--tm-int-border)", color: "var(--tm-interactive)", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
         >
           Open CV Builder →
         </Link>
@@ -199,9 +199,9 @@ export function RightRail({
                   display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "4px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
                   ...(a.done ? {
-                    background: "var(--tm-accent-wash)",
-                    border: "1px solid var(--tm-accent-ring)",
-                    color: "var(--tm-accent)",
+                    background: "var(--tm-success-wash)",
+                    border: "1px solid var(--tm-success-border)",
+                    color: "var(--tm-success)",
                   } : {
                     background: "transparent",
                     border: "1px dashed var(--tm-border)",

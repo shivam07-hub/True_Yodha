@@ -47,8 +47,8 @@ export function ScoreSparkle({ trigger }: Props) {
           style={{
             position: "absolute", top: "50%", left: "50%",
             width: p.size, height: p.size, borderRadius: "50%",
-            background: p.gold ? "#D4AF37" : "var(--tm-accent)",
-            boxShadow: `0 0 6px ${p.gold ? "rgba(212,175,55,0.6)" : "rgba(0,245,212,0.6)"}`,
+            background: p.gold ? "#D4AF37" : "var(--tm-interactive)",
+            boxShadow: `0 0 6px ${p.gold ? "rgba(212,175,55,0.6)" : "var(--tm-int-bg-wash)"}`,
             animation: reduced ? undefined : `tracker-sparkle-${p.id} 1.2s ease-out forwards`,
             transform: "translate(-50%,-50%)",
           }}
