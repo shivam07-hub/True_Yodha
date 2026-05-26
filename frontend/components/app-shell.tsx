@@ -350,13 +350,13 @@ function SidebarForgeTimer({
             boxShadow: running ? `0 0 6px ${accent}` : "none",
             animation: running ? "loop-pulse 1.6s ease-in-out infinite" : "none",
           }} />
-          {isComplete ? "Ready" : running ? "Forging" : "Paused"}
+          {isComplete ? "Ready" : running ? "Practicing" : "Paused"}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             type="button"
             onClick={() => (running ? pause() : resume())}
-            aria-label={running ? "Pause forge" : "Resume forge"}
+            aria-label={running ? "Pause practice" : "Resume practice"}
             title={running ? "Pause" : "Resume"}
             className="tm-control-focus"
             style={{
@@ -377,7 +377,7 @@ function SidebarForgeTimer({
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Dismiss forge timer"
+            aria-label="Dismiss practice timer"
             title="Dismiss"
             className="tm-control-focus"
             style={{
@@ -484,7 +484,7 @@ function SidebarForgeTimer({
         </svg>
         <Link
           href="/forge"
-          aria-label="Enter Forge"
+          aria-label="Enter Practice"
           className="tm-control-focus"
           style={{
             position: "absolute",
@@ -510,7 +510,7 @@ function SidebarForgeTimer({
             boxShadow: running ? `0 0 10px ${accentSoft}` : "none",
           }}
         >
-          Forge ↗
+          Practice ↗
         </Link>
       </div>
 

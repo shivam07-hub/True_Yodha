@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 const quickActions = [
-  { href: "/skills", label: "Forge XP", detail: "Claim XP while Forge builds in the background." },
+  { href: "/skills", label: "Practice XP", detail: "Claim XP while Practice builds in the background." },
   { href: "/forge?diary=1", label: "Complete diary", detail: `Log progress for +${XP_POLICY.diaryEntry} XP per entry.` },
   { href: "/cv", label: "Build your CV", detail: "Keep your baseline evidence current." },
   { href: "/market", label: "Use Intel", detail: "Spend XP only when heavier analysis completes." },

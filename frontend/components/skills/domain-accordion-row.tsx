@@ -121,7 +121,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
                 border: `1px solid ${logged ? "var(--tm-success)" : "var(--tm-interactive)"}`,
                 transition: "all 200ms var(--tm-ease)",
               }}>
-              {logged ? "✓ Logged to Forge" : isPending ? "Logging…" : "★ Log proof to Forge"}
+              {logged ? "✓ Logged to Practice" : isPending ? "Logging…" : "★ Log proof to Practice"}
             </button>
           </div>
         </div>

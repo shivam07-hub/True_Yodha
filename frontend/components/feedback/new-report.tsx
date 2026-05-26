@@ -234,7 +234,7 @@ export function NewReport({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={
-            category === "bug" ? "Forge timer resets when I switch tabs" : "One-line summary"
+            category === "bug" ? "Practice timer resets when I switch tabs" : "One-line summary"
           }
           style={{
             width: "100%",

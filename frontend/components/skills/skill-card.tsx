@@ -90,7 +90,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
           fontFamily: "inherit", width: "100%",
         }}
       >
-        {logged ? "✓ Logged to Forge" : logToForge.isPending ? "Logging…" : "Log to Forge"}
+        {logged ? "✓ Logged to Practice" : logToForge.isPending ? "Logging…" : "Log to Practice"}
       </button>
 
       <button

@@ -222,7 +222,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           accent={isFree}
         />
         <ActionBtn
-          label={logged ? "Queued in Forge" : "Track in diary"}
+          label={logged ? "Queued in Practice" : "Track in diary"}
           icon={logged ? "✓" : logDiary.isPending ? "…" : "☆"}
           onClick={() => !logged && logDiary.mutate()}
           disabled={logDiary.isPending || logged}

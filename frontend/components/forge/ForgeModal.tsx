@@ -95,7 +95,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
       setSessionsDone((prev) => [...prev, { skill: currentSkill, result }])
       onXPEarned(result.xp_earned, result.new_xp_balance)
       if (result.leveled_up) {
-        setLevelUpSkill("Forge")
+        setLevelUpSkill("Practice")
         setTimeout(() => setLevelUpSkill(null), 2500)
       }
       setSessionIdx((s) => cartSkills.length ? (s + 1) % cartSkills.length : 0)
@@ -174,7 +174,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", gap: 32 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.18em", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              FORGE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
+              PRACTICE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
             </div>
             <div style={{ width: 220, height: 220, borderRadius: "50%", border: "1px solid var(--tm-int-border)", display: "grid", placeItems: "center", margin: "24px auto 0", boxShadow: "0 0 48px var(--tm-int-border-soft), inset 0 0 40px var(--tm-int-bg-subtle)" }}>
               <div>
@@ -321,7 +321,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 border: "1px solid var(--tm-int-border)",
                 background: "var(--tm-int-bg-subtle)", display: "flex", flexDirection: "column", gap: 4,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Forge claim</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Practice claim</div>
                 <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-interactive)" }}>+{result.xp_earned} XP</div>
                 {result.leveled_up && (
                   <div style={{ fontSize: 11, color: "var(--tm-success)" }}>◆ L{result.level_before} → L{result.level_after}</div>

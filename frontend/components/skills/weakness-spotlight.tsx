@@ -62,7 +62,7 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
               transition: "all 200ms var(--tm-ease)",
             }}
           >
-            {logged ? "✓ Logged" : isPending ? "Logging…" : "Log to Forge"}
+            {logged ? "✓ Logged" : isPending ? "Logging…" : "Log to Practice"}
           </button>
           <Link href="/cv" style={{
             padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",

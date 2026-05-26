@@ -73,9 +73,9 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
           </span>
         </Link>
       ) : (
-        <Link href="/forge" className="tm-forge-xp-pill-cta" aria-label="Open Forge">
+        <Link href="/forge" className="tm-forge-xp-pill-cta" aria-label="Open Practice">
           <span aria-hidden>◆</span>
-          <span>Forge</span>
+          <span>Practice</span>
         </Link>
       )}
 

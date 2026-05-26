@@ -25,7 +25,7 @@ const STATE_TOKENS: Record<ForgeChipState, { fg: string; border: string; bg: str
 function labelFor(state: ForgeChipState, sessionsToNext: number, atMax: boolean): string {
   if (atMax) return "Maxed"
   if (state === "done") return "Dominated"
-  if (state === "active") return "Forging…"
+  if (state === "active") return "Practicing…"
   if (state === "cart") return `Locked · ${sessionsToNext} ses`
   return `Lock in · ${sessionsToNext} ses`
 }

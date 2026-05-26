@@ -327,7 +327,7 @@ function ForgePageInner() {
     try {
       await forgeSession.claim({
         onClaimed: (result) => {
-          setToast(`+${result.xp_earned} XP · forge logged`)
+          setToast(`+${result.xp_earned} XP · practice logged`)
           queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
           queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
           queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
@@ -357,7 +357,7 @@ function ForgePageInner() {
     addSkill(skill)
     setSelectedSkill(candidate.skill_name)
     startSession(skill)
-    setToast(`Forging · ${candidate.skill_name}`)
+    setToast(`Practicing · ${candidate.skill_name}`)
   }
 
   function handleToggleTimer() {
@@ -399,9 +399,9 @@ function ForgePageInner() {
                 setRunning(!running)
               }}
               aria-label={
-                !sessionActive ? "Start forge session"
-                : running ? "Pause forge session"
-                : "Resume forge session"
+                !sessionActive ? "Start practice session"
+                : running ? "Pause practice session"
+                : "Resume practice session"
               }
               style={{
                 margin: 0, padding: 0, background: "transparent", border: "none",
@@ -410,7 +410,7 @@ function ForgePageInner() {
                 letterSpacing: 0, display: "inline-flex", alignItems: "center", gap: 12,
               }}
             >
-              Forge
+              Practice
               <span aria-hidden style={{
                 fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 600,
                 padding: "3px 9px", borderRadius: 999,
@@ -494,10 +494,10 @@ function ForgePageInner() {
                 <div>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: running ? "var(--tm-interactive)" : "var(--tm-text-faint)", boxShadow: running ? "0 0 8px var(--tm-int-bg-hover)" : "none" }} />
-                    {running ? "Forging" : sessionActive ? "Paused" : "Ready"}
+                    {running ? "Practicing" : sessionActive ? "Paused" : "Ready"}
                   </div>
                   <h2 style={{ margin: 0, fontSize: 26, lineHeight: 1.15, fontWeight: 750, color: "var(--tm-text)", letterSpacing: 0 }}>
-                    {activeSessionName ?? "Choose a skill to forge"}
+                    {activeSessionName ?? "Choose a skill to practice"}
                   </h2>
                   <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: 14, lineHeight: 1.6 }}>
                     {selectedCandidate
@@ -514,7 +514,7 @@ function ForgePageInner() {
                     disabled={!selectedCandidate && !sessionActive}
                     style={{ height: 42, padding: "0 18px", borderRadius: 999, border: running ? "1px solid var(--tm-border-soft)" : "1px solid var(--tm-interactive)", background: running ? "rgba(255,255,255,0.04)" : "var(--tm-interactive)", color: running ? "var(--tm-text-muted)" : "var(--tm-interactive-fg)", cursor: selectedCandidate || sessionActive ? "pointer" : "default", fontFamily: "inherit", fontSize: 14, fontWeight: 750 }}
                   >
-                    {running ? "Pause" : sessionActive ? "Resume" : "Start forge"}
+                    {running ? "Pause" : sessionActive ? "Resume" : "Start practice"}
                   </button>
                   <button
                     type="button"
@@ -536,7 +536,7 @@ function ForgePageInner() {
                 </div>
                 {forgeSession.claimError && (
                   <div style={{ color: "var(--tm-danger)", fontSize: 12 }}>
-                    Could not save forge session. Try again in a moment.
+                    Could not save practice session. Try again in a moment.
                   </div>
                 )}
               </div>
@@ -545,7 +545,7 @@ function ForgePageInner() {
             <section style={{ border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <div className="tm-label-caps" style={{ marginBottom: 5 }}>Skills to forge</div>
+                  <div className="tm-label-caps" style={{ marginBottom: 5 }}>Skills to practice</div>
                   <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
                     {candidates.length} upgrade targets · {cartSkills.length} queued
                   </div>
@@ -603,7 +603,7 @@ function ForgePageInner() {
                             onClick={() => handleStart(candidate)}
                             style={{ height: 30, padding: "0 10px", borderRadius: 999, border: "1px solid var(--tm-interactive)", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 11, fontWeight: 800, fontFamily: "inherit", cursor: "pointer" }}
                           >
-                            Forge
+                            Practice
                           </button>
                         </div>
                       </div>
@@ -646,7 +646,7 @@ function ForgePageInner() {
 
                 <section style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 16 }}>
                   <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-                    Skill cart · Skills to forge this week
+                    Skill cart · Skills to practice this week
                   </div>
                   {cartSkills.length === 0 ? (
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.6 }}>No skills in cart — add from gaps below</div>

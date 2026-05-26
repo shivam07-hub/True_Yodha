@@ -20,7 +20,7 @@ const RESOURCES = [
     href: "/xp",
     label: "How to gain XP",
     kicker: "Earn and spend fairly",
-    detail: "Forge skills, complete your diary, add LinkedIn, and build your CV.",
+    detail: "Practice skills, complete your diary, add LinkedIn, and build your CV.",
   },
 ] as const
 

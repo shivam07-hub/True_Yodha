@@ -181,7 +181,7 @@ export default function SkillsPage() {
             <button type="button" onClick={() => setShow("at-risk")} className="tm-skills-stat-tile">
               <span className="label">Below 40%</span>
               <span className="value warning">{weakDomainCount}</span>
-              <span className="meta">Tap to forge</span>
+              <span className="meta">Tap to practice</span>
             </button>
           </div>
         ) : null}
@@ -236,7 +236,7 @@ export default function SkillsPage() {
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
               onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
-            >★ Forge</Link>
+            >★ Practice</Link>
           </div>
         </div>
 

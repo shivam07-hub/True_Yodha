@@ -198,7 +198,7 @@ function CountersStrip({ forge, diary, tracker }: { forge: number; diary: number
         textTransform: "uppercase",
       }}
     >
-      <Counter value={forge} label="Forge" />
+      <Counter value={forge} label="Practice" />
       <Counter value={diary} label="Diary" />
       <Counter value={tracker} label="Tracker" />
     </div>

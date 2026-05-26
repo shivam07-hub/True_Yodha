@@ -205,7 +205,7 @@ function MissionControlInner() {
       queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
       handlePick(jobId)
     },
-    onError: () => showToast("Not enough XP — forge a session to earn more"),
+    onError: () => showToast("Not enough XP — practice a session to earn more"),
   })
 
   function handleSkillToggle(skill: SkillGapItem) {
@@ -247,7 +247,7 @@ function MissionControlInner() {
 
   const checkpoints = [
     { label: "Find Job", done: topJobs.length > 0 },
-    { label: "Forge", done: hasForged },
+    { label: "Practice", done: hasForged },
     { label: "Log", done: loggedToday },
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0 },
     { label: "Apply", done: hasApplied },
@@ -277,7 +277,7 @@ function MissionControlInner() {
       const seedSkill = cartSkills[0]?.skill_name ?? firstMissing ?? "your next skill"
       moves.push({
         icon: "forge",
-        title: `Forge ${seedSkill}`,
+        title: `Practice ${seedSkill}`,
         meta: "L0 → L1 · 12 sessions",
         reward: "+30 XP",
         href: "/forge",
