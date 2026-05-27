@@ -138,6 +138,13 @@
   opacity: 0.4;
 }
 
+.pub-footer-trust {
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-faint);
+  text-align: center;
+}
+
 @media (max-width: 900px) {
   .pub-footer-inner {
     grid-template-columns: 1fr 1fr;
