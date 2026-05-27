@@ -1,16 +1,17 @@
 "use client"
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
-import { billing } from "@/lib/api"
+import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, type MyrologyIntakePayload } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
 
 // Logged-out visitors must keep this public page; bounce them to signup with a
 // return hop instead of mounting useAuth (which auto-redirects to /login).
 const SIGNUP_HREF = "/signup?next=/myrology"
 
-type CheckoutStatus = "idle" | "starting" | "verifying" | "unlocked" | "error"
+type Phase = "loading" | "locked" | "intake" | "booking"
+type PayStatus = "idle" | "starting" | "verifying" | "error"
 
 interface RazorpaySuccess {
   razorpay_payment_id: string
@@ -37,22 +38,62 @@ interface RazorpayInstance {
 
 type RazorpayConstructor = new (options: RazorpayOptions) => RazorpayInstance
 
-interface CheckoutValue {
-  status: CheckoutStatus
-  error: string | null
+interface MyrologyValue {
+  phase: Phase
+  payStatus: PayStatus
+  payError: string | null
+  intake: MyrologyIntake | null
+  bookings: MyrologyBooking[]
   start: () => void
+  saveIntake: (payload: MyrologyIntakePayload) => Promise<void>
+  createBooking: (payload: { preferred_windows: string; topic: string | null }) => Promise<void>
 }
 
-const CheckoutContext = createContext<CheckoutValue | null>(null)
+const MyrologyContext = createContext<MyrologyValue | null>(null)
 
-export function MyrologyCheckoutProvider({ children }: { children: ReactNode }) {
+export function MyrologyProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const [status, setStatus] = useState<CheckoutStatus>("idle")
-  const [error, setError] = useState<string | null>(null)
+  const [phase, setPhase] = useState<Phase>("loading")
+  const [payStatus, setPayStatus] = useState<PayStatus>("idle")
+  const [payError, setPayError] = useState<string | null>(null)
+  const [intake, setIntake] = useState<MyrologyIntake | null>(null)
+  const [bookings, setBookings] = useState<MyrologyBooking[]>([])
+
+  const loadUnlockedState = useCallback(async (token: string) => {
+    const [intakeRow, bookingList] = await Promise.all([myrology.getIntake(token), myrology.getBookings(token)])
+    setIntake(intakeRow)
+    setBookings(bookingList.bookings)
+    setPhase(intakeRow ? "booking" : "intake")
+  }, [])
+
+  // Resolve phase on mount: logged-out / not-unlocked => locked marketing page.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const token = getAccessToken()
+      if (!token) {
+        if (!cancelled) setPhase("locked")
+        return
+      }
+      try {
+        const profile = await users.me(token)
+        if (cancelled) return
+        if (!profile.myrology_unlocked) {
+          setPhase("locked")
+          return
+        }
+        await loadUnlockedState(token)
+      } catch {
+        if (!cancelled) setPhase("locked")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadUnlockedState])
 
   const start = useCallback(() => {
-    setError(null)
-
+    setPayError(null)
     const token = getAccessToken()
     if (!token) {
       router.push(SIGNUP_HREF)
@@ -62,17 +103,17 @@ export function MyrologyCheckoutProvider({ children }: { children: ReactNode }) 
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
     const Razorpay = (window as unknown as { Razorpay?: RazorpayConstructor }).Razorpay
     if (!key) {
-      setStatus("error")
-      setError("Payments aren’t configured yet.")
+      setPayStatus("error")
+      setPayError("Payments aren’t configured yet.")
       return
     }
     if (!Razorpay) {
-      setStatus("error")
-      setError("Checkout is still loading — try again in a moment.")
+      setPayStatus("error")
+      setPayError("Checkout is still loading — try again in a moment.")
       return
     }
 
-    setStatus("starting")
+    setPayStatus("starting")
     void (async () => {
       try {
         const order = await billing.createOrder(token, "myrology")
@@ -89,24 +130,25 @@ export function MyrologyCheckoutProvider({ children }: { children: ReactNode }) 
           modal: {
             confirm_close: true,
             ondismiss: () => {
-              if (!completed) setStatus("idle")
+              if (!completed) setPayStatus("idle")
             },
           },
           handler: (response) => {
             completed = true
-            setStatus("verifying")
+            setPayStatus("verifying")
             void (async () => {
               try {
                 const verified = await billing.verifyPayment(token, response)
                 if (verified.myrology_unlocked) {
-                  setStatus("unlocked")
+                  setPayStatus("idle")
+                  await loadUnlockedState(token)
                 } else {
-                  setStatus("error")
-                  setError("Payment captured but the unlock didn’t apply. Contact support — we’ll sort it.")
+                  setPayStatus("error")
+                  setPayError("Payment captured but the unlock didn’t apply. Contact support — we’ll sort it.")
                 }
               } catch {
-                setStatus("error")
-                setError("We couldn’t confirm the payment. If you were charged it will reconcile shortly.")
+                setPayStatus("error")
+                setPayError("We couldn’t confirm the payment. If you were charged it will reconcile shortly.")
               }
             })()
           },
@@ -114,64 +156,92 @@ export function MyrologyCheckoutProvider({ children }: { children: ReactNode }) 
 
         checkout.on("payment.failed", (response) => {
           completed = true
-          setStatus("error")
-          setError(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
+          setPayStatus("error")
+          setPayError(response.error?.description || response.error?.reason || "Payment failed. Please retry.")
         })
 
         checkout.open()
       } catch {
-        setStatus("error")
-        setError("Couldn’t start checkout. Please retry.")
+        setPayStatus("error")
+        setPayError("Couldn’t start checkout. Please retry.")
       }
     })()
+  }, [router, loadUnlockedState])
+
+  const saveIntake = useCallback(async (payload: MyrologyIntakePayload) => {
+    const token = getAccessToken()
+    if (!token) {
+      router.push(SIGNUP_HREF)
+      return
+    }
+    const saved = await myrology.saveIntake(token, payload)
+    setIntake(saved)
+    setPhase("booking")
   }, [router])
 
-  return <CheckoutContext.Provider value={{ status, error, start }}>{children}</CheckoutContext.Provider>
+  const createBooking = useCallback(async (payload: { preferred_windows: string; topic: string | null }) => {
+    const token = getAccessToken()
+    if (!token) {
+      router.push(SIGNUP_HREF)
+      return
+    }
+    const created = await myrology.createBooking(token, payload)
+    setBookings((prev) => [created, ...prev])
+  }, [router])
+
+  return (
+    <MyrologyContext.Provider
+      value={{ phase, payStatus, payError, intake, bookings, start, saveIntake, createBooking }}
+    >
+      {children}
+    </MyrologyContext.Provider>
+  )
 }
 
-function useCheckout(): CheckoutValue {
-  const value = useContext(CheckoutContext)
-  if (!value) throw new Error("MyrologyCta must render inside MyrologyCheckoutProvider")
+export function useMyrology(): MyrologyValue {
+  const value = useContext(MyrologyContext)
+  if (!value) throw new Error("useMyrology must be used inside MyrologyProvider")
   return value
 }
 
+/** Renders children only before unlock — pay CTAs, marketing scarcity, etc. */
+export function LockedOnly({ children }: { children: ReactNode }) {
+  const { phase } = useMyrology()
+  if (phase === "intake" || phase === "booking") return null
+  return <>{children}</>
+}
+
 export function MyrologyCta({ variant }: { variant: "price" | "bridge" }) {
-  const { status, error, start } = useCheckout()
-  const busy = status === "starting" || status === "verifying"
-  const unlocked = status === "unlocked"
+  const { payStatus, payError, start } = useMyrology()
+  const busy = payStatus === "starting" || payStatus === "verifying"
 
   if (variant === "bridge") {
     return (
-      <button type="button" className="bridge-cta" onClick={start} disabled={busy || unlocked} data-state={status}>
+      <button type="button" className="bridge-cta" onClick={start} disabled={busy} data-state={payStatus}>
         <div className="bridge-price">
           <span className="mono big">₹499</span>
           <span className="bridge-once">one-time</span>
         </div>
-        <span className="bridge-arrow">
-          {unlocked ? "Unlocked ✓" : busy ? "Processing…" : "Pay & start →"}
-        </span>
+        <span className="bridge-arrow">{busy ? "Processing…" : "Pay & start →"}</span>
       </button>
     )
   }
 
-  const priceLabel = unlocked
-    ? "Myrology unlocked ✓"
-    : status === "verifying"
+  const priceLabel =
+    payStatus === "verifying"
       ? "Verifying payment…"
-      : status === "starting"
+      : payStatus === "starting"
         ? "Opening checkout…"
         : "Unlock Myrology · Pay ₹499 →"
 
   return (
     <>
-      <button type="button" className="price-cta" onClick={start} disabled={busy || unlocked} data-state={status}>
+      <button type="button" className="price-cta" onClick={start} disabled={busy} data-state={payStatus}>
         {priceLabel}
       </button>
       <div className="price-cta-meta">
-        {error ? (
-          <span className="cta-error">{error}</span>
-        ) : unlocked ? (
-          <span className="cta-ok">Next: we’ll collect your birth details.</span>
+        {payError ? (
+          <span className="cta-error">{payError}</span>
         ) : (
           <>
             <span>Secured by Razorpay · UPI · cards · wallets</span>

@@ -256,3 +256,66 @@
   .myrology-root .bridge { grid-template-columns: 1fr; text-align: left; }
   .myrology-root .bridge-cta { text-align: left; align-items: flex-start; }
 }
+
+/* ── Astrologer block (single, anonymous) ─────────────────────────────────── */
+.myrology-root .my-hero-privacy { display: block; margin-top: 10px; font-size: 13px; color: var(--my-amethyst); }
+.myrology-root .astrologer {
+  display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: start;
+  background: var(--tm-surface); border: 1px solid var(--my-amethyst-ring);
+  border-radius: var(--tm-radius-md, 10px); padding: 24px;
+}
+.myrology-root .astrologer-mark {
+  width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--my-amethyst-wash); color: var(--my-amethyst); box-shadow: 0 0 24px var(--my-amethyst-glow);
+}
+.myrology-root .astrologer-title { font-size: 18px; font-weight: 700; color: var(--tm-text); letter-spacing: -0.01em; }
+.myrology-root .astrologer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+.myrology-root .astrologer-bio { font-size: 14px; line-height: 1.6; color: var(--tm-text-muted); margin: 0 0 10px; }
+.myrology-root .astrologer-bio em { color: var(--my-amethyst); font-style: normal; font-weight: 600; }
+.myrology-root .astrologer-bio--dim { font-size: 13px; color: var(--tm-text-faint); }
+
+/* ── Unlocked panels (intake + booking) ───────────────────────────────────── */
+.myrology-root .price-row--single { grid-template-columns: 1fr; }
+.myrology-root .my-panel {
+  background: var(--tm-surface); border: 1px solid var(--my-amethyst-ring);
+  border-radius: var(--tm-radius-md, 10px); padding: 24px; max-width: 560px;
+}
+.myrology-root .my-panel-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.08em;
+  color: var(--my-amethyst); margin-bottom: 12px;
+}
+.myrology-root .my-panel-title { font-size: 20px; font-weight: 700; color: var(--tm-text); letter-spacing: -0.01em; margin: 0 0 4px; }
+.myrology-root .my-panel-sub { font-size: 13px; color: var(--tm-text-muted); margin: 0 0 18px; }
+.myrology-root .my-field { display: block; margin-bottom: 14px; }
+.myrology-root .my-field > span { display: block; font-size: 12px; color: var(--tm-text-muted); margin-bottom: 6px; }
+.myrology-root .my-field > span em { color: var(--tm-text-faint); font-style: normal; }
+.myrology-root .my-field input, .myrology-root .my-field textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--tm-radius, 8px);
+  background: var(--tm-bg-inset, #05060f); border: 1px solid var(--tm-border-soft, var(--my-amethyst-ring));
+  color: var(--tm-text); font-size: 14px; font-family: inherit;
+}
+.myrology-root .my-field input:focus, .myrology-root .my-field textarea:focus {
+  outline: none; border-color: var(--my-amethyst); box-shadow: 0 0 0 3px var(--my-amethyst-wash);
+}
+.myrology-root .my-field input:disabled { opacity: 0.5; cursor: not-allowed; }
+.myrology-root .my-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--tm-text-muted); margin: -6px 0 16px; cursor: pointer; }
+.myrology-root .my-check input { width: 16px; height: 16px; accent-color: var(--my-amethyst); }
+.myrology-root .my-form-error { font-size: 12px; color: var(--tm-danger, #ff5d5d); margin-bottom: 10px; }
+.myrology-root .my-intake-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.myrology-root .my-intake-summary span {
+  font-size: 12px; padding: 4px 10px; border-radius: 99px; background: var(--my-amethyst-wash);
+  border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst);
+}
+.myrology-root .my-booking-list { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.myrology-root .my-booking-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: var(--tm-radius, 8px);
+  background: var(--tm-bg-inset, #05060f); border: 1px solid var(--tm-border-soft, var(--my-amethyst-ring));
+}
+.myrology-root .my-booking-windows { font-size: 13px; color: var(--tm-text); }
+.myrology-root .my-booking-topic { font-size: 11px; color: var(--tm-text-faint); margin-top: 2px; }
+.myrology-root .my-booking-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+.myrology-root .my-booking-status.status-requested { background: var(--my-amethyst-wash); color: var(--my-amethyst); }
+.myrology-root .my-booking-status.status-confirmed { background: rgba(46,204,113,0.12); color: var(--tm-success, #2ecc71); }
+.myrology-root .my-booking-status.status-done { background: rgba(255,255,255,0.06); color: var(--tm-text-muted); }
+.myrology-root .my-booking-status.status-cancelled { background: rgba(255,93,93,0.12); color: var(--tm-danger, #ff5d5d); }

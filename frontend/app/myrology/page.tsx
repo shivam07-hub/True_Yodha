@@ -5,7 +5,8 @@ import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicTopNav } from "@/components/public/top-nav"
-import { MyrologyCheckoutProvider, MyrologyCta } from "./checkout"
+import { LockedOnly, MyrologyCta, MyrologyProvider } from "./checkout"
+import { OfferingSection } from "./offering-section"
 
 const HOUSES = ["Career", "Income", "Wisdom", "Travel", "Self", "Skills", "Method", "Partners", "Risk", "Public", "Network", "Sanctum"]
 const GLYPHS = ["♄", "♃", "♂", "☉", "♀", "☿", "☾", "♅", "♆", "♇", "⊕", "★"]
@@ -75,37 +76,13 @@ const ASTRO_CELLS = [
   { glyph: "◇", name: "CHANDRA RASHI", val: "Meena", meta: "water · mutable" },
 ]
 
-const INCLUSIONS = [
-  { title: "3 × one-on-one counselling sessions", meta: "60 min each · with a certified astrologer · video" },
-  { title: "Personalised birth-chart career report", meta: "PDF · 24-page · planetary positions + interpretation" },
-  { title: "Industry & role alignment", meta: "Top-7 industries + 12 role archetypes matched to your chart" },
-  { title: "CV alignment with planetary strengths", meta: "Bullet-by-bullet rewrite tuned to your dominant houses" },
-  { title: "Daily transit briefings (60 days)", meta: "In-app · when to apply · when to negotiate · when to wait" },
-]
-
-const EXPERTS = [
-  { initials: "PJ", name: "Pt. Jagannath Rao", title: "Vedic · 22 yrs", creds: ["Jyotish Acharya", "KP system", "Vedic"], bio: "Specialises in career trajectory readings via the 10th-house ruler and Saturn placement. 4,200+ consultations.", stats: [["4,218", "readings"], ["4.9", "rating"], ["22y", "practice"]] },
-  { initials: "AM", name: "Dr. Ananya Menon", title: "Western · 14 yrs", creds: ["ISAR-CAP", "AFA", "MD Counselling"], bio: "Bridges psychological astrology with career counselling — bringing chart insight into hard career decisions.", stats: [["2,914", "readings"], ["4.9", "rating"], ["14y", "practice"]] },
-  { initials: "SK", name: "Acharya Suresh Khanna", title: "KP & Lal-Kitab · 28 yrs", creds: ["Lal-Kitab", "KP", "Numerology"], bio: "Combines Lal-Kitab remedies with modern career strategy. Known for grounded, action-oriented sessions.", stats: [["5,801", "readings"], ["4.8", "rating"], ["28y", "practice"]] },
-]
-
-const TESTIMONIALS = [
-  { q: "The reading told me to wait six weeks before applying. I waited. Got the offer on the first attempt — at 1.6× my last salary.", who: "Rhea S.", meta: "Product Manager · Bengaluru", initials: "RS" },
-  { q: "I had been chasing FAANG. The chart pointed to founder-track. Joined a 12-person startup, got equity. Best call I made.", who: "Arjun T.", meta: "Founding Engineer · Mumbai", initials: "AT" },
-  { q: "Mercury retrograde — they actually told me to delay a contract. Saved me from a vendor who ghosted everyone else.", who: "Megha N.", meta: "Brand Strategist · Delhi", initials: "MN" },
-]
-
-const STATS = [
-  { n: "12,914", l: "charts read", d: "+184 this week" },
-  { n: "3,402", l: "offers landed", d: "after chart alignment" },
-  { n: "96%", l: "first-session retention", d: "booked second" },
-  { n: "4.9 / 5", l: "astrologer rating", d: "from 2,108 reviews" },
-]
+const METHOD_CHIPS = ["Vedic", "KP astrology", "Intuitive energy reading"]
 
 const FAQS: [string, string][] = [
-  ["Do I need to share my birth time?", "Yes — for the most precise chart we need DOB, time, and place. If you don't know your exact time, our astrologers can do a rectification in the first session."],
-  ["Is this Vedic or Western astrology?", "We offer both. You pick the system on your intake form — or get readings from astrologers in each tradition across your 3 sessions."],
+  ["Do I need to share my birth time?", "For the most precise chart we use date, time and place of birth. If you don't know your exact time, the astrologer can rectify it in the first session."],
+  ["Whose astrology is this?", "One in-house, research-oriented astrologer reads every chart — Vedic and KP, sharpened by years of intuitive practice. We don't rotate you through a roster."],
   ["What if the reading conflicts with my plan?", "It often will. The point isn't obedience — it's a second signal. Combine it with the data Myro gives you and decide."],
+  ["Is my data private?", "Yes. We ask for date, time and place of birth — never your name. Birth details are never sold or shared, and the astrologer stays anonymous too."],
   ["Can I cancel?", "7-day refund, no questions. If the report hasn't been delivered yet, full refund. After delivery, partial based on sessions used."],
 ]
 
@@ -118,7 +95,7 @@ export default function MyrologyPage() {
 
       <PublicTopNav active="myrology" showSignIn />
 
-      <MyrologyCheckoutProvider>
+      <MyrologyProvider>
       <main className="m-main">
         <section className="my-hero">
           <div className="my-hero-eyebrow">
@@ -130,9 +107,11 @@ export default function MyrologyPage() {
             <span className="en">Career, aligned to your chart.</span>
           </h1>
           <p className="my-hero-sub">
-            Career intelligence meets your birth chart. 3 sessions with a certified astrologer,
-            a 24-page report, role &amp; industry alignment, and a CV tuned to your planetary strengths —
-            for one-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹499</span>.
+            A second signal beside your data. One research-oriented astrologer reads your chart —
+            3 sessions and a written report — so you know when to move and when to wait.
+            One-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹499</span>.
+            <br />
+            <span className="my-hero-privacy">Three facts — date, time, place. No name, yours or his.</span>
           </p>
         </section>
 
@@ -174,121 +153,36 @@ export default function MyrologyPage() {
           </div>
         </section>
 
+        <OfferingSection />
+
         <section className="block">
-          <div className="block-eyebrow">THE OFFERING · ONE PRICE</div>
-          <div className="price-row">
-            <div className="price-card">
-              <div className="price-eyebrow"><span className="dot pulse" /> MYRO · MYROLOGY</div>
-              <h3 className="price-name">Career, aligned to your chart.</h3>
-              <div className="price-tagline">Earthly problems. Planetary solutions. One price, the whole arc.</div>
-              <div className="price-amount">
-                <span className="price-cur">₹</span>
-                <span className="price-num">499</span>
-                <span className="price-period">one-time · 60-day plan</span>
-              </div>
-              <div className="price-incl">
-                {INCLUSIONS.map((item) => (
-                  <div key={item.title} className="incl-item">
-                    <div className="incl-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
-                    </div>
-                    <div>
-                      <div className="incl-text">{item.title}</div>
-                      <div className="incl-meta">{item.meta}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <MyrologyCta variant="price" />
+          <div className="block-eyebrow">YOUR ASTROLOGER · ONE, RESEARCH-ORIENTED</div>
+          <div className="astrologer">
+            <div className="astrologer-mark" aria-hidden="true">
+              <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                <circle cx="22" cy="22" r="7" fill="currentColor" opacity="0.9" />
+                <ellipse cx="22" cy="22" rx="18" ry="6" stroke="currentColor" strokeWidth="1.2" transform="rotate(-24 22 22)" />
+                <circle cx="38" cy="15" r="1.6" fill="currentColor" />
+                <circle cx="7" cy="29" r="1.3" fill="currentColor" />
+              </svg>
             </div>
-
-            <div className="price-side">
-              <div className="side-card">
-                <div className="side-eyebrow">AFTER YOU PAY</div>
-                <div className="side-list">
-                  <div className="side-row"><span className="l">01 · Birth details</span><span className="v">~2 min</span></div>
-                  <div className="side-row"><span className="l">02 · Chart computed</span><span className="v">~30s</span></div>
-                  <div className="side-row"><span className="l">03 · Report delivered</span><span className="v">~12 hr</span></div>
-                  <div className="side-row"><span className="l">04 · First session booked</span><span className="v">within 48 hr</span></div>
-                </div>
+            <div className="astrologer-body">
+              <div className="astrologer-title">The one who stays behind the chart.</div>
+              <div className="astrologer-chips">
+                {METHOD_CHIPS.map((c) => <span key={c} className="expert-cred">{c}</span>)}
               </div>
-              <div className="side-card">
-                <div className="side-eyebrow">WHAT WE&apos;LL ASK FOR</div>
-                <div className="side-text">
-                  Date of birth · time of birth · place of birth.<br />
-                  Collected after payment, never sold, never shared.
-                </div>
-              </div>
-              <div className="side-card" style={{ borderColor: "var(--my-amethyst-ring)" }}>
-                <div className="side-eyebrow" style={{ color: "var(--my-amethyst)" }}>WHY ₹499</div>
-                <div className="side-text">
-                  Launch tier — first 1,000 operators only. Returns to ₹1,499 once full.
-                  <div className="mono dim" style={{ marginTop: 8, fontSize: 11 }}>
-                    seats remaining: <span style={{ color: "var(--my-amethyst)" }}>312 / 1,000</span>
-                  </div>
-                </div>
-              </div>
+              <p className="astrologer-bio">
+                Our in-house astrologer reads Vedic and KP charts — but his edge is intuition:
+                a trained sense for how the planets sit and where their energy pulls. He also
+                <em> builds astrology AI agents</em>, so he knows exactly where the machines go wrong.
+                That gap — between what an algorithm computes and what a chart actually means — is
+                where his reading lives.
+              </p>
+              <p className="astrologer-bio astrologer-bio--dim">
+                No name, no photo. Privacy runs both ways at Myro: you give three facts, he reads
+                the chart, and neither of you trades an identity to do it.
+              </p>
             </div>
-          </div>
-        </section>
-
-        <section className="block">
-          <div className="block-eyebrow">YOUR ASTROLOGERS · CERTIFIED &amp; PRACTISING</div>
-          <div className="experts">
-            {EXPERTS.map((e) => (
-              <div key={e.name} className="expert">
-                <div className="expert-head">
-                  <div className="expert-avatar">{e.initials}</div>
-                  <div>
-                    <div className="expert-name">{e.name}</div>
-                    <div className="expert-title">{e.title}</div>
-                  </div>
-                </div>
-                <div className="expert-creds">
-                  {e.creds.map((c) => <span key={c} className="expert-cred">{c}</span>)}
-                </div>
-                <div className="expert-bio">{e.bio}</div>
-                <div className="expert-stats">
-                  {e.stats.map((s) => (
-                    <div key={s[1]}>
-                      <div className="estat-val">{s[0]}</div>
-                      <div className="estat-lab">{s[1]}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="block">
-          <div className="block-eyebrow">WHAT OPERATORS WHO BOUGHT IT SAY</div>
-          <div className="testimonials">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.who} className="myt-card">
-                <div className="myt-quote">{t.q}</div>
-                <div className="myt-foot">
-                  <div className="myt-avatar">{t.initials}</div>
-                  <div>
-                    <div className="myt-who">{t.who}</div>
-                    <div className="myt-meta">{t.meta}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="block">
-          <div className="block-eyebrow">THE SHAPE OF MYROLOGY · IN NUMBERS</div>
-          <div className="numbers">
-            {STATS.map((it) => (
-              <div key={it.l} className="num-card">
-                <div className="num-val mono">{it.n}</div>
-                <div className="num-lab">{it.l}</div>
-                <div className="num-delta">{it.d}</div>
-              </div>
-            ))}
           </div>
         </section>
 
@@ -304,27 +198,29 @@ export default function MyrologyPage() {
           </div>
         </section>
 
-        <section className="block">
-          <div className="bridge">
-            <div className="bridge-mark">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-                <circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.9" />
-                <ellipse cx="20" cy="20" rx="16" ry="5.5" stroke="currentColor" strokeWidth="1.2" transform="rotate(-22 20 20)" />
-                <circle cx="34" cy="14" r="1.5" fill="currentColor" />
-                <circle cx="6" cy="26" r="1.2" fill="currentColor" />
-              </svg>
-            </div>
-            <div>
-              <div className="bridge-eyebrow">READY TO UNLOCK</div>
-              <div className="bridge-title">Your chart is already cast. We just haven&apos;t read it yet.</div>
-              <div className="bridge-desc">
-                Pay once. We&apos;ll collect your birth details, compute the chart in 30 seconds,
-                and deliver your report within 12 hours. First session bookable within 48 hours.
+        <LockedOnly>
+          <section className="block">
+            <div className="bridge">
+              <div className="bridge-mark">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                  <circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.9" />
+                  <ellipse cx="20" cy="20" rx="16" ry="5.5" stroke="currentColor" strokeWidth="1.2" transform="rotate(-22 20 20)" />
+                  <circle cx="34" cy="14" r="1.5" fill="currentColor" />
+                  <circle cx="6" cy="26" r="1.2" fill="currentColor" />
+                </svg>
               </div>
+              <div>
+                <div className="bridge-eyebrow">READY TO UNLOCK</div>
+                <div className="bridge-title">Your chart is already cast. We just haven&apos;t read it yet.</div>
+                <div className="bridge-desc">
+                  Unlock once. We collect three facts — date, time, place — and the astrologer
+                  prepares your chart and report, then you request your first session.
+                </div>
+              </div>
+              <MyrologyCta variant="bridge" />
             </div>
-            <MyrologyCta variant="bridge" />
-          </div>
-        </section>
+          </section>
+        </LockedOnly>
 
         <footer className="foot">
           <div className="foot-left">
@@ -336,7 +232,7 @@ export default function MyrologyPage() {
           </div>
         </footer>
       </main>
-      </MyrologyCheckoutProvider>
+      </MyrologyProvider>
     </div>
   )
 }

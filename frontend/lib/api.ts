@@ -211,6 +211,7 @@ export interface UserProfile {
   cv_readiness?: "ready" | "missing" | "processing" | "failed"
   cv_upload_job_id?: string | null
   cv_upload_error_code?: string | null
+  myrology_unlocked?: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -1899,6 +1900,59 @@ export const billing = {
 
   verifyPayment: (token: string, payload: RazorpayVerifyPayload) =>
     request<RazorpayVerifyResponse>("/api/verify-payment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+}
+
+// ── Myrology ───────────────────────────────────────────────────────────────
+
+export interface MyrologyIntake {
+  dob: string
+  birth_time: string | null
+  birth_time_unknown: boolean
+  birth_place: string
+  guidance_note: string | null
+  updated_at: string
+}
+
+export interface MyrologyIntakePayload {
+  dob: string
+  birth_time: string | null
+  birth_time_unknown: boolean
+  birth_place: string
+  guidance_note: string | null
+}
+
+export interface MyrologyBooking {
+  id: string
+  preferred_windows: string
+  topic: string | null
+  status: "requested" | "confirmed" | "done" | "cancelled"
+  created_at: string
+}
+
+export const myrology = {
+  getIntake: (token: string) =>
+    request<MyrologyIntake | null>("/myrology/intake", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  saveIntake: (token: string, payload: MyrologyIntakePayload) =>
+    request<MyrologyIntake>("/myrology/intake", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  getBookings: (token: string) =>
+    request<{ bookings: MyrologyBooking[] }>("/myrology/bookings", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  createBooking: (token: string, payload: { preferred_windows: string; topic: string | null }) =>
+    request<MyrologyBooking>("/myrology/booking", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
