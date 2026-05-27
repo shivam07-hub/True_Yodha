@@ -11,6 +11,7 @@ const FOOTER_COLS = [
       { label: "CV Hub",        href: "/about"      },
       { label: "Live Job Data", href: "/intel"      },
       { label: "Tracker",       href: "/about"      },
+      { label: "Newsletter",    href: "/newsletter" },
       { label: "Myrology ✦",   href: "/myrology",   accent: true },
     ],
   },
@@ -18,7 +19,6 @@ const FOOTER_COLS = [
     title: "Learn",
     links: [
       { label: "How it works", href: "/docs"       },
-      { label: "Newsletter",   href: "/newsletter" },
       { label: "About Myro",   href: "/about"      },
     ],
   },
