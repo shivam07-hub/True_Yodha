@@ -382,10 +382,10 @@
     --tm-text-primary: #e8edf7;
     --tm-text-secondary: #a1a9bc;
     --tm-text-tertiary: #717a91;
-    --tm-fs-body: 1rem;
-    --tm-lh-body: 1.55rem;
-    --tm-fs-title: 1.75rem;
-    --tm-lh-title: 2rem;
+    --tm-fs-body: 1.125rem;   /* 18px — mobile +2pt */
+    --tm-lh-body: 1.75rem;
+    --tm-fs-title: 1.875rem;  /* 30px — mobile +2pt */
+    --tm-lh-title: 2.25rem;
     --tm-page-px: 1rem;
     --tm-page-py: 1rem;
 
