@@ -19,6 +19,7 @@ class UserProfileResponse(BaseModel):
     cv_readiness: str = "missing"  # ready | missing | processing | failed
     cv_upload_job_id: str | None = None
     cv_upload_error_code: str | None = None
+    myrology_unlocked: bool = False
 
 
 class UpdateProfileResponse(UserProfileResponse):

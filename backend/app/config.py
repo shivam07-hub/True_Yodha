@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     # Email (post-MVP)
     sendgrid_api_key: str = ""
+    resend_api_key: str = ""
+    resend_from_email: str = "Myro <noreply@himyro.com>"
+
+    # Myrology — booking requests are emailed to the in-house astrologer
+    myrology_astrologer_email: str = ""
 
     # Razorpay checkout
     razorpay_key_id: str = ""

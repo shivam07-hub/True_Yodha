@@ -8,18 +8,18 @@ const FOOTER_COLS = [
   {
     title: "Product",
     links: [
-      { label: "CV Hub",        href: "/about"      },
+      { label: "CV Hub",        href: "/"           },
       { label: "Live Job Data", href: "/intel"      },
-      { label: "Tracker",       href: "/about"      },
+      { label: "Tracker",       href: "/tracker"    },
+      { label: "Newsletter",    href: "/newsletter" },
       { label: "Myrology ✦",   href: "/myrology",   accent: true },
     ],
   },
   {
     title: "Learn",
     links: [
-      { label: "How it works", href: "/docs"       },
-      { label: "Newsletter",   href: "/newsletter" },
-      { label: "About Myro",   href: "/about"      },
+      { label: "How it works", href: "/"        },
+      { label: "FAQ",          href: "/about"   },
     ],
   },
   {
@@ -36,7 +36,7 @@ export function PublicFooter() {
     <footer className="pub-footer">
       <div className="pub-footer-inner">
         <div className="pub-footer-brand">
-          <Link href="/about" className="pub-footer-logo" aria-label="Myro home">
+          <Link href="/" className="pub-footer-logo" aria-label="Myro home">
             <MyroLogo size={22} />
             <span className="pub-footer-wordmark">Myro</span>
           </Link>
@@ -69,6 +69,10 @@ export function PublicFooter() {
         <span>© Myro 2026 · All rights reserved</span>
         <span className="pub-footer-bottom-dot">·</span>
         <span>Built for job seekers, not recruiters.</span>
+        <span className="pub-footer-bottom-dot">·</span>
+        <span className="pub-footer-trust">
+          SOC 2-certified infrastructure (Supabase · Vercel · Railway) · AES-256 at rest · TLS in transit · Row-level security
+        </span>
       </div>
     </footer>
   )

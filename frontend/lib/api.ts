@@ -211,6 +211,7 @@ export interface UserProfile {
   cv_readiness?: "ready" | "missing" | "processing" | "failed"
   cv_upload_job_id?: string | null
   cv_upload_error_code?: string | null
+  myrology_unlocked?: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -1856,10 +1857,18 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
+export type BillingProduct = "xp_pack" | "myrology"
+
+export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
+  xp_pack: 9900,
+  myrology: 49900,
+}
+
 export interface RazorpayOrderResponse {
   order_id: string
   amount: number
   currency: string
+  product: string
 }
 
 export interface RazorpayVerifyPayload {
@@ -1872,22 +1881,78 @@ export interface RazorpayVerifyResponse {
   success: boolean
   xp_earned: number
   new_xp_balance: number
+  product: string
+  myrology_unlocked: boolean
 }
 
 export const billing = {
-  createOrder: (token: string) =>
+  createOrder: (token: string, product: BillingProduct = "xp_pack") =>
     request<RazorpayOrderResponse>("/api/create-order", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: 9900,
+        amount: BILLING_PRODUCT_AMOUNT_PAISE[product],
         currency: "INR",
-        receipt: `xp_${Date.now()}`,
+        product,
+        receipt: `${product === "myrology" ? "myro" : "xp"}_${Date.now()}`,
       }),
     }),
 
   verifyPayment: (token: string, payload: RazorpayVerifyPayload) =>
     request<RazorpayVerifyResponse>("/api/verify-payment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+}
+
+// ── Myrology ───────────────────────────────────────────────────────────────
+
+export interface MyrologyIntake {
+  dob: string
+  birth_time: string | null
+  birth_time_unknown: boolean
+  birth_place: string
+  guidance_note: string | null
+  updated_at: string
+}
+
+export interface MyrologyIntakePayload {
+  dob: string
+  birth_time: string | null
+  birth_time_unknown: boolean
+  birth_place: string
+  guidance_note: string | null
+}
+
+export interface MyrologyBooking {
+  id: string
+  preferred_windows: string
+  topic: string | null
+  status: "requested" | "confirmed" | "done" | "cancelled"
+  created_at: string
+}
+
+export const myrology = {
+  getIntake: (token: string) =>
+    request<MyrologyIntake | null>("/myrology/intake", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  saveIntake: (token: string, payload: MyrologyIntakePayload) =>
+    request<MyrologyIntake>("/myrology/intake", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+
+  getBookings: (token: string) =>
+    request<{ bookings: MyrologyBooking[] }>("/myrology/bookings", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  createBooking: (token: string, payload: { preferred_windows: string; topic: string | null }) =>
+    request<MyrologyBooking>("/myrology/booking", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),

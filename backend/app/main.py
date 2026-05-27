@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, companies, cv, diary, feedback, institutions, jobs, payments, profile, scores, skills, status, telemetry, users, xp
+from app.routers import auth, companies, cv, diary, feedback, institutions, jobs, myrology, payments, profile, scores, skills, status, telemetry, users, xp
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
@@ -35,6 +35,7 @@ app.include_router(diary.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
+app.include_router(myrology.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)
 
