@@ -1992,6 +1992,27 @@ export const onboarding = {
     }),
 }
 
+// ── Institutions (placement-cell beta applications) ─────────────────────────────
+
+export interface InstitutionApplicationBody {
+  institute_name: string
+  contact_name: string
+  contact_title: string
+  email: string
+  institute_type: string
+  students_per_year: string
+  primary_need?: string | null
+  sso_provider?: "google-edu" | "microsoft-edu" | null
+}
+
+export const institutions = {
+  apply: (body: InstitutionApplicationBody) =>
+    request<{ ok: boolean; id: number }>("/institutions/apply", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")
