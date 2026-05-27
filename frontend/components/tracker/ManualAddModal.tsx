@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import { useXPStore } from "@/store/xpStore"
+import { XP_POLICY } from "@/lib/xp-policy"
 import { STAGE_LABEL } from "./useTrackerBoard"
 import type { StageKey } from "./useTrackerBoard"
 
@@ -27,6 +29,27 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
   const [secondarySel, setSecondarySel] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [parsing, setParsing] = useState(false)
+  const [parsedFrom, setParsedFrom] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const setBalance = useXPStore((s) => s.setBalance)
+
+  async function handleFile(file: File) {
+    setParsing(true); setError(null); setParsedFrom(null)
+    try {
+      const res = await jobs.extractFile(token, file)
+      // Fill from the parse, but never clobber something the user already typed.
+      if (res.company && !company.trim()) setCompany(res.company)
+      if (res.role && !role.trim()) setRole(res.role)
+      if (res.location && !location.trim()) setLocation(res.location)
+      if (res.job_description) setJd((prev) => (prev.trim() ? prev : res.job_description))
+      setParsedFrom(file.name)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't read that file")
+    } finally {
+      setParsing(false)
+    }
+  }
 
   function validate(): string | null {
     if (!company.trim()) return "Company is required"
@@ -74,6 +97,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
         secondary_skills: opts.skipSkills ? [] : Array.from(secondarySel),
         status,
       })
+      if (typeof app.xp_balance === "number") setBalance(app.xp_balance)
       onSaved(app)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed")
@@ -125,12 +149,44 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                 <Input value={url} onChange={setUrl} placeholder="https://…" />
               </Field>
             </div>
-            <Field label="Job description (paste to extract skills)">
+            <Field label="Job description (paste, or upload the posting)">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={parsing}
+                style={{
+                  width: "100%", boxSizing: "border-box", marginBottom: 8,
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px", borderRadius: 8, cursor: parsing ? "wait" : "pointer",
+                  background: "var(--tm-int-bg-wash, rgba(0,245,212,0.03))",
+                  border: "1.5px dashed var(--tm-int-border, var(--tm-accent-ring))",
+                  color: "var(--tm-text)", fontFamily: "inherit", textAlign: "left",
+                }}
+              >
+                <span style={{ display: "grid", placeItems: "center", width: 28, height: 28, borderRadius: 6, color: "var(--tm-interactive)", border: "1px solid var(--tm-int-border, var(--tm-accent-ring))", flexShrink: 0 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v14M6 9l6-6 6 6M5 21h14" /></svg>
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>
+                    {parsing ? "Reading the posting…" : parsedFrom ? `Loaded from ${parsedFrom}` : "Upload PDF, Word, or a screenshot"}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 2 }}>
+                    {parsing ? "Extracting company, role & description" : `Myro fills the fields below · +${XP_POLICY.addJobReward} XP when you save`}
+                  </span>
+                </span>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = "" }}
+                style={{ display: "none" }}
+              />
               <textarea
                 value={jd}
                 onChange={e => setJd(e.target.value)}
                 rows={6}
-                placeholder="Paste the JD here — Myro will extract skills from it."
+                placeholder="Paste the JD here — or upload the posting above. Myro will extract skills from it."
                 style={textareaStyle}
               />
             </Field>
