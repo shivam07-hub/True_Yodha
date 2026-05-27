@@ -185,6 +185,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 13. **~~Anonymous trial flow~~ — CLOSED 2026-05-25 by ADR-0006 big-bang PR.** `<SignupModal/>` mounted globally in `Providers`; SignupForm + LoginForm split from legacy AuthForm (deleted); `auth/shared/*` atoms (Google/LinkedIn/magic-link/check-inbox/in-app-browser-warning/linkedin-disclosure); `/auth/callback` consolidated consumer w/ provider-aware LinkedIn JWT claim extraction + post-signin call; `/auth/post-signin` backend endpoint preserves SH7 ref + persists LinkedIn metadata + grants the existing +50 XP; `/auth/magic-link-request` wraps Supabase OTP with 3/hr/IP rate limit (`magic_link_attempts` + `count_magic_link_attempts_ip` RPC); `DELETE /auth/integrations/{provider}` revokes Supabase identity (powers v2 disconnect button); StepCV converted to 3-segment toggle (Upload | Describe | LinkedIn) with `defaultMode` for auth-provider auto-select; `uploadCV(token, file, source)` + `uploadCVText(token, text, source)` thread `cv_versions.source` cohort tag end-to-end via the `X-Myro-CV-Source` header; 5/hr/user CV upload cap in `cv_workflow._enforce_user_upload_rate_limit`; 12 GA4 events shipped in `lib/analytics.ts::signupEvents`. **All 4 ADR §3 surfaces wired**: `/about` hero CTA · `/profile/{ninja}` GhostRadar (also covers `?share=` deep-link landings) · intel-pane "Get my Myro Score" CTA · public top-nav "Sign up" pill. Two commits on Develop: `da0fa0b` (main ship) + `6cc665e` (intel-pane + nav gate wiring). Migrations `20260524_magic_link_attempts.sql` + `20260524_cv_versions_source.sql` + `20260524_user_profiles_linkedin_meta.sql` STILL UNAPPLIED — Shivam to run via Supabase MCP `apply_migration` before deploying the backend changes.
 
+15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
+
 14. **Match refresh stuck at 2 results (bug, root-caused 2026-05-25):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded ("no new matches"), but matches never grow past 2. **Root cause = compound pruning stack inside `job_matcher.get_top_matches`** (commented inline at `backend/app/services/job_matcher.py:73`):
     1. **MIN_SKILL_OVERLAP = 3** — hard floor. Jobs sharing <3 skills with the user are dropped before scoring. Narrow/junior CVs may only ever clear this on 1-2 jobs.
     2. **`top_n=5` cap** in `jobs_workflow.compute_job_matches` (line 213).
@@ -268,6 +270,28 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+---
+
+## LAST SESSION SUMMARY (2026-05-27 · Loop C P0 fix — company page → jobs surface)
+
+### P1 PRIORITY FOR NEXT SESSION — Intel country→city cascade + onboarding personalization
+
+**Root cause:** Intel page shows ALL global cities regardless of country selection. City + country filters are independent and city is not seeded from onboarding.
+
+**Fix scope (3 sub-tasks):**
+
+1. **`intel-pane.tsx` filter reorder:** Country selector first, City selector second. When country changes → reset `selectedCity` to `""`. City options already auto-filter correctly because `analytics` re-fetches with `location_country=X` → `by_location_city` in response is already country-scoped. No backend change needed.
+
+2. **`step-role.tsx` onboarding split:** Currently saves `target_location` as flat string ("Bangalore"). Change to two-step: country chip first (India / UK / US / Remote / Other) → city appears below filtered to that country (from analytics endpoint). Save both as `target_location` (city) and add new `target_location_country TEXT` column on `user_profiles`.
+
+3. **`intel-pane.tsx` auto-init:** On mount when authed, read `user_profiles.target_location_country` → pre-populate `selectedCountry`. Users arrive on intel page already filtered to their market.
+
+**Backend migration needed:** `20260527_user_profiles_target_location_country.sql` — add `target_location_country TEXT` to `user_profiles` + add to `update_profile` schema + endpoint.
+
+**Files:** `intel-pane.tsx` · `intel-pane.css` · `step-role.tsx` · `backend/app/schemas/users.py` (UpdateProfileRequest) · new migration.
+
+**Decision locked:** Country→city cascade works transparently at data layer (analytics endpoint already filters cities by country when `location_country` param is set). UI reorder is the only UX change needed.
 
 ---
 
