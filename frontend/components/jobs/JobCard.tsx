@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import type { JobMatch } from "@/lib/api"
+import { stripMarkdown } from "@/lib/text/strip-markdown"
 
 function fitColor(score: number): string {
   if (score >= 75) return "var(--tm-success)"
@@ -218,7 +219,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
             borderLeft: "2px solid var(--tm-interactive)",
           }}
         >
-          {job.llm_explanation || "No explanation available yet for this role."}
+          {stripMarkdown(job.llm_explanation) || "No explanation available yet for this role."}
         </p>
         {job.job_description ? (
           <p
