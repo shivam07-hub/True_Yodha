@@ -13,6 +13,7 @@ import { Topbar } from "@/components/mission-control/topbar"
 import { MatchesRows, type ChipJob, type SelfChip } from "@/components/mission-control/matches-rows"
 import { FocusedJob } from "@/components/mission-control/focused-job"
 import { Icon } from "@/components/mission-control/icons"
+import { OnboardingCards } from "@/components/onboarding/OnboardingCards"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
@@ -374,6 +375,11 @@ function MissionControlInner() {
               streak={streak}
               sessions={entries.length}
               diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
+            />
+
+            <OnboardingCards
+              firstName={firstName}
+              savedJobId={apps.find((a) => a.status === "saved")?.job_id ?? null}
             />
 
             {topJobs.length > 0 && (

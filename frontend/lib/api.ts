@@ -1946,6 +1946,33 @@ export const feedback = {
     }),
 }
 
+// ── Onboarding (feature-discovery) ──────────────────────────────────────────
+
+export type OnboardingMilestoneKey =
+  | "skill_map_viewed"
+  | "first_job_saved"
+  | "first_tailored_cv"
+
+export interface OnboardingStateResponse {
+  milestones: Record<OnboardingMilestoneKey, string | null>
+  dismissed_at: string | null
+  dismiss_count: number
+  xp_granted: boolean
+  xp_grant_amount: number
+}
+
+export const onboarding = {
+  state: (token: string) =>
+    request<OnboardingStateResponse>("/onboarding/state", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismiss: (token: string) =>
+    request<{ ok: boolean; dismiss_count: number }>("/onboarding/dismiss", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")

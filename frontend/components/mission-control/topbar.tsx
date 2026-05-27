@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Icon } from "./icons"
+import { OnboardingChip } from "@/components/onboarding/OnboardingChip"
 import type { UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
 interface TopbarProps {
@@ -63,6 +64,7 @@ export function Topbar({
         Diary + cart
         {cartCount > 0 ? <span className="mc-badge">{cartCount}</span> : null}
       </button>
+      <OnboardingChip />
     </div>
   )
 }
