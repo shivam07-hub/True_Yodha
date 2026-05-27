@@ -1128,6 +1128,67 @@ class JobsRepository:
         return role_counts.most_common(1)[0][0] if role_counts else None
 
 
+    def fetch_company_jobs_page(
+        self,
+        company_name: str,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict[str, Any]:
+        """All jobs for a company, paginated, with primary skills per job."""
+        rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns=(
+                "job_id, job_title, location, location_raw, "
+                "location_city, location_country, location_mode, location_quality"
+            ),
+            query_builder=lambda q: q.ilike("company_name", company_name),
+        )
+        for row in rows:
+            _hydrate_location_fields(row)
+        rows = sorted(rows, key=lambda r: str(r.get("job_id") or ""))
+        total = len(rows)
+        start = max(0, (page - 1)) * page_size
+        page_rows = rows[start : start + page_size]
+
+        job_ids = [r["job_id"] for r in page_rows if r.get("job_id")]
+        skill_map: dict[str, list[str]] = {jid: [] for jid in job_ids}
+        if job_ids:
+            sk_rows = fetch_job_skill_rows_for_ids(
+                self._db,
+                job_ids,
+                columns="job_id, is_primary, skills(display_name)",
+            )
+            for sr in sk_rows:
+                jid = sr.get("job_id")
+                if sr.get("is_primary") and jid and jid in skill_map:
+                    dn = ((sr.get("skills") or {}).get("display_name") or "").strip()
+                    if dn and len(skill_map[jid]) < 5:
+                        skill_map[jid].append(dn)
+
+        return {
+            "company_name": company_name,
+            "total": total,
+            "jobs": [
+                {
+                    "job_id": r["job_id"],
+                    "title": r.get("job_title") or "Untitled role",
+                    "location": r.get("location"),
+                    "location_city": r.get("location_city"),
+                    "location_country": r.get("location_country"),
+                    "location_mode": r.get("location_mode"),
+                    "primary_skills": skill_map.get(r["job_id"], []),
+                }
+                for r in page_rows
+                if r.get("job_id")
+            ],
+            "page": page,
+            "page_size": page_size,
+            "has_next": (start + page_size) < total,
+        }
+
+
 def get_public_jobs_repository() -> JobsRepository:
     # Public endpoints have no JWT — admin client reads global reference data.
     return JobsRepository(get_supabase_admin())

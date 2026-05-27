@@ -123,6 +123,25 @@ class CompanyPageResponse(BaseModel):
     reviews: list[CompanyReviewItem]
 
 
+class CompanyJobCardItem(BaseModel):
+    job_id: str
+    title: str
+    location: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    primary_skills: list[str] = []
+
+
+class CompanyJobsResponse(BaseModel):
+    company_name: str
+    total: int
+    jobs: list[CompanyJobCardItem]
+    page: int
+    page_size: int
+    has_next: bool
+
+
 class RefreshTicketResponse(BaseModel):
     """POST /jobs/refresh — XP already charged at this point."""
     id: str
