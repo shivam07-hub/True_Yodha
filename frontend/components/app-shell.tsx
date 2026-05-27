@@ -16,9 +16,13 @@ import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { MyroLogo } from "@/components/myro-logo"
-import { FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT, openFeedbackHub as openFeedbackHubEvent, type FeedbackCategory, type OpenFeedbackDetail } from "@/components/feedback"
+import {
+  FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT,
+  openFeedbackHub as openFeedbackHubEvent,
+  type FeedbackCategory, type OpenFeedbackDetail,
+} from "@/components/feedback"
 import { useXPStore } from "@/store/xpStore"
-import { useForgeTimerStore, FORGE_AMBIENT_DURATION, FORGE_AMBIENT_RATE } from "@/store/forgeTimerStore"
+import { useForgeTimerStore } from "@/store/forgeTimerStore"
 import { xp } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
 import {
@@ -30,188 +34,25 @@ import {
 } from "@/mobile"
 
 const NAV_ITEMS = [
-  { href: "/home",    label: "Dashboard",  desc: "Tackle Today",           icon: null, hideLabel: true,  nudge: true  },
-  { href: "/forge",   label: "Practice",   desc: "Timer + diary",          icon: "◆",  hideLabel: false, nudge: false },
-  { href: "/market",  label: "Live Job Data", desc: "Market intelligence", icon: "◉",  hideLabel: false, nudge: false },
-  { href: "/skills",  label: "Skills",     desc: "Score, gaps & graph",    icon: "⬡",  hideLabel: false, nudge: false },
-  { href: "/cv",      label: "CV Library", desc: "Hub for every CV version", icon: "◈",  hideLabel: false, nudge: false },
-  { href: "/tracker", label: "Tracker",    desc: "Application pipeline",   icon: "▤",  hideLabel: false, nudge: false, stalePill: true },
+  { href: "/home",    label: "Dashboard",     desc: "Tackle Today",            nudge: true,  stalePill: false },
+  { href: "/forge",   label: "Practice",      desc: "Timer + diary",           nudge: false, stalePill: false },
+  { href: "/market",  label: "Live Job Data", desc: "Market intelligence",     nudge: false, stalePill: false },
+  { href: "/skills",  label: "Skills",        desc: "Score, gaps & graph",     nudge: false, stalePill: false },
+  { href: "/cv",      label: "CV Library",    desc: "Hub for every CV version",nudge: false, stalePill: false },
+  { href: "/tracker", label: "Tracker",       desc: "Application pipeline",    nudge: false, stalePill: true  },
 ]
 
-/**
- * Quick-access shortcuts shown in the sidebar avatar menu and mobile sheet.
- * Each one opens the unified Feedback Hub at the matching category.
- */
 export const FEEDBACK_QUICK_ACTIONS: {
-  id: string
-  category: FeedbackCategory
-  icon: string
-  label: string
-  color: string
-  bg: string
+  id: string; category: FeedbackCategory; icon: string; label: string; color: string; bg: string
 }[] = [
-  { id: "bug",   category: "bug",   icon: "⚠",  label: "Report a bug",   color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
-  { id: "idea",  category: "idea",  icon: "✦",  label: "Suggest an idea", color: "var(--tm-interactive)",  bg: "var(--tm-int-bg-wash)"  },
-  { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)", bg: "var(--tm-success-wash)" },
+  { id: "bug",    category: "bug",    icon: "⚠",  label: "Report a bug",    color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
+  { id: "idea",   category: "idea",   icon: "✦",  label: "Suggest an idea", color: "var(--tm-interactive)", bg: "var(--tm-int-bg-wash)" },
+  { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)",  bg: "var(--tm-success-wash)" },
 ]
 
-/** Re-export for legacy callers; canonical home is `@/components/feedback`. */
 export const openFeedbackHub = openFeedbackHubEvent
 
 export type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
-
-function UserFooter({
-  expanded,
-  profile,
-  onMenuOpenChange,
-  signOut,
-}: {
-  expanded: boolean
-  profile: SidebarProfile | null
-  onMenuOpenChange?: (open: boolean) => void
-  signOut: () => void
-}) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [signOutConfirm, setSignOutConfirm] = useState(false)
-  const fullName = profile?.full_name ?? null
-
-  useEffect(() => {
-    onMenuOpenChange?.(menuOpen)
-  }, [menuOpen, onMenuOpenChange])
-
-  useEffect(() => {
-    const handler = () => setShowSettings(true)
-    document.addEventListener("tm:open-settings", handler)
-    return () => document.removeEventListener("tm:open-settings", handler)
-  }, [])
-
-  const extraActions = [
-    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
-    { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)" },
-  ]
-
-  const handleExtra = (id: string) => {
-    setMenuOpen(false)
-    onMenuOpenChange?.(false)
-    if (id === "settings") setShowSettings(true)
-    if (id === "signout") setSignOutConfirm(true)
-  }
-
-  return (
-    <>
-      <div style={{ borderTop: "1px solid var(--tm-border-soft)", position: "relative" }}>
-        {expanded && menuOpen && (
-          <div style={{ padding: "8px 8px 0", display: "flex", flexDirection: "column", gap: 2 }}>
-            {FEEDBACK_QUICK_ACTIONS.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => { openFeedbackHub({ category: a.category }); setMenuOpen(false); onMenuOpenChange?.(false) }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
-                  borderRadius: "var(--tm-radius-sm)",
-                  background: "var(--tm-hover-soft)", border: "1px solid var(--tm-border-soft)",
-                  cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                  transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)", width: "100%",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-hover-soft)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
-              >
-                <span style={{ fontSize: 14, color: a.color, minWidth: 18, textAlign: "center", filter: `drop-shadow(0 0 3px ${a.color})` }}>{a.icon}</span>
-                <span style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>{a.label}</span>
-              </button>
-            ))}
-            <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "4px 0" }} />
-            {extraActions.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => handleExtra(a.id)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
-                  borderRadius: "var(--tm-radius-sm)",
-                  background: "transparent", border: "1px solid transparent",
-                  cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-                  transition: "background var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease)", width: "100%",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-              >
-                <span style={{ fontSize: 14, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                <span style={{ fontSize: 14, color: a.color }}>{a.label}</span>
-              </button>
-            ))}
-            <div style={{ height: 1, background: "var(--tm-border-soft)", margin: "4px 0 0" }} />
-          </div>
-        )}
-
-        {/* Avatar row */}
-        <div
-          onClick={() => expanded && setMenuOpen((o) => !o)}
-          style={{ padding: "10px 8px", display: "flex", alignItems: "center", gap: 10, cursor: expanded ? "pointer" : "default" }}
-          onMouseEnter={(e) => { if (expanded) e.currentTarget.style.background = "var(--tm-hover-soft)" }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-        >
-          <div style={{
-            width: 32, height: 32, minWidth: 32, borderRadius: "50%",
-            background: menuOpen
-              ? "linear-gradient(135deg, var(--tm-int-bg-wash), var(--tm-int-border))"
-              : "linear-gradient(135deg, var(--tm-border), var(--tm-int-bg-wash))",
-            border: `1px solid ${menuOpen ? "var(--tm-int-border)" : "var(--tm-border)"}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 700, color: "var(--tm-text)",
-            transition: "border-color var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-            boxShadow: menuOpen ? "0 0 12px var(--tm-int-bg-hover)" : "none",
-          }}>{fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}</div>
-          <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap", flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
-          </div>
-          {expanded && (
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)", transition: `transform var(--tm-dur)`, transform: menuOpen ? "rotate(180deg)" : "none", marginRight: 4 }}>▴</div>
-          )}
-        </div>
-      </div>
-
-      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
-
-      {signOutConfirm && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}
-          onClick={() => setSignOutConfirm(false)}
-        >
-          <div style={{ position: "absolute", inset: 0, background: "var(--tm-scrim)", backdropFilter: "blur(10px)" }} />
-          <div
-            style={{
-              position: "relative", background: "var(--tm-surface)",
-              border: "1px solid rgba(255,100,100,0.2)", borderRadius: "var(--tm-radius-lg)",
-              padding: "28px", width: 340, zIndex: 1, textAlign: "center",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: 29, marginBottom: 12, color: "var(--tm-text-muted)" }}>→</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>
-              Your progress is saved. You can sign back in anytime to resume your journey.
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setSignOutConfirm(false)}
-                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={signOut}
-                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "rgba(255,130,130,0.9)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
 
 function StaleBadge() {
   const { token } = useAuth()
@@ -224,586 +65,247 @@ function StaleBadge() {
   const n = data?.length ?? 0
   if (n === 0) return null
   return (
-    <span
-      title={`${n} application${n > 1 ? "s" : ""} stuck for 7+ days`}
-      style={{
-        position: "absolute", top: -3, right: -3,
-        minWidth: 14, height: 14, borderRadius: 99,
-        background: "var(--tm-danger)", color: "white",
-        fontSize: 9, fontFamily: "var(--tm-font-mono)",
-        display: "grid", placeItems: "center", padding: "0 4px",
-      }}
-    >
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      minWidth: 14, height: 14, borderRadius: 99, padding: "0 4px",
+      background: "var(--tm-danger)", color: "white",
+      fontSize: 9, fontFamily: "var(--tm-font-mono)",
+      marginLeft: 4,
+    }}>
       {n > 9 ? "9+" : n}
     </span>
   )
 }
 
-const SIDEBAR_FORGE_CAP_XP = (FORGE_AMBIENT_DURATION / 60) * FORGE_AMBIENT_RATE
-
-function SidebarForgeTimer({
-  onXPEarned,
-}: {
-  onXPEarned: (amount: number, newBalance: number) => void
+function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
+  xpBalance: number
+  profile: SidebarProfile | null
+  signOut: () => void
+  onForgeXPEarned: (amount: number, newBalance: number) => void
+  onXPOpen: () => void
 }) {
-  const {
-    state, skillName, remaining, ringPct,
-    pendingXp, canClaim, claiming, claimError,
-    pause, resume, dismiss, claim,
-  } = useForgeSession()
+  const pathname = usePathname()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [signOutConfirm, setSignOutConfirm] = useState(false)
+  const [forgeOpen, setForgeOpen] = useState(false)
+  const forgeRunning = useForgeTimerStore((s) => s.running)
   const dismissed = useForgeTimerStore((s) => s.dismissed)
+  const fullName = profile?.full_name ?? null
 
-  const sessionActive = state !== "idle"
-  const running = state === "running"
+  const { state, remaining, pendingXp, canClaim, claiming, claimError, pause, resume, dismiss, claim } = useForgeSession()
+  const forgeActive = state !== "idle" && !dismissed
   const isComplete = state === "complete"
-
-  if (!sessionActive || dismissed) return null
-
-  const progress = ringPct / 100
-  const accent = isComplete ? "var(--tm-success)" : "var(--tm-interactive)"
-  const accentSoft = isComplete ? "rgba(74,222,128,0.16)" : "var(--tm-int-bg-wash)"
-  const accentRing = isComplete ? "rgba(74,222,128,0.45)" : "var(--tm-int-border)"
-
-  async function handleClaim() {
-    if (!skillName || !canClaim) return
-    try {
-      await claim({
-        onClaimed: (result: ForgeSessionResult) => onXPEarned(result.xp_earned, result.new_xp_balance),
-      })
-    } catch {
-      // Hook exposes claimError below.
-    }
-  }
-
-  // Ring geometry — single source of truth
-  const RING = 104           // outer SVG box (px)
-  const STROKE = 2
-  const R = (RING - STROKE) / 2 - 6   // r = 45
-  const C = 2 * Math.PI * R           // circumference
-  const dashOffset = C * (1 - progress)
+  const forgeAccent = isComplete ? "var(--tm-success)" : "var(--tm-interactive)"
   const mins = Math.floor(remaining / 60)
   const secs = remaining % 60
   const clock = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
 
-  // 12 hairline tick marks around the ring (clock-dial precision)
-  const ticks = Array.from({ length: 12 }, (_, i) => {
-    const angle = (i * 30 - 90) * (Math.PI / 180)
-    const inner = R - 5
-    const outer = R - 1
-    const cx = RING / 2
-    const cy = RING / 2
-    return {
-      x1: cx + Math.cos(angle) * inner,
-      y1: cy + Math.sin(angle) * inner,
-      x2: cx + Math.cos(angle) * outer,
-      y2: cy + Math.sin(angle) * outer,
-      i,
-    }
-  })
+  useEffect(() => {
+    const h = () => setShowSettings(true)
+    document.addEventListener("tm:open-settings", h)
+    return () => document.removeEventListener("tm:open-settings", h)
+  }, [])
+
+  async function handleClaim() {
+    if (!canClaim) return
+    try {
+      await claim({ onClaimed: (r: ForgeSessionResult) => { onForgeXPEarned(r.xp_earned, r.new_xp_balance); setForgeOpen(false) } })
+    } catch {}
+  }
 
   return (
-    <div
-      style={{
-        margin: "0 10px 10px",
-        position: "relative",
-        borderRadius: "var(--tm-radius)",
-        background: `
-          linear-gradient(180deg, ${accentSoft}, transparent 70%),
-          var(--tm-surface)
-        `,
-        border: `1px solid ${accentRing}`,
-        boxShadow: isComplete
-          ? "0 0 18px rgba(74,222,128,0.10), inset 0 1px 0 rgba(255,255,255,0.04)"
-          : running
-          ? "0 0 14px var(--tm-int-bg-hover), inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "inset 0 1px 0 rgba(255,255,255,0.04)",
-        transition: "box-shadow 500ms ease, border-color 500ms ease",
-        overflow: "hidden",
-        fontFamily: "var(--tm-font-mono)",
-      }}
-    >
-      {/* Decorative crosshair corners — instrument-panel detail */}
-      <span aria-hidden style={{
-        position: "absolute", top: 5, left: 5, width: 7, height: 7,
-        borderTop: `1px solid ${accentRing}`, borderLeft: `1px solid ${accentRing}`,
-        opacity: 0.7,
-      }} />
-      <span aria-hidden style={{
-        position: "absolute", top: 5, right: 5, width: 7, height: 7,
-        borderTop: `1px solid ${accentRing}`, borderRight: `1px solid ${accentRing}`,
-        opacity: 0.7,
-      }} />
-
-      {/* Top rail — STATUS · PAUSE · DISMISS */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 10px 7px",
-      }}>
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
-          color: "var(--tm-text-faint)",
-        }}>
-          <span style={{
-            width: 5, height: 5, borderRadius: "50%",
-            background: accent,
-            boxShadow: running ? `0 0 6px ${accent}` : "none",
-            animation: running ? "loop-pulse 1.6s ease-in-out infinite" : "none",
-          }} />
-          {isComplete ? "Ready" : running ? "Practicing" : "Paused"}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button
-            type="button"
-            onClick={() => (running ? pause() : resume())}
-            aria-label={running ? "Pause practice" : "Resume practice"}
-            title={running ? "Pause" : "Resume"}
-            className="tm-control-focus"
-            style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: "transparent",
-              border: `1px solid ${accentRing}`,
-              color: accent,
-              display: "grid", placeItems: "center",
-              cursor: "pointer", fontSize: 11, lineHeight: 1,
-              fontFamily: "inherit",
-              transition: "background 160ms ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = accentSoft }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-          >
-            {running ? "❚❚" : "▶"}
-          </button>
-          <button
-            type="button"
-            onClick={dismiss}
-            aria-label="Dismiss practice timer"
-            title="Dismiss"
-            className="tm-control-focus"
-            style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: "transparent", border: "1px solid var(--tm-border-soft)",
-              color: "var(--tm-text-faint)", cursor: "pointer",
-              fontSize: 14, lineHeight: 1,
-              fontFamily: "inherit",
-              display: "grid", placeItems: "center",
-            }}
-          >×</button>
-        </div>
-      </div>
-
-      {/* Aperture — concentric ring dial */}
-      <div style={{
-        display: "flex", justifyContent: "center", alignItems: "center",
-        padding: "4px 0 10px",
-        position: "relative",
-      }}>
-        {/* Breathing halo — only when running */}
-        {running && !isComplete && (
-          <span aria-hidden style={{
-            position: "absolute",
-            width: RING + 14, height: RING + 14, borderRadius: "50%",
-            background: `radial-gradient(circle, ${accentSoft} 0%, transparent 65%)`,
-            animation: "forge-breath 4.4s ease-in-out infinite",
-            pointerEvents: "none",
-          }} />
-        )}
-
-        <svg
-          width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}
-          style={{ display: "block", overflow: "visible" }}
-        >
-          {/* Subtle 12 tick marks */}
-          {ticks.map(t => (
-            <line
-              key={t.i}
-              x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-              stroke={accent}
-              strokeWidth={t.i % 3 === 0 ? 1.2 : 0.7}
-              strokeLinecap="round"
-              opacity={t.i % 3 === 0 ? 0.45 : 0.18}
-            />
-          ))}
-
-          {/* Track */}
-          <circle
-            cx={RING / 2} cy={RING / 2} r={R}
-            fill="none"
-            stroke="var(--tm-border-soft)"
-            strokeWidth={STROKE}
-          />
-
-          {/* Progress arc — rotated -90° so 12 o'clock is start */}
-          <circle
-            cx={RING / 2} cy={RING / 2} r={R}
-            fill="none"
-            stroke={accent}
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            strokeDasharray={C}
-            strokeDashoffset={dashOffset}
-            transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-            style={{
-              transition: running ? "stroke-dashoffset 1s linear" : "stroke-dashoffset 400ms ease",
-              filter: `drop-shadow(0 0 3px ${accent})`,
-            }}
-          />
-
-          {/* Center: XP numeral + clock — compact enough to host the Forge entry affordance. */}
-          <text
-            x={RING / 2} y={RING / 2 - 10}
-            textAnchor="middle"
-            fontFamily="var(--tm-font-mono)"
-            fontSize="27"
-            fontWeight="700"
-            fill={accent}
-            style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em" }}
-          >
-            +{pendingXp}
-          </text>
-          <text
-            x={RING / 2} y={RING / 2 + 3}
-            textAnchor="middle"
-            fontFamily="var(--tm-font-mono)"
-            fontSize="7"
-            fill="var(--tm-text-faint)"
-            letterSpacing="2.4"
-          >
-            XP READY
-          </text>
-          <text
-            x={RING / 2} y={RING / 2 + 16}
-            textAnchor="middle"
-            fontFamily="var(--tm-font-mono)"
-            fontSize="9"
-            fill="var(--tm-text-muted)"
-            style={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            {clock}
-          </text>
-        </svg>
-        <Link
-          href="/forge"
-          aria-label="Enter Practice"
-          className="tm-control-focus"
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "calc(50% + 24px)",
-            transform: "translateX(-50%)",
-            height: 19,
-            minWidth: 66,
-            padding: "0 8px",
-            borderRadius: 999,
-            border: `1px solid ${accentRing}`,
-            background: "rgba(5,10,24,0.72)",
-            color: accent,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textDecoration: "none",
-            fontFamily: "var(--tm-font-mono)",
-            fontSize: 8,
-            fontWeight: 800,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            boxShadow: running ? `0 0 10px ${accentSoft}` : "none",
-          }}
-        >
-          Practice ↗
+    <>
+      <header className="tm-app-topbar" aria-label="App navigation">
+        {/* Brand */}
+        <Link href="/myro" className="tm-topbar-brand">
+          <MyroLogo size={26} />
+          <span className="tm-topbar-wordmark">Myro</span>
         </Link>
-      </div>
 
-      {/* Cap indicator — universal forge, no skill name (XP1 + universal-forge decision) */}
-      <div style={{
-        padding: "0 14px 10px",
-        textAlign: "center",
-        fontSize: 8.5, letterSpacing: "0.22em", textTransform: "uppercase",
-        color: "var(--tm-text-faint)",
-      }}>
-        Cap · +{SIDEBAR_FORGE_CAP_XP} XP / cycle
-      </div>
-
-      {/* Hairline rail */}
-      <div style={{
-        height: 1,
-        background: `linear-gradient(90deg, transparent, ${accentRing}, transparent)`,
-        margin: "0 10px",
-      }} />
-
-      {/* Primary action — CLAIM. Always visible, full-width Fitt's target. */}
-      <div style={{ padding: "10px" }}>
-        <button
-          onClick={handleClaim}
-          disabled={!canClaim || claiming}
-          style={{
-            width: "100%", height: 40, padding: "0 14px",
-            borderRadius: 10,
-            background: canClaim && !claiming
-              ? `linear-gradient(90deg, ${accent} 0%, ${isComplete ? "rgba(74,222,128,0.85)" : "var(--tm-interactive-hover)"} 50%, ${accent} 100%)`
-              : "var(--tm-surface-2)",
-            backgroundSize: canClaim && !claiming ? "200% 100%" : "auto",
-            animation: canClaim && !claiming ? "forge-aurora 6s ease-in-out infinite alternate" : "none",
-            border: canClaim && !claiming
-              ? "1px solid transparent"
-              : `1px dashed ${accentRing}`,
-            color: canClaim && !claiming
-              ? "var(--tm-interactive-fg)"
-              : "var(--tm-text-muted)",
-            fontSize: 12, fontWeight: 700,
-            letterSpacing: "0.22em", textTransform: "uppercase",
-            cursor: canClaim && !claiming ? "pointer" : "not-allowed",
-            fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            transition: "transform 120ms ease, box-shadow 200ms ease, background 200ms ease",
-            boxShadow: canClaim && !claiming
-              ? `0 6px 18px -6px ${accent}, inset 0 1px 0 rgba(255,255,255,0.18)`
-              : "inset 0 1px 0 rgba(255,255,255,0.04)",
-          }}
-          onMouseEnter={(e) => {
-            if (canClaim && !claiming) e.currentTarget.style.transform = "translateY(-1px)"
-          }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)" }}
-        >
-          {claiming ? (
-            <span style={{ letterSpacing: "0.5em" }}>· · ·</span>
-          ) : canClaim ? (
-            <>
-              <span>Claim</span>
-              <span style={{
-                fontVariantNumeric: "tabular-nums", letterSpacing: "0.05em",
-                fontSize: 13, fontWeight: 800,
-              }}>+{pendingXp}</span>
-              <span style={{ fontSize: 14, letterSpacing: 0, marginLeft: 2 }}>→</span>
-            </>
-          ) : (
-            <span style={{ opacity: 0.7 }}>Building</span>
-          )}
-        </button>
-      </div>
-
-      {claimError && (
-        <div style={{
-          margin: "0 10px 10px",
-          padding: "6px 8px",
-          borderRadius: 6,
-          background: "rgba(251,113,133,0.08)",
-          border: "1px solid rgba(251,113,133,0.25)",
-          fontSize: 9, letterSpacing: "0.06em",
-          color: "var(--tm-danger)",
-          display: "flex", alignItems: "center", gap: 5,
-        }}>
-          <span aria-hidden style={{ fontSize: 10 }}>⚠</span>
-          <span style={{ fontFamily: "var(--tm-font-sans)" }}>{claimError}</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Sidebar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: { xpBalance: number; profile: SidebarProfile | null; signOut: () => void; onForgeXPEarned: (amount: number, newBalance: number) => void; onXPOpen: () => void }) {
-  const expanded = true
-  const pathname = usePathname()
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-  const forgeRunning = useForgeTimerStore((s) => s.running)
-
-  return (
-    <nav
-      style={{
-        width: 220,
-        height: "100dvh",
-        flexShrink: 0,
-        background: "var(--tm-surface)",
-        borderRight: "1px solid var(--tm-border-soft)",
-        display: "flex",
-        flexDirection: "column",
-        position: "relative",
-        zIndex: 20,
-        overflow: "hidden",
-      }}
-    >
-      {/* Logo */}
-      <Link
-        href="/myro"
-        style={{
-          padding: "22px 16px 20px",
-          display: "flex", alignItems: "center", gap: 12,
-          borderBottom: "1px solid var(--tm-border-soft)",
-          minHeight: 76, cursor: "pointer",
-          transition: "background var(--tm-dur) var(--tm-ease)",
-          textDecoration: "none",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-      >
-        <div style={{ minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 8px var(--tm-int-bg-hover))" }}>
-          <MyroLogo size={32} />
-        </div>
-        <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap", overflow: "hidden" }}>
-          <div style={{ fontFamily: "var(--tm-font-display)", fontSize: 24, lineHeight: 1, fontWeight: 600, color: "var(--tm-text)", letterSpacing: 0 }}>Myro</div>
-          <div className="tm-label-caps" style={{ marginTop: 4, fontSize: 11, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis" }}>career intelligence</div>
-        </div>
-      </Link>
-
-      {/* XP pill — glows when forge session is running */}
-      <button
-        type="button"
-        onClick={onXPOpen}
-        aria-label="Open XP guide"
-        style={{
-        margin: "10px 8px", padding: "10px 12px",
-        borderRadius: "var(--tm-radius)",
-        background: forgeRunning ? "var(--tm-int-bg-wash)" : "var(--tm-int-bg-wash)",
-        border: `1px solid ${forgeRunning ? "var(--tm-interactive)" : "var(--tm-int-border)"}`,
-        boxShadow: forgeRunning ? "0 0 14px var(--tm-int-border), inset 0 0 8px var(--tm-int-bg-subtle)" : "none",
-        display: "flex", alignItems: "center", gap: 10,
-        transition: "background 400ms ease, border-color 400ms ease, box-shadow 400ms ease",
-        cursor: "pointer",
-        fontFamily: "inherit",
-        textAlign: "left",
-      }}>
-        <div style={{
-          minWidth: 32, textAlign: "center",
-          fontFamily: "var(--tm-font-mono)",
-          fontSize: 22, fontWeight: 700,
-          color: "var(--tm-text)", lineHeight: 1,
-          filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
-        }}>
-          ◆ {xpBalance}
-        </div>
-        <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, whiteSpace: "nowrap" }}>
-          <div className="tm-label-caps" style={{ fontSize: 13, letterSpacing: 0 }}>XP</div>
-        </div>
-      </button>
-
-      {/* Inline forge timer — shows when session active */}
-      <SidebarForgeTimer onXPEarned={onForgeXPEarned} />
-
-      {/* Nav items */}
-      <div style={{ flex: 1, padding: "8px", display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV_ITEMS.map((item) => {
-          const active = pathname.startsWith(item.href)
-
-          if (item.hideLabel) {
-            // Icon-only home/dashboard entry — Claude-style anchor
+        {/* Nav links */}
+        <nav className="tm-topbar-nav" aria-label="Primary navigation">
+          {NAV_ITEMS.map((item) => {
+            const active = pathname.startsWith(item.href)
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.desc}
-                aria-label={item.label}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "flex-start",
-                  gap: 12, padding: "10px 8px",
-                  borderRadius: "var(--tm-radius-sm)",
-                  background: active ? "var(--tm-int-bg-wash)" : "transparent",
-                  boxShadow: active ? "inset 3px 0 0 var(--tm-interactive)" : "none",
-                  transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-                  textDecoration: "none", position: "relative",
-                }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
-                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
+                className="tm-topbar-link"
+                data-active={active}
+                data-nudge={item.nudge && !active}
               >
-                <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg
-                    width="22" height="22" viewBox="0 0 24 24" fill="none"
-                    style={{
-                      color: active ? "var(--tm-interactive)" : "var(--tm-icon-muted)",
-                      filter: active ? "drop-shadow(0 0 6px var(--tm-int-bg-hover))" : "none",
-                      transition: "color var(--tm-dur) var(--tm-ease), filter var(--tm-dur) var(--tm-ease)",
-                    }}
-                  >
-                    {/* 4-point sparkle — matches Claude/Anthropic's mark aesthetic */}
-                    <path
-                      d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z"
-                      fill="currentColor"
-                    />
+                {item.href === "/home" && (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden style={{ opacity: active ? 1 : 0.7, flexShrink: 0 }}>
+                    <path d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z" />
                   </svg>
-                  {item.nudge && !active && (
-                    <span
-                      className="animate-pulse"
-                      style={{
-                        position: "absolute", top: -3, right: -3,
-                        width: 7, height: 7, borderRadius: "50%",
-                        background: "var(--tm-interactive)",
-                        boxShadow: "0 0 6px var(--tm-int-bg-hover)",
-                      }}
-                    />
-                  )}
-                </span>
-                <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: active ? "var(--tm-interactive)" : "var(--tm-text-faint)" }}>
-                    {item.nudge && !active ? <span style={{ color: "var(--tm-interactive)" }}>Log today →</span> : item.desc}
-                  </div>
-                </div>
+                )}
+                {item.label}
+                {item.stalePill && <StaleBadge />}
+                {item.nudge && !active && <span className="tm-topbar-nudge" aria-hidden />}
               </Link>
             )
-          }
+          })}
+          <Link
+            href="/myrology"
+            className="tm-topbar-link tm-topbar-link-myrology"
+            data-active={pathname.startsWith("/myrology")}
+            title="Myrology — cosmic career intelligence"
+          >
+            ✦ Myrology
+          </Link>
+        </nav>
 
-          return (
-            <div key={item.href}>
-              <Link
-                href={item.href}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  padding: "9px 8px", borderRadius: "var(--tm-radius-sm)",
-                  background: active ? "var(--tm-int-bg-wash)" : "transparent",
-                  boxShadow: active ? "inset 3px 0 0 var(--tm-interactive)" : "none",
-                  transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-                  textDecoration: "none",
-                  position: "relative",
-                }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--tm-hover)" }}
-                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent" }}
+        {/* Right cluster */}
+        <div className="tm-topbar-right">
+          {/* Forge chip */}
+          {forgeActive && (
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setForgeOpen((o) => !o)}
+                className="tm-topbar-forge-chip"
+                data-complete={isComplete}
+                aria-label="Forge session timer"
               >
-                <span style={{ position: "relative", minWidth: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{
-                    fontSize: 18,
-                    color: active ? "var(--tm-interactive)" : "var(--tm-icon-muted)",
-                    filter: active ? "drop-shadow(0 0 5px var(--tm-int-bg-hover))" : "none",
-                    transition: "color var(--tm-dur) var(--tm-ease)",
-                  }}>
-                    {item.icon}
-                  </span>
-                  {item.stalePill && <StaleBadge />}
-                </span>
-
-                <div style={{ opacity: expanded ? 1 : 0, transition: `opacity var(--tm-dur)`, overflow: "hidden", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: active ? "var(--tm-interactive)" : "var(--tm-text)" }}>
-                    {item.label}
+                <span className="tm-topbar-forge-dot" data-running={state === "running"} style={{ background: forgeAccent }} aria-hidden />
+                <span style={{ fontFamily: "var(--tm-font-mono)", fontVariantNumeric: "tabular-nums" }}>{clock}</span>
+                <span style={{ color: forgeAccent, fontFamily: "var(--tm-font-mono)", fontSize: 11 }}>+{pendingXp} XP</span>
+                {canClaim && <span className="tm-topbar-forge-claim">CLAIM</span>}
+              </button>
+              {forgeOpen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setForgeOpen(false)} />
+                  <div className="tm-topbar-forge-popover" style={{ borderColor: isComplete ? "rgba(74,222,128,0.3)" : "var(--tm-int-border)" }}>
+                    <div style={{ textAlign: "center", padding: "12px 0 10px" }}>
+                      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 26, fontWeight: 700, color: forgeAccent }}>+{pendingXp} XP</div>
+                      <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 18, color: "var(--tm-text)", fontVariantNumeric: "tabular-nums", marginTop: 4 }}>{clock}</div>
+                      <div style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 4 }}>
+                        {isComplete ? "Ready to claim" : state === "running" ? "Practicing" : "Paused"}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                      <button
+                        onClick={() => state === "running" ? pause() : resume()}
+                        style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${forgeAccent}`, background: "transparent", color: forgeAccent, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
+                      >
+                        {state === "running" ? "Pause" : "Resume"}
+                      </button>
+                      <button
+                        onClick={() => { dismiss(); setForgeOpen(false) }}
+                        style={{ height: 32, width: 32, borderRadius: 8, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer", fontFamily: "inherit" }}
+                      >×</button>
+                    </div>
+                    <button
+                      onClick={handleClaim}
+                      disabled={!canClaim || claiming}
+                      style={{
+                        width: "100%", height: 38, borderRadius: 10,
+                        background: canClaim && !claiming ? forgeAccent : "var(--tm-surface-2)",
+                        border: "none",
+                        color: canClaim && !claiming ? "#050a18" : "var(--tm-text-muted)",
+                        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+                        cursor: canClaim && !claiming ? "pointer" : "not-allowed",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {claiming ? "···" : canClaim ? `Claim +${pendingXp} XP` : "Building…"}
+                    </button>
+                    {claimError && <div style={{ marginTop: 8, fontSize: 10, color: "var(--tm-danger)" }}>{claimError}</div>}
                   </div>
-                  <div style={{ fontSize: 13, marginTop: 1, color: "var(--tm-text-faint)" }}>
-                    {item.desc}
-                  </div>
-                </div>
-              </Link>
+                </>
+              )}
             </div>
-          )
-        })}
-      </div>
+          )}
 
-      {/* Background + Accent utilities collapse when user menu opens */}
-      {expanded && (
-        <div style={{
-          height: isUserMenuOpen ? 0 : "auto",
-          opacity: isUserMenuOpen ? 0 : 1,
-          transform: isUserMenuOpen ? "translateY(-6px)" : "translateY(0)",
-          pointerEvents: isUserMenuOpen ? "none" : "auto",
-          overflow: "hidden",
-          transition: "opacity 150ms var(--tm-ease), transform 150ms var(--tm-ease)",
-        }}>
-          <div style={{
-            padding: "8px 12px 12px",
-            borderTop: "1px solid var(--tm-border-soft)",
-            display: "flex", alignItems: "center",
-          }}>
-            <SurfaceToggle />
+          {/* XP pill */}
+          <button
+            onClick={onXPOpen}
+            className="tm-topbar-xp"
+            data-forge={forgeRunning}
+            aria-label="Open XP guide"
+          >
+            <span style={{ color: "var(--tm-interactive)", fontSize: 11 }}>◆</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 700 }}>{xpBalance}</span>
+            <span style={{ fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 400 }}>XP</span>
+          </button>
+
+          {/* Avatar */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="tm-topbar-avatar"
+              data-open={menuOpen}
+              aria-label="Account menu"
+              aria-expanded={menuOpen}
+            >
+              {fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}
+            </button>
+            {menuOpen && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 29 }} onClick={() => setMenuOpen(false)} />
+                <div className="tm-topbar-menu">
+                  <div className="tm-topbar-menu-user">
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{fullName ?? "My Account"}</div>
+                    <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>{profile?.email ?? ""}</div>
+                  </div>
+                  {FEEDBACK_QUICK_ACTIONS.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => { openFeedbackHub({ category: a.category }); setMenuOpen(false) }}
+                      className="tm-topbar-menu-item"
+                      onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
+                    >
+                      <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
+                      <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
+                    </button>
+                  ))}
+                  <div className="tm-topbar-menu-divider" />
+                  <div style={{ padding: "4px 10px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Theme</span>
+                    <SurfaceToggle />
+                  </div>
+                  <div className="tm-topbar-menu-divider" />
+                  {[
+                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
+                    { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
+                  ].map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => { setMenuOpen(false); if (a.id === "settings") setShowSettings(true); if (a.id === "signout") setSignOutConfirm(true) }}
+                      className="tm-topbar-menu-item"
+                      onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      <span style={{ fontSize: 13, color: a.color, minWidth: 18 }}>{a.icon}</span>
+                      <span style={{ fontSize: 13, color: a.color }}>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
+
+      {signOutConfirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setSignOutConfirm(false)}>
+          <div style={{ position: "absolute", inset: 0, background: "var(--tm-scrim)", backdropFilter: "blur(10px)" }} />
+          <div style={{ position: "relative", background: "var(--tm-surface)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: "var(--tm-radius-lg)", padding: "28px", width: 340, zIndex: 1, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 29, marginBottom: 12, color: "var(--tm-text-muted)" }}>→</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
+            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>Your progress is saved. You can sign back in anytime.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setSignOutConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={signOut} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "rgba(255,130,130,0.9)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
+            </div>
           </div>
         </div>
       )}
-
-      <UserFooter expanded={expanded} profile={profile} onMenuOpenChange={setIsUserMenuOpen} signOut={signOut} />
-    </nav>
+    </>
   )
 }
 
@@ -816,7 +318,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!token) return
-    xp.balance(token).then((response) => setXPBalance(response.balance)).catch(() => {})
+    xp.balance(token).then((r) => setXPBalance(r.balance)).catch(() => {})
   }, [token, setXPBalance])
 
   function handleAmbientXPEarned(amount: number, newBalance: number) {
@@ -851,32 +353,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
-        e.preventDefault()
-        setFeedbackHubOpen((o) => !o)
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "/") { e.preventDefault(); setFeedbackHubOpen((o) => !o) }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
-  // First-XP discovery: open the explainer once when an authed user has
-  // earned their first XP and hasn't seen the guide yet. localStorage flag
-  // makes this idempotent across sessions and devices that share the browser.
   useEffect(() => {
     if (!token || xpBalance <= 0) return
     try {
       if (window.localStorage.getItem("myro_xp_modal_seen_v1")) return
       window.localStorage.setItem("myro_xp_modal_seen_v1", String(Date.now()))
       setXPModalOpen(true)
-    } catch {
-      // localStorage unavailable (private mode / blocked) — skip silently.
-    }
+    } catch {}
   }, [token, xpBalance])
 
   if (!ready) return <AppShellSkeleton />
 
-  const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some(p => pathname.startsWith(p))
+  const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some((p) => pathname.startsWith(p))
 
   const profile = {
     full_name: profileData?.full_name ?? null,
@@ -887,20 +381,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="tm-shell-enter" style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
+    <div className="tm-shell-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       {showParticle && <ParticleBg />}
       <ForgeClockDriver />
       <XPGateModal />
 
-      <div className="tm-sidebar-wrap">
-        <Sidebar
+      {isDesktop && (
+        <AppTopBar
           xpBalance={xpBalance}
           profile={profile}
           signOut={signOut}
           onForgeXPEarned={handleAmbientXPEarned}
           onXPOpen={() => setXPModalOpen(true)}
         />
-      </div>
+      )}
 
       <MobileTopBar
         xpBalance={xpBalance}
@@ -925,11 +419,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <XpExplainerModal
-        open={xpModalOpen}
-        onClose={() => setXPModalOpen(false)}
-        balance={xpBalance}
-      />
+      <XpExplainerModal open={xpModalOpen} onClose={() => setXPModalOpen(false)} balance={xpBalance} />
 
       <FeedbackFAB
         hidden={!isDesktop || feedbackHubOpen}

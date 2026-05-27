@@ -962,7 +962,7 @@
 .mc-cycle-indicator {
   position: fixed;
   bottom: 24px;
-  left: calc(var(--tm-sidebar-w, 240px) + 24px);
+  left: 24px;
   z-index: var(--z-raised);
   background: var(--tm-surface);
   border: 1px solid var(--tm-border);

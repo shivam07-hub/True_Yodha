@@ -1,60 +1,75 @@
 "use client"
 
 import Link from "next/link"
+import { MyroLogo } from "@/components/myro-logo"
+import "./public-footer.css"
 
-const linkStyle = { fontSize: 13, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color var(--tm-dur-fast) var(--tm-ease)" }
+const FOOTER_COLS = [
+  {
+    title: "Product",
+    links: [
+      { label: "CV Hub",        href: "/about"      },
+      { label: "Live Job Data", href: "/intel"      },
+      { label: "Tracker",       href: "/about"      },
+      { label: "Myrology ✦",   href: "/myrology",   accent: true },
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      { label: "How it works", href: "/docs"       },
+      { label: "Newsletter",   href: "/newsletter" },
+      { label: "About Myro",   href: "/about"      },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Use",   href: "/terms"   },
+    ],
+  },
+]
 
 export function PublicFooter() {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexWrap: "wrap",
-        gap: 12,
-        padding: "10px 16px",
-        borderTop: "1px solid var(--tm-border-soft)",
-        flexShrink: 0,
-      }}
-    >
-      <Link
-        href="/privacy"
-        style={linkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
-      >
-        Privacy
-      </Link>
-      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
-      <Link
-        href="/docs"
-        style={linkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
-      >
-        How it works
-      </Link>
-      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
-      <Link
-        href="/newsletter"
-        style={linkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
-      >
-        Newsletter
-      </Link>
-      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
-      <Link
-        href="/about"
-        style={linkStyle}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
-      >
-        About
-      </Link>
-      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
-      <span style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>© Myro 2026</span>
-    </div>
+    <footer className="pub-footer">
+      <div className="pub-footer-inner">
+        <div className="pub-footer-brand">
+          <Link href="/about" className="pub-footer-logo" aria-label="Myro home">
+            <MyroLogo size={22} />
+            <span className="pub-footer-wordmark">Myro</span>
+          </Link>
+          <p className="pub-footer-tagline">career intelligence</p>
+          <p className="pub-footer-sub">
+            AI scores your CV across 12 career domains, tailors a version for every job, and shows you exactly which one to send.
+          </p>
+        </div>
+
+        {FOOTER_COLS.map((col) => (
+          <div key={col.title} className="pub-footer-col">
+            <div className="pub-footer-col-title">{col.title}</div>
+            <ul className="pub-footer-links">
+              {col.links.map((link) => (
+                <li key={link.href + link.label}>
+                  <Link
+                    href={link.href}
+                    className={`pub-footer-link${link.accent ? " pub-footer-link-accent" : ""}`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="pub-footer-bottom">
+        <span>© Myro 2026 · All rights reserved</span>
+        <span className="pub-footer-bottom-dot">·</span>
+        <span>Built for job seekers, not recruiters.</span>
+      </div>
+    </footer>
   )
 }

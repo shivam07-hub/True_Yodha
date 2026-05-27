@@ -348,14 +348,257 @@
   .nl-page-enter { animation: none; }
 }
 
-/* ── Mobile shell layout ──────────────────────────────────────────
-   Desktop: sidebar visible, mobile bars hidden.
-   Mobile (≤768px): sidebar hidden, top bar + bottom nav fixed.
-   Both nav variants always in DOM — CSS controls visibility.
+/* ── Shell layout ─────────────────────────────────────────────────
+   Desktop (>768px + pointer:fine): app top bar visible, mobile bars hidden.
+   Mobile (≤768px): mobile top bar + bottom nav fixed, app top bar removed
+   from render tree via isDesktop conditional in AppShell.
    ───────────────────────────────────────────────────────────────── */
-.tm-sidebar-wrap { display: contents; }
+.tm-sidebar-wrap { display: none; }
 .tm-mobile-topbar { display: none; }
 .tm-mobile-bottomnav { display: none; }
+
+/* App top bar — desktop only */
+.tm-app-topbar {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 60px;
+  min-height: 60px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  gap: 12px;
+  background: var(--tm-surface);
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+
+.tm-topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity var(--tm-dur);
+}
+.tm-topbar-brand:hover { opacity: 0.8; }
+.tm-topbar-wordmark {
+  font-family: var(--tm-font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--tm-text);
+  line-height: 1;
+}
+
+.tm-topbar-nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.tm-topbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px;
+  height: 34px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--tm-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--tm-dur-fast) var(--tm-ease),
+              background var(--tm-dur-fast) var(--tm-ease),
+              border-color var(--tm-dur-fast) var(--tm-ease);
+  position: relative;
+}
+.tm-topbar-link:hover {
+  color: var(--tm-text);
+  background: var(--tm-hover-soft);
+}
+.tm-topbar-link[data-active="true"] {
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
+  font-weight: 600;
+}
+.tm-topbar-link-myrology {
+  color: #9b72e8;
+}
+.tm-topbar-link-myrology:hover {
+  color: #b084ff;
+  background: rgba(176, 132, 255, 0.08);
+  border-color: transparent;
+}
+.tm-topbar-link-myrology[data-active="true"] {
+  color: #b084ff;
+  background: rgba(176, 132, 255, 0.12);
+  border-color: rgba(176, 132, 255, 0.3);
+}
+.tm-topbar-nudge {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tm-interactive);
+  box-shadow: 0 0 5px var(--tm-int-bg-hover);
+  animation: loop-pulse 1.8s ease-in-out infinite;
+  margin-left: 2px;
+}
+
+.tm-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Forge chip */
+.tm-topbar-forge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  height: 34px;
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-int-border);
+  color: var(--tm-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+  font-family: inherit;
+}
+.tm-topbar-forge-chip[data-complete="true"] {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.35);
+}
+.tm-topbar-forge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tm-topbar-forge-dot[data-running="true"] {
+  animation: loop-pulse 1.6s ease-in-out infinite;
+}
+.tm-topbar-forge-claim {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: var(--tm-interactive);
+  color: #050a18;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+/* Forge popover */
+.tm-topbar-forge-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 230px;
+  z-index: 50;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+}
+
+/* XP pill */
+.tm-topbar-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  height: 34px;
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-int-border);
+  color: var(--tm-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 400ms ease, box-shadow 400ms ease;
+}
+.tm-topbar-xp[data-forge="true"] {
+  border-color: var(--tm-interactive);
+  box-shadow: 0 0 10px var(--tm-int-border);
+}
+
+/* Avatar button */
+.tm-topbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--tm-border), var(--tm-int-bg-wash));
+  border: 1px solid var(--tm-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tm-text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--tm-dur), box-shadow var(--tm-dur);
+}
+.tm-topbar-avatar[data-open="true"] {
+  background: linear-gradient(135deg, var(--tm-int-bg-wash), var(--tm-int-border));
+  border-color: var(--tm-int-border);
+  box-shadow: 0 0 12px var(--tm-int-bg-hover);
+}
+
+/* Avatar dropdown menu */
+.tm-topbar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  z-index: 30;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tm-topbar-menu-user {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  margin-bottom: 4px;
+}
+.tm-topbar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--tm-radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background var(--tm-dur-fast), border-color var(--tm-dur-fast);
+}
+.tm-topbar-menu-divider {
+  height: 1px;
+  background: var(--tm-border-soft);
+  margin: 4px 0;
+}
 
 @media (max-width: 768px) {
   :root,

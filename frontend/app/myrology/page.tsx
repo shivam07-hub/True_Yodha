@@ -4,15 +4,7 @@ import Link from "next/link"
 import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { MyroLogo } from "@/components/myro-logo"
-
-const NAV = [
-  { id: "mission", label: "Mission Control", href: "/home" },
-  { id: "cv", label: "CV Library", href: "/cv" },
-  { id: "skills", label: "Skills", href: "/skills" },
-  { id: "tracker", label: "Tracker", href: "/tracker" },
-  { id: "day1", label: "Day 1", href: "/welcome" },
-  { id: "myrology", label: "Myrology", href: "/myrology", active: true, sub: true },
-]
+import { PublicTopNav } from "@/components/public/top-nav"
 
 const HOUSES = ["Career", "Income", "Wisdom", "Travel", "Self", "Skills", "Method", "Partners", "Risk", "Public", "Network", "Sanctum"]
 const GLYPHS = ["♄", "♃", "♂", "☉", "♀", "☿", "☾", "♅", "♆", "♇", "⊕", "★"]
@@ -123,29 +115,7 @@ export default function MyrologyPage() {
         <BrandParticles density={0.45} accent="#B084FF" />
       </div>
 
-      <header className="topbar">
-        <Link href="/welcome" className="wm">
-          <MyroLogo size={38} decorative />
-          <div className="wm-stack">
-            <div className="wm-name">
-              Myro<span className="wm-dot">·</span><span className="wm-sub">Myrology</span>
-            </div>
-            <div className="wm-tag">cosmic career intelligence</div>
-          </div>
-        </Link>
-        <nav className="topbar-nav">
-          {NAV.map((it) => (
-            <Link key={it.id} href={it.href} className={"tn" + (it.active ? " active" : "") + (it.sub ? " tn-sub" : "")}>
-              {it.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="topbar-xp">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" /></svg>
-          <span className="mono">15,018</span>
-          <span className="dim">XP</span>
-        </div>
-      </header>
+      <PublicTopNav active="myrology" showSignIn />
 
       <main className="m-main">
         <section className="my-hero">

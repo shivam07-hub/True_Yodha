@@ -7,6 +7,7 @@ import "./welcome.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { MyroLogo } from "@/components/myro-logo"
 import { useOnboardingHandoff } from "@/store/onboardingHandoff"
+import { PublicTopNav } from "@/components/public/top-nav"
 
 const TIMELINE = [
   { t: "0:00", title: "Drop in", desc: "PDF or DOCX. Encrypted at rest. Parsed in ~7s." },
@@ -24,14 +25,6 @@ const NUMBERS = [
   { n: "4.9 / 5", l: "operator rating", d: "from 9,184 reviews" },
 ]
 
-const NAV = [
-  { id: "mission", label: "Mission Control", href: "/home" },
-  { id: "cv", label: "CV Library", href: "/cv" },
-  { id: "skills", label: "Skills", href: "/skills" },
-  { id: "tracker", label: "Tracker", href: "/tracker" },
-  { id: "day1", label: "Day 1", href: "/welcome", active: true },
-  { id: "myrology", label: "Myrology", href: "/myrology", sub: true },
-]
 
 function CountdownChip() {
   const [secs, setSecs] = useState(10 * 60 - 7)
@@ -109,33 +102,7 @@ export default function WelcomePage() {
         <BrandParticles density={0.5} accent="#00F5D4" />
       </div>
 
-      <header className="topbar">
-        <div className="wm">
-          <MyroLogo size={38} decorative />
-          <div className="wm-stack">
-            <div className="wm-name">Myro</div>
-            <div className="wm-tag">career intelligence</div>
-          </div>
-        </div>
-        <nav className="topbar-nav">
-          {NAV.map((it) => (
-            <Link
-              key={it.id}
-              href={it.href}
-              className={"tn" + (it.active ? " active" : "") + (it.sub ? " tn-sub" : "")}
-            >
-              {it.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="topbar-xp">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
-          </svg>
-          <span className="mono">15,018</span>
-          <span className="dim">XP</span>
-        </div>
-      </header>
+      <PublicTopNav showSignIn />
 
       <main className="w-main">
         <section className="hero hero-split">
