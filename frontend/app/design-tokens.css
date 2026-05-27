@@ -219,10 +219,13 @@
   --tm-text-muted:    #4A5878;
   --tm-text-faint:    #8B96AC;
 
-  /* Spirit status colors darken for WCAG AA on white */
+  /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
   --tm-info-wash:     rgba(124, 58, 237, 0.08);
   --tm-info-border:   rgba(124, 58, 237, 0.30);
+  --tm-success:       #15A34A;
+  --tm-warning:       #D97706;
+  --tm-danger:        #E11D48;
 
   --tm-shadow-1:      0 1px 2px rgba(10, 20, 40, 0.04);
   --tm-shadow-2:      0 4px 14px rgba(10, 20, 40, 0.06), 0 1px 2px rgba(10, 20, 40, 0.04);
