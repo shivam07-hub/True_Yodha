@@ -7,24 +7,24 @@ import "./about-steps.css"
 const STEPS = [
   {
     num: "01",
-    labelLeft: "Save your ",
-    labelEmphasis: "master",
-    labelRight: " CV.",
-    body: "Keep one clean source instead of hunting through files and folders.",
+    labelLeft: "Upload in ",
+    labelEmphasis: "2 minutes.",
+    labelRight: "",
+    body: "Drop your existing CV once. That becomes your master — the clean source everything branches from.",
   },
   {
     num: "02",
-    labelLeft: "",
-    labelEmphasis: "Tailor versions",
-    labelRight: " for each job.",
-    body: "Create a resume for internships, placements, and specific companies.",
+    labelLeft: "Tailor for any role in ",
+    labelEmphasis: "5 minutes.",
+    labelRight: "",
+    body: "Pick a job. AI rewrites your CV for that exact role — internship, placement, senior position, any industry.",
   },
   {
     num: "03",
-    labelLeft: "Use ",
-    labelEmphasis: "job intelligence",
-    labelRight: " when ready.",
-    body: "Scores and skill gaps help you choose what to fix next.",
+    labelLeft: "Know which version to send in ",
+    labelEmphasis: "3 minutes.",
+    labelRight: "",
+    body: "A score and skill gap map tells you where you stand. Send the right CV. Not a generic one.",
   },
 ] as const
 

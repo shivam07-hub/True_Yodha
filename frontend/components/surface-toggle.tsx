@@ -8,6 +8,33 @@ const ACCENT_STORAGE_KEY = "tm.accent"
 const SURFACE_STORAGE_KEY = "tm.surface"
 const DEFAULT_VARIATION: Variation = "forge"
 
+// Ghost = dark/teal mode
+function GhostIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 4C8.69 4 6 6.69 6 10v9l2.5-2 2 2 2-2 2 2 2-2V10c0-3.31-2.69-6-6-6z"
+        stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"
+      />
+      <circle cx="10" cy="11" r="1.2" fill="currentColor" />
+      <circle cx="14" cy="11" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+// Spirit = white/light mode
+function SpiritIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3c-1.5 2.5-3 5-3 7.5a3 3 0 006 0C15 8 13.5 5.5 12 3z"
+        stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"
+      />
+      <path d="M12 15v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function SurfaceToggle() {
   const [variation, setVariation] = useState<Variation>(DEFAULT_VARIATION)
 
@@ -47,41 +74,31 @@ export function SurfaceToggle() {
     <div
       className="tm-segment-toggle"
       role="group"
-      aria-label="Background variation"
+      aria-label="Appearance"
     >
-      {/* Signal = dark = moon */}
+      {/* Ghost = dark / teal */}
       <button
         type="button"
         aria-pressed={variation === "signal"}
-        aria-label="Dark"
-        title="Dark"
+        aria-label="Ghost — dark mode"
+        title="Ghost"
         onClick={() => choose("signal")}
-        style={{ padding: "0.375rem 0.625rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+        style={{ padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: 5 }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        <GhostIcon />
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Ghost</span>
       </button>
-      {/* Forge = light = sun */}
+      {/* Spirit = white / light */}
       <button
         type="button"
         aria-pressed={variation === "forge"}
-        aria-label="Light"
-        title="Light"
+        aria-label="Spirit — light mode"
+        title="Spirit"
         onClick={() => choose("forge")}
-        style={{ padding: "0.375rem 0.625rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+        style={{ padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: 5 }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2"/>
-          <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-        </svg>
+        <SpiritIcon />
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Spirit</span>
       </button>
     </div>
   )
