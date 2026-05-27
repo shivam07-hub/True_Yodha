@@ -44,7 +44,7 @@
   border-radius: var(--tm-radius-pill);
   font-size: 15px;
   font-weight: 500;
-  color: var(--tm-text-muted);
+  color: var(--tm-text);
   background: transparent;
   border: 1px solid transparent;
   text-decoration: none;
@@ -56,7 +56,7 @@
 
 .tm-public-nav-link:hover {
   color: var(--tm-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .tm-public-nav-link[data-active="true"] {
@@ -74,29 +74,8 @@
   flex-shrink: 0;
 }
 
+/* Sign up = primary CTA (teal fill) */
 .tm-public-nav-signup {
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  height: 42px;
-  border-radius: var(--tm-radius-pill);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--tm-text-muted);
-  background: transparent;
-  border: 1px solid var(--tm-border-soft);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--tm-dur-fast) var(--tm-ease),
-              border-color var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-public-nav-signup:hover {
-  color: var(--tm-interactive);
-  border-color: var(--tm-int-border);
-}
-
-.tm-public-nav-signin {
   display: flex;
   align-items: center;
   padding: 0 18px;
@@ -113,9 +92,32 @@
               border-color var(--tm-dur-fast) var(--tm-ease);
 }
 
-.tm-public-nav-signin:hover {
+.tm-public-nav-signup:hover {
   background: var(--tm-interactive-hover);
   border-color: var(--tm-interactive-hover);
+}
+
+/* Sign in = teal text link (secondary) */
+.tm-public-nav-signin {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 42px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tm-interactive);
+  background: transparent;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--tm-dur-fast) var(--tm-ease),
+              background var(--tm-dur-fast) var(--tm-ease);
+}
+
+.tm-public-nav-signin:hover {
+  color: var(--tm-interactive-hover);
+  background: var(--tm-int-bg-wash);
 }
 
 @media (max-width: 720px) {

@@ -33,7 +33,7 @@
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--tm-text-faint);
+  color: var(--tm-text-muted);
 }
 
 .tm-about-step-label {
@@ -51,7 +51,7 @@
 .tm-about-step-body {
   font-size: 14px;
   line-height: 1.55;
-  color: var(--tm-text-muted);
+  color: var(--tm-text);
   margin: 0;
 }
 

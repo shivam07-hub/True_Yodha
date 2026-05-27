@@ -411,7 +411,7 @@
   border-radius: var(--tm-radius-pill);
   font-size: 13.5px;
   font-weight: 500;
-  color: var(--tm-text-muted);
+  color: var(--tm-text);
   background: transparent;
   border: 1px solid transparent;
   text-decoration: none;
@@ -650,13 +650,9 @@
   :root[data-surface="light"][data-accent="signal"],
   :root[data-surface="dark"][data-accent="forge"],
   :root[data-surface="dark"][data-accent="signal"] {
-    --tm-interactive: var(--tm-interactive);
     --tm-interactive-hover: #53ffe3;
     --tm-interactive-press: #00c7ae;
     --tm-int-bg-hover: var(--tm-int-border);
-    --tm-int-bg-wash: var(--tm-int-bg-wash);
-    --tm-int-border: var(--tm-int-border);
-    --tm-interactive-grid: var(--tm-interactive-grid);
     --tm-interactive-fg: #050a18;
     --primary: 172 100% 48%;
     --primary-foreground: 219 65% 6%;

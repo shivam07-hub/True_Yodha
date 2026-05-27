@@ -68,7 +68,7 @@
   box-sizing: border-box;
   font-size: clamp(14px, 4vw, 17px);
   line-height: 1.55;
-  color: var(--tm-text-muted);
+  color: var(--tm-text);
   max-width: 540px;
   margin: 0 0 28px;
   text-wrap: balance;
@@ -210,7 +210,7 @@
   padding: 6px 10px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--tm-text-muted);
+  color: var(--tm-text);
   background: transparent;
   border: none;
   text-decoration: none;
@@ -237,7 +237,7 @@
   font-family: var(--tm-font-mono);
   font-size: 12px;
   letter-spacing: 0.02em;
-  color: var(--tm-text-faint);
+  color: var(--tm-text-muted);
 }
 
 /* ── Reduced motion: silence the ghost breath ─────────────── */
