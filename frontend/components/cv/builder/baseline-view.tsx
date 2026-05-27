@@ -141,10 +141,17 @@ export function BaselineView({
       <div className="cvb-page-head cvb-fade-in">
         <div>
           <h1 className="cvb-page-title">Your CV Library</h1>
-          <p className="cvb-page-sub">
-            Your CV Library keeps your Main CV and every job-specific copy in one place.{" "}
-            <span style={{ color: "var(--tm-text-faint)" }}>Myro adds the intelligence layer on top.</span>
-          </p>
+          {stats.jobs === 0 ? (
+            <p className="cvb-page-sub">
+              Main CV saved.{" "}
+              <strong style={{ color: "var(--tm-interactive)", fontWeight: 600 }}>Next: pick a job on the right to tailor for it — takes 5 min.</strong>
+            </p>
+          ) : (
+            <p className="cvb-page-sub">
+              {stats.jobs} tailored {stats.jobs === 1 ? "CV" : "CVs"} across {stats.companies} {stats.companies === 1 ? "company" : "companies"}.{" "}
+              <span style={{ color: "var(--tm-text-faint)" }}>Add more jobs on the right to keep tailoring.</span>
+            </p>
+          )}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <Link href="/tracker?stage=saved" className="cvb-btn primary">
@@ -156,6 +163,9 @@ export function BaselineView({
           </button>
         </div>
       </div>
+
+      {/* 10-minute guide — only before first tailored CV */}
+      {stats.jobs === 0 && <TenMinGuide />}
 
       <div className="cvb-stats">
         <StatCard label={stats.total === 1 ? "saved CV" : "saved CVs"} value={stats.total} sub="in your library" href="#cv-library"/>
@@ -206,6 +216,49 @@ export function BaselineView({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+/**
+ * TenMinGuide — one-time step tracker shown before the user's first tailored CV.
+ * Renders above the stats row. Disappears automatically once stats.jobs > 0.
+ */
+function TenMinGuide() {
+  const steps: { n: string; label: string; time: string; done: boolean }[] = [
+    { n: "01", label: "Upload your Main CV", time: "2 min", done: true },
+    { n: "02", label: "Pick a job and tailor", time: "5 min", done: false },
+    { n: "03", label: "See score — download", time: "3 min", done: false },
+  ]
+  return (
+    <div className="cvb-tenmin-guide cvb-fade-in" role="status" aria-label="10-minute CV progress">
+      <div className="cvb-tenmin-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
+          <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        10-min flow
+      </div>
+      <ol className="cvb-tenmin-steps" aria-label="Progress">
+        {steps.map((s) => (
+          <li
+            key={s.n}
+            className={`cvb-tenmin-step${s.done ? " done" : ""}${!s.done && steps[steps.findIndex(x => !x.done)] === s ? " active" : ""}`}
+          >
+            <span className="cvb-tenmin-dot" aria-hidden="true">
+              {s.done ? (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <span>{s.n}</span>
+              )}
+            </span>
+            <span className="cvb-tenmin-label">{s.label}</span>
+            <span className="cvb-tenmin-time">{s.time}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 function StatCard({ label, value, sub, mono, href, onClick }: {
   label: string; value: string | number; sub: string; mono?: boolean
   href?: string; onClick?: () => void
@@ -249,12 +302,18 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
         )}
 
         {!isLoading && applications.length === 0 && (
-          <div style={{
-            padding: 18, border: "1px dashed var(--tm-border-soft)", borderRadius: 8,
-            textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)",
-          }}>
-            No active applications yet.{" "}
-            <Link href="/tracker?stage=saved" style={{ color: "var(--tm-interactive)" }}>Add one →</Link>
+          <div className="cvb-jobs-empty">
+            <p className="cvb-jobs-empty-lead">
+              Find a job you want, save it, then tailor your CV for it here in 5 minutes.
+            </p>
+            <div className="cvb-jobs-empty-actions">
+              <Link href="/jobs" className="cvb-btn primary sm">
+                <Icon name="target" size={13}/> Browse jobs
+              </Link>
+              <Link href="/tracker?stage=saved" className="cvb-btn sm">
+                My tracker →
+              </Link>
+            </div>
           </div>
         )}
 
@@ -262,16 +321,18 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
           <TargetJobCard key={app.id} app={app} onOpen={() => onOpen(app.job_id)} />
         ))}
 
-        <Link
-          href="/jobs"
-          style={{
-            marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
-            borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",
-            textDecoration: "none", display: "block",
-          }}
-        >
-          Browse more in <span style={{ color: "var(--tm-interactive)" }}>Jobs →</span>
-        </Link>
+        {applications.length > 0 && (
+          <Link
+            href="/jobs"
+            style={{
+              marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
+              borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",
+              textDecoration: "none", display: "block",
+            }}
+          >
+            Browse more in <span style={{ color: "var(--tm-interactive)" }}>Jobs →</span>
+          </Link>
+        )}
       </div>
     </>
   )

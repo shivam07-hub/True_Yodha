@@ -227,12 +227,18 @@ export function PlaygroundView({
                 <Icon name="edit" size={13}/> Edit polished
               </button>
             )}
-            <button type="button" className="cvb-btn sm" onClick={() => onExportPDF(matchScore)}>
-              <Icon name="download" size={13}/> Export PDF
+            <button
+              type="button"
+              className={`cvb-btn sm${matchScore >= 60 ? " primary" : ""}`}
+              onClick={() => onExportPDF(matchScore)}
+              title={matchScore >= 60 ? `Score ${matchScore}% — ready to download` : "Export as PDF"}
+            >
+              <Icon name="download" size={13}/>
+              {matchScore >= 60 ? `Download CV (${matchScore}%)` : "Download CV"}
             </button>
             <button
               type="button"
-              className="cvb-btn primary sm"
+              className={`cvb-btn sm${matchScore < 60 ? " primary" : ""}`}
               onClick={handleSave}
               disabled={!canSave || playground.saveVersion.isPending}
             >

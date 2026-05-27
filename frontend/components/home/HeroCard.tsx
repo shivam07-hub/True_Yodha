@@ -5,6 +5,7 @@ import { SkillRow } from "./SkillRow"
 import { InfoPill } from "./interaction-pills"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
+import { stripMarkdown } from "@/lib/text/strip-markdown"
 
 const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "saved", label: "Saved" },
@@ -183,7 +184,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
               margin: 0, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.65,
               paddingLeft: 12, borderLeft: "2px solid var(--tm-interactive)",
             }}>
-              {job.llm_explanation ?? (
+              {stripMarkdown(job.llm_explanation) || (
                 <span style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>No explanation available.</span>
               )}
             </p>

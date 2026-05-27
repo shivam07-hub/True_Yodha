@@ -7,15 +7,16 @@ import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
-import { BaselineView } from "@/components/cv/builder/baseline-view"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
+import { LibraryView } from "@/components/cv/builder/library-view"
 import { Icon } from "@/components/cv/builder/icons"
 import {
   CVUploadFailure,
   clearPersistedCVUploadState,
   type CVUploadFallbackSubmissionResponse,
   cv,
+  jobs as jobsApi,
   getPersistedCVUploadJobId,
   pollCVUploadStatus,
   uploadCV,
@@ -68,6 +69,13 @@ function CVPage() {
     queryFn: () => users.me(token!),
     enabled: !!ready && !!token,
     staleTime: 5 * 60 * 1000,
+  })
+
+  const applicationsQuery = useQuery({
+    queryKey: dataKeys.applications(),
+    queryFn: () => jobsApi.applications(token!),
+    enabled: !!ready && !!token,
+    staleTime: 2 * 60 * 1000,
   })
 
   const view: ViewMode = !jobId ? "baseline" : wantsPdf ? "pdf" : "playground"
@@ -180,18 +188,25 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, hasBaseline])
 
-  // Auto-open the upload picker when arriving with ?upload=1. Fired by the
-  // /about "Upload your CV" CTA flow (anonymous visitor → signup → /cv?upload=1).
+  // Auto-open the upload picker when arriving with ?upload=1. This is the
+  // FIRST-upload flow (anonymous visitor → signup → /cv?upload=1). The ?next=
+  // param is carried by every signup CTA and survives a login redirect, so a
+  // returning user who already has a Main CV can land here too — they must NOT
+  // be auto-prompted to replace it. Replacing the Main CV is a deliberate act
+  // via the top-right "Update Main CV" button, never automatic.
   // Once-only — the URL is normalised after firing so a refresh doesn't re-trigger.
   const autoUploadFiredRef = useRef(false)
   useEffect(() => {
     if (!ready || !token || autoUploadFiredRef.current) return
     if (searchParams.get("upload") !== "1") return
+    // Wait for versions to load before deciding — a transient empty baselines[]
+    // during fetch would otherwise false-fire the picker for an existing user.
+    if (playground.versionsLoading) return
     autoUploadFiredRef.current = true
-    openFilePicker()
+    if (!hasBaseline) openFilePicker()
     router.replace("/cv", { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, token, searchParams])
+  }, [ready, token, searchParams, playground.versionsLoading, hasBaseline])
 
   // Resume an upload that was in flight when the tab closed / page reloaded.
   // The job is server-side; polling reconciles its terminal state.
@@ -271,27 +286,16 @@ function CVPage() {
             </>
           )}
 
-          {hasBaseline && view === "baseline" && cvData && (
-            <BaselineView
-              token={token!}
+          {hasBaseline && view === "baseline" && (
+            <LibraryView
               versions={playground.allVersions}
               currentBaseline={playground.currentBaseline}
-              cv={cvData}
+              applications={applicationsQuery.data ?? []}
               profile={profileQuery.data ?? null}
-              onRework={openFilePicker}
+              onOpenMaster={openFilePicker}
               onOpenJob={openJob}
-              focusSkill={focusSkill}
+              onReplaceCV={openFilePicker}
             />
-          )}
-
-          {hasBaseline && view === "baseline" && !cvData && (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-              {playground.structuredQuery.isLoading
-                ? "Parsing your CV into sections…"
-                : playground.structuredQuery.isError
-                  ? "Couldn’t load your CV structure. Try refreshing in a minute."
-                  : null}
-            </div>
           )}
 
           {hasBaseline && view === "playground" && jobId && cvData && (

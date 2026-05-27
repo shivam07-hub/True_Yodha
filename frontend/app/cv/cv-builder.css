@@ -1272,3 +1272,127 @@ mark.cvb-kw {
   .cvb-cv-render { padding: 28px 22px; }
   .cvb-cv-render .cv-name { font-size: 22px; }
 }
+
+/* ── 10-minute first-use guide ───────────────────────────────────────────── */
+.cvb-tenmin-guide {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--tm-int-border);
+  border-radius: 10px;
+  background: var(--tm-int-bg-wash);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.cvb-tenmin-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tm-interactive);
+  white-space: nowrap;
+  font-family: var(--tm-font-mono);
+}
+
+.cvb-tenmin-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.cvb-tenmin-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 0;
+  opacity: 0.45;
+  position: relative;
+}
+/* connector line between steps */
+.cvb-tenmin-step:not(:last-child)::after {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  background: var(--tm-border-soft);
+  margin-right: 0;
+  position: absolute;
+  right: -2px;
+  top: 50%;
+}
+.cvb-tenmin-step.done  { opacity: 0.6; }
+.cvb-tenmin-step.active { opacity: 1; }
+
+.cvb-tenmin-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tm-border-soft);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-family: var(--tm-font-mono);
+  flex-shrink: 0;
+  color: var(--tm-text-muted);
+}
+.cvb-tenmin-step.done  .cvb-tenmin-dot { background: var(--tm-interactive); border-color: var(--tm-interactive); color: #000; }
+.cvb-tenmin-step.active .cvb-tenmin-dot { border-color: var(--tm-interactive); color: var(--tm-interactive); }
+
+.cvb-tenmin-label {
+  font-size: 12px;
+  color: var(--tm-text);
+  white-space: nowrap;
+}
+.cvb-tenmin-step.done .cvb-tenmin-label { color: var(--tm-text-muted); }
+
+.cvb-tenmin-time {
+  font-size: 10px;
+  color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono);
+  white-space: nowrap;
+}
+.cvb-tenmin-step.active .cvb-tenmin-time { color: var(--tm-interactive); }
+
+/* ── Target jobs empty state ─────────────────────────────────────────────── */
+.cvb-jobs-empty {
+  padding: 24px 18px;
+  border: 1px dashed var(--tm-border-soft);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+.cvb-jobs-empty-lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  line-height: 1.55;
+}
+.cvb-jobs-empty-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Mobile: tenmin guide stacks ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .cvb-tenmin-guide {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .cvb-tenmin-steps { flex-direction: column; gap: 8px; }
+  .cvb-tenmin-step::after { display: none; }
+  .cvb-tenmin-label { font-size: 12px; }
+}

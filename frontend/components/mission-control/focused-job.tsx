@@ -10,6 +10,7 @@ import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
+import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
 import { useForgeTimerStore } from "@/store/forgeTimerStore"
 
@@ -167,7 +168,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             <span className="mc-tag-pill">LLM</span>
           </div>
           {job.llm_explanation ? (
-            <blockquote className="mc-fit-quote">{job.llm_explanation}</blockquote>
+            <blockquote className="mc-fit-quote">{stripMarkdown(job.llm_explanation)}</blockquote>
           ) : (
             <blockquote className="mc-fit-quote" style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>
               Analyse this role to see Myro&rsquo;s reasoning.

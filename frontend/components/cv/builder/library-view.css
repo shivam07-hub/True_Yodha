@@ -1,0 +1,694 @@
+/* ─────────────────────────────────────────────────────────────────
+   CV Library — Atelier layout
+   Page-scoped. All classes .tm-lib-*. Tokens from design-tokens.css.
+   ───────────────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap");
+
+/* ── Scope ──────────────────────────────────────────────────────── */
+.tm-lib-scope {
+  font-family: "Geist", var(--tm-font-sans);
+  font-feature-settings: "ss01", "cv11";
+  color: var(--tm-text);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.tm-lib-scope * { box-sizing: border-box; }
+.tm-lib-mono { font-family: "Geist Mono", var(--tm-font-mono); font-variant-numeric: tabular-nums; }
+.tm-lib-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  font-weight: 500;
+}
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes tm-lib-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.tm-lib-fade-in { animation: tm-lib-fade-in 220ms var(--tm-ease) both; }
+
+/* ── Root ───────────────────────────────────────────────────────── */
+.tm-lib-root {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+/* ── Main content area ──────────────────────────────────────────── */
+.tm-lib-main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 28px 40px;
+  overflow-y: auto;
+}
+
+/* ── Page header ────────────────────────────────────────────────── */
+.tm-lib-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.tm-lib-page-title {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin: 0 0 6px;
+  color: var(--tm-text);
+}
+.tm-lib-page-sub {
+  font-size: 14px;
+  color: var(--tm-text-muted);
+  margin: 0;
+  max-width: 560px;
+  line-height: 1.5;
+}
+.tm-lib-page-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.tm-lib-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-family: "Geist", var(--tm-font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text);
+  cursor: pointer;
+  transition: background 120ms var(--tm-ease), border-color 120ms var(--tm-ease);
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+.tm-lib-btn:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.10); }
+.tm-lib-btn.primary {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border-color: var(--tm-interactive);
+  box-shadow: 0 0 16px var(--tm-accent-glow);
+}
+.tm-lib-btn.primary:hover { background: var(--tm-interactive-hover); border-color: var(--tm-interactive-hover); }
+.tm-lib-btn.ghost { border-color: transparent; color: var(--tm-text-muted); }
+.tm-lib-btn.ghost:hover { color: var(--tm-text); background: rgba(255,255,255,0.03); }
+.tm-lib-btn.sm { padding: 5px 10px; font-size: 12px; }
+.tm-lib-btn.xs { padding: 3px 8px; font-size: 11px; border-radius: 4px; }
+.tm-lib-btn.icon-only { padding: 7px 8px; }
+
+/* ── Hero strip: Master CV + stat tiles ─────────────────────────── */
+.tm-lib-hero-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.05fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Master CV card */
+.tm-lib-master-card {
+  display: flex;
+  min-height: 168px;
+  border: 1px solid var(--tm-accent-ring);
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--tm-surface) 0%, rgba(15,26,46,1) 100%);
+  transition: border-color 160ms var(--tm-ease);
+}
+.tm-lib-master-card:hover { border-color: var(--tm-interactive); }
+
+.tm-lib-master-preview {
+  width: 108px;
+  flex-shrink: 0;
+  padding: 12px;
+  background: var(--tm-bg);
+  border-right: 1px solid var(--tm-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+}
+.tm-lib-master-preview-line {
+  border-radius: 2px;
+  background: var(--tm-border-soft);
+}
+.tm-lib-master-preview-name {
+  font-size: 8.5px;
+  font-family: "Geist Mono", var(--tm-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-interactive);
+  margin-bottom: 4px;
+}
+.tm-lib-master-aperture {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  opacity: 0.5;
+}
+
+.tm-lib-master-body {
+  flex: 1;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.tm-lib-master-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tm-lib-master-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 4px 0 0;
+  color: var(--tm-text);
+  line-height: 1.2;
+}
+.tm-lib-master-role {
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  margin-top: 2px;
+}
+.tm-lib-master-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "Geist Mono", var(--tm-font-mono);
+  border: 1px solid var(--tm-accent-ring);
+  color: var(--tm-interactive);
+  background: var(--tm-accent-wash);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.tm-lib-master-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+.tm-lib-master-stats-val { color: var(--tm-text); }
+.tm-lib-master-stats-sep { color: var(--tm-border-soft); }
+.tm-lib-master-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* Stat tiles grid */
+.tm-lib-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.tm-lib-stat-tile {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 78px;
+  justify-content: center;
+  transition: border-color 120ms var(--tm-ease);
+}
+.tm-lib-stat-tile:hover { border-color: rgba(255,255,255,0.1); }
+.tm-lib-stat-num {
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--tm-text);
+}
+.tm-lib-stat-num.accent { color: var(--tm-interactive); }
+.tm-lib-stat-sub {
+  font-size: 11.5px;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Folders header ─────────────────────────────────────────────── */
+.tm-lib-folders-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.tm-lib-folders-head-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tm-lib-folders-head-count {
+  font-size: 11px;
+  font-family: "Geist Mono", var(--tm-font-mono);
+  color: var(--tm-text-faint);
+}
+.tm-lib-folders-head-divider {
+  flex: 1;
+  height: 1px;
+  background: var(--tm-border-soft);
+  margin-left: 6px;
+}
+.tm-lib-view-toggle {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+/* ── Company folder list ─────────────────────────────────────────── */
+.tm-lib-folder-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Folder row card ─────────────────────────────────────────────── */
+.tm-lib-folder-row {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 160ms var(--tm-ease);
+}
+.tm-lib-folder-row:hover { border-color: rgba(255,255,255,0.10); }
+
+.tm-lib-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.tm-lib-folder-chevron {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--tm-text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 120ms var(--tm-ease);
+}
+.tm-lib-folder-chevron:hover { color: var(--tm-text); }
+.tm-lib-folder-info { flex: 1; min-width: 0; }
+.tm-lib-folder-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tm-lib-folder-name-text {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+.tm-lib-folder-sub {
+  font-size: 11.5px;
+  color: var(--tm-text-muted);
+  margin-top: 3px;
+  font-family: "Geist Mono", var(--tm-font-mono);
+}
+.tm-lib-folder-actions { display: flex; gap: 6px; }
+
+/* Pill */
+.tm-lib-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  background: var(--tm-surface);
+  font-family: "Geist Mono", var(--tm-font-mono);
+  white-space: nowrap;
+}
+.tm-lib-pill.accent {
+  color: var(--tm-interactive);
+  border-color: var(--tm-accent-ring);
+  background: var(--tm-accent-wash);
+}
+
+/* Company avatar */
+.tm-lib-company-avatar {
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-weight: 600;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+/* ── Folder body (expandable) ───────────────────────────────────── */
+.tm-lib-folder-body {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+/* ── Job card grid ──────────────────────────────────────────────── */
+.tm-lib-job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* ── CV Job card ────────────────────────────────────────────────── */
+.tm-lib-job-card {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 160ms var(--tm-ease), background 160ms var(--tm-ease);
+}
+.tm-lib-job-card:hover { border-color: var(--tm-accent-ring); }
+.tm-lib-job-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tm-lib-job-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.tm-lib-stage-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.tm-lib-job-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--tm-text);
+}
+.tm-lib-job-location {
+  font-size: 11px;
+  color: var(--tm-text-muted);
+  margin-top: 3px;
+}
+.tm-lib-job-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.tm-lib-job-meta-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+.tm-lib-job-meta-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--tm-border-soft);
+}
+.tm-lib-cv-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tm-text);
+}
+
+/* Fit bar */
+.tm-lib-fit-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+}
+.tm-lib-fit-track {
+  position: relative;
+  width: 32px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--tm-border-soft);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.tm-lib-fit-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+}
+.tm-lib-fit-num {
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Job card actions */
+.tm-lib-job-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* New CV dashed card */
+.tm-lib-new-cv-card {
+  min-height: 200px;
+  border-radius: 10px;
+  border: 1px dashed var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text-muted);
+  font-family: "Geist", var(--tm-font-sans);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: border-color 160ms var(--tm-ease), color 160ms var(--tm-ease);
+}
+.tm-lib-new-cv-card:hover {
+  border-color: var(--tm-accent-ring);
+  color: var(--tm-interactive);
+}
+.tm-lib-new-cv-card-title { font-size: 13px; font-weight: 500; }
+.tm-lib-new-cv-card-sub { font-size: 11px; color: var(--tm-text-faint); }
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+.tm-lib-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 32px;
+  color: var(--tm-text-faint);
+  border: 1px dashed var(--tm-border-soft);
+  border-radius: 16px;
+  background: var(--tm-surface);
+  margin-top: 24px;
+  gap: 12px;
+}
+.tm-lib-empty-title { font-size: 16px; font-weight: 500; color: var(--tm-text); }
+.tm-lib-empty-sub { font-size: 12px; color: var(--tm-text-muted); max-width: 360px; line-height: 1.5; }
+.tm-lib-empty-link {
+  font-size: 12px;
+  color: var(--tm-interactive);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tm-lib-empty-link:hover { text-decoration: underline; }
+
+/* ── Active pipeline rail ───────────────────────────────────────── */
+.tm-lib-rail {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--tm-border-soft);
+  background: rgba(11, 18, 34, 0.4);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.tm-lib-rail-head {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.tm-lib-rail-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tm-lib-rail-head-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tm-lib-rail-count {
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-interactive);
+  font-weight: 600;
+}
+.tm-lib-rail-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tm-text);
+  margin-top: 6px;
+}
+.tm-lib-rail-sub { font-size: 11px; color: var(--tm-text-muted); margin-top: 2px; line-height: 1.45; }
+.tm-lib-rail-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+.tm-lib-rail-footer { padding: 14px; border-top: 1px solid var(--tm-border-soft); }
+
+/* Stage group in rail */
+.tm-lib-stage-group { margin-bottom: 18px; }
+.tm-lib-stage-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tm-lib-stage-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tm-lib-stage-group-count {
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-faint);
+}
+.tm-lib-stage-group-line {
+  flex: 1;
+  height: 1px;
+  background: var(--tm-border-soft);
+  margin-left: 6px;
+}
+
+/* Rail job row */
+.tm-lib-rail-job-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: "Geist", var(--tm-font-sans);
+  color: var(--tm-text);
+  width: 100%;
+  margin-bottom: 6px;
+  transition: border-color 120ms var(--tm-ease), background 120ms var(--tm-ease);
+}
+.tm-lib-rail-job-row:hover {
+  border-color: var(--tm-accent-ring);
+  background: rgba(15,26,46,0.8);
+}
+.tm-lib-rail-job-title {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-lib-rail-job-meta {
+  font-size: 10.5px;
+  color: var(--tm-text-muted);
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Geist Mono", var(--tm-font-mono);
+}
+.tm-lib-rail-job-meta-sep { color: var(--tm-border-soft); }
+
+/* Loading shimmer */
+.tm-lib-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--tm-text-faint);
+  font-size: 13px;
+  gap: 8px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .tm-lib-rail { display: none; }
+}
+@media (max-width: 900px) {
+  .tm-lib-hero-strip { grid-template-columns: 1fr; }
+  .tm-lib-stat-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 600px) {
+  .tm-lib-main { padding: 16px 16px 32px; }
+  .tm-lib-stat-grid { grid-template-columns: 1fr 1fr; }
+  .tm-lib-page-head { flex-direction: column; }
+  .tm-lib-master-preview { display: none; }
+  .tm-lib-master-name { font-size: 18px; }
+}
+
+/* ── Motion safe ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tm-lib-fade-in { animation: none; }
+  .tm-lib-btn, .tm-lib-job-card, .tm-lib-folder-row, .tm-lib-rail-job-row {
+    transition: none;
+  }
+}

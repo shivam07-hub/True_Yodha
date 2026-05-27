@@ -31,6 +31,7 @@ interface UseCVPlaygroundArgs {
 export interface CVPlaygroundState {
   // Queries
   structuredQuery: ReturnType<typeof useQuery<CVStructured>>
+  versionsLoading: boolean
 
   // Derived collections
   allVersions: CVVersion[]
@@ -220,6 +221,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
 
   return {
     structuredQuery,
+    versionsLoading: versionsQuery.isLoading,
     allVersions,
     baselines,
     currentBaseline,

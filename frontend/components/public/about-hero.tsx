@@ -23,22 +23,22 @@ export function AboutHero() {
 
         {/* ── Status chip ──────────────────────────────────── */}
         <div className="tm-about-chip" aria-label="Example CV hub follows">
-          <span className="tm-about-chip-tag">example</span>
+          <span className="tm-about-chip-tag">10 minutes</span>
           <span className="tm-about-chip-sep">·</span>
-          <span>1 master CV</span>
+          <span>any role</span>
           <span className="tm-about-chip-sep">·</span>
-          <span>2 job versions</span>
+          <span>scored</span>
         </div>
 
         {/* ── Headline ─────────────────────────────────────── */}
         <h1 className="tm-about-headline">
-          <span className="tm-about-headline-line">One hub for </span>
-          <span className="tm-about-headline-line">every CV version.</span>
+          <span className="tm-about-headline-line">A job-ready CV</span>
+          <span className="tm-about-headline-line">in 10 minutes.</span>
         </h1>
 
         <p className="tm-about-subhead">
-          Save your master CV. Tailor one for each internship or job.
-          Know which resume to send.
+          Upload your master CV once. Tailor it for any role in under 10 minutes.
+          Know exactly which version to send.
         </p>
 
         {/* ── Commit graph ─────────────────────────────────── */}
@@ -144,7 +144,7 @@ export function AboutHero() {
             signup.open({ surface: "about_hero", next: NEXT_AFTER_SIGNUP })
           }}
         >
-          Start your CV hub
+          Build your CV in 10 minutes
           <span aria-hidden>→</span>
         </Link>
 
