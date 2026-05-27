@@ -28,6 +28,15 @@ export function PublicFooter() {
       </Link>
       <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
       <Link
+        href="/docs"
+        style={linkStyle}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)" }}
+      >
+        How it works
+      </Link>
+      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", opacity: 0.4 }}>·</span>
+      <Link
         href="/newsletter"
         style={linkStyle}
         onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
