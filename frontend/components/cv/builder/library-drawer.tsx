@@ -27,7 +27,17 @@ export function formatLibraryDocumentTitle(version: CVVersion): string {
   if (version.kind === "baseline_upload") return "Main CV"
   const company = version.company_name?.trim()
   const role = version.job_title?.trim()
-  if (company && role) return `${company} · ${role}`
+  if (company && role) {
+    // Deduplicate: skip company prefix when role already contains it
+    // e.g. company="Cognizant" + role="Cognizant" → "Cognizant tailored CV"
+    // e.g. company="Cognizant" + role="Cognizant Solutions" → just show role
+    const compLower = company.toLowerCase()
+    const roleLower = role.toLowerCase()
+    if (roleLower === compLower || roleLower.startsWith(compLower)) {
+      return role
+    }
+    return `${company} · ${role}`
+  }
   if (company) return `${company} tailored CV`
   if (role) return role
   return "Tailored CV"
