@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
 import { ParticleBg } from "@/components/particle-bg"
 import { PublicFooter } from "@/components/public/public-footer"
-import { SurfaceToggle } from "@/components/surface-toggle"
 
 /**
  * ADR-0006 — page shell shared by /signup + /login + /auth/callback.
@@ -64,7 +63,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
               fontSize: 12, fontWeight: 600, color: "var(--tm-text-faint)",
               letterSpacing: "0.08em", textTransform: "uppercase", marginTop: 6,
             }}>
-              CV hub for live jobs
+              career intelligence
             </div>
           </div>
 
@@ -94,19 +93,6 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
               color: "var(--tm-text-faint)",
             }}>{footerCopy}</p>
           )}
-
-          <div style={{
-            marginTop: 14,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 10,
-          }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              color: "var(--tm-text-faint)",
-            }}>Background</span>
-            <SurfaceToggle />
-          </div>
         </div>
       </div>
       <PublicFooter />

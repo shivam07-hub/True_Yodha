@@ -22,7 +22,7 @@ export function SplashScreen() {
       </div>
       <div className="tm-splash-text">
         <span className="tm-splash-mark">MYRO</span>
-        <span className="tm-splash-tag">Career Intelligence</span>
+        <span className="tm-splash-tag">career intelligence</span>
       </div>
     </div>
   )

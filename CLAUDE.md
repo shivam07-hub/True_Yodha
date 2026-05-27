@@ -271,7 +271,60 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-25 late night · ADR-0006 frictionless signup SHIPPED)
+## LAST SESSION SUMMARY (2026-05-26 → 27 · WA mobile bug pass + 25-issue ledger + 3 commits)
+
+Long session across two tasks: an attempted SEO audit pass on himyro.com and a mobile-bug triage off ~47 WhatsApp screenshots Shivam dropped into `reference/26 may phone issues/`. SEO Pack got drafted and locked but is queued behind the bug pass. Bug pass produced a 33-issue ledger (M01–M33), shipped 3 commits on Develop covering 9 of them, and parked the remaining 24 for next session.
+
+### Shipped this session (3 commits on Develop, all green: `tsc --noEmit` clean · `next lint` 0/0)
+
+- **`ce13d7a` — fix(mobile): WA bug pass M03–M11 + XP discoverability.** 11 files, +120 / -31.
+  - **M03** Feedback signal-type cards equalised at 375px (`feedback/category-card.tsx` `flex: 1 1 0` + `minWidth: 72`; `feedback-hub.css` `align-items: stretch`).
+  - **M04** `Cmd+V` paste hint + "Drop, paste, or browse" dropzone label hidden on touch via `@media (hover: none) and (pointer: coarse)`; touch users get an "Attach a screenshot" alternative.
+  - **M05a** Feedback context row value `max-width: 78%` at <480px so emails stop truncating mid-domain (`shivam.pathak7july@gm…` → fits).
+  - **M05b** Send footer stacks at <480px; `whiteSpace: nowrap` + `flexShrink: 0` on submit button so labels like "Send praise" no longer wrap.
+  - **M06** Praise card's misleading `triageHint: "we screenshot these for the team"` blanked; rendering now conditional on truthy string. Code audit confirmed there is no DOM-to-canvas capture; the caption was just bad copy, not a privacy leak.
+  - **M10** `SurfaceToggle` deleted from `AuthPageShell`. Theme controls no longer pre-auth on `/login` + `/signup`.
+  - **M11** Brand tagline unified to lowercase **`career intelligence`** across 6 source sites: `auth-page-shell.tsx`, `market/page.tsx`, `myro/page.tsx`, `splash-screen.tsx`, `app-shell.tsx`, `loading/route-loading/route-loading.flow-step.tsx`. OG image was already lowercase.
+  - **M02 + M08 (XP10 discoverability):** added a "New to XP? See how it works first." link above the XP packs block in Settings → Billing; opened the existing `XpExplainerModal` once per browser the first time an authed user has a positive XP balance via a `myro_xp_modal_seen_v1` localStorage flag. M07 + M09 + #1 pill trigger + #4 insufficient-XP /xp link were already shipped on Develop per pre-session sub-agent audit — no rework needed.
+
+- **`abafddd` — fix(xp): XpExplainerModal mobile header layout at <=480px (M12).** New `components/xp/xp-explainer-modal.css` + class hooks. Header collapses to two rows at <=480px (icon + title + close on top, balance pill centered below). H2 drops 20→17px. Footer grid collapses to one column with full-width "Open guide" CTA. Discovered immediately after `ce13d7a` shipped — the forced first-XP trigger would have surfaced the broken header to every new user. Fix verified before any user hit it.
+
+- **`a617388` — fix(vocab): unify CV vocabulary on 'Main CV' (M24).** 3 files. The codebase had 'Master CV' in three places and 'Main CV' in sixteen, including the same row in `library-drawer.tsx` and `commit-graph.tsx` where the file kind label said 'Master CV' and the description said 'Main CV'. Shivam locked **'Main CV'** as the public-facing term (minority change, fewest diffs). 'Master CV' survives only in the CLAUDE.md SE8 ledger title format `Master CV · skill edit · {Skill}` — an audit invariant, not a user-visible label.
+
+### WA classification results (47 curated + 10 pre-curated WA screenshots)
+
+Reviewed `~/Downloads/whatsapp_imgs/` (purged after surfacing an Aadhaar card — Shivam approved `rm -rf` to remove PII from disk) and the curated `reference/26 may phone issues/`. Final ledger:
+
+- **Fixed this session:** M02 M03 M04 M05a M05b M06 M08 M10 M11 M12 M24 (11 of 33).
+- **Already on Develop pre-session:** M07 (Settings sidebar mobile collapse via `settings-modal.css:17-94`) · M09 (Login form already has Google + LinkedIn + magic-link + password per ADR-0006 §14).
+- **Parked HIGH (12):** M01 score-evidence trace · M13 Self Found row layout / 7× Cognizant dup · M17 Intel heatmap missing column/row labels · M18 Job hash IDs (`0a25d15b71…`) exposed as deliberate clipboard chips · M20 top-bar overflow with forge timer + claim pills · M22 footer missing Hiring + FAQs (Reading section IA) · M23 Tackle Today card 1 shows +10 XP but `xp-policy.ts diaryEntry = 30` · M25 tailored CV titles render `Cognizant · Cognizant` duplicate · M30 raw scraper `[Skip to main content](...)` leaking into LLM "WHY THIS IS A GOOD FIT" body · M31 followed_companies dup (Autodesk 22% + Autodesk 17%) — check UNIQUE(user_id, company_name) constraint per IH2 · M33 Tracker duplicate stale-prompt cards for same company.
+- **Parked MEDIUM (9):** M14 job card mobile action cluster wraps · M15 Intel page top-bar Z-index overlaps H1 · M16 Candidate Experience two-column doesn't stack at 375px · M19 bottom-nav clips Top Movers row #1 · M21 homepage primary CTAs dark-on-dark in dark theme (PR3 color-theory survivor) · M27 Skills triad tab "Live Job Data" wraps 2 lines on mobile · M28 Matched Jobs empty state copy wrong when user has CV · M29 `Rank #1` + low FIT score (22) show contradictory signals · M32 Tracker card text wraps 1-word-per-line when company name is short (3M, Infosys).
+- **Parked LOW (1):** M26 CV preview thumbnails empty (may be loading state, not a bug).
+
+### Decisions locked this session
+- **Brand tagline:** `career intelligence` (lowercase, sentence case in source; CSS uppercases where wanted).
+- **CV vocabulary:** `Main CV` (not Master CV).
+- **XP10 status:** `XpExplainerModal` ships → condition met → Billing stays live.
+- **Reading Section IA:** Newsletter + Hiring + FAQs (M22 still needs Hiring + FAQs implementation).
+- **FAQ scope:** 7 Q+A (Q1–Q3 drafted in session, Q4 free + XP reclaim, Q5 internships/jobs, Q6 multiple tailored, Q7 match discovery — all drafted).
+- **SampleDiagnostic walkthrough:** real example walkthrough (not how-it-works essay).
+- **Aadhaar incident:** WA dump strategy abandoned. Curated folders only going forward.
+
+### SEO Pack (drafted, queued — not shipped)
+Full pack drafted earlier in session. Meta title `AI CV Tailoring & Job Match Score | Myro` (40c). Meta description `AI scores your CV across 12 career domains, tailors a resume for every job, and shows which version to send. Private by default. Start free.` (140c). X card uses `@himyro` site + `@mostly_neutral` creator. OG locale `en_US` primary + `en_IN` alternate. Content audit found 7 gaps (H1 keyword, H2 missing on AboutSteps, primary keyword in first 100 words, internal links, outbound authority link, word count, FAQ section). A11y audit found 5 gaps (heading hierarchy, alt text audit on TopNav + Footer logos, missing `<main>` landmark + skip-link, focus indicator audit, touch target audit). Queued behind bug pass per Shivam's call.
+
+### Carry-over (next session)
+1. **Promote Develop → main** so `ce13d7a` + `abafddd` + `a617388` reach himyro.com production. Tester signal will improve immediately (login theme toggle, feedback hub mobile, XP discoverability all land).
+2. **Purge `mirror.vercel.app`** — Shivam-owned Vercel ops. Stale preview is the old Mirror→Myro brand. Tester screenshots from this preview confused this session's audit (M07, M09 were already-fixed but reproduced there). Delete project or redirect to www.himyro.com.
+3. **Fix HIGH ledger (12 issues)** — start with the quick structural ones: M17 (heatmap labels), M22 (footer Reading IA + Hiring + FAQ stub pages), M20 (top-bar pills responsive), M30 (sanitize `[Skip to main content]` markdown from LLM rationale render), M18 (hide job_id chips OR make them opt-in dev affordance), M31 (audit followed_companies UNIQUE constraint).
+4. **Then SEO Pack Phase A+B+C** — ship the drafted SEO pack as 3 commits. Includes the locked FAQ Q1–Q7 + walkthrough copy + Reading section pages (Hiring + FAQ).
+5. **Pre-existing dirty state to investigate** — `app/home/page.tsx`, `components/mission-control/topbar.tsx`, `lib/api.ts`, `lib/domain-data.ts`, plus untracked `components/onboarding/OnboardingCards.tsx` + `OnboardingChip.tsx` + `onboarding-cards.css`. These looked like in-progress Backlog #15 work from a prior session that wasn't committed. Confirm before touching.
+6. **M01 score-evidence trace** — still deferred. Needs design pass, not a 1-PR fix. Tester quote: "where to see the scoring points which were given on my cv". Defer until at least one design mockup exists.
+7. **`mirror.vercel.app` purge + Develop→main promotion** are the only ops items — both Shivam-owned.
+
+---
+
+## PREVIOUS SESSION (2026-05-25 late night · ADR-0006 frictionless signup SHIPPED)
 
 Single big-bang commit on Develop closing Backlog #13. ADR-0006 implementation end-to-end: backend + frontend + migrations + tests in one PR per locked rollout decision.
 

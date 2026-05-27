@@ -69,7 +69,7 @@ export function FlowStepLoading({
               textTransform: "uppercase",
             }}
           >
-            Career Intelligence
+            career intelligence
           </p>
         </div>
 

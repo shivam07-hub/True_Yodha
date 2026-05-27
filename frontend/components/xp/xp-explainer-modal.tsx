@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Sparkles, X } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { XpFairnessNote, XpGuideLists } from "@/components/xp/xp-guide-content"
+import "./xp-explainer-modal.css"
 
 export function XpExplainerModal({
   open,
@@ -30,7 +31,7 @@ export function XpExplainerModal({
           flexDirection: "column",
         }}
       >
-        <div style={{
+        <div className="tm-xp-explainer-header" style={{
           padding: "20px 22px",
           borderBottom: "1px solid var(--tm-border-soft)",
           display: "flex",
@@ -55,7 +56,7 @@ export function XpExplainerModal({
           }}>
             <Sparkles size={19} aria-hidden />
           </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="tm-xp-explainer-header-title" style={{ minWidth: 0, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--tm-text)" }}>
               How XP Works
             </h2>
@@ -63,7 +64,7 @@ export function XpExplainerModal({
               Earn XP by doing career work. Spend it on heavier analysis.
             </p>
           </div>
-          <div style={{
+          <div className="tm-xp-explainer-header-balance" style={{
             padding: "7px 10px",
             borderRadius: 8,
             background: "var(--tm-int-bg-wash)",
@@ -100,7 +101,7 @@ export function XpExplainerModal({
           <XpGuideLists compact />
         </div>
 
-        <div style={{
+        <div className="tm-xp-explainer-footer" style={{
           padding: "16px 22px",
           borderTop: "1px solid var(--tm-border-soft)",
           background: "var(--tm-surface)",
@@ -114,6 +115,7 @@ export function XpExplainerModal({
           <Link
             href="/xp"
             onClick={onClose}
+            className="tm-xp-explainer-footer-cta"
             style={{
               display: "inline-flex",
               alignItems: "center",

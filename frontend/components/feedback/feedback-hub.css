@@ -52,3 +52,54 @@
     padding: 16px !important;
   }
 }
+
+/* M03 — equalize signal-card heights at narrow viewports */
+.tm-feedback-category-row {
+  align-items: stretch;
+}
+
+.tm-feedback-category-row > button {
+  display: flex;
+  flex-direction: column;
+}
+
+/* M05a — ContextRow gets more width on phones */
+@media (max-width: 480px) {
+  .tm-feedback-context-value {
+    max-width: 78% !important;
+  }
+}
+
+/* M05b — Send footer: stack on mobile so the button never wraps */
+@media (max-width: 480px) {
+  .tm-feedback-send-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .tm-feedback-send-row .tm-feedback-triage-hint {
+    text-align: center;
+  }
+
+  .tm-feedback-send-row button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* M04 — hide desktop-only affordances on touch */
+@media (hover: none) and (pointer: coarse) {
+  .tm-feedback-paste-hint,
+  .tm-feedback-dropzone-desktop {
+    display: none !important;
+  }
+
+  .tm-feedback-dropzone-touch {
+    display: inline-flex !important;
+  }
+}
+
+.tm-feedback-dropzone-touch {
+  display: none;
+}
