@@ -22,11 +22,11 @@ export function companyInitials(name: string): string {
 // ── Stage meta ────────────────────────────────────────────────────
 export const STAGE_META: Record<ApplicationStatus, { label: string; color: string }> = {
   saved:        { label: "Saved",        color: "var(--tm-text-muted)" },
-  applied:      { label: "Applied",      color: "#A78BFA" },
-  screening:    { label: "Screening",    color: "#F59E0B" },
+  applied:      { label: "Applied",      color: "var(--tm-info)" },
+  screening:    { label: "Screening",    color: "var(--tm-warning)" },
   interviewing: { label: "Interviewing", color: "var(--tm-interactive)" },
   final_round:  { label: "Final Round",  color: "var(--tm-interactive)" },
-  offer:        { label: "Offer",        color: "#4ADE80" },
+  offer:        { label: "Offer",        color: "var(--tm-success)" },
   ghosted:      { label: "Ghosted",      color: "var(--tm-text-faint)" },
   rejected:     { label: "Rejected",     color: "var(--tm-danger)" },
   withdrew:     { label: "Withdrew",     color: "var(--tm-text-faint)" },
@@ -72,7 +72,7 @@ export function StatusDot({ stage }: { stage: ApplicationStatus }) {
 
 // ── FitBar ────────────────────────────────────────────────────────
 export function FitBar({ fit }: { fit: number }) {
-  const color = fit >= 80 ? "#4ADE80" : fit >= 65 ? "var(--tm-interactive)" : "#F59E0B"
+  const color = fit >= 80 ? "var(--tm-success)" : fit >= 65 ? "var(--tm-interactive)" : "var(--tm-warning)"
   return (
     <div className="tm-lib-fit-bar-wrap">
       <div className="tm-lib-fit-track">
