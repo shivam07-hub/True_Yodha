@@ -230,3 +230,37 @@ async def refund(
         action, reason, amount, ref_table, ref_id,
     )
     return new_balance
+
+
+async def reward(
+    user_id: str,
+    amount: int,
+    action: str,
+    reason: str,
+    *,
+    ref_table: str,
+    ref_id: str,
+) -> int:
+    """Credit a behavioural reward. Idempotent on (action, ref_table, ref_id) —
+    re-saving the same originating row is a no-op (returns current balance).
+
+    Unlike `refund`, this is for positive engagement grants (e.g. adding a job to
+    the tracker), not provider-failure credits, so it emits no refund metric.
+    """
+    if amount <= 0:
+        return await get_xp_balance(user_id)
+    admin = get_supabase_admin()
+    result = admin.rpc("reward_xp", {
+        "p_user_id": user_id,
+        "p_amount": amount,
+        "p_action": action,
+        "p_reason": reason,
+        "p_ref_table": ref_table,
+        "p_ref_id": ref_id,
+    }).execute()
+    new_balance = int(result.data) if result.data is not None else await get_xp_balance(user_id)
+    _log.info(
+        "XP reward: user=%s action=%s amount=%d balance=→%d ref=%s/%s",
+        user_id, action, amount, new_balance, ref_table, ref_id,
+    )
+    return new_balance

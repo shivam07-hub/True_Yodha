@@ -197,6 +197,8 @@ class ApplicationResponse(BaseModel):
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
+    xp_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)
+    xp_balance: int | None = None                   # wallet balance after the reward (transient)
 
 
 class JobPathTargetInput(BaseModel):
@@ -309,6 +311,14 @@ class JobImportRequest(BaseModel):
     emerging_skills: list[EmergingSkillInput] = []
     capture_method: str = "visible_page"
     status: str = "saved"  # one of APPLICATION_STATUSES; manual web add sends "applied", extension defaults to saved
+
+
+class JobFileExtractResponse(BaseModel):
+    """Fields lifted from an uploaded job posting (PDF / DOCX / image)."""
+    company: str = ""
+    role: str = ""
+    location: str = ""
+    job_description: str = ""
 
 
 class NameCountItem(BaseModel):

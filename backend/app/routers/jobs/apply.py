@@ -1,6 +1,7 @@
+import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
@@ -9,13 +10,27 @@ from app.schemas import (
     APPLICATION_STATUSES,
     ApplicationResponse,
     ApplicationStatusUpdate,
+    JobFileExtractResponse,
     JobImportPreviewRequest,
     JobImportPreviewResponse,
     JobImportRequest,
 )
-from app.services import jobs_workflow
+from app.services import jobs_workflow, xp_service
+from app.services.cv_parser import extract_raw_text
+from app.services.job_file_parser import (
+    MAX_FILE_BYTES,
+    MIN_TEXT_CHARS,
+    JobFileParseError,
+    detect_file_kind,
+    extract_job_from_image,
+    extract_job_from_text,
+)
+from app.services.llm_provider import get_llm_provider, get_vision_provider
+from app.services.xp_policy import ADD_JOB_REWARD_XP
 
 from ._shared import cv_badge_from_row, to_application
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -55,6 +70,42 @@ async def preview_job_import(
     return JobImportPreviewResponse(**jobs_workflow.preview_imported_job(repo, body))
 
 
+@router.post("/import/extract-file", response_model=JobFileExtractResponse)
+async def extract_job_file(
+    file: UploadFile = File(...),
+    principal: Principal = Depends(get_principal),
+) -> JobFileExtractResponse:
+    """Parse an uploaded job posting (PDF / DOCX / screenshot) into tracker fields.
+
+    Free — no XP charge. PDF/DOCX reuse the CV text extractor; images go through
+    a vision LLM. The reward is granted later, on POST /import (the save).
+    """
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=422, detail="The file is empty.")
+    if len(data) > MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail="File too large — keep it under 8 MB.")
+
+    kind = detect_file_kind(file.content_type, file.filename, data)
+    try:
+        if kind in ("pdf", "docx"):
+            raw_text = extract_raw_text(data, kind)
+            if len(raw_text.strip()) < MIN_TEXT_CHARS:
+                raise HTTPException(
+                    status_code=422,
+                    detail="No readable text in that file. If it's a scan, upload it as an image instead.",
+                )
+            parsed = await extract_job_from_text(raw_text, get_llm_provider())
+        elif kind == "image":
+            parsed = await extract_job_from_image(data, file.content_type or "image/png", get_vision_provider())
+        else:
+            raise HTTPException(status_code=422, detail="Unsupported file — upload a PDF, Word doc, or an image.")
+    except JobFileParseError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return JobFileExtractResponse(**parsed)
+
+
 @router.post("/import", response_model=ApplicationResponse)
 async def import_job(
     body: JobImportRequest,
@@ -63,9 +114,26 @@ async def import_job(
 ) -> ApplicationResponse:
     if not body.role_name.strip() or not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Role name and job description are required.")
-    return ApplicationResponse(
-        **jobs_workflow.save_imported_job(repo, principal.id, body)
-    )
+    saved = jobs_workflow.save_imported_job(repo, principal.id, body)
+
+    # +XP for tracking a job. Idempotent per application id (reward_xp scans the
+    # ledger), so a retried save never double-credits. A reward failure must not
+    # fail the save — the job is already persisted.
+    try:
+        new_balance = await xp_service.reward(
+            principal.id,
+            ADD_JOB_REWARD_XP,
+            "add_job",
+            "Added a job to the tracker",
+            ref_table="job_applications",
+            ref_id=str(saved.get("id")),
+        )
+        saved["xp_earned"] = ADD_JOB_REWARD_XP
+        saved["xp_balance"] = new_balance
+    except Exception as exc:  # noqa: BLE001 — reward is best-effort, save already committed
+        _log.warning("add_job reward failed for user=%s id=%s: %s", principal.id, saved.get("id"), exc)
+
+    return ApplicationResponse(**saved)
 
 
 @router.put("/applications/{job_id}", response_model=ApplicationResponse)
