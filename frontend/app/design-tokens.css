@@ -163,7 +163,7 @@
   --tm-interactive-glow:   var(--tm-int-bg-hover);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   oklch(0.97 0.02 185 / 0.28);
+  --tm-interactive-grid:   oklch(0.97 0.02 185 / 0.05);
   --tm-interactive-fg:     var(--tm-brand-fg);
 
   --data-1:                oklch(0.62 0.13 185);
@@ -195,6 +195,21 @@
      JS mirror lives in lib/viewport.ts
      ───────────────────────────────────────────────────────── */
   --tm-bp-mobile:       768px;
+
+  /* ── Myrology sub-brand (premium · cosmic career) ────────────
+     Amethyst is the only place amethyst is allowed — the /welcome
+     bridge card and the /myrology surface. Never leaks into the
+     core teal product. ──────────────────────────────────────── */
+  --my-amethyst:        #B084FF;
+  --my-amethyst-hover:  #C9A8FF;
+  --my-amethyst-wash:   rgba(176, 132, 255, 0.10);
+  --my-amethyst-ring:   rgba(176, 132, 255, 0.28);
+  --my-amethyst-glow:   rgba(176, 132, 255, 0.42);
+  --my-amethyst-fg:     #1A0B2E;
+
+  --my-gold:            #E6B968;
+  --my-gold-wash:       rgba(230, 185, 104, 0.10);
+  --my-gold-ring:       rgba(230, 185, 104, 0.30);
 }
 
 /* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
@@ -243,7 +258,7 @@
   --tm-interactive-glow:   oklch(0.46 0.13 185 / 0.18);   /* casts, doesn't glow */
   --tm-interactive-wash:   oklch(0.95 0.03 185);
   --tm-interactive-ring:   oklch(0.60 0.13 185);
-  --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.22);
+  --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.06);
   --tm-interactive-fg:     #FFFFFF;
 }
 
@@ -328,7 +343,13 @@
 
 /* ── Base layer ────────────────────────────────────────────── */
 html, body {
-  background: var(--tm-bg);
+  /* Depth-glow over the ink base — teal top-left, amethyst bottom-right —
+     so the page reads as lit, not a flat near-black void. */
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 0%, rgba(0, 245, 212, 0.05), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 90% 100%, rgba(176, 132, 255, 0.04), transparent 60%),
+    var(--tm-bg);
+  background-attachment: fixed;
   color:      var(--tm-text);
   font-family: var(--tm-font-sans);
   font-size:   var(--tm-fs-body);
@@ -337,7 +358,8 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-/* Accent-reactive grid overlay */
+/* Accent-reactive grid overlay — faint, and masked to a soft center bloom
+   so it never reads as a full-bleed wireframe at the edges. */
 body::before {
   content: '';
   position: fixed;
@@ -348,10 +370,12 @@ body::before {
     linear-gradient(var(--tm-accent-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--tm-accent-grid) 1px, transparent 1px);
   background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
 }
 
 :root[data-surface="light"] body::before {
-  opacity: 0.65;
+  opacity: 0.8;
 }
 
 /* Radial vignette */
