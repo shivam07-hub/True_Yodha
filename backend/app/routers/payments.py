@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,11 +20,34 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.services import xp_service
 
-XP_PACK_PRICE_PAISE = 9900
-XP_PACK_AMOUNT = 1000
-XP_PACK_CURRENCY = "INR"
-XP_PACK_PRODUCT = "myro_xp_launch_pack"
+CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
+
+
+@dataclass(frozen=True)
+class Product:
+    """A purchasable item. ``key`` is the value persisted in billing_payments.product."""
+
+    key: str
+    price_paise: int
+    xp_amount: int  # 0 for entitlement products
+    kind: str  # "xp" | "entitlement"
+
+
+# Friendly request alias -> Product. Existing XP-pack clients omit the product
+# field entirely, so "xp_pack" must stay the default.
+PRODUCTS: dict[str, Product] = {
+    "xp_pack": Product(key="myro_xp_launch_pack", price_paise=9900, xp_amount=1000, kind="xp"),
+    "myrology": Product(key="myro_myrology_unlock", price_paise=49900, xp_amount=0, kind="entitlement"),
+}
+# Reverse lookup keyed by the persisted product key (used on verify).
+_PRODUCT_BY_KEY: dict[str, Product] = {p.key: p for p in PRODUCTS.values()}
+
+# Back-compat constants referenced elsewhere / in tests.
+XP_PACK_PRICE_PAISE = PRODUCTS["xp_pack"].price_paise
+XP_PACK_AMOUNT = PRODUCTS["xp_pack"].xp_amount
+XP_PACK_CURRENCY = CURRENCY
+XP_PACK_PRODUCT = PRODUCTS["xp_pack"].key
 
 router = APIRouter(prefix="/api", tags=["payments"])
 logger = logging.getLogger(__name__)
@@ -31,7 +55,8 @@ logger = logging.getLogger(__name__)
 
 class CreateOrderRequest(BaseModel):
     amount: int
-    currency: str = XP_PACK_CURRENCY
+    currency: str = CURRENCY
+    product: str = "xp_pack"
     receipt: str | None = Field(default=None, max_length=40)
 
 
@@ -39,6 +64,7 @@ class CreateOrderResponse(BaseModel):
     order_id: str
     amount: int
     currency: str
+    product: str
 
 
 class VerifyPaymentRequest(BaseModel):
@@ -51,6 +77,8 @@ class VerifyPaymentResponse(BaseModel):
     success: bool
     xp_earned: int
     new_xp_balance: int
+    product: str
+    myrology_unlocked: bool = False
 
 
 def _default_receipt(user_id: str) -> str:
@@ -121,6 +149,7 @@ def _record_created_payment(
     currency: str,
     receipt: str,
     xp_amount: int,
+    product_key: str,
 ) -> None:
     result = (
         get_supabase_admin()
@@ -133,6 +162,7 @@ def _record_created_payment(
                 "currency": currency,
                 "receipt": receipt,
                 "xp_amount": xp_amount,
+                "product": product_key,
                 "status": "created",
             }
         )
@@ -182,22 +212,27 @@ def _mark_payment_verified(
     return bool(result.data)
 
 
+def _unlock_myrology(user_id: str) -> None:
+    get_supabase_admin().table("user_profiles").update({"myrology_unlocked": True}).eq("id", user_id).execute()
+
+
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_order(
     body: CreateOrderRequest,
     principal: Principal = Depends(get_principal),
 ) -> CreateOrderResponse:
-    if body.amount < 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be at least 100 paise")
+    product = PRODUCTS.get(body.product)
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown product")
 
     currency = body.currency.strip().upper()
-    if currency != XP_PACK_CURRENCY:
+    if currency != CURRENCY:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only INR payments are supported")
 
-    if body.amount != XP_PACK_PRICE_PAISE:
+    if body.amount != product.price_paise:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only the 1000 XP launch pack is available",
+            detail="Amount does not match the selected product price",
         )
 
     receipt = body.receipt or _default_receipt(principal.id)
@@ -205,13 +240,13 @@ async def create_order(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receipt must be 40 characters or fewer")
 
     payload = {
-        "amount": body.amount,
+        "amount": product.price_paise,
         "currency": currency,
         "receipt": receipt,
         "notes": {
             "user_id": principal.id,
-            "xp_amount": str(XP_PACK_AMOUNT),
-            "product": XP_PACK_PRODUCT,
+            "xp_amount": str(product.xp_amount),
+            "product": product.key,
         },
     }
 
@@ -239,16 +274,18 @@ async def create_order(
         _record_created_payment,
         user_id=principal.id,
         razorpay_order_id=order_id,
-        amount_paise=int(order.get("amount", body.amount)),
+        amount_paise=int(order.get("amount", product.price_paise)),
         currency=str(order.get("currency", currency)),
         receipt=receipt,
-        xp_amount=XP_PACK_AMOUNT,
+        xp_amount=product.xp_amount,
+        product_key=product.key,
     )
 
     return CreateOrderResponse(
         order_id=order_id,
-        amount=int(order.get("amount", body.amount)),
+        amount=int(order.get("amount", product.price_paise)),
         currency=str(order.get("currency", currency)),
+        product=product.key,
     )
 
 
@@ -279,15 +316,19 @@ async def verify_payment(
     if not _signature_matches(body.razorpay_order_id, body.razorpay_payment_id, body.razorpay_signature):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Signature mismatch")
 
-    payment_currency = str(payment.get("currency", "")).strip().upper()
-    if int(payment.get("amount_paise", 0)) != XP_PACK_PRICE_PAISE or payment_currency != XP_PACK_CURRENCY:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order does not match launch pack")
+    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
+    if product is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order has an unknown product")
 
+    payment_currency = str(payment.get("currency", "")).strip().upper()
+    if int(payment.get("amount_paise", 0)) != product.price_paise or payment_currency != CURRENCY:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order does not match product price")
+
+    # Idempotent replay of an already-verified order.
     if payment.get("status") == "verified":
         if payment.get("razorpay_payment_id") != body.razorpay_payment_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment order was already verified")
-        balance = await xp_service.get_xp_balance(principal.id)
-        return VerifyPaymentResponse(success=True, xp_earned=0, new_xp_balance=balance)
+        return await _fulfilment_snapshot(principal.id, product)
 
     updated = await run_in_threadpool(
         _mark_payment_verified,
@@ -302,10 +343,30 @@ async def verify_payment(
             razorpay_order_id=body.razorpay_order_id,
         )
         if latest and latest.get("status") == "verified" and latest.get("razorpay_payment_id") == body.razorpay_payment_id:
-            balance = await xp_service.get_xp_balance(principal.id)
-            return VerifyPaymentResponse(success=True, xp_earned=0, new_xp_balance=balance)
+            return await _fulfilment_snapshot(principal.id, product)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment verification is already in progress")
 
-    xp_amount = int(payment.get("xp_amount") or XP_PACK_AMOUNT)
+    if product.kind == "entitlement":
+        await run_in_threadpool(_unlock_myrology, principal.id)
+        balance = await xp_service.get_xp_balance(principal.id)
+        return VerifyPaymentResponse(
+            success=True, xp_earned=0, new_xp_balance=balance, product=product.key, myrology_unlocked=True
+        )
+
+    xp_amount = int(payment.get("xp_amount") or product.xp_amount)
     new_balance = await xp_service.earn_xp(principal.id, xp_amount)
-    return VerifyPaymentResponse(success=True, xp_earned=xp_amount, new_xp_balance=new_balance)
+    return VerifyPaymentResponse(
+        success=True, xp_earned=xp_amount, new_xp_balance=new_balance, product=product.key
+    )
+
+
+async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentResponse:
+    """Response for an already-fulfilled order — earns nothing, reports current state."""
+    balance = await xp_service.get_xp_balance(user_id)
+    return VerifyPaymentResponse(
+        success=True,
+        xp_earned=0,
+        new_xp_balance=balance,
+        product=product.key,
+        myrology_unlocked=product.kind == "entitlement",
+    )

@@ -1856,10 +1856,18 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
+export type BillingProduct = "xp_pack" | "myrology"
+
+export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
+  xp_pack: 9900,
+  myrology: 49900,
+}
+
 export interface RazorpayOrderResponse {
   order_id: string
   amount: number
   currency: string
+  product: string
 }
 
 export interface RazorpayVerifyPayload {
@@ -1872,17 +1880,20 @@ export interface RazorpayVerifyResponse {
   success: boolean
   xp_earned: number
   new_xp_balance: number
+  product: string
+  myrology_unlocked: boolean
 }
 
 export const billing = {
-  createOrder: (token: string) =>
+  createOrder: (token: string, product: BillingProduct = "xp_pack") =>
     request<RazorpayOrderResponse>("/api/create-order", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: 9900,
+        amount: BILLING_PRODUCT_AMOUNT_PAISE[product],
         currency: "INR",
-        receipt: `xp_${Date.now()}`,
+        product,
+        receipt: `${product === "myrology" ? "myro" : "xp"}_${Date.now()}`,
       }),
     }),
 

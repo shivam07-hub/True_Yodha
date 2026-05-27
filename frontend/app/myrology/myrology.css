@@ -154,8 +154,12 @@
   cursor: pointer; box-shadow: 0 0 24px var(--my-amethyst-glow); transition: all 120ms var(--tm-ease, ease); text-align: center; letter-spacing: 0.01em;
 }
 .myrology-root .price-cta:hover { background: var(--my-amethyst-hover); transform: translateY(-1px); }
-.myrology-root .price-cta-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 11px; color: var(--tm-text-muted); }
+.myrology-root .price-cta:disabled { cursor: default; opacity: 0.7; transform: none; box-shadow: none; }
+.myrology-root .price-cta[data-state="unlocked"]:disabled { opacity: 1; background: var(--tm-success, #2ecc71); box-shadow: none; }
+.myrology-root .price-cta-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; font-size: 11px; color: var(--tm-text-muted); }
 .myrology-root .price-cta-meta .mono { color: var(--my-amethyst); }
+.myrology-root .cta-error { color: var(--tm-danger, #ff5d5d); }
+.myrology-root .cta-ok { color: var(--tm-success, #2ecc71); }
 .myrology-root .price-side { display: flex; flex-direction: column; gap: 14px; }
 .myrology-root .side-card { background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-md, 10px); padding: 18px; }
 .myrology-root .side-eyebrow { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 10px; }
@@ -220,7 +224,9 @@
 .myrology-root .bridge-eyebrow { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--my-amethyst); font-weight: 700; }
 .myrology-root .bridge-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text); margin-top: 8px; }
 .myrology-root .bridge-desc { font-size: 13px; color: var(--tm-text-muted); margin-top: 8px; line-height: 1.55; max-width: 580px; }
-.myrology-root .bridge-cta { text-align: right; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.myrology-root .bridge-cta { text-align: right; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; background: none; border: none; padding: 0; font: inherit; cursor: pointer; }
+.myrology-root .bridge-cta:disabled { cursor: default; opacity: 0.75; }
+.myrology-root .bridge-cta:not(:disabled):hover .bridge-arrow { background: var(--my-amethyst-hover); }
 .myrology-root .bridge-price { display: flex; align-items: baseline; gap: 8px; }
 .myrology-root .bridge-price .big { font-size: 32px; font-weight: 700; color: var(--my-amethyst); letter-spacing: -0.02em; line-height: 1; }
 .myrology-root .bridge-once { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-muted); }

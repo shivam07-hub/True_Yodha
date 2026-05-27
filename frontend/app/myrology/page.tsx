@@ -5,6 +5,7 @@ import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicTopNav } from "@/components/public/top-nav"
+import { MyrologyCheckoutProvider, MyrologyCta } from "./checkout"
 
 const HOUSES = ["Career", "Income", "Wisdom", "Travel", "Self", "Skills", "Method", "Partners", "Risk", "Public", "Network", "Sanctum"]
 const GLYPHS = ["♄", "♃", "♂", "☉", "♀", "☿", "☾", "♅", "♆", "♇", "⊕", "★"]
@@ -117,6 +118,7 @@ export default function MyrologyPage() {
 
       <PublicTopNav active="myrology" showSignIn />
 
+      <MyrologyCheckoutProvider>
       <main className="m-main">
         <section className="my-hero">
           <div className="my-hero-eyebrow">
@@ -197,11 +199,7 @@ export default function MyrologyPage() {
                   </div>
                 ))}
               </div>
-              <button type="button" className="price-cta">Unlock Myrology · Pay ₹499 →</button>
-              <div className="price-cta-meta">
-                <span>Secured by Razorpay · UPI · cards · wallets</span>
-                <span className="mono">7-day refund</span>
-              </div>
+              <MyrologyCta variant="price" />
             </div>
 
             <div className="price-side">
@@ -324,13 +322,7 @@ export default function MyrologyPage() {
                 and deliver your report within 12 hours. First session bookable within 48 hours.
               </div>
             </div>
-            <div className="bridge-cta">
-              <div className="bridge-price">
-                <span className="mono big">₹499</span>
-                <span className="bridge-once">one-time</span>
-              </div>
-              <span className="bridge-arrow">Pay &amp; start →</span>
-            </div>
+            <MyrologyCta variant="bridge" />
           </div>
         </section>
 
@@ -344,6 +336,7 @@ export default function MyrologyPage() {
           </div>
         </footer>
       </main>
+      </MyrologyCheckoutProvider>
     </div>
   )
 }

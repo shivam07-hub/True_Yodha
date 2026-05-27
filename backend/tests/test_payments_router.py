@@ -58,19 +58,7 @@ def _signature(order_id: str, payment_id: str, secret: str = "test_secret") -> s
     ).hexdigest()
 
 
-def test_create_order_rejects_amount_below_100() -> None:
-    with TestClient(app) as client:
-        response = client.post(
-            "/api/create-order",
-            json={"amount": 99, "currency": "INR", "receipt": "xp_test"},
-            headers={"Authorization": "Bearer token"},
-        )
-
-    assert response.status_code == 400
-    assert "at least 100 paise" in response.json()["detail"]
-
-
-def test_create_order_rejects_non_launch_pack_amount() -> None:
+def test_create_order_rejects_amount_not_matching_product() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/api/create-order",
@@ -79,7 +67,19 @@ def test_create_order_rejects_non_launch_pack_amount() -> None:
         )
 
     assert response.status_code == 400
-    assert "1000 XP launch pack" in response.json()["detail"]
+    assert "does not match" in response.json()["detail"]
+
+
+def test_create_order_rejects_unknown_product() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/create-order",
+            json={"amount": 9900, "currency": "INR", "product": "free_lunch"},
+            headers={"Authorization": "Bearer token"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Unknown product"
 
 
 def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,7 +97,12 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
         )
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"order_id": "order_test_123", "amount": 9900, "currency": "INR"}
+    assert response.json() == {
+        "order_id": "order_test_123",
+        "amount": 9900,
+        "currency": "INR",
+        "product": "myro_xp_launch_pack",
+    }
     assert fake_client.order.created_payload == {
         "amount": 9900,
         "currency": "INR",
@@ -110,6 +115,37 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
     assert recorded["amount_paise"] == 9900
     assert recorded["currency"] == "INR"
     assert recorded["xp_amount"] == 1000
+    assert recorded["product_key"] == "myro_xp_launch_pack"
+
+
+def test_create_order_myrology_records_entitlement_product(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = _FakeRazorpayClient()
+    recorded: dict[str, Any] = {}
+
+    monkeypatch.setattr(payments_router, "_razorpay_client", lambda: fake_client)
+    monkeypatch.setattr(payments_router, "_record_created_payment", lambda **kwargs: recorded.update(kwargs))
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/create-order",
+            json={"amount": 49900, "currency": "INR", "product": "myrology", "receipt": "myro_1"},
+            headers={"Authorization": "Bearer token"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "order_id": "order_test_123",
+        "amount": 49900,
+        "currency": "INR",
+        "product": "myro_myrology_unlock",
+    }
+    assert fake_client.order.created_payload["notes"] == {
+        "user_id": "user-1",
+        "xp_amount": "0",
+        "product": "myro_myrology_unlock",
+    }
+    assert recorded["xp_amount"] == 0
+    assert recorded["product_key"] == "myro_myrology_unlock"
 
 
 def test_create_order_maps_razorpay_auth_failure_to_gateway_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -222,9 +258,65 @@ def test_verify_payment_credits_xp_after_valid_signature(monkeypatch: pytest.Mon
         )
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"success": True, "xp_earned": 1000, "new_xp_balance": 2200}
+    assert response.json() == {
+        "success": True,
+        "xp_earned": 1000,
+        "new_xp_balance": 2200,
+        "product": "myro_xp_launch_pack",
+        "myrology_unlocked": False,
+    }
     assert marked["payment_row_id"] == "row-1"
     assert marked["razorpay_payment_id"] == "pay_test_123"
+
+
+def test_verify_payment_unlocks_myrology_entitlement(monkeypatch: pytest.MonkeyPatch) -> None:
+    unlocked: list[str] = []
+
+    monkeypatch.setattr(
+        payments_router,
+        "_find_payment_by_order",
+        lambda *, user_id, razorpay_order_id: {
+            "id": "row-9",
+            "status": "created",
+            "razorpay_payment_id": None,
+            "amount_paise": 49900,
+            "currency": "INR",
+            "xp_amount": 0,
+            "product": "myro_myrology_unlock",
+        },
+    )
+    monkeypatch.setattr(payments_router, "_mark_payment_verified", lambda **_kwargs: True)
+    monkeypatch.setattr(payments_router, "_unlock_myrology", lambda user_id: unlocked.append(user_id))
+
+    async def _get_xp_balance(user_id: str) -> int:
+        return 1500
+
+    async def _earn_xp(user_id: str, amount: int) -> int:
+        pytest.fail("entitlement purchase must not credit XP")
+
+    monkeypatch.setattr(payments_router.xp_service, "get_xp_balance", _get_xp_balance)
+    monkeypatch.setattr(payments_router.xp_service, "earn_xp", _earn_xp)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/verify-payment",
+            json={
+                "razorpay_order_id": "order_test_123",
+                "razorpay_payment_id": "pay_test_123",
+                "razorpay_signature": _signature("order_test_123", "pay_test_123"),
+            },
+            headers={"Authorization": "Bearer token"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "success": True,
+        "xp_earned": 0,
+        "new_xp_balance": 1500,
+        "product": "myro_myrology_unlock",
+        "myrology_unlocked": True,
+    }
+    assert unlocked == ["user-1"]
 
 
 def test_verify_payment_is_idempotent_for_already_verified_order(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -264,4 +356,10 @@ def test_verify_payment_is_idempotent_for_already_verified_order(monkeypatch: py
         )
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"success": True, "xp_earned": 0, "new_xp_balance": 2200}
+    assert response.json() == {
+        "success": True,
+        "xp_earned": 0,
+        "new_xp_balance": 2200,
+        "product": "myro_xp_launch_pack",
+        "myrology_unlocked": False,
+    }
