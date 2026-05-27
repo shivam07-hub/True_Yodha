@@ -1,9 +1,33 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.database import get_supabase_admin
-from app.schemas import CompanyPageResponse, CompanyReviewItem
+from app.repositories.jobs import JobsRepository, get_public_jobs_repository
+from app.schemas import (
+    CompanyJobCardItem,
+    CompanyJobsResponse,
+    CompanyPageResponse,
+    CompanyReviewItem,
+)
 
 router = APIRouter(prefix="/companies", tags=["companies"])
+
+
+@router.get("/{company_name}/jobs", response_model=CompanyJobsResponse)
+async def get_company_jobs(
+    company_name: str,
+    page: int = Query(1, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=50),
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> CompanyJobsResponse:
+    result = repo.fetch_company_jobs_page(company_name, page=page, page_size=page_size)
+    return CompanyJobsResponse(
+        company_name=company_name,
+        total=result["total"],
+        jobs=[CompanyJobCardItem(**j) for j in result["jobs"]],
+        page=result["page"],
+        page_size=result["page_size"],
+        has_next=result["has_next"],
+    )
 
 
 @router.get("/{company_name}", response_model=CompanyPageResponse)

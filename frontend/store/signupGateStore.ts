@@ -5,6 +5,8 @@ export type SignupGateSurface =
   | "cv_upload_tap"
   | "ghost_radar"
   | "share_deeplink"
+  | "company_jobs_save"
+  | "company_jobs_cta"
   | "manual"
 
 export interface SignupGateOpenParams {

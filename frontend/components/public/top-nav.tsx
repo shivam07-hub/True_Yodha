@@ -7,7 +7,7 @@ import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
 
-export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login"
+export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs"
 
 interface PublicTopNavProps {
   active?: PublicNavPage
@@ -16,6 +16,7 @@ interface PublicTopNavProps {
 
 const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
   { label: "CV Hub", href: "/about", id: "about" },
+  { label: "How it works", href: "/docs", id: "docs" },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
 ]
 

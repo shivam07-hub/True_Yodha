@@ -1309,6 +1309,25 @@ export interface CompanyPage {
   reviews: CompanyReviewItem[]
 }
 
+export interface CompanyJobCard {
+  job_id: string
+  title: string
+  location: string | null
+  location_city: string | null
+  location_country: string | null
+  location_mode: string | null
+  primary_skills: string[]
+}
+
+export interface CompanyJobsResponse {
+  company_name: string
+  total: number
+  jobs: CompanyJobCard[]
+  page: number
+  page_size: number
+  has_next: boolean
+}
+
 export interface CVBadge {
   version_id: number
   version_number: number
