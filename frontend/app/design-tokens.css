@@ -16,23 +16,30 @@
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Base surface (constant across accent modes) ─────────── */
+  /* ── Base surface (Ghost — default · MYRO-THM-001 spec) ──── */
   --tm-bg:            #050A18;
-  --tm-surface:       #0B1222;
-  --tm-surface-2:     #111A2E;
-  --tm-border:        #1B2540;
-  --tm-border-soft:   rgba(255, 255, 255, 0.06);
+  --tm-surface:       #0B1424;
+  --tm-surface-2:     #0F1A2E;
+  --tm-surface-3:     #16223C;   /* highest elevation · modals · floating toolbars */
+  --tm-border:        #1A2540;
+  --tm-border-soft:   rgba(26, 37, 64, 0.55);
+  --tm-border-faint:  rgba(58, 69, 96, 0.35);   /* background grid · whisper lines */
   --tm-scrim:         rgba(5, 10, 24, 0.72);
   --tm-overlay-soft:  rgba(5, 10, 24, 0.50);
   --tm-hover-soft:    rgba(255, 255, 255, 0.02);
   --tm-hover:         rgba(255, 255, 255, 0.04);
   --tm-icon-muted:    rgba(240, 244, 255, 0.38);
 
-  /* ── Text (constant across accent modes) ─────────────────── */
-  --tm-text:          #F0F4FF;
-  --tm-text-muted:    #9AA4BF;
-  --tm-text-faint:    #6F7891;
+  /* ── Text (Ghost) ────────────────────────────────────────── */
+  --tm-text:          #E8F0FF;
+  --tm-text-muted:    #7A88A8;
+  --tm-text-faint:    #3A4560;
   --tm-accent-text:   #67E8F9;
+
+  /* ── Info (neutral notice · applied-stage indicator) ─────── */
+  --tm-info:          #A78BFA;
+  --tm-info-wash:     rgba(167, 139, 250, 0.12);
+  --tm-info-border:   rgba(167, 139, 250, 0.30);
 
   /* ── Status ramps (OKLCH) ────────────────────────────────── */
   --tm-success:         oklch(0.74 0.14 145);
@@ -190,39 +197,51 @@
   --tm-bp-mobile:       768px;
 }
 
-/* ── Surface: LIGHT (executive white) ──────────────────────── */
+/* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
+   Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
+   tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
 :root[data-surface="light"] {
-  --tm-bg:            #FFFFFF;
-  --tm-surface:       #FFFFFF;
-  --tm-surface-2:     #F4F7FA;
-  --tm-bg-inset:      #F4F7FA;   /* input wells / inset surfaces on light */
-  --tm-border:        #DDE3EA;
-  --tm-border-soft:   rgba(32, 33, 36, 0.14);
+  --tm-bg:            #F4F6FA;   /* page — cool off-white */
+  --tm-surface:       #FFFFFF;   /* cards — pure paper */
+  --tm-surface-2:     #FAFBFD;   /* hover / nested rows / inset */
+  --tm-surface-3:     #EEF1F6;   /* highest elevation · modals tint */
+  --tm-bg-inset:      #FAFBFD;   /* input wells / inset surfaces on light */
+  --tm-border:        #E1E6EE;
+  --tm-border-soft:   rgba(225, 230, 238, 0.85);
+  --tm-border-faint:  rgba(139, 150, 172, 0.20);
   --tm-scrim:         rgba(15, 23, 42, 0.32);
   --tm-overlay-soft:  rgba(15, 23, 42, 0.16);
   --tm-hover-soft:    rgba(32, 33, 36, 0.03);
   --tm-hover:         rgba(32, 33, 36, 0.06);
   --tm-icon-muted:    rgba(32, 33, 36, 0.48);
 
-  --tm-text:          #16181D;
-  --tm-text-muted:    #3F4752;
-  --tm-text-faint:    #667085;
+  --tm-text:          #050A18;   /* primary — mirror of ghost bg */
+  --tm-text-muted:    #4A5878;
+  --tm-text-faint:    #8B96AC;
 
-  --tm-shadow-1:      0 1px 2px rgba(15, 23, 42, 0.10);
-  --tm-shadow-2:      0 18px 44px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  /* Spirit status colors darken for WCAG AA on white */
+  --tm-info:          #7C3AED;
+  --tm-info-wash:     rgba(124, 58, 237, 0.08);
+  --tm-info-border:   rgba(124, 58, 237, 0.30);
+
+  --tm-shadow-1:      0 1px 2px rgba(10, 20, 40, 0.04);
+  --tm-shadow-2:      0 4px 14px rgba(10, 20, 40, 0.06), 0 1px 2px rgba(10, 20, 40, 0.04);
+  /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
+  --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
   --tm-brand:         oklch(0.55 0.18 175);
   --tm-brand-glow:    oklch(0.55 0.18 175 / 0.22);
   --tm-brand-fg:      oklch(0.99 0.002 250);
 
+  /* Spirit accent ≈ #00A88F — deeper teal, same DNA, AA on white */
   --tm-interactive:        oklch(0.46 0.13 185);
   --tm-interactive-hover:  oklch(0.40 0.13 185);
   --tm-interactive-press:  oklch(0.34 0.11 185);
-  --tm-interactive-glow:   oklch(0.82 0.07 185);
+  --tm-interactive-glow:   oklch(0.46 0.13 185 / 0.18);   /* casts, doesn't glow */
   --tm-interactive-wash:   oklch(0.95 0.03 185);
   --tm-interactive-ring:   oklch(0.60 0.13 185);
   --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.22);
-  --tm-interactive-fg:     oklch(0.99 0.002 250);
+  --tm-interactive-fg:     #FFFFFF;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────

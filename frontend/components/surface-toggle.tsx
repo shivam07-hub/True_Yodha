@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react"
 
-type Variation = "signal" | "forge"
+// Ghost (dark) ↔ Spirit (light) are SURFACE modes that share one brand teal
+// accent (MYRO-THM-001). Spirit is never amber — it's the same teal, deepened
+// to #00A88F for AA on white via the [data-surface="light"] token override.
+type Surface = "dark" | "light"
 
 const ACCENT_STORAGE_KEY = "tm.accent"
 const SURFACE_STORAGE_KEY = "tm.surface"
-const DEFAULT_VARIATION: Variation = "forge"
 
 // Ghost = dark/teal mode
 function GhostIcon() {
@@ -36,38 +38,34 @@ function SpiritIcon() {
 }
 
 export function SurfaceToggle() {
-  const [variation, setVariation] = useState<Variation>(DEFAULT_VARIATION)
+  const [surface, setSurface] = useState<Surface>("dark")
 
   useEffect(() => {
-    const storedAccent = (typeof window !== "undefined"
-      ? (localStorage.getItem(ACCENT_STORAGE_KEY) as Variation | null)
-      : null)
-    const storedSurface = (typeof window !== "undefined"
-      ? localStorage.getItem(SURFACE_STORAGE_KEY)
-      : null)
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem(SURFACE_STORAGE_KEY) : null
+    const next: Surface =
+      stored === "light" || stored === "dark"
+        ? stored
+        : typeof window !== "undefined" &&
+            window.matchMedia("(prefers-color-scheme: light)").matches
+          ? "light"
+          : "dark"
 
-    const next: Variation =
-      storedAccent === "signal" || storedAccent === "forge"
-        ? storedAccent
-        : storedSurface === "light"
-          ? "forge"
-          : DEFAULT_VARIATION
-
-    applyVariation(next)
-    setVariation(next)
+    applySurface(next)
+    setSurface(next)
   }, [])
 
-  function applyVariation(next: Variation) {
-    const nextSurface = next === "forge" ? "light" : "dark"
-    document.documentElement.setAttribute("data-accent", next)
-    document.documentElement.setAttribute("data-surface", nextSurface)
-    localStorage.setItem(ACCENT_STORAGE_KEY, next)
-    localStorage.setItem(SURFACE_STORAGE_KEY, nextSurface)
+  function applySurface(next: Surface) {
+    document.documentElement.setAttribute("data-surface", next)
+    // One brand teal in both modes — pin accent to signal, retire amber leak.
+    document.documentElement.setAttribute("data-accent", "signal")
+    localStorage.setItem(SURFACE_STORAGE_KEY, next)
+    localStorage.setItem(ACCENT_STORAGE_KEY, "signal")
   }
 
-  function choose(next: Variation) {
-    setVariation(next)
-    applyVariation(next)
+  function choose(next: Surface) {
+    setSurface(next)
+    applySurface(next)
   }
 
   return (
@@ -79,10 +77,10 @@ export function SurfaceToggle() {
       {/* Ghost = dark / teal */}
       <button
         type="button"
-        aria-pressed={variation === "signal"}
+        aria-pressed={surface === "dark"}
         aria-label="Ghost — dark mode"
         title="Ghost"
-        onClick={() => choose("signal")}
+        onClick={() => choose("dark")}
         style={{ padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: 5 }}
       >
         <GhostIcon />
@@ -91,10 +89,10 @@ export function SurfaceToggle() {
       {/* Spirit = white / light */}
       <button
         type="button"
-        aria-pressed={variation === "forge"}
+        aria-pressed={surface === "light"}
         aria-label="Spirit — light mode"
         title="Spirit"
-        onClick={() => choose("forge")}
+        onClick={() => choose("light")}
         style={{ padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: 5 }}
       >
         <SpiritIcon />
