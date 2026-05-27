@@ -194,3 +194,33 @@ def get_paid_jobs_provider() -> LLMProvider:
         # No fast-lane creds — fall back to standard chain so the feature still works.
         return _build_provider(OR_TIERS)
     return LLMProvider(providers)
+
+
+# Multimodal-capable models, cheapest first. Used for parsing a screenshot/photo
+# of a job posting (Add-a-job file upload). `complete()` is unchanged — vision is
+# just a message whose `content` is a [text, image_url] array.
+_VISION_OR_MODELS = ["openai/gpt-4o-mini", "google/gemma-3-12b-it"]
+
+
+def get_vision_provider() -> LLMProvider:
+    """Provider chain restricted to vision-capable models.
+
+    Gemini 2.0 flash-lite (cheap, multimodal) leads; OpenRouter gpt-4o-mini /
+    gemma-3 backstop it. Falls back to the standard chain only if no vision creds
+    exist (the caller will then fail cleanly on a non-vision model rather than
+    silently mis-parsing — image upload simply won't be offered without creds).
+    """
+    providers: list[_ProviderEntry] = []
+    if settings.google_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            "gemini-2.0-flash-lite",
+            None,
+        ))
+    if settings.openrouter_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.openrouter_api_key, base_url=_OR_BASE, default_headers=_OR_HEADERS),
+            _VISION_OR_MODELS[0],
+            {"models": _VISION_OR_MODELS},
+        ))
+    return LLMProvider(providers)

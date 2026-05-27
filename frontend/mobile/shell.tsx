@@ -24,23 +24,18 @@ export function AppShellSkeleton() {
     <SkeletonTheme baseColor={SKELETON_BASE} highlightColor={SKELETON_HIGHLIGHT} duration={1.6} borderRadius={6}>
       <div
         className="tm-shell-skeleton"
-        style={{ display: "flex", height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--tm-bg)" }}
+        style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--tm-bg)" }}
       >
-
-        {/* Desktop: sidebar skeleton */}
-        <div className="tm-sidebar-wrap" style={{
-          width: 220, flexShrink: 0,
-          background: "var(--tm-surface)",
-          borderRight: "1px solid var(--tm-border-soft)",
-          padding: 16, display: "flex", flexDirection: "column", gap: 12,
-        }}>
-          <Skeleton height={44} />
-          <Skeleton height={52} />
-          {[0, 1, 2, 3, 4].map(i => (
-            <div key={i} style={{ opacity: 1 - i * 0.15 }}>
-              <Skeleton height={40} />
-            </div>
-          ))}
+        {/* Desktop: top bar skeleton */}
+        <div className="tm-app-topbar" style={{ gap: 16 }}>
+          <Skeleton width={120} height={28} />
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 8 }}>
+            {[72, 64, 96, 56, 80, 64].map((w, i) => <Skeleton key={i} width={w} height={32} borderRadius={99} />)}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Skeleton width={80} height={32} borderRadius={99} />
+            <Skeleton width={34} height={34} circle />
+          </div>
         </div>
 
         {/* Mobile: top bar skeleton */}

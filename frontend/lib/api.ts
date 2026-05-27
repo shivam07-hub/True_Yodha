@@ -1354,6 +1354,15 @@ export interface ApplicationResponse {
   last_stage_changed_at?: string | null
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
+  xp_earned?: number | null
+  xp_balance?: number | null
+}
+
+export interface JobFileExtract {
+  company: string
+  role: string
+  location: string
+  job_description: string
 }
 
 export interface JobPathTarget {
@@ -1706,6 +1715,20 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ emerging_skills: [], ...body }),
     }),
+  // Parse an uploaded job posting (PDF / DOCX / image) into tracker fields.
+  // Multipart, so it bypasses `request`'s JSON body handling. Free — no XP.
+  extractFile: async (token: string, file: File): Promise<JobFileExtract> => {
+    const form = new FormData()
+    form.append("file", file)
+    const res = await fetch(`${BASE}/jobs/import/extract-file`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(extractError(body, res.status))
+    return body as JobFileExtract
+  },
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },

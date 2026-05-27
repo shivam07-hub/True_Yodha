@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { StepCV } from "@/components/onboarding/step-cv"
@@ -14,6 +14,7 @@ import type { CVUploadResult, CVUploadSource, ScoreResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
+import { useOnboardingHandoff } from "@/store/onboardingHandoff"
 import { MyroLogo } from "@/components/myro-logo"
 
 type Step = "cv" | "role" | "companies" | "ninja" | "score"
@@ -65,6 +66,15 @@ export default function OnboardingPage() {
     setCVUploadTask(INITIAL_CV_UPLOAD_TASK)
     setStep("role")
   }
+
+  // A CV picked on /welcome lands here via the in-memory handoff. Consume it
+  // once on mount and jump straight past the upload step.
+  const consumeHandoffCVFile = useOnboardingHandoff((s) => s.consumeCVFile)
+  useEffect(() => {
+    const handoff = consumeHandoffCVFile()
+    if (handoff) handleCVNext(handoff)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function beginCVUpload(currentToken: string): Promise<CVUploadCompletion> {
     if (cvUploadTask.status === "running") return cvUploadTask.promise

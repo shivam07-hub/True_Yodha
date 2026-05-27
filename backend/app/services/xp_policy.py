@@ -8,6 +8,10 @@ WELCOME_XP = 3000
 DIARY_ENTRY_XP = 30
 LINKEDIN_PROFILE_XP = 50
 
+# Behavioural reward — granted once per job added to the tracker (any source:
+# manual, pasted JD, or parsed file/image). Extraction itself stays free.
+ADD_JOB_REWARD_XP = 20
+
 SKILL_ADVICE_XP_COST = 20
 
 FOLLOW_COMPANY_XP_COST = 10

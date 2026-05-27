@@ -7,16 +7,16 @@ import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
 
-export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs"
+export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs" | "myrology"
 
 interface PublicTopNavProps {
   active?: PublicNavPage
   showSignIn?: boolean
 }
 
-const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage }[] = [
-  { label: "CV Hub", href: "/about", id: "about" },
-  { label: "How it works", href: "/docs", id: "docs" },
+const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage; accent?: boolean }[] = [
+  { label: "CV Hub",     href: "/about",     id: "about"     },
+  { label: "Myrology",  href: "/myrology",  id: "myrology", accent: true },
   { label: "Newsletter", href: "/newsletter", id: "newsletter" },
 ]
 
@@ -49,7 +49,7 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
           <Link
             key={item.id}
             href={item.href}
-            className="tm-public-nav-link"
+            className={`tm-public-nav-link${item.accent ? " tm-public-nav-link-accent" : ""}`}
             data-active={item.id === active}
           >
             {item.label}
@@ -65,20 +65,27 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
       </div>
 
       <div className="tm-public-nav-auth">
-        <Link
-          href="/signup"
-          className="tm-public-nav-signup"
-          onClick={(e) => {
-            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-            e.preventDefault()
-            signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
-          }}
-        >
-          Sign up
-        </Link>
-        {showSignIn && (
+        {(showSignIn || isAuthed) && (
           <Link href="/login" className="tm-public-nav-signin">
             Sign in →
+          </Link>
+        )}
+        {!isAuthed && (
+          <Link
+            href="/signup"
+            className="tm-public-nav-signup"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+              e.preventDefault()
+              signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
+            }}
+          >
+            Sign up
+          </Link>
+        )}
+        {isAuthed && (
+          <Link href="/home" className="tm-public-nav-signup">
+            Go to app →
           </Link>
         )}
       </div>

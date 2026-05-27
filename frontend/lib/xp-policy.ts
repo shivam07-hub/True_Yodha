@@ -13,6 +13,7 @@ export const XP_POLICY = {
   analyseJobCost: 10,
   matchRefreshCost: 50,
   verifiedInviteReward: 100,
+  addJobReward: 20,
 } as const
 
 export const XP_EARN_ACTIONS = [
@@ -42,6 +43,13 @@ export const XP_EARN_ACTIONS = [
     detail: "Upload a CV or write your experience during onboarding.",
     amount: `+${XP_POLICY.welcomeBaseline} XP`,
     meta: "once",
+    status: "live",
+  },
+  {
+    title: "Track a job",
+    detail: "Add a job to your tracker — paste it, or upload the posting as a PDF, Word doc, or screenshot.",
+    amount: `+${XP_POLICY.addJobReward} XP`,
+    meta: "per job",
     status: "live",
   },
   {
