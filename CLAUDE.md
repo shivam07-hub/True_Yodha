@@ -273,6 +273,136 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-05-28 late · Journey Strip mount #1 + CV upload picker hint + 2 memory entries)
+
+Short continuation session on top of the cv-hub landing rebuild. Picked up carry-over #1 from prior session, then handled an in-session user-confusion bug on the CV upload picker.
+
+### What shipped (uncommitted on Develop working tree)
+
+- **Journey Strip on SignupModal (carry-over #1)** — [components/auth/signup-modal.tsx](frontend/components/auth/signup-modal.tsx#L96-L98). Imports `OnboardingJourneyStrip` + `isJourneyDone` from `@/components/onboarding/journey-strip`; renders `<OnboardingJourneyStrip currentStep={1} compact />` at top of `tm-signup-modal__main` (above the crumb), gated on `!isJourneyDone()`. First-time signup users now see the 6-step ribbon with step 1 active. Users who completed journey (localStorage `myro_journey_completed_v1=1`) get the modal unchanged. Compact variant honors the `.tm-jstrip-compact` rules (smaller nodes/font); mobile <720px collapses titles to active-step-only.
+
+- **CV upload picker hint — "Files greyed out? Show Options → All Files"** — two surfaces:
+  - [components/onboarding/step-cv.tsx:161-163](frontend/components/onboarding/step-cv.tsx#L161) — under the dropzone meta line in the Upload + LinkedIn segments.
+  - [app/cv/page.tsx:409-411](frontend/app/cv/page.tsx#L409) — under "Accepted formats" line in the upload modal.
+
+  Copy: *"Files greyed out in the picker? Click Options (bottom-left) and switch the file-type dropdown to All Files."* — at 11px `--tm-text-faint`, same scale as the accepted-formats line.
+
+### Why the hint exists (root cause traced)
+
+Shivam dropped two screenshots (12.24 PM) of LinkedIn's GDPR data export (Basic_LinkedInDataExport.zip → Certifications.csv, Positions.csv, Profile.csv, Skills.csv...). The macOS picker greyed all CSVs and the ZIP — Shivam couldn't select any. Initial guess "file-system permissions" was wrong; verified the real cause is the `<input accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">` filter at [step-cv.tsx:211](frontend/components/onboarding/step-cv.tsx#L211) and [app/cv/page.tsx:344](frontend/app/cv/page.tsx#L344). WebKit/Chromium tell the macOS Finder picker which types to highlight; everything else greys but is still accessible via *Show Options → All Files*. Two confusions stacked:
+
+1. **Wrong LinkedIn export entirely.** ADR-0006 L4 spec is the *Save to PDF* button (top of profile → More → Save to PDF). The GDPR data archive (Settings → Get a copy of your data) is a different thing — ZIP of CSVs that Myro cannot parse. UI says "Import from LinkedIn" — overloaded for both.
+2. **Picker silently greys CSVs.** No copy in the upload screen explains why, and the macOS "Show Options" toggle is one click away but invisible to most users.
+
+The hint addresses #2 by making the bypass discoverable. Doesn't fix #1 — see "Pending" below.
+
+### What is intentionally NOT fixed yet (the "pending" the user asked about)
+
+If a user bypasses the filter and drops a CSV / ZIP / image into the dropzone, [preflightCVUploadFile](frontend/lib/cv-file-detect.ts#L87) returns generic `unsupported_format` with copy *"Only PDF and DOCX files are supported."* That message doesn't tell the user **which** wrong file they grabbed or how to fix it.
+
+**Detector enrichment PR (parked):** extend `cv-file-detect.ts` with discriminated reason codes (`linkedin_data_zip` via PK magic + name heuristic, `spreadsheet`, `image`, `unknown`). UI maps each to tailored recovery copy — e.g. *"That's LinkedIn's data archive. We need your profile PDF — open profile → More → Save to PDF."* Memory entry: `project_cv_file_detector_enrichment.md`.
+
+### New requirement captured (not designed, not implemented)
+
+Shivam wants the CV upload to support **5 files at once in a single analysis batch**. No design yet. Memory entry `project_cv_upload_multi_file.md` lists the open design questions to grill before any code:
+
+1. Semantic shape — merge into super-baseline / keep N baselines side-by-side / compare-mode diff / baseline + N supporting artefacts?
+2. XP cost model — N × per-file or batch-discounted? Partial-failure refund semantics?
+3. Storage contract — `cv_versions` row-per-file with shared `batch_id`, or new `cv_batches` table?
+4. UI shape — pre-process preview, per-file progress vs aggregate, partial-failure behavior?
+5. Backend pipeline — `cv_upload_jobs` currently one-job-per-upload; extend with `parent_batch_id` (breaks idempotency-key CVUP1 contract — needs ADR).
+6. LLM cost gating — token-count estimate + funded-charge before any provider call.
+
+Picker changes required when implementing: add `multiple` to `<input>` on both upload surfaces + replace `handleFile(file)` with `handleFiles(files: File[])` plus max-5 enforcement.
+
+### Memory entries written (2 new)
+
+- `project_cv_upload_multi_file.md` NEW — multi-file CV analysis requirement + open design questions.
+- `project_cv_file_detector_enrichment.md` NEW — detector reason-code refactor + tailored recovery copy. Worth bundling with multi-file PR if both designs land same session.
+
+Both indexed in MEMORY.md.
+
+### Verify
+
+- `cd frontend && npx tsc --noEmit` — clean across all 3 touched files.
+- No backend changes. No migrations. Nothing to apply.
+- Not committed. Combine with prior-session uncommitted work (Hero phase 1 + Journey Strip + landing loop strip) into one or two clean commits next session.
+
+### Open carry-over for next session (rolls forward from prior session + adds)
+
+1. **Mount Journey Strip on `/cv` first visit** — `currentStep={5}` when `!isJourneyDone()` AND user has no tailored versions yet. Strip docks above the CV builder shell.
+2. **Wire `markJourneyDone()` trigger** — fire after first tailored CV PDF download. Hook into `cv.downloadPdf` success on a tailored (non-baseline) version.
+3. **Phase 3 — Scored section rebuild** (`reference/AAAAAA/Screenshot 2026-05-28 at 10.27.52 AM.png`). Riya Mehta CV mock + 4 bullets (Skill detection · JD fit score · Bullet rewrites · Versioned, not lost). Currently `SampleDiagnostic` renders that section; either swap or extend.
+4. **Phase 4 — Bottom CTA + footer "For institutions" link** routing to `/institutions` (NEW page, deferred from prior session).
+5. **`/institutions` landing page** — separate consumer-vs-B2B story per locked decision. Pricing, dashboards for placement officers, student rosters, bulk seat licensing surface.
+6. **ADR-0005 update** — strike "not a B2B sales tool" NOT, add B2B carve-out language. Cross-link `project_b2b_institutions_lane.md`.
+7. **Light-theme variant** of the landing — decide whether to ship per E9 system-default or keep dark-only pre-auth.
+8. **NEW — Multi-file CV analysis (5 files at once)** — `/grill-me` on the 6 design questions in `project_cv_upload_multi_file.md` before any code.
+9. **NEW — CV file detector enrichment** — ship the tailored rejection-copy PR per `project_cv_file_detector_enrichment.md`. Worth bundling with #8 if both designs converge.
+10. **Pre-existing unrelated dirty state** still on tree: `app/home/page.tsx`, `components/mission-control/topbar.tsx`, `lib/api.ts`, `lib/domain-data.ts`, untracked `components/onboarding/OnboardingCards.tsx` + `OnboardingChip.tsx` + `onboarding-cards.css`, plus `docs/free-llm-api-resources/`. Confirm with Shivam before bundling.
+11. **Nothing committed across the two 2026-05-28 sessions.** Suggested commit shape next session: `feat(landing): cv-hub rebuild — hero phase 1 + onboarding journey strip + signup modal mount` (bundles prior session's landing/strip work + this session's modal mount + picker hint).
+
+---
+
+## LAST SESSION SUMMARY (2026-05-28 · cv-hub.html landing rebuild — phases 1 + 2a/2b + Onboarding Journey Strip)
+
+End-to-end pass on `reference/building sign up page-handoff (2).zip` (`cv-hub.html` primary). Phased ship per locked plan (Hero → Loop → Scored → CTA). Hero done. Loop stripped from landing, repurposed as `<OnboardingJourneyStrip>` per Shivam's call. Nothing committed — all changes on working tree.
+
+### Decisions locked
+
+- **Stats truth:** honest static. Pills: `live · 27k+ jobs in feed` · `~10 min · avg first CV` · `private by default`. Refresh manually until a `/stats/landing` endpoint exists.
+- **Drop CV flow:** `router.push("/signup?next=/cv?upload=1")`. No client-side file hold. Backlog #13 stays closed (PV1 + anon-trial-closed honored).
+- **B2B is real** (reverses ADR-0005 NOT "not a B2B sales tool"). Placement committees buy, students log in via `/enterprise-signup`. Surface = separate `/institutions` landing, footer link only on `/`. Memory entry: `project_b2b_institutions_lane.md`.
+- **Scope:** phased PRs — hero · loop · scored · CTA. Hero shipped. Loop killed from landing → reborn as Journey Strip.
+- **Onboarding Journey Strip mount scope:** SignupModal + `/onboarding` + first `/cv` visit. `localStorage["myro_journey_completed_v1"]` clears strip after step 6 (Download). Term saved in `docs/UBIQUITOUS_LANGUAGE.md` Domain vocab.
+
+### What shipped (uncommitted on Develop working tree)
+
+**Phase 1 — Hero rebuild** (`frontend/components/public/landing-page.tsx` + `.css`)
+- Subhead extended to two-sentence Brooks-locked frame: *"One master CV, tailored for each job role. Score every version against the JD — know exactly which one to send."*
+- Dropzone trust shortened to `Private · encrypted · ~7s parse` (was 3-segment that wrapped to 2 lines on the rendered page; explicit no-wrap rule from Shivam — fit in one line or shorten).
+- Drop flow: file-hold + `setCVFile` + handoff store removed. Single button-style `<button>` routes to `/signup?next=/cv?upload=1`.
+- Right pane: SVG commit graph DELETED → replaced with tilted white CV mock card (`Your Name` · `Title · contact` · Profile/Experience/Skills/Education sections with shimmer lines + 1 accent-highlight bullet). Matches `reference/AAAAAA/Screenshot 2026-05-27 at 11.32.17 PM.png`. Removed because the SVG `<title>` element was firing as a browser tooltip on hover ("Example CV hub: one baseline with two tailored versions") and the commit-graph framing was duplicating signal that the loop section already carried.
+- New floating Myro Score badge (bottom-right of CV mock) + new skill-detected toast (top-right of CV mock). Both anchor-positioned via `tm-landing-hero-right { position: relative; min-height: 460px }`.
+- Stats strip added below "See how versions get scored" anchor.
+- **Hover/glow blinding bug fix:** `--tm-accent-wash` token resolves to `oklch(0.92 0.04 185)` (light-theme-targeted near-white). On dark hero hover bg it became a blinding wash. Same root for `--tm-accent-glow` on the Choose-file button's box-shadow halo. Patched: hover bg → `rgba(0, 245, 212, 0.06)`, Choose-file shadow `0 0 20px var(--tm-accent-glow)` → `0 0 8px rgba(0, 245, 212, 0.18)`. Skill toast, score badge, stats live-pill, stats-dot all converted from `var(--tm-accent-glow)` / `var(--tm-accent-wash)` to explicit `#22d3a8` + low-alpha cyan because the tokens carry light-theme luminance.
+- Dropzone title + meta got `white-space: nowrap; overflow: hidden; text-overflow: ellipsis`; body got `min-width: 0; overflow: hidden` so the grid 1fr column can shrink. `max-width: 480 → 560px`. Hero padding `56→40` top, gap `64→48`, grid `1fr 1fr → 1.05fr 0.95fr` to reduce dead space Shivam called out.
+- Mobile resets (1100px / 768px / 480px) updated for new anchored layers.
+- **Dead code dropped:** `BRANCHES`, `GHOST_Y` constants + `.tm-landing-graph-wrap`, `.tm-lg-rail|branch|dot|ghost-*|label|score|delta` + `@keyframes tm-lg-ghost-breath`. CSS leaner by ~58 lines.
+
+**Phase 2a — Landing loop stripped**
+- `TIMELINE` const + entire `<section className="tm-landing-timeline-section">` removed from `landing-page.tsx`.
+- `.tm-landing-timeline-section`, `.tm-landing-tl-eyebrow|rail|fill|step|node|num|time|title|desc` + all `is-done` / `is-active` rules + 4 mobile overrides dropped from `landing-page.css`. ~110 lines gone.
+
+**Phase 2b — Onboarding Journey Strip (NEW)**
+- New `frontend/components/onboarding/journey-strip.tsx` — `<OnboardingJourneyStrip currentStep={1..6} compact? />`. Exports `isJourneyDone()` + `markJourneyDone()` localStorage helpers (`myro_journey_completed_v1`).
+- New `frontend/components/onboarding/journey-strip.css` — page-scoped per ADR-0003. Rail with animated fill width = `((current-1)/5) * 100%`. Three node states: `is-done` (filled cyan) · `is-active` (cyan ring halo) · `is-pending` (border-only). Mobile <720px: titles hidden except for the active step (positioned absolute below the node). `prefers-reduced-motion` honored. Compact variant for tight chrome.
+- Wired to `app/onboarding/page.tsx`. Map: `cv→1` (Drop in) · `role→3` (Pick a target; step 2 "We read it" is silent background extraction) · `companies/ninja/score→4` (See gaps). Replaced the legacy 5-dot row in the header. Mounted in its own container row directly below the header (`max-width: 960px`, `padding: 20px 24px 0`).
+- `docs/UBIQUITOUS_LANGUAGE.md` — added Domain vocab row defining the term + code symbol + alias-blocklist (timeline, loop, progress bar).
+
+### Memory persisted
+- `project_b2b_institutions_lane.md` NEW — Reverses ADR-0005 NOT "not a B2B sales tool". Placement committees buy / students log in via enterprise-signup. Indexed in MEMORY.md.
+
+### Verify
+- `cd frontend && npx tsc --noEmit` — clean across all hero + strip changes.
+- Browser: `npm run dev`, http://localhost:3000 — Hero w/ CV mock, no commit graph, no timeline below; `/onboarding` (must be authed) shows the new 6-step strip at top, dot-row gone.
+- `prefers-reduced-motion: reduce` should freeze the rail-fill animation + skill-toast entrance + stat-dot pulse.
+- Backend untouched. No migration. Nothing to apply.
+
+### Open carry-over for next session
+1. **Mount Journey Strip on SignupModal** — `currentStep={1}` compact variant in the modal header. Hidden when `isJourneyDone()`.
+2. **Mount Journey Strip on `/cv` first visit** — `currentStep={5}` when `!isJourneyDone()` AND user has no tailored versions yet. Strip docks above the CV builder shell.
+3. **Wire `markJourneyDone()` trigger** — fire after a user downloads their first tailored CV PDF. Hook into `cv.downloadPdf` success on a tailored (non-baseline) version.
+4. **Phase 3 — Scored section rebuild** (`/Users/incognito/True_Yodha/reference/AAAAAA/Screenshot 2026-05-28 at 10.27.52 AM.png`). Riya Mehta CV mock + 4 bullets (Skill detection · JD fit score · Bullet rewrites · Versioned, not lost). Currently `SampleDiagnostic` renders that section; either swap or extend.
+5. **Phase 4 — Bottom CTA + footer "For institutions" link** routing to `/institutions` (NEW page, deferred from this session).
+6. **`/institutions` landing page** — separate consumer-vs-B2B story per locked decision. Pricing, dashboards for placement officers, student rosters, bulk seat licensing surface.
+7. **ADR-0005 update** — strike "not a B2B sales tool" NOT, add B2B carve-out language. Cross-link the new memory entry.
+8. **Light-theme variant** of the landing (`reference/AAAAAA/About_CV_hub_landing page.png` + `Aa_28thMay.png` show a LIGHT version with "DAY 1 · FIRST RITUAL · Manifest your company, align your CV. Ready in 10 mins."). Decide whether to honor E9 system-default by shipping the light variant too, or keep dark-only on landing pre-auth.
+9. **Pre-existing unrelated dirty state** still on tree from prior sessions: `app/home/page.tsx`, `components/mission-control/topbar.tsx`, `lib/api.ts`, `lib/domain-data.ts`, untracked `components/onboarding/OnboardingCards.tsx` + `OnboardingChip.tsx` + `onboarding-cards.css`, plus `docs/free-llm-api-resources/`. Confirm with Shivam before bundling into the next commit.
+10. **Nothing committed this session.** First commit of next session should be a clean `feat(landing): cv-hub rebuild — hero phase 1 + onboarding journey strip` plus a follow-up `feat(onboarding): journey strip wiring across signup + /cv` once carry-over items 1-3 land.
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-27 · Loop C P0 fix — company page → jobs surface)
 
 ### P1 PRIORITY FOR NEXT SESSION — Intel country→city cascade + onboarding personalization

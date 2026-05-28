@@ -16,8 +16,17 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 import { useOnboardingHandoff } from "@/store/onboardingHandoff"
 import { MyroLogo } from "@/components/myro-logo"
+import { OnboardingJourneyStrip } from "@/components/onboarding/journey-strip"
 
 type Step = "cv" | "role" | "companies" | "ninja" | "score"
+
+const JOURNEY_STEP_MAP: Record<Step, 1 | 2 | 3 | 4 | 5 | 6> = {
+  cv: 1,
+  role: 3,
+  companies: 4,
+  ninja: 4,
+  score: 4,
+}
 
 type CVUploadCompletion =
   | { ok: true; result: CVUploadResult }
@@ -166,8 +175,6 @@ export default function OnboardingPage() {
     setStep("cv")
   }
 
-  const STEPS: Step[] = ["cv", "role", "companies", "ninja", "score"]
-  const stepIndex = STEPS.indexOf(step)
   const cvStatus = cvUploadTask.status as CVAnalysisStatus
 
   if (!ready) return null
@@ -183,18 +190,6 @@ export default function OnboardingPage() {
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {STEPS.map((s, i) => (
-              <div
-                key={s}
-                style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: i <= stepIndex ? "var(--tm-interactive)" : "var(--tm-border)",
-                  transition: "background var(--tm-dur) var(--tm-ease)",
-                }}
-              />
-            ))}
-          </div>
           {step !== "score" && (
             <button
               type="button"
@@ -214,6 +209,11 @@ export default function OnboardingPage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Journey strip */}
+      <div style={{ padding: "20px 24px 0", maxWidth: 960, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+        <OnboardingJourneyStrip currentStep={JOURNEY_STEP_MAP[step]} />
       </div>
 
       {/* Content */}

@@ -11,53 +11,44 @@ interface Props {
 }
 
 export function LinkedInDisclosure({ surface, variant = "auth" }: Props) {
+  const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    if (e.currentTarget.open) {
+      signupEvents.linkedinDisclosureExpanded({ surface })
+    }
+  }
+
   if (variant === "cv") {
     return (
-      <details
-        className="tm-auth-disclosure"
-        onToggle={(e) => {
-          if ((e.currentTarget as HTMLDetailsElement).open) {
-            signupEvents.linkedinDisclosureExpanded({ surface })
-          }
-        }}
-      >
-        <summary>What gets read from the PDF?</summary>
+      <details className="tm-auth-disclosure" onToggle={handleToggle}>
+        <summary>What we read from your PDF</summary>
         <div className="tm-auth-disclosure-body">
-          <dl>
-            <dt>We read</dt>
-            <dd>roles, dates, skills, education, summary.</dd>
-            <dt>We grant</dt>
-            <dd>+50 XP for linking your LinkedIn profile, one time.</dd>
-            <dt>We don&apos;t</dt>
-            <dd>post on your behalf, message connections, or scrape your network.</dd>
-          </dl>
+          <p>
+            Roles, dates, skills, education, and the summary you&apos;ve already written —
+            the same handful of things a recruiter scans in thirty seconds.
+          </p>
+          <p className="tm-auth-disclosure-never">
+            <span className="tm-auth-disclosure-never-tag">Never</span>
+            Your PDF stays in your hub. Tailored versions are yours to download, share, or delete.
+            Nothing auto-sent. Nothing stored where you can&apos;t see it.
+          </p>
         </div>
       </details>
     )
   }
 
   return (
-    <details
-      className="tm-auth-disclosure"
-      onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open) {
-          signupEvents.linkedinDisclosureExpanded({ surface })
-        }
-      }}
-    >
-      <summary>What does LinkedIn share with Myro?</summary>
+    <details className="tm-auth-disclosure" onToggle={handleToggle}>
+      <summary>What LinkedIn shows us</summary>
       <div className="tm-auth-disclosure-body">
-        <dl>
-          <dt>We read</dt>
-          <dd>name, email, profile picture, LinkedIn vanity URL, headline, verification status.</dd>
-          <dt>We grant</dt>
-          <dd>+50 XP for connecting LinkedIn — one time only.</dd>
-          <dt>We don&apos;t</dt>
-          <dd>
-            post on your behalf, message connections, scrape your network, or read your work history.
-            You&apos;ll explicitly tap &ldquo;Share to LinkedIn&rdquo; inside Myro for anything to leave.
-          </dd>
-        </dl>
+        <p>
+          Your name, email, profile picture, and the headline you&apos;ve already made public on LinkedIn.
+          Nothing private. Nothing you haven&apos;t already published.
+        </p>
+        <p className="tm-auth-disclosure-never">
+          <span className="tm-auth-disclosure-never-tag">Never</span>
+          We don&apos;t post for you, message your network, or read who you&apos;re connected to.
+          If something needs to leave Myro, you tap a button to send it.
+        </p>
       </div>
     </details>
   )

@@ -406,6 +406,9 @@ function CVPage() {
               <div style={{ marginTop: 10, fontSize: 11, color: "var(--tm-text-faint)" }}>
                 Accepted formats: PDF, DOCX · Max size: 10MB
               </div>
+              <div style={{ marginTop: 4, fontSize: 11, color: "var(--tm-text-faint)" }}>
+                Files greyed out in the picker? Click <em>Options</em> (bottom-left) and switch the file-type dropdown to <em>All Files</em>.
+              </div>
               {uploadFailureCount >= 3 && (
                 <div style={{
                   marginTop: 12,
