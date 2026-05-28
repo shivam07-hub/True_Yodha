@@ -1,0 +1,214 @@
+// Synthetic data driving the public Intel mirror surface. Real backend
+// analytics (companies/industries/cities/totals) are blended with these
+// templates to render jobs/sparks/velocities for the always-on demo feel.
+
+export interface RoleTemplate {
+  title: string
+  skills: string[]
+}
+
+export const ROLE_TEMPLATES: RoleTemplate[] = [
+  { title: "Senior Backend Engineer", skills: ["Go", "Postgres", "Distributed"] },
+  { title: "Staff Software Engineer", skills: ["Rust", "Systems", "Perf"] },
+  { title: "Product Engineer", skills: ["TypeScript", "React", "Postgres"] },
+  { title: "Senior Product Designer", skills: ["Figma", "Prototyping", "Systems"] },
+  { title: "Brand Designer", skills: ["Figma", "Motion", "Type"] },
+  { title: "ML Research Engineer", skills: ["PyTorch", "CUDA", "Transformers"] },
+  { title: "Applied AI Engineer", skills: ["Python", "LLMs", "Evals"] },
+  { title: "Platform Engineer", skills: ["Kubernetes", "Go", "Terraform"] },
+  { title: "Data Engineer", skills: ["dbt", "Snowflake", "Python"] },
+  { title: "Security Engineer", skills: ["AppSec", "Cloud", "Detection"] },
+  { title: "Solutions Engineer", skills: ["APIs", "Customer", "Python"] },
+  { title: "Growth Engineer", skills: ["TypeScript", "Experimentation", "SQL"] },
+  { title: "Engineering Manager", skills: ["Leadership", "Platform", "Hiring"] },
+  { title: "Design Lead, Platform", skills: ["Systems", "Leadership", "Figma"] },
+  { title: "Developer Advocate", skills: ["Writing", "Demos", "Community"] },
+]
+
+export const MODES = ["Remote", "Hybrid", "On-site"] as const
+
+export interface LogSeed {
+  op: "parse" | "fetch" | "index" | "embed"
+  path: string
+  meta: string
+}
+
+export type LogOp = LogSeed["op"]
+
+export const LOG_SEEDS: LogSeed[] = [
+  { op: "parse", path: "stripe.com/jobs/staff-payments-eng", meta: "73% fit · ok" },
+  { op: "fetch", path: "ramp.com/careers/ramp-ai/researcher", meta: "12.3kb" },
+  { op: "index", path: "designer-tooling · 3,142 jobs", meta: "tag updated" },
+  { op: "embed", path: "razorpay.com/jobs/principal-android", meta: "vec[1024] ok" },
+  { op: "parse", path: "anthropic.com/jobs/applied-ai-eng-london", meta: "84% fit · ok" },
+  { op: "fetch", path: "linear.app/careers/product-eng", meta: "8.1kb" },
+  { op: "parse", path: "vercel.com/careers/dx-eng", meta: "61% fit · ok" },
+  { op: "embed", path: "figma.com/careers/brand-designer", meta: "vec[1024] ok" },
+  { op: "index", path: "remote · eu · 1,408 jobs", meta: "tag updated" },
+  { op: "parse", path: "notion.so/careers/platform-eng", meta: "67% fit · ok" },
+  { op: "fetch", path: "cursor.com/careers/staff-eng", meta: "9.4kb" },
+  { op: "parse", path: "perplexity.ai/careers/search-eng", meta: "79% fit · ok" },
+  { op: "embed", path: "mistral.ai/careers/ml-research", meta: "vec[1024] ok" },
+  { op: "parse", path: "huggingface.co/jobs/dx-engineer", meta: "70% fit · ok" },
+  { op: "fetch", path: "mercury.com/careers/senior-designer", meta: "11.0kb" },
+  { op: "index", path: "yc-backed · 6,902 jobs", meta: "tag updated" },
+  { op: "parse", path: "plaid.com/careers/data-eng", meta: "62% fit · ok" },
+  { op: "embed", path: "datadog.com/careers/platform-eng", meta: "vec[1024] ok" },
+  { op: "parse", path: "supabase.com/careers/dx-engineer", meta: "75% fit · ok" },
+  { op: "fetch", path: "wiz.io/careers/security-research", meta: "10.2kb" },
+]
+
+export interface QuickFilter {
+  id: string
+  label: string
+}
+
+export const QUICK_FILTERS: QuickFilter[] = [
+  { id: "remote", label: "Remote" },
+  { id: "fresh", label: "Fresh · 24h" },
+  { id: "ai", label: "AI / ML" },
+  { id: "fintech", label: "Fintech" },
+  { id: "design", label: "Design" },
+  { id: "eu", label: "Europe" },
+  { id: "us", label: "US" },
+  { id: "india", label: "India" },
+]
+
+export const SEARCH_SUGGESTIONS = [
+  '"remote design lead in europe"',
+  '"applied AI engineer, fresh past 24h"',
+  '"staff infra · india · hybrid"',
+  '"brand designer · series B"',
+  '"ML research · paris or london"',
+]
+
+export const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States",
+  IN: "India",
+  UK: "United Kingdom",
+  GB: "United Kingdom",
+  DE: "Germany",
+  FR: "France",
+  NL: "Netherlands",
+  SG: "Singapore",
+  CA: "Canada",
+  PT: "Portugal",
+  IL: "Israel",
+  AU: "Australia",
+  JP: "Japan",
+  IE: "Ireland",
+  CH: "Switzerland",
+  ES: "Spain",
+  IT: "Italy",
+}
+
+// Deterministic logo color seeded from company name so reload is stable.
+const LOGO_PALETTE = [
+  "#635BFF", "#D97757", "#3395FF", "#5E6AD2", "#F24E1E",
+  "#1FB8CD", "#FA520F", "#FFD21E", "#5773FF", "#632CA6",
+  "#3ECF8E", "#FFC900", "#37C5C9", "#F2F0EB", "#E94B83",
+]
+
+function hashString(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i)
+    h |= 0
+  }
+  return Math.abs(h)
+}
+
+export function logoColorFor(name: string): string {
+  return LOGO_PALETTE[hashString(name) % LOGO_PALETTE.length]
+}
+
+export function velocityFor(name: string): number {
+  const h = hashString(name)
+  const v = (h % 60) - 10 // range -10..49
+  return v
+}
+
+export function sparkFor(name: string, roles: number): number[] {
+  const h = hashString(name)
+  const arr: number[] = []
+  for (let i = 0; i < 14; i++) {
+    const wave = Math.sin((h % 17) + i * 0.6) * (roles / 7)
+    const noise = (((h >> (i % 8)) & 0xff) / 255 - 0.5) * (roles / 6)
+    arr.push(Math.max(0, Math.round(roles / 14 + wave + noise)))
+  }
+  return arr
+}
+
+export function initialsFor(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+export function hexToRgba(hex: string, a: number): string {
+  const h = hex.replace("#", "")
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${a})`
+}
+
+export function fmtAgeSec(sec: number): string {
+  if (sec < 60) return `${sec}s ago`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
+  return `${Math.floor(sec / 86400)}d ago`
+}
+
+export function fmtAgeMin(min: number): string {
+  if (min < 60) return `${min}m ago`
+  if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`
+  return `${Math.floor(min / (60 * 24))}d ago`
+}
+
+export function fmtNum(n: number): string {
+  return n.toLocaleString("en-US")
+}
+
+// Build a stable list of synthetic jobs for a given company name. Reload-stable
+// because driven by hash(name + index).
+export function synthJobsFor(
+  companyName: string,
+  open: number,
+  cities: { name: string; country: string }[],
+): {
+  id: string
+  title: string
+  skills: string[]
+  city: string
+  country: string
+  mode: string
+  comp: string | null
+  ageMin: number
+}[] {
+  const n = Math.max(3, Math.min(6, open || 4))
+  const out: ReturnType<typeof synthJobsFor> = []
+  const baseHash = hashString(companyName)
+  for (let i = 0; i < n; i++) {
+    const h = hashString(`${companyName}-${i}`)
+    const tpl = ROLE_TEMPLATES[(h + baseHash) % ROLE_TEMPLATES.length]
+    const loc = cities[h % Math.max(cities.length, 1)] || { name: "Remote", country: "US" }
+    const mode = MODES[h % 3]
+    const base = 110 + ((h >> 3) % 90)
+    const top = base + 40 + ((h >> 5) % 80)
+    out.push({
+      id: `${companyName}-${i}`,
+      title: tpl.title,
+      skills: tpl.skills,
+      city: loc.name,
+      country: loc.country,
+      mode,
+      comp: ((h >> 4) & 1) ? `$${base}–${top}k` : null,
+      ageMin: (h >> 2) % (60 * 24 * 7),
+    })
+  }
+  return out
+}

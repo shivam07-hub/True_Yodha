@@ -9,6 +9,7 @@ import {
   detectCVFileTypeByName,
   detectCVMimeByMagic,
   detectCVMimeByType,
+  detectUnsupportedFormatKind,
   ensureCVExtension,
   preflightCVUploadFile,
 } from "../lib/cv-file-detect"
@@ -113,5 +114,89 @@ test("preflightCVUploadFile returns normalized name + mime for valid files", asy
   if (result.ok) {
     assert.equal(result.mime, PDF_MIME)
     assert.equal(result.safeName, "resume.pdf")
+  }
+})
+
+// ── detectUnsupportedFormatKind ──────────────────────────────────────────────
+
+test("detectUnsupportedFormatKind: CSV by extension → spreadsheet", async () => {
+  const file = fakeFile({ name: "Skills.csv", type: "text/csv" })
+  assert.equal(await detectUnsupportedFormatKind(file), "spreadsheet")
+})
+
+test("detectUnsupportedFormatKind: XLSX by extension → spreadsheet", async () => {
+  const file = fakeFile({ name: "data.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+  assert.equal(await detectUnsupportedFormatKind(file), "spreadsheet")
+})
+
+test("detectUnsupportedFormatKind: JPG by extension → image", async () => {
+  const file = fakeFile({ name: "photo.jpg", type: "image/jpeg" })
+  assert.equal(await detectUnsupportedFormatKind(file), "image")
+})
+
+test("detectUnsupportedFormatKind: PNG by extension → image", async () => {
+  const file = fakeFile({ name: "screenshot.png", type: "image/png" })
+  assert.equal(await detectUnsupportedFormatKind(file), "image")
+})
+
+test("detectUnsupportedFormatKind: ZIP named linkedin → linkedin_data_zip", async () => {
+  const file = fakeFile({ name: "Basic_LinkedInDataExport_05-28-2026.zip", type: "application/zip" })
+  assert.equal(await detectUnsupportedFormatKind(file), "linkedin_data_zip")
+})
+
+test("detectUnsupportedFormatKind: ZIP with no linkedin in name → unknown", async () => {
+  const file = fakeFile({ name: "archive.zip", type: "application/zip" })
+  assert.equal(await detectUnsupportedFormatKind(file), "unknown")
+})
+
+test("detectUnsupportedFormatKind: ZIP magic bytes + linkedin in name → linkedin_data_zip", async () => {
+  const zipHead = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14])
+  const file = fakeFile({ name: "linkedin-export", type: "application/octet-stream", bytes: zipHead })
+  assert.equal(await detectUnsupportedFormatKind(file), "linkedin_data_zip")
+})
+
+test("detectUnsupportedFormatKind: JPEG magic bytes with no extension → image", async () => {
+  const jpgHead = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
+  const file = fakeFile({ name: "selfie", type: "application/octet-stream", bytes: jpgHead })
+  assert.equal(await detectUnsupportedFormatKind(file), "image")
+})
+
+// ── preflightCVUploadFile: tailored rejection copy ───────────────────────────
+
+test("preflightCVUploadFile: LinkedIn zip gets tailored message", async () => {
+  const zipHead = new Uint8Array([0x50, 0x4b, 0x03, 0x04])
+  const file = fakeFile({ name: "Basic_LinkedInDataExport.zip", type: "application/zip", bytes: zipHead })
+  ;(file as unknown as { size: number }).size = 1024
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.code, "unsupported_format")
+    assert.equal(result.unsupportedKind, "linkedin_data_zip")
+    assert.match(result.message, /Save to PDF/)
+  }
+})
+
+test("preflightCVUploadFile: image gets tailored message", async () => {
+  const jpgHead = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
+  const file = fakeFile({ name: "cv-screenshot.jpg", type: "image/jpeg", bytes: jpgHead })
+  ;(file as unknown as { size: number }).size = 2048
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.code, "unsupported_format")
+    assert.equal(result.unsupportedKind, "image")
+    assert.match(result.message, /screenshot/)
+  }
+})
+
+test("preflightCVUploadFile: CSV gets tailored message", async () => {
+  const file = fakeFile({ name: "Positions.csv", type: "text/csv" })
+  ;(file as unknown as { size: number }).size = 512
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.code, "unsupported_format")
+    assert.equal(result.unsupportedKind, "spreadsheet")
+    assert.match(result.message, /PDF or DOCX/)
   }
 })

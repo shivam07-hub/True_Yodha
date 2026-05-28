@@ -359,15 +359,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
-  useEffect(() => {
-    if (!token || xpBalance <= 0) return
-    try {
-      if (window.localStorage.getItem("myro_xp_modal_seen_v1")) return
-      window.localStorage.setItem("myro_xp_modal_seen_v1", String(Date.now()))
-      setXPModalOpen(true)
-    } catch {}
-  }, [token, xpBalance])
-
   if (!ready) return <AppShellSkeleton />
 
   const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some((p) => pathname.startsWith(p))

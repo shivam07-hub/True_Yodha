@@ -86,6 +86,7 @@ tracked as PRs that update both this file and every symbol it names.
 | **XP** | Permanent currency; never resets; earned via forge sessions and diary entries |
 | **CV** | Curriculum vitae; the user's source-of-truth document |
 | **Intel** | Market intelligence: jobs, market signals, fit analysis |
+| **Onboarding Journey Strip** | The 6-step progress ribbon (Drop in → We read it → Pick a target → See gaps → Tailor → Download) shown to first-time users during signup + onboarding so they know where they are in the 0→10 minute loop. Code symbol: `<OnboardingJourneyStrip currentStep={1..6} />`. Aliases to avoid: timeline, loop, progress bar. |
 
 ---
 

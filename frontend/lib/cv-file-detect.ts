@@ -21,6 +21,13 @@ export type CVUploadPreflightErrorCode =
   | "file_too_large"
   | "unsupported_format"
 
+/** Discriminates WHY an unsupported file was rejected so callers can show tailored recovery copy. */
+export type UnsupportedFormatKind =
+  | "linkedin_data_zip"  // GDPR data archive — user needs Save to PDF instead
+  | "spreadsheet"        // CSV, XLSX, XLS
+  | "image"              // PNG, JPG, JPEG, HEIC
+  | "unknown"            // anything else not PDF/DOCX
+
 export type CVUploadPreflightResult =
   | {
       ok: true
@@ -33,6 +40,8 @@ export type CVUploadPreflightResult =
       message: string
       fileBytes: number
       maxBytes: number
+      /** Present when code === "unsupported_format". Use to render tailored CTAs. */
+      unsupportedKind?: UnsupportedFormatKind
     }
 
 export function detectCVFileTypeByName(name: string): CVFileMime | null {
@@ -66,6 +75,65 @@ export function ensureCVExtension(name: string, mime: CVFileMime): string {
   return `${base || "cv"}${ext}`
 }
 
+/**
+ * Classify WHY a file failed CV detection — name heuristics first, then magic bytes.
+ * Only called after `detectCVFile` returns null, so we know it's not PDF/DOCX.
+ */
+export async function detectUnsupportedFormatKind(file: {
+  name: string
+  type: string
+  slice: (start: number, end: number) => Blob
+}): Promise<UnsupportedFormatKind> {
+  const lower = file.name.toLowerCase()
+
+  if (lower.endsWith(".csv")) return "spreadsheet"
+  if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "spreadsheet"
+  if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".heic")) return "image"
+
+  // ZIP by extension or MIME — check if it's a LinkedIn data export
+  const isZipByName =
+    lower.endsWith(".zip") ||
+    file.type === "application/zip" ||
+    file.type === "application/x-zip-compressed"
+  if (isZipByName) {
+    return lower.includes("linkedin") || lower.includes("dataexport")
+      ? "linkedin_data_zip"
+      : "unknown"
+  }
+
+  // Fall back to magic bytes
+  try {
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    // ZIP magic: PK\x03\x04 (also matches DOCX, but detectCVFile already cleared those)
+    if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) {
+      return lower.includes("linkedin") || lower.includes("dataexport")
+        ? "linkedin_data_zip"
+        : "unknown"
+    }
+    // JPEG: ff d8
+    if (head[0] === 0xff && head[1] === 0xd8) return "image"
+    // PNG: 89 50 4e 47
+    if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return "image"
+  } catch {
+    // ignore — fall through to "unknown"
+  }
+
+  return "unknown"
+}
+
+function unsupportedFormatMessage(kind: UnsupportedFormatKind): string {
+  switch (kind) {
+    case "linkedin_data_zip":
+      return "That's LinkedIn's data archive. We need your profile PDF — open your profile → More → Save to PDF."
+    case "spreadsheet":
+      return "CSV and spreadsheet files aren't a CV format. Upload your CV as a PDF or DOCX."
+    case "image":
+      return "Looks like a screenshot or photo. Export your CV as a text-based PDF instead."
+    default:
+      return "Only PDF and DOCX files are supported."
+  }
+}
+
 /** Full pipeline: name → type → magic-bytes. Returns null if no signal hits. */
 export async function detectCVFile(file: {
   name: string
@@ -78,7 +146,19 @@ export async function detectCVFile(file: {
   if (byType) return byType
   try {
     const head = new Uint8Array(await file.slice(0, 4).arrayBuffer())
-    return detectCVMimeByMagic(head)
+    const byMagic = detectCVMimeByMagic(head)
+    if (!byMagic) return null
+    // DOCX shares the ZIP magic prefix (PK\x03\x04). Rule out explicit ZIP containers
+    // so linkedin data exports and generic archives don't pass as "DOCX".
+    if (byMagic === DOCX_MIME) {
+      const lower = file.name.toLowerCase()
+      const isExplicitZip =
+        lower.endsWith(".zip") ||
+        file.type === "application/zip" ||
+        file.type === "application/x-zip-compressed"
+      if (isExplicitZip) return null
+    }
+    return byMagic
   } catch {
     return null
   }
@@ -114,12 +194,14 @@ export async function preflightCVUploadFile(
   }
   const detected = await detectCVFile(file)
   if (!detected) {
+    const unsupportedKind = await detectUnsupportedFormatKind(file)
     return {
       ok: false,
       code: "unsupported_format",
-      message: "Only PDF and DOCX files are supported.",
+      message: unsupportedFormatMessage(unsupportedKind),
       fileBytes: file.size,
       maxBytes,
+      unsupportedKind,
     }
   }
   return {

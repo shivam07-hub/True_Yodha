@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
+import { PublicFooter } from "@/components/public/public-footer"
 import { NAV, muted, tocLink, accentNum, Section, Li, Ul, Sub, P } from "./privacy-components"
 
 const BASE = "https://www.himyro.com"
@@ -216,15 +216,7 @@ export default function PrivacyPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--tm-border-soft)", padding: "24px 32px", textAlign: "center" }}>
-        <Link href="/" style={{ color: "var(--tm-interactive)", textDecoration: "none", fontSize: "var(--tm-fs-meta)", fontWeight: 500 }}>
-          ← Back to Myro
-        </Link>
-        <p style={{ color: "var(--tm-text-faint)", fontSize: "var(--tm-fs-meta)", margin: "8px 0 0" }}>
-          © 2026 Myro. All rights reserved.
-        </p>
-      </footer>
+      <PublicFooter />
 
     </div>
   )

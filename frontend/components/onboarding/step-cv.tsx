@@ -158,6 +158,9 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
             <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)" }}>
               {mode === "upload" ? "PDF or DOCX · max 10MB" : "Save your LinkedIn as PDF, then drop it here"}
             </p>
+            <p style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4 }}>
+              Files greyed out in the picker? Click <em>Options</em> (bottom-left) and switch the file-type dropdown to <em>All Files</em>.
+            </p>
           </div>
 
           {mode === "linkedin" && (

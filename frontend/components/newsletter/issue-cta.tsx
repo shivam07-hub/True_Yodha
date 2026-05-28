@@ -17,12 +17,14 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
         margin: "32px 0",
         padding: "24px 28px",
         borderRadius: "var(--tm-radius-lg)",
-        background: "var(--tm-int-bg-wash)",
-        border: "1px solid var(--tm-int-border)",
+        background: "rgba(0, 245, 212, 0.04)",
+        border: "1px solid rgba(0, 245, 212, 0.15)",
+        borderTop: "2px solid #22d3a8",
+        boxShadow: "0 0 32px rgba(0, 245, 212, 0.06)",
         display: "flex", flexDirection: "column", gap: 12,
       }}
     >
-      <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22d3a8" }}>
         Free · No credit card
       </div>
       <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>
@@ -38,19 +40,20 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
           alignSelf: "flex-start",
           padding: "10px 20px",
           borderRadius: "var(--tm-radius-pill)",
-          background: "var(--tm-interactive)",
+          background: "#22d3a8",
           color: "var(--tm-interactive-fg)",
           fontSize: 13, fontWeight: 600,
           textDecoration: "none",
+          boxShadow: "0 0 8px rgba(0, 245, 212, 0.18)",
           transition: "background var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = "var(--tm-interactive-hover)"
-          e.currentTarget.style.boxShadow = "var(--tm-shadow-glow)"
+          e.currentTarget.style.boxShadow = "0 0 16px rgba(0, 245, 212, 0.32)"
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--tm-interactive)"
-          e.currentTarget.style.boxShadow = "none"
+          e.currentTarget.style.background = "#22d3a8"
+          e.currentTarget.style.boxShadow = "0 0 8px rgba(0, 245, 212, 0.18)"
         }}
       >
         Get my free Myro Score →
