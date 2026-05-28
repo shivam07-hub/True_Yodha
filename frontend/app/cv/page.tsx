@@ -23,6 +23,7 @@ import {
   users,
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useXPStore } from "@/store/xpStore"
@@ -108,6 +109,15 @@ function CVPage() {
     if (!token) return
     if (uploadInFlightRef.current) return  // double-fire guard
     setLastUploadMeta({ name: file.name, type: file.type, size: file.size })
+
+    // Client-side preflight — catches wrong-format files before any network round-trip
+    const preflight = await preflightCVUploadFile(file)
+    if (!preflight.ok) {
+      setUploadError(preflight.message)
+      setShowUpload(true)
+      return
+    }
+
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
