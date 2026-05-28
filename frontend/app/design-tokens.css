@@ -30,10 +30,17 @@
   --tm-hover:         rgba(255, 255, 255, 0.04);
   --tm-icon-muted:    rgba(240, 244, 255, 0.38);
 
-  /* ── Text (Ghost) ────────────────────────────────────────── */
-  --tm-text:          #E8F0FF;
-  --tm-text-muted:    #7A88A8;
-  --tm-text-faint:    #3A4560;
+  /* ── Text (Ghost) ──────────────────────────────────────────
+     WCAG AA targets on #050A18 page:
+       primary  ≥ 7:1 (AAA)
+       muted    ≥ 4.5:1 (AA body)
+       faint    ≥ 4.5:1 (AA body) — never used for primary content
+       disabled ≥ 3:1 (AA Large or decorative only — does NOT convey meaning)
+     Numbers measured; see docs/DESIGN_SYSTEM.md §Color. */
+  --tm-text:          #E8F0FF;    /* ~16.8:1 — AAA */
+  --tm-text-muted:    #94A3C2;    /*  ~8.5:1 — AAA */
+  --tm-text-faint:    #6C7A98;    /*  ~5.1:1 — AA  */
+  --tm-text-disabled: #3A4560;    /*  ~2.0:1 — decorative ONLY (icons, dividers, separators) */
   --tm-accent-text:   #67E8F9;
 
   /* ── Info (neutral notice · applied-stage indicator) ─────── */
@@ -137,6 +144,10 @@
   --tm-brand-glow:         oklch(0.88 0.18 175 / 0.35);
   --tm-brand-fg:           oklch(0.07 0.005 250);
 
+  /* Interactive solid ramp — used for borders / text / fills.
+     Surface TINTS (subtle/wash/hover) intentionally do NOT come from this
+     ramp because solid 92%-lightness teal on a near-black bg blinds.
+     See "wash tokens" block below — alpha cyan, theme-tuned. */
   --int-01:                oklch(0.97 0.02 185);
   --int-02:                oklch(0.92 0.04 185);
   --int-03:                oklch(0.85 0.07 185);
@@ -147,9 +158,12 @@
   --int-08:                oklch(0.38 0.09 185);
   --int-09:                oklch(0.32 0.07 185);
 
-  --tm-int-bg-subtle:      var(--int-01);
-  --tm-int-bg-wash:        var(--int-02);
-  --tm-int-bg-hover:       var(--int-03);
+  /* Surface wash tokens — alpha cyan so any theme's surface shows through.
+     Dark default — bright cyan (#00F5D4) low-alpha. Light surface override
+     below swaps to a deeper teal alpha for AA on white. */
+  --tm-int-bg-subtle:      rgba(0, 245, 212, 0.04);
+  --tm-int-bg-wash:        rgba(0, 245, 212, 0.10);
+  --tm-int-bg-hover:       rgba(0, 245, 212, 0.16);
   --tm-int-border-soft:    var(--int-04);
   --tm-int-border:         var(--int-05);
   --tm-int-solid:          var(--int-06);
@@ -160,10 +174,10 @@
   --tm-interactive:        var(--tm-int-solid);
   --tm-interactive-hover:  var(--tm-int-solid-hover);
   --tm-interactive-press:  var(--tm-int-solid-hover);
-  --tm-interactive-glow:   var(--tm-int-bg-hover);
+  --tm-interactive-glow:   rgba(0, 245, 212, 0.32);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   oklch(0.97 0.02 185 / 0.05);
+  --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
   --tm-interactive-fg:     var(--tm-brand-fg);
 
   --data-1:                oklch(0.62 0.13 185);
@@ -230,9 +244,15 @@
   --tm-hover:         rgba(32, 33, 36, 0.06);
   --tm-icon-muted:    rgba(32, 33, 36, 0.48);
 
-  --tm-text:          #050A18;   /* primary — mirror of ghost bg */
-  --tm-text-muted:    #4A5878;
-  --tm-text-faint:    #8B96AC;
+  /* Light theme text — measured on #F4F6FA page bg
+       primary  #050A18 → ~16.6:1 (AAA)
+       muted    #3F4D6A → ~8.9:1  (AAA, was 4A5878 ~6.8:1 — lifted for parity w/ dark)
+       faint    #6F7B95 → ~4.6:1  (AA, was 8B96AC ~2.5:1 — fixed FAIL)
+       disabled #A8B0C2 → ~2.4:1  (decorative only) */
+  --tm-text:          #050A18;
+  --tm-text-muted:    #3F4D6A;
+  --tm-text-faint:    #6F7B95;
+  --tm-text-disabled: #A8B0C2;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
@@ -256,10 +276,16 @@
   --tm-interactive-hover:  oklch(0.40 0.13 185);
   --tm-interactive-press:  oklch(0.34 0.11 185);
   --tm-interactive-glow:   oklch(0.46 0.13 185 / 0.18);   /* casts, doesn't glow */
-  --tm-interactive-wash:   oklch(0.95 0.03 185);
+  --tm-interactive-wash:   oklch(0.46 0.13 185 / 0.08);   /* alpha cyan — readable on white */
   --tm-interactive-ring:   oklch(0.60 0.13 185);
   --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.06);
   --tm-interactive-fg:     #FFFFFF;
+
+  /* Surface wash tokens — match wash to deeper teal alpha so a white card
+     hover/active state reads as a faint mint tint, not a solid pastel block. */
+  --tm-int-bg-subtle:      oklch(0.46 0.13 185 / 0.04);
+  --tm-int-bg-wash:        oklch(0.46 0.13 185 / 0.08);
+  --tm-int-bg-hover:       oklch(0.46 0.13 185 / 0.14);
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────

@@ -12,7 +12,6 @@ const FOOTER_COLS = [
       { label: "Live Job Data", href: "/intel"      },
       { label: "Tracker",       href: "/tracker"    },
       { label: "Newsletter",    href: "/newsletter" },
-      { label: "Myrology ✦",   href: "/myrology",   accent: true },
     ],
   },
   {
@@ -54,7 +53,7 @@ export function PublicFooter() {
                 <li key={link.href + link.label}>
                   <Link
                     href={link.href}
-                    className={`pub-footer-link${link.accent ? " pub-footer-link-accent" : ""}`}
+                    className="pub-footer-link"
                   >
                     {link.label}
                   </Link>

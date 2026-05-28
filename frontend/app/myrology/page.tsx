@@ -92,7 +92,7 @@ export default function MyrologyPage() {
         <BrandParticles density={0.45} accent="#B084FF" />
       </div>
 
-      <PublicTopNav active="myrology" showSignIn />
+      <PublicTopNav showSignIn />
 
       <MyrologyProvider>
       <main className="m-main">
