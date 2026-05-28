@@ -1,10 +1,9 @@
 "use client"
 
-import Link from "next/link"
 import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
-import { MyroLogo } from "@/components/myro-logo"
 import { PublicTopNav } from "@/components/public/top-nav"
+import { PublicFooter } from "@/components/public/public-footer"
 import { LockedOnly, MyrologyCta, MyrologyProvider } from "./checkout"
 import { OfferingSection } from "./offering-section"
 
@@ -222,17 +221,9 @@ export default function MyrologyPage() {
           </section>
         </LockedOnly>
 
-        <footer className="foot">
-          <div className="foot-left">
-            <MyroLogo size={18} decorative />
-            <span>Myro · Myrology · cosmic career intelligence</span>
-          </div>
-          <div className="foot-right mono dim">
-            <Link href="/welcome">← back to Day 1</Link>
-          </div>
-        </footer>
       </main>
       </MyrologyProvider>
+      <PublicFooter />
     </div>
   )
 }

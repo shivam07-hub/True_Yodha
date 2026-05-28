@@ -194,11 +194,14 @@ export default async function IssuePage({ params }: Props) {
 
         {/* Bottom CTA */}
         <div style={{
-          background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
+          background: "rgba(0, 245, 212, 0.04)",
+          border: "1px solid rgba(0, 245, 212, 0.15)",
+          borderTop: "2px solid #22d3a8",
           borderRadius: "var(--tm-radius-lg)", padding: "28px 32px",
           display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 40,
+          boxShadow: "0 0 32px rgba(0, 245, 212, 0.06)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#22d3a8" }}>
             Free · No credit card
           </div>
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
@@ -213,8 +216,9 @@ export default async function IssuePage({ params }: Props) {
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               fontSize: 14, fontWeight: 600, color: "var(--tm-interactive-fg)",
-              background: "var(--tm-interactive)", padding: "10px 22px",
+              background: "#22d3a8", padding: "10px 22px",
               borderRadius: "var(--tm-radius)", textDecoration: "none",
+              boxShadow: "0 0 8px rgba(0, 245, 212, 0.18)",
               transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
             }}
           >

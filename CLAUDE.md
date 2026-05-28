@@ -273,6 +273,117 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-05-28 night+day · CV file detector enrichment + multi-file CV batch grill)
+
+### Shipped (committed `a0138d1` on Develop)
+
+**`fix(cv): tailored rejection copy for wrong-format uploads`** — 3 files, 179 insertions.
+
+- **`frontend/lib/cv-file-detect.ts`** — added `UnsupportedFormatKind` discriminated union (`linkedin_data_zip | spreadsheet | image | unknown`). New `detectUnsupportedFormatKind()` helper (name heuristics → ZIP magic bytes → JPEG/PNG magic bytes). New `unsupportedFormatMessage()` maps kind → tailored copy. `preflightCVUploadFile` now returns `unsupportedKind` + kind-specific message instead of generic "Only PDF and DOCX files are supported." Also fixed `detectCVFile` to reject explicit ZIP containers (`.zip` ext / `application/zip` MIME) even when PK magic bytes match DOCX prefix — prevents LinkedIn data exports passing as false-positive DOCX.
+- **`frontend/app/cv/page.tsx`** — added `preflightCVUploadFile` call at start of `handleUpload`, short-circuiting with tailored error + modal open before any network round-trip.
+- **`frontend/tests/cv-file-detect.test.ts`** — 11 new tests covering `detectUnsupportedFormatKind` (CSV/XLSX/JPG/PNG/LinkedIn-zip/generic-zip/magic-bytes) and `preflightCVUploadFile` tailored rejection (LinkedIn zip / image / spreadsheet). 23/23 pass, `tsc --noEmit` clean.
+
+### Multi-file CV batch — all 6 decisions locked via `/grill-me`
+
+Full spec in `project_cv_upload_multi_file.md`. Summary:
+
+| Q | Decision |
+|---|---|
+| Q1 — Semantic shape | Smart merge: LLM deduplicates experiences/certs/education → 1 baseline, 1 score |
+| Q2 — XP cost | 200 XP flat. Proceed on good files. Refund only if 0 skills total. |
+| Q3 — Storage | `source_files JSONB` on `cv_upload_jobs`. No new tables. |
+| Q4 — UI | File-list preview → "Merge & analyse" → single progress ring → proceed+warn partial |
+| Q5 — Backend | New `/cv/upload/batch` + `_run_cv_batch_job` thin wrapper + `cv_parser.merge_and_parse_cv_texts`. Charge/audit/idempotency untouched. |
+| Q6 — LLM gate | Hard 40K char cap, proportional per-file. Batch = 1 upload toward rate limit. |
+
+### Open carry-over for next session
+
+1. **Implement multi-file CV batch** per locked spec in `project_cv_upload_multi_file.md`. Start with migration → backend (`cv_parser` merge fn + `cv_workflow` batch entry + router endpoint) → frontend (file-list UI + batch API call). Full file list in memory entry.
+2. **All prior carry-over still open** — 3-layer landing (`use-landing-primary-cta.ts` hook + `PrimaryCTA.tsx`), `<ScoreBreakdownPopover>`, Vercel-style build timer, Journey Strip on `/cv`, `markJourneyDone()` wiring, Phase 3 Scored section rebuild, Phase 4 bottom CTA + `/institutions` page, ADR-0007 10-min CV promise, LinkedIn button +50 XP chip. None touched this session.
+3. **Verify `a0138d1` in prod** — drop a LinkedIn data archive ZIP onto the CV dropzone on himyro.com, confirm "That's LinkedIn's data archive…" copy appears instead of generic rejection.
+
+---
+
+## LAST SESSION SUMMARY (2026-05-28 night · LinkedIn disclosure humanize + XP modal hijack kill + state-aware-CTA grill + 10-min CV North Star)
+
+Short session triggered by two user screenshots: (1) LinkedIn data-sharing disclosure on signup reading AI-generated, (2) `XpExplainerModal` auto-firing over Mission Control on every login for a 16k-XP veteran. Closed both surgically, then ran a full `/grill-me` on the state-aware landing CTA, surfacing and locking the **10-min CV promise as Myro's North Star** (Zepto-analog).
+
+### Shipped (already bundled by Shivam into `ae08616 "pushing ready files"`)
+
+- **LinkedIn disclosure — quiet-letter rewrite** ([components/auth/shared/linkedin-disclosure.tsx](frontend/components/auth/shared/linkedin-disclosure.tsx) + [auth-shared.css](frontend/components/auth/shared/auth-shared.css)). Dropped `<dl>/<dt>/<dd>` grid (the AI-generated smell). Two `<p>` paragraphs per variant + inline `<span class="tm-auth-disclosure-never-tag">Never</span>` label. XP grant copy stripped from disclosure entirely (XP isn't a privacy concession — mixing it breeds distrust). Summary copy changed `What does LinkedIn share with Myro?` → `What LinkedIn shows us`; CV variant `What gets read from the PDF?` → `What we read from your PDF`. New CSS visuals: 6px accent dot left of summary, body now `border-left: 2px solid` (sidebar quote, not data table), `prefers-reduced-motion` honored on chevron. Same `<details>` semantics + `signupEvents.linkedinDisclosureExpanded` analytics seam preserved.
+
+- **XP modal hijack killed** ([components/app-shell.tsx:362-369](frontend/components/app-shell.tsx#L362) `useEffect` deleted). Root cause: gate `if (!token || xpBalance <= 0) return; if (localStorage[myro_xp_modal_seen_v1]) return; setXPModalOpen(true)` fired for ANY authed user with positive balance and no localStorage flag on this browser. Veteran 16k-XP user on fresh browser / private window / cleared cache = re-fires every login. Browser-scoped flag was the wrong abstraction. Modal still reachable on-demand via `AppTopBar` XP pill, `MobileTopBar` XP pill, and Settings → "New to XP?" link from M02 commit `ce13d7a` — auto-open was pure regression.
+
+### XP modal relocation proposal (not implemented this session)
+
+When LinkedIn button gets the +50 XP reward chip: append `<span className="tm-auth-provider-btn__reward">+50 XP</span>` to [linkedin-button.tsx](frontend/components/auth/shared/linkedin-button.tsx) with subtle `--tm-int-bg-wash` pill styling. Chip-on-button beats button-caption because (a) reward visible BEFORE disclosure expands → user discovers XP without conflating it with data terms, (b) chip survives both `auth` (modal) + `cv` (StepCV segment) surfaces uniformly, (c) Google button stays chip-free → visual differentiation reinforces "LinkedIn = richer identity, costs Myro more, earns user more". Worth ~10 LOC + small CSS — pick up next session.
+
+### `/grill-me` — state-aware landing CTA tree closed (7 decisions + 15 NEVERs)
+
+Triggered by the user observation that 3 coequal NEXT MOVES chips on `/home` = no winner = bounce, compounded by the modal hijack. Grill ran 7 questions to lock the decision tree end-to-end.
+
+**Locked decisions (full detail in [project_state_aware_landing_cta.md](~/.claude/projects/-Users-incognito-True-Yodha/memory/project_state_aware_landing_cta.md)):**
+
+| # | Branch | Lock |
+|---|---|---|
+| Q1 | State axes | 4 axes (A `has_cv`, B `pending_app_count`, C `diary_today_logged`, D `burst_in_flight`); precedence D>C>B>A; score / XP / streak / cohort / first-vs-returning pruned |
+| Q2 | Primary CTA copy per state | 5-state table (S1 D=true → no primary, ambient `ForgeXpPill` owns claim; S2 C=false → `Log what you did today`; S3 B>0 → status sub-rule final_round>interviewing>screening>applied>saved; S4 idle → `Find your next target`; S5 A=false → `Upload your CV`). No `+XP` in labels. No RPG verbs. Lowercase sentence case. |
+| Q3 | Passive-hydration retry copy | α `Taking longer than usual — tap to retry` at 3s hard cap. Never silent infinite skeleton. Skeleton = static-greyed-pulse, NOT shimmer-sweep, NOT blurred copy (client-derived data leaks stale signals). |
+| Q4 | Vercel-style live build timer | γ scope — CV upload phase-2 + match-refresh + skill-edit recompute. Persistent `last built 1m 4s` badge ONLY on `/cv` baseline commit graph (the CV history surface = Vercel deploy log analog). Phase labels `Parsing → Mapping → Scoring → Matching → Ready` need new `cv_upload_jobs.current_phase` column + `_run_cv_upload_job` writes it progressively. |
+| Q5 | Secondary affordances | β — 2 ranked text-link secondaries below primary, precedence-walk from primary downward, skip axes that didn't fire, cap at 2, never duplicate primary content. Visually subordinate. |
+| Q6 | Score-as-verb | γ — `<ScoreBreakdownPopover>` opens on score tap (bottom sheet on mobile). Score is decorative by default with a *secondary tap affordance*. NOT in primary CTA precedence. NOT in secondary list. Third permanent layer. |
+| Q7-revised | Popover internal | γ — `Score 26 / 100` → `Biggest drag: {domain}` → primary action `[ Improve {domain} — 8 min → ]` routing to `/skills?domain={d}&autostart=1` + 2 muted "see also" text-links. Q7 original (veteran break-in rule δ) RETRACTED — North Star makes break-in unnecessary. |
+
+**Architecture (3 layers on landing — Brooks conceptual integrity):**
+
+```
+1. PRIMARY CTA      ← state-axis precedence: D > C > B > A
+2. 2 SECONDARIES    ← next-firing axes, ranked, visually subordinate
+3. SCORE-TAP        ← always-on permanent 10-min CV lane
+                      Never demoted by state. Never disappears.
+```
+
+**15 NEVERs locked (anti-rules to prevent landing drift):** auto-open modals on landing; 3+ coequal CTAs; stat-without-action when action exists; empty state during hydration window; blurred copy as skeleton (client-derived); `+XP` in CTA labels; RPG verbs (`Earn / Grow / Boost / Level up`); duplicate burst-claim affordance; silent infinite skeleton past 3s; 10-min lane blocked by XP/paywall/auth-gate-after-action; forcing 10-min path on user with higher-priority axis; advertising "10 min" externally before p95 measured; untruncated `{company}` on mobile; secondaries duplicating primary; score-tap collapsible/hidden.
+
+### NORTH STAR locked — 10-min CV promise (Zepto-analog)
+
+Shivam framed it explicitly mid-grill: *"any user, whether a fresher, mid manager, or veteran, coming on the app at any stage, should have a ready CV in 10 mins if he so wishes — analogy is Zepto's 10-min grocery promise"*. This reframed the entire decision tree:
+
+- Veteran "break-in" rule retracted — North Star makes it unnecessary because the 10-min lane (score-tap → popover → `[ Improve {domain} — 8 min → ]`) is always one tap away for every user.
+- 10-min path must remain *available*, never *mandatory* — higher-priority axis CTAs (pipeline reply, end-of-day diary) still win the primary slot when they fire.
+- Speed-as-positioning — distinguishes Myro from CV builders (slow blank-page) and career coaches (slow human-cycle).
+
+Saved as [project_ten_minute_cv_promise.md](~/.claude/projects/-Users-incognito-True-Yodha/memory/project_ten_minute_cv_promise.md). Should be promoted to `docs/adr/0007-ten-minute-cv-promise.md` before any external marketing uses the phrase.
+
+### Memory entries written (2 new + MEMORY.md indexed)
+
+- `project_ten_minute_cv_promise.md` NEW — North Star, Zepto analog, application rules, anti-rules, open carry-over (ADR promotion + p95 measurement + `/about` hero copy).
+- `project_state_aware_landing_cta.md` NEW — full locked decision tree, 3-layer architecture, 5-state CTA table, S3 sub-rule, Vercel timer scope, popover spec, 15 NEVERs, 4 deferred sub-decisions.
+
+### Verify
+
+- `cd frontend && npx tsc --noEmit` — clean across all 3 touched files.
+- `cd frontend && npx next lint --file components/auth/shared/linkedin-disclosure.tsx` — 0 warnings, 0 errors.
+- No backend changes. No migrations needed for this session's shipped scope.
+- All 3 file edits already committed by Shivam in `ae08616 "pushing ready files"` (13:22 IST, bundled with Journey Strip + landing rebuild work).
+
+### Open carry-over for next session
+
+1. **Build the 3-layer landing** per locked decision tree. Foundation slice: `lib/hooks/use-landing-primary-cta.ts` (pure hook from `{ score, profile, applications, diary, forgeTimer }` → `{ primary, secondaries }`) + `components/home/PrimaryCTA.tsx` + scoped CSS per ADR-0003 pattern. Wire into `MissionControlInner` at [app/home/page.tsx:53](frontend/app/home/page.tsx#L53), replacing the current 3-coequal NEXT MOVES block.
+2. **`<ScoreBreakdownPopover>` (Q6 γ + Q7-revised γ)** — new component. Desktop popover, mobile bottom sheet. Reuses existing `dataKeys.scores()` cache. Routes primary action to new URL `/skills?domain={d}&autostart=1` (needs Skills page support — small follow-up).
+3. **Vercel-style live build timer** — three surfaces (CV upload modal, match-refresh, skill-edit recompute). Blocked on backend migration: `cv_upload_jobs.current_phase TEXT` column + `_run_cv_upload_job` writes phase progressively (`Parsing → Mapping → Scoring → Matching`). Without it, timer = fake-elapsed spinner.
+4. **Persistent `last built 1m 4s` badge** on `/cv` baseline commit graph rows. Reuses `cv_upload_jobs.started_at` + `finished_at` (already tracked per CVUP1). No new schema.
+5. **LinkedIn button +50 XP chip** (XP relocation per disclosure refactor). ~10 LOC + small CSS in [linkedin-button.tsx](frontend/components/auth/shared/linkedin-button.tsx) + [auth-shared.css](frontend/components/auth/shared/auth-shared.css).
+6. **4 deferred sub-decisions before landing build PR**:
+   - Mobile collapse rule for secondaries (<480px chevron-more vs vertical stack)
+   - "Biggest drag" vocab final lock — beta test `biggest gap` / `weakest area` / `fastest lift`
+   - Backend migration `cv_upload_jobs.current_phase` column (~30min)
+   - Measure current p95 `score-tap → score-delta-visible` cycle — locks "8 min" suffix or defaults to "~10 min"
+7. **Promote North Star to ADR-0007** before any external marketing (newsletter / `/about` hero / OG copy) uses "10 min" phrase. Cross-link ADR-0005 stake sentence.
+8. **All prior-session carry-over still open** — Journey Strip on `/cv` first visit, `markJourneyDone()` wiring, Phase 3 Scored section rebuild, Phase 4 bottom CTA + footer link, `/institutions` landing page, ADR-0005 B2B carve-out update, light-theme decision, multi-file CV analysis grill, CV file detector enrichment. None touched this session.
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-28 late · Journey Strip mount #1 + CV upload picker hint + 2 memory entries)
 
 Short continuation session on top of the cv-hub landing rebuild. Picked up carry-over #1 from prior session, then handled an in-session user-confusion bug on the CV upload picker.
