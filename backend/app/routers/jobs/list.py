@@ -6,6 +6,7 @@ from app.deps import Principal, get_principal
 from app.repositories.jobs import (
     CompanySearchUnavailable,
     JobsRepository,
+    _job_feed_marker_to_iso,
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
@@ -234,7 +235,7 @@ async def list_company_open_roles(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                created_at=r.get("created_at"),
+                created_at=_job_feed_marker_to_iso(r.get("first_seen")),
             )
             for r in rows
         ],
@@ -259,7 +260,7 @@ async def global_search_jobs(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                created_at=r.get("created_at"),
+                created_at=_job_feed_marker_to_iso(r.get("first_seen")),
             )
             for r in rows
         ],

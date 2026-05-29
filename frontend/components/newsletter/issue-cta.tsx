@@ -25,7 +25,7 @@ export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
       }}
     >
       <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#22d3a8" }}>
-        Free · No credit card
+        Powered by XP
       </div>
       <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)" }}>
         See how you compare as a {role}

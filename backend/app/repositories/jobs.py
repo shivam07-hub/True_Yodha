@@ -68,6 +68,16 @@ def _job_feed_marker_to_iso(value: Any) -> str | None:
     return text or None
 
 
+def _marker_to_dt(value: Any) -> datetime | None:
+    """Parse a jobs feed marker (YYYYMMDD int/str) or ISO string → aware datetime.
+
+    The `jobs` table stores first_seen / last_seen / batch_date as integer
+    YYYYMMDD markers, not timestamps. Route those through the marker→ISO
+    converter before ISO parsing so analytics date math works on real values.
+    """
+    return _parse_iso_dt(_job_feed_marker_to_iso(value))
+
+
 def get_feed_updated_at(db: Client) -> str | None:
     """Returns an ISO date for the latest job feed marker. Cached 5 min."""
     global _feed_ts_cache
@@ -210,8 +220,8 @@ class MarketAnalyticsCompiler:
             location_mode = (row.get("location_mode") or "").strip()
             skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
 
-            created_at_dt = _parse_iso_dt(row.get("created_at"))
-            last_seen_dt = _parse_iso_dt(row.get("last_seen")) or created_at_dt
+            created_at_dt = _marker_to_dt(row.get("first_seen"))
+            last_seen_dt = _marker_to_dt(row.get("last_seen")) or created_at_dt
 
             if company:
                 company_counts[company] += 1
@@ -331,7 +341,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, "
-                "created_at, last_seen"
+                "first_seen, last_seen"
             ),
             query_builder=query_builder,
         )
@@ -633,10 +643,10 @@ class JobsRepository:
                 .select(
                     "job_id, job_title, company_name, location, location_raw, "
                     "location_city, location_country, location_mode, location_quality, "
-                    "created_at, last_seen"
+                    "first_seen, last_seen"
                 )
                 .eq("company_name", company_name)
-                .order("created_at", desc=True)
+                .order("first_seen", desc=True)
                 .limit(scoped_limit)
                 .execute()
             )
@@ -670,10 +680,10 @@ class JobsRepository:
                 .table("jobs")
                 .select(
                     "job_id, job_title, company_name, location_city, location_country, "
-                    "location_mode, created_at"
+                    "location_mode, first_seen"
                 )
                 .or_(f"job_title.ilike.{ilike},company_name.ilike.{ilike}")
-                .order("created_at", desc=True)
+                .order("first_seen", desc=True)
                 .limit(scoped_limit)
                 .execute()
             )
