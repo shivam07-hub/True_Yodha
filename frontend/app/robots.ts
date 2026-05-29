@@ -24,7 +24,6 @@ export default function robots(): MetadataRoute.Robots {
           "/diary",
           "/forge",
           "/home",
-          "/jobs",
           "/login",
           "/market",
           "/mission",

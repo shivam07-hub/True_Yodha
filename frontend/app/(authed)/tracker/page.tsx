@@ -315,7 +315,7 @@ function EmptyBoard({ onAddManually }: { onAddManually: () => void }) {
           Stripe, Greenhouse, a referral. Everything you&apos;re tracking lives here.
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <a href="/jobs" style={{
+          <a href="/home#browse" style={{
             padding: "8px 16px", borderRadius: 99,
             background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
             fontSize: 12, fontWeight: 600, textDecoration: "none",

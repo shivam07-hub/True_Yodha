@@ -197,7 +197,6 @@ export function GenericPageSkeleton() {
 export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/home")) return <DashboardSkeleton />
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
-  if (pathname.startsWith("/jobs")) return <JobsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/forge")) return <ForgeSkeleton />
   if (pathname.startsWith("/tracker")) return <TrackerSkeleton />

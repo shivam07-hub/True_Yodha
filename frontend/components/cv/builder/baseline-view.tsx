@@ -307,7 +307,7 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
               Find a job you want, save it, then tailor your CV for it here in 5 minutes.
             </p>
             <div className="cvb-jobs-empty-actions">
-              <Link href="/jobs" className="cvb-btn primary sm">
+              <Link href="/home#browse" className="cvb-btn primary sm">
                 <Icon name="target" size={13}/> Browse jobs
               </Link>
               <Link href="/tracker?stage=saved" className="cvb-btn sm">
@@ -323,7 +323,7 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
 
         {applications.length > 0 && (
           <Link
-            href="/jobs"
+            href="/home#browse"
             style={{
               marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
               borderRadius: 8, textAlign: "center", fontSize: 11.5, color: "var(--tm-text-faint)",

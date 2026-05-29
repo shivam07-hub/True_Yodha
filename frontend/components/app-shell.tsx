@@ -273,7 +273,7 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
   )
 }
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/jobs", "/home", "/forge", "/xp"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/home", "/forge", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { token, ready, signOut } = useAuth()

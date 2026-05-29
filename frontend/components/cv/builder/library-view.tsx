@@ -327,7 +327,7 @@ function ActivePipelineRail({ applications, versions, onPickJob }: {
       </div>
 
       <div className="tm-lib-rail-footer">
-        <Link href="/jobs" className="tm-lib-btn" style={{ width: "100%", justifyContent: "center" }}>
+        <Link href="/home#browse" className="tm-lib-btn" style={{ width: "100%", justifyContent: "center" }}>
           <LIcon d={I.target} size={14}/> Find a target job
         </Link>
       </div>
@@ -370,7 +370,7 @@ export function LibraryView({
               </p>
             </div>
             <div className="tm-lib-page-actions">
-              <Link href="/jobs" className="tm-lib-btn">
+              <Link href="/home#browse" className="tm-lib-btn">
                 <LIcon d={I.target} size={14}/> Target job
               </Link>
               <button className="tm-lib-btn primary" onClick={onReplaceCV}>
@@ -416,7 +416,7 @@ export function LibraryView({
               <div className="tm-lib-empty-sub">
                 Save jobs from the jobs page to build your library. Each saved job creates a folder for tailored CVs.
               </div>
-              <Link href="/jobs" className="tm-lib-empty-link">
+              <Link href="/home#browse" className="tm-lib-empty-link">
                 Browse jobs <LIcon d={I.chevR} size={12}/>
               </Link>
             </div>
