@@ -273,6 +273,33 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-05-30 · streaming fit-rationale + universal XP nudge — GRILL LOCKED, ADR-0009 drafted, nothing built)
+
+Triggered by a job-card screenshot: Shivam asked why the LLM call shows no visible "thinking/working" like Claude — the user stares at a dead `Analyse this role to see Myro's reasoning.` placeholder while the backend computes. Chose **Option A — real token streaming (SSE)** over staged fake-progress. Ran `/grill-me` to lock the whole tree, then saved + drafted ADR-0009 + closed. **No code written** (Shivam said save + draft + close).
+
+### Codebase reality surfaced during grill
+- `job.llm_explanation` is the source. Top-3 ranked jobs get it FREE from the bulk ranker; the `0 FIT` placeholder = a saved job that never went through the ranker.
+- `POST /jobs/analyse/{job_id}` ([backend/app/routers/jobs/analyse.py](backend/app/routers/jobs/analyse.py)) already exists (overlap → `complete(max_tokens=300)` → charges 10 XP → persists). **But `analyseJob` ([frontend/lib/api.ts:1800](frontend/lib/api.ts)) is called by NOTHING** — the button was never wired. Building = wiring the dead trigger + streaming it.
+- **Pre-existing bug:** analyse charges 10 XP even on `LLMProviderError`. Fixed by the charge-on-success lock.
+- Providers all `AsyncOpenAI` (OpenRouter/Groq/Gemini OpenAI-compat) → all support `stream=True`.
+- No toast/nudge infra; `xpStore` just `setBalance`s silently across ~8 scattered charge sites.
+
+### Locked (full detail → memory `project_streaming_rationale_xp_nudge`)
+Auto-on-mount · charge 10 XP once-per-job, **on success only** (fixes charge-on-fail bug; idempotent re-view = cached) · broke (<10 XP) = **silent skip + discoverable `Analyse · 10 XP` button → XPGate on click** (OVERRODE Shivam's "auto-fire modal" pick — it's the 2026-05-28 per-login-hammer anti-pattern, per-cycle would be worse) · `fetch`+`ReadableStream` vs FastAPI `StreamingResponse` (EventSource rejected, bearer auth) · new `LLMProvider.stream_complete()` with **pre-first-token fallback only**, mid-stream death = partial greyed + retry, no charge · **typewriter smoothing** ~40–60 cps. Universal XP nudge = `−10`/`+30` delta **floats off the XP pill** (red spend / green earn, forge claim `silent`) via explicit `xpStore.applyXpChange({newBalance, action})` (NOT auto-diffing setBalance).
+
+### Scope — PHASED (Q10)
+- **PR1** — analyse streams **direct** (sync `StreamingResponse`, no Redis) + `useStreamingText()` + typewriter + XP-pill nudge seam. Ships the engagement win fast.
+- **ADR-0009** — `docs/adr/0009-progress-stream-protocol.md` DRAFTED (Proposed). Typed envelope `{token|phase|progress|done|error}`, Redis pub/sub → SSE relay. Builds on ADR-0008.
+- **PR2** — match-refresh + skill-edit adopt the relay, **drop polling** (ticket-poll + SE17 3s-poll).
+
+### Carry-over (next session)
+1. **Build PR1** per locked spec. Start: `LLMProvider.stream_complete()` → `StreamingResponse` analyse endpoint (charge-on-`done`) → wire the dead `analyseJob` trigger (auto-on-mount funded / button broke) → `useStreamingText()` + typewriter → XP-pill `applyXpChange` nudge seam (migrate ~8 sites).
+2. Broke-button microcopy → `/ux-copy`. Verify Gemini honours `stream=true`.
+3. PR2 is its own ADR-0009-driven PR after PR1 lands.
+4. **All prior carry-over still open** — dashboard-merge visual QA (Shivam), progressive-nav commit, etc. None touched.
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-29 · progressive-disclosure nav grill COMPLETE + BUILT)
 
 Resumed the paused progressive-nav `/grill-me` (Q1+Q1b were locked), grilled Q2–Q11 to close, then built the whole thing end-to-end. **Nothing committed** (commit when Shivam says). tsc clean · `next lint` 0/0 · 13 cv-upload-api + 6 cv-upload-state tests pass.
