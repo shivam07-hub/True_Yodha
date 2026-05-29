@@ -33,11 +33,30 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
+from app.database import get_supabase_admin
 from app.repositories.cv import CVVersionsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import cv_compose, cv_parser, scoring
+from app.services import background, cv_compose, cv_parser, scoring
 
 logger = logging.getLogger(__name__)
+
+
+@background.handler("skill_retag")
+async def _skill_retag_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+    """Bulk-lane Background Job (ADR-0008) for the post-skill-edit re-tag.
+
+    Builds its own admin-scoped repos — the worker has no request context.
+    run_async_retag is best-effort (swallows its own errors + always stamps
+    recompute_finished_at), so it is terminal: no retry path needed.
+    """
+    admin_db = get_supabase_admin()
+    await run_async_retag(
+        CVVersionsRepository(admin_db),
+        ScoresRepository(admin_db),
+        payload["user_id"],
+        payload["baseline_id"],
+        payload["new_body_text"],
+    )
 
 
 # Editable section kinds per SE15. Education stays out — multi-field row.

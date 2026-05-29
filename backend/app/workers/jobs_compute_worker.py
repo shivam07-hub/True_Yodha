@@ -16,6 +16,7 @@ from rq import Connection, Worker
 # Importing the handler modules registers their @background.handler functions in
 # the dispatch registry inside THIS process — without these imports the Runner
 # would receive a job_type it has no handler for.
+import app.services.cv_skill_edit  # noqa: F401  (skill_retag)
 import app.services.cv_workflow  # noqa: F401  (cv_parse_score, initial_match)
 from app.services.background.dispatch import LANE_BULK, LANE_FAST
 from app.services.job_refresh._redis_state import get_redis_connection, queue_name
