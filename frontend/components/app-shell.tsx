@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -12,6 +12,7 @@ import { ParticleBg } from "@/components/particle-bg"
 import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
 import { useForgeSession } from "@/lib/hooks/use-forge-session"
 import { SettingsModal } from "@/components/settings-modal"
+import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { MyroLogo } from "@/components/myro-logo"
@@ -39,9 +40,8 @@ import { skeletonForPath } from "@/components/loading/page-skeletons"
 export const FEEDBACK_QUICK_ACTIONS: {
   id: string; category: FeedbackCategory; icon: string; label: string; color: string; bg: string
 }[] = [
-  { id: "bug",    category: "bug",    icon: "⚠",  label: "Report a bug",    color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
-  { id: "idea",   category: "idea",   icon: "✦",  label: "Suggest an idea", color: "var(--tm-interactive)", bg: "var(--tm-int-bg-wash)" },
-  { id: "praise", category: "praise", icon: "◎",  label: "Leave feedback",  color: "var(--tm-success)",  bg: "var(--tm-success-wash)" },
+  { id: "bug",    category: "bug",    icon: "⚠",  label: "Report a bug",       color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
+  { id: "praise", category: "idea",   icon: "◎",  label: "Feedback and ideas", color: "var(--tm-success)",  bg: "var(--tm-success-wash)" },
 ]
 
 export const openFeedbackHub = openFeedbackHubEvent
@@ -59,6 +59,7 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
   const nav = useNavUnlocks()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [myroPromptOpen, setMyroPromptOpen] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const [forgeOpen, setForgeOpen] = useState(false)
   const forgeRunning = useForgeTimerStore((s) => s.running)
@@ -196,16 +197,33 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
                     <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>{profile?.email ?? ""}</div>
                   </div>
                   {FEEDBACK_QUICK_ACTIONS.map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => { openFeedbackHub({ category: a.category }); setMenuOpen(false) }}
-                      className="tm-topbar-menu-item"
-                      onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
-                    >
-                      <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                      <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
-                    </button>
+                    <Fragment key={a.id}>
+                      <button
+                        onClick={() => { openFeedbackHub({ category: a.category }); setMenuOpen(false) }}
+                        className="tm-topbar-menu-item"
+                        onMouseEnter={(e) => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
+                      >
+                        <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
+                        <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
+                      </button>
+                      {/* Myrology sits in the old "Suggest an idea" slot (after Report a bug). */}
+                      {a.id === "bug" && (
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false)
+                            if (nav.ctx.myrologyInterested) router.push("/myrology")
+                            else setMyroPromptOpen(true)
+                          }}
+                          className="tm-topbar-menu-item"
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.borderColor = "var(--tm-interactive)" }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
+                        >
+                          <span style={{ fontSize: 13, color: "var(--tm-interactive)", minWidth: 18, textAlign: "center" }}>✦</span>
+                          <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>Myrology</span>
+                        </button>
+                      )}
+                    </Fragment>
                   ))}
                   <div className="tm-topbar-menu-divider" />
                   {[
@@ -231,6 +249,11 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
       </header>
 
       {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
+      <MyrologyOptInPrompt
+        open={myroPromptOpen}
+        onClose={() => setMyroPromptOpen(false)}
+        onConfirmed={() => router.push("/myrology")}
+      />
 
       {signOutConfirm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setSignOutConfirm(false)}>

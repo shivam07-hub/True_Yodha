@@ -213,7 +213,11 @@ def _mark_payment_verified(
 
 
 def _unlock_myrology(user_id: str) -> None:
-    get_supabase_admin().table("user_profiles").update({"myrology_unlocked": True}).eq("id", user_id).execute()
+    # Paying implies interest — set both so the payer gets the nav icon without
+    # hunting the opt-in toggle. `myrology_unlocked` still guards the paid routes.
+    get_supabase_admin().table("user_profiles").update(
+        {"myrology_unlocked": True, "myrology_interested": True}
+    ).eq("id", user_id).execute()
 
 
 @router.post("/create-order", response_model=CreateOrderResponse)

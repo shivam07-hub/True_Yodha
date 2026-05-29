@@ -23,6 +23,7 @@ class UserProfileResponse(BaseModel):
     cv_upload_job_id: str | None = None
     cv_upload_error_code: str | None = None
     myrology_unlocked: bool = False
+    myrology_interested: bool = False
 
 
 class UpdateProfileResponse(UserProfileResponse):
@@ -38,6 +39,7 @@ class UpdateProfileRequest(BaseModel):
     deal_breakers: list[str] | None = None
     career_goal: str | None = None
     superpower: str | None = None
+    myrology_interested: bool | None = None
 
 
 class UserSkillItem(BaseModel):

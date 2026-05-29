@@ -215,6 +215,7 @@ export interface UserProfile {
   cv_upload_job_id?: string | null
   cv_upload_error_code?: string | null
   myrology_unlocked?: boolean
+  myrology_interested?: boolean
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -230,6 +231,7 @@ export interface ProfileUpdate {
   deal_breakers?: string[] | null
   career_goal?: string | null
   superpower?: string | null
+  myrology_interested?: boolean
 }
 
 export interface UserSkillItem {

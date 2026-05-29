@@ -2,12 +2,13 @@
 
 import { useRef, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
+import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { openFeedbackHub } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
 import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
@@ -254,8 +255,11 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
 }) {
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
+  const [myroPromptOpen, setMyroPromptOpen] = useState(false)
   const [dragOffset, setDragOffset] = useState(0)
   const dragStart = useRef<number | null>(null)
+  const router = useRouter()
+  const { interested: myrologyInterested } = useMyrologyInterest()
 
   const fullName = profile?.full_name ?? "My Account"
   const initials = profile?.full_name
@@ -323,9 +327,10 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         </div>
 
         {[
-          { label: "My Profile",     icon: "⚙",  action: () => setShowSettings(true),                     danger: false },
-          { label: "Send Feedback",  icon: "◎",  action: () => { openFeedbackHub({ category: "praise" }); onClose() }, danger: false },
-          { label: "Sign out",       icon: "→",  action: () => setSignOutConfirm(true),                    danger: true  },
+          { label: "My Profile",        icon: "⚙",  action: () => setShowSettings(true),                     danger: false },
+          { label: "Myrology",          icon: "✦",  action: () => { if (myrologyInterested) { onClose(); router.push("/myrology") } else setMyroPromptOpen(true) }, danger: false },
+          { label: "Feedback and ideas", icon: "◎",  action: () => { openFeedbackHub({ category: "idea" }); onClose() }, danger: false },
+          { label: "Sign out",          icon: "→",  action: () => setSignOutConfirm(true),                    danger: true  },
         ].map((item, i, arr) => (
           <button
             key={item.label}
@@ -349,6 +354,11 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
       {showSettings && (
         <SettingsModal open={showSettings} onClose={() => { setShowSettings(false); onClose() }} profile={profile} />
       )}
+      <MyrologyOptInPrompt
+        open={myroPromptOpen}
+        onClose={() => setMyroPromptOpen(false)}
+        onConfirmed={() => { onClose(); router.push("/myrology") }}
+      />
       {signOutConfirm && (
         <div
           onClick={() => setSignOutConfirm(false)}
