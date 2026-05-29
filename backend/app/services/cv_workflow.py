@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import logging
 from typing import Any
@@ -14,7 +13,8 @@ from app.repositories.cv import (
     CVVersionsRepository,
 )
 from app.repositories.scores import ScoresRepository
-from app.services import cv_parser, jobs_workflow, scoring
+from app.services import background, cv_parser, jobs_workflow, scoring
+from app.services.background import TransientJobError
 from app.services.llm_provider import get_cv_upload_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
 from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
@@ -318,15 +318,62 @@ async def _start_async_upload_job(
 
     upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
 
-    asyncio.create_task(_run_cv_upload_job(
-        job_id=job_id,
-        user_id=user_id,
-        raw_text=raw_text,
-        content_hash=content_hash,
-        source=source,
-    ))
+    # ADR-0008 — fast Work Lane. Durable via RQ when REDIS_URL is set; in-process
+    # asyncio fallback (today's behaviour) otherwise. correlation_id = job_id
+    # makes the enqueue idempotent under retry.
+    background.enqueue(
+        background.LANE_FAST,
+        "cv_parse_score",
+        payload={
+            "job_id": job_id,
+            "user_id": user_id,
+            "raw_text": raw_text,
+            "content_hash": content_hash,
+            "source": source,
+        },
+        correlation_id=job_id,
+    )
 
     return {"status": "processing", "job_id": job_id}
+
+
+@background.handler("cv_parse_score")
+async def _cv_parse_score_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+    await _run_cv_upload_job(
+        job_id=payload["job_id"],
+        user_id=payload["user_id"],
+        raw_text=payload["raw_text"],
+        content_hash=payload["content_hash"],
+        source=payload.get("source", "pdf_upload"),
+        allow_retry=allow_retry,
+    )
+
+
+@background.handler("initial_match")
+async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+    await _trigger_initial_match_compute(payload["user_id"])
+
+
+async def _handle_job_failure(
+    job_id: str,
+    user_id: str,
+    *,
+    error_code: str,
+    detail: str,
+    transient: bool,
+    allow_retry: bool,
+) -> None:
+    """Route a CV-parse failure per ADR-0008 retry policy.
+
+    TRANSIENT (provider down / network / internal) + a retry budget available
+    (RQ path) → raise TransientJobError so RQ retries with backoff; the job row
+    stays `processing` and XP is NOT refunded yet. After RQ exhausts retries the
+    orphan-sweep watchman refunds the stranded row. Everywhere else (permanent
+    failure, or the in-process path with no retry) → refund + mark failed now.
+    """
+    if transient and allow_retry:
+        raise TransientJobError(error_code)
+    await _fail_and_refund(job_id, user_id, error_code=error_code, detail=detail)
 
 
 async def _run_cv_upload_job(
@@ -336,47 +383,70 @@ async def _run_cv_upload_job(
     raw_text: str,
     content_hash: str,
     source: str = "pdf_upload",
+    allow_retry: bool = False,
 ) -> None:
-    """Phase 2 — runs in a background task. Owns its own admin-scoped repo."""
+    """Phase 2 Background Job — CV parse + score. Owns its own admin-scoped repo.
+
+    Idempotent on job_id: re-delivery (RQ at-least-once) after a baseline was
+    already written is a no-op terminal. `allow_retry` (set on the durable RQ
+    path) enables transient-failure retries; permanent failures always fail fast.
+    """
     admin_db = get_supabase_admin()
     cv_repo = CVVersionsRepository(admin_db)
     scores_repo = ScoresRepository(admin_db)
 
+    # Idempotency guard — a retried/duplicate delivery for an already-terminal
+    # job must not re-parse or double-write a baseline. Fail-open: this is an
+    # optimization, not the correctness boundary (charge idempotency is the
+    # ledger's job per ADR-0004). If the status read errors, run the job.
+    try:
+        existing = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
+    except Exception as exc:  # pragma: no cover — read is best-effort
+        _log.warning("CV job %s status pre-check failed (%s) — proceeding", job_id, exc)
+        existing = None
+    if existing and existing.get("status") in ("done", "failed"):
+        _log.info("CV job %s already terminal (%s) — skipping re-run", job_id, existing.get("status"))
+        return
+
     try:
         parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
-    except Exception:  # network / provider library blew up
+    except Exception:  # network / provider library blew up — transient
         _log.exception("CV parse crashed for job=%s user=%s", job_id, user_id)
-        await _fail_and_refund(
+        await _handle_job_failure(
             job_id, user_id,
             error_code="internal",
             detail="Unexpected error while analysing your CV. Your XP has been refunded.",
+            transient=True, allow_retry=allow_retry,
         )
         return
 
     if parsed.get("provider_failed"):
-        await _fail_and_refund(
+        await _handle_job_failure(
             job_id, user_id,
             error_code="provider_unavailable",
             detail="Our CV analysis service was down. Your XP has been refunded — please try again in a few minutes.",
+            transient=True, allow_retry=allow_retry,
         )
         return
 
     skills_detected = parsed.get("skills_detected", [])
-    if not skills_detected:
-        await _fail_and_refund(
+    if not skills_detected:  # permanent — same CV yields the same nothing
+        await _handle_job_failure(
             job_id, user_id,
             error_code="no_skills",
             detail="No skills could be extracted from this CV. Your XP has been refunded — try a more detailed document.",
+            transient=False, allow_retry=allow_retry,
         )
         return
 
     try:
         score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
-    except ValueError:
-        await _fail_and_refund(
+    except ValueError:  # permanent — taxonomy mapping won't change on retry
+        await _handle_job_failure(
             job_id, user_id,
             error_code="taxonomy_unmapped",
             detail="CV skills could not be mapped to the skill taxonomy. Your XP has been refunded.",
+            transient=False, allow_retry=allow_retry,
         )
         return
 
@@ -389,7 +459,13 @@ async def _run_cv_upload_job(
         source=source,
     )
     upload_jobs_repo.mark_done(job_id, skills_detected=len(skills_detected), score=score_total)
-    asyncio.create_task(_trigger_initial_match_compute(user_id))
+    # ADR-0008 — initial match runs on the bulk Work Lane (nobody's waiting on it).
+    background.enqueue(
+        background.LANE_BULK,
+        "initial_match",
+        payload={"user_id": user_id},
+        correlation_id=user_id,
+    )
 
 
 async def _fail_and_refund(

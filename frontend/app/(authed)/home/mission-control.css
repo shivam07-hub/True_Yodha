@@ -545,6 +545,28 @@
   position: relative;
   scroll-margin-top: 24px;
 }
+.mc-focus-share {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border-soft);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--tm-text-muted);
+  cursor: pointer;
+  transition: color 160ms, border-color 160ms, background 160ms;
+}
+.mc-focus-share:hover {
+  color: var(--tm-interactive);
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+}
 .mc-focus-card.is-new {
   animation: mc-card-in 600ms var(--tm-ease) both;
 }
@@ -570,6 +592,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
+  padding-right: 44px; /* clear the absolute share icon (.mc-focus-share) */
 }
 .mc-focus-eyebrow {
   font-size: 11px;

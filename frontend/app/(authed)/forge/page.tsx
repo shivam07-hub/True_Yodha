@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
+import { ForgeSkeleton } from "@/components/loading/page-skeletons"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type {
   DiaryEntry,
@@ -286,7 +287,7 @@ function ForgePageInner() {
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
-  const { data: scoreData } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
@@ -373,7 +374,7 @@ function ForgePageInner() {
     saveEntry.mutate({ text, cart: cartSkills })
   }
 
-  if (!ready) return null
+  if (!ready || scoreLoading) return <ForgeSkeleton />
 
   return (
     <>

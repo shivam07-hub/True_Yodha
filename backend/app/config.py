@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     job_compute_status_ttl_seconds: int = 24 * 3600
     job_compute_lock_ttl_seconds: int = 30 * 60
 
+    # Provider Budget (ADR-0008) — global ceiling on concurrent LLM calls so a
+    # load spike can never trip provider rate limits. Per-process asyncio cap
+    # today (single web process is the only LLM caller); becomes a Redis token
+    # bucket once Job Runners exist. Tune from measured 429 rate.
+    llm_max_concurrency: int = 8
+    # Rate-limit-aware retry inside LLMProvider.complete, per provider entry.
+    llm_transient_retries: int = 2
+    llm_retry_base_seconds: float = 1.0
+    llm_retry_max_seconds: float = 20.0
+
     # CORS — comma-separated string, e.g.:
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
     allowed_origins: str = "*"

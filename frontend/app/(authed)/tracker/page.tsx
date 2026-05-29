@@ -11,6 +11,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { useTrackerBoard, partitionByStage, partitionVerdicts } from "@/components/tracker/useTrackerBoard"
 import type { StageKey } from "@/components/tracker/useTrackerBoard"
 import { TrackerHeader } from "@/components/tracker/TrackerHeader"
+import { TrackerSkeleton } from "@/components/loading/page-skeletons"
 import { KanbanBoard } from "@/components/tracker/KanbanBoard"
 import { StuckBanner } from "@/components/tracker/StuckBanner"
 import { ApplicationCard } from "@/components/tracker/ApplicationCard"
@@ -84,8 +85,8 @@ function TrackerPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, mobileStage, isDesktop, ready])
 
-  if (!ready || !token) {
-    return <div />
+  if (!ready || !token || applicationsLoading) {
+    return <TrackerSkeleton />
   }
 
   function handleStatusChange(jobId: string, status: ApplicationStatus) {
@@ -314,7 +315,7 @@ function EmptyBoard({ onAddManually }: { onAddManually: () => void }) {
           Stripe, Greenhouse, a referral. Everything you&apos;re tracking lives here.
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <a href="/jobs" style={{
+          <a href="/home#browse" style={{
             padding: "8px 16px", borderRadius: 99,
             background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
             fontSize: 12, fontWeight: 600, textDecoration: "none",

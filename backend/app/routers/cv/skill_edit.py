@@ -15,7 +15,7 @@ Flow:
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
@@ -25,7 +25,7 @@ from app.repositories.cv import (
     get_token_cv_repository,
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
-from app.services import cv_compose, cv_skill_edit
+from app.services import background, cv_compose, cv_skill_edit
 
 router = APIRouter()
 
@@ -76,7 +76,6 @@ class RecomputeStatusResponse(BaseModel):
 @router.post("/skill-edit", response_model=SkillEditResponse, status_code=status.HTTP_201_CREATED)
 async def skill_edit(
     body: SkillEditRequest,
-    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
@@ -157,13 +156,17 @@ async def skill_edit(
 
     dropped = cv_skill_edit.diff_keyword_skills(scores_repo, user_id, new_body_text)
 
-    background_tasks.add_task(
-        cv_skill_edit.run_async_retag,
-        cv_repo,
-        scores_repo,
-        user_id,
-        new_baseline["id"],
-        new_body_text,
+    # ADR-0008 — bulk Work Lane. Durable via RQ when REDIS_URL is set, else the
+    # in-process fallback (same as the old BackgroundTasks behaviour).
+    background.enqueue(
+        background.LANE_BULK,
+        "skill_retag",
+        payload={
+            "user_id": user_id,
+            "baseline_id": new_baseline["id"],
+            "new_body_text": new_body_text,
+        },
+        correlation_id=str(new_baseline["id"]),
     )
 
     return SkillEditResponse(

@@ -9,6 +9,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { LinkedInIcon } from "@/components/icons/social-icons"
 import {
   DndContext, DragOverlay, PointerSensor, closestCenter,
@@ -195,6 +196,8 @@ export function SettingsModal({ open, onClose, profile }: {
   const queryClient = useQueryClient()
   const { setBalance } = useXPStore()
   const [activeTab, setActiveTab] = useState<Tab>("Account")
+  const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
+  const [myroPromptOpen, setMyroPromptOpen] = useState(false)
 
   // Account tab state
   const [name, setName] = useState("")
@@ -499,6 +502,8 @@ export function SettingsModal({ open, onClose, profile }: {
   const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎", Billing: "▤" }
 
   return (
+    <>
+    <MyrologyOptInPrompt open={myroPromptOpen} onClose={() => setMyroPromptOpen(false)} />
     <Dialog open={open} onOpenChange={(next) => { if (!next) flushAndClose() }}>
       <DialogContent
         showCloseButton={false}
@@ -648,6 +653,37 @@ export function SettingsModal({ open, onClose, profile }: {
                       onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
                     />
                   </div>
+                </div>
+
+                {/* Myrology — free interest opt-in (separate from the paid unlock). */}
+                <div style={SECTION_HEADER}>Cosmic</div>
+                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ paddingRight: 16 }}>
+                    <div style={ROW_LABEL}>✦ Myrology</div>
+                    <div style={ROW_DESC}>A second signal from your birth chart. Turn on to show Myrology in your navigation.</div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={myrologyInterested}
+                    aria-label="Myrology in navigation"
+                    onClick={() => {
+                      if (myrologyInterested) setMyrologyInterested(false)
+                      else setMyroPromptOpen(true)
+                    }}
+                    style={{
+                      flexShrink: 0, width: 44, height: 26, borderRadius: 99, padding: 3, cursor: "pointer",
+                      border: "1px solid var(--tm-int-border)",
+                      background: myrologyInterested ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)",
+                      display: "flex", justifyContent: myrologyInterested ? "flex-end" : "flex-start",
+                      transition: "background var(--tm-dur) var(--tm-ease)",
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: "50%",
+                      background: myrologyInterested ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
+                    }} />
+                  </button>
                 </div>
 
                 {/* Save button */}
@@ -910,6 +946,7 @@ export function SettingsModal({ open, onClose, profile }: {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   )
 }
 

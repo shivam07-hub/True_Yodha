@@ -50,13 +50,26 @@ class JobMatchResponse(BaseModel):
     location_quality: str | None = None
     industry: str | None = None
     remote: bool
-    overlap_score: float                # 0–100
-    llm_rank: int | None                # 1–5 within this week's batch
-    llm_explanation: str | None         # why this job fits (2–3 sentences)
+    overlap_score: float                # 0–100 (deterministic skill overlap)
+    llm_rank: int | None                # rank within this week's batch
+    llm_explanation: str | None         # back-compat: mirrors `summary`
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
     job_description: str | None = None
+    # Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
+    overall_score: float | None = None  # 0.0–5.0
+    grade: str | None = None            # A+|A|A-|B+|B|B-|C+|C|C-|D|F
+    recommendation: str | None = None   # Apply|Negotiate|Skip
+    application_angle: str | None = None
+    summary: str | None = None
+    role_fit: float | None = None       # 0.0–5.0
+    comp_fit: float | None = None
+    growth_fit: float | None = None
+    culture_fit: float | None = None
+    risk_score: float | None = None     # HIGHER = riskier
+    strengths: list[str] = []
+    concerns: list[str] = []
 
 
 class JobMatchesResponse(BaseModel):

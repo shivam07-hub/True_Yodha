@@ -154,15 +154,20 @@ async def compute_job_matches(
     batch_week: date,
     llm_provider: LLMProvider,
     excluded_job_ids: list[str] | None = None,
+    force: bool = False,
 ) -> MatchComputeOutcome:
     """Compute and persist the user's weekly Job Matches.
 
     No cooldown — XP economy gates concurrency at the Job Refresh seam.
     See CONTEXT.md "Job Refresh" for the policy decision.
+
+    `force=True` skips the weekly cache short-circuit: a paid Refresh always
+    re-runs the brain (the user chose to spend XP). The free CV-upload initial
+    compute leaves `force=False` so it never re-charges work already done.
     """
     db = repo.client
 
-    if llm_ranker.is_cache_valid(db, user_id, batch_week):
+    if not force and llm_ranker.is_cache_valid(db, user_id, batch_week):
         return MatchComputeOutcome(
             kind="cache_hit",
             matches_written=0,
@@ -243,7 +248,7 @@ async def compute_job_matches(
         )
 
     written = await llm_ranker.rank_and_persist(
-        db, user_id, batch_week, user_skill_map, top_jobs, llm_provider
+        db, user_id, batch_week, profile, top_jobs, llm_provider
     )
     return MatchComputeOutcome(
         kind="written",

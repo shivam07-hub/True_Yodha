@@ -1059,7 +1059,9 @@ class JobsRepository:
             self._db.table("user_job_matches")
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
-                "batch_week, computed_at, matched_skills,"
+                "batch_week, computed_at, matched_skills, "
+                "overall_score, grade, recommendation, application_angle, summary, "
+                "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, apply_url, job_description)"
             )
@@ -1092,12 +1094,49 @@ class JobsRepository:
     def get_user_profile_targeting(self, user_id: str) -> dict[str, Any]:
         result = (
             self._db.table("user_profiles")
-            .select("target_roles, target_location, target_location_country")
+            .select(
+                "target_roles, target_location, target_location_country, "
+                "deal_breakers, career_goal, superpower"
+            )
             .eq("id", user_id)
             .maybe_single()
             .execute()
         )
-        return (result.data if result else None) or {}
+        profile = (result.data if result else None) or {}
+        profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
+        return profile
+
+    def get_user_cv_markdown(self, user_id: str) -> str:
+        """Latest CV text for the Matching Brain prompt.
+
+        Prefers the baseline upload (the user's general CV), newest version first;
+        falls back to any version. Returns polished_text when present, else body_text,
+        else "" so the prompt degrades gracefully.
+        """
+        def _newest(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+            return max(
+                rows, key=lambda r: int(r.get("user_version_number") or 0), default=None
+            )
+
+        baselines = (
+            self._db.table("cv_versions")
+            .select("body_text, polished_text, user_version_number")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .execute()
+        ).data or []
+        row = _newest(baselines)
+        if row is None:
+            any_rows = (
+                self._db.table("cv_versions")
+                .select("body_text, polished_text, user_version_number")
+                .eq("user_id", user_id)
+                .execute()
+            ).data or []
+            row = _newest(any_rows)
+        if not row:
+            return ""
+        return (row.get("polished_text") or row.get("body_text") or "").strip()
 
     # ── applications ───────────────────────────────────────────────────────────
 

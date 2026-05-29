@@ -12,6 +12,7 @@ import { ApplyRow } from "@/components/jobs/apply-row"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
+import { JobShareButton } from "./job-share-button"
 import { useForgeTimerStore } from "@/store/forgeTimerStore"
 
 function stripTaxonomySuffix(s: string): string {
@@ -65,6 +66,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
   return (
     <div className="mc-focus-row" ref={ref}>
       <div className={`mc-focus-card${isNew ? " is-new" : ""}`} data-cycle={cycleIndex}>
+        <JobShareButton company={job.company} />
         <div className="mc-focus-head">
           <div style={{ minWidth: 0 }}>
             <div className="mc-focus-eyebrow">

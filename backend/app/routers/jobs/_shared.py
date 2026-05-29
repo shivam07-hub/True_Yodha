@@ -30,6 +30,18 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
         job_description=job.get("job_description"),
+        overall_score=row.get("overall_score"),
+        grade=row.get("grade"),
+        recommendation=row.get("recommendation"),
+        application_angle=row.get("application_angle"),
+        summary=row.get("summary"),
+        role_fit=row.get("role_fit"),
+        comp_fit=row.get("comp_fit"),
+        growth_fit=row.get("growth_fit"),
+        culture_fit=row.get("culture_fit"),
+        risk_score=row.get("risk_score"),
+        strengths=row.get("strengths") or [],
+        concerns=row.get("concerns") or [],
     )
 
 

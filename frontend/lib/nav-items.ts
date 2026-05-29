@@ -22,7 +22,9 @@ export interface NavUnlockCtx {
   tailoredCount: number
   /** Distinct companies with at least one tailored CV. */
   tailoredCompanies: number
-  /** Paid / opt-in Myrology entitlement. */
+  /** Free opt-in interest — drives Myrology nav visibility. */
+  myrologyInterested: boolean
+  /** Paid Myrology entitlement — guards routes/panel, not nav visibility. */
   myrologyUnlocked: boolean
 }
 
@@ -122,12 +124,9 @@ export const AUTHED_NAV: NavItem[] = [
     stage: "gated",
     surfaces: ["desktop"],
     special: true,
-    unlock: (ctx) => ctx.myrologyUnlocked,
-    coach: {
-      tag: "UNLOCKED · THE LONG GAME",
-      body:
-        "Your career, modelled against the stars. The long-horizon trajectory you just opted into is now live.",
-    },
+    // Free opt-in reveals the icon; the intro+confirm prompt is the
+    // introduction, so no coachmark here (NEW pill still fires on transition).
+    unlock: (ctx) => ctx.myrologyInterested,
   },
 ]
 
@@ -149,12 +148,13 @@ export function distinctTailoredCompanies(versions: CVVersion[]): number {
 /** Build the gate context from the two real queries. Tolerant of undefined while loading. */
 export function deriveNavUnlockCtx(
   versions: CVVersion[] | undefined,
-  profile: Pick<UserProfile, "myrology_unlocked"> | undefined,
+  profile: Pick<UserProfile, "myrology_interested" | "myrology_unlocked"> | undefined,
 ): NavUnlockCtx {
   const vs = versions ?? []
   return {
     tailoredCount: tailoredVersions(vs).length,
     tailoredCompanies: distinctTailoredCompanies(vs),
+    myrologyInterested: profile?.myrology_interested ?? false,
     myrologyUnlocked: profile?.myrology_unlocked ?? false,
   }
 }
