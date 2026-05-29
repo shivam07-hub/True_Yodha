@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import (
@@ -268,18 +268,21 @@ async def global_search_jobs(
 
 @router.post("/analytics/refresh-snapshot", response_model=AnalyticsSnapshotRefreshResponse)
 async def refresh_analytics_snapshot(
-    secret: Annotated[str, Query(min_length=10)],
+    x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> AnalyticsSnapshotRefreshResponse:
     """Recompile + persist the unfiltered analytics payload.
 
     Called by the scraper finalisation hook (sister repo) post-batch.
-    Auth: shared secret via query param (env: MYRO_ANALYTICS_REFRESH_SECRET).
+    Auth: shared secret via the X-Myro-Refresh-Secret header
+    (env: MYRO_ANALYTICS_REFRESH_SECRET). Header, not query param, so the
+    secret does not leak into HTTP access / reverse-proxy logs.
     Returns the new totals so the caller can log success.
     """
     import os
+    import secrets as _secrets
     expected = os.environ.get("MYRO_ANALYTICS_REFRESH_SECRET", "").strip()
-    if not expected or secret != expected:
+    if not expected or not _secrets.compare_digest(x_myro_refresh_secret, expected):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid refresh secret")
     summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
     return AnalyticsSnapshotRefreshResponse(
