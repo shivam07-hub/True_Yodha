@@ -7,6 +7,7 @@ import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ParticleLoading } from "@/components/loading/particle-loading"
+import { SkillsSkeleton } from "@/components/loading/page-skeletons"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
 import { ScoreRing } from "@/components/skills/score-ring"
 import { DomainAccordionRow } from "@/components/skills/domain-accordion-row"
@@ -87,7 +88,7 @@ export default function SkillsPage() {
 
   const biggestGapDomain = domainEntries.length ? [...domainEntries].sort((a, b) => a.avg - b.avg)[0]?.domain : null
 
-  if (!ready) return null
+  if (!ready || skillsLoading) return <SkillsSkeleton />
 
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
   const allSkills = Object.values(skills.by_domain).flat()

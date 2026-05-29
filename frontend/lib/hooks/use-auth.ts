@@ -27,6 +27,10 @@ async function bootstrapSession(): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refresh }),
+      // Bound the request: a hung connection (server accepts but never responds)
+      // would otherwise leave `ready` false forever and wedge the whole app on
+      // the shell skeleton. Timeout -> reject -> caught below -> treated as logged out.
+      signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return null
     const data = await res.json() as { access_token: string; refresh_token: string | null }
@@ -45,14 +49,19 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const t = await bootstrapSession()
-      if (cancelled) return
-      if (!t) {
-        router.replace("/login")
-      } else {
-        setToken(t)
+      try {
+        const t = await bootstrapSession()
+        if (cancelled) return
+        if (!t) {
+          router.replace("/login")
+        } else {
+          setToken(t)
+        }
+      } finally {
+        // Guarantee the gate opens no matter what — a thrown bootstrap must never
+        // leave the app stuck on the shell skeleton.
+        if (!cancelled) setReady(true)
       }
-      setReady(true)
     })()
 
     const onStorage = (e: StorageEvent) => {

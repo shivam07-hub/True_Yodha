@@ -5,7 +5,9 @@ import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { JobsSkeleton } from "@/components/loading/page-skeletons"
 import { JobCard } from "@/components/jobs/JobCard"
+import { JobMatchDetail } from "@/components/jobs/match-brain"
 import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 import { jobs, scores } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -23,6 +25,7 @@ export default function JobsPage() {
   const [selectedCity, setSelectedCity] = useState("")
   const [selectedMode, setSelectedMode] = useState("")
   const [saveToast, setSaveToast] = useState(false)
+  const [detailJobId, setDetailJobId] = useState<string | null>(null)
 
   const refreshVm = useJobRefresh(token, queryClient)
   const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
@@ -106,7 +109,7 @@ export default function JobsPage() {
     [matches.data?.jobs],
   )
 
-  if (!ready) return null
+  if (!ready || matches.isLoading) return <JobsSkeleton />
 
   return (
     <>
@@ -195,7 +198,12 @@ export default function JobsPage() {
           ) : filtered.length ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
               {filtered.map((job) => (
-                <JobCard key={job.id} job={job} onTrack={(jobId) => track.mutate(jobId)} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onTrack={(jobId) => track.mutate(jobId)}
+                  onSelect={(jobId) => setDetailJobId(jobId)}
+                />
               ))}
             </div>
           ) : (
@@ -209,6 +217,11 @@ export default function JobsPage() {
           )}
         </div>
       </div>
+
+      {detailJobId && (() => {
+        const job = (matches.data?.jobs ?? []).find((j) => j.job_id === detailJobId)
+        return job ? <JobMatchDetail job={job} onClose={() => setDetailJobId(null)} /> : null
+      })()}
 
       {saveToast && (
         <div

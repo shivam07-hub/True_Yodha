@@ -10,6 +10,7 @@ import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
+import { HomeSkeleton } from "@/components/mission-control/hero-skeleton"
 import { Topbar } from "@/components/mission-control/topbar"
 import { MatchesRows, type ChipJob, type SelfChip } from "@/components/mission-control/matches-rows"
 import { FocusedJob } from "@/components/mission-control/focused-job"
@@ -22,9 +23,8 @@ import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreak } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useXPStore } from "@/store/xpStore"
 import { useCartStore } from "@/store/cartStore"
-import { userCacheKey, withLocalCache, clearLocalCache } from "@/lib/local-cache"
+import { userCacheKey, withLocalCache } from "@/lib/local-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -56,18 +56,17 @@ function MissionControlInner() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const { toast, show: showToast } = useToast()
-  const { setBalance: setXPBalance } = useXPStore()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
 
   const refreshVm = useJobRefresh(token, queryClient)
 
-  const { data: scoreData } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
@@ -150,7 +149,6 @@ function MissionControlInner() {
   )
 
   // ── Build chip lists from real data.
-  const analysedJobIds = useMemo(() => new Set(allMatchedJobs.map((j) => j.job_id)), [allMatchedJobs])
   const selfFocusApps = useMemo(() => apps.filter((a) => a.source === "user_discovery"), [apps])
 
   const myroChips: ChipJob[] = useMemo(
@@ -163,22 +161,17 @@ function MissionControlInner() {
     [topJobs],
   )
 
-  const [analysingJobId, setAnalysingJobId] = useState<string | null>(null)
-
   const selfChips: SelfChip[] = useMemo(
     () =>
       selfFocusApps.map((a) => {
-        const analysed = analysedJobIds.has(a.job_id)
-        const j = analysed ? allMatchedJobs.find((x) => x.job_id === a.job_id) : null
+        const j = allMatchedJobs.find((x) => x.job_id === a.job_id)
         return {
           id: a.job_id,
           label: a.company ?? a.title ?? "Role",
           fit: j ? Math.round(j.overlap_score) : null,
-          analysed,
-          analysing: analysingJobId === a.job_id,
         }
       }),
-    [selfFocusApps, analysedJobIds, allMatchedJobs, analysingJobId],
+    [selfFocusApps, allMatchedJobs],
   )
 
   // ── Mutations
@@ -193,20 +186,6 @@ function MissionControlInner() {
   const removeSelfFocus = useMutation({
     mutationFn: (jobId: string) => jobs.removeTrackerJob(token!, jobId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
-  const analyseMutation = useMutation({
-    mutationFn: (jobId: string) => jobs.analyseJob(token!, jobId),
-    onMutate: (jobId) => setAnalysingJobId(jobId),
-    onSettled: () => setAnalysingJobId(null),
-    onSuccess: (data, jobId) => {
-      setXPBalance(data.new_xp_balance)
-      showToast(`Analysed · ${data.overlap_score}% match · −10 XP`)
-      clearLocalCache(userCacheKey(token!, ["matches"]))
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
-      handlePick(jobId)
-    },
-    onError: () => showToast("Not enough XP — practice a session to earn more"),
   })
 
   function handleSkillToggle(skill: SkillGapItem) {
@@ -328,7 +307,12 @@ function MissionControlInner() {
     return moves.slice(0, 3)
   }, [primaryJob, hasForged, cartSkills, firstMissing, loggedToday, streak, router, activeTargets])
 
-  if (!ready) return null
+  // Hold the layout-matched skeleton until auth, nav unlocks, and the core
+  // dashboard queries have all settled — then swap to real content in one
+  // paint. `isLoading` flips false on error too, so a failing query can never
+  // wedge the skeleton on forever. No blank body, no popping-in.
+  const coreLoading = scoreLoading || profileLoading || jobsLoading || historyQuery.isLoading
+  if (!ready || nav.loading || coreLoading) return <HomeSkeleton />
 
   // First-run = promise not yet delivered. The first-run hero absorbs the
   // pre-upload invitation (no RequiresCV gate) and owns the whole upload →
@@ -421,7 +405,6 @@ function MissionControlInner() {
                 selfFound={selfChips}
                 activeId={currentActiveId}
                 onPick={handlePick}
-                onAnalyse={(id) => analyseMutation.mutate(id)}
                 onRemoveSelf={(id) => removeSelfFocus.mutate(id)}
               />
             )}
@@ -474,7 +457,6 @@ function MissionControlInner() {
                         selfFound={selfChips}
                         activeId={currentActiveId}
                         onPick={handlePick}
-                        onAnalyse={(id) => analyseMutation.mutate(id)}
                         onRemoveSelf={(id) => removeSelfFocus.mutate(id)}
                       />
                     </div>

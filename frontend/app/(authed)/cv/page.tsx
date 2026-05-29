@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
+import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -260,7 +261,7 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, ready])
 
-  if (!ready) return null
+  if (!ready || profileQuery.isLoading) return <CvSkeleton />
 
   const surfacedError = playground.error ?? uploadError
 

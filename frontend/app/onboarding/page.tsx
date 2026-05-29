@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { StepCV } from "@/components/onboarding/step-cv"
 import { StepRole } from "@/components/onboarding/step-role"
+import { StepLens } from "@/components/onboarding/step-lens"
+import type { LensFields } from "@/components/onboarding/step-lens"
 import { StepCompanies } from "@/components/onboarding/step-companies"
 import type { CVAnalysisStatus } from "@/components/onboarding/step-companies"
 import { StepScore } from "@/components/onboarding/step-score"
@@ -19,11 +21,12 @@ import { useOnboardingHandoff } from "@/store/onboardingHandoff"
 import { MyroLogo } from "@/components/myro-logo"
 import { OnboardingJourneyStrip } from "@/components/onboarding/journey-strip"
 
-type Step = "cv" | "role" | "companies" | "ninja" | "score"
+type Step = "cv" | "role" | "lens" | "companies" | "ninja" | "score"
 
 const JOURNEY_STEP_MAP: Record<Step, 1 | 2 | 3 | 4 | 5> = {
   cv: 1,
   role: 3,
+  lens: 3,
   companies: 3,
   ninja: 3,
   score: 3,
@@ -145,12 +148,35 @@ export default function OnboardingPage() {
         target_location: location,
       })
       beginCVUpload(token)
-      setStep("companies")
+      setStep("lens")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {
       setProfileSaving(false)
     }
+  }
+
+  async function handleLensNext(fields: LensFields) {
+    if (!token) {
+      setStep("companies")
+      return
+    }
+    setProfileSaving(true)
+    setError(null)
+    try {
+      await users.updateProfile(token, fields)
+      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+    } catch {
+      // Lens is optional — never block onboarding on it. Drop silently; the user
+      // can fill these later from their profile.
+    } finally {
+      setProfileSaving(false)
+      setStep("companies")
+    }
+  }
+
+  function handleLensSkip() {
+    setStep("companies")
   }
 
   async function handleCompaniesNext() {
@@ -230,6 +256,7 @@ export default function OnboardingPage() {
 
         {step === "cv" && <StepCV onNext={handleCVNext} onNextText={handleCVTextNext} />}
         {step === "role" && <StepRole onNext={handleRoleNext} loading={profileSaving} />}
+        {step === "lens" && <StepLens onNext={handleLensNext} onSkip={handleLensSkip} loading={profileSaving} />}
         {step === "companies" && token && (
           <StepCompanies
             token={token}

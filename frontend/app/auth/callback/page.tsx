@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { EdgeGlow } from "@/components/loading/edge-glow"
 import { createClient } from "@/lib/supabase"
 import { setSessionTokens } from "@/lib/session"
 import { auth } from "@/lib/api"
@@ -170,30 +171,7 @@ function CallbackInner() {
     }
   }, [router, searchParams])
 
-  return (
-    <main style={{
-      minHeight: "100dvh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      background: "var(--tm-bg)",
-      color: "var(--tm-text-muted)",
-      fontSize: 14,
-      fontFamily: "var(--font-sans), sans-serif",
-    }}>
-      <div style={{
-        width: 28, height: 28,
-        borderRadius: "50%",
-        border: "2px solid var(--tm-border)",
-        borderTopColor: "var(--tm-interactive)",
-        animation: "tm-spin 720ms linear infinite",
-      }} aria-hidden="true" />
-      Signing you in…
-      <style>{`@keyframes tm-spin { to { transform: rotate(360deg); } }`}</style>
-    </main>
-  )
+  return <EdgeGlow message="Signing you in…" />
 }
 
 export default function AuthCallbackPage() {

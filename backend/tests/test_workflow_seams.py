@@ -165,6 +165,35 @@ def test_compute_job_matches_includes_debug_on_cache_hit(monkeypatch: Any) -> No
     assert result.debug["candidate_jobs_count"] is None
 
 
+def test_compute_job_matches_force_bypasses_cache(monkeypatch: Any) -> None:
+    """Paid Refresh (force=True) re-runs the brain even when a weekly cache exists."""
+    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
+
+    # Cache says "valid" — force must override and still compute.
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: True)
+
+    async def _fake_rank_and_persist(*_args: Any, **_kwargs: Any) -> int:
+        return 2
+
+    def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
+        return [
+            {"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python (Programming Language)"]},
+            {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
+        ]
+
+    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+
+    result = asyncio.run(
+        jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object(), force=True)  # type: ignore[arg-type]
+    )
+
+    assert result.kind == "written"
+    assert result.from_cache is False
+    assert result.matches_written == 2
+
+
 def test_compute_job_matches_includes_debug_when_no_candidates(monkeypatch: Any) -> None:
     repo = _FakeComputeJobsRepository(candidate_job_ids=[])
 

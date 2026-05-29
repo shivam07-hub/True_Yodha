@@ -4,6 +4,7 @@ import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ApplyRow } from "@/components/jobs/apply-row"
+import { GradeBadge, VerdictPill } from "@/components/jobs/match-brain"
 import type { JobMatch } from "@/lib/api"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 
@@ -107,6 +108,17 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
             {job.industry ? <span style={{ color: "var(--tm-text-muted)" }}>{job.industry}</span> : null}
             {job.llm_rank != null ? <span style={{ color: "var(--tm-interactive)" }}>Rank #{job.llm_rank}</span> : null}
           </div>
+          {(job.grade || job.recommendation) ? (
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <GradeBadge grade={job.grade} />
+              <VerdictPill recommendation={job.recommendation} />
+              {job.overall_score != null ? (
+                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>
+                  {job.overall_score.toFixed(1)}/5
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div style={{ flexShrink: 0, textAlign: "right" }}>
@@ -188,7 +200,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
               letterSpacing: "0.08em",
             }}
           >
-            Why this is a good fit
+            {job.application_angle ? "How to position" : "Why this is a good fit"}
           </span>
           <span
             style={{
@@ -219,7 +231,7 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
             borderLeft: "2px solid var(--tm-interactive)",
           }}
         >
-          {stripMarkdown(job.llm_explanation) || "No explanation available yet for this role."}
+          {stripMarkdown(job.application_angle || job.summary || job.llm_explanation) || "No explanation available yet for this role."}
         </p>
         {job.job_description ? (
           <p
@@ -244,6 +256,11 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
         <Button variant="outline" size="sm" onClick={() => onTrack(job.job_id)} disabled={isTracked}>
           {isTracked ? "Saved" : "+ Save"}
         </Button>
+        {onSelect && (job.overall_score != null || job.summary) ? (
+          <Button variant="outline" size="sm" onClick={() => onSelect(job.job_id)}>
+            Breakdown
+          </Button>
+        ) : null}
         <Link
           href={`/cv?jobId=${job.job_id}`}
           style={{

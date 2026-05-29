@@ -14,8 +14,6 @@ export interface SelfChip {
   id: string
   label: string
   fit: number | null
-  analysed: boolean
-  analysing: boolean
 }
 
 interface MatchesRowsProps {
@@ -23,7 +21,6 @@ interface MatchesRowsProps {
   selfFound: SelfChip[]
   activeId: string | null
   onPick: (id: string) => void
-  onAnalyse: (id: string) => void
   onRemoveSelf: (id: string) => void
   addTargetHref?: string
   findMoreHref?: string
@@ -34,7 +31,6 @@ export function MatchesRows({
   selfFound,
   activeId,
   onPick,
-  onAnalyse,
   onRemoveSelf,
   addTargetHref = "/jobs",
   findMoreHref = "/market",
@@ -66,7 +62,7 @@ export function MatchesRows({
       </div>
 
       <div className="mc-match-row">
-        <div className="label">Self Found</div>
+        <div className="label">Liked Jobs</div>
         <div className="mc-chips">
           {selfFound.length === 0 ? (
             <span style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>None yet</span>
@@ -77,24 +73,10 @@ export function MatchesRows({
                   type="button"
                   className={`mc-chip${j.fit != null ? " has-fit" : ""}${j.id === activeId ? " active" : ""} tm-control-focus`}
                   onClick={() => onPick(j.id)}
-                  disabled={!j.analysed}
-                  style={!j.analysed ? { opacity: 0.85, cursor: "default" } : undefined}
                 >
                   <span>{j.label}</span>
                   {j.fit != null ? <span className="pct">· {j.fit}%</span> : null}
                 </button>
-                {!j.analysed ? (
-                  <button
-                    type="button"
-                    className="mc-chip tm-control-focus"
-                    style={{ background: "transparent" }}
-                    onClick={() => onAnalyse(j.id)}
-                    disabled={j.analysing}
-                  >
-                    <span style={{ color: "var(--tm-text-muted)" }}>{j.analysing ? "Analysing…" : "Analyse"}</span>
-                    {!j.analysing ? <span className="pct">· 10 XP</span> : null}
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   className="mc-chip-close tm-control-focus"

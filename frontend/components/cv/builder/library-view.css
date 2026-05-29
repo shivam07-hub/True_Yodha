@@ -96,7 +96,7 @@
   white-space: nowrap;
   letter-spacing: -0.005em;
 }
-.tm-lib-btn:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.10); }
+.tm-lib-btn:hover { background: var(--tm-surface-2); border-color: var(--tm-border); }
 .tm-lib-btn.primary {
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
@@ -105,7 +105,7 @@
 }
 .tm-lib-btn.primary:hover { background: var(--tm-interactive-hover); border-color: var(--tm-interactive-hover); }
 .tm-lib-btn.ghost { border-color: transparent; color: var(--tm-text-muted); }
-.tm-lib-btn.ghost:hover { color: var(--tm-text); background: rgba(255,255,255,0.03); }
+.tm-lib-btn.ghost:hover { color: var(--tm-text); background: var(--tm-surface-2); }
 .tm-lib-btn.sm { padding: 5px 10px; font-size: 12px; }
 .tm-lib-btn.xs { padding: 3px 8px; font-size: 11px; border-radius: 4px; }
 .tm-lib-btn.icon-only { padding: 7px 8px; }
@@ -125,7 +125,7 @@
   border: 1px solid var(--tm-accent-ring);
   border-radius: 10px;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--tm-surface) 0%, rgba(15,26,46,1) 100%);
+  background: linear-gradient(135deg, var(--tm-surface) 0%, var(--tm-surface-2) 100%);
   transition: border-color 160ms var(--tm-ease);
 }
 .tm-lib-master-card:hover { border-color: var(--tm-interactive); }
@@ -235,7 +235,7 @@
   justify-content: center;
   transition: border-color 120ms var(--tm-ease);
 }
-.tm-lib-stat-tile:hover { border-color: rgba(255,255,255,0.1); }
+.tm-lib-stat-tile:hover { border-color: var(--tm-border); }
 .tm-lib-stat-num {
   font-family: "Geist Mono", var(--tm-font-mono);
   font-size: 28px;
@@ -298,7 +298,7 @@
   overflow: hidden;
   transition: border-color 160ms var(--tm-ease);
 }
-.tm-lib-folder-row:hover { border-color: rgba(255,255,255,0.10); }
+.tm-lib-folder-row:hover { border-color: var(--tm-border); }
 
 .tm-lib-folder-header {
   display: flex;
@@ -549,7 +549,7 @@
   width: 300px;
   flex-shrink: 0;
   border-left: 1px solid var(--tm-border-soft);
-  background: rgba(11, 18, 34, 0.4);
+  background: var(--tm-surface-2);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -638,7 +638,7 @@
 }
 .tm-lib-rail-job-row:hover {
   border-color: var(--tm-accent-ring);
-  background: rgba(15,26,46,0.8);
+  background: var(--tm-surface-3);
 }
 .tm-lib-rail-job-title {
   font-size: 12px;

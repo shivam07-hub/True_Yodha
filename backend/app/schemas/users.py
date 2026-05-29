@@ -9,6 +9,9 @@ class UserProfileResponse(BaseModel):
     linkedin_url: str | None
     target_roles: list[str]
     target_location: str | None
+    deal_breakers: list[str] = []
+    career_goal: str | None = None
+    superpower: str | None = None
     cv_url: str | None
     onboarding_complete: bool
     created_at: datetime
@@ -32,6 +35,9 @@ class UpdateProfileRequest(BaseModel):
     linkedin_url: str | None = None
     target_roles: list[str] | None = None
     target_location: str | None = None
+    deal_breakers: list[str] | None = None
+    career_goal: str | None = None
+    superpower: str | None = None
 
 
 class UserSkillItem(BaseModel):

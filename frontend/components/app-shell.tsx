@@ -29,12 +29,12 @@ import { useForgeTimerStore } from "@/store/forgeTimerStore"
 import { xp } from "@/lib/api"
 import type { ForgeSessionResult } from "@/types/xp"
 import {
-  AppShellSkeleton,
   MobileBottomNav,
   MobileProfileSheet,
   MobileTopBar,
   useViewport,
 } from "@/mobile"
+import { skeletonForPath } from "@/components/loading/page-skeletons"
 
 export const FEEDBACK_QUICK_ACTIONS: {
   id: string; category: FeedbackCategory; icon: string; label: string; color: string; bg: string
@@ -300,7 +300,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
-  if (!ready) return <AppShellSkeleton />
+  // Auth bootstrap window — before chrome/profile can render. Show the
+  // destination page's own skeleton shape rather than a centered logo splash,
+  // so the perceived load is continuous: shell-bootstrap skeleton → page
+  // skeleton → real content, all in the same layout.
+  if (!ready) return <>{skeletonForPath(pathname)}</>
 
   const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some((p) => pathname.startsWith(p))
 

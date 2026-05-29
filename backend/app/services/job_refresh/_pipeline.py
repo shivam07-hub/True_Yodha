@@ -29,4 +29,5 @@ async def run(
         batch_week=batch_week,
         llm_provider=llm_provider,
         excluded_job_ids=excluded_job_ids,
+        force=True,  # paid Refresh: user spent XP → always re-run the brain
     )

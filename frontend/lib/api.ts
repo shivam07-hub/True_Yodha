@@ -201,6 +201,9 @@ export interface UserProfile {
   linkedin_url: string | null
   target_roles: string[]
   target_location: string | null
+  deal_breakers: string[]
+  career_goal: string | null
+  superpower: string | null
   cv_url: string | null
   onboarding_complete: boolean
   created_at: string
@@ -224,6 +227,9 @@ export interface ProfileUpdate {
   linkedin_url?: string | null
   target_roles?: string[] | null
   target_location?: string | null
+  deal_breakers?: string[] | null
+  career_goal?: string | null
+  superpower?: string | null
 }
 
 export interface UserSkillItem {
@@ -1223,6 +1229,19 @@ export interface JobMatch {
   source_url: string | null
   matched_skills: string[]
   job_description?: string | null
+  // Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
+  overall_score?: number | null // 0.0–5.0
+  grade?: string | null // A+|A|A-|B+|B|B-|C+|C|C-|D|F
+  recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
+  application_angle?: string | null
+  summary?: string | null
+  role_fit?: number | null // 0.0–5.0
+  comp_fit?: number | null
+  growth_fit?: number | null
+  culture_fit?: number | null
+  risk_score?: number | null // HIGHER = riskier
+  strengths?: string[]
+  concerns?: string[]
 }
 
 export interface JobMatchesResponse {
