@@ -384,14 +384,6 @@
   transition: opacity var(--tm-dur);
 }
 .tm-topbar-brand:hover { opacity: 0.8; }
-.tm-topbar-wordmark {
-  font-family: var(--tm-font-display);
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--tm-text);
-  line-height: 1;
-}
-
 .tm-topbar-nav {
   flex: 1;
   display: flex;
@@ -444,16 +436,6 @@
   background: rgba(176, 132, 255, 0.12);
   border-color: rgba(176, 132, 255, 0.3);
 }
-.tm-topbar-nudge {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--tm-interactive);
-  box-shadow: 0 0 5px var(--tm-int-bg-hover);
-  animation: loop-pulse 1.8s ease-in-out infinite;
-  margin-left: 2px;
-}
-
 .tm-topbar-right {
   display: flex;
   align-items: center;

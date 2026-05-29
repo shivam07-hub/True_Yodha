@@ -89,12 +89,16 @@
 
 /* ── Subhead ────────────────────────────────────────────────── */
 .tm-landing-subhead {
-  font-size: var(--tm-fs-body);
-  line-height: var(--tm-lh-body);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.04em;
   color: var(--tm-text-muted);
   margin: 0 0 32px;
-  max-width: 420px;
-  text-wrap: balance;
+  white-space: nowrap;
 }
 
 /* ── Dropzone ───────────────────────────────────────────────── */
@@ -188,87 +192,26 @@
   box-shadow: 0 0 14px rgba(0, 245, 212, 0.28);
 }
 
-/* ── Secondary CTA ──────────────────────────────────────────── */
-.tm-landing-cta-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-  padding: 6px 0;
-  font-size: var(--tm-fs-meta);
-  font-weight: 500;
-  color: var(--tm-text-muted);
-  text-decoration: none;
-  transition: color var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-landing-cta-secondary:hover {
-  color: var(--tm-interactive);
-}
-
-.tm-landing-cta-arrow {
+/* ── Private-by-default stamp — rubber-stamped on the CV mock ─── */
+.tm-landing-private-stamp {
+  position: absolute;
+  z-index: 2;
+  bottom: 64px;
+  left: -12px;
+  padding: 8px 14px;
   font-family: var(--tm-font-mono);
-  opacity: 0.8;
-}
-
-/* ── Stats strip ────────────────────────────────────────────── */
-.tm-landing-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 24px;
-}
-
-.tm-landing-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  background: color-mix(in srgb, var(--tm-surface) 60%, transparent);
-  border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-pill, 999px);
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-caption);
-  white-space: nowrap;
-}
-
-.tm-landing-stat-num {
-  color: var(--tm-text);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.tm-landing-stat-lbl {
-  color: var(--tm-text-muted);
-  font-size: calc(var(--tm-fs-caption) - 1px);
-}
-
-.tm-landing-stat-live {
-  border-color: rgba(0, 245, 212, 0.35);
-  background: rgba(0, 245, 212, 0.06);
-}
-
-.tm-landing-stat-live .tm-landing-stat-lbl {
-  color: #22d3a8;
-}
-
-.tm-landing-stat-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22d3a8;
-  box-shadow: 0 0 6px rgba(34, 211, 168, 0.6);
-  animation: tm-landing-stat-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes tm-landing-stat-pulse {
-  0%, 100% { opacity: 1;    transform: scale(1); }
-  50%      { opacity: 0.55; transform: scale(0.85); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tm-landing-stat-dot { animation: none; }
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #15a07e;
+  border: 2px solid #15a07e;
+  border-radius: 6px;
+  background: rgba(34, 211, 168, 0.08);
+  transform: rotate(-11deg);
+  opacity: 0.92;
 }
 
 /* ── Hero right — CV mock stage ─────────────────────────────── */
@@ -452,6 +395,7 @@
   /* keep score badge + toast inside the card on narrow viewports */
   .tm-landing-score-badge { right: 8px; bottom: -14px; }
   .tm-landing-skill-toast { right: 8px; top: 8px; }
+  .tm-landing-private-stamp { left: 4px; bottom: 56px; }
 
 }
 
@@ -489,14 +433,9 @@
     height: 40px;
   }
 
-  .tm-landing-stats {
-    gap: 6px;
-    margin-top: 20px;
-  }
-
-  .tm-landing-stat {
-    padding: 6px 10px;
-    font-size: calc(var(--tm-fs-caption) - 1px);
+  .tm-landing-private-stamp {
+    font-size: 12px;
+    padding: 6px 11px;
   }
 
   .tm-landing-score-badge {

@@ -2,20 +2,23 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { users, jobs as jobsApi } from "@/lib/api"
+import { users } from "@/lib/api"
 import type { UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
 import { useForgeSession } from "@/lib/hooks/use-forge-session"
-import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { MyroLogo } from "@/components/myro-logo"
+import { TopbarNav } from "@/components/nav/topbar-nav"
+import { CvPromisePill } from "@/components/nav/cv-promise-pill"
+import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
+import "@/components/nav/nav.css"
 import {
   FeedbackHub, FeedbackFAB, OPEN_FEEDBACK_EVENT,
   openFeedbackHub as openFeedbackHubEvent,
@@ -33,15 +36,6 @@ import {
   useViewport,
 } from "@/mobile"
 
-const NAV_ITEMS = [
-  { href: "/home",    label: "Dashboard",     desc: "Tackle Today",            nudge: true,  stalePill: false },
-  { href: "/forge",   label: "Practice",      desc: "Timer + diary",           nudge: false, stalePill: false },
-  { href: "/market",  label: "Live Job Data", desc: "Market intelligence",     nudge: false, stalePill: false },
-  { href: "/skills",  label: "Skills",        desc: "Score, gaps & graph",     nudge: false, stalePill: false },
-  { href: "/cv",      label: "CV Library",    desc: "Hub for every CV version",nudge: false, stalePill: false },
-  { href: "/tracker", label: "Tracker",       desc: "Application pipeline",    nudge: false, stalePill: true  },
-]
-
 export const FEEDBACK_QUICK_ACTIONS: {
   id: string; category: FeedbackCategory; icon: string; label: string; color: string; bg: string
 }[] = [
@@ -54,29 +48,6 @@ export const openFeedbackHub = openFeedbackHubEvent
 
 export type SidebarProfile = Pick<UserProfile, "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email">
 
-function StaleBadge() {
-  const { token } = useAuth()
-  const { data } = useQuery({
-    queryKey: dataKeys.staleApplications(),
-    queryFn: () => jobsApi.staleApplications(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
-  const n = data?.length ?? 0
-  if (n === 0) return null
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", justifyContent: "center",
-      minWidth: 14, height: 14, borderRadius: 99, padding: "0 4px",
-      background: "var(--tm-danger)", color: "white",
-      fontSize: 9, fontFamily: "var(--tm-font-mono)",
-      marginLeft: 4,
-    }}>
-      {n > 9 ? "9+" : n}
-    </span>
-  )
-}
-
 function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
   xpBalance: number
   profile: SidebarProfile | null
@@ -84,7 +55,8 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
   onForgeXPEarned: (amount: number, newBalance: number) => void
   onXPOpen: () => void
 }) {
-  const pathname = usePathname()
+  const router = useRouter()
+  const nav = useNavUnlocks()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
@@ -116,51 +88,25 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
 
   return (
     <>
-      <header className="tm-app-topbar" aria-label="App navigation">
-        {/* Brand */}
-        <Link href="/myro" className="tm-topbar-brand">
+      <header className="tm-app-topbar" aria-label="App navigation" data-coaching={!!nav.activeCoach}>
+        {/* Brand — aperture + beta badge (wordmark dropped) */}
+        <Link href="/myro" className="tm-topbar-brand" aria-label="Myro — home">
           <MyroLogo size={26} />
-          <span className="tm-topbar-wordmark">Myro</span>
+          <span className="tm-nav-beta" title="Early access — Myro is still evolving">beta</span>
         </Link>
 
-        {/* Nav links */}
-        <nav className="tm-topbar-nav" aria-label="Primary navigation">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname.startsWith(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.desc}
-                className="tm-topbar-link"
-                data-active={active}
-                data-nudge={item.nudge && !active}
-              >
-                {item.href === "/home" && (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden style={{ opacity: active ? 1 : 0.7, flexShrink: 0 }}>
-                    <path d="M12 2.5C12 2.5 13.1 9.1 15.5 11.5C17.9 13.9 21.5 12 21.5 12C21.5 12 17.9 10.1 15.5 12.5C13.1 14.9 12 21.5 12 21.5C12 21.5 10.9 14.9 8.5 12.5C6.1 10.1 2.5 12 2.5 12C2.5 12 6.1 13.9 8.5 11.5C10.9 9.1 12 2.5 12 2.5Z" />
-                  </svg>
-                )}
-                {item.label}
-                {item.stalePill && <StaleBadge />}
-                {item.nudge && !active && <span className="tm-topbar-nudge" aria-hidden />}
-              </Link>
-            )
-          })}
-          <Link
-            href="/myrology"
-            className="tm-topbar-link tm-topbar-link-myrology"
-            data-active={pathname.startsWith("/myrology")}
-            title="Myrology — cosmic career intelligence"
-          >
-            ✦ Myrology
-          </Link>
-        </nav>
+        {/* Progressive-disclosure nav (grows as surfaces are earned) */}
+        <TopbarNav nav={nav} />
 
         {/* Right cluster */}
         <div className="tm-topbar-right">
-          {/* Forge chip */}
-          {forgeActive && (
+          {/* 10-min CV-promise countdown — first-run only */}
+          {nav.firstRun && (
+            <CvPromisePill firstRun={nav.firstRun} hasCv={nav.hasCv} onClick={() => router.push("/cv")} />
+          )}
+
+          {/* Forge chip — returning operators */}
+          {forgeActive && !nav.firstRun && (
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setForgeOpen((o) => !o)}
@@ -261,11 +207,6 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
                       <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
                     </button>
                   ))}
-                  <div className="tm-topbar-menu-divider" />
-                  <div style={{ padding: "4px 10px 6px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Theme</span>
-                    <SurfaceToggle />
-                  </div>
                   <div className="tm-topbar-menu-divider" />
                   {[
                     { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },

@@ -273,6 +273,39 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-05-29 · progressive-disclosure nav grill COMPLETE + BUILT)
+
+Resumed the paused progressive-nav `/grill-me` (Q1+Q1b were locked), grilled Q2–Q11 to close, then built the whole thing end-to-end. **Nothing committed** (commit when Shivam says). tsc clean · `next lint` 0/0 · 13 cv-upload-api + 6 cv-upload-state tests pass.
+
+### Grill (Q2–Q11 locked) — full spec in `project_progressive_nav_grill.md`
+Headline finding: **the `/onboarding/state` backend endpoint never existed** — `lib/api.ts` declared a phantom `onboarding` client + `OnboardingCards` (mounted on /home) that 404'd silently and rendered nothing in prod. "Backend already built" premise was false. → All unlocks now derive client-side from `cv.versions` + `users.me`.
+- **Q2** unlocks client-side: cv=`≥1 tailored` · tracker=`≥2 tailored companies` (Shivam: 2 not 3) · myrology=`myrology_unlocked`.
+- **Q3** TWO states only, signal `tailoredCount`: first-run (`=0`) vs returning (`≥1`). `onboarding_complete` dead for gating. First-run hero absorbs pre-upload invitation. Global skeleton contract: data-shaped placeholders.
+- **Q4** countdown pill hybrid C: pre-upload static "First CV in 10 min" → server clock from `cv_upload_jobs.created_at` → expiry "FINISH CV" gentle nudge (no shame). First-run-only.
+- **Q5** retire OnboardingCards + phantom client; CV-centric checklist Upload→Score→Tailor. Dead-code-sweep principle.
+- **Q6** base tour DROPPED (friction vs speed). Bottom-right feedback FAB = "show me around". Keep NEW dots.
+- **Q7** unlock plumbing subscribe+invalidate+localStorage-seen+queue. Returning nudge folds into state-aware-CTA project (NOT built here). Win metrics: first-run→tailor 1st CV · returning→mark next role.
+- **Q8** gate mobile bottom bar; drop Skills; NEW dot only (no popover).
+- **Q9** nav-grows panel first-run-only, CV Library + Tracker rows (omit Myrology).
+- **Q10** drop wordmark, faint `beta` badge, keep /myro. `--tm-scrim` already existed.
+- **Q11** unify authed nav → `lib/nav-items.ts` (stage/unlock/surfaces). Public nav separate. Forge = top pill not bottom slot.
+
+### Built (uncommitted on Develop)
+NEW: `lib/nav-items.ts`, `lib/hooks/use-nav-unlocks.ts`, `lib/cv-promise.ts`, `lib/hooks/use-cv-promise.ts`, `components/nav/{topbar-nav,cv-promise-pill}.tsx` + `nav.css`, `components/home/first-run-hero.tsx` + `first-run-hero.css`. EDIT: `app-shell.tsx`, `mobile/shell.tsx`, `app/home/page.tsx`, `app/cv/page.tsx`, `app/onboarding/page.tsx`, backend `cv_workflow.get_cv_upload_status` + `schemas/cv.py` (`started_at`, no migration — reuses created_at). DELETED: OnboardingCards/OnboardingChip/onboarding-cards.css, phantom `onboarding` client + types, `dataKeys.onboardingState`, dead `.tm-topbar-wordmark`/`.tm-topbar-nudge` CSS.
+
+### Open carry-over for NEXT SESSION (discuss all)
+1. **Commit** this PR (suggested `feat(nav): progressive-disclosure nav + first-run hero + 10-min CV promise pill`) — Shivam hasn't approved a commit yet.
+2. **Visual QA** — dev server + screenshot first-run vs returning at 1280px + 375px; eyeball bg (constellation) + text sizes + coachmark scrim.
+3. **Returning-user nudge** — build via the separate `project_state_aware_landing_cta` PR (S4-idle "pick a role to tailor for"). Q7 deferred it here on purpose.
+4. **First-run loading flash** — has-cv-no-tailor user briefly sees returning layout during `nav.loading`. Cheap fix: data-shaped first-run skeleton while loading.
+5. **Reconcile-from-server** — wire `reconcileCvPromise(status.started_at)` into cv/page `pollCVUploadStatus` resume path (~line 229) for cross-device/tab-close countdown accuracy (optimistic-only today).
+6. **First-run-completion XP** — grant on real `tailoredCount` flip (dropped with OnboardingCards). Follow-up.
+7. **Skills bridge link** inside Practice Yard (Q1b deferred-with-bridge) — not added this pass.
+8. **Backend test** asserting `started_at` in the status payload.
+9. **All prior-session carry-over still open** — 3-layer landing CTA, ScoreBreakdownPopover, Vercel build timer, multi-file CV batch, CV detector enrichment, /institutions page, ADR-0005/0007 promotions. None touched.
+
+---
+
 ## LAST SESSION SUMMARY (2026-05-28 night+day · CV file detector enrichment + multi-file CV batch grill)
 
 ### Shipped (committed `a0138d1` on Develop)

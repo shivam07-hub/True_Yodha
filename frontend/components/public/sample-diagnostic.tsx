@@ -18,7 +18,7 @@ export function SampleDiagnostic() {
   const pct = (SCORE / 100) * 100
 
   return (
-    <section style={{ maxWidth: 860, margin: "0 auto", padding: "80px 24px 96px" }}>
+    <section style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 96px" }}>
 
       {/* Section label */}
       <div style={{
@@ -29,23 +29,11 @@ export function SampleDiagnostic() {
         Sample version score
       </div>
 
-      {/* Editorial header */}
-      <h2 style={{
-        fontFamily: "var(--tm-font-display)",
-        fontSize: "var(--tm-fs-display)",
-        fontWeight: 600, letterSpacing: 0,
-        lineHeight: "var(--tm-lh-display)", color: "var(--tm-text)",
-        margin: "0 0 24px",
-        maxWidth: 720,
-      }}>
-        What the hub adds after upload
-      </h2>
-
       <p style={{
         fontSize: 18, color: "var(--tm-text-muted)",
-        lineHeight: 1.65, margin: "0 0 36px", maxWidth: 700,
+        lineHeight: 1.65, margin: "0 0 36px",
       }}>
-        First, your CVs stay organized. Then Myro shows how each version fits the job you are aiming for.
+        Your CVs stay organized — and Myro scores how each version fits the job.
       </p>
 
       {/* Visual anchor */}
@@ -54,7 +42,6 @@ export function SampleDiagnostic() {
         border: "1px solid var(--tm-border)",
         background: "var(--tm-surface)",
         overflow: "hidden",
-        marginBottom: 32,
       }}>
 
         {/* Score bar */}
@@ -161,25 +148,6 @@ export function SampleDiagnostic() {
 
         </div>
       </div>
-
-      <p style={{
-        fontSize: 18, fontWeight: 600,
-        color: "var(--tm-text)", lineHeight: 1.6,
-        margin: "0 0 20px",
-        borderLeft: "3px solid var(--tm-interactive)",
-        paddingLeft: 16,
-      }}>
-        The simple story is the CV hub. The intelligence layer tells you which version to send and what to improve next.
-      </p>
-
-      <p style={{
-        fontSize: 15,
-        color: "var(--tm-text-muted)",
-        lineHeight: 1.6,
-        margin: 0,
-      }}>
-        That keeps beginners oriented: save, tailor, compare, apply.
-      </p>
 
     </section>
   )

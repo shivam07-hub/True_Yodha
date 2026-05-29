@@ -64,18 +64,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
-/**
- * Theme bootstrap — runs before paint to set accent + surface on <html>.
- * Prevents flashes of default mode on refresh.
- */
-const THEME_BOOTSTRAP = `(function(){try{var s=localStorage.getItem('tm.surface');var surface=(s==='light'||s==='dark')?s:(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');localStorage.setItem('tm.surface',surface);localStorage.setItem('tm.accent','signal');document.documentElement.setAttribute('data-accent','signal');document.documentElement.setAttribute('data-surface',surface);}catch(e){document.documentElement.setAttribute('data-accent','signal');document.documentElement.setAttribute('data-surface','dark');}})();`
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="dark" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
-      </head>
+    <html lang="en" className={`${plusJakartaSans.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="light">
       <body className="font-sans antialiased">
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>

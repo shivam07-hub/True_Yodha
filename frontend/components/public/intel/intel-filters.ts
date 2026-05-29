@@ -1,32 +1,3 @@
-import type { ResultJob, ResultCompany } from "./intel-results"
-
-export function matchesQuickFilter(
-  id: string,
-  job: ResultJob,
-  company: ResultCompany | undefined,
-): boolean {
-  switch (id) {
-    case "remote":  return job.mode === "Remote"
-    case "fresh":   return job.ageMin < 60 * 24
-    case "ai":      return /AI|ML|Data|Research/i.test(company?.industry || "") || /AI|ML/i.test(job.title)
-    case "fintech": return /Fin|Bank|Payment/i.test(company?.industry || "")
-    case "design":  return /design/i.test(job.title)
-    case "eu":      return ["UK", "GB", "DE", "FR", "NL", "PT", "IE", "ES", "IT"].includes(job.country)
-    case "us":      return job.country === "US"
-    case "india":   return job.country === "IN"
-    default:        return true
-  }
-}
-
-export function smartMatch(q: string, job: ResultJob): boolean {
-  if (/\bremote\b/.test(q) && job.mode === "Remote") return true
-  if (/\bhybrid\b/.test(q) && job.mode === "Hybrid") return true
-  if (/\beurope\b/.test(q) && ["UK", "GB", "DE", "FR", "NL", "PT"].includes(job.country)) return true
-  if (/\b(usa?|america)\b/.test(q) && job.country === "US") return true
-  if (/\bindia\b/.test(q) && job.country === "IN") return true
-  return false
-}
-
 // Map company → its dominant industry by name-hash. We don't have a true
 // company→industry map in /jobs/analytics, so we synthesize a stable assignment.
 export function industryForCompany(name: string, industries: string[]): string {
@@ -57,8 +28,14 @@ export function formatUptime(now: number): string {
   return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`
 }
 
-export function seedAge(name: string): number {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i)
-  return 5 + (Math.abs(h) % 600)
+// Real velocity: week-over-week delta from a 14-day daily-bin histogram.
+// bins[0] = oldest day, bins[13] = today.
+export function weekDeltaFromBins(bins: number[]): number {
+  if (!bins || bins.length < 14) return 0
+  let recent = 0
+  let prior = 0
+  for (let i = 0; i < 7; i++) prior += bins[i] || 0
+  for (let i = 7; i < 14; i++) recent += bins[i] || 0
+  return recent - prior
 }
+

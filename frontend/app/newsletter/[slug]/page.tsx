@@ -87,6 +87,10 @@ export default async function IssuePage({ params }: Props) {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) notFound()
 
+  const moreIssues = (await getAllIssues())
+    .filter((i) => i.slug !== issue.slug && i.slug !== "_placeholder")
+    .slice(0, 3)
+
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
@@ -128,7 +132,9 @@ export default async function IssuePage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
-      <article className="nl-page-enter" style={{ maxWidth: 760, margin: "0 auto", padding: "56px 32px 96px" }}>
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 32px 96px" }}>
+       <div className="nl-grid">
+        <article className="nl-page-enter" style={{ minWidth: 0 }}>
 
         {/* Back link */}
         <Link
@@ -201,14 +207,8 @@ export default async function IssuePage({ params }: Props) {
           display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 40,
           boxShadow: "0 0 32px rgba(0, 245, 212, 0.06)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#22d3a8" }}>
-            Free · No credit card
-          </div>
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
-            Get your free Myro Score →
-          </p>
-          <p style={{ fontSize: 14, color: "var(--tm-text-muted)", lineHeight: 1.55, margin: 0 }}>
-            Upload your CV in 60 seconds and see exactly where you stand against this market.
+            Track these jobs as you apply
           </p>
           <Link
             href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
@@ -222,11 +222,52 @@ export default async function IssuePage({ params }: Props) {
               transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
             }}
           >
-            Get started free
+            Sign up to track jobs
           </Link>
         </div>
 
-      </article>
+        </article>
+
+        <aside className="nl-rail" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ padding: 20, borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", boxShadow: "var(--tm-shadow-1)" }}>
+            <div style={{ fontSize: 11, color: "var(--tm-interactive)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
+              Get it weekly
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginTop: 6, letterSpacing: "var(--tm-tracking-tight)" }}>
+              Hiring intel in your inbox
+            </div>
+            <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55, margin: "6px 0 16px" }}>
+              Skill-demand data from thousands of live postings. Every week. No fluff.
+            </p>
+            <EmailSubscribe compact />
+          </div>
+
+          {moreIssues.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
+                More issues
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {moreIssues.map((m) => (
+                  <Link
+                    key={m.slug}
+                    href={`/newsletter/${m.slug}`}
+                    style={{ display: "block", textDecoration: "none", padding: "10px 0", borderTop: "1px solid var(--tm-border-soft)" }}
+                  >
+                    <div style={{ fontSize: 10, color: "var(--tm-interactive)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>
+                      {themeLabel(m.theme)}
+                    </div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.35 }}>
+                      {m.title}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+       </div>
+      </div>
     </>
   )
 }

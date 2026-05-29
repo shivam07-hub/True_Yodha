@@ -1,3 +1,4 @@
+import "./newsletter.css"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 
