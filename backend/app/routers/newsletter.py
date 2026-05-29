@@ -6,7 +6,6 @@ when an authenticated token is present. Re-subscribing the same email is
 idempotent. 10 inserts/hour/IP guards against spray-style garbage.
 """
 import logging
-import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

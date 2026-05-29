@@ -15,7 +15,6 @@ import base64
 import json
 import logging
 
-from app.services.cv_parser import extract_raw_text
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 _log = logging.getLogger(__name__)

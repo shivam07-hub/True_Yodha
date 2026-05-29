@@ -131,6 +131,8 @@ __all__ = [
     "EntitySkillsResponse", "MarketAnalyticsResponse", "MarketAnalyticsSummaryResponse",
     "NameCountItem", "SkillSuggestion", "SkillCountItem",
     "JobSearchItem", "JobSearchResponse",
+    "CompanyOpenRoleItem", "CompanyOpenRolesResponse",
+    "GlobalJobHit", "GlobalJobSearchResponse", "AnalyticsSnapshotRefreshResponse",
     "SkillGapItem", "SkillGapResponse",
     "UserSkillDemandItem", "UserSkillDemandResponse",
     "GapSkillResponse", "MirrorScoreResponse", "ComputeScoreResponse",
