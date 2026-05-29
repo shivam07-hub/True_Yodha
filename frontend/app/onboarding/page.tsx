@@ -10,6 +10,7 @@ import type { CVAnalysisStatus } from "@/components/onboarding/step-companies"
 import { StepScore } from "@/components/onboarding/step-score"
 import { NinjaNameStep } from "@/components/onboarding/NinjaNameStep"
 import { uploadCV, uploadCVText, scores, users } from "@/lib/api"
+import { startCvPromiseOptimistic } from "@/lib/cv-promise"
 import type { CVUploadResult, CVUploadSource, ScoreResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -89,6 +90,9 @@ export default function OnboardingPage() {
     if (cvUploadTask.status === "running") return cvUploadTask.promise
     if (cvUploadTask.status === "done") return Promise.resolve({ ok: true, result: cvUploadTask.result })
     if (cvUploadTask.status === "failed") return Promise.resolve({ ok: false, message: cvUploadTask.message })
+
+    // Start the 10-min CV-promise clock the instant the journey begins (Q4).
+    startCvPromiseOptimistic()
 
     const runner = cvFile
       ? uploadCV(currentToken, cvFile, cvSource)

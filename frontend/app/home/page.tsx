@@ -8,12 +8,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { AppShell } from "@/components/app-shell"
 import { RequiresCV } from "@/components/empty/RequiresCV"
+import { FirstRunHero } from "@/components/home/first-run-hero"
+import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
 import { Topbar } from "@/components/mission-control/topbar"
 import { MatchesRows, type ChipJob, type SelfChip } from "@/components/mission-control/matches-rows"
 import { FocusedJob } from "@/components/mission-control/focused-job"
 import { Icon } from "@/components/mission-control/icons"
-import { OnboardingCards } from "@/components/onboarding/OnboardingCards"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
@@ -233,6 +234,9 @@ function MissionControlInner() {
     return () => window.removeEventListener("keydown", handler)
   }, [])
 
+  // ── First-run vs returning (progressive-nav grill Q3)
+  const nav = useNavUnlocks()
+
   // ── Hero data
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
   const dayStr = useMemo(
@@ -327,6 +331,41 @@ function MissionControlInner() {
 
   if (!ready) return null
 
+  // First-run = promise not yet delivered. The first-run hero absorbs the
+  // pre-upload invitation (no RequiresCV gate) and owns the whole upload →
+  // score → tailor journey until the first tailored CV exists.
+  if (!nav.loading && nav.firstRun) {
+    const best = topJobs[0]
+    return (
+      <AppShell>
+        <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
+          <div className="mc-page">
+            <div className="mc-inner">
+              <FirstRunHero
+                firstName={firstName}
+                hasCv={profile?.has_cv ?? false}
+                cvReadiness={profile?.cv_readiness ?? "missing"}
+                score={score}
+                domainsCount={Object.keys(scoreData?.domain_scores ?? {}).length}
+                bestMatch={
+                  best
+                    ? {
+                        jobId: best.job_id,
+                        title: best.title,
+                        company: best.company,
+                        location: best.location,
+                        fit: Math.round(best.overlap_score),
+                      }
+                    : null
+                }
+              />
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
+
   return (
     <AppShell>
       <RequiresCV>
@@ -375,11 +414,6 @@ function MissionControlInner() {
               streak={streak}
               sessions={entries.length}
               diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
-            />
-
-            <OnboardingCards
-              firstName={firstName}
-              savedJobId={apps.find((a) => a.status === "saved")?.job_id ?? null}
             />
 
             {topJobs.length > 0 && (

@@ -26,6 +26,8 @@ export interface CVUploadPolledStatus {
   xp_charged: number
   xp_refunded: boolean
   new_xp_balance: number
+  /** Job-creation timestamp (ISO). Anchors the 10-min CV-promise countdown. */
+  started_at?: string | null
   redirect_to: string | null
 }
 

@@ -24,6 +24,7 @@ import {
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
+import { startCvPromiseOptimistic } from "@/lib/cv-promise"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useXPStore } from "@/store/xpStore"
@@ -121,6 +122,8 @@ function CVPage() {
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
+    // Start the 10-min CV-promise clock the instant the upload begins (Q4).
+    startCvPromiseOptimistic()
     try {
       const result = await uploadCV(token, file)
       if (result.new_xp_balance != null) setXPBalance(result.new_xp_balance)

@@ -15,6 +15,7 @@ import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 
 const SKELETON_BASE = "var(--tm-surface-2)"
 const SKELETON_HIGHLIGHT = "rgba(255,255,255,0.06)"
@@ -70,18 +71,11 @@ export function AppShellSkeleton() {
   )
 }
 
-// Forge moved out of the bottom nav 2026-05-21 — it now lives in the top
-// ForgeXpPill widget (always-on, ambient surface). Five-slot nav fits 375px
-// comfortably and frees space for the larger XP/Forge pill at the top.
+// Forge lives in the top ForgeXpPill (ambient), never a bottom slot. The bottom
+// bar is driven by the shared progressive-disclosure nav (lib/nav-items) so
+// gating matches the desktop topbar: first-run = Mission + Intel, growing to
+// +CV (1st tailor) → +Tracker (2nd company). Skills is deep-link only.
 type MobileNavIconName = "mission" | "intel" | "skills" | "cv" | "tracker"
-
-const MOBILE_NAV: Array<{ href: string; label: string; icon: MobileNavIconName; stalePill?: boolean }> = [
-  { href: "/home",    label: "Mission", icon: "mission" },
-  { href: "/market",  label: "Intel",   icon: "intel" },
-  { href: "/skills",  label: "Skills",  icon: "skills" },
-  { href: "/cv",      label: "CV",      icon: "cv" },
-  { href: "/tracker", label: "Tracker", icon: "tracker", stalePill: true },
-]
 
 function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: boolean }) {
   const common = {
@@ -208,19 +202,22 @@ function MobileStaleBadge() {
 
 export function MobileBottomNav() {
   const pathname = usePathname()
+  const nav = useNavUnlocks()
 
   return (
     <nav className="tm-mobile-bottomnav">
-      {MOBILE_NAV.map(item => {
+      {nav.visibleMobile.map(item => {
         const active = pathname.startsWith(item.href)
         const color = active ? "var(--tm-interactive)" : "var(--tm-text-faint)"
+        const isNew = nav.newItems.has(item.id)
 
         return (
           <Link
-            key={item.href}
+            key={item.id}
             href={item.href}
             className="tm-mobile-nav-item"
             data-active={active}
+            onClick={() => { if (isNew) nav.clearNew(item.id) }}
             style={{
               flex: 1, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", gap: 4, textDecoration: "none",
@@ -228,8 +225,18 @@ export function MobileBottomNav() {
             }}
           >
             <span className="tm-mobile-nav-icon" style={{ position: "relative" }}>
-              <MobileNavIcon name={item.icon} active={active} />
+              <MobileNavIcon name={item.mobileIcon ?? "mission"} active={active} />
               {item.stalePill && <MobileStaleBadge />}
+              {isNew && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute", top: -3, right: -7, width: 7, height: 7,
+                    borderRadius: "50%", background: "var(--tm-accent)",
+                    boxShadow: "0 0 6px var(--tm-accent-glow)",
+                  }}
+                />
+              )}
             </span>
             <span className="tm-mobile-nav-label" style={{ fontWeight: active ? 650 : 450 }}>
               {item.label}

@@ -12,7 +12,6 @@ export const dataKeys = {
   userSkillDemand: () => ["user-skill-demand"] as const,
   diary: () => ["diary"] as const,
   milestones: () => ["milestones"] as const,
-  onboardingState: () => ["onboarding-state"] as const,
   cvEvidence: () => ["cv-evidence"] as const,
   cvStructured: () => ["cv-structured"] as const,
   cvVersions: (jobId: JobId) => ["cv-versions", jobId ?? "all"] as const,
