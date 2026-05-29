@@ -12,9 +12,13 @@
               background var(--tm-dur-fast) var(--tm-ease);
 }
 
+/* Running = the pill stays DARK with a faint cyan wash + thin ring + tamed
+   glow. The fill used to be --tm-int-border-soft (int-04, a LIGHT cyan border
+   tone) which flooded the whole capsule bright and washed out the white XP
+   text. Wash-over-dark keeps text contrast and kills the blown-out halo. */
 .tm-forge-xp-pill[data-state="running"] {
-  background: var(--tm-int-border-soft);
-  box-shadow: 0 0 0 1px var(--tm-int-border), 0 0 16px var(--tm-int-border-soft);
+  background: var(--tm-int-bg-hover);
+  box-shadow: 0 0 0 1px var(--tm-int-border), 0 0 10px rgba(0, 245, 212, 0.16);
 }
 
 .tm-forge-xp-pill-xp {
