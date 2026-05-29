@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Depends
@@ -34,6 +34,23 @@ _COMPANY_SEARCH_RPC = "search_job_companies"
 
 class CompanySearchUnavailable(RuntimeError):
     """Raised when the upstream company autocomplete read cannot be served."""
+
+
+def _parse_iso_dt(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _job_feed_marker_to_iso(value: Any) -> str | None:
@@ -173,6 +190,16 @@ class MarketAnalyticsCompiler:
         company_skill_counters: dict[str, Counter[str]] = {}
         industry_skill_counters: dict[str, Counter[str]] = {}
         batch_dates: list[int] = []
+        company_last_seen: dict[str, datetime] = {}
+        company_first_created: dict[str, datetime] = {}
+        company_velocity_bins: dict[str, list[int]] = {}
+        now_utc = datetime.now(timezone.utc)
+        bin_floor = (now_utc - timedelta(days=13)).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_floor = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        one_hr_floor = now_utc - timedelta(hours=1)
+        seven_d_floor = now_utc - timedelta(days=7)
+        total_jobs_today = 0
+        jobs_added_1h = 0
 
         for row in rows:
             company = (row.get("company_name") or "").strip()
@@ -183,9 +210,29 @@ class MarketAnalyticsCompiler:
             location_mode = (row.get("location_mode") or "").strip()
             skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
 
+            created_at_dt = _parse_iso_dt(row.get("created_at"))
+            last_seen_dt = _parse_iso_dt(row.get("last_seen")) or created_at_dt
+
             if company:
                 company_counts[company] += 1
                 company_skill_counters.setdefault(company, Counter()).update(skills)
+                if last_seen_dt is not None:
+                    prev = company_last_seen.get(company)
+                    if prev is None or last_seen_dt > prev:
+                        company_last_seen[company] = last_seen_dt
+                if created_at_dt is not None:
+                    prev_first = company_first_created.get(company)
+                    if prev_first is None or created_at_dt < prev_first:
+                        company_first_created[company] = created_at_dt
+                    bins = company_velocity_bins.setdefault(company, [0] * 14)
+                    delta_days = (created_at_dt - bin_floor).days
+                    if 0 <= delta_days < 14:
+                        bins[delta_days] += 1
+            if created_at_dt is not None:
+                if created_at_dt >= today_floor:
+                    total_jobs_today += 1
+                if created_at_dt >= one_hr_floor:
+                    jobs_added_1h += 1
             if industry:
                 industry_counts[industry] += 1
                 industry_skill_counters.setdefault(industry, Counter()).update(skills)
@@ -218,12 +265,27 @@ class MarketAnalyticsCompiler:
             for industry, items in industry_skill_counts.items()
         }
 
+        companies_added_7d = sum(
+            1 for first in company_first_created.values() if first >= seven_d_floor
+        )
+        company_enrichment = {
+            name: {
+                "last_seen_at": company_last_seen[name].isoformat()
+                    if name in company_last_seen else None,
+                "velocity_bins": company_velocity_bins.get(name),
+            }
+            for name in company_counts
+        }
         return {
             "total_jobs": len(rows),
             "total_companies": len(company_counts),
             "total_industries": len(industry_counts),
             "latest_batch": str(max(batch_dates)) if batch_dates else None,
+            "total_jobs_today": total_jobs_today,
+            "jobs_added_1h": jobs_added_1h,
+            "companies_added_7d": companies_added_7d,
             "by_company": _sorted_counter_items(company_counts),
+            "by_company_enrichment": company_enrichment,
             "by_industry": _sorted_counter_items(industry_counts),
             "by_role": _sorted_counter_items(role_counts),
             "by_location_city": _sorted_counter_items(location_city_counts),
@@ -268,7 +330,8 @@ class JobsRepository:
             table="jobs",
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
-                "location, location_raw, location_city, location_country, location_mode, location_quality"
+                "location, location_raw, location_city, location_country, location_mode, location_quality, "
+                "created_at, last_seen"
             ),
             query_builder=query_builder,
         )
@@ -300,6 +363,14 @@ class JobsRepository:
         cached = _analytics_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < _ANALYTICS_TTL:
             return cached[1]
+        # Snapshot fast-path: unfiltered reads serve the precomputed payload
+        # written by the scraper finalisation hook. Filtered reads fall through
+        # to live compile.
+        if role_domain is None and location_city is None and location_country is None and location_mode is None:
+            snapshot = self._read_snapshot_payload()
+            if snapshot is not None:
+                _analytics_cache[cache_key] = (now, snapshot)
+                return snapshot
         rows = self.fetch_analytics_rows(
             role_domain=role_domain,
             location_city=location_city,
@@ -309,6 +380,33 @@ class JobsRepository:
         payload = self._analytics_compiler.compile(rows)
         _analytics_cache[cache_key] = (now, payload)
         return payload
+
+    def _read_snapshot_payload(self) -> dict[str, Any] | None:
+        try:
+            result = self._admin_db.table("market_analytics_snapshot").select("payload").eq("id", 1).limit(1).execute()
+        except APIError:
+            return None
+        rows = result.data or []
+        if not rows:
+            return None
+        payload = rows[0].get("payload")
+        return payload if isinstance(payload, dict) else None
+
+    def persist_analytics_snapshot(self, *, refreshed_by: str = "system") -> dict[str, Any]:
+        """Recompile the unfiltered analytics payload and write it to the snapshot table.
+
+        Called by the admin refresh endpoint after a weekly batch finalises.
+        Bypasses the in-process cache so the snapshot always reflects current DB state.
+        """
+        rows = self.fetch_analytics_rows()
+        payload = self._analytics_compiler.compile(rows)
+        self._admin_db.table("market_analytics_snapshot").upsert(
+            {"id": 1, "payload": payload, "refreshed_at": datetime.now(timezone.utc).isoformat(), "refreshed_by": refreshed_by},
+            on_conflict="id",
+        ).execute()
+        # Invalidate in-process cache across all filter combos so next read hits snapshot
+        _analytics_cache.clear()
+        return {"total_jobs": payload["total_jobs"], "total_companies": payload["total_companies"]}
 
     def fetch_entity_skills(
         self,
@@ -511,6 +609,81 @@ class JobsRepository:
 
         _heatmap_row_cache[cache_key] = (time.monotonic(), result)
         return result
+
+    def list_jobs_at_company(self, company: str, *, limit: int = 6) -> list[dict[str, Any]]:
+        """Latest N roles at a company. DB-bounded LIMIT — safe for huge companies.
+
+        Public-surface read for the /intel Open Roles panel. No skill filter
+        (use search_jobs_by_filters for skill-scoped reads). 24h cache keyed on
+        (company, limit) — reuses _search_cache shape with a sentinel skill ''.
+        """
+        company_name = (company or "").strip()
+        if not company_name:
+            return []
+        scoped_limit = max(1, min(50, int(limit)))
+        cache_key = (company_name, "", None, None, None, None, 1, scoped_limit)
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _SEARCH_TTL:
+            return list(cached[1]["rows"])
+        try:
+            result = (
+                self._admin_db
+                .table("jobs")
+                .select(
+                    "job_id, job_title, company_name, location, location_raw, "
+                    "location_city, location_country, location_mode, location_quality, "
+                    "created_at, last_seen"
+                )
+                .eq("company_name", company_name)
+                .order("created_at", desc=True)
+                .limit(scoped_limit)
+                .execute()
+            )
+        except APIError:
+            return list(cached[1]["rows"]) if cached else []
+        rows = result.data or []
+        for row in rows:
+            _hydrate_location_fields(row)
+        _search_cache[cache_key] = (now, {"rows": rows})
+        return rows
+
+    def global_job_search(self, q: str, *, limit: int = 12) -> list[dict[str, Any]]:
+        """Trigram-ranked search across job_title + company_name.
+
+        Public ⌘K surface. Index: idx_jobs_job_title_trgm + idx_jobs_company_name_trgm.
+        60s in-process cache keyed on (q.lower(), limit) — debounces hot queries.
+        """
+        term = " ".join((q or "").split())
+        if len(term) < 2:
+            return []
+        scoped_limit = max(1, min(50, int(limit)))
+        cache_key = ("__global__", term.lower(), None, None, None, None, 1, scoped_limit)
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < 60:
+            return list(cached[1]["rows"])
+        ilike = f"%{term}%"
+        try:
+            result = (
+                self._admin_db
+                .table("jobs")
+                .select(
+                    "job_id, job_title, company_name, location_city, location_country, "
+                    "location_mode, created_at"
+                )
+                .or_(f"job_title.ilike.{ilike},company_name.ilike.{ilike}")
+                .order("created_at", desc=True)
+                .limit(scoped_limit)
+                .execute()
+            )
+        except APIError:
+            return list(cached[1]["rows"]) if cached else []
+        rows = result.data or []
+        for row in rows:
+            _hydrate_location_fields(row)
+        _search_cache[cache_key] = (now, {"rows": rows})
+        return rows
 
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
         search_term = " ".join(q.split())

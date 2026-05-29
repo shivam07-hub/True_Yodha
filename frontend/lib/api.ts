@@ -1416,6 +1416,8 @@ export interface JobPathResponse {
 export interface NameCountItem {
   name: string
   count: number
+  last_seen_at?: string | null
+  velocity_bins?: number[] | null
 }
 
 export interface SkillCountItem {
@@ -1449,6 +1451,9 @@ export interface MarketAnalytics {
   total_companies: number
   total_industries: number
   latest_batch?: string | null
+  total_jobs_today?: number
+  jobs_added_1h?: number
+  companies_added_7d?: number
   by_company: NameCountItem[]
   by_industry: NameCountItem[]
   by_role: NameCountItem[]
@@ -1507,9 +1512,46 @@ export interface UserSkillDemandResponse {
   total: number
 }
 
+export interface CompanyOpenRoleItem {
+  job_id: string
+  job_title: string
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: string | null
+  created_at?: string | null
+}
+export interface CompanyOpenRolesResponse {
+  company: string
+  jobs: CompanyOpenRoleItem[]
+}
+
+export interface GlobalJobHit {
+  job_id: string
+  job_title: string
+  company_name?: string | null
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: string | null
+  created_at?: string | null
+}
+export interface GlobalJobSearchResponse {
+  query: string
+  hits: GlobalJobHit[]
+}
+
 export const jobs = {
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  listAtCompany: (company: string, limit = 6) =>
+    request<CompanyOpenRolesResponse>(
+      `/jobs/at/${encodeURIComponent(company)}?limit=${limit}`,
+    ),
+
+  globalSearch: (q: string, limit = 12) =>
+    request<GlobalJobSearchResponse>(
+      `/jobs/search/global?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
 
   analytics: (
     roleDomain?: string | null,

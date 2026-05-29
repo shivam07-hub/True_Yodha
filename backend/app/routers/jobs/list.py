@@ -10,7 +10,12 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.schemas import (
+    AnalyticsSnapshotRefreshResponse,
+    CompanyOpenRoleItem,
+    CompanyOpenRolesResponse,
     EntitySkillsResponse,
+    GlobalJobHit,
+    GlobalJobSearchResponse,
     JobSearchResponse,
     MarketAnalyticsSummaryResponse,
     NameCountItem,
@@ -61,7 +66,18 @@ async def get_my_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
-        by_company=[NameCountItem(name=name, count=count) for name, count in analytics["by_company"]],
+        total_jobs_today=analytics.get("total_jobs_today", 0),
+        jobs_added_1h=analytics.get("jobs_added_1h", 0),
+        companies_added_7d=analytics.get("companies_added_7d", 0),
+        by_company=[
+            NameCountItem(
+                name=name,
+                count=count,
+                last_seen_at=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("last_seen_at"),
+                velocity_bins=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("velocity_bins"),
+            )
+            for name, count in analytics["by_company"]
+        ],
         by_industry=[NameCountItem(name=name, count=count) for name, count in analytics["by_industry"]],
         by_role=[NameCountItem(name=name, count=count) for name, count in analytics["by_role"]],
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
@@ -135,7 +151,18 @@ async def get_market_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
-        by_company=[NameCountItem(name=name, count=count) for name, count in analytics["by_company"]],
+        total_jobs_today=analytics.get("total_jobs_today", 0),
+        jobs_added_1h=analytics.get("jobs_added_1h", 0),
+        companies_added_7d=analytics.get("companies_added_7d", 0),
+        by_company=[
+            NameCountItem(
+                name=name,
+                count=count,
+                last_seen_at=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("last_seen_at"),
+                velocity_bins=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("velocity_bins"),
+            )
+            for name, count in analytics["by_company"]
+        ],
         by_industry=[NameCountItem(name=name, count=count) for name, count in analytics["by_industry"]],
         by_role=[NameCountItem(name=name, count=count) for name, count in analytics["by_role"]],
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
@@ -187,4 +214,76 @@ async def search_jobs(
         page=page_result["page"],
         page_size=page_result["page_size"],
         has_next_page=page_result["has_next_page"],
+    )
+
+
+@router.get("/at/{company}", response_model=CompanyOpenRolesResponse)
+async def list_company_open_roles(
+    company: str,
+    limit: Annotated[int, Query(ge=1, le=50)] = 6,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> CompanyOpenRolesResponse:
+    """Public — latest N roles at a company. Powers /intel Open Roles panel."""
+    rows = repo.list_jobs_at_company(company, limit=limit)
+    return CompanyOpenRolesResponse(
+        company=company,
+        jobs=[
+            CompanyOpenRoleItem(
+                job_id=str(r["job_id"]),
+                job_title=r.get("job_title") or "",
+                location_city=r.get("location_city"),
+                location_country=r.get("location_country"),
+                location_mode=r.get("location_mode"),
+                created_at=r.get("created_at"),
+            )
+            for r in rows
+        ],
+    )
+
+
+@router.get("/search/global", response_model=GlobalJobSearchResponse)
+async def global_search_jobs(
+    q: Annotated[str, Query(min_length=2, max_length=100)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 12,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> GlobalJobSearchResponse:
+    """Public — trigram search across job_title + company_name. Powers ⌘K."""
+    rows = repo.global_job_search(q, limit=limit)
+    return GlobalJobSearchResponse(
+        query=q,
+        hits=[
+            GlobalJobHit(
+                job_id=str(r["job_id"]),
+                job_title=r.get("job_title") or "",
+                company_name=r.get("company_name"),
+                location_city=r.get("location_city"),
+                location_country=r.get("location_country"),
+                location_mode=r.get("location_mode"),
+                created_at=r.get("created_at"),
+            )
+            for r in rows
+        ],
+    )
+
+
+@router.post("/analytics/refresh-snapshot", response_model=AnalyticsSnapshotRefreshResponse)
+async def refresh_analytics_snapshot(
+    secret: Annotated[str, Query(min_length=10)],
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> AnalyticsSnapshotRefreshResponse:
+    """Recompile + persist the unfiltered analytics payload.
+
+    Called by the scraper finalisation hook (sister repo) post-batch.
+    Auth: shared secret via query param (env: MYRO_ANALYTICS_REFRESH_SECRET).
+    Returns the new totals so the caller can log success.
+    """
+    import os
+    expected = os.environ.get("MYRO_ANALYTICS_REFRESH_SECRET", "").strip()
+    if not expected or secret != expected:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid refresh secret")
+    summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
+    return AnalyticsSnapshotRefreshResponse(
+        refreshed=True,
+        total_jobs=summary["total_jobs"],
+        total_companies=summary["total_companies"],
     )

@@ -324,6 +324,8 @@ class JobFileExtractResponse(BaseModel):
 class NameCountItem(BaseModel):
     name: str
     count: int
+    last_seen_at: str | None = None
+    velocity_bins: list[int] | None = None
 
 
 class SkillCountItem(BaseModel):
@@ -352,11 +354,49 @@ class JobSearchResponse(BaseModel):
     has_next_page: bool
 
 
+class CompanyOpenRoleItem(BaseModel):
+    job_id: str
+    job_title: str
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    created_at: str | None = None
+
+
+class CompanyOpenRolesResponse(BaseModel):
+    company: str
+    jobs: list[CompanyOpenRoleItem]
+
+
+class GlobalJobHit(BaseModel):
+    job_id: str
+    job_title: str
+    company_name: str | None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    created_at: str | None = None
+
+
+class GlobalJobSearchResponse(BaseModel):
+    query: str
+    hits: list[GlobalJobHit]
+
+
+class AnalyticsSnapshotRefreshResponse(BaseModel):
+    refreshed: bool
+    total_jobs: int
+    total_companies: int
+
+
 class MarketAnalyticsResponse(BaseModel):
     total_jobs: int
     total_companies: int
     total_industries: int
     latest_batch: str | None
+    total_jobs_today: int = 0
+    jobs_added_1h: int = 0
+    companies_added_7d: int = 0
     by_company: list[NameCountItem]
     by_industry: list[NameCountItem]
     by_role: list[NameCountItem] = []
@@ -375,6 +415,9 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
+    total_jobs_today: int = 0
+    jobs_added_1h: int = 0
+    companies_added_7d: int = 0
     by_company: list[NameCountItem]
     by_industry: list[NameCountItem]
     by_role: list[NameCountItem] = []

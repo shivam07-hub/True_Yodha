@@ -1,31 +1,6 @@
-// Synthetic data driving the public Intel mirror surface. Real backend
-// analytics (companies/industries/cities/totals) are blended with these
-// templates to render jobs/sparks/velocities for the always-on demo feel.
-
-export interface RoleTemplate {
-  title: string
-  skills: string[]
-}
-
-export const ROLE_TEMPLATES: RoleTemplate[] = [
-  { title: "Senior Backend Engineer", skills: ["Go", "Postgres", "Distributed"] },
-  { title: "Staff Software Engineer", skills: ["Rust", "Systems", "Perf"] },
-  { title: "Product Engineer", skills: ["TypeScript", "React", "Postgres"] },
-  { title: "Senior Product Designer", skills: ["Figma", "Prototyping", "Systems"] },
-  { title: "Brand Designer", skills: ["Figma", "Motion", "Type"] },
-  { title: "ML Research Engineer", skills: ["PyTorch", "CUDA", "Transformers"] },
-  { title: "Applied AI Engineer", skills: ["Python", "LLMs", "Evals"] },
-  { title: "Platform Engineer", skills: ["Kubernetes", "Go", "Terraform"] },
-  { title: "Data Engineer", skills: ["dbt", "Snowflake", "Python"] },
-  { title: "Security Engineer", skills: ["AppSec", "Cloud", "Detection"] },
-  { title: "Solutions Engineer", skills: ["APIs", "Customer", "Python"] },
-  { title: "Growth Engineer", skills: ["TypeScript", "Experimentation", "SQL"] },
-  { title: "Engineering Manager", skills: ["Leadership", "Platform", "Hiring"] },
-  { title: "Design Lead, Platform", skills: ["Systems", "Leadership", "Figma"] },
-  { title: "Developer Advocate", skills: ["Writing", "Demos", "Community"] },
-]
-
-export const MODES = ["Remote", "Hybrid", "On-site"] as const
+// Cosmetic seeds for the LLM RUNNER console + hash-based fallbacks for cold-cache
+// sparklines/velocities (replaced as soon as backend ships real velocity_bins +
+// last_seen_at on `by_company`).
 
 export interface LogSeed {
   op: "parse" | "fetch" | "index" | "embed"
@@ -173,42 +148,3 @@ export function fmtNum(n: number): string {
   return n.toLocaleString("en-US")
 }
 
-// Build a stable list of synthetic jobs for a given company name. Reload-stable
-// because driven by hash(name + index).
-export function synthJobsFor(
-  companyName: string,
-  open: number,
-  cities: { name: string; country: string }[],
-): {
-  id: string
-  title: string
-  skills: string[]
-  city: string
-  country: string
-  mode: string
-  comp: string | null
-  ageMin: number
-}[] {
-  const n = Math.max(3, Math.min(6, open || 4))
-  const out: ReturnType<typeof synthJobsFor> = []
-  const baseHash = hashString(companyName)
-  for (let i = 0; i < n; i++) {
-    const h = hashString(`${companyName}-${i}`)
-    const tpl = ROLE_TEMPLATES[(h + baseHash) % ROLE_TEMPLATES.length]
-    const loc = cities[h % Math.max(cities.length, 1)] || { name: "Remote", country: "US" }
-    const mode = MODES[h % 3]
-    const base = 110 + ((h >> 3) % 90)
-    const top = base + 40 + ((h >> 5) % 80)
-    out.push({
-      id: `${companyName}-${i}`,
-      title: tpl.title,
-      skills: tpl.skills,
-      city: loc.name,
-      country: loc.country,
-      mode,
-      comp: ((h >> 4) & 1) ? `$${base}–${top}k` : null,
-      ageMin: (h >> 2) % (60 * 24 * 7),
-    })
-  }
-  return out
-}

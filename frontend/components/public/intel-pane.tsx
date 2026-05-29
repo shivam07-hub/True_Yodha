@@ -2,36 +2,47 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { jobs } from "@/lib/api"
+import { jobs, type CompanyOpenRoleItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
+import { useResultsSort, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
 import { IntelHero } from "./intel/intel-hero"
 import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { IntelCommons } from "./intel/intel-commons"
-import { sparkFor, synthJobsFor, velocityFor } from "./intel/intel-data"
+import { sparkFor, velocityFor } from "./intel/intel-data"
 import {
-  countryForCompany, formatUptime, industryForCompany,
-  matchesQuickFilter, seedAge, smartMatch,
+  countryForCompany, formatUptime, industryForCompany, weekDeltaFromBins,
 } from "./intel/intel-filters"
 import "./intel-pane.css"
 
 const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
+const OPEN_ROLES_STALE_MS = 24 * 60 * 60 * 1000  // 24h — matches backend cache
+
+function compareCompanies(a: ResultCompany, b: ResultCompany, sort: ResultsSortKey): number {
+  switch (sort) {
+    case "open":    return b.open - a.open
+    case "recency": return a.ageSec - b.ageSec   // smaller ageSec = more recent
+    case "alpha":   return a.name.localeCompare(b.name)
+    case "velocity":
+    default:        return b.velocity - a.velocity
+  }
+}
 
 export function IntelPane() {
   const [query, setQuery] = useState("")
   const [activeChips, setActiveChips] = useState<string[]>([])
   const [tab, setTab] = useState<ResultsTab>("companies")
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
-  const [ages, setAges] = useState<Record<string, number>>({})
-  const [tickFlash, setTickFlash] = useState(false)
-  const [jobsTotalOffset, setJobsTotalOffset] = useState(0)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const [uptime, setUptime] = useState(() => formatUptime(Date.now()))
+  const { sort, setSort } = useResultsSort("intel", "velocity")
 
   useJobsRealtime()
 
-  const { data: analytics } = useQuery({
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: dataKeys.jobsAnalyticsPublic("", "", "", ""),
     queryFn: () => withLocalCache(
       cacheKey(["analytics_public", "", "", "", ""]),
@@ -41,127 +52,73 @@ export function IntelPane() {
     staleTime: ANALYTICS_TTL,
   })
 
-  // Build company/industry/city lists from real backend analytics
+  // Global ⌘K search (real, debounced, trigram-backed).
+  const globalSearch = useGlobalJobSearch(query, { limit: 12 })
+
+  // Real open-roles for the active company. DB-bounded LIMIT 6.
+  const { data: openRolesData, isLoading: openRolesLoading } = useQuery({
+    queryKey: dataKeys.jobsAtCompany(activeCoId, 6),
+    queryFn: () => jobs.listAtCompany(activeCoId as string, 6),
+    enabled: !!activeCoId,
+    staleTime: OPEN_ROLES_STALE_MS,
+  })
+
+  // Build company list from real backend analytics + real velocity bins + real last_seen.
   const allCompanies: ResultCompany[] = useMemo(() => {
     if (!analytics) return []
     const industryNames = analytics.by_industry.map((i) => i.name)
     const countryCodes = analytics.by_location_country
       .filter((c) => c.name.toLowerCase() !== "unknown")
       .map((c) => c.name)
-    return analytics.by_company.map((c) => ({
-      id: c.name,
-      name: c.name,
-      industry: industryForCompany(c.name, industryNames),
-      country: countryForCompany(c.name, countryCodes),
-      open: c.count,
-      velocity: velocityFor(c.name),
-      sparks: sparkFor(c.name, c.count),
-      ageSec: 0, // injected from `ages` below
-    }))
-  }, [analytics])
+    return analytics.by_company.map((c) => {
+      const realBins = c.velocity_bins && c.velocity_bins.length === 14 ? c.velocity_bins : null
+      const lastSeenMs = c.last_seen_at ? new Date(c.last_seen_at).getTime() : null
+      return {
+        id: c.name,
+        name: c.name,
+        industry: industryForCompany(c.name, industryNames),
+        country: countryForCompany(c.name, countryCodes),
+        open: c.count,
+        velocity: realBins ? weekDeltaFromBins(realBins) : velocityFor(c.name),
+        sparks: realBins ?? sparkFor(c.name, c.count),
+        ageSec: lastSeenMs != null && Number.isFinite(lastSeenMs)
+          ? Math.max(0, Math.floor((nowMs - lastSeenMs) / 1000))
+          : 0,
+      }
+    })
+  }, [analytics, nowMs])
 
-  // Seed ages once per analytics load
+  // Tick "now" every 30s for live "updated Xs ago" display + uptime every second.
   useEffect(() => {
-    if (!analytics) return
-    const next: Record<string, number> = {}
-    analytics.by_company.forEach((c) => { next[c.name] = seedAge(c.name) })
-    setAges(next)
-  }, [analytics])
-
-  // Tick ages forward + tick global counter
-  useEffect(() => {
-    if (!analytics) return
-    const id = setInterval(() => {
-      setAges((prev) => {
-        const next = { ...prev }
-        Object.keys(next).forEach((k) => { next[k] = next[k] + 1 })
-        if (Math.random() < 0.45 && analytics.by_company.length) {
-          const co = analytics.by_company[Math.floor(Math.random() * analytics.by_company.length)]
-          next[co.name] = Math.floor(Math.random() * 5)
-          setJobsTotalOffset((j) => j + 1)
-          setTickFlash(true)
-          setTimeout(() => setTickFlash(false), 1600)
-        }
-        return next
-      })
-    }, 1000)
+    const id = setInterval(() => setNowMs(Date.now()), 30_000)
     return () => clearInterval(id)
-  }, [analytics])
-
-  // Tick uptime
+  }, [])
   useEffect(() => {
     const id = setInterval(() => setUptime(formatUptime(Date.now())), 1000)
     return () => clearInterval(id)
   }, [])
 
-  const cityPool = useMemo(() => {
-    if (!analytics) return [] as { name: string; country: string }[]
-    const countryCodes = analytics.by_location_country
-      .filter((c) => c.name.toLowerCase() !== "unknown")
-      .map((c) => c.name)
-    return analytics.by_location_city
-      .filter((c) => c.name.toLowerCase() !== "unknown")
-      .map((c, i) => ({ name: c.name, country: countryCodes[i % Math.max(countryCodes.length, 1)] || "US" }))
-  }, [analytics])
-
-  // Synth job pool — one company at a time, since user picks the row.
-  const jobsForActiveAll: ResultJob[] = useMemo(() => {
-    if (!activeCoId) return []
-    const co = allCompanies.find((c) => c.id === activeCoId)
-    if (!co) return []
-    return synthJobsFor(co.name, co.open, cityPool)
-  }, [activeCoId, allCompanies, cityPool])
-
-  // Apply query + chips against the active company's job pool
-  const filteredJobs: ResultJob[] = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const co = allCompanies.find((c) => c.id === activeCoId)
-    return jobsForActiveAll.filter((j) => {
-      if (q) {
-        const hay = [j.title, j.city, j.country, j.mode, co?.name, co?.industry, ...(j.skills || [])]
-          .join(" ").toLowerCase()
-        if (!hay.includes(q) && !smartMatch(q, j)) return false
-      }
-      for (const id of activeChips) {
-        if (!matchesQuickFilter(id, j, co)) return false
-      }
-      return true
-    })
-  }, [jobsForActiveAll, query, activeChips, allCompanies, activeCoId])
-
-  // Companies whose synthesized pool yields ANY match for current filters.
-  // Cheap heuristic: a company passes if (no filter) OR (matches via company.industry/country shorthand).
   const filteredCompanies: ResultCompany[] = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const chips = activeChips
-    const list = allCompanies.map((co) => ({
-      ...co,
-      ageSec: ages[co.name] ?? co.ageSec,
-    }))
-    if (!q && !chips.length) {
-      return list.sort((a, b) => b.velocity - a.velocity)
+    // Global ⌘K search active: surface every company that has at least one hit.
+    if (globalSearch.isActive) {
+      const hitCompanies = new Set(
+        globalSearch.hits
+          .map((h) => (h.company_name || "").trim())
+          .filter(Boolean),
+      )
+      const filtered = allCompanies.filter((co) => hitCompanies.has(co.name))
+      return filtered.slice().sort((a, b) => compareCompanies(a, b, sort))
     }
-    return list
-      .filter((co) => {
-        if (q) {
-          const hay = [co.name, co.industry, co.country].join(" ").toLowerCase()
-          if (!hay.includes(q)) {
-            // Allow companies whose synth job pool matches
-            const pool = synthJobsFor(co.name, co.open, cityPool)
-            if (!pool.some((j) => smartMatch(q, j) || [j.title, j.city, j.mode].join(" ").toLowerCase().includes(q))) {
-              return false
-            }
-          }
-        }
-        if (chips.length) {
-          const pool = synthJobsFor(co.name, co.open, cityPool)
-          const okAll = chips.every((id) => pool.some((j) => matchesQuickFilter(id, j, co)))
-          if (!okAll) return false
-        }
-        return true
-      })
-      .sort((a, b) => b.velocity - a.velocity)
-  }, [allCompanies, ages, query, activeChips, cityPool])
+    // Quick-filter chips operate server-side ideally; today they narrow the
+    // companies list by industry/country shorthand only (jobs are scoped by
+    // analytics filter params, follow-up). Empty chips = unfiltered list.
+    return allCompanies.slice().sort((a, b) => compareCompanies(a, b, sort))
+  }, [allCompanies, globalSearch.isActive, globalSearch.hits, sort])
+
+  // Quick-filter chips don't have a backend application path on the public mirror
+  // yet — keep the toggle for affordance, but they don't filter results today.
+  // Wiring chips to /jobs/analytics location_mode/location_country is a follow-up.
+  void activeChips
 
   // Set default active company once analytics loads
   useEffect(() => {
@@ -199,19 +156,34 @@ export function IntelPane() {
     cities: citiesView.length,
   }
 
-  const jobsTotal = (analytics?.total_jobs ?? 0) + jobsTotalOffset
+  const jobsTotal = analytics?.total_jobs ?? 0
   const activeCompanyName = useMemo(() => {
     const co = filteredCompanies.find((c) => c.id === activeCoId) ?? allCompanies.find((c) => c.id === activeCoId)
     return co?.name ?? null
   }, [filteredCompanies, allCompanies, activeCoId])
 
-  const jobsShown = (query || activeChips.length) ? filteredJobs.length : jobsTotal
+  const openRoleJobs: ResultJob[] = useMemo(() => {
+    const items: CompanyOpenRoleItem[] = openRolesData?.jobs ?? []
+    return items.map((j) => ({
+      id: j.job_id,
+      title: j.job_title,
+      skills: [],
+      city: j.location_city || "—",
+      country: j.location_country || "",
+      mode: humanMode(j.location_mode),
+      comp: null,
+      ageMin: j.created_at ? minutesSince(j.created_at) : 0,
+    }))
+  }, [openRolesData])
+
+  const jobsShown = globalSearch.isActive ? globalSearch.hits.length : jobsTotal
 
   function toggleChip(id: string) {
     setActiveChips((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id])
   }
 
-  // Reasonable defaults if analytics hasn't loaded yet (avoids flash of 0s)
+  // Safe defaults during cold-start hydration (avoids flash of 0s). Replaced
+  // inline when analytics arrives — tabular-nums in CSS prevents layout shift.
   const safeJobsTotal = jobsTotal || 28047
   const safeCompanies = analytics?.total_companies || 148
   const safeIndustries = analytics?.total_industries || 10
@@ -220,11 +192,14 @@ export function IntelPane() {
     <div className="tm-intel-page tm-page-enter">
       <IntelHero
         jobsCount={safeJobsTotal}
-        jobsTick={tickFlash}
+        jobsTick={false}
         companiesCount={safeCompanies}
         industriesCount={safeIndustries}
         industriesMapped={safeIndustries}
-        parsedToday={Math.max(7418, Math.floor(safeJobsTotal * 0.26))}
+        parsedToday={analytics?.total_jobs_today ?? 0}
+        jobsAdded1h={analytics?.jobs_added_1h ?? 0}
+        companiesAdded7d={analytics?.companies_added_7d ?? 0}
+        latestBatchIso={analytics?.latest_batch ?? null}
         uptime={uptime}
       />
 
@@ -246,9 +221,24 @@ export function IntelPane() {
         cities={citiesView}
         activeCo={activeCoId}
         onActiveCo={setActiveCoId}
-        jobsForActive={filteredJobs.slice(0, 6)}
-        jobsForActiveTotal={filteredJobs.length}
+        jobsForActive={openRoleJobs}
+        jobsForActiveTotal={openRoleJobs.length}
         activeCompanyName={activeCompanyName}
+        isAnalyticsLoading={analyticsLoading}
+        isOpenRolesLoading={openRolesLoading}
+        globalSearch={{
+          isActive: globalSearch.isActive,
+          isLoading: globalSearch.isLoading,
+          hits: globalSearch.hits.map((h) => ({
+            job_id: h.job_id,
+            job_title: h.job_title,
+            company_name: h.company_name ?? null,
+            city: h.location_city ?? null,
+            mode: humanMode(h.location_mode),
+          })),
+        }}
+        sort={sort}
+        onSortChange={setSort}
       />
 
       <IntelCommons />
@@ -258,14 +248,26 @@ export function IntelPane() {
         <span>·</span>
         <span className="tm-intel-footer-tag">aligning careers with the stars</span>
         <span className="tm-intel-spacer" />
-        <a href="#">Status</a>
+        <a href="https://github.com/shivam07-hub/True_Yodha" target="_blank" rel="noreferrer">GitHub</a>
         <span>·</span>
-        <a href="#">Docs</a>
+        <a href="/about">About</a>
         <span>·</span>
-        <a href="#">RSS</a>
-        <span>·</span>
-        <a href="#">@myroHQ</a>
+        <a href="https://x.com/himyro" target="_blank" rel="noreferrer">@himyro</a>
       </footer>
     </div>
   )
+}
+
+function humanMode(raw?: string | null): string {
+  const v = (raw || "").toLowerCase().trim()
+  if (v === "remote") return "Remote"
+  if (v === "hybrid") return "Hybrid"
+  if (v === "onsite" || v === "on-site") return "On-site"
+  return "—"
+}
+
+function minutesSince(iso: string): number {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return 0
+  return Math.max(0, Math.floor((Date.now() - t) / 60_000))
 }

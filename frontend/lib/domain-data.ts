@@ -36,6 +36,10 @@ export const dataKeys = {
     locationCountry?: string | null,
     locationMode?: string | null,
   ) => ["jobs-analytics-me", cluster ?? "", locationCity ?? "", locationCountry ?? "", locationMode ?? ""] as const,
+  jobsAtCompany: (company: string | null | undefined, limit: number) =>
+    ["jobs-at-company", company ?? "", limit] as const,
+  globalJobSearch: (q: string | null | undefined, limit: number) =>
+    ["global-job-search", (q ?? "").toLowerCase().trim(), limit] as const,
   entitySkills: (
     entity: string | null | undefined,
     type: string | null | undefined,
