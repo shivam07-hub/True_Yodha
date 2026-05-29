@@ -5,7 +5,6 @@ import "./skills.css"
 import Link from "next/link"
 import { useState, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { AppShell } from "@/components/app-shell"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { DomainRadar as SkillsDomainRadar } from "@/components/skills/domain-radar"
@@ -137,7 +136,7 @@ export default function SkillsPage() {
   )
 
   return (
-    <AppShell>
+    <>
       <RequiresCV surface="skills">
       <div className="tm-page-enter tm-skills-page">
 
@@ -307,6 +306,6 @@ export default function SkillsPage() {
         </div>
       </div>
       </RequiresCV>
-    </AppShell>
+    </>
   )
 }

@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
-import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { JobCard } from "@/components/jobs/JobCard"
 import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
@@ -110,7 +109,7 @@ export default function JobsPage() {
   if (!ready) return null
 
   return (
-    <AppShell>
+    <>
       <div className="tm-page-enter" style={{ padding: "var(--tm-page-py) var(--tm-page-px)", overflowY: "auto", height: "100%" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
@@ -235,6 +234,6 @@ export default function JobsPage() {
           </Link>
         </div>
       )}
-    </AppShell>
+    </>
   )
 }

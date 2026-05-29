@@ -3,23 +3,24 @@
 import "./journey-strip.css"
 
 /**
- * Onboarding Journey Strip — 6-step ribbon shown to first-time users
+ * Onboarding Journey Strip — 5-step ribbon shown to first-time users
  * across signup → onboarding → first /cv visit. Tells them where they
  * are in the 0→10 minute loop.
  *
- * Steps: 1 Drop in · 2 We read it · 3 Pick a target · 4 See gaps · 5 Tailor · 6 Download.
+ * Steps: 1 Drop · 2 Read · 3 Target · 4 Tailor · 5 Download.
+ * Single-word labels — echo the upload loading screen (received → extracting →
+ * scoring) and fit each equal-width column without ellipsis truncation.
  * Code symbol per docs/UBIQUITOUS_LANGUAGE.md: `<OnboardingJourneyStrip />`.
  */
 
-type JourneyStep = 1 | 2 | 3 | 4 | 5 | 6
+type JourneyStep = 1 | 2 | 3 | 4 | 5
 
 const STEPS: { n: JourneyStep; title: string }[] = [
-  { n: 1, title: "Drop in"       },
-  { n: 2, title: "We read it"    },
-  { n: 3, title: "Pick a target" },
-  { n: 4, title: "See gaps"      },
-  { n: 5, title: "Tailor"        },
-  { n: 6, title: "Download"      },
+  { n: 1, title: "Drop"     },
+  { n: 2, title: "Read"     },
+  { n: 3, title: "Target"   },
+  { n: 4, title: "Tailor"   },
+  { n: 5, title: "Download" },
 ]
 
 export const JOURNEY_DONE_KEY = "myro_journey_completed_v1"
@@ -44,7 +45,7 @@ export function OnboardingJourneyStrip({
   return (
     <nav
       className={"tm-jstrip" + (compact ? " tm-jstrip-compact" : "")}
-      aria-label={`Onboarding journey: step ${currentStep} of 6`}
+      aria-label={`Onboarding journey: step ${currentStep} of ${STEPS.length}`}
     >
       <div className="tm-jstrip-rail" aria-hidden>
         <div

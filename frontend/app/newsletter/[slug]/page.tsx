@@ -8,6 +8,7 @@ import { NewsletterCTA } from "@/components/newsletter/issue-cta"
 import { ChartEmbed } from "@/components/newsletter/chart-embed"
 import { ReadingProgress } from "@/components/newsletter/reading-progress"
 import { ShareButton } from "@/components/newsletter/share-button"
+import { NewsletterBackLink } from "@/components/newsletter/back-link"
 import { TldrCard } from "@/components/newsletter/tldr-card"
 import { StatCards } from "@/components/newsletter/stat-cards"
 import { DataTable } from "@/components/newsletter/data-table"
@@ -134,19 +135,10 @@ export default async function IssuePage({ params }: Props) {
 
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 32px 96px" }}>
        <div className="nl-grid">
-        <article className="nl-page-enter" style={{ minWidth: 0 }}>
+        <article style={{ minWidth: 0 }}>
 
         {/* Back link */}
-        <Link
-          href="/newsletter"
-          className="nl-back-link"
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--tm-text-muted)", textDecoration: "none", marginBottom: 40, transition: "color var(--tm-dur) var(--tm-ease)" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Newsletter
-        </Link>
+        <NewsletterBackLink />
 
         {/* Issue tag */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>

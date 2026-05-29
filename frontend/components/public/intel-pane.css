@@ -210,39 +210,25 @@
 
 .tm-intel-arrow { font-weight: 400; opacity: 0.7; }
 
-.tm-intel-btn-secondary {
-  padding: 11px 18px;
+.tm-intel-btn-github {
+  width: 44px;
+  height: 44px;
   border-radius: 99px;
   background: transparent;
-  color: var(--tm-text);
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--tm-text-muted);
   border: 1px solid var(--tm-border);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   cursor: pointer;
   transition: border-color var(--tm-dur-fast) var(--tm-ease),
               color var(--tm-dur-fast) var(--tm-ease);
 }
 
-.tm-intel-btn-secondary:hover {
+.tm-intel-btn-github:hover {
   border-color: var(--tm-accent-ring);
   color: var(--tm-accent);
-}
-
-.tm-intel-gh-stars {
-  margin-left: 6px;
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--tm-text-muted);
-  background: var(--tm-surface-2);
-  border: 1px solid var(--tm-border);
-  border-radius: 99px;
-  letter-spacing: 0.02em;
 }
 
 /* ── Skeleton hydration ──────────────────────────────────────────── */
@@ -979,11 +965,27 @@
   padding: 3px 9px;
   border-radius: 99px;
   border: 1px dashed var(--tm-border);
+  background: none;
   color: var(--tm-text-faint);
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 120ms var(--tm-ease), color 120ms var(--tm-ease),
+    background 120ms var(--tm-ease);
+}
+
+.tm-intel-fit-locked:hover {
+  border-color: var(--tm-int-border);
+  color: var(--tm-interactive-text);
+  background: var(--tm-int-bg-wash);
+}
+
+.tm-intel-fit-locked:focus-visible {
+  outline: none;
+  border-style: solid;
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
 }
 
 .tm-intel-fit-locked svg { width: 10px; height: 10px; }

@@ -270,3 +270,42 @@ Mirrors the `useForgeSession` pattern. Two surfaces today consume the hook: `Mis
 - Snapshot hash, default title, timestamps.
 
 Endpoints never write to `cv_versions` directly. If a new flow needs to create a version, it goes through the spec.
+
+---
+
+## Background Job
+
+A durable unit of deferred work that must survive a process restart. Today: CV upload parse+score, initial match-compute, paid Job Refresh, skill-edit re-tag. Enqueued onto a **Work Lane** as an RQ job, consumed by a **Job Runner**, retried on transient failure, and charged/refunded through the existing XP ledger (ADR-0004). Replaces the legacy `asyncio.create_task` fire-and-forget in `cv_workflow.py` and the FastAPI `BackgroundTasks` in skill-edit.
+
+**Invariants**
+- A Background Job is enqueued only AFTER the durable intent row exists (`cv_upload_jobs` for upload). The row id is the job's correlation key.
+- Idempotent on its correlation key — re-running a job (RQ retry, or duplicate enqueue) must not double-charge (ledger guards this), double-write a baseline CV, or double-refund.
+- Per-job timeout configured on the Runner so a SIGKILLed worker's job moves to the failed registry and refunds — making orphans structurally rare.
+- A failed terminal Background Job refunds via the idempotent `refund_xp` RPC, per ADR-0004.
+- The CVUP3 orphan-sweep is KEPT as an independent backstop (the "night watchman") — a periodic reaper that catches any ticket the rail drops despite the timeout (Redis eviction, stuck registry, misconfig) and refunds it. Defense-in-depth for the Upload Guarantee; does not depend on RQ being perfectly configured.
+
+## Upload Guarantee
+
+The product-level invariant the whole Background Job system serves: **once a user uploads a CV, they get their output.** Priority order: speed, success, no outages — but success is never sacrificed for speed. The durable rail (no loss on restart) + retry-on-transient-failure (self-heal hiccups) + never-reject overload policy (no busy-failures) + orphan-sweep watchman (independent backstop) together make a silently-dropped upload structurally impossible. The only terminal non-success is a PERMANENT failure (no skills / scanned PDF / taxonomy-unmapped), which fails fast, refunds, and tells the user exactly how to fix it.
+
+## Work Lane
+
+A named RQ queue carrying Background Jobs at one urgency. Exactly two:
+- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh.
+- **bulk** — nobody is waiting: initial match-compute after upload, skill-edit re-tag.
+
+A Job Runner listens to lanes in priority order `[fast, bulk]` — RQ pops fast first, only touching bulk when fast is empty. A flood of bulk work can never delay a waiting user.
+
+## Job Runner
+
+A worker process (separate from the web process) that consumes Work Lanes fast-first. Run **2** for redundancy — one keeps serving while the other restarts/deploys. Each Runner caps its own in-flight jobs low; the true provider ceiling is the **Provider Budget**, not the per-Runner cap. Entry point `app/workers/jobs_compute_worker.py`, generalised from the job-refresh-only worker.
+
+**Retry policy** — 3 retries with growing backoff (~5s/15s/45s) on TRANSIENT failure only (provider-unavailable, 429 rate-limit, timeout, network). PERMANENT failures (no skills, scanned/short PDF, taxonomy-unmapped) fail fast + refund immediately with no retry.
+
+## Provider Budget
+
+A single global ceiling on concurrent LLM calls, shared across all Job Runners and web requests — a Redis token bucket. A caller must take a token before calling the provider and returns it after. Total in-flight provider calls stay bounded no matter how many Job Runners exist, so scaling Runners for reliability never raises 429 risk. Lives behind `LLMProvider.complete` — every LLM caller (parse, score, polish, rank, vision) inherits it unchanged. Paired with rate-limit-aware retry+backoff inside `complete` (classify 429/5xx/timeout vs hard-fail; honour `Retry-After`).
+
+## Overload Policy
+
+Uploads are never rejected for load (your "never fail an upload" rule). At peak the durable rail absorbs the spike; the loading screen surfaces honest backpressure ("high demand — still working, you're in line"), feeding the >90s honest-copy state of the CV-loading redesign. Charge stays at enqueue; refund only on terminal failure after retries.

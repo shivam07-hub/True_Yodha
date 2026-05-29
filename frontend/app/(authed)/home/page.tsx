@@ -6,7 +6,6 @@ import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
-import { AppShell } from "@/components/app-shell"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
@@ -337,7 +336,7 @@ function MissionControlInner() {
   if (!nav.loading && nav.firstRun) {
     const best = topJobs[0]
     return (
-      <AppShell>
+      <>
         <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
           <div className="mc-page">
             <div className="mc-inner">
@@ -362,12 +361,12 @@ function MissionControlInner() {
             </div>
           </div>
         </div>
-      </AppShell>
+      </>
     )
   }
 
   return (
-    <AppShell>
+    <>
       <RequiresCV>
       {toast && (
         <div
@@ -509,7 +508,7 @@ function MissionControlInner() {
         </div>
       ) : null}
       </RequiresCV>
-    </AppShell>
+    </>
   )
 }
 

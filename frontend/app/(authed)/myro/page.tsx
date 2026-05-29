@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { AppShell } from "@/components/app-shell"
 
 const RESOURCES = [
   {
@@ -34,7 +33,7 @@ const SHORTCUTS = [
 
 export default function MyroPage() {
   return (
-    <AppShell>
+    <>
       <div style={{ padding: "32px 36px 72px", maxWidth: 1120, margin: "0 auto" }}>
         <header style={{ marginBottom: 32 }}>
           <div
@@ -152,6 +151,6 @@ export default function MyroPage() {
           </div>
         </section>
       </div>
-    </AppShell>
+    </>
   )
 }

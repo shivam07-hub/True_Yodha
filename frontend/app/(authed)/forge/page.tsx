@@ -4,7 +4,6 @@ import Link from "next/link"
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AppShell } from "@/components/app-shell"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type {
@@ -377,7 +376,7 @@ function ForgePageInner() {
   if (!ready) return null
 
   return (
-    <AppShell>
+    <>
       {toast && (
         <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: "var(--z-toast)" as never, background: "var(--tm-surface-2)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-pill)", padding: "10px 18px", fontSize: 13, color: "var(--tm-interactive)", fontWeight: 700, boxShadow: "0 10px 34px rgba(0,0,0,0.36), 0 0 18px var(--tm-int-border-soft)", pointerEvents: "none" }}>
           {toast}
@@ -718,7 +717,7 @@ function ForgePageInner() {
         </div>
       </div>
       </RequiresCV>
-    </AppShell>
+    </>
   )
 }
 

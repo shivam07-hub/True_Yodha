@@ -120,7 +120,8 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
               fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
             }}
           >
-            Sign in with password instead
+            Prefer a password?{" "}
+            <span style={{ color: "var(--tm-interactive)" }}>Sign in</span>
           </button>
         </>
       )}
@@ -172,7 +173,8 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
               fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center",
             }}
           >
-            Forgot password? Email me a link instead.
+            Forgot it?{" "}
+            <span style={{ color: "var(--tm-interactive)" }}>Email me a link</span>
           </button>
         </form>
       )}
@@ -185,6 +187,22 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
           border: "1px solid rgba(251,113,133,0.25)",
         }}>{error}</p>
       )}
+
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tm-auth-privacy-link"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 2 4 5v6c0 4.4 3.1 8.5 8 9.7 4.9-1.2 8-5.3 8-9.7V5l-8-3Z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          Privacy policy
+        </a>
+      </div>
 
       {showSignupLink && surface === "page" && (
         <p style={{

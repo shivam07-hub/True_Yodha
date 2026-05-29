@@ -64,8 +64,16 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
       </div>
 
       <div className="tm-public-nav-auth">
-        {(showSignIn || isAuthed) && (
-          <Link href="/login" className="tm-public-nav-signin">
+        {showSignIn && !isAuthed && (
+          <Link
+            href="/login"
+            className="tm-public-nav-signin"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+              e.preventDefault()
+              signup.open({ surface: "manual", mode: "login", source: "public_nav_signin" })
+            }}
+          >
             Sign in →
           </Link>
         )}

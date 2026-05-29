@@ -152,6 +152,11 @@ export default function PrivacyPage() {
                   to authenticate requests. Never sent to any third party.</Li>
                 <Li><strong>No passive collection:</strong> the extension does not monitor your browsing, collect web history, or run without your explicit action.</Li>
               </Ul>
+              <Sub title="C. Signing in with Google or LinkedIn" />
+              <Ul>
+                <Li><strong>What they share:</strong> your name, email, and profile picture — plus, for LinkedIn, the public headline you&apos;ve already published. Nothing private, nothing you haven&apos;t already made public.</Li>
+                <Li><strong>What we never do:</strong> we don&apos;t post for you, message your network, or read who you&apos;re connected to. If something needs to leave Myro, you tap a button to send it.</Li>
+              </Ul>
             </Section>
 
             <Section id="how-we-use" n="03" title="How We Use Your Data">

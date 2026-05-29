@@ -11,7 +11,6 @@ import { LinkedInAuthButton } from "@/components/auth/shared/linkedin-button"
 import { MagicLinkInput } from "@/components/auth/shared/magic-link-input"
 import { CheckInboxPanel } from "@/components/auth/shared/check-inbox-panel"
 import { InAppBrowserWarning } from "@/components/auth/shared/in-app-browser-warning"
-import { LinkedInDisclosure } from "@/components/auth/shared/linkedin-disclosure"
 
 interface Props {
   /** Where the form is mounted — used for telemetry + post-auth routing. */
@@ -99,8 +98,6 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
         onClick={() => openOAuth("linkedin_oidc")}
       />
 
-      <LinkedInDisclosure surface={surface === "modal" ? "modal_signup" : "page_signup"} />
-
       <div style={{
         display: "flex", alignItems: "center", gap: 10, margin: "2px 0",
       }}>
@@ -126,12 +123,27 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
         }}>{error}</p>
       )}
 
-      <p style={{
-        fontSize: 12, color: "var(--tm-text-faint)", textAlign: "center", lineHeight: 1.55,
-        marginTop: 4,
+      <div style={{
+        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
+        gap: 8, marginTop: 4,
       }}>
-        Free · No spam · Any email works — throwaway is fine.
-      </p>
+        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
+          Free. Private. Yours.
+        </span>
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tm-auth-privacy-link"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 2 4 5v6c0 4.4 3.1 8.5 8 9.7 4.9-1.2 8-5.3 8-9.7V5l-8-3Z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          Privacy policy
+        </a>
+      </div>
 
       {showLoginLink && surface === "page" && (
         <p style={{

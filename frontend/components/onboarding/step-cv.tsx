@@ -222,7 +222,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
             <p role="alert" style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger)" }}>{uploadError}</p>
           )}
 
-          {mode === "linkedin" && <LinkedInDisclosure surface="step_cv" variant="cv" />}
+          {mode === "linkedin" && <LinkedInDisclosure surface="step_cv" />}
         </>
       )}
 

@@ -221,7 +221,14 @@ class MarketAnalyticsCompiler:
             skills = [skill.strip() for skill in (row.get("main_skills") or []) if skill]
 
             created_at_dt = _marker_to_dt(row.get("first_seen"))
-            last_seen_dt = _marker_to_dt(row.get("last_seen")) or created_at_dt
+            # Prefer the job's own last_seen date from the jobs table; fall back to
+            # the scrape/dump date (batch_date), then to first_seen. last_seen is a
+            # day-granular YYYYMMDD marker, so downstream age is day-level only.
+            last_seen_dt = (
+                _marker_to_dt(row.get("last_seen"))
+                or _marker_to_dt(row.get("batch_date"))
+                or created_at_dt
+            )
 
             if company:
                 company_counts[company] += 1

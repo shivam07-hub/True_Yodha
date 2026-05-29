@@ -6,8 +6,14 @@ import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { RESULTS_SORT, RESULTS_SORT_OPTIONS, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
 import { CompanyRow, Empty, GroupRow, JobRow } from "./intel-rows"
 import { IntelRowSkeletonList } from "./intel-row-skeleton"
+import { fmtBatch } from "./intel-data"
 
 export type ResultsTab = "companies" | "industries" | "cities"
+
+// Render cap — the cities tab can carry 1500+ groups; rendering every row (each
+// an SVG sparkline) freezes the page. Tab count shows the true total; list shows
+// the top-N by job count. Users narrow the long tail via search / quick filters.
+const GROUP_RENDER_CAP = 50
 
 export interface ResultCompany {
   id: string
@@ -18,6 +24,7 @@ export interface ResultCompany {
   velocity: number
   sparks: number[]
   ageSec: number
+  lastSeenIso: string | null
 }
 
 export interface ResultGroup {
@@ -67,6 +74,7 @@ interface ResultsProps {
   }
   sort: ResultsSortKey
   onSortChange: (k: ResultsSortKey) => void
+  latestBatchIso: string | null
 }
 
 export function IntelResults(props: ResultsProps) {
@@ -179,7 +187,8 @@ function Split(props: ResultsProps) {
           </span>
           <div className="tm-intel-spacer" />
           <span className="tm-intel-panel-meta">
-            <span className="tm-intel-panel-meta-ok">●</span> live · re-indexed every 60s
+            <span className="tm-intel-panel-meta-ok">●</span> synced ·{" "}
+            {props.latestBatchIso ? `batch ${fmtBatch(props.latestBatchIso)}` : "live mirror"}
           </span>
         </div>
 
@@ -198,11 +207,11 @@ function Split(props: ResultsProps) {
           ) : <Empty />
         ) : tab === "industries" ? (
           industries.length
-            ? industries.map((g) => <GroupRow key={g.name} g={g} />)
+            ? industries.slice(0, GROUP_RENDER_CAP).map((g) => <GroupRow key={g.name} g={g} />)
             : <Empty />
         ) : (
           cities.length
-            ? cities.map((g) => <GroupRow key={g.name} g={g} />)
+            ? cities.slice(0, GROUP_RENDER_CAP).map((g) => <GroupRow key={g.name} g={g} />)
             : <Empty />
         )}
       </div>

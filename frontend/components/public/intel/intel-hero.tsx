@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
-import { LOG_SEEDS, fmtNum, type LogSeed } from "./intel-data"
+import { LOG_SEEDS, fmtBatch, fmtNum, type LogSeed } from "./intel-data"
 
 interface HeroProps {
   jobsCount: number
@@ -91,51 +91,11 @@ function HeroStats({
   )
 }
 
-function fmtBatch(iso: string): string {
-  const s = iso.trim()
-  if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`
-  return s.slice(0, 10)
-}
-
 const GITHUB_REPO = "shivam07-hub/True_Yodha"
 const GITHUB_URL = `https://github.com/${GITHUB_REPO}`
-const GITHUB_META_CACHE_KEY = "myro_intel_gh_meta_v1"
-const GITHUB_META_TTL_MS = 5 * 60 * 1000
-
-interface GithubMeta { stars: number; pushedAt: string | null }
 
 function HeroCtas() {
   const signup = useSignupGate()
-  const [gh, setGh] = useState<GithubMeta | null>(() => {
-    if (typeof window === "undefined") return null
-    try {
-      const raw = window.localStorage.getItem(GITHUB_META_CACHE_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as { ts: number; data: GithubMeta }
-      if (Date.now() - parsed.ts > GITHUB_META_TTL_MS) return null
-      return parsed.data
-    } catch { return null }
-  })
-
-  useEffect(() => {
-    if (gh) return
-    let cancelled = false
-    fetch(`https://api.github.com/repos/${GITHUB_REPO}`, { headers: { Accept: "application/vnd.github+json" } })
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => {
-        if (cancelled || !d) return
-        const next: GithubMeta = {
-          stars: typeof d.stargazers_count === "number" ? d.stargazers_count : 0,
-          pushedAt: typeof d.pushed_at === "string" ? d.pushed_at : null,
-        }
-        setGh(next)
-        try {
-          window.localStorage.setItem(GITHUB_META_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: next }))
-        } catch {}
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [gh])
 
   return (
     <div className="tm-intel-ctas">
@@ -148,21 +108,20 @@ function HeroCtas() {
           signup.open({ surface: "manual", next: "/cv?upload=1", source: "intel_hero_signup" })
         }}
       >
-        Sign up to track your pipeline
+        Sign up to track your CV
         <span className="tm-intel-arrow">→</span>
       </Link>
       <a
-        className="tm-intel-btn-secondary"
+        className="tm-intel-btn-github"
         href={GITHUB_URL}
         target="_blank"
         rel="noreferrer"
-        aria-label={`Open Myro on GitHub${gh ? ` (${gh.stars} stars)` : ""}`}
+        aria-label="Open Myro on GitHub"
+        title="Open Myro on GitHub"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.18c-3.2.69-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.27-5.24-5.67 0-1.25.45-2.27 1.19-3.07-.12-.29-.51-1.47.11-3.07 0 0 .97-.31 3.17 1.17.92-.26 1.91-.39 2.89-.39.98 0 1.97.13 2.89.39 2.2-1.48 3.17-1.17 3.17-1.17.62 1.6.23 2.78.11 3.07.74.8 1.19 1.82 1.19 3.07 0 4.41-2.7 5.37-5.27 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z" />
         </svg>
-        Fork on GitHub
-        {gh ? <span className="tm-intel-gh-stars" aria-hidden="true">★ {gh.stars}</span> : null}
       </a>
     </div>
   )

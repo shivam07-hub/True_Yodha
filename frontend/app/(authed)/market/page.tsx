@@ -8,7 +8,6 @@ import { jobs, users, xp } from "@/lib/api"
 import { IntelLoadingState } from "@/components/market/intel-loading-state"
 import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
 import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
-import { AppShell } from "@/components/app-shell"
 import { FilterBar } from "@/components/ui/filter-bar"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
@@ -1143,7 +1142,7 @@ function IntelPageInner() {
   const moversCompanies = useMemo(() => analytics?.by_company ?? [], [analytics])
 
   return (
-    <AppShell>
+    <>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media (max-width: 768px) {
@@ -1304,7 +1303,7 @@ function IntelPageInner() {
           />
         </div>
       </div>
-    </AppShell>
+    </>
   )
 }
 

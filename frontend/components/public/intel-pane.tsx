@@ -84,6 +84,7 @@ export function IntelPane() {
         ageSec: lastSeenMs != null && Number.isFinite(lastSeenMs)
           ? Math.max(0, Math.floor((nowMs - lastSeenMs) / 1000))
           : 0,
+        lastSeenIso: c.last_seen_at ?? null,
       }
     })
   }, [analytics, nowMs])
@@ -239,6 +240,7 @@ export function IntelPane() {
         }}
         sort={sort}
         onSortChange={setSort}
+        latestBatchIso={analytics?.latest_batch ?? null}
       />
 
       <IntelCommons />

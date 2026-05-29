@@ -151,7 +151,7 @@
 }
 
 .tm-landing-dropzone-title {
-  font-size: var(--tm-fs-meta);
+  font-size: calc(var(--tm-fs-meta) - 2px);
   font-weight: 600;
   color: var(--tm-text);
   line-height: 1.3;

@@ -21,12 +21,12 @@ import { OnboardingJourneyStrip } from "@/components/onboarding/journey-strip"
 
 type Step = "cv" | "role" | "companies" | "ninja" | "score"
 
-const JOURNEY_STEP_MAP: Record<Step, 1 | 2 | 3 | 4 | 5 | 6> = {
+const JOURNEY_STEP_MAP: Record<Step, 1 | 2 | 3 | 4 | 5> = {
   cv: 1,
   role: 3,
-  companies: 4,
-  ninja: 4,
-  score: 4,
+  companies: 3,
+  ninja: 3,
+  score: 3,
 }
 
 type CVUploadCompletion =
