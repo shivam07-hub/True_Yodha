@@ -50,7 +50,7 @@ export default async function NewsletterIndexPage() {
             Sign up to get notified when Issue 001 drops.
           </p>
           <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", padding: "9px 20px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-            Sign up free →
+            Get notified →
           </Link>
         </div>
       ) : (

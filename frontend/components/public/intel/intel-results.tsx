@@ -258,8 +258,8 @@ function LockedCta() {
   return (
     <div className="tm-intel-locked-cta">
       <div className="tm-intel-locked-body">
-        <div className="tm-intel-locked-t">Sign up to see your fit against every role.</div>
-        <div className="tm-intel-locked-s">Free. Yours to export. Always.</div>
+        <div className="tm-intel-locked-t">See your fit against every role.</div>
+        <div className="tm-intel-locked-s">Create your profile to match, track, and export.</div>
       </div>
       <Link
         href="/signup?next=/cv?upload=1"
@@ -270,7 +270,7 @@ function LockedCta() {
           signup.open({ surface: "manual", next: "/cv?upload=1", source: "intel_locked_cta" })
         }}
       >
-        Sign up free →
+        Create your profile →
       </Link>
     </div>
   )

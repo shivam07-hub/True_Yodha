@@ -135,7 +135,7 @@ export function OperatorPane({ active, next }: { active: boolean; next: string |
       <aside className="es-right es-mode-fade" aria-label="Sign up — operator">
         <div className="es-form-card">
           <div className="es-form-eyebrow">
-            <span>Free forever</span> <span className="es-badge">~60 sec</span>
+            <span>Powered by XP</span> <span className="es-badge">~60 sec</span>
           </div>
           <h2 className="es-form-title">Start your CV hub</h2>
           <p className="es-form-sub">
