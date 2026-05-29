@@ -1,0 +1,26 @@
+/* ── Newsletter shared layout — index + issue ──────────────────────
+   List (readable measure) + sticky rail. Single source so the index
+   and every issue page share one frame. ─────────────────────────── */
+
+.nl-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: start;
+  min-width: 0;
+}
+
+.nl-rail {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .nl-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 56px;
+  }
+  .nl-rail {
+    position: sticky;
+    top: 24px;
+  }
+}

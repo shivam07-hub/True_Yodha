@@ -23,21 +23,18 @@ export function LandingPage() {
         <section className="tm-landing-hero">
           <div className="tm-landing-hero-left">
 
-            <div className="tm-landing-chip" aria-label="At a glance">
-              <span className="tm-landing-chip-tag">10 minutes</span>
-              <span className="tm-landing-chip-sep">·</span>
-              <span>any role</span>
-              <span className="tm-landing-chip-sep">·</span>
-              <span>scored</span>
-            </div>
-
             <h1 className="tm-landing-h1">
               A job-ready CV<br />in 10 minutes.
             </h1>
 
             <p className="tm-landing-subhead">
-              One master CV, tailored for each job role. Score every version
-              against the JD — know exactly which one to send.
+              <span className="tm-landing-chip-tag">10 minutes</span>
+              <span className="tm-landing-chip-sep">·</span>
+              <span>Any Job</span>
+              <span className="tm-landing-chip-sep">·</span>
+              <span>Scored</span>
+              <span className="tm-landing-chip-sep">·</span>
+              <span className="tm-landing-chip-tag">Tailored</span>
             </p>
 
             <button
@@ -64,28 +61,6 @@ export function LandingPage() {
               </span>
             </button>
 
-            <a href="#sample-diagnostic" className="tm-landing-cta-secondary">
-              See how versions get scored
-              <span className="tm-landing-cta-arrow" aria-hidden>↓</span>
-            </a>
-
-            {/* Stats strip — honest static numbers, refresh manually */}
-            <div className="tm-landing-stats" role="list" aria-label="Platform signal">
-              <span className="tm-landing-stat tm-landing-stat-live" role="listitem">
-                <span className="tm-landing-stat-dot" aria-hidden />
-                <span className="tm-landing-stat-lbl">live</span>
-                <span className="tm-landing-stat-num">27k+</span>
-                <span className="tm-landing-stat-lbl">jobs in feed</span>
-              </span>
-              <span className="tm-landing-stat" role="listitem">
-                <span className="tm-landing-stat-num">~10 min</span>
-                <span className="tm-landing-stat-lbl">avg first CV</span>
-              </span>
-              <span className="tm-landing-stat" role="listitem">
-                <span className="tm-landing-stat-lbl">private by default</span>
-              </span>
-            </div>
-
           </div>
 
           {/* ── CV placeholder mock ───────────────────────────── */}
@@ -96,6 +71,11 @@ export function LandingPage() {
               <span className="tm-landing-skill-plus" aria-hidden>+</span>
               <span>skill detected:&nbsp;</span>
               <span className="tm-landing-skill-val">Stakeholder Mgmt L4</span>
+            </span>
+
+            {/* private-by-default wax stamp — overlaid on the CV */}
+            <span className="tm-landing-private-stamp" aria-label="Private by default">
+              private<br />by default
             </span>
 
             <article className="tm-landing-cv-mock" aria-label="Example CV preview">

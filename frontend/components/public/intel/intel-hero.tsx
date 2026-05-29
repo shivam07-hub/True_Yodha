@@ -28,10 +28,10 @@ export function IntelHero(props: HeroProps) {
         </div>
         <h1 className="tm-intel-display">
           Every careers page on the internet,{" "}
-          <em>read in the open.</em>
+          <em>now on one platform.</em>
         </h1>
         <p className="tm-intel-lede">
-          A language model has been reading job listings, non-stop, for{" "}
+          A self-hosted, open-source model has been fetching job listings for{" "}
           <span className="tm-intel-ink">{props.uptime}</span>.
         </p>
 

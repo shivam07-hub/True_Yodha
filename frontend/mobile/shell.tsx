@@ -8,7 +8,6 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal } from "@/components/settings-modal"
-import { SurfaceToggle } from "@/components/surface-toggle"
 import { openFeedbackHub } from "@/components/app-shell"
 import type { SidebarProfile } from "@/components/app-shell"
 import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
@@ -345,14 +344,6 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
           </button>
         ))}
 
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 4px 4px", marginTop: 4,
-          borderTop: "1px solid var(--tm-border-soft)",
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text-muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Theme</span>
-          <SurfaceToggle />
-        </div>
       </div>
 
       {showSettings && (

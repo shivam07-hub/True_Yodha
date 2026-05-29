@@ -2116,6 +2116,19 @@ export const institutions = {
     }),
 }
 
+// ── Newsletter ──────────────────────────────────────────────────────────────
+
+export type NewsletterSource = "web" | "landing" | "newsletter_page" | "app"
+
+export const newsletter = {
+  subscribe: (email: string, source: NewsletterSource = "web", token?: string) =>
+    request<{ ok: boolean; already_subscribed?: boolean }>("/newsletter/subscribe", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify({ email, source }),
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")

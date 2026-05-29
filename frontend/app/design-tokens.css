@@ -360,6 +360,7 @@
 
 /* Respect user preference */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   :root,
   :root * {
     transition: none !important;
@@ -368,6 +369,11 @@
 }
 
 /* ── Base layer ────────────────────────────────────────────── */
+html {
+  /* Smooth in-page anchor jumps app-wide — kills the scroll "jerk".
+     Disabled under prefers-reduced-motion below. */
+  scroll-behavior: smooth;
+}
 html, body {
   /* Depth-glow over the ink base — teal top-left, amethyst bottom-right —
      so the page reads as lit, not a flat near-black void. */

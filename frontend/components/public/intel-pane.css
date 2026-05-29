@@ -115,8 +115,8 @@
   padding: 14px 16px;
   border: 1px solid var(--tm-border-soft);
   border-radius: 10px;
-  background: rgba(15, 26, 46, 0.5);
-  backdrop-filter: blur(4px);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-1);
   position: relative;
   overflow: hidden;
 }
@@ -239,7 +239,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--tm-text-muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tm-surface-2);
   border: 1px solid var(--tm-border);
   border-radius: 99px;
   letter-spacing: 0.02em;
@@ -249,18 +249,18 @@
 .tm-intel-skel { pointer-events: none; }
 .tm-intel-skel-bar {
   display: block;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tm-hover);
   border-radius: 4px;
 }
 .tm-intel-skel-logo {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: var(--tm-hover) !important;
+  border-color: var(--tm-border-soft) !important;
   color: transparent !important;
 }
 .tm-intel-skel-spark {
   width: 64px;
   height: 22px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tm-hover);
   border-radius: 4px;
 }
 .tm-intel-skel-chip {
@@ -268,7 +268,7 @@
   width: 58px;
   height: 18px;
   margin-right: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tm-hover);
   border-radius: 99px;
 }
 .tm-intel-skel-pulse { animation: tm-intel-skel-pulse 1.4s ease-in-out infinite; }
@@ -314,10 +314,10 @@
   z-index: 5;
   min-width: 200px;
   padding: 4px;
-  background: var(--tm-bg-elevated, #0E1626);
+  background: var(--tm-surface);
   border: 1px solid var(--tm-border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tm-shadow-2);
 }
 .tm-intel-sort-menu-item {
   display: block;
@@ -331,15 +331,24 @@
   text-align: left;
   cursor: pointer;
 }
-.tm-intel-sort-menu-item:hover { background: rgba(255, 255, 255, 0.04); }
+.tm-intel-sort-menu-item:hover { background: var(--tm-hover); }
 .tm-intel-sort-menu-item.is-active {
   color: var(--tm-accent);
-  background: rgba(0, 245, 212, 0.06);
+  background: var(--tm-accent-wash);
 }
 .tm-intel-sort-pill-wrap { position: relative; }
 
-/* ── Live LLM console ──────────────────────────────────────────── */
+/* ── Live LLM console ──────────────────────────────────────────────
+   Permanently-dark terminal island in an otherwise light app. Re-declare
+   the dark palette as local custom props so every descendant
+   var(--tm-text / border) resolves to a light-on-dark value here, not the
+   page light-theme tokens. ──────────────────────────────────────────── */
 .tm-intel-console {
+  --tm-text:         #E8F0FF;
+  --tm-text-muted:   #94A3C2;
+  --tm-text-faint:   #6C7A98;
+  --tm-border:       #233158;
+  --tm-border-soft:  rgba(80, 120, 200, 0.22);
   background: linear-gradient(180deg, #0A1322 0%, #070D1A 100%);
   border: 1px solid var(--tm-border);
   border-radius: 14px;
@@ -569,7 +578,7 @@
 .tm-intel-kbd {
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tm-surface-2);
   border: 1px solid var(--tm-border);
   font-family: var(--tm-font-mono);
   font-size: 11px;
@@ -611,7 +620,7 @@
   font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--tm-border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tm-surface-2);
   color: var(--tm-text-muted);
   display: inline-flex;
   align-items: center;
@@ -625,7 +634,7 @@
 
 .tm-intel-chip:hover {
   color: var(--tm-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tm-hover);
 }
 
 .tm-intel-chip.is-active {
@@ -673,7 +682,7 @@
 
 .tm-intel-tab:hover {
   color: var(--tm-text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tm-hover);
 }
 
 .tm-intel-tab.is-active {
@@ -687,13 +696,13 @@
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tm-surface-2);
   color: var(--tm-text-faint);
   border: 1px solid var(--tm-border-soft);
 }
 
 .tm-intel-tab.is-active .tm-intel-tab-badge {
-  background: rgba(0, 245, 212, 0.15);
+  background: var(--tm-accent-wash);
   color: var(--tm-accent);
   border-color: var(--tm-accent-ring);
 }
@@ -709,7 +718,7 @@
   border: 1px solid var(--tm-border);
   font-size: 12px;
   color: var(--tm-text-muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tm-surface-2);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -796,7 +805,7 @@
 .tm-intel-co-row:last-child { border-bottom: none; }
 
 .tm-intel-co-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tm-hover);
 }
 
 .tm-intel-co-row.is-active {
@@ -857,7 +866,7 @@
   padding: 1px 7px;
   border-radius: 99px;
   border: 1px solid var(--tm-border-soft);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tm-surface-2);
   flex-shrink: 0;
 }
 
@@ -947,7 +956,7 @@
 .tm-intel-job-row:last-child { border-bottom: none; }
 
 .tm-intel-job-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tm-hover);
 }
 
 .tm-intel-job-head {
@@ -993,9 +1002,9 @@
   border-radius: 99px;
   font-size: 10px;
   font-weight: 600;
-  background: rgba(167, 139, 250, 0.1);
-  color: var(--tm-info, #A78BFA);
-  border: 1px solid rgba(167, 139, 250, 0.25);
+  background: var(--tm-info-wash);
+  color: var(--tm-info);
+  border: 1px solid var(--tm-info-border);
   letter-spacing: 0.02em;
 }
 
@@ -1023,7 +1032,7 @@
   font-size: 10px;
   padding: 1px 7px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tm-surface-2);
   color: var(--tm-text-muted);
   border: 1px solid var(--tm-border-soft);
   font-weight: 500;

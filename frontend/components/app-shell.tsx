@@ -11,7 +11,6 @@ import { dataKeys } from "@/lib/domain-data"
 import { ParticleBg } from "@/components/particle-bg"
 import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
 import { useForgeSession } from "@/lib/hooks/use-forge-session"
-import { SurfaceToggle } from "@/components/surface-toggle"
 import { SettingsModal } from "@/components/settings-modal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { XPGateModal } from "@/components/xp/XPGateModal"
@@ -208,11 +207,6 @@ function AppTopBar({ xpBalance, profile, signOut, onForgeXPEarned, onXPOpen }: {
                       <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
                     </button>
                   ))}
-                  <div className="tm-topbar-menu-divider" />
-                  <div style={{ padding: "4px 10px 6px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>Theme</span>
-                    <SurfaceToggle />
-                  </div>
                   <div className="tm-topbar-menu-divider" />
                   {[
                     { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
