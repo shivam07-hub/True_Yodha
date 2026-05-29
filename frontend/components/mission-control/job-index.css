@@ -1,0 +1,220 @@
+/* Job Index — newsletter-style index of matches that expand into FocusedJob
+   cards in place. Page-scoped per ADR-0003. Lives below the Dashboard Hero. */
+
+.ji {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+  scroll-margin-top: 80px;
+}
+
+.ji-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ji-segments {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--tm-radius-pill);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--tm-border-soft);
+}
+
+.ji-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: var(--tm-radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--tm-text-faint);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 160ms, background 160ms;
+}
+
+.ji-seg:hover:not(:disabled) {
+  color: var(--tm-text);
+}
+
+.ji-seg.active {
+  background: var(--tm-surface-2);
+  color: var(--tm-text);
+}
+
+.ji-seg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ji-seg-count {
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-faint);
+}
+
+.ji-seg.active .ji-seg-count {
+  color: var(--tm-interactive);
+}
+
+.ji-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ji-count {
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-faint);
+  white-space: nowrap;
+}
+
+.ji-stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-warning-wash);
+  border: 1px solid var(--tm-warning);
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text);
+}
+
+/* ── Index rows ───────────────────────────────────────────── */
+
+.ji-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.ji-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-border-soft);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: border-color 160ms, background 160ms, transform 120ms;
+}
+
+.ji-row:hover {
+  border-color: var(--tm-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ji-row.active {
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+}
+
+.ji-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ji-row-co {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-interactive);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ji-row-role {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ji-row-fit {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.ji-row-fit--liked {
+  color: var(--tm-interactive);
+  font-size: 13px;
+}
+
+/* ── Keep going ───────────────────────────────────────────── */
+
+.ji-keep-going {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 20px auto 0;
+  padding: 8px 18px;
+  border-radius: var(--tm-radius-pill);
+  border: 1px solid var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 160ms, border-color 160ms;
+}
+
+.ji-keep-going:hover {
+  background: var(--tm-int-bg);
+  border-color: var(--tm-interactive);
+}
+
+/* ── Empty ────────────────────────────────────────────────── */
+
+.ji-empty {
+  padding: 40px 24px;
+  text-align: center;
+  border-radius: var(--tm-radius);
+  border: 1px dashed var(--tm-border-soft);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ji-empty-msg {
+  font-size: 13px;
+  color: var(--tm-text-faint);
+}
+
+@media (max-width: 720px) {
+  .ji-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .ji-segments {
+    justify-content: space-between;
+  }
+  .ji-head-right {
+    justify-content: space-between;
+  }
+  .ji-rows {
+    grid-template-columns: 1fr;
+  }
+}

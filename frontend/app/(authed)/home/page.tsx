@@ -55,7 +55,7 @@ function MissionControlInner() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
-  const { toast, show: showToast } = useToast()
+  const { toast } = useToast()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
 
   const refreshVm = useJobRefresh(token, queryClient)
