@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { AppShell } from "@/components/app-shell"
 import { XpFairnessNote, XpGuideLists } from "@/components/xp/xp-guide-content"
 import { XP_POLICY } from "@/lib/xp-policy"
 
@@ -24,7 +23,7 @@ const principles = [
 
 export default function XpPage() {
   return (
-    <AppShell>
+    <>
       <div style={{ padding: "32px 36px 72px", maxWidth: 1120, margin: "0 auto" }}>
         <header style={{ marginBottom: 28 }}>
           <div
@@ -137,6 +136,6 @@ export default function XpPage() {
           </div>
         </section>
       </div>
-    </AppShell>
+    </>
   )
 }

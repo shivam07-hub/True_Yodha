@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
-import { AppShell } from "@/components/app-shell"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useViewport } from "@/mobile"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
@@ -86,7 +85,7 @@ function TrackerPageInner() {
   }, [tab, mobileStage, isDesktop, ready])
 
   if (!ready || !token) {
-    return <AppShell><div /></AppShell>
+    return <div />
   }
 
   function handleStatusChange(jobId: string, status: ApplicationStatus) {
@@ -150,7 +149,7 @@ function TrackerPageInner() {
   const reviewApp = reviewJobId ? applications.find(a => a.job_id === reviewJobId) : null
 
   return (
-    <AppShell>
+    <>
       <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingBottom: 80 }}>
         <TrackerHeader
           tab={tab}
@@ -289,7 +288,7 @@ function TrackerPageInner() {
           .tm-tracker-board { grid-template-columns: 1fr !important; }
         }
       `}</style>
-    </AppShell>
+    </>
   )
 }
 
@@ -380,7 +379,7 @@ function EmptyState({ message }: { message: string }) {
 
 export default function TrackerPage() {
   return (
-    <Suspense fallback={<AppShell><div /></AppShell>}>
+    <Suspense fallback={<div />}>
       <TrackerPageInner />
     </Suspense>
   )

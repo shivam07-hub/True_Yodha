@@ -53,7 +53,7 @@ export function LandingPage() {
               <div className="tm-landing-dropzone-body">
                 <span className="tm-landing-dropzone-title">Drop your CV — PDF or DOCX</span>
                 <span className="tm-landing-dropzone-trust">
-                  Private · encrypted · ~7s parse
+                  Private
                 </span>
               </div>
               <span className="tm-landing-dropzone-btn" aria-hidden>

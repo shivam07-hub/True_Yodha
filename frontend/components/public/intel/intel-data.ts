@@ -138,6 +138,13 @@ export function fmtAgeSec(sec: number): string {
   return `${Math.floor(sec / 86400)}d ago`
 }
 
+/** Format a YYYYMMDD marker or ISO date string to YYYY-MM-DD. */
+export function fmtBatch(iso: string): string {
+  const s = iso.trim()
+  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
+  return s.slice(0, 10)
+}
+
 export function fmtAgeMin(min: number): string {
   if (min < 60) return `${min}m ago`
   if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`

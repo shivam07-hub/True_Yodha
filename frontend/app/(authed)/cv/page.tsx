@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { AppShell } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CVUploadProcessing } from "@/components/cv/upload-processing"
@@ -266,7 +265,7 @@ function CVPage() {
   const surfacedError = playground.error ?? uploadError
 
   return (
-    <AppShell>
+    <>
       <div className="cvb-scope">
         <div className="cvb-page">
           {/* No baseline yet — onboarding empty state */}
@@ -521,7 +520,7 @@ function CVPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </AppShell>
+    </>
   )
 }
 

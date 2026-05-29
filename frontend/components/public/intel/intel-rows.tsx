@@ -1,7 +1,8 @@
 "use client"
 
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import {
-  COUNTRY_NAMES, fmtAgeMin, fmtAgeSec, hexToRgba, initialsFor, logoColorFor,
+  COUNTRY_NAMES, fmtAgeMin, fmtBatch, hexToRgba, initialsFor, logoColorFor,
 } from "./intel-data"
 import type { ResultCompany, ResultGroup, ResultJob } from "./intel-results"
 
@@ -67,7 +68,9 @@ export function CompanyRow({
           {co.industry ? <span className="tm-intel-co-industry">{co.industry}</span> : null}
         </div>
         <div className="tm-intel-co-meta">
-          <span className="tm-intel-co-updated">updated {fmtAgeSec(co.ageSec)}</span>
+          <span className="tm-intel-co-updated">
+            {co.lastSeenIso ? `scraped ${fmtBatch(co.lastSeenIso)}` : "scrape date n/a"}
+          </span>
           <span className="tm-intel-co-sep">·</span>
           <span>{COUNTRY_NAMES[co.country] || co.country || "—"}</span>
         </div>
@@ -113,18 +116,26 @@ export function GroupRow({ g }: { g: ResultGroup }) {
 
 export function JobRow({ job }: { job: ResultJob }) {
   const fresh = job.ageMin < 60 * 24
+  const signup = useSignupGate()
   return (
     <div className="tm-intel-job-row">
       <div className="tm-intel-job-head">
         <div className="tm-intel-job-title">{job.title}</div>
-        <div className="tm-intel-fit-locked" title="Sign up to see your fit % against this role">
+        <button
+          type="button"
+          className="tm-intel-fit-locked"
+          title="Sign in to see your fit % against this role"
+          onClick={() =>
+            signup.open({ surface: "manual", mode: "login", source: "intel_fit_lock" })
+          }
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           fit · sign in
-        </div>
+        </button>
       </div>
       <div className="tm-intel-job-sub">
         <span>{job.city}</span>

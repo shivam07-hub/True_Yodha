@@ -6,6 +6,7 @@ import { useSignupGateStore } from "@/store/signupGateStore"
 import { signupEvents } from "@/lib/analytics"
 import { getStoredReferral } from "@/lib/referral"
 import { SignupForm } from "./signup-form"
+import { LoginForm } from "./login-form"
 import { OnboardingJourneyStrip, isJourneyDone } from "@/components/onboarding/journey-strip"
 import "./signup-modal.css"
 
@@ -25,7 +26,9 @@ const CONCEPTS: Array<{ title: string; body: string }> = [
 ]
 
 export function SignupModal() {
-  const { open, surface, next, closeGate, openedAt, methodSeenCount } = useSignupGateStore()
+  const { open, mode, surface, next, closeGate, setMode, openedAt, methodSeenCount } =
+    useSignupGateStore()
+  const isLogin = mode === "login"
   const dialogRef = useRef<HTMLDivElement | null>(null)
 
   // Esc closes; click-outside intentionally does NOT (mobile misclick).
@@ -87,43 +90,71 @@ export function SignupModal() {
         <button
           type="button"
           className="tm-signup-modal__close"
-          aria-label="Close sign up"
+          aria-label={isLogin ? "Close sign in" : "Close sign up"}
           onClick={() => dismiss("x")}
         >
           ×
         </button>
 
         <div className="tm-signup-modal__main">
-          {!isJourneyDone() && (
+          {!isLogin && !isJourneyDone() && (
             <OnboardingJourneyStrip currentStep={1} compact />
           )}
           <span className="tm-signup-modal__crumb">
             <span className="tm-signup-modal__crumb-dot" />
-            Sign up · 30 seconds
+            {isLogin ? "Sign in" : "Sign up · 30 seconds"}
           </span>
           <h2 id="tm-signup-modal-title" className="tm-signup-modal__title">
-            Start your <em>CV hub</em>.
+            {isLogin ? (
+              <>Welcome <em>back</em>.</>
+            ) : (
+              <>Start your <em>CV hub</em>.</>
+            )}
           </h2>
           <p className="tm-signup-modal__lead">
-            Score your CV against live jobs. Keep every version you tailor. One account, everything from
-            upload to apply.
+            {isLogin
+              ? "Pick up where you left off — your CV versions, scores, and saved jobs are right where you left them."
+              : "Score your CV against live jobs. Keep every version you tailor. One account, everything from upload to apply."}
           </p>
 
-          {refSlug && (
+          {!isLogin && refSlug && (
             <span className="tm-signup-modal__ref-chip">
               Invited by <strong>@{refSlug}</strong>
             </span>
           )}
 
-          <SignupForm
-            surface="modal"
-            next={next}
-            showLoginLink={false}
-          />
+          {isLogin ? (
+            <LoginForm surface="modal" next={next} showSignupLink={false} />
+          ) : (
+            <SignupForm surface="modal" next={next} showLoginLink={false} />
+          )}
+
+          <p className="tm-signup-modal__toggle">
+            {isLogin ? (
+              <>
+                New here?{" "}
+                <button type="button" onClick={() => setMode("signup")}>
+                  Create an account
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button type="button" onClick={() => setMode("login")}>
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
 
-        <aside className="tm-signup-modal__aside" aria-label="What you will get">
-          <span className="tm-signup-modal__aside-eyebrow">What you&apos;ll get</span>
+        <aside
+          className="tm-signup-modal__aside"
+          aria-label={isLogin ? "Welcome back" : "What you will get"}
+        >
+          <span className="tm-signup-modal__aside-eyebrow">
+            {isLogin ? "Your hub" : "What you'll get"}
+          </span>
           <div className="tm-signup-modal__aside-glyph" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -139,7 +170,9 @@ export function SignupModal() {
             </div>
           ))}
           <p className="tm-signup-modal__trust">
-            Free to start · Any email works · You control what&apos;s public.
+            {isLogin
+              ? "Right where you left it."
+              : "Throwaway emails welcome."}
           </p>
         </aside>
       </div>

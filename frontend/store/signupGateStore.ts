@@ -9,8 +9,13 @@ export type SignupGateSurface =
   | "company_jobs_cta"
   | "manual"
 
+/** Which auth view the modal opens in. Returning users → "login". */
+export type SignupGateMode = "signup" | "login"
+
 export interface SignupGateOpenParams {
   surface: SignupGateSurface
+  /** Which view to open in. Defaults to "signup" (conversion-first). */
+  mode?: SignupGateMode
   /** Same-origin path to send the user to after the auth round-trip. */
   next?: string | null
   /** Free-text reason for analytics — e.g. "score-comparison". */
@@ -19,6 +24,7 @@ export interface SignupGateOpenParams {
 
 interface SignupGateState {
   open: boolean
+  mode: SignupGateMode
   surface: SignupGateSurface | null
   next: string | null
   source: string | null
@@ -26,6 +32,8 @@ interface SignupGateState {
   methodSeenCount: number
   openGate: (params: SignupGateOpenParams) => void
   closeGate: () => void
+  /** In-modal signup⇄login toggle — flips the view, keeps telemetry/openedAt. */
+  setMode: (mode: SignupGateMode) => void
   noteMethodSeen: () => void
 }
 
@@ -39,14 +47,16 @@ interface SignupGateState {
  */
 export const useSignupGateStore = create<SignupGateState>((set) => ({
   open: false,
+  mode: "signup",
   surface: null,
   next: null,
   source: null,
   openedAt: null,
   methodSeenCount: 0,
-  openGate: ({ surface, next, source }) =>
+  openGate: ({ surface, mode, next, source }) =>
     set({
       open: true,
+      mode: mode ?? "signup",
       surface,
       next: next ?? null,
       source: source ?? null,
@@ -54,6 +64,7 @@ export const useSignupGateStore = create<SignupGateState>((set) => ({
       methodSeenCount: 0,
     }),
   closeGate: () => set({ open: false }),
+  setMode: (mode) => set({ mode }),
   noteMethodSeen: () =>
     set((s) => ({ methodSeenCount: s.methodSeenCount + 1 })),
 }))
