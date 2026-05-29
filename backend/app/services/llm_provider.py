@@ -21,11 +21,13 @@ cv_parser, diary processor.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from openai import AsyncOpenAI
 
 from app.config import settings
+from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -108,22 +110,46 @@ class LLMProvider:
         """
         Try each provider in order. Return the first non-empty response.
         Raise LLMProviderError if all providers fail or return empty content.
+
+        ADR-0008: every provider call holds a global Provider Budget slot so a
+        load spike can never fan out past the configured ceiling. Transient
+        failures (429 / timeout / 5xx / dropped connection) are retried against
+        the SAME provider with backoff (honouring Retry-After) before falling
+        through to the next — rate limits no longer burn the whole fallback
+        ladder on the first 429.
         """
+        max_retries = int(settings.llm_transient_retries)
         for client, model, extra_body in self._providers:
             logger.info("LLM provider: trying %s", model)
-            try:
-                kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=messages)
-                if temperature is not None:
-                    kwargs["temperature"] = temperature
-                if extra_body:
-                    kwargs["extra_body"] = extra_body
-                response = await client.chat.completions.create(**kwargs)
-                content = (response.choices[0].message.content or "").strip()
-                if content:
-                    return content
-                logger.warning("LLM provider %s returned empty response — trying next", model)
-            except Exception as exc:
-                logger.warning("LLM provider %s failed: %s — trying next", model, exc)
+            kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=messages)
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+
+            for attempt in range(max_retries + 1):
+                try:
+                    async with llm_budget.provider_slot():
+                        response = await client.chat.completions.create(**kwargs)
+                    content = (response.choices[0].message.content or "").strip()
+                    if content:
+                        return content
+                    logger.warning("LLM provider %s returned empty response — trying next", model)
+                    break  # empty is not retryable on the same model
+                except Exception as exc:
+                    transient = llm_budget.is_transient(exc)
+                    if transient and attempt < max_retries:
+                        delay = llm_budget.backoff_delay(
+                            attempt, llm_budget.retry_after_seconds(exc)
+                        )
+                        logger.warning(
+                            "LLM provider %s transient failure (%s) — retry %d/%d in %.1fs",
+                            model, type(exc).__name__, attempt + 1, max_retries, delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    logger.warning("LLM provider %s failed: %s — trying next", model, exc)
+                    break  # exhausted retries or non-transient → next provider
         raise LLMProviderError("All LLM providers failed")
 
 
