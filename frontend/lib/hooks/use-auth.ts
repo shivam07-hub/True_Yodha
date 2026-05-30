@@ -11,6 +11,23 @@ const BASE =
   ""
 
 /**
+ * Build the /login target preserving where the user was headed as ?next=,
+ * so post-login bounces them back instead of dumping them on /home.
+ * Same-origin guard (reject //, /\) mirrors nextFromQuery in auth-page-shell;
+ * auth pages + root are skipped to avoid a redirect loop.
+ */
+export function loginRedirectTargetFor(path: string): string {
+  if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/\\")) return "/login"
+  if (path === "/" || path.startsWith("/login") || path.startsWith("/signup")) return "/login"
+  return `/login?next=${encodeURIComponent(path)}`
+}
+
+function loginRedirectTarget(): string {
+  if (typeof window === "undefined") return "/login"
+  return loginRedirectTargetFor(window.location.pathname + window.location.search)
+}
+
+/**
  * Cold-start session bootstrap. If localStorage has no access token but does
  * have a refresh token, exchange it for a new access token before deciding
  * whether to bounce to /login. Without this hop, a user whose access token
@@ -68,7 +85,7 @@ export function useAuth() {
         const t = await bootstrapSession()
         if (cancelled) return
         if (!t) {
-          router.replace("/login")
+          router.replace(loginRedirectTarget())
         } else {
           setToken(t)
         }
@@ -82,7 +99,7 @@ export function useAuth() {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== "mirror_token") return
       if (e.newValue) setToken(e.newValue)
-      else router.replace("/login")
+      else router.replace(loginRedirectTarget())
     }
     window.addEventListener("storage", onStorage)
     return () => {

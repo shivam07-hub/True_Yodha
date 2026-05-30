@@ -43,7 +43,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // destination page's own skeleton shape rather than a centered logo splash,
   // so the perceived load is continuous: shell-bootstrap skeleton → page
   // skeleton → real content, all in the same layout.
-  if (!m.ready) return <>{skeletonForPath(pathname)}</>
+  //
+  // Gate on token too: when bootstrap finished with no session (ready && !token)
+  // useAuth has fired router.replace(/login?next=…). Holding the skeleton during
+  // that redirect-in-flight window stops authed children rendering token-less
+  // (Backlog #16 — logged-out visitor landed on a blank /tracker).
+  if (!m.ready || !m.token) return <>{skeletonForPath(pathname)}</>
 
   const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some((p) => pathname.startsWith(p))
 
