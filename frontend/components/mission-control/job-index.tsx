@@ -5,6 +5,7 @@ import "./job-index.css"
 import { Icon } from "./icons"
 import { FocusedJob } from "./focused-job"
 import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
+import { openRefreshGate } from "@/store/refreshGateStore"
 import { Button } from "@/components/ui/button"
 import type {
   ApplicationResponse,
@@ -217,7 +218,7 @@ export function JobIndex({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refresh.refresh()}
+            onClick={openRefreshGate}
             className="shrink-0 !text-[var(--tm-warning)] !border-[var(--tm-warning)] hover:!bg-[var(--tm-warning-wash)]"
           >
             Refresh now

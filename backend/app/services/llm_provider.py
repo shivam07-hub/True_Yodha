@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI
 
@@ -151,6 +152,72 @@ class LLMProvider:
                     logger.warning("LLM provider %s failed: %s — trying next", model, exc)
                     break  # exhausted retries or non-transient → next provider
         raise LLMProviderError("All LLM providers failed")
+
+    async def stream_complete(
+        self,
+        messages: list[dict],
+        max_tokens: int = 4096,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str]:
+        """Yield content deltas as they stream from the first provider to emit one.
+
+        ADR-0009: the fallback ladder (A→B→C) runs PRE-FIRST-TOKEN only. A
+        provider that fails before emitting any delta falls through to the next
+        (transient failures retried in place with backoff, mirroring
+        `complete`). Once the first delta is yielded the provider is COMMITTED:
+        a mid-stream failure raises `LLMProviderError` rather than silently
+        swapping providers mid-sentence — the caller surfaces a retry, never a
+        spliced answer.
+
+        One ADR-0008 Provider Budget slot is held for the full stream.
+        """
+        max_retries = int(settings.llm_transient_retries)
+        for client, model, extra_body in self._providers:
+            logger.info("LLM stream: trying %s", model)
+            kwargs: dict = dict(
+                model=model, max_tokens=max_tokens, messages=messages, stream=True
+            )
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+
+            for attempt in range(max_retries + 1):
+                emitted = False
+                try:
+                    async with llm_budget.provider_slot():
+                        stream = await client.chat.completions.create(**kwargs)
+                        async for chunk in stream:
+                            choices = getattr(chunk, "choices", None) or []
+                            delta = (choices[0].delta.content if choices else None) or ""
+                            if delta:
+                                emitted = True
+                                yield delta
+                    if emitted:
+                        return
+                    logger.warning("LLM stream %s produced no tokens — trying next", model)
+                    break  # empty stream is not retryable on the same model
+                except Exception as exc:
+                    if emitted:
+                        # Committed to this provider — never swap mid-stream.
+                        logger.warning("LLM stream %s died mid-stream: %s", model, exc)
+                        raise LLMProviderError(
+                            f"Stream interrupted on {model}: {exc}"
+                        ) from exc
+                    transient = llm_budget.is_transient(exc)
+                    if transient and attempt < max_retries:
+                        delay = llm_budget.backoff_delay(
+                            attempt, llm_budget.retry_after_seconds(exc)
+                        )
+                        logger.warning(
+                            "LLM stream %s transient failure (%s) — retry %d/%d in %.1fs",
+                            model, type(exc).__name__, attempt + 1, max_retries, delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    logger.warning("LLM stream %s failed pre-token: %s — trying next", model, exc)
+                    break  # exhausted retries or non-transient → next provider
+        raise LLMProviderError("All LLM providers failed to stream")
 
 
 def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:

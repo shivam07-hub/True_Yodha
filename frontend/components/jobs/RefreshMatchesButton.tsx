@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { deriveRefreshNotice, type RefreshNoticeKind } from "@/lib/job-refresh-notice"
 import { type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
+import { openRefreshGate } from "@/store/refreshGateStore"
 
 /* ─── Icons ──────────────────────────────────────────────────────── */
 
@@ -68,7 +69,9 @@ export function RefreshMatchesButton({
     outcomeKind: vm.outcomeKind,
   })
   const styles = notice ? NOTICE_STYLES[notice.kind] : null
-  const cannotClick = disabled || isWorking || !vm.canAfford
+  // Broke users can still OPEN the gate (editing targeting is free); the gate
+  // shows the shortfall + /xp path. Only true work/disable blocks the click.
+  const cannotClick = disabled || isWorking
 
   /* Fade-in key resets the animation every time notice text changes */
   const [fadeKey, setFadeKey] = useState(0)
@@ -81,25 +84,11 @@ export function RefreshMatchesButton({
     }
   }, [notice])
 
-  const costLabel = !isWorking && (
-    <span style={{
-      paddingLeft: 7,
-      borderLeft: "1px solid rgba(255,255,255,0.1)",
-      fontFamily: "var(--tm-font-mono)",
-      fontSize: 10,
-      letterSpacing: "0.07em",
-      color: vm.canAfford ? "var(--tm-int-bg-wash)" : "var(--tm-danger)",
-      fontWeight: 400,
-    }}>
-      -{vm.cost} XP{vm.canAfford ? " if new" : " (need more)"}
-    </span>
-  )
-
   if (variant === "compact") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
         <button
-          onClick={vm.refresh}
+          onClick={openRefreshGate}
           disabled={cannotClick}
           style={{
             display: "inline-flex", alignItems: "center", gap: 7,
@@ -127,7 +116,6 @@ export function RefreshMatchesButton({
         >
           {isWorking ? <IconScan /> : <IconRefresh />}
           {isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}
-          {costLabel}
         </button>
 
         {notice && styles && (
@@ -164,29 +152,12 @@ export function RefreshMatchesButton({
         <Button
           variant="outline"
           size="md"
-          onClick={vm.refresh}
+          onClick={openRefreshGate}
           disabled={cannotClick}
           loading={isWorking}
         >
           {isWorking ? <IconScan /> : <IconRefresh />}
           <span>{isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}</span>
-          {!isWorking && (
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              marginLeft: 2,
-              paddingLeft: 8,
-              borderLeft: "1px solid var(--tm-int-border)",
-              fontFamily: "var(--tm-font-mono)",
-              fontSize: 11,
-              letterSpacing: "0.07em",
-              color: vm.canAfford ? "var(--tm-int-border)" : "var(--tm-danger)",
-              fontWeight: 400,
-              lineHeight: 1,
-            }}>
-              -{vm.cost}&thinsp;XP{vm.canAfford ? " if new" : " (need more)"}
-            </span>
-          )}
         </Button>
       </div>
 

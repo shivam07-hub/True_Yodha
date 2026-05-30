@@ -1,4 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import type { LoadingPhase } from "@/components/loading/use-loading-phase"
+import { LOADING_PHASE_COPY } from "@/lib/failure-copy"
 
 /**
  * Layout mirror of the real Dashboard (Hero + matches). Reuses the same
@@ -7,13 +9,40 @@ import { Skeleton } from "@/components/ui/skeleton"
  * home/page.tsx while auth + core queries are still resolving; never a
  * full-screen spinner. Relies on mission-control.css being imported by the
  * page module (it is, at the top of home/page.tsx).
+ *
+ * `phase` drives a polite live region so a slow load reassures instead of
+ * sitting silent (and indistinguishable from a frozen one). The visual bars
+ * stay aria-hidden; the status line is the one thing a screen reader hears.
  */
-export function HomeSkeleton() {
+export function HomeSkeleton({ phase = "normal" }: { phase?: LoadingPhase }) {
   const sk = (w: number | string, h: number, r = 8) => (
     <Skeleton style={{ width: w, height: h, borderRadius: r }} />
   )
+  const phaseText = phase === "stuck" ? LOADING_PHASE_COPY.stuck : LOADING_PHASE_COPY.slow
   return (
-    <div className="mc-scope" aria-hidden="true" style={{ overflowY: "auto", height: "100%" }}>
+    <>
+      {/* Reassurance line — visible only once the load is slow, always announced. */}
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          top: 76,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 12,
+          color: "var(--tm-text-faint)",
+          fontFamily: "var(--tm-font-sans)",
+          pointerEvents: "none",
+          zIndex: 5,
+          opacity: phase === "normal" ? 0 : 1,
+          transition: "opacity 200ms ease",
+        }}
+      >
+        {phase === "normal" ? "Loading your dashboard…" : phaseText}
+      </div>
+      <div className="mc-scope" aria-hidden="true" style={{ overflowY: "auto", height: "100%" }}>
       <div className="mc-page">
         <div className="mc-inner">
           {/* topbar controls (right-aligned) */}
@@ -99,6 +128,7 @@ export function HomeSkeleton() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

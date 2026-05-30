@@ -363,3 +363,35 @@ def test_verify_payment_is_idempotent_for_already_verified_order(monkeypatch: py
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
     }
+
+
+def test_unlock_myrology_sets_interested_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Paying must set both flags: unlocked (paid routes) AND interested (nav icon)."""
+    captured: dict[str, Any] = {}
+
+    class _Exec:
+        def execute(self) -> None:
+            return None
+
+    class _Eq(_Exec):
+        def eq(self, column: str, value: str) -> "_Eq":
+            captured["eq"] = (column, value)
+            return self
+
+    class _Table:
+        def update(self, payload: dict[str, Any]) -> _Eq:
+            captured["payload"] = payload
+            return _Eq()
+
+    class _Admin:
+        def table(self, name: str) -> _Table:
+            captured["table"] = name
+            return _Table()
+
+    monkeypatch.setattr(payments_router, "get_supabase_admin", lambda: _Admin())
+
+    payments_router._unlock_myrology("user-42")
+
+    assert captured["table"] == "user_profiles"
+    assert captured["payload"] == {"myrology_unlocked": True, "myrology_interested": True}
+    assert captured["eq"] == ("id", "user-42")

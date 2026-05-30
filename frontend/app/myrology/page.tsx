@@ -5,7 +5,7 @@ import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
-import { LockedOnly, MyrologyCta, MyrologyProvider } from "./checkout"
+import { MyrologyProvider } from "./checkout"
 import { OfferingSection } from "./offering-section"
 
 const HOUSES = ["Career", "Income", "Wisdom", "Travel", "Self", "Skills", "Method", "Partners", "Risk", "Public", "Network", "Sanctum"]
@@ -80,10 +80,10 @@ const METHOD_CHIPS = ["Vedic", "KP astrology", "Intuitive energy reading"]
 
 const FAQS: [string, string][] = [
   ["Do I need to share my birth time?", "For the most precise chart we use date, time and place of birth. If you don't know your exact time, the astrologer can rectify it in the first session."],
-  ["Whose astrology is this?", "One in-house, research-oriented astrologer reads every chart — Vedic and KP, sharpened by years of intuitive practice. We don't rotate you through a roster."],
-  ["What if the reading conflicts with my plan?", "It often will. The point isn't obedience — it's a second signal. Combine it with the data Myro gives you and decide."],
-  ["Is my data private?", "Yes. We ask for date, time and place of birth — never your name. Birth details are never sold or shared, and the astrologer stays anonymous too."],
-  ["Can I cancel?", "7-day refund, no questions. If the report hasn't been delivered yet, full refund. After delivery, partial based on sessions used."],
+  ["Whose astrology is this?", "One in-house, research-oriented astrologer reads every chart — Vedic and KP, sharpened by years of intuitive practice. The same person, start to finish."],
+  ["What if the reading conflicts with my plan?", "It often will. That's the point — it's a second signal. Combine it with the data Myro gives you and decide."],
+  ["Is my data private?", "Yes. We ask for date, time and place of birth — that's the whole list. Your details stay between you and the astrologer, who reads every chart anonymously."],
+  ["Can I cancel?", "7-day refund. Before the report is delivered, full refund. After delivery, partial based on sessions used."],
 ]
 
 export default function MyrologyPage() {
@@ -99,7 +99,7 @@ export default function MyrologyPage() {
   return (
     <div className="myrology-root">
       <div className="m-bg">
-        <BrandParticles density={0.45} accent="#B084FF" />
+        <BrandParticles density={0.9} accent="#B084FF" />
       </div>
 
       <PublicTopNav showSignIn />
@@ -112,15 +112,14 @@ export default function MyrologyPage() {
             MYRO · MYROLOGY · LAUNCH TIER
           </div>
           <h1 className="my-hero-h">
-            <span className="hi">Sitaaron se taiyaar career.</span>
-            <span className="en">Career, aligned to your chart.</span>
+            <span className="en">Career, aligned to your stars.</span>
           </h1>
           <p className="my-hero-sub">
-            A second signal beside your data. One research-oriented astrologer reads your chart —
+            A second signal beside your data. One research-oriented astrologer reads your stars —
             3 sessions and a written report — so you know when to move and when to wait.
             One-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹499</span>.
             <br />
-            <span className="my-hero-privacy">Three facts — date, time, place. No name, yours or his.</span>
+            <span className="my-hero-privacy">Three facts — date, time, place.</span>
           </p>
         </section>
 
@@ -128,7 +127,7 @@ export default function MyrologyPage() {
           <div className="cosmic">
             <div><CosmicRadar /></div>
             <div className="cosmic-body">
-              <div className="cosmic-eyebrow">YOUR CHART · CAREER SIGNAL</div>
+              <div className="cosmic-eyebrow">YOUR STARS · CAREER SIGNAL</div>
               <div className="cosmic-title">Twelve houses. One trajectory.</div>
               <div className="cosmic-desc">
                 The same domain radar you&apos;ve used for skills — recomposed as your natal chart.
@@ -188,8 +187,8 @@ export default function MyrologyPage() {
                 where his reading lives.
               </p>
               <p className="astrologer-bio astrologer-bio--dim">
-                No name, no photo. Privacy runs both ways at Myro: you give three facts, he reads
-                the chart, and neither of you trades an identity to do it.
+                Privacy runs both ways at Myro: you give three facts, he reads the chart. Both sides
+                stay anonymous by design — the work speaks for itself.
               </p>
             </div>
           </div>
@@ -206,30 +205,6 @@ export default function MyrologyPage() {
             ))}
           </div>
         </section>
-
-        <LockedOnly>
-          <section className="block">
-            <div className="bridge">
-              <div className="bridge-mark">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-                  <circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.9" />
-                  <ellipse cx="20" cy="20" rx="16" ry="5.5" stroke="currentColor" strokeWidth="1.2" transform="rotate(-22 20 20)" />
-                  <circle cx="34" cy="14" r="1.5" fill="currentColor" />
-                  <circle cx="6" cy="26" r="1.2" fill="currentColor" />
-                </svg>
-              </div>
-              <div>
-                <div className="bridge-eyebrow">READY TO UNLOCK</div>
-                <div className="bridge-title">Your chart is already cast. We just haven&apos;t read it yet.</div>
-                <div className="bridge-desc">
-                  Unlock once. We collect three facts — date, time, place — and the astrologer
-                  prepares your chart and report, then you request your first session.
-                </div>
-              </div>
-              <MyrologyCta variant="bridge" />
-            </div>
-          </section>
-        </LockedOnly>
 
       </main>
       </MyrologyProvider>

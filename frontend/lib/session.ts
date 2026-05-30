@@ -1,6 +1,12 @@
 const ACCESS_TOKEN_KEY = "mirror_token"
 const REFRESH_TOKEN_KEY = "mirror_refresh_token"
 const REFRESH_LOCK_KEY = "mirror_refresh_lock"
+// Keep in sync with RQ_CACHE_KEY in lib/query-persist.ts. Inlined (not imported)
+// to keep the persister package out of this low-level, widely-imported module.
+const RQ_CACHE_KEY = "myro_rq_cache"
+// Persisted XP balance (zustand persist name in store/xpStore.ts). Wiped on
+// logout so the next user on a shared browser never inherits a balance.
+const XP_STORE_KEY = "myro_xp"
 
 export interface SessionTokens {
   accessToken: string
@@ -55,6 +61,10 @@ export function setSessionTokens({ accessToken, refreshToken }: SessionTokens): 
 export function clearSessionTokens(): void {
   removeStorage(ACCESS_TOKEN_KEY)
   removeStorage(REFRESH_TOKEN_KEY)
+  // Drop the persisted query cache too — it holds this user's dashboard data,
+  // and the next person on a shared browser must not inherit it.
+  removeStorage(RQ_CACHE_KEY)
+  removeStorage(XP_STORE_KEY)
 }
 
 export function acquireRefreshLock(ttlMs: number): boolean {

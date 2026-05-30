@@ -263,3 +263,33 @@ export function DataSection() {
     </Section>
   )
 }
+
+// ── Section 7: FAQ ────────────────────────────────────────────────────────────
+
+const FAQ_ITEMS: [string, string][] = [
+  ["Is Myro free?", "Yes — uploading your CV, getting your Myro Score, and seeing your 10-domain breakdown are free. You can start without a credit card."],
+  ["What file formats can I upload?", "PDF or DOCX. Drop your CV on the homepage and Myro reads it in under a minute."],
+  ["Do I need to use my real name or email?", "No. Any email works — throwaway or alias — and we do not verify identity. Your public identity is your Myro handle, never your name or email."],
+  ["Is my CV shared with employers or other users?", "No. Your CV is never shared with other users or employers, and we do not sell your data. It is used only to generate your score and tailored versions for you."],
+  ["How is my Myro Score calculated?", "Your CV is read and scored across 10 career domains, then combined into a single 0–100 Myro Score. See the “Your Myro Score” and “How your CV is read” sections above for the full method."],
+  ["Where do the job listings come from?", "Jobs are aggregated from third-party job boards and public sources. Myro does not control or guarantee any listing — all hiring decisions are made by the employer."],
+]
+
+export function FAQSection() {
+  return (
+    <Section id="faq" title="Frequently asked questions">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+        {FAQ_ITEMS.map(([q, a]) => (
+          <details key={q} style={{ borderRadius: 8, border: "1px solid var(--tm-border-soft)", padding: "12px 14px", background: "var(--tm-surface)" }}>
+            <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: "var(--tm-text)", userSelect: "none" }}>
+              {q}
+            </summary>
+            <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7, color: "var(--tm-text-muted)" }}>
+              {a}
+            </div>
+          </details>
+        ))}
+      </div>
+    </Section>
+  )
+}

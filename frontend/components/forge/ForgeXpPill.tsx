@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 
 import { useForgeSession } from "@/lib/hooks/use-forge-session"
+import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
 import "./forge-xp-pill.css"
 
 interface Props {
@@ -51,10 +52,12 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
         onClick={onXpClick}
         className="tm-forge-xp-pill-xp"
         aria-label={`${xpBalance} XP — open XP guide`}
+        style={{ position: "relative" }}
       >
         <span className="tm-forge-xp-pill-diamond" aria-hidden>◆</span>
         <span className="tm-forge-xp-pill-num">{xpBalance.toLocaleString()}</span>
         <span className="tm-forge-xp-pill-unit">XP</span>
+        <XpDeltaNudge />
       </button>
 
       {sessionActive ? (

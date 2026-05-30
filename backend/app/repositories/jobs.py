@@ -1076,6 +1076,28 @@ class JobsRepository:
                 _hydrate_location_fields(row["jobs"])
         return rows
 
+    def get_match_explanation(
+        self, user_id: str, job_id: str, batch_week: date
+    ) -> str | None:
+        """Cached LLM fit-rationale for this (user, job, week), if already analysed.
+
+        Drives the idempotency of the streaming analyse endpoint — a non-null
+        return means replay the cached text, never re-charge or re-call the LLM.
+        """
+        result = (
+            self._db.table("user_job_matches")
+            .select("llm_explanation")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .eq("batch_week", str(batch_week))
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return None
+        return (rows[0].get("llm_explanation") or "").strip() or None
+
     def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
         self._admin_db.table("user_job_matches").upsert(
             {"user_id": user_id, "job_id": job_id, **data},

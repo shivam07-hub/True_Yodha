@@ -10,7 +10,13 @@ import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
 import { HomeSkeleton } from "@/components/mission-control/hero-skeleton"
+import { useLoadingPhase } from "@/components/loading/use-loading-phase"
+import { RouteLoading } from "@/components/loading/route-loading"
+import { SectionError } from "@/components/errors/section-error"
+import { StaleBanner } from "@/components/errors/stale-banner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { JobIndex } from "@/components/mission-control/job-index"
+import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { buildNextMoves } from "@/lib/mission-control/next-moves"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users } from "@/lib/api"
@@ -33,19 +39,19 @@ function MissionControlInner() {
 
   const refreshVm = useJobRefresh(token, queryClient)
 
-  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+  const { data: scoreData, isLoading: scoreLoading, error: scoreErr, refetch: refetchScore, dataUpdatedAt: scoreUpdatedAt } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const { data: profile, isLoading: profileLoading, error: profileErr, refetch: refetchProfile, dataUpdatedAt: profileUpdatedAt } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   })
-  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+  const { data: jobsData, isLoading: jobsLoading, isError: jobsIsError, error: jobsErr, refetch: refetchJobs } = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => withLocalCache(userCacheKey(token!, ["matches"]), MATCHES_TTL, () => jobs.matches(token!)),
     enabled: !!token,
@@ -163,8 +169,33 @@ function MissionControlInner() {
   // dashboard queries have all settled — then swap to real content in one
   // paint. `isLoading` flips false on error too, so a failing query can never
   // wedge the skeleton on forever. No blank body, no popping-in.
-  const coreLoading = scoreLoading || profileLoading || jobsLoading || historyQuery.isLoading
-  if (!ready || nav.loading || coreLoading) return <HomeSkeleton />
+  // Hero blocks only on the two queries it can't render without — score and
+  // profile. Jobs and history both degrade instead of wedging the hero: jobs to
+  // a section tile, history (streak/sessions) to computeStreak([]) = 0 that
+  // fills in when it arrives. This is the per-section streaming split.
+  const coreLoading = scoreLoading || profileLoading
+  const coreError = scoreErr ?? profileErr ?? null
+  const blocking = !ready || nav.loading || coreLoading
+  const loadingPhase = useLoadingPhase(blocking)
+
+  // Stale-while-error: if a refresh failed but persisted cache already gave us
+  // the hero's data, show that data with a calm banner instead of a hard
+  // failure. Only a cold error (no cached data) gets the full failure surface.
+  const haveCoreData = !!scoreData && !!profile
+  const refreshCore = () => {
+    void refetchScore()
+    void refetchProfile()
+    void historyQuery.refetch()
+  }
+  const staleRefreshFailed = !!coreError && haveCoreData
+  const lastViewAt = Math.min(scoreUpdatedAt || Date.now(), profileUpdatedAt || Date.now())
+
+  if (blocking) return <HomeSkeleton phase={loadingPhase} />
+  // Cold error: no cache to fall back on. A settled error would otherwise paint
+  // a fake-empty dashboard (isLoading flips false on error). Name it instead.
+  if (coreError && !haveCoreData) {
+    return <RouteLoading kind="app-data" route="app-shell" queryError={coreError} onRetry={refreshCore} />
+  }
 
   // First-run = promise not yet delivered. The first-run hero absorbs the
   // pre-upload invitation (no RequiresCV gate) and owns the whole upload →
@@ -209,6 +240,9 @@ function MissionControlInner() {
       <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
         <div className="mc-page">
           <div className="mc-inner">
+            {staleRefreshFailed && (
+              <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
+            )}
             <Hero
               name={firstName}
               dateLine={dateLine}
@@ -221,7 +255,20 @@ function MissionControlInner() {
               diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
             />
 
-            {token ? (
+            {token && jobsIsError ? (
+              <div style={{ marginTop: 24 }}>
+                <SectionError error={jobsErr} label="job matches" onRetry={() => void refetchJobs()} />
+              </div>
+            ) : token && jobsLoading ? (
+              <div style={{ marginTop: 36, display: "flex", flexDirection: "column", gap: 12 }} aria-hidden="true">
+                <Skeleton style={{ width: 120, height: 12, borderRadius: 4 }} />
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} style={{ width: 220, height: 76, borderRadius: 12 }} />
+                  ))}
+                </div>
+              </div>
+            ) : token ? (
               <JobIndex
                 jobs={allMatchedJobs}
                 apps={apps}
@@ -241,6 +288,13 @@ function MissionControlInner() {
         </div>
       </div>
       </RequiresCV>
+
+      {/* Consent + targeting gate for "Refresh matches" — opened via refreshGateStore. */}
+      <MatchRefreshGate
+        token={token}
+        profile={profile}
+        onRun={() => refreshVm.refresh()}
+      />
     </>
   )
 }

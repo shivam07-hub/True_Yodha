@@ -10,6 +10,7 @@ import {
   MatchingSection,
   XPSection,
   DataSection,
+  FAQSection,
 } from "@/components/docs/docs-sections"
 
 // ── TOC ───────────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ const TOC = [
   { id: "matching",     label: "Job matching" },
   { id: "xp",           label: "XP & rewards" },
   { id: "data",         label: "Data & privacy" },
+  { id: "faq",          label: "FAQ" },
 ]
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ export function DocsPage() {
           <MatchingSection />
           <XPSection />
           <DataSection />
+          <FAQSection />
 
           {/* CTA */}
           <div style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 40, textAlign: "center" }}>

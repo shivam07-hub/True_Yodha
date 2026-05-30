@@ -6,7 +6,7 @@ import { MyrologyUnlockedPanel } from "./unlocked-panel"
 const INCLUSIONS = [
   { title: "3 × one-on-one sessions", meta: "60 min each · with our in-house astrologer · video" },
   { title: "Birth-chart career report", meta: "PDF · planetary positions + a written interpretation" },
-  { title: "Role & industry alignment", meta: "Industries + role archetypes matched to your chart" },
+  { title: "Role & industry alignment", meta: "Industries + role archetypes matched to your stars" },
 ]
 
 function CheckIcon() {
@@ -22,7 +22,7 @@ function LockedOffering() {
     <div className="price-row">
       <div className="price-card">
         <div className="price-eyebrow"><span className="dot pulse" /> MYRO · MYROLOGY</div>
-        <h3 className="price-name">Career, aligned to your chart.</h3>
+        <h3 className="price-name">Career, aligned to your stars.</h3>
         <div className="price-tagline">A second signal beside your data. One price, the whole arc.</div>
         <div className="price-amount">
           <span className="price-cur">₹</span>
@@ -57,7 +57,7 @@ function LockedOffering() {
           <div className="side-eyebrow">WHAT WE&apos;LL ASK FOR</div>
           <div className="side-text">
             Date of birth · time of birth · place of birth.<br />
-            No name. Collected after unlock, never sold, never shared.
+            That&apos;s the whole list. Collected after unlock, kept to your stars.
           </div>
         </div>
         <div className="side-card" style={{ borderColor: "var(--my-amethyst-ring)" }}>

@@ -21,6 +21,29 @@ import {
 } from "./cv-upload-state"
 import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
+import { ApiError, classifyError, readTraceId } from "./api-error"
+
+/**
+ * Hard ceiling on a single request. Without this a server that accepts the
+ * connection but never responds leaves the promise pending forever — which is
+ * exactly what wedges the dashboard on its skeleton. On fire → AbortError →
+ * classifyError → ApiError{kind:"timeout"} → the failure UI can react.
+ */
+const REQUEST_TIMEOUT_MS = 15_000
+
+/** Combine the caller's AbortSignal (if any) with a timeout into one signal. */
+function withTimeout(signal: AbortSignal | null | undefined): {
+  signal: AbortSignal
+  done: () => void
+} {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(new DOMException("Timeout", "AbortError")), REQUEST_TIMEOUT_MS)
+  if (signal) {
+    if (signal.aborted) controller.abort(signal.reason)
+    else signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true })
+  }
+  return { signal: controller.signal, done: () => clearTimeout(timer) }
+}
 
 const BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -98,11 +121,22 @@ function forceLogout(): never {
 }
 
 async function request<T>(path: string, init?: RequestInit, _isRetry = false): Promise<T> {
-  const { headers: extraHeaders, ...rest } = init ?? {}
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...extraHeaders },
-    ...rest,
-  })
+  const { headers: extraHeaders, signal: callerSignal, ...rest } = init ?? {}
+  const { signal, done } = withTimeout(callerSignal)
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { "Content-Type": "application/json", ...extraHeaders },
+      signal,
+      ...rest,
+    })
+  } catch (e) {
+    // fetch rejected (timeout / offline / network) — the case the old code
+    // dropped silently. Normalize so the failure UI can classify it.
+    throw classifyError(e)
+  } finally {
+    done()
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     if (res.status === 401 && typeof window !== "undefined") {
@@ -116,7 +150,11 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
       }
       if (isSessionUnauthorized(body)) forceLogout()
     }
-    throw new Error(extractError(body, res.status))
+    throw new ApiError(extractError(body, res.status), {
+      status: res.status,
+      kind: "http",
+      traceId: readTraceId(res, body),
+    })
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
