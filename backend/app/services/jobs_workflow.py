@@ -201,9 +201,22 @@ async def compute_job_matches(
         target_location_country=profile.get("target_location_country"),
     )
 
+    # Self-healing exclusion (Backlog #14 / 2026-05-30 decision: refresh is
+    # gated only by XP). `excluded_job_ids` is a *novelty preference*, not a
+    # hard wall: prefer jobs the user hasn't matched yet, but if excluding the
+    # prior matches empties the pool, re-rank the FULL pool rather than refund.
+    # The only genuine `exhausted` is zero skill-overlapping jobs at all.
+    full_pool = candidate_job_ids
+    exclusion_relaxed = False
     if excluded_job_ids:
         excluded_set = set(excluded_job_ids)
-        candidate_job_ids = [jid for jid in candidate_job_ids if jid not in excluded_set]
+        filtered = [jid for jid in candidate_job_ids if jid not in excluded_set]
+        if filtered:
+            candidate_job_ids = filtered
+        else:
+            # Prior matches consumed the whole pool — the user paid, so give
+            # them a freshly-ranked set from everything that overlaps.
+            exclusion_relaxed = True
 
     if not candidate_job_ids:
         logger.info("compute_job_matches: pool exhausted for user=%s", user_id)
@@ -216,6 +229,7 @@ async def compute_job_matches(
                 "candidate_jobs_count": 0,
                 "top_jobs_count": 0,
                 "target_roles_count": target_roles_count,
+                "exclusion_relaxed": int(exclusion_relaxed),
             },
         )
 

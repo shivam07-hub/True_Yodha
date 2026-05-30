@@ -263,7 +263,18 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, ready])
 
-  if (!ready || profileQuery.isLoading) return <CvSkeleton />
+  // Single source of truth for "is the page bootstrapped enough to show content?".
+  // `hasBaseline` is derived from versionsQuery, so the empty / library / playground
+  // branches below are only honest once that query has SETTLED — an in-flight
+  // versionsQuery means baselines[] is transiently empty, which is "unknown", not
+  // "no CV". Showing the empty state in that window asserts a false fact to a
+  // veteran ("No CV uploaded yet") → distress. Same invariant the auto-upload
+  // picker effect guards with `if (playground.versionsLoading) return`; both sites
+  // must wait for versions before deciding. `versionsLoading` is React Query
+  // `isLoading` (first load, no cache) — not `isFetching` — so background refetches
+  // never re-trigger the skeleton.
+  const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
+  if (bootstrapping) return <CvSkeleton />
 
   const surfacedError = playground.error ?? uploadError
 
