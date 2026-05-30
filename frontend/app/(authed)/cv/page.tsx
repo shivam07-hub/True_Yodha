@@ -52,6 +52,8 @@ function CVPage() {
   const [fallbackSubmitting, setFallbackSubmitting] = useState(false)
   const [fallbackError, setFallbackError] = useState<string | null>(null)
   const [fallbackReceipt, setFallbackReceipt] = useState<CVUploadFallbackSubmissionResponse | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [showPickerHint, setShowPickerHint] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // Reentry guard: setUploading(true) is async, mobile Chrome can fire change
   // twice; the ref blocks the second call synchronously.
@@ -383,15 +385,22 @@ function CVPage() {
             <>
               <button
                 type="button"
+                autoFocus
                 onClick={() => fileInputRef.current?.click()}
-                style={{
-                  display: "block", width: "100%", padding: "32px 20px", textAlign: "center",
-                  border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)",
-                  cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13,
-                  background: "transparent",
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault(); setDragActive(false)
+                  const f = e.dataTransfer.files?.[0]
+                  if (f) handleUpload(f)
                 }}
+                className={`cvb-upload-drop${dragActive ? " is-drag" : ""}${uploadError ? " is-error" : ""}`}
               >
-                {uploadError ? "Pick another file" : "Tap to choose a PDF or DOCX from your device."}
+                <span className="cvb-upload-icon"><Icon name="upload" size={22} /></span>
+                <span className="cvb-upload-label">
+                  {uploadError ? "Pick another file" : "Drop your CV here, or click to browse"}
+                </span>
+                <span className="cvb-upload-formats">PDF or DOCX · up to 10MB</span>
               </button>
               {uploadError && (
                 <div style={{
@@ -416,12 +425,6 @@ function CVPage() {
                   )}
                 </div>
               )}
-              <div style={{ marginTop: 10, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                Accepted formats: PDF, DOCX · Max size: 10MB
-              </div>
-              <div style={{ marginTop: 4, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                Files greyed out in the picker? Click <em>Options</em> (bottom-left) and switch the file-type dropdown to <em>All Files</em>.
-              </div>
               {uploadFailureCount >= 3 && (
                 <div style={{
                   marginTop: 12,
@@ -469,24 +472,30 @@ function CVPage() {
                   )}
                 </div>
               )}
-              {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
-              <p style={{
-                marginTop: 12,
-                marginBottom: 0,
-                fontSize: 12,
-                lineHeight: 1.5,
-                color: "var(--tm-text-faint)",
-              }}>
-                Your CV is private by default.{" "}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
+              <div className="cvb-upload-foot">
+                {/* Picker troubleshooting — progressive, surfaces only on demand
+                    (native greyed-out picker produces no error to gate on). */}
+                <button
+                  type="button"
+                  className="cvb-upload-hint-toggle"
+                  aria-expanded={showPickerHint}
+                  onClick={() => setShowPickerHint((v) => !v)}
                 >
-                  How we handle your data ↗
-                </a>
-              </p>
+                  Can&apos;t select your file?
+                </button>
+                {showPickerHint && (
+                  <p className="cvb-upload-hint-body">
+                    If files look greyed out, click <em>Options</em> (bottom-left of the picker) and switch the file-type dropdown to <em>All Files</em>.
+                  </p>
+                )}
+                {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
+                <p className="cvb-upload-privacy">
+                  Your CV is private by default.{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                    How we handle your data ↗
+                  </a>
+                </p>
+              </div>
             </>
           )}
         </DialogContent>

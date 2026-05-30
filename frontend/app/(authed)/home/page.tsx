@@ -91,7 +91,7 @@ function MissionControlInner() {
     return m
   }, [apps])
 
-  // ── Deep-link: ?jobId= opens that card in the JobIndex on first paint.
+  // ── Deep-link: ?jobId= opens that card in the Dashboard on first paint.
   const urlJobId = searchParams.get("jobId")
 
   // ── Mutations

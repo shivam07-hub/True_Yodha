@@ -277,7 +277,69 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-30 · streaming fit-rationale + universal XP nudge — GRILL LOCKED, ADR-0009 drafted, nothing built)
+## LAST SESSION SUMMARY (2026-05-30 · replace-CV upload modal redesign — `/frontend-design` critique + build)
+
+Triggered by a screenshot of the "Replace your Main CV" modal. Ran `/frontend-design` lens, found 6 issues: (1) dropzone reads as disabled/empty (dashed box + faint text, no icon, no hover, no drag-drop despite drop-target shape); (2) three stacked grey footer lines = clutter wall, with "Files greyed out…" troubleshooting copy parked permanently in the happy path (violates design-over-words); (3) initial focus landed on the tertiary privacy link; (4) faint-grey CTA text on white = contrast risk; (5) flat 5-tier-grey hierarchy; (6) all inline styles (breaks ADR-0003 page-scoped CSS).
+
+**Built (uncommitted, working-tree only — NOT staged):**
+- [app/(authed)/cv/page.tsx](frontend/app/(authed)/cv/page.tsx) — dropzone rebuilt: `upload` icon + bold label + folded `PDF or DOCX · up to 10MB` line; `onDragOver/Leave/Drop` wired for real drag-and-drop; `autoFocus` on the dropzone (fixes focus order). Standalone accepted-formats + always-on "Files greyed out" lines deleted. New `.cvb-upload-foot`: picker hint demoted behind an on-demand "Can't select your file?" toggle (`showPickerHint` state) — native greyed-out picker produces no error to gate on, so it's progressive-disclosure not error-gated; privacy line kept as the single tertiary footer. New `dragActive` + `showPickerHint` state.
+- [app/(authed)/cv/cv-builder.css](frontend/app/(authed)/cv/cv-builder.css) — appended `.cvb-upload-*` (drop/icon/label/formats/foot/hint-toggle/hint-body/privacy) with hover, `:active` scale, `.is-drag`, `.is-error`, focus-visible, `prefers-reduced-motion`.
+- [components/cv/builder/icons.tsx](frontend/components/cv/builder/icons.tsx) — added `upload` glyph (up-arrow tray).
+
+Verify: `tsc --noEmit` clean · `next lint` 0/0 on page.tsx.
+
+**NOT committed.** Working tree is mid a large pre-existing restructure (route-group `app/* → app/(authed)/*` migration + dashboard merge work, all already staged by prior work). My 3 files were unstaged to avoid entangling — Shivam to bundle. The same "Files greyed out" line also lives in [components/onboarding/step-cv.tsx:162](frontend/components/onboarding/step-cv.tsx) — left untouched (out of scope); apply the same toggle treatment there next pass for consistency.
+
+---
+
+## LAST SESSION SUMMARY (2026-05-30 night · 10-min-CV fix — GRILL LOCKED + PR1 BUILT, master CV download)
+
+Triggered by Shivam's question: does a first-time user actually get a downloadable CV inside the 10-min North Star? Codebase audit said **no** — four structural gaps. Grilled the long-term fix end-to-end (Google-Docs-model architecture), locked it, then built PR1 only. **Uncommitted on Develop** — Shivam pushes. tsc clean · `next lint` 0/0 (4 files) · 5/5 new tests.
+
+### The four gaps surfaced (audit)
+1. **No baseline/master download.** `cv/download-pdf` endpoint is content-agnostic (renders any `cv_text`) but the only frontend trigger is `PdfPreviewView`, reachable **only** via `?jobId` (tailored). Master = undownloadable.
+2. **Onboarding dead-ends at `/skills`.** `StepScore` final CTA `router.push("/skills")` — score page, not a downloadable CV.
+3. **Lying journey strip.** `baseline-view` step `03 "See score — download"` advertised a download with no button behind it.
+4. **Add-info is tailored-only.** `playground-view` guards edits with `isEditableSelection = kind !== "baseline_upload"` → master not editable.
+
+### Grill outcome — long-term architecture LOCKED (Google-Docs model)
+Shivam asked "what would Google do?" → scanned the norm (Google Docs = one living document + autosave + derived version history + instant export; "Make a copy" branches). Decisions:
+- **Q1 scope = B (fat):** full master editor, not just download. → phased.
+- **Q2/Q3 = C → C1:** **split the two objects.** Master CV = living Google-Doc (one mutable row, autosave, always downloadable). Tailored versions = immutable commits branched off a master snapshot (SE1 invariant stays for tailored only). C1 = single living master row + new `cv_master_revisions` history table (derived, secondary). Reverses the current append-a-`baseline_upload`-row-per-edit pile — **that pile IS the bug**. `update_structured()` already exists → mutate path half-built.
+- **Q4 = A:** tailored stays frozen content snapshot; `parent_version_id` = stable master row id; `baseline_version_id` = master revision id (exact branch-point preserved via history table). `baseline_version_id` already consumed (`cv.py:335` propagates), so wired-ready.
+- **Q5 = A:** **save ≠ score.** Typing → autosave text (cheap DB UPDATE, no LLM, no XP, instant). Re-score = debounced async via existing SE17 `recompute_finished_at` + shimmer. Baseline edits stay **UNCHARGED** (matches today's skill_edit).
+- **Q6 = A:** full structured editor — every section editable + add/remove (summary, skills_line, certs, experience+bullets, projects, education). Raw-textarea rejected (loses keyword/skill intel that feeds the score).
+- **Q7 = A:** download is the **primary CTA at the score reveal** (inline `downloadPdf`, zero nav) — the value moment at the emotional peak. Journey strip step 03 becomes truthful.
+- **Q8 = A:** persistent master download in `/cv` header (returning users) + Library hero. Filename `{First}_{Last}_CV.pdf`.
+- **Q9 = A:** migration collapses N baselines → 1 master + history. Idempotent (manual-apply safety per `feedback_supabase_migrations_manual`; FK-safe: repoint before delete; data preserved in history table). Dry-run COUNT + backup + branch-DB test before prod.
+- **Q10 = A:** **phased PRs**, one at a time. PR1 this session.
+
+### PR1 SHIPPED (uncommitted, Develop) — master download, zero data-model change
+**New files:**
+- `frontend/lib/cv/download-master.ts` — `masterFilename(fullName)` (`{First}_{Last}_CV.pdf`, fallback `My_CV.pdf`) + `resolveMasterText(baseline, cv)` (persisted `body_text` → `renderDeterministic` fallback).
+- `frontend/components/cv/download-cv-button.tsx` — self-contained one-tap PDF download (inline SVG glyph so it mounts on both authed `/cv` + onboarding surfaces; blob+`File`+anchor dance copied from `pdf-preview-view`; `<60`-char guard since endpoint requires `cv_text >= 60`; inline `role="alert"` error).
+- `frontend/tests/download-master.test.ts` — 5 cases (filename slug, punctuation strip, 3-token cap, fallback; body_text preference + empty path). 5/5 pass via `tsx --test`.
+
+**Edited:**
+- `frontend/components/cv/builder/baseline-view.tsx` — `Download CV` button in the `/cv` header (between "Pick a target job" + "Update Main CV"). Uses existing props (`token`, `currentBaseline`, `cv`, `profile`). Fixes gaps 1+3 for returning users.
+- `frontend/components/onboarding/step-score.tsx` — added `token` prop; fetches latest `baseline_upload` (`cv.versions.list` → filter → max `user_version_number`) + profile (`users.me`); renders **`Download your CV`** primary CTA + demotes `See Full Skill Intelligence` to secondary ghost. Fixes gap 2.
+- `frontend/app/onboarding/page.tsx` — threads `token` into `StepScore` (`step==="score" && scoreData && token`).
+
+### Verify
+- `cd frontend && npx tsc --noEmit` — clean (fixed one TS1501: dropped `\p{L}` unicode-property regex → `[^\w\s-]`, backend `_sanitize_filename` is the final guard anyway).
+- `npx next lint` 4 touched files — 0/0.
+- `npx tsx --test tests/download-master.test.ts` — 5/5.
+- Backend untouched. No migration. `cv/download-pdf` reused as-is.
+
+### Open carry-over — NEXT, to stabilise
+1. **PR2 — C1 living-master refactor** (locked above). New ADR (call it ADR-0008-class — confirm number vs the streaming ADR-0009). Migration is the risky bit: dry-run COUNT, Supabase backup, branch-DB test, idempotent, `NOTIFY pgrst` at end. Touches `cv.py` (latest_baseline → single master), `skill_edit.py` (persist-new-baseline → UPDATE master + snapshot), `cv_workflow._persist_baseline_cv`, `baseline-view.orderRows` (plural masters → single), `commit-graph`/`library-view` master-chain.
+2. **PR3 — full structured editor** (Q6 A) — add/edit/remove every section, autosave text (free), debounced async re-score (SE17), baseline edits UNCHARGED. Depends on PR2 (mutable master).
+3. **Stabilise-the-app open queue:** ~~dashboard-merge + shell-seam VISUAL QA~~ ✅ done · ~~3 `20260524_*` migrations~~ ✅ **APPLIED 2026-05-30** (+ `20260530d_job_deepenings` applied) · Backlog #14 match-refresh-stuck-at-2 → being fixed this session (free-refresh-on-XP) · Backlog #16 `(authed)` group auth-redirect guard (logged-out → blank `/tracker`) · P1 intel country→city cascade · HIGH mobile ledger (M01/M17/M18/M20/M22/M23/M25/M30/M31/M33) · ~~streaming PR1~~ ✅ shipped (`dd9ac59` FitRationale wired) · ~~Develop→main promotion~~ ✅ done · stale `mirror.vercel.app` purge (Shivam ops).
+
+   **STREAMING VERIFY — OPEN (Shivam to confirm, 2026-05-30):** does Gemini's OpenAI-compat endpoint actually honour `stream=True` in `llm_provider.stream_complete`? OpenRouter + Groq confirmed; Gemini flash-lite leg UNVERIFIED in prod. If Gemini ignores `stream` and returns one blob, the typewriter still works (one big token) but loses the live feel + the pre-first-token fallback window shrinks. Confirm by watching a FocusedJob "Why you fit" stream while the chain is on the Gemini leg. Update this line once confirmed.
+4. **Progressive-nav + dashboard-merge + shell-seam still uncommitted/unverified** on Develop — confirm they're in before layering PR1's commit.
+
+
 
 Triggered by a job-card screenshot: Shivam asked why the LLM call shows no visible "thinking/working" like Claude — the user stares at a dead `Analyse this role to see Myro's reasoning.` placeholder while the backend computes. Chose **Option A — real token streaming (SSE)** over staged fake-progress. Ran `/grill-me` to lock the whole tree, then saved + drafted ADR-0009 + closed. **No code written** (Shivam said save + draft + close).
 
