@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { persist, createJSONStorage } from "zustand/middleware"
 
 export interface XpDelta {
   /** Signed change applied (−10 spend, +30 earn). Never 0. */
@@ -29,7 +30,9 @@ interface XPStore {
 
 let _deltaSeq = 0
 
-export const useXPStore = create<XPStore>((set, get) => ({
+export const useXPStore = create<XPStore>()(
+  persist(
+    (set, get) => ({
   balance: 0,
   lastDelta: null,
   setBalance: (n) => set({ balance: n }),
@@ -44,4 +47,16 @@ export const useXPStore = create<XPStore>((set, get) => ({
     set({ balance: newBalance, lastDelta: { delta, action, id: ++_deltaSeq } })
   },
   clearDelta: () => set({ lastDelta: null }),
-}))
+    }),
+    {
+      // Persist only the balance so a returning user sees their real XP from
+      // localStorage instead of a "0" flash while the authoritative fetch
+      // resolves. skipHydration + rehydrate-on-mount (use-shell-model) avoids
+      // an SSR/client hydration mismatch on the number. Wiped on logout.
+      name: "myro_xp",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ balance: s.balance }),
+      skipHydration: true,
+    },
+  ),
+)

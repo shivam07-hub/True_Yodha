@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { HttpStatusFallback, extractHttpStatus } from "./http-status-fallback"
+import { FailureFallback } from "./http-status-fallback"
 import { useBackendStatus } from "./use-backend-status"
 import { AppShellSkeleton } from "./skeleton-mirrors/app-shell-skeleton"
 import { ProfileSkeleton } from "./skeleton-mirrors/profile-skeleton"
@@ -21,9 +21,11 @@ interface AppDataLoadingProps {
 export function AppDataLoading({ route, queryError, fallback, onRetry }: AppDataLoadingProps) {
   const backend = useBackendStatus()
 
-  const httpStatus = extractHttpStatus(queryError)
-  if (httpStatus !== null) {
-    return <HttpStatusFallback status={httpStatus} onRetry={onRetry} />
+  // Any settled error — HTTP status, timeout, offline, or network — renders a
+  // named failure. Previously only errors with an HTTP status were caught, so a
+  // timeout/offline fell through to a silent (effectively frozen) skeleton.
+  if (queryError) {
+    return <FailureFallback error={queryError} onRetry={onRetry} />
   }
 
   if (backend.status === "degraded") {

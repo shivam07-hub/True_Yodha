@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 
 import { useForgeSession } from "@/lib/hooks/use-forge-session"
+import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
 import "./forge-xp-pill.css"
 
 interface Props {

@@ -36,6 +36,13 @@ export function useShellModel() {
   const [feedbackHubCategory, setFeedbackHubCategory] = useState<FeedbackCategory>("bug")
   const [feedbackHubTab, setFeedbackHubTab] = useState<FeedbackHubTab>("new")
 
+  // Hydrate the persisted XP balance on the client (the store uses skipHydration
+  // to avoid an SSR/client number mismatch) so the topbar shows the last-known
+  // balance immediately, before the authoritative fetch below resolves.
+  useEffect(() => {
+    void useXPStore.persist.rehydrate()
+  }, [])
+
   // Refresh the authoritative XP balance once a token is present.
   useEffect(() => {
     if (!token) return

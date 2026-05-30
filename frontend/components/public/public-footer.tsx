@@ -17,8 +17,8 @@ const FOOTER_COLS = [
   {
     title: "Learn",
     links: [
-      { label: "How it works", href: "/"        },
-      { label: "FAQ",          href: "/about"   },
+      { label: "How it works", href: "/docs"     },
+      { label: "FAQ",          href: "/docs#faq" },
     ],
   },
   {
@@ -41,7 +41,7 @@ export function PublicFooter() {
           </Link>
           <p className="pub-footer-tagline">career intelligence</p>
           <p className="pub-footer-sub">
-            AI scores your CV across 12 career domains, tailors a version for every job, and shows you exactly which one to send.
+            Myro AI scores your CV across 10 career domains, tailors a version for every job, and scores the best one to send.
           </p>
         </div>
 
