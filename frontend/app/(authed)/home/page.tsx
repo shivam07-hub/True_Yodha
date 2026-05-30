@@ -11,6 +11,7 @@ import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
 import { HomeSkeleton } from "@/components/mission-control/hero-skeleton"
 import { JobIndex } from "@/components/mission-control/job-index"
+import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { buildNextMoves } from "@/lib/mission-control/next-moves"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users } from "@/lib/api"
@@ -241,6 +242,13 @@ function MissionControlInner() {
         </div>
       </div>
       </RequiresCV>
+
+      {/* Consent + targeting gate for "Refresh matches" — opened via refreshGateStore. */}
+      <MatchRefreshGate
+        token={token}
+        profile={profile}
+        onRun={() => refreshVm.refresh()}
+      />
     </>
   )
 }

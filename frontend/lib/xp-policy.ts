@@ -11,7 +11,7 @@ export const XP_POLICY = {
   followedCompanyLimit: 10,
   followCompanyFloor: -30,
   analyseJobCost: 10,
-  matchRefreshCost: 50,
+  matchRefreshCost: 150,
   verifiedInviteReward: 100,
   addJobReward: 20,
 } as const

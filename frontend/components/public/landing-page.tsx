@@ -1,17 +1,34 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { SampleDiagnostic } from "@/components/public/sample-diagnostic"
 import { PublicFooter } from "@/components/public/public-footer"
+import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "./landing-page.css"
 
 export function LandingPage() {
   const router = useRouter()
 
+  // Already-signed-in users shouldn't land on the public marketing page.
+  // Tokens live in localStorage (not a cookie), so the server can't gate this —
+  // detect after hydration and bounce to the app. Access OR refresh: an expired
+  // access token with a live refresh token is still a session (useAuth rehydrates
+  // it on /home). SSR/bots still render the full page, so SEO is preserved.
+  const [redirecting, setRedirecting] = useState(false)
+  useEffect(() => {
+    if (getAccessToken() || getRefreshToken()) {
+      setRedirecting(true)
+      router.replace("/home")
+    }
+  }, [router])
+
   function goSignup() {
     router.push("/signup?next=/cv?upload=1")
   }
+
+  if (redirecting) return null
 
   return (
     <div className="tm-landing">
