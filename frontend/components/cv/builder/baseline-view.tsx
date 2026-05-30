@@ -17,6 +17,7 @@ import { timeAgo } from "@/lib/cv/version-format"
 import { Icon } from "./icons"
 import { KindDot } from "./commit-graph"
 import { CVRender } from "./cv-render"
+import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import {
   CVLibraryDrawer,
   formatLibraryDocumentKind,
@@ -158,6 +159,14 @@ export function BaselineView({
             <Icon name="target" size={14}/> Pick a target job
             <Icon name="arrow-right" size={14}/>
           </Link>
+          <DownloadCVButton
+            token={token}
+            baseline={currentBaseline}
+            cv={cv}
+            fullName={profile?.full_name}
+            className="cvb-btn"
+            label="Download CV"
+          />
           <button type="button" className="cvb-btn" onClick={onRework}>
             <Icon name="edit" size={14}/> Update Main CV
           </button>

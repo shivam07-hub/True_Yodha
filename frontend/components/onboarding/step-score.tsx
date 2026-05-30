@@ -1,11 +1,17 @@
 "use client"
 
+import { useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { ScoreGauge } from "./score-gauge"
+import { cv as cvApi, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { DownloadCVButton } from "@/components/cv/download-cv-button"
 
 interface Props {
   score: ScoreResponse
+  token: string
 }
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -21,9 +27,28 @@ const DOMAIN_LABELS: Record<string, string> = {
   OPS: "Operations",
 }
 
-export function StepScore({ score }: Props) {
+export function StepScore({ score, token }: Props) {
   const router = useRouter()
   const top3gaps = score.gap_skills.slice(0, 3)
+
+  // Resolve the just-parsed master CV so the user can download it right at the
+  // score reveal — the climax of onboarding (10-min CV North Star).
+  const versionsQuery = useQuery({
+    queryKey: dataKeys.cvVersions(null),
+    queryFn: () => cvApi.versions.list(token, null),
+    enabled: !!token,
+  })
+  const profileQuery = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token),
+    enabled: !!token,
+  })
+  const baseline = useMemo(() => {
+    const masters = (versionsQuery.data?.versions ?? [])
+      .filter(v => v.kind === "baseline_upload")
+      .sort((a, b) => b.user_version_number - a.user_version_number)
+    return masters[0] ?? null
+  }, [versionsQuery.data])
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32, width: "100%", maxWidth: 512 }}>
@@ -102,20 +127,34 @@ export function StepScore({ score }: Props) {
         </div>
       )}
 
-      <button
-        onClick={() => router.push("/skills")}
-        style={{
-          width: "100%", padding: "14px",
-          background: "var(--tm-interactive)", border: "1px solid var(--tm-interactive)",
-          color: "var(--tm-interactive-fg)", borderRadius: "var(--tm-radius)",
-          fontSize: "var(--tm-fs-body)", fontWeight: 600,
-          cursor: "pointer", fontFamily: "inherit",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-interactive-hover)"; e.currentTarget.style.borderColor = "var(--tm-interactive-hover)" }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-interactive)" }}
-      >
-        See Full Skill Intelligence →
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+        <DownloadCVButton
+          token={token}
+          baseline={baseline}
+          fullName={profileQuery.data?.full_name}
+          label="Download your CV"
+          style={{
+            width: "100%", padding: "14px",
+            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+            background: "var(--tm-interactive)", border: "1px solid var(--tm-interactive)",
+            color: "var(--tm-interactive-fg)", borderRadius: "var(--tm-radius)",
+            fontSize: "var(--tm-fs-body)", fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        />
+        <button
+          onClick={() => router.push("/skills")}
+          style={{
+            width: "100%", padding: "12px",
+            background: "transparent", border: "1px solid var(--tm-border)",
+            color: "var(--tm-text-muted)", borderRadius: "var(--tm-radius)",
+            fontSize: "var(--tm-fs-meta)", fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          See Full Skill Intelligence →
+        </button>
+      </div>
     </div>
   )
 }

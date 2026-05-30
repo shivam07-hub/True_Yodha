@@ -274,7 +274,7 @@ export default function OnboardingPage() {
             onSkip={() => setStep("score")}
           />
         )}
-        {step === "score" && scoreData && <StepScore score={scoreData} />}
+        {step === "score" && scoreData && token && <StepScore score={scoreData} token={token} />}
       </div>
     </main>
   )
