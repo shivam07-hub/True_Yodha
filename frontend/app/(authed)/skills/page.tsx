@@ -230,7 +230,7 @@ export default function SkillsPage() {
               onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
             >CV →</Link>
-            <Link href="/forge?diary=1" style={{
+            <Link href="/forge" style={{
               fontSize: 12, fontWeight: 700, color: "var(--tm-interactive-fg)", textDecoration: "none",
               padding: "7px 16px", background: "var(--tm-interactive)", border: "1px solid var(--tm-interactive)",
               borderRadius: "var(--tm-radius-sm)", transition: "all 150ms",

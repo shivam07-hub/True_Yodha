@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { diary, users } from "@/lib/api"
+import { users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
 import { readSse } from "@/lib/streaming/read-sse"
 import { dataKeys } from "@/lib/domain-data"
@@ -11,9 +11,7 @@ import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { useRecomputeStore } from "@/store/recomputeStore"
-import { useCartStore } from "@/store/cartStore"
 import { LevelDots } from "@/components/skills/level-dots"
-import { LEVEL_THRESHOLDS } from "@/lib/level-thresholds"
 import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
 import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 
@@ -33,10 +31,8 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const applyXpChange = useXPStore((s) => s.applyXpChange)
   const startRecompute = useRecomputeStore(s => s.start)
   const clearRecompute = useRecomputeStore(s => s.clear)
-  const addToCart = useCartStore(s => s.addSkill)
 
   const [editOpen, setEditOpen] = useState(false)
-  const [logged, setLogged] = useState(false)
   const [advice, setAdvice] = useState<string | null>(null)
   const [adviceExpanded, setAdviceExpanded] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -86,24 +82,6 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
     onError: () => setErrorMsg("Couldn't fetch advice. No XP was spent."),
   })
 
-  const sessionsNeeded = LEVEL_THRESHOLDS[skill.level] ?? null
-
-  const logDiary = useMutation({
-    mutationFn: () =>
-      diary.createEntry(
-        token,
-        `Skill Focus — ${skill.display_name} (${skill.proficiency_title}, Level ${skill.level})\n\nI want to push ${skill.display_name} from L${skill.level} to L${nextLevel} through ${sessionsNeeded !== null ? `${sessionsNeeded} forge session${sessionsNeeded === 1 ? "" : "s"}` : "deliberate practice"} (25 min each).`,
-      ),
-    onSuccess: () => {
-      setLogged(true)
-      addToCart({ skill_name: skill.display_name, level_from: skill.level, level_to: nextLevel })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      // Invalidate diary history and XP balance so wallet reflects +30 XP immediately.
-      queryClient.invalidateQueries({ queryKey: ["diary"] })
-      queryClient.invalidateQueries({ queryKey: ["xp"] })
-    },
-  })
 
   // SE17 — ADR-0009 PR2: a single SSE stream replaces the 3s recompute poll.
   // Settles the score-ring shimmer the moment the async re-tag stamps the flag
@@ -220,14 +198,6 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
             : gate.attempt(() => askAdvice.mutate())}
           disabled={askAdvice.isPending || !!advice}
           accent={isFree}
-        />
-        <ActionBtn
-          label={logged ? "Queued in Practice" : "Track in diary"}
-          icon={logged ? "✓" : logDiary.isPending ? "…" : "☆"}
-          onClick={() => !logged && logDiary.mutate()}
-          disabled={logDiary.isPending || logged}
-          active={logged}
-          subLabel={!logged ? (sessionsNeeded !== null ? `L${skill.level}→L${nextLevel} · ${sessionsNeeded} session${sessionsNeeded === 1 ? "" : "s"}` : undefined) : undefined}
         />
       </div>
 
