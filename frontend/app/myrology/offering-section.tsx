@@ -57,7 +57,7 @@ function LockedOffering() {
           <div className="side-eyebrow">WHAT WE&apos;LL ASK FOR</div>
           <div className="side-text">
             Date of birth · time of birth · place of birth.<br />
-            That's the whole list. Collected after unlock, kept to your stars.
+            That&apos;s the whole list. Collected after unlock, kept to your stars.
           </div>
         </div>
         <div className="side-card" style={{ borderColor: "var(--my-amethyst-ring)" }}>
