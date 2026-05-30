@@ -41,7 +41,7 @@ export function useJobRefresh(
   queryClient: QueryClient,
 ): UseJobRefreshResult {
   const balance = useXPStore((s) => s.balance)
-  const setBalance = useXPStore((s) => s.setBalance)
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
 
   const [state, setState] = useState<RefreshState>("idle")
   const [progressLabel, setProgressLabel] = useState<string | null>(null)
@@ -64,7 +64,7 @@ export function useJobRefresh(
   const handleTerminal = useCallback(
     (payload: RefreshStateResponse) => {
       stopPolling()
-      if (payload.new_xp_balance != null) setBalance(payload.new_xp_balance)
+      if (payload.new_xp_balance != null) applyXpChange({ newBalance: payload.new_xp_balance, action: "match_refresh" })
       if (payload.state === "failed") {
         setState("error_failed")
         setErrorMessage(payload.error || "Refresh failed. Please try again.")
@@ -79,7 +79,7 @@ export function useJobRefresh(
       if (token) clearLocalCache(userCacheKey(token, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
-    [queryClient, setBalance, stopPolling, token],
+    [queryClient, applyXpChange, stopPolling, token],
   )
 
   const poll = useCallback(async () => {
@@ -141,7 +141,7 @@ export function useJobRefresh(
     setProgressLabel("Charging XP")
     try {
       const ticket = await jobs.refresh(token)
-      setBalance(ticket.new_xp_balance)
+      applyXpChange({ newBalance: ticket.new_xp_balance, action: "match_refresh" })
       setState("computing")
       setProgressLabel(ticket.progress_label)
       startPolling(ticket.id)
@@ -159,7 +159,7 @@ export function useJobRefresh(
       setProgressLabel(null)
       setOutcomeKind(null)
     }
-  }, [balance, setBalance, startPolling, state, token])
+  }, [balance, applyXpChange, startPolling, state, token])
 
   const reset = useCallback(() => {
     stopPolling()

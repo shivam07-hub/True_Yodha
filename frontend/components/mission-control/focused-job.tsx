@@ -14,6 +14,10 @@ import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
 import { JobShareButton } from "./job-share-button"
 import { useForgeTimerStore } from "@/store/forgeTimerStore"
+import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
+import { useXPGate } from "@/lib/hooks/use-xp-gate"
+import { useXPStore } from "@/store/xpStore"
+import { XP_POLICY } from "@/lib/xp-policy"
 
 function stripTaxonomySuffix(s: string): string {
   return s.replace(/\s*\((Programming Language|Software|Framework|Library)\)\s*$/i, "")
@@ -169,13 +173,7 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
             <span className="label">Why this is a good fit</span>
             <span className="mc-tag-pill">LLM</span>
           </div>
-          {job.llm_explanation ? (
-            <blockquote className="mc-fit-quote">{stripMarkdown(job.llm_explanation)}</blockquote>
-          ) : (
-            <blockquote className="mc-fit-quote" style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>
-              Analyse this role to see Myro&rsquo;s reasoning.
-            </blockquote>
-          )}
+          <FitRationale token={token} jobId={job.job_id} cached={job.llm_explanation} />
         </section>
 
         {matchedSkills.length > 0 ? (
@@ -267,6 +265,97 @@ export const FocusedJob = React.forwardRef<HTMLDivElement, FocusedJobProps>(func
     </div>
   )
 })
+
+interface FitRationaleProps {
+  token: string
+  jobId: string
+  cached: string | null | undefined
+}
+
+/**
+ * "Why this is a good fit" rationale.
+ * - Cached (already analysed) → static text.
+ * - Funded + un-analysed → auto-stream tokens on mount (Claude-style reveal),
+ *   charge 10 XP on success (server-side), nudge fires off the XP pill.
+ * - Broke (<10 XP) → silent skip + discoverable "Analyse · 10 XP" button → XPGate.
+ */
+function FitRationale({ token, jobId, cached }: FitRationaleProps) {
+  const stream = useStreamingText()
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
+  const gate = useXPGate({ cost: XP_POLICY.analyseJobCost, action: "analyse_job" })
+  const startedRef = React.useRef(false)
+
+  const begin = React.useCallback(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+    stream.start(`/jobs/analyse/${jobId}/stream`, token, (ev: StreamEvent) => {
+      if (ev.type === "done" && typeof ev.new_xp_balance === "number") {
+        applyXpChange({ newBalance: ev.new_xp_balance as number, action: "analyse_job" })
+      }
+    })
+  }, [applyXpChange, jobId, stream, token])
+
+  // Auto-fire once for funded users on a job with no cached rationale.
+  React.useEffect(() => {
+    if (cached || !token) return
+    if (!gate.canAfford) return
+    begin()
+  }, [cached, token, gate.canAfford, begin])
+
+  if (cached) {
+    return <blockquote className="mc-fit-quote">{stripMarkdown(cached)}</blockquote>
+  }
+
+  // Streaming or settled with text.
+  if (stream.text) {
+    return (
+      <blockquote className="mc-fit-quote" style={{ minHeight: "3.6em" }}>
+        {stream.status === "done" && !stream.typing ? stripMarkdown(stream.text) : stream.text}
+        {stream.typing && <span className="mc-fit-caret" aria-hidden>▋</span>}
+        {stream.status === "error" && (
+          <button type="button" className="mc-fit-retry" onClick={() => { startedRef.current = false; begin() }}>
+            ⚠ interrupted · retry
+          </button>
+        )}
+      </blockquote>
+    )
+  }
+
+  // Error before any text.
+  if (stream.status === "error") {
+    return (
+      <blockquote className="mc-fit-quote" style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+        Couldn&rsquo;t analyse this role.{" "}
+        <button type="button" className="mc-fit-retry" onClick={() => { startedRef.current = false; begin() }}>
+          retry
+        </button>
+      </blockquote>
+    )
+  }
+
+  // Funded + about to stream → loading shimmer placeholder.
+  if (gate.canAfford && !cached) {
+    return (
+      <blockquote className="mc-fit-quote" style={{ color: "var(--tm-text-faint)", fontStyle: "italic", minHeight: "3.6em" }}>
+        Analysing this role
+        <span className="mc-fit-caret" aria-hidden>▋</span>
+      </blockquote>
+    )
+  }
+
+  // Broke → discoverable button, no auto-modal hammer.
+  return (
+    <blockquote className="mc-fit-quote" style={{ color: "var(--tm-text-faint)", fontStyle: "italic" }}>
+      <button
+        type="button"
+        className="mc-fit-analyse-cta"
+        onClick={() => gate.attempt(begin)}
+      >
+        → Analyse · {XP_POLICY.analyseJobCost} XP
+      </button>
+    </blockquote>
+  )
+}
 
 interface SkillMatchRowProps {
   skill: SkillGapItem

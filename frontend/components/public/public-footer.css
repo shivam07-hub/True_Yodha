@@ -160,13 +160,44 @@
 
 @media (max-width: 480px) {
   .pub-footer {
-    padding: 32px 20px 20px;
+    padding: 28px 20px 16px;
   }
   .pub-footer-inner {
-    grid-template-columns: 1fr;
-    gap: 24px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px 12px;
+    margin-bottom: 20px;
   }
   .pub-footer-brand {
-    grid-column: auto;
+    grid-column: 1 / -1;
+  }
+  .pub-footer-sub {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 6px;
+  }
+  .pub-footer-col-title {
+    margin-bottom: 8px;
+  }
+  .pub-footer-links {
+    gap: 2px;
+  }
+  .pub-footer-link {
+    font-size: 13px;
+    padding: 3px 0;
+  }
+  .pub-footer-bottom {
+    padding-top: 16px;
+    gap: 4px 8px;
+    font-size: 11px;
+  }
+  .pub-footer-trust {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 360px) {
+  .pub-footer-inner {
+    grid-template-columns: 1fr 1fr;
   }
 }

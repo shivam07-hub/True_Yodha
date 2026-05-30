@@ -194,7 +194,7 @@ export function SettingsModal({ open, onClose, profile }: {
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const { setBalance } = useXPStore()
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [activeTab, setActiveTab] = useState<Tab>("Account")
   const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
@@ -258,7 +258,7 @@ export function SettingsModal({ open, onClose, profile }: {
       return users.updateProfile(token, payload)
     },
     onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "profile_update" })
       if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} XP earned`)
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
@@ -304,7 +304,7 @@ export function SettingsModal({ open, onClose, profile }: {
   const followMutation = useMutation({
     mutationFn: (companyName: string) => users.followCompany(token!, companyName),
     onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
       setCompanyInput("")
       setCompanyDropdown(false)
@@ -460,7 +460,7 @@ export function SettingsModal({ open, onClose, profile }: {
           setBillingMessage("Verifying payment…")
           try {
             const verified = await billing.verifyPayment(token, response)
-            setBalance(verified.new_xp_balance)
+            applyXpChange({ newBalance: verified.new_xp_balance, action: "xp_purchase" })
             setBillingStatus("success")
             setBillingMessage(`+${verified.xp_earned} XP added. New balance: ${verified.new_xp_balance} XP.`)
           } catch (error) {

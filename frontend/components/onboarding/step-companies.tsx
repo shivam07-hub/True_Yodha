@@ -39,7 +39,7 @@ function statusLabel(status: CVAnalysisStatus): string {
 
 export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onRestartCV, onNext }: Props) {
   const queryClient = useQueryClient()
-  const setBalance = useXPStore((s) => s.setBalance)
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [input, setInput] = useState("")
   const [debouncedInput, setDebouncedInput] = useState("")
   const [selected, setSelected] = useState<string[]>([])
@@ -95,7 +95,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
     try {
       const result = await users.followCompany(token, name)
       if (typeof result.new_xp_balance === "number") {
-        setBalance(result.new_xp_balance)
+        applyXpChange({ newBalance: result.new_xp_balance, action: "follow_company" })
       }
       setInput("")
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })

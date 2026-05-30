@@ -34,7 +34,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { isDesktop } = useViewport()
-  const setBalance = useXPStore(s => s.setBalance)
+  const applyXpChange = useXPStore(s => s.applyXpChange)
   const gate = useXPGate({
     cost: XP_POLICY.followCompanyCost,
     action: "follow_company",
@@ -77,7 +77,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const followMutation = useMutation({
     mutationFn: () => users.followCompany(token!, company),
     onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     },
   })

@@ -863,7 +863,7 @@ function LocationBar({ cities, countries, city, country, mode, onCity, onCountry
 function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
+  const { balance: xpBalance, setBalance: setXPBalance, applyXpChange } = useXPStore()
   const searchParams = useSearchParams()
   const paramSkill = searchParams.get("skill")
 
@@ -1095,7 +1095,7 @@ function IntelPageInner() {
     },
     onSuccess: (data) => {
       if (data && typeof data.new_xp_balance === "number") {
-        setXPBalance(data.new_xp_balance)
+        applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
       }
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     },

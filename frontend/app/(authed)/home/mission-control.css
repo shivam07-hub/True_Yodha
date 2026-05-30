@@ -780,6 +780,42 @@
   word-break: normal;
   min-width: 0;
 }
+/* Streaming fit-rationale (ADR-0009) */
+.mc-fit-caret {
+  display: inline-block;
+  margin-left: 1px;
+  color: var(--tm-interactive);
+  animation: mc-fit-blink 1s steps(1) infinite;
+}
+@keyframes mc-fit-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-fit-caret { animation: none; opacity: 0.6; }
+}
+.mc-fit-retry,
+.mc-fit-analyse-cta {
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-interactive);
+  border-radius: 99px;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mc-fit-retry { margin-left: 8px; }
+.mc-fit-retry:hover,
+.mc-fit-analyse-cta:hover { filter: brightness(1.1); }
+.mc-fit-analyse-cta:focus-visible,
+.mc-fit-retry:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 2px;
+}
+
 .mc-focus-card { min-width: 0; overflow: hidden; }
 .mc-focus-head > div { min-width: 0; }
 .mc-count-bub {

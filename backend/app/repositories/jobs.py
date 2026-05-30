@@ -1104,6 +1104,54 @@ class JobsRepository:
             on_conflict="user_id,job_id,batch_week",
         ).execute()
 
+    # ── Q8 deepeners — XP-gated follow-up answers, cached per (user, job, prompt)
+    def get_deepening(self, user_id: str, job_id: str, prompt_key: str) -> str | None:
+        result = (
+            self._db.table("job_deepenings")
+            .select("answer")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .eq("prompt_key", prompt_key)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return None
+        return (rows[0].get("answer") or "").strip() or None
+
+    def list_deepenings(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
+        result = (
+            self._db.table("job_deepenings")
+            .select("prompt_key, answer")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .execute()
+        )
+        return result.data or []
+
+    def upsert_deepening(self, user_id: str, job_id: str, prompt_key: str, answer: str) -> None:
+        self._admin_db.table("job_deepenings").upsert(
+            {"user_id": user_id, "job_id": job_id, "prompt_key": prompt_key, "answer": answer},
+            on_conflict="user_id,job_id,prompt_key",
+        ).execute()
+
+    def get_deepening_sampled(self, user_id: str) -> bool:
+        result = (
+            self._db.table("user_profiles")
+            .select("deepening_sampled")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return bool(rows and rows[0].get("deepening_sampled"))
+
+    def set_deepening_sampled(self, user_id: str) -> None:
+        self._admin_db.table("user_profiles").update(
+            {"deepening_sampled": True}
+        ).eq("user_id", user_id).execute()
+
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:
         result = (
             self._db.table("user_skills")
