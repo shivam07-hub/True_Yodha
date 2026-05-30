@@ -67,7 +67,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", margin: 0 }}>
-            Effective 30 April 2026 · Last updated 30 April 2026
+            Effective 30 April 2026 · Last updated 30 May 2026
           </p>
         </div>
       </header>
@@ -129,7 +129,7 @@ export default function PrivacyPage() {
             </div>
 
             <Section id="who-we-are" n="01" title="Who We Are">
-              <P>Myro (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is an Intelligence-as-a-Service platform for job seekers, available at{" "}
+              <P>Myro is a product of <strong>Myro Career Intelligence</strong>, Vasant Vihar, West Delhi, Delhi, India (&ldquo;we&rdquo;, &ldquo;us&rdquo;). Myro is an Intelligence-as-a-Service platform for job seekers, available at{" "}
                 <a href="https://himyro.com" style={{ color: "var(--tm-interactive)" }}>himyro.com</a>.
                 {" "}We also publish the <strong>Myro Job Tracker</strong> Chrome extension.</P>
             </Section>
@@ -197,7 +197,8 @@ export default function PrivacyPage() {
             </Section>
 
             <Section id="security" n="08" title="Security">
-              <P>Data is encrypted in transit (TLS) and at rest. Access is controlled via Row Level Security in Supabase.</P>
+              <P>Data is encrypted in transit (TLS) and at rest. Access is controlled via Row Level Security in Supabase, so each account can only access its own records. Authentication is managed by Supabase; passwords are never stored in plain text. No system is perfectly secure, but if a breach affects your personal data we will notify affected users and the relevant authorities as required by law.</P>
+              <P>This policy is governed by the laws of India. Where applicable, we process personal data in line with India&rsquo;s Digital Personal Data Protection Act, 2023. The rights described in Section 06 apply to you regardless of where you are located.</P>
             </Section>
 
             <Section id="children" n="09" title="Children">

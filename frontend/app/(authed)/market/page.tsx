@@ -73,7 +73,7 @@ function TrendChip({ pct, up }: { pct: number; up: boolean }) {
   )
 }
 
-function FollowStarBtn({
+function AddToHeatmapBtn({
   isFollowed,
   onToggle,
   onHover,
@@ -90,23 +90,29 @@ function FollowStarBtn({
     <button
       onClick={(e) => { e.stopPropagation(); if (!disabled) onToggle() }}
       onMouseEnter={onHover}
-      title={disabled ? disabledReason : isFollowed ? "Unfollow" : `Follow · ${FOLLOW_XP_COST} XP`}
+      title={disabled ? disabledReason : isFollowed ? "Remove from heatmap" : `Add to heatmap · ${FOLLOW_XP_COST} XP`}
       style={{
-        width: 44, height: 28, padding: "0 6px", display: "inline-flex", alignItems: "center",
-        justifyContent: "center", gap: 3, border: "none", background: "transparent",
-        cursor: disabled ? "not-allowed" : "pointer",
-        color: isFollowed ? "var(--tm-warning)" : disabled ? "var(--tm-text-faint)" : "var(--tm-text-faint)",
-        opacity: disabled && !isFollowed ? 0.4 : 1,
         flexShrink: 0,
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+        minWidth: 116, minHeight: 32, padding: "6px 13px", borderRadius: 999,
+        fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em", fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        background: isFollowed ? "var(--tm-int-bg-wash)" : "transparent",
+        border: `1px solid ${isFollowed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
+        color: isFollowed ? "var(--tm-interactive)" : disabled ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
+        opacity: disabled && !isFollowed ? 0.45 : 1,
+        transition: "all 120ms ease", whiteSpace: "nowrap",
       }}
     >
-      <svg width={13} height={13} viewBox="0 0 16 16" fill={isFollowed ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3">
-        <path d="M8 1.5l1.95 4.16 4.55.55-3.35 3.13.86 4.51L8 11.7l-4.01 2.15.86-4.51L1.5 6.21l4.55-.55L8 1.5z" strokeLinejoin="round" />
-      </svg>
-      {!isFollowed && !disabled && (
-        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 9, color: "var(--tm-text-faint)", letterSpacing: "0.04em" }}>
-          {FOLLOW_XP_COST}
-        </span>
+      {isFollowed ? (
+        <span>✓ In heatmap</span>
+      ) : (
+        <>
+          <span>+ Heatmap</span>
+          {!disabled && (
+            <span style={{ fontSize: 9, opacity: 0.7, letterSpacing: "0.02em" }}>{FOLLOW_XP_COST} XP</span>
+          )}
+        </>
       )}
     </button>
   )
@@ -204,13 +210,13 @@ function LocationBadge({ mode }: { mode: string | null | undefined }) {
   const labels: Record<string, string> = { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" }
   const colors: Record<string, string> = {
     remote: "var(--tm-int-border-soft)",
-    hybrid: "rgba(255,200,60,0.12)",
-    onsite: "rgba(180,180,200,0.12)",
+    hybrid: "color-mix(in oklab, var(--tm-warning) 14%, transparent)",
+    onsite: "color-mix(in oklab, var(--tm-text-faint) 12%, transparent)",
   }
   return (
     <span style={{
       fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em",
-      padding: "2px 7px", borderRadius: 99, background: colors[mode] ?? "rgba(180,180,200,0.12)",
+      padding: "2px 7px", borderRadius: 99, background: colors[mode] ?? "color-mix(in oklab, var(--tm-text-faint) 12%, transparent)",
       color: "var(--tm-text-muted)", textTransform: "uppercase",
     }}>
       {labels[mode] ?? mode}
@@ -409,7 +415,7 @@ function SkillHeatmap({
       }}>
         <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 8 }}>Your heatmap is empty</div>
         <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
-          Star companies from the list below to add them here.
+          Tap “+ Heatmap” on companies in the list above to add them here.
           Each follow costs {FOLLOW_XP_COST} XP — up to {MAX_FOLLOWED} companies.
         </div>
       </div>
@@ -450,9 +456,9 @@ function SkillHeatmap({
                   <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowSkillPicker(false)} />
                   <div style={{
                     position: "absolute", top: "calc(100% + 6px)", right: 0,
-                    background: "var(--tm-bg)", border: "1px solid var(--tm-border-soft)",
+                    background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
                     borderRadius: 8, padding: "6px 0", minWidth: 220, zIndex: 100,
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxHeight: 320, overflowY: "auto",
+                    boxShadow: "var(--tm-shadow-2)", maxHeight: 320, overflowY: "auto",
                   }}>
                     {allSkills.map(s => {
                       const active = selectedSkillNames.has(s.display_name)
@@ -470,7 +476,7 @@ function SkillHeatmap({
                             fontFamily: "var(--tm-font-mono)", fontSize: 11, textAlign: "left",
                             opacity: !canToggle ? 0.4 : 1, transition: "background 80ms",
                           }}
-                          onMouseEnter={e => { if (canToggle) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)" }}
+                          onMouseEnter={e => { if (canToggle) (e.currentTarget as HTMLElement).style.background = "var(--tm-hover-soft)" }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
                         >
                           <span style={{
@@ -663,7 +669,7 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search…"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 10px", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)", outline: "none", width: 120 }}
+          style={{ background: "var(--tm-bg-inset)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 10px", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)", outline: "none", width: 120 }}
         />
       </div>
       <div style={{ marginBottom: 12 }}>
@@ -717,7 +723,7 @@ function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBa
                 <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-interactive)", fontWeight: 600 }}>+{co.added}</div>
                 <TrendChip pct={co.pct} up={true} />
               </div>
-              <FollowStarBtn
+              <AddToHeatmapBtn
                 isFollowed={isFollowed}
                 onToggle={() => onToggleFollow(co.name)}
                 onHover={() => !isFollowed && onHoverStar(co.name)}
@@ -798,8 +804,8 @@ function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, i
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px",
                   borderRadius: 999, cursor: "pointer",
-                  background: selected ? "var(--tm-int-bg-wash)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
-                  border: `1px solid ${selected ? "var(--tm-interactive)" : hovered ? "rgba(255,255,255,0.18)" : "var(--tm-border-soft)"}`,
+                  background: selected ? "var(--tm-int-bg-wash)" : hovered ? "var(--tm-hover-soft)" : "transparent",
+                  border: `1px solid ${selected ? "var(--tm-interactive)" : hovered ? "var(--tm-border)" : "var(--tm-border-soft)"}`,
                   color: selected ? "var(--tm-interactive)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
                   fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
                 }}
@@ -1262,6 +1268,17 @@ function IntelPageInner() {
 
         {analytics && <PulseStrip analytics={analytics} followedCount={followedNames.length} />}
 
+        <div style={{ marginTop: 14 }}>
+          <TopMovers
+            companies={moversCompanies}
+            followedNames={followedNames}
+            onToggleFollow={handleToggleFollow}
+            onHoverStar={handleHoverStar}
+            xpBalance={xpBalance}
+            followedCount={followedCompanies.length}
+          />
+        </div>
+
         {token && !cvReadyForPersonalization ? (
           <CVPrerequisiteCard readiness={cvReadiness} errorCode={profileData?.cv_upload_error_code ?? null} />
         ) : (
@@ -1291,17 +1308,6 @@ function IntelPageInner() {
             isLoggedIn={!!token}
           />
         )}
-
-        <div style={{ marginTop: 14 }}>
-          <TopMovers
-            companies={moversCompanies}
-            followedNames={followedNames}
-            onToggleFollow={handleToggleFollow}
-            onHoverStar={handleHoverStar}
-            xpBalance={xpBalance}
-            followedCount={followedCompanies.length}
-          />
-        </div>
       </div>
     </>
   )

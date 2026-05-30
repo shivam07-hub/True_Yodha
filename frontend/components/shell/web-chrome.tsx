@@ -13,6 +13,7 @@ import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
+import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
 import type { SidebarProfile } from "@/lib/shell/contract"
 import type { ForgeSessionResult } from "@/types/xp"
 
@@ -153,10 +154,12 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
             className="tm-topbar-xp"
             data-forge={forgeRunning}
             aria-label="Open XP guide"
+            style={{ position: "relative" }}
           >
             <span style={{ color: "var(--tm-interactive)", fontSize: 11 }}>◆</span>
             <span style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 700 }}>{xpBalance}</span>
             <span style={{ fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 400 }}>XP</span>
+            <XpDeltaNudge />
           </button>
 
           {/* Avatar */}
