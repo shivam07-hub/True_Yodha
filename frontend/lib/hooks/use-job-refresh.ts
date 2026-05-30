@@ -128,7 +128,7 @@ export function useJobRefresh(
     if (balance < REFRESH_XP_COST) {
       setState("error_insufficient_xp")
       setErrorMessage(
-        `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP (refunded if no new matches are found).`,
+        `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`,
       )
       setProgressLabel(null)
       setOutcomeKind(null)
@@ -150,7 +150,7 @@ export function useJobRefresh(
       if (msg.includes("Insufficient XP")) {
         setState("error_insufficient_xp")
         setErrorMessage(
-          `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP (refunded if no new matches are found).`,
+          `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`,
         )
       } else {
         setState("error_failed")

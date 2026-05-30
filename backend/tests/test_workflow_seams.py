@@ -243,6 +243,58 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
     assert captured["top_n"] == 12
 
 
+def test_compute_job_matches_relaxes_exclusion_when_pool_emptied(monkeypatch: Any) -> None:
+    """Backlog #14: when prior matches exclude the whole pool, a paid refresh
+    re-ranks the full pool instead of refunding (XP is the only gate)."""
+    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
+
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: False)
+
+    async def _fake_rank_and_persist(*_a: Any, **_k: Any) -> int:
+        return 2
+
+    def _fake_get_top_matches(*_a: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
+        return [
+            {"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python (Programming Language)"]},
+            {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
+        ]
+
+    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+
+    # Every candidate already matched → exclusion would empty the pool.
+    result = asyncio.run(
+        jobs_workflow.compute_job_matches(
+            repo, "user-1", date.today(), object(),  # type: ignore[arg-type]
+            excluded_job_ids=["job-1", "job-2"], force=True,
+        )
+    )
+
+    assert result.kind == "written"  # not "exhausted" — relaxed to full pool
+    assert result.should_charge_xp is True
+    assert result.debug["exclusion_relaxed"] == 1
+    assert result.debug["candidate_jobs_count"] == 2
+
+
+def test_compute_job_matches_exhausted_only_on_zero_overlap(monkeypatch: Any) -> None:
+    """A genuinely empty candidate pool (no skill overlap at all) still
+    refunds — the only honest exhausted case."""
+    repo = _FakeComputeJobsRepository(candidate_job_ids=[])
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: False)
+
+    result = asyncio.run(
+        jobs_workflow.compute_job_matches(
+            repo, "user-1", date.today(), object(),  # type: ignore[arg-type]
+            excluded_job_ids=["job-9"], force=True,
+        )
+    )
+
+    assert result.kind == "exhausted"
+    assert result.should_charge_xp is False
+    assert result.debug["exclusion_relaxed"] == 1
+
+
 def test_refresh_state_carries_match_outcome_kind() -> None:
     state = _dispatch._state(
         "ticket-1",

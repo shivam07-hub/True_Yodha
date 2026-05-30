@@ -257,6 +257,7 @@ async def compute_job_matches(
                 "candidate_jobs_count": len(candidate_job_ids),
                 "top_jobs_count": 0,
                 "target_roles_count": target_roles_count,
+                "exclusion_relaxed": int(exclusion_relaxed),
                 **match_debug,
             },
         )
@@ -273,6 +274,7 @@ async def compute_job_matches(
             "candidate_jobs_count": len(candidate_job_ids),
             "top_jobs_count": len(top_jobs),
             "target_roles_count": target_roles_count,
+            "exclusion_relaxed": int(exclusion_relaxed),
             **match_debug,
         },
     )
