@@ -29,7 +29,7 @@ const LADDER_DESCRIPTOR: Record<string, string> = {
 
 export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const queryClient = useQueryClient()
-  const { setBalance } = useXPStore()
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const startRecompute = useRecomputeStore(s => s.start)
   const clearRecompute = useRecomputeStore(s => s.clear)
   const addToCart = useCartStore(s => s.addSkill)
@@ -80,7 +80,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
     onSuccess: (data) => {
       setErrorMsg(null)
       if (data.advice) setAdvice(data.advice)
-      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "polish_skill" })
     },
     onError: () => setErrorMsg("Couldn't fetch advice. No XP was spent."),
   })

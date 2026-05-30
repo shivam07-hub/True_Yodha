@@ -17,6 +17,7 @@ export const dataKeys = {
   cvVersions: (jobId: JobId) => ["cv-versions", jobId ?? "all"] as const,
   jobPath: (jobId: JobId) => ["job-path", jobId] as const,
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
+  deepenings: (jobId: JobId) => ["deepenings", jobId] as const,
   jobsAnalytics: (
     roleDomain?: string | null,
     locationCity?: string | null,

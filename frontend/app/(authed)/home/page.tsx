@@ -9,13 +9,14 @@ import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
+import { MobileBanner } from "@/components/home/mobile-banner"
 import { HomeSkeleton } from "@/components/mission-control/hero-skeleton"
 import { useLoadingPhase } from "@/components/loading/use-loading-phase"
 import { RouteLoading } from "@/components/loading/route-loading"
 import { SectionError } from "@/components/errors/section-error"
 import { StaleBanner } from "@/components/errors/stale-banner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { JobIndex } from "@/components/mission-control/job-index"
+import { Dashboard } from "@/components/dashboard/dashboard"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { buildNextMoves } from "@/lib/mission-control/next-moves"
 import { openFeedbackHub } from "@/components/feedback"
@@ -25,6 +26,7 @@ import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreak } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
@@ -128,6 +130,7 @@ function MissionControlInner() {
 
   // ── First-run vs returning (progressive-nav grill Q3)
   const nav = useNavUnlocks()
+  const { isDesktop } = useViewport()
 
   // ── Hero data
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
@@ -243,17 +246,28 @@ function MissionControlInner() {
             {staleRefreshFailed && (
               <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
             )}
-            <Hero
-              name={firstName}
-              dateLine={dateLine}
-              activeTargets={activeTargets}
-              checkpoints={checkpoints}
-              nextMoves={nextMoves}
-              score={score}
-              streak={streak}
-              sessions={entries.length}
-              diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
-            />
+            {/* Q6: mobile collapses the full Hero into a thin sticky banner so
+                the card feed owns the viewport. Desktop keeps the full Hero. */}
+            {isDesktop ? (
+              <Hero
+                name={firstName}
+                dateLine={dateLine}
+                activeTargets={activeTargets}
+                checkpoints={checkpoints}
+                nextMoves={nextMoves}
+                score={score}
+                streak={streak}
+                sessions={entries.length}
+                diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
+              />
+            ) : (
+              <MobileBanner
+                name={firstName}
+                score={score}
+                streak={streak}
+                topMove={nextMoves[0] ?? null}
+              />
+            )}
 
             {token && jobsIsError ? (
               <div style={{ marginTop: 24 }}>
@@ -269,7 +283,7 @@ function MissionControlInner() {
                 </div>
               </div>
             ) : token ? (
-              <JobIndex
+              <Dashboard
                 jobs={allMatchedJobs}
                 apps={apps}
                 appsByJobId={appsByJobId}

@@ -67,7 +67,7 @@ export function useForgeSession(options: UseForgeSessionOptions = {}): UseForgeS
     markClaimed,
   } = useForgeTimerStore()
 
-  const setXPBalance = useXPStore((s) => s.setBalance)
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
 
   const claimMutation = useMutation({
     mutationFn: async (minutes: number) => {
@@ -89,10 +89,11 @@ export function useForgeSession(options: UseForgeSessionOptions = {}): UseForgeS
       if (minutes <= 0 || claimMutation.isPending) return
       const result = await claimMutation.mutateAsync(minutes)
       markClaimed(minutes)
-      setXPBalance(result.new_xp_balance)
+      // Forge claim owns its own celebration (claim button pop) → silent nudge.
+      applyXpChange({ newBalance: result.new_xp_balance, action: "forge_claim", silent: true })
       opts?.onClaimed?.(result)
     },
-    [pendingMinutes, claimMutation, markClaimed, setXPBalance],
+    [pendingMinutes, claimMutation, markClaimed, applyXpChange],
   )
 
   const startLastForged = useCallback(async () => {

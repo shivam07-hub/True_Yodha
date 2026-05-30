@@ -56,7 +56,7 @@ function CVPage() {
   // Reentry guard: setUploading(true) is async, mobile Chrome can fire change
   // twice; the ref blocks the second call synchronously.
   const uploadInFlightRef = useRef(false)
-  const setXPBalance = useXPStore((s) => s.setBalance)
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
@@ -126,7 +126,7 @@ function CVPage() {
     startCvPromiseOptimistic()
     try {
       const result = await uploadCV(token, file)
-      if (result.new_xp_balance != null) setXPBalance(result.new_xp_balance)
+      if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
@@ -142,7 +142,7 @@ function CVPage() {
       setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
     } catch (err) {
       if (err instanceof CVUploadFailure) {
-        if (err.newXpBalance != null) setXPBalance(err.newXpBalance)
+        if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
         setLastFailureCode(err.code)
         setUploadError(err.message)
       } else {
@@ -231,7 +231,7 @@ function CVPage() {
     setShowUpload(true); setUploading(true); setUploadError(null)
     pollCVUploadStatus(token, persistedJobId)
       .then((result) => {
-        if (result.new_xp_balance != null) setXPBalance(result.new_xp_balance)
+        if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
@@ -244,7 +244,7 @@ function CVPage() {
       })
       .catch((err) => {
         if (err instanceof CVUploadFailure) {
-          if (err.newXpBalance != null) setXPBalance(err.newXpBalance)
+          if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
           setLastFailureCode(err.code)
           if (!err.retryable) clearPersistedCVUploadState()
         } else {

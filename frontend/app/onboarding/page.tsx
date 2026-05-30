@@ -53,7 +53,7 @@ export default function OnboardingPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { token, ready } = useAuth()
-  const setXPBalance = useXPStore((s) => s.setBalance)
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [step, setStep] = useState<Step>("cv")
   const [cvFile, setCvFile] = useState<File | null>(null)
   const [cvText, setCvText] = useState<string | null>(null)
@@ -106,7 +106,7 @@ export default function OnboardingPage() {
     const promise = runner
       .then((result): CVUploadCompletion => {
         if (typeof result.new_xp_balance === "number") {
-          setXPBalance(result.new_xp_balance)
+          applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
         }
         queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })

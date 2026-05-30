@@ -14,7 +14,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
   const [expanded, setExpanded] = useState(false)
   const [advice, setAdvice] = useState<string | null>(null)
   // queryClient not used in compact SkillCard — level correction moved to InlineSkillCard.
-  const { setBalance } = useXPStore()
+  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const gate = useXPGate({ cost: XP_POLICY.skillAdviceCost, action: "polish_skill" })
 
   const logToForge = useMutation({
@@ -32,7 +32,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
     mutationFn: (freeUnlock: boolean) => users.skillLevelUpAdvice(token, skill.key, skill.level, skill.evidence_text ?? "", freeUnlock),
     onSuccess: (data) => {
       if (data.advice) setAdvice(data.advice)
-      if (typeof data.new_xp_balance === "number") setBalance(data.new_xp_balance)
+      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "polish_skill" })
     },
   })
 

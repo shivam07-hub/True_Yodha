@@ -28,7 +28,7 @@ export type FeedbackHubTab = "new" | "reports" | "shipped"
  */
 export function useShellModel() {
   const { token, ready, signOut } = useAuth()
-  const { balance: xpBalance, addBalance, setBalance: setXPBalance } = useXPStore()
+  const { balance: xpBalance, setBalance: setXPBalance, applyXpChange } = useXPStore()
 
   const [xpModalOpen, setXPModalOpen] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -85,9 +85,9 @@ export function useShellModel() {
     linkedin_url: profileData?.linkedin_url ?? null,
   }
 
-  function handleAmbientXPEarned(amount: number, newBalance: number) {
-    addBalance(amount)
-    setXPBalance(newBalance)
+  function handleAmbientXPEarned(_amount: number, newBalance: number) {
+    // Ambient forge claim — silent (the claim widget owns its own celebration).
+    applyXpChange({ newBalance, action: "forge_claim", silent: true })
   }
 
   return {
