@@ -102,3 +102,47 @@ def test_run_job_sync_does_not_raise_on_terminal_handler():
         assert ran == [True]
     finally:
         _clear_handler("t_terminal")
+
+
+def _clear_failure(job_type: str):
+    dispatch._FAILURE_HANDLERS.pop(job_type, None)
+
+
+class _FakeJob:
+    def __init__(self, args):
+        self.args = args
+        self.id = "job:x"
+
+
+def test_run_failure_sync_invokes_registered_failure_handler():
+    """ADR-0008 instant-refund: on RQ retry exhaustion the failure handler fires
+    with the job payload."""
+    refunded: list[dict] = []
+
+    @background.failure_handler("t_fail")
+    async def _f(payload):
+        refunded.append(payload)
+
+    try:
+        job = _FakeJob(["t_fail", {"job_id": "j1", "user_id": "u1"}])
+        dispatch.run_failure_sync(job, None, None, None, None)
+        assert refunded == [{"job_id": "j1", "user_id": "u1"}]
+    finally:
+        _clear_failure("t_fail")
+
+
+def test_run_failure_sync_no_handler_is_noop():
+    job = _FakeJob(["t_unregistered", {"x": 1}])
+    dispatch.run_failure_sync(job, None, None, None, None)  # must not raise
+
+
+def test_run_failure_sync_swallows_handler_crash():
+    @background.failure_handler("t_boom")
+    async def _f(_payload):
+        raise RuntimeError("boom")
+
+    try:
+        job = _FakeJob(["t_boom", {}])
+        dispatch.run_failure_sync(job, None, None, None, None)  # swallowed, no raise
+    finally:
+        _clear_failure("t_boom")

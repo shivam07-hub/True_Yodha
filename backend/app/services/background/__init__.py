@@ -19,7 +19,9 @@ from app.services.background.dispatch import (
     LANE_FAST,
     TransientJobError,
     enqueue,
+    failure_handler,
     handler,
+    run_failure_sync,
     run_job_sync,
 )
 
@@ -28,6 +30,8 @@ __all__ = [
     "LANE_BULK",
     "TransientJobError",
     "enqueue",
+    "failure_handler",
     "handler",
+    "run_failure_sync",
     "run_job_sync",
 ]

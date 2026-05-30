@@ -41,11 +41,26 @@ class TransientJobError(Exception):
 Handler = Callable[[dict[str, Any], bool], Awaitable[None]]
 _HANDLERS: dict[str, Handler] = {}
 
+# job_type → async terminal-failure handler taking (payload). Runs once, on the
+# RQ path only, after retries are exhausted — the instant-refund seam so a
+# stranded job doesn't wait for the orphan-sweep watchman (ADR-0008 Upload
+# Guarantee). Optional per job_type; must be idempotent (sweep may also run).
+FailureHandler = Callable[[dict[str, Any]], Awaitable[None]]
+_FAILURE_HANDLERS: dict[str, FailureHandler] = {}
+
 
 def handler(job_type: str) -> Callable[[Handler], Handler]:
     """Register an async handler for a job_type."""
     def _register(fn: Handler) -> Handler:
         _HANDLERS[job_type] = fn
+        return fn
+    return _register
+
+
+def failure_handler(job_type: str) -> Callable[[FailureHandler], FailureHandler]:
+    """Register a terminal-failure handler (instant refund on RQ-retry exhaustion)."""
+    def _register(fn: FailureHandler) -> FailureHandler:
+        _FAILURE_HANDLERS[job_type] = fn
         return fn
     return _register
 
@@ -91,6 +106,7 @@ def _enqueue_rq(
         result_ttl=3600,
         failure_ttl=24 * 3600,
         retry=Retry(max=_RETRY_MAX, interval=_RETRY_INTERVALS),
+        on_failure=run_failure_sync,  # instant refund once retries exhaust
     )
     if correlation_id:
         kwargs["job_id"] = f"{job_type}:{correlation_id}"
@@ -117,7 +133,29 @@ def run_job_sync(job_type: str, payload: dict[str, Any]) -> None:
     """RQ worker entrypoint. Bridges RQ's sync call into the async handler.
 
     Raising propagates to RQ → triggers its retry/backoff ladder. After retries
-    exhaust, RQ moves the job to the failed registry; the orphan-sweep watchman
-    is the independent backstop that refunds anything left stranded.
+    exhaust, RQ moves the job to the failed registry and fires `run_failure_sync`
+    (instant refund); the orphan-sweep watchman remains the independent backstop.
     """
     asyncio.run(_invoke(job_type, payload, allow_retry=True))
+
+
+def run_failure_sync(job: Any, connection: Any, exc_type: Any, exc_value: Any, tb: Any) -> None:
+    """RQ on_failure callback — fires once, after retries are exhausted.
+
+    Extracts (job_type, payload) from the RQ job args and runs the registered
+    terminal-failure handler so the charge is refunded immediately instead of
+    waiting for the orphan-sweep. Idempotent: refund RPC short-circuits a
+    second refund, so an overlapping sweep is harmless. Never raises — a failing
+    failure-handler must not crash the worker; the sweep still backstops.
+    """
+    try:
+        args = list(getattr(job, "args", []) or [])
+        if len(args) < 2:
+            return
+        job_type, payload = args[0], args[1]
+        fn = _FAILURE_HANDLERS.get(job_type)
+        if fn is None:
+            return
+        asyncio.run(fn(payload))
+    except Exception:  # pragma: no cover — backstop must never crash the worker
+        _log.exception("on_failure handler crashed for job=%s", getattr(job, "id", "?"))

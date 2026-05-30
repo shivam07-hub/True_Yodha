@@ -349,6 +349,18 @@ async def _cv_parse_score_handler(payload: dict[str, Any], allow_retry: bool) ->
     )
 
 
+@background.failure_handler("cv_parse_score")
+async def _cv_parse_score_failure(payload: dict[str, Any]) -> None:
+    """RQ retries exhausted for a CV parse — refund + mark failed NOW (ADR-0008
+    Upload Guarantee) instead of waiting for the orphan-sweep. Idempotent."""
+    await _fail_and_refund(
+        payload["job_id"],
+        payload["user_id"],
+        error_code="provider_unavailable",
+        detail="Our CV analysis service was busy and couldn’t finish. Your XP has been refunded — please try again.",
+    )
+
+
 @background.handler("initial_match")
 async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> None:
     await _trigger_initial_match_compute(payload["user_id"])
