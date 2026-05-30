@@ -408,6 +408,9 @@ async def _run_cv_upload_job(
         _log.info("CV job %s already terminal (%s) — skipping re-run", job_id, existing.get("status"))
         return
 
+    # #6 deploy-style phases — write before each real stage so the loading UI
+    # reflects truth (Reading → Scoring → Ready), not a fabricated clock.
+    upload_jobs_repo.set_phase(job_id, "reading")
     try:
         parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
     except Exception:  # network / provider library blew up — transient
@@ -439,6 +442,7 @@ async def _run_cv_upload_job(
         )
         return
 
+    upload_jobs_repo.set_phase(job_id, "scoring")
     try:
         score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
     except ValueError:  # permanent — taxonomy mapping won't change on retry
@@ -507,6 +511,7 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
     balance = await get_xp_balance(user_id)
     return {
         "status": row["status"],
+        "current_phase": row.get("current_phase"),
         "skills_detected": row.get("skills_detected"),
         "score": float(row["score"]) if row.get("score") is not None else None,
         "error_code": row.get("error_code"),

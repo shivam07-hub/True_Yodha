@@ -2,14 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRecomputeStore } from "@/store/recomputeStore"
-
-const SCORE_TIERS = [
-  { min: 80, label: "Advanced",            next: null, nextLabel: null },
-  { min: 60, label: "Competent",           next: 80,   nextLabel: "Advanced" },
-  { min: 40, label: "Developing",          next: 60,   nextLabel: "Competent" },
-  { min: 20, label: "Emerging",            next: 40,   nextLabel: "Developing" },
-  { min: 0,  label: "Building foundation", next: 20,   nextLabel: "Emerging" },
-]
+import { tierForScore } from "@/lib/score-tiers"
 
 export function ScoreRing({ score }: { score: number }) {
   const R = 26
@@ -21,7 +14,7 @@ export function ScoreRing({ score }: { score: number }) {
     return () => cancelAnimationFrame(id)
   }, [score, CIRC])
 
-  const tier = SCORE_TIERS.find(t => score >= t.min) ?? SCORE_TIERS[SCORE_TIERS.length - 1]
+  const tier = tierForScore(score)
   const recomputing = useRecomputeStore(s => s.pendingBaselineId !== null)
 
   return (

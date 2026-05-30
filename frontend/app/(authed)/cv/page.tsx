@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CVUploadProcessing } from "@/components/cv/upload-processing"
+import { CvScoreProgress } from "@/components/cv/cv-score-progress"
+import type { CVUploadPhase } from "@/lib/cv-upload-state"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
@@ -45,6 +46,10 @@ function CVPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
+  // #6 deploy-style loading: live phase + start-time + the done-morph's Improve target.
+  const [uploadPhase, setUploadPhase] = useState<CVUploadPhase | null>(null)
+  const [uploadStartedAt, setUploadStartedAt] = useState<string | null>(null)
+  const [biggestDrag, setBiggestDrag] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadFailureCount, setUploadFailureCount] = useState(0)
   const [lastFailureCode, setLastFailureCode] = useState<string>("unknown")
@@ -103,9 +108,25 @@ function CVPage() {
   function openFilePicker() {
     setShowUpload(true)
     setUploadError(null)
+    setUploadResult(null); setUploadPhase(null); setUploadStartedAt(null)
     setFallbackError(null)
     // Defer click so dialog mount doesn't intercept the activation gesture
     requestAnimationFrame(() => fileInputRef.current?.click())
+  }
+
+  // #6 — the status payload carries no domain breakdown, so read the freshly
+  // invalidated scores cache to pick the biggest-drag domain for the one
+  // Improve action on the done-morph (Q4 / OPEN GAP resolution).
+  function lowestDomainFromCache(): string | null {
+    const data = queryClient.getQueryData<{ domain_scores?: Record<string, number> }>(dataKeys.scores())
+    const ds = data?.domain_scores
+    if (!ds) return null
+    let lo: string | null = null
+    let loVal = Infinity
+    for (const [k, v] of Object.entries(ds)) {
+      if (typeof v === "number" && v < loVal) { loVal = v; lo = k }
+    }
+    return lo
   }
 
   async function handleUpload(file: File) {
@@ -124,10 +145,14 @@ function CVPage() {
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
     // Start the 10-min CV-promise clock the instant the upload begins (Q4).
     startCvPromiseOptimistic()
     try {
-      const result = await uploadCV(token, file)
+      const result = await uploadCV(token, file, "pdf_upload", (s) => {
+        setUploadPhase(s.current_phase ?? null)
+        if (s.started_at) setUploadStartedAt(s.started_at)
+      })
       if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
@@ -136,12 +161,15 @@ function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+      setUploadPhase("ready")
+      setBiggestDrag(lowestDomainFromCache())
       setUploadResult({ skills_detected: result.skills_detected, score: result.score })
       setUploadFailureCount(0)
       setLastFailureCode("unknown")
       setFallbackError(null)
       setFallbackReceipt(null)
-      setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
+      // #6: no auto-close — the done-morph holds the score + Improve action
+      // until the user acts or dismisses (inline-done, Q4).
     } catch (err) {
       if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
@@ -231,7 +259,13 @@ function CVPage() {
     if (!persistedJobId) return
     uploadInFlightRef.current = true
     setShowUpload(true); setUploading(true); setUploadError(null)
-    pollCVUploadStatus(token, persistedJobId)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
+    pollCVUploadStatus(token, persistedJobId, {
+      onProgress: (s) => {
+        setUploadPhase(s.current_phase ?? null)
+        if (s.started_at) setUploadStartedAt(s.started_at)
+      },
+    })
       .then((result) => {
         if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
@@ -239,10 +273,12 @@ function CVPage() {
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
         queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
         queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+        setUploadPhase("ready")
+        setBiggestDrag(lowestDomainFromCache())
         setUploadResult({ skills_detected: result.skills_detected, score: result.score })
         setUploadFailureCount(0)
         clearPersistedCVUploadState()
-        setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
+        // #6: no auto-close — done-morph holds the score + Improve action.
       })
       .catch((err) => {
         if (err instanceof CVUploadFailure) {
@@ -379,7 +415,11 @@ function CVPage() {
       {/* Upload modal */}
       <Dialog
         open={showUpload}
-        onOpenChange={(o) => { if (uploading) return; setShowUpload(o) }}
+        onOpenChange={(o) => {
+          if (uploading) return
+          setShowUpload(o)
+          if (!o) { setUploadResult(null); setUploadPhase(null); setUploadStartedAt(null) }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -391,7 +431,16 @@ function CVPage() {
             </DialogDescription>
           </DialogHeader>
           {uploading || uploadResult ? (
-            <CVUploadProcessing success={!!uploadResult} result={uploadResult ?? undefined} />
+            <CvScoreProgress
+              status={uploadResult ? "done" : "processing"}
+              phase={uploadPhase}
+              startedAt={uploadStartedAt}
+              done={uploadResult ? {
+                score: Math.round(uploadResult.score),
+                skillsDetected: uploadResult.skills_detected,
+                biggestDragDomain: biggestDrag,
+              } : null}
+            />
           ) : (
             <>
               <button
