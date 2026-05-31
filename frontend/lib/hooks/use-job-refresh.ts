@@ -21,6 +21,11 @@ export type RefreshState =
 
 export type { RefreshOutcomeKind }
 
+export interface RevealedJob {
+  title: string | null
+  company: string | null
+}
+
 export interface UseJobRefreshResult {
   state: RefreshState
   progressLabel: string | null
@@ -29,6 +34,10 @@ export interface UseJobRefreshResult {
   matchesWritten: number | null
   outcomeKind: RefreshOutcomeKind | null
   errorMessage: string | null
+  /** Per-job reveal (ADR-0009): jobs ranked so far / total shortlisted. */
+  progressDone: number | null
+  progressTotal: number | null
+  revealed: RevealedJob[]
   refresh: () => void
   reset: () => void
 }
@@ -59,6 +68,9 @@ export function useJobRefresh(
   const [matchesWritten, setMatchesWritten] = useState<number | null>(null)
   const [outcomeKind, setOutcomeKind] = useState<RefreshOutcomeKind | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [progressDone, setProgressDone] = useState<number | null>(null)
+  const [progressTotal, setProgressTotal] = useState<number | null>(null)
+  const [revealed, setRevealed] = useState<RevealedJob[]>([])
 
   const abortRef = useRef<AbortController | null>(null)
 
@@ -107,6 +119,10 @@ export function useJobRefresh(
       const onEvent = (ev: SseEvent) => {
         if (ev.type === "phase") {
           setProgressLabel((ev.label as string) ?? null)
+        } else if (ev.type === "progress") {
+          setProgressDone((ev.done as number) ?? null)
+          setProgressTotal((ev.total as number) ?? null)
+          setRevealed(((ev.revealed as RevealedJob[]) ?? []).filter((r) => r && (r.title || r.company)))
         } else if (ev.type === "done") {
           finishDone((ev.result as DoneResult) ?? {})
         } else if (ev.type === "error") {
@@ -139,6 +155,9 @@ export function useJobRefresh(
     setErrorMessage(null)
     setMatchesWritten(null)
     setOutcomeKind(null)
+    setProgressDone(null)
+    setProgressTotal(null)
+    setRevealed([])
     setProgressLabel("Charging XP")
     try {
       const ticket = await jobs.refresh(token)
@@ -167,6 +186,9 @@ export function useJobRefresh(
     setMatchesWritten(null)
     setOutcomeKind(null)
     setErrorMessage(null)
+    setProgressDone(null)
+    setProgressTotal(null)
+    setRevealed([])
   }, [stopStream])
 
   useEffect(() => () => stopStream(), [stopStream])
@@ -179,6 +201,9 @@ export function useJobRefresh(
     matchesWritten,
     outcomeKind,
     errorMessage,
+    progressDone,
+    progressTotal,
+    revealed,
     refresh,
     reset,
   }

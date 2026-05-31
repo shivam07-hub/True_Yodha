@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
 from app.repositories.jobs import JobsRepository, get_admin_jobs_repository
 from app.services import jobs_workflow
@@ -19,8 +21,13 @@ async def run(
     excluded_job_ids: list[str],
     *,
     repo: JobsRepository | None = None,
+    on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> MatchComputeOutcome:
-    """Execute the compute pipeline. Paid refresh path → fast-lane LLM provider."""
+    """Execute the compute pipeline. Paid refresh path → fast-lane LLM provider.
+
+    `on_progress(done, total, job)` is forwarded to the ranker so the dispatch
+    layer can publish per-job reveal progress into the refresh state.
+    """
     jobs_repo = repo or get_admin_jobs_repository()
     llm_provider = get_paid_jobs_provider()
     return await jobs_workflow.compute_job_matches(
@@ -30,4 +37,5 @@ async def run(
         llm_provider=llm_provider,
         excluded_job_ids=excluded_job_ids,
         force=True,  # paid Refresh: user spent XP → always re-run the brain
+        on_progress=on_progress,
     )

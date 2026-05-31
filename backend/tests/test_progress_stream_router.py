@@ -50,6 +50,9 @@ def _state(life: str, **kw: Any) -> RefreshState:
         outcome_kind=kw.get("outcome_kind"),
         error=kw.get("error"),
         debug={},
+        progress_done=kw.get("progress_done"),
+        progress_total=kw.get("progress_total"),
+        revealed=kw.get("revealed") or [],
     )
 
 
@@ -74,6 +77,33 @@ def test_refresh_stream_phase_then_done(monkeypatch):
     assert len(phases) == 2  # computing → Ranking (label change)
     assert done and done[0]["result"]["matches_written"] == 7
     assert done[0]["result"]["new_xp_balance"] == 90
+
+
+def test_refresh_stream_emits_per_job_progress(monkeypatch):
+    seq = [
+        _state("computing", progress_done=1, progress_total=3,
+               revealed=[{"title": "Eng", "company": "Acme"}]),
+        _state("computing", progress_done=2, progress_total=3,
+               revealed=[{"title": "Eng", "company": "Acme"}, {"title": "SRE", "company": "Beta"}]),
+        _state("done", matches_written=3, new_xp_balance=90),
+    ]
+
+    async def fake_status(user_id, ticket_id):
+        return seq.pop(0)
+
+    monkeypatch.setattr(match_router.JobRefresh, "status", staticmethod(fake_status))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+
+    with TestClient(app) as client:
+        r = client.get("/jobs/refresh/t1/stream")
+    app.dependency_overrides.clear()
+
+    frames = _frames(r.text)
+    progress = [f for f in frames if f["type"] == "progress"]
+    assert [p["done"] for p in progress] == [1, 2]
+    assert progress[0]["total"] == 3
+    assert progress[1]["revealed"][-1]["title"] == "SRE"
+    assert any(f["type"] == "done" for f in frames)
 
 
 def test_refresh_stream_failed_emits_error(monkeypatch):

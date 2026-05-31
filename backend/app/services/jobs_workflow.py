@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
@@ -155,6 +156,7 @@ async def compute_job_matches(
     llm_provider: LLMProvider,
     excluded_job_ids: list[str] | None = None,
     force: bool = False,
+    on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> MatchComputeOutcome:
     """Compute and persist the user's weekly Job Matches.
 
@@ -206,7 +208,6 @@ async def compute_job_matches(
     # hard wall: prefer jobs the user hasn't matched yet, but if excluding the
     # prior matches empties the pool, re-rank the FULL pool rather than refund.
     # The only genuine `exhausted` is zero skill-overlapping jobs at all.
-    full_pool = candidate_job_ids
     exclusion_relaxed = False
     if excluded_job_ids:
         excluded_set = set(excluded_job_ids)
@@ -263,7 +264,7 @@ async def compute_job_matches(
         )
 
     written = await llm_ranker.rank_and_persist(
-        db, user_id, batch_week, profile, top_jobs, llm_provider
+        db, user_id, batch_week, profile, top_jobs, llm_provider, on_progress
     )
     return MatchComputeOutcome(
         kind="written",

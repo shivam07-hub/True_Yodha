@@ -119,6 +119,7 @@ async def stream_job_refresh(
     async def gen() -> AsyncIterator[str]:
         started = time.monotonic()
         last_label: str | None = None
+        last_done = -1
         while True:
             try:
                 state = await JobRefresh.status(user_id, ticket_id)
@@ -130,7 +131,18 @@ async def stream_job_refresh(
 
             life = state.state
             if life in ("queued", "computing"):
-                if state.progress_label != last_label:
+                if state.progress_done is not None and state.progress_done != last_done:
+                    # Per-job reveal — one role ranked. Stream the running count
+                    # + cumulative revealed list (ADR-0009).
+                    last_done = state.progress_done
+                    yield progress_stream.sse({
+                        "type": "progress",
+                        "done": state.progress_done,
+                        "total": state.progress_total,
+                        "label": state.progress_label,
+                        "revealed": state.revealed,
+                    })
+                elif state.progress_label != last_label:
                     last_label = state.progress_label
                     yield progress_stream.sse(
                         {"type": "phase", "phase": life, "label": state.progress_label}

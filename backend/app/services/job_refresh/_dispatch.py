@@ -92,6 +92,9 @@ def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
         outcome_kind=raw.get("outcome_kind"),
         error=raw.get("error"),
         debug=raw.get("debug") or {},
+        progress_done=raw.get("progress_done"),
+        progress_total=raw.get("progress_total"),
+        revealed=raw.get("revealed") or [],
     )
 
 
@@ -106,6 +109,9 @@ def _state(
     outcome_kind: RefreshOutcomeKind | None = None,
     error: str | None = None,
     debug: dict[str, Any] | None = None,
+    progress_done: int | None = None,
+    progress_total: int | None = None,
+    revealed: list[dict[str, Any]] | None = None,
 ) -> RefreshState:
     return RefreshState(
         ticket_id=ticket_id,
@@ -118,7 +124,29 @@ def _state(
         outcome_kind=outcome_kind,
         error=error,
         debug=debug or {},
+        progress_done=progress_done,
+        progress_total=progress_total,
+        revealed=revealed or [],
     )
+
+
+def _make_progress_cb(user_id: str, ticket_id: str, batch_week: date):
+    """Per-job reveal callback for the ranker. Each call writes a fresh
+    `computing` snapshot carrying the cumulative revealed list — the SSE relay
+    tails this and streams `progress` events (ADR-0009 per-job reveal)."""
+    revealed: list[dict[str, Any]] = []
+
+    def _cb(done: int, total: int, job: dict[str, Any]) -> None:
+        revealed.append({"title": job.get("title"), "company": job.get("company")})
+        _write_state(
+            user_id,
+            _state(
+                ticket_id, "computing", batch_week,
+                progress_done=done, progress_total=total, revealed=list(revealed),
+            ),
+        )
+
+    return _cb
 
 
 # ── Inline pipeline ────────────────────────────────────────────────────
@@ -133,7 +161,10 @@ async def _run_inline(
     """Run pipeline synchronously, update state, settle XP."""
     _write_state(user_id, _state(ticket_id, "computing", batch_week))
     try:
-        outcome = await _pipeline.run(user_id, batch_week, excluded_job_ids)
+        outcome = await _pipeline.run(
+            user_id, batch_week, excluded_job_ids,
+            on_progress=_make_progress_cb(user_id, ticket_id, batch_week),
+        )
     except Exception as exc:
         _log.exception("Inline job refresh failed user=%s ticket=%s", user_id, ticket_id)
         new_balance = await _xp_charge.refund(user_id, xp_charged)
@@ -250,7 +281,10 @@ def run_pipeline_worker(
     _write_state(user_id, _state(ticket_id, "computing", batch_week))
     try:
         outcome = asyncio.run(
-            _pipeline.run(user_id, batch_week, excluded_job_ids)
+            _pipeline.run(
+                user_id, batch_week, excluded_job_ids,
+                on_progress=_make_progress_cb(user_id, ticket_id, batch_week),
+            )
         )
     except Exception as exc:
         _log.exception("Async job refresh failed user=%s ticket=%s", user_id, ticket_id)

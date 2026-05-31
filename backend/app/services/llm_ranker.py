@@ -25,6 +25,7 @@ import json
 import logging
 import re
 from datetime import date, datetime, timezone
+from collections.abc import Callable
 from typing import Any
 
 from supabase import Client
@@ -215,18 +216,37 @@ async def evaluate_job(
     return parsed
 
 
+RankProgressCb = Callable[[int, int, dict[str, Any]], None]
+
+
 async def evaluate_all(
     profile: dict[str, Any],
     top_jobs: list[dict[str, Any]],
     provider: LLMProvider,
+    on_progress: RankProgressCb | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Evaluate every shortlisted job. Returns {job_id: eval}. Failed jobs omitted."""
+    """Evaluate every shortlisted job. Returns {job_id: eval}. Failed jobs omitted.
+
+    `on_progress(done, total, job)` fires once per job as its eval lands (in
+    completion order) — powers the ADR-0009 per-job refresh reveal. Best-effort:
+    a raising callback never breaks ranking.
+    """
     system_prompt = build_system_prompt(profile, profile.get("cv_markdown") or "")
     sem = asyncio.Semaphore(_CONCURRENCY)
+    total = len(top_jobs)
+    done = 0
 
     async def _one(job: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+        nonlocal done
         async with sem:
-            return str(job["job_id"]), await evaluate_job(job, system_prompt, provider)
+            ev = await evaluate_job(job, system_prompt, provider)
+        done += 1  # single-threaded event loop → increment is atomic
+        if on_progress is not None:
+            try:
+                on_progress(done, total, job)
+            except Exception:
+                logger.warning("rank on_progress callback failed", exc_info=True)
+        return str(job["job_id"]), ev
 
     results = await asyncio.gather(*(_one(j) for j in top_jobs))
     return {jid: ev for jid, ev in results if ev is not None}
@@ -312,12 +332,13 @@ async def rank_and_persist(
     profile: dict[str, Any],
     top_jobs: list[dict],
     provider: LLMProvider,
+    on_progress: RankProgressCb | None = None,
 ) -> int:
     """Full Stage-2 pipeline: per-job 5-axis eval → persist. Returns rows written."""
     if not top_jobs:
         return 0
 
-    evaluations = await evaluate_all(profile, top_jobs, provider)
+    evaluations = await evaluate_all(profile, top_jobs, provider, on_progress)
     if not evaluations:
         logger.warning(
             "Matching Brain: all evals failed for user %s — storing overlap scores only",

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { deriveRefreshNotice, type RefreshNoticeKind } from "@/lib/job-refresh-notice"
 import { type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 import { openRefreshGate } from "@/store/refreshGateStore"
+import type { RevealedJob } from "@/lib/hooks/use-job-refresh"
 
 /* ─── Icons ──────────────────────────────────────────────────────── */
 
@@ -61,6 +62,11 @@ export function RefreshMatchesButton({
   variant = "header",
 }: RefreshMatchesButtonProps) {
   const isWorking = vm.state === "charging" || vm.state === "computing"
+  const workLabel =
+    vm.progressTotal != null
+      ? `Ranked ${vm.progressDone ?? 0}/${vm.progressTotal}`
+      : (vm.progressLabel ?? "Refreshing…")
+  const latest = vm.revealed.length > 0 ? vm.revealed[vm.revealed.length - 1] : null
   const notice = deriveRefreshNotice({
     state: vm.state,
     progressLabel: vm.progressLabel,
@@ -115,8 +121,10 @@ export function RefreshMatchesButton({
           }}
         >
           {isWorking ? <IconScan /> : <IconRefresh />}
-          {isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}
+          {isWorking ? workLabel : "Refresh matches"}
         </button>
+
+        {isWorking && latest?.title && <RevealLine job={latest} />}
 
         {notice && styles && (
           <div
@@ -157,9 +165,11 @@ export function RefreshMatchesButton({
           loading={isWorking}
         >
           {isWorking ? <IconScan /> : <IconRefresh />}
-          <span>{isWorking ? (vm.progressLabel ?? "Refreshing…") : "Refresh matches"}</span>
+          <span>{isWorking ? workLabel : "Refresh matches"}</span>
         </Button>
       </div>
+
+      {isWorking && latest?.title && <RevealLine job={latest} />}
 
       {notice && styles ? (
         <div
@@ -187,6 +197,29 @@ export function RefreshMatchesButton({
           {notice.msg}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+/* ─── Per-job reveal (ADR-0009) ───────────────────────────────────── */
+
+/** One-line live reveal of the role the ranker just finished — re-fades each
+ *  time a new job lands, so the user sees roles stream in one-by-one. */
+function RevealLine({ job }: { job: RevealedJob }) {
+  const label = [job.title, job.company].filter(Boolean).join(" · ")
+  return (
+    <div
+      key={label}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        maxWidth: 320, fontSize: 11, fontFamily: "var(--tm-font-mono)",
+        color: "var(--tm-text-muted)", letterSpacing: "0.02em",
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        animation: "tm-notice-in 200ms ease both",
+      }}
+    >
+      <span aria-hidden style={{ color: "var(--tm-interactive)" }}>→</span>
+      {label}
     </div>
   )
 }
