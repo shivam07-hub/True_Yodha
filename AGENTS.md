@@ -177,6 +177,29 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
+## INTEGRATOR ITEMS
+
+### 2026-05-31 - Post-Application Intelligence + Myrology
+
+- **7-day tracker prompt becomes a branch, not a disappointment loop.** Ask "What happened with this application?" and route into Practice:
+  - **No Response Recovery:** mark ghosted/no response, preserve dignity, suggest follow-up/referral path, adjacent targets, and skill practice.
+  - **Moved Forward:** update stage, generate company-specific interview prep, case-study practice, and next milestone tracking.
+- **Practice becomes the central action router** for post-application work: Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
+- **Referral Intelligence = premium tactical loop.** Available from saved/applied jobs, strongest after no response. Initial automated unlock = **500 XP**. Output: ranked referral targets, warm-intro plan, and next actions for the target company/job.
+- **Referral data-source tiers are locked:**
+  - Tier A: API-backed LinkedIn analysis when approved scopes/data access permit.
+  - Tier B: user-assisted fallback via pasted LinkedIn URLs, known contacts, or exported contacts.
+  - Tier C: Myro repository of opted-in referrers plus founder/HITL company notes.
+  - Hard rules: no scraping, no auto-DMs, and no pretending to access LinkedIn graph data that the API does not provide.
+- **Company reports split evidence from advice.** Verified Intel = source-backed facts, founder/HITL notes, hiring-process observations, user-submitted outcomes, referrer availability. Strategy Plan = referral target, case-study angle, skills to practice, follow-up message, interview prep.
+- **Pricing boundary:** XP buys automated intelligence and prioritization. Cash buys human attention, deeper premium reports, astrologer/founder consultation, and eventually access to the company/referrer network.
+- **Myrology stays separate from core Myro.** It is an opt-in premium subbrand, not part of Myro Score or job ranking. The live `/myrology` surface should remain a simple interest/payment/booking funnel, not a live report engine.
+- **Myrology report coverage:** career domains, role archetypes, work environments, abroad/relocation indications, timing/dasha windows, strengths, risks, remedies, and reflection prompts. Requires explicit consent for date, time, and place of birth.
+- **Two-lens guardrail:** Myrology may suggest career directions, but never overrides evidence-backed CV/skills/market recommendations. If Myro data and Myrology agree, use that as a narrative moment. If they conflict, show them as separate lenses. No guaranteed job/interview/abroad claims.
+- **Implementation follow-up:** live code currently treats Myrology as an INR 499 entitlement. Shivam discussed an INR 200-300 intro fee to close the payment loop before increasing price. Resolve pricing before changing checkout/copy.
+
+---
+
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
 
 **Phases 1–3 ✅ DONE 2026-05-16** — SkillCard + Log-to-Forge + CV/Intel links · stat-line reframe · `?skill=` deeplink · color-coded domain strip · ScoreRing hero + WeaknessSpotlight · DomainRadar SVG-only · inspector absorbed into radar card · `components/skills/` extraction (page <300 lines). Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`. Full detail in `docs/session-history/2026-05.md`.
@@ -254,7 +277,20 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-31 - NCR newsletter series + index redesign)
+## LAST SESSION SUMMARY (2026-05-31 - Integrator item: post-application intelligence + Myrology)
+
+Used `grill-me` to lock the product philosophy for post-application journeys, Referral Intelligence, company reports, and Myrology before writing memory into the cockpit docs.
+
+- Added **Post-Application Intelligence + Myrology** under `INTEGRATOR ITEMS` in `AGENTS.md`.
+- Locked the tracker branch: 7-day no-response prompts route to **No Response Recovery**, while positive responses route to **Interview/Next Round** work.
+- Locked Practice as the action router for Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
+- Locked Referral Intelligence as a 500 XP automated run with LinkedIn/API, user-assisted, and Myro-referrer repository tiers.
+- Locked the Myrology boundary: separate opt-in premium subbrand, consultation/booking funnel only, not part of Myro Score or job ranking, with non-guarantee language.
+- Captured the pricing follow-up: live Myrology code currently uses INR 499, while Shivam discussed INR 200-300 as the intro payment-loop test.
+
+No app code changed in this session.
+
+## OLDER SESSION SUMMARY (2026-05-31 - NCR newsletter series + index redesign)
 
 Published the NCR target-company newsletter set and rebuilt the `/newsletter` index into a denser briefing-style page for desktop.
 
