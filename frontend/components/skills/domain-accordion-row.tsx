@@ -35,7 +35,7 @@ export function DomainAccordionRow({ domain, items, avg, isExpanded, isBiggestGa
   const status = domainTierLabel(avg)
 
   return (
-    <div style={{
+    <div data-domain={domain} style={{
       background: isExpanded ? "rgba(20,186,174,0.04)" : "rgba(255,255,255,0.02)",
       border: `1px solid ${isExpanded ? "rgba(20,186,174,0.25)" : "var(--tm-border-soft)"}`,
       borderRadius: "var(--tm-radius-sm)",

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
+import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVUploadPhase } from "@/lib/cv-upload-state"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
@@ -439,6 +440,16 @@ function CVPage() {
                 score: Math.round(uploadResult.score),
                 skillsDetected: uploadResult.skills_detected,
                 biggestDragDomain: biggestDrag,
+                downloadSlot: token ? (
+                  <DownloadCVButton
+                    token={token}
+                    baseline={playground.currentBaseline}
+                    cv={cvData}
+                    fullName={profileQuery.data?.full_name}
+                    className="csp-done-download"
+                    label="Download your CV"
+                  />
+                ) : null,
               } : null}
             />
           ) : (
@@ -473,14 +484,14 @@ function CVPage() {
                   {uploadError.startsWith("Out of XP") && (
                     <button
                       type="button"
-                      onClick={() => router.push("/diary")}
+                      onClick={() => router.push("/forge")}
                       style={{
                         marginTop: 8, padding: 0, background: "none", border: "none",
                         color: "var(--tm-interactive)", fontSize: 12, cursor: "pointer",
                         textDecoration: "underline",
                       }}
                     >
-                      Earn 30 XP in 5min via a diary entry →
+                      Earn 50 XP from a practice session →
                     </button>
                   )}
                 </div>

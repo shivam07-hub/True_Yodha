@@ -22,6 +22,9 @@ interface DoneData {
   /** Lowest-scoring domain for the single Improve action (#6 Q4). Optional —
    *  the status payload has no breakdown, so the caller reads the scores cache. */
   biggestDragDomain?: string | null
+  /** Download-master CTA (Q7 — download is the primary action at the score
+   *  reveal). Owned by the caller, which holds token + baseline + cv. */
+  downloadSlot?: React.ReactNode
 }
 
 interface FailData {
@@ -106,12 +109,24 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
             Next milestone: <strong>{tier.next}</strong> · {tier.nextLabel}
           </div>
         ) : null}
-        <Link
-          href={done.biggestDragDomain ? `/skills?domain=${encodeURIComponent(done.biggestDragDomain)}` : "/skills"}
-          className="csp-done-cta tm-control-focus"
-        >
-          {done.biggestDragDomain ? `Improve ${done.biggestDragDomain} →` : "See your full breakdown →"}
-        </Link>
+        {done.downloadSlot ? (
+          <div className="csp-done-actions">
+            {done.downloadSlot}
+            <Link
+              href={done.biggestDragDomain ? `/skills?domain=${encodeURIComponent(done.biggestDragDomain)}` : "/skills"}
+              className="csp-done-cta-secondary tm-control-focus"
+            >
+              {done.biggestDragDomain ? `Improve ${done.biggestDragDomain} →` : "See your full breakdown →"}
+            </Link>
+          </div>
+        ) : (
+          <Link
+            href={done.biggestDragDomain ? `/skills?domain=${encodeURIComponent(done.biggestDragDomain)}` : "/skills"}
+            className="csp-done-cta tm-control-focus"
+          >
+            {done.biggestDragDomain ? `Improve ${done.biggestDragDomain} →` : "See your full breakdown →"}
+          </Link>
+        )}
       </div>
     )
   }

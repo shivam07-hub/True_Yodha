@@ -177,6 +177,29 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ---
 
+## INTEGRATOR ITEMS
+
+### 2026-05-31 - Post-Application Intelligence + Myrology
+
+- **7-day tracker prompt becomes a branch, not a disappointment loop.** Ask "What happened with this application?" and route into Practice:
+  - **No Response Recovery:** mark ghosted/no response, preserve dignity, suggest follow-up/referral path, adjacent targets, and skill practice.
+  - **Moved Forward:** update stage, generate company-specific interview prep, case-study practice, and next milestone tracking.
+- **Practice becomes the central action router** for post-application work: Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
+- **Referral Intelligence = premium tactical loop.** Available from saved/applied jobs, strongest after no response. Initial automated unlock = **500 XP**. Output: ranked referral targets, warm-intro plan, and next actions for the target company/job.
+- **Referral data-source tiers are locked:**
+  - Tier A: API-backed LinkedIn analysis when approved scopes/data access permit.
+  - Tier B: user-assisted fallback via pasted LinkedIn URLs, known contacts, or exported contacts.
+  - Tier C: Myro repository of opted-in referrers plus founder/HITL company notes.
+  - Hard rules: no scraping, no auto-DMs, and no pretending to access LinkedIn graph data that the API does not provide.
+- **Company reports split evidence from advice.** Verified Intel = source-backed facts, founder/HITL notes, hiring-process observations, user-submitted outcomes, referrer availability. Strategy Plan = referral target, case-study angle, skills to practice, follow-up message, interview prep.
+- **Pricing boundary:** XP buys automated intelligence and prioritization. Cash buys human attention, deeper premium reports, astrologer/founder consultation, and eventually access to the company/referrer network.
+- **Myrology stays separate from core Myro.** It is an opt-in premium subbrand, not part of Myro Score or job ranking. The live `/myrology` surface should remain a simple interest/payment/booking funnel, not a live report engine.
+- **Myrology report coverage:** career domains, role archetypes, work environments, abroad/relocation indications, timing/dasha windows, strengths, risks, remedies, and reflection prompts. Requires explicit consent for date, time, and place of birth.
+- **Two-lens guardrail:** Myrology may suggest career directions, but never overrides evidence-backed CV/skills/market recommendations. If Myro data and Myrology agree, use that as a narrative moment. If they conflict, show them as separate lenses. No guaranteed job/interview/abroad claims.
+- **Implementation follow-up:** live code currently treats Myrology as an INR 499 entitlement. Shivam discussed an INR 200-300 intro fee to close the payment loop before increasing price. Resolve pricing before changing checkout/copy.
+
+---
+
 ## SKILL INTELLIGENCE PAGE — REDESIGN TRACKER (Backlog #10)
 
 **Phases 1–3 ✅ DONE 2026-05-16** — SkillCard + Log-to-Forge + CV/Intel links · stat-line reframe · `?skill=` deeplink · color-coded domain strip · ScoreRing hero + WeaknessSpotlight · DomainRadar SVG-only · inspector absorbed into radar card · `components/skills/` extraction (page <300 lines). Dead code deleted: `dashboard/domain-drill-dialog.tsx`, `dashboard/domain-radar.tsx`. Full detail in `docs/session-history/2026-05.md`.
@@ -254,7 +277,62 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-27 - Website Ops Agent v1 CLI)
+## LAST SESSION SUMMARY (2026-05-31 - Integrator item: post-application intelligence + Myrology)
+
+Used `grill-me` to lock the product philosophy for post-application journeys, Referral Intelligence, company reports, and Myrology before writing memory into the cockpit docs.
+
+- Added **Post-Application Intelligence + Myrology** under `INTEGRATOR ITEMS` in `AGENTS.md`.
+- Locked the tracker branch: 7-day no-response prompts route to **No Response Recovery**, while positive responses route to **Interview/Next Round** work.
+- Locked Practice as the action router for Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
+- Locked Referral Intelligence as a 500 XP automated run with LinkedIn/API, user-assisted, and Myro-referrer repository tiers.
+- Locked the Myrology boundary: separate opt-in premium subbrand, consultation/booking funnel only, not part of Myro Score or job ranking, with non-guarantee language.
+- Captured the pricing follow-up: live Myrology code currently uses INR 499, while Shivam discussed INR 200-300 as the intro payment-loop test.
+
+No app code changed in this session.
+
+## OLDER SESSION SUMMARY (2026-05-31 - NCR newsletter series + index redesign)
+
+Published the NCR target-company newsletter set and rebuilt the `/newsletter` index into a denser briefing-style page for desktop.
+
+- Content commit:
+  - `8d6d358 feat(newsletter): publish ncr target-company series`
+- UI commit:
+  - `2e0a3eb feat(newsletter): redesign index briefing layout`
+
+What shipped:
+
+- Three dated newsletter issues from the anonymized NCR/company-search dataset:
+  - 25 May 2026 - `2026-05-ncr-job-hunt-245-roles`
+  - 28 May 2026 - `2026-05-ncr-consulting-data-fit-map`
+  - 31 May 2026 - `2026-05-ncr-20-company-watchlist`
+- The source search stayed privacy-safe: no user name, CV, email, account id, or private intent was published.
+- Deployable mirrors were added under `frontend/content/newsletter/issues/`; local source MDX also exists under the gitignored `Myro Newsletter/issues/`.
+- Feed artifacts were regenerated: `frontend/public/newsletter/feed.json` and `frontend/public/newsletter/rss.xml`.
+- OG images were added for issues 005-007 under `frontend/public/newsletter/`.
+- `/newsletter` now uses a fuller desktop layout:
+  - masthead with quick signup and latest-issue actions
+  - stats strip
+  - featured latest issue with OG image
+  - compact archive list
+  - sticky signup/topic rail
+- `IssueCard` now supports `featured` rendering and uses CSS modules instead of inline hover mutation.
+- Index-only CSS was split into `frontend/app/newsletter/newsletter-index.module.css`; shared `newsletter.css` remains small and issue-page specific.
+
+Validation:
+
+- `cd frontend && npm run newsletter:check` -> clean
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `.venv/bin/pytest backend/tests -q` -> `461 passed, 13 warnings`
+- `git diff --check` and `git diff --cached --check` -> clean
+- `curl -I http://127.0.0.1:3021/newsletter` -> `200 OK`
+
+Notes:
+
+- Browser/sandbox visual verification was left for Shivam as requested.
+- Pre-existing unrelated workspace changes were left untouched: `CLAUDE.md`, `docs/free-llm-api-resources/`, CV/Skills page edits, CV score-progress edits, and `frontend/components/skills/domain-accordion-row.tsx`.
+
+## OLDER SESSION SUMMARY (2026-05-27 - Website Ops Agent v1 CLI)
 
 Built the repo-native **Myro Website Ops Agent** v1 as a safe local CLI under `ops-agent/`, then ran it against the repo health surface.
 

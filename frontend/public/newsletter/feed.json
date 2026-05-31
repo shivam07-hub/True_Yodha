@@ -12,6 +12,42 @@
   ],
   "items": [
     {
+      "id": "https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist",
+      "url": "https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist",
+      "title": "NCR Job Search 2026: The 20-company Watchlist",
+      "summary": "The free NCR job-search watchlist expands from 13 loaded companies to 20 targets across consulting, fintech, data and product.",
+      "date_published": "2026-05-31T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
+      "id": "https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map",
+      "url": "https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map",
+      "title": "Consulting and Data Roles Lead the NCR Fit Map",
+      "summary": "The free NCR fit map ranked 75 job leads. Strategy & Consulting and Data & Analytics take 58 of them.",
+      "date_published": "2026-05-28T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
+      "id": "https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles",
+      "url": "https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles",
+      "title": "NCR Job Hunt 2026: 245 Roles Across 13 Companies",
+      "summary": "A private target-company search became a free NCR hiring map: 245 roles, 124 strong-fit leads, and 13 companies to work first.",
+      "date_published": "2026-05-25T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
       "id": "https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india",
       "url": "https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india",
       "title": "Semiconductor Hiring India 2026: 1,016 Roles",

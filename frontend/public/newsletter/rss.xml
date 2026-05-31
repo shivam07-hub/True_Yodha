@@ -6,7 +6,34 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://truemirror.vercel.app/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Wed, 20 May 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 31 May 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>NCR Job Search 2026: The 20-company Watchlist</title>
+      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist</link>
+      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist</guid>
+      <description>The free NCR job-search watchlist expands from 13 loaded companies to 20 targets across consulting, fintech, data and product.</description>
+      <pubDate>Sun, 31 May 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Consulting and Data Roles Lead the NCR Fit Map</title>
+      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map</link>
+      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map</guid>
+      <description>The free NCR fit map ranked 75 job leads. Strategy &amp; Consulting and Data &amp; Analytics take 58 of them.</description>
+      <pubDate>Thu, 28 May 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>NCR Job Hunt 2026: 245 Roles Across 13 Companies</title>
+      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles</link>
+      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles</guid>
+      <description>A private target-company search became a free NCR hiring map: 245 roles, 124 strong-fit leads, and 13 companies to work first.</description>
+      <pubDate>Mon, 25 May 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>Semiconductor Hiring India 2026: 1,016 Roles</title>

@@ -120,6 +120,28 @@
   color: var(--tm-interactive, var(--tm-accent)); text-decoration: none;
 }
 
+/* Q7 — download is the primary CTA at the score reveal; Improve demotes. */
+.csp-done-actions {
+  margin-top: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: 100%;
+}
+.csp-done-download {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14px; font-weight: 700; font-family: inherit;
+  padding: 11px 20px; border-radius: var(--tm-radius);
+  background: var(--tm-interactive); border: 1px solid var(--tm-interactive);
+  color: var(--tm-interactive-fg); text-decoration: none; cursor: pointer;
+  transition: opacity 150ms var(--tm-ease);
+}
+.csp-done-download:hover:not(:disabled) { opacity: 0.88; }
+.csp-done-download:disabled { opacity: 0.5; cursor: default; }
+.csp-done-cta-secondary {
+  font-size: 13px; font-weight: 600;
+  color: var(--tm-text-muted); text-decoration: none;
+}
+.csp-done-cta-secondary:hover { color: var(--tm-interactive, var(--tm-accent)); }
+
 /* ── Failure ──────────────────────────────────────────────────────────────── */
 .csp--failed { align-items: center; text-align: center; gap: 10px; }
 .csp-fail-icon {
