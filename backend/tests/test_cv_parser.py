@@ -216,6 +216,27 @@ class TestParseCv:
         finally:
             llm_provider.settings.openrouter_api_key = original_key
 
+    def test_cv_upload_provider_prefers_fast_direct_models_before_openrouter(self) -> None:
+        from app.services import llm_provider
+        from app.services.llm_provider import GROQ_FALLBACK_MODEL, get_cv_upload_provider
+
+        original_groq = llm_provider.settings.groq_api_key
+        original_google = llm_provider.settings.google_api_key
+        original_openrouter = llm_provider.settings.openrouter_api_key
+        llm_provider.settings.groq_api_key = "sk-groq-test"
+        llm_provider.settings.google_api_key = "sk-google-test"
+        llm_provider.settings.openrouter_api_key = "sk-openrouter-test"
+        try:
+            provider = get_cv_upload_provider()
+            models = [entry[1] for entry in provider._providers]
+            assert models[0] == GROQ_FALLBACK_MODEL
+            assert models[1] == "gemini-2.0-flash-lite"
+            assert models[2].startswith("google/")
+        finally:
+            llm_provider.settings.groq_api_key = original_groq
+            llm_provider.settings.google_api_key = original_google
+            llm_provider.settings.openrouter_api_key = original_openrouter
+
     @pytest.mark.asyncio
     async def test_llm_extract_returns_empty_list_when_provider_responds_with_no_skills(self, monkeypatch) -> None:
         async def _empty_provider(cv_text: str, provider=None):  # noqa: ANN001

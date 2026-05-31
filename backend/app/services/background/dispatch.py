@@ -86,11 +86,49 @@ def enqueue(
         raise ValueError(f"no handler registered for job_type {job_type!r}")
 
     if _is_durable():
-        _enqueue_rq(lane, job_type, payload, correlation_id)
+        if _has_active_worker_for_lane(lane):
+            _enqueue_rq(lane, job_type, payload, correlation_id)
+        else:
+            _log.critical(
+                "No active background worker for lane=%s; running job_type=%s inline",
+                lane,
+                job_type,
+            )
+            _invoke_inline(job_type, payload)
     else:
         # In-process fallback — preserves pre-ADR-0008 behaviour where no Redis
         # exists. No retry available here, so handlers refund-and-return on fail.
-        asyncio.create_task(_invoke(job_type, payload, allow_retry=False))
+        _invoke_inline(job_type, payload)
+
+
+def _invoke_inline(job_type: str, payload: dict[str, Any]) -> None:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(_invoke(job_type, payload, allow_retry=False))
+        return
+    loop.create_task(_invoke(job_type, payload, allow_retry=False))
+
+
+def _has_active_worker_for_lane(lane: str) -> bool:
+    try:
+        from redis import Redis
+        from rq import Worker
+
+        conn = Redis.from_url(settings.redis_url.strip(), decode_responses=True)
+        workers = Worker.all(connection=conn)
+        for worker in workers:
+            queue_names = worker.queue_names()
+            if lane in queue_names:
+                return True
+        return False
+    except Exception as exc:
+        _log.error(
+            "Background worker liveness check failed for lane=%s: %s",
+            lane,
+            exc,
+        )
+        return False
 
 
 def _enqueue_rq(

@@ -220,8 +220,10 @@ class LLMProvider:
         raise LLMProviderError("All LLM providers failed to stream")
 
 
-def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
-    providers: list[_ProviderEntry] = []
+def _append_openrouter_tiers(
+    providers: list[_ProviderEntry],
+    or_tiers: list[list[str]],
+) -> None:
     if settings.openrouter_api_key:
         or_client = AsyncOpenAI(
             api_key=settings.openrouter_api_key,
@@ -230,6 +232,11 @@ def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
         )
         for tier in or_tiers:
             providers.append((or_client, tier[0], {"models": tier}))
+
+
+def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
+    providers: list[_ProviderEntry] = []
+    _append_openrouter_tiers(providers, or_tiers)
     if settings.groq_api_key:
         providers.append((
             AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
@@ -251,12 +258,27 @@ def get_llm_provider() -> LLMProvider:
 
 
 def get_cv_upload_provider() -> LLMProvider:
-    """Paid-tier-first provider for the user-blocking CV upload path.
+    """Fast direct providers first for the user-blocking CV upload path.
 
-    Skips free OR tiers (indices 0..FREE_OR_TIER_COUNT-1) so free-tier exhaustion
-    never causes a 503 on the most critical onboarding action.
+    Groq/Gemini are direct, low-latency calls. OpenRouter paid tiers remain as a
+    backstop, while free OR tiers stay excluded so free-tier exhaustion never
+    blocks the most critical onboarding action.
     """
-    return _build_provider(OR_TIERS[FREE_OR_TIER_COUNT:])
+    providers: list[_ProviderEntry] = []
+    if settings.groq_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    if settings.google_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            "gemini-2.0-flash-lite",
+            None,
+        ))
+    _append_openrouter_tiers(providers, OR_TIERS[FREE_OR_TIER_COUNT:])
+    return LLMProvider(providers)
 
 
 def get_paid_jobs_provider() -> LLMProvider:
