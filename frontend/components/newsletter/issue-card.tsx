@@ -1,19 +1,20 @@
 "use client"
 
 import { useEffect } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Issue } from "@/lib/newsletter"
+import styles from "./issue-card.module.css"
 
 interface IssueCardProps {
   issue: Issue
+  featured?: boolean
 }
 
-// Substack-style archive row — no box, hairline-divided, whole row clickable.
-// Density over decoration: eyebrow · title · one-line dek + an always-on chevron
-// at the right edge signalling "click to open". Eager-prefetches the issue on
-// mount so every click is an instant fade+rise (no loader) in production.
-export function IssueCard({ issue }: IssueCardProps) {
+// Archive rows and the lead story share the same contract so the index can
+// decide importance without knowing link, date or media rendering details.
+export function IssueCard({ issue, featured = false }: IssueCardProps) {
   const router = useRouter()
   const href = `/newsletter/${issue.slug}`
 
@@ -22,67 +23,35 @@ export function IssueCard({ issue }: IssueCardProps) {
   }, [router, href])
 
   const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
-    day: "numeric", month: "long", year: "numeric",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   })
 
   return (
-    <Link
-      href={href}
-      prefetch
-      style={{
-        display: "flex", alignItems: "center", gap: 16, textDecoration: "none",
-        padding: "16px 12px",
-        borderBottom: "1px solid var(--tm-border-soft)",
-        borderLeft: "2px solid transparent",
-        transition: "background var(--tm-dur) var(--tm-ease), border-left-color var(--tm-dur) var(--tm-ease)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--tm-hover)"
-        e.currentTarget.style.borderLeftColor = "var(--tm-interactive)"
-        const t = e.currentTarget.querySelector("h2")
-        if (t) (t as HTMLElement).style.color = "var(--tm-interactive)"
-        const c = e.currentTarget.querySelector("[data-nl-chevron]")
-        if (c) {
-          ;(c as HTMLElement).style.color = "var(--tm-interactive)"
-          ;(c as HTMLElement).style.transform = "translateX(3px)"
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent"
-        e.currentTarget.style.borderLeftColor = "transparent"
-        const t = e.currentTarget.querySelector("h2")
-        if (t) (t as HTMLElement).style.color = "var(--tm-text)"
-        const c = e.currentTarget.querySelector("[data-nl-chevron]")
-        if (c) {
-          ;(c as HTMLElement).style.color = "var(--tm-text-faint)"
-          ;(c as HTMLElement).style.transform = "translateX(0)"
-        }
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: "var(--tm-interactive)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6, fontWeight: 500 }}>
+    <Link href={href} prefetch className={featured ? styles.featuredCard : styles.card}>
+      {featured && issue.ogImage ? (
+        <Image
+          className={styles.media}
+          src={issue.ogImage}
+          alt={issue.ogImageAlt ?? ""}
+          width={1200}
+          height={630}
+          sizes="(min-width: 900px) 420px, 100vw"
+          priority
+        />
+      ) : null}
+
+      <div className={styles.body}>
+        <div className={styles.meta}>
           {issue.theme} · {date}
         </div>
-        <h2 style={{ fontSize: 17, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "var(--tm-tracking-tight)", lineHeight: 1.3, margin: 0, transition: "color var(--tm-dur) var(--tm-ease)" }}>
-          {issue.title}
-        </h2>
-        <p style={{
-          fontSize: 13.5, color: "var(--tm-text-muted)", lineHeight: 1.55, marginTop: 5,
-          display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden",
-        }}>
-          {issue.summary}
-        </p>
+        <h2 className={styles.title}>{issue.title}</h2>
+        <p className={styles.summary}>{issue.summary}</p>
+        {featured ? <span className={styles.featuredCta}>Read latest</span> : null}
       </div>
 
-      <span
-        data-nl-chevron
-        aria-hidden="true"
-        style={{
-          flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
-          color: "var(--tm-text-faint)",
-          transition: "color var(--tm-dur) var(--tm-ease), transform var(--tm-dur) var(--tm-ease)",
-        }}
-      >
+      <span data-nl-chevron aria-hidden="true" className={styles.chevron}>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M6.5 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
