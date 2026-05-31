@@ -148,6 +148,25 @@ async def complete_forge_session(
     }
 
 
+def list_recent_session_dates(user_id: str, limit: int = 180) -> list[str]:
+    """Return recent forge-session completion timestamps (ISO), newest-first.
+
+    Powers the home "practice streak" — the diary streak was retired when the
+    diary rail moved off Practice, so daily activity is read from real forge
+    sessions instead.
+    """
+    admin = get_supabase_admin()
+    result = (
+        admin.table("forge_sessions")
+        .select("completed_at")
+        .eq("user_id", user_id)
+        .order("completed_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return [str(row["completed_at"]) for row in (result.data or []) if row.get("completed_at")]
+
+
 def get_last_forged_skill(user_id: str) -> dict | None:
     """Return the most recently forged skill for a user, or None.
 

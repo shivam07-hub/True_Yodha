@@ -13,6 +13,7 @@ import { useXPStore } from "@/store/xpStore"
 import { useRecomputeStore } from "@/store/recomputeStore"
 import { LevelDots } from "@/components/skills/level-dots"
 import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
+import { CommentThread, useCommentCount } from "@/components/comments/comment-thread"
 import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 
 const PROFICIENCY_TITLES = ["None", "Scout", "Trailblazer", "Excavator", "Cartographer", "Legend"]
@@ -52,6 +53,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   const tierTokens = TIER_TOKENS[tier]
   const nextTierTokens = TIER_TOKENS[nextTier]
   const ladder = LADDER_DESCRIPTOR[`${skill.level}-${nextLevel}`] ?? LADDER_DESCRIPTOR["3-4"]
+  const noteCount = useCommentCount(token, "skill", skill.key)
 
   const appealLocked = (skill.correction_count ?? 0) >= 2
 
@@ -373,6 +375,13 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           )}
         </div>
       )}
+
+      <div className="tm-skill-card-notes" style={{ borderTop: "1px solid var(--tm-border-faint)", paddingTop: 12 }}>
+        <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-text-faint)", marginBottom: 8 }}>
+          Notes{noteCount > 0 ? ` · ${noteCount}` : ""}
+        </div>
+        <CommentThread token={token} entityType="skill" entityId={skill.key} placeholder={`Note your progress on ${skill.display_name}…`} />
+      </div>
 
       <SkillEditDialog
         skill={skill}

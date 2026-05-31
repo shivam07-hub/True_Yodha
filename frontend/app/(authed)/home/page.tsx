@@ -20,11 +20,11 @@ import { Dashboard } from "@/components/dashboard/dashboard"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { buildNextMoves } from "@/lib/mission-control/next-moves"
 import { openFeedbackHub } from "@/components/feedback"
-import { cv, diary, jobs, scores, users } from "@/lib/api"
+import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
-import { computeStreak } from "@/lib/forge-helpers"
+import { computeStreakFromDates } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -76,12 +76,19 @@ function MissionControlInner() {
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
+  // Practice streak — reads real forge sessions (diary streak retired with the rail).
+  const forgeSessionsQuery = useQuery({
+    queryKey: ["forge-session-dates", token],
+    queryFn: () => xp.forgeSessionDates(token!),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
 
   const allMatchedJobs: JobMatch[] = useMemo(() => jobsData?.jobs ?? [], [jobsData])
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
-  const streak = computeStreak(entries)
+  const streak = computeStreakFromDates(forgeSessionsQuery.data?.dates ?? [])
   const score = Math.round(scoreData?.total_score ?? 0)
   const cartSkillNames = useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
