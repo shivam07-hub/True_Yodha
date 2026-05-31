@@ -254,7 +254,49 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-27 - Website Ops Agent v1 CLI)
+## LAST SESSION SUMMARY (2026-05-31 - NCR newsletter series + index redesign)
+
+Published the NCR target-company newsletter set and rebuilt the `/newsletter` index into a denser briefing-style page for desktop.
+
+- Content commit:
+  - `8d6d358 feat(newsletter): publish ncr target-company series`
+- UI commit:
+  - `2e0a3eb feat(newsletter): redesign index briefing layout`
+
+What shipped:
+
+- Three dated newsletter issues from the anonymized NCR/company-search dataset:
+  - 25 May 2026 - `2026-05-ncr-job-hunt-245-roles`
+  - 28 May 2026 - `2026-05-ncr-consulting-data-fit-map`
+  - 31 May 2026 - `2026-05-ncr-20-company-watchlist`
+- The source search stayed privacy-safe: no user name, CV, email, account id, or private intent was published.
+- Deployable mirrors were added under `frontend/content/newsletter/issues/`; local source MDX also exists under the gitignored `Myro Newsletter/issues/`.
+- Feed artifacts were regenerated: `frontend/public/newsletter/feed.json` and `frontend/public/newsletter/rss.xml`.
+- OG images were added for issues 005-007 under `frontend/public/newsletter/`.
+- `/newsletter` now uses a fuller desktop layout:
+  - masthead with quick signup and latest-issue actions
+  - stats strip
+  - featured latest issue with OG image
+  - compact archive list
+  - sticky signup/topic rail
+- `IssueCard` now supports `featured` rendering and uses CSS modules instead of inline hover mutation.
+- Index-only CSS was split into `frontend/app/newsletter/newsletter-index.module.css`; shared `newsletter.css` remains small and issue-page specific.
+
+Validation:
+
+- `cd frontend && npm run newsletter:check` -> clean
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `.venv/bin/pytest backend/tests -q` -> `461 passed, 13 warnings`
+- `git diff --check` and `git diff --cached --check` -> clean
+- `curl -I http://127.0.0.1:3021/newsletter` -> `200 OK`
+
+Notes:
+
+- Browser/sandbox visual verification was left for Shivam as requested.
+- Pre-existing unrelated workspace changes were left untouched: `CLAUDE.md`, `docs/free-llm-api-resources/`, CV/Skills page edits, CV score-progress edits, and `frontend/components/skills/domain-accordion-row.tsx`.
+
+## OLDER SESSION SUMMARY (2026-05-27 - Website Ops Agent v1 CLI)
 
 Built the repo-native **Myro Website Ops Agent** v1 as a safe local CLI under `ops-agent/`, then ran it against the repo health surface.
 
