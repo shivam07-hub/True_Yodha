@@ -735,7 +735,12 @@ function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUpload
 
 export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf"
 
-export async function uploadCV(token: string, file: File, source: CVUploadSource = "pdf_upload"): Promise<CVUploadResult> {
+export async function uploadCV(
+  token: string,
+  file: File,
+  source: CVUploadSource = "pdf_upload",
+  onProgress?: (status: CVUploadStatusResponse) => void,
+): Promise<CVUploadResult> {
   const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
   _persistUploadIdemKey(idempotencyKey)
   _emitCVUploadTelemetry(token, {
@@ -780,6 +785,7 @@ export async function uploadCV(token: string, file: File, source: CVUploadSource
       token,
       initial,
       { idempotencyKey, fileName: safeFile.name, fileMime: safeFile.type, fileBytes: safeFile.size },
+      onProgress,
     )
     _clearUploadPersistence({ clearIdem: true })
     return result
@@ -1065,6 +1071,7 @@ async function _resolveUploadResult(
     fileMime?: string
     fileBytes?: number
   } = {},
+  onProgress?: (status: CVUploadStatusResponse) => void,
 ): Promise<CVUploadResult> {
   if (initial.status === "done") {
     _emitCVUploadTelemetry(token, {
@@ -1109,7 +1116,7 @@ async function _resolveUploadResult(
         })
         throw wrapped
       }
-    })
+    }, { onProgress })
     if (initial.status === "processing") {
       _emitCVUploadTelemetry(token, {
         phase: "poll",
@@ -1153,7 +1160,7 @@ async function _resolveUploadResult(
 export async function pollCVUploadStatus(
   token: string,
   jobId: string,
-  opts: { intervalMs?: number; timeoutMs?: number } = {},
+  opts: { intervalMs?: number; timeoutMs?: number; onProgress?: (status: CVUploadStatusResponse) => void } = {},
 ): Promise<CVUploadResult> {
   _emitCVUploadTelemetry(token, {
     phase: "poll",
@@ -1957,6 +1964,47 @@ export const diary = {
     }),
 }
 
+// ── Comments (PR-B) — private note threads on job + skill cards ──
+export type CommentEntityType = "job" | "skill" | "company"
+
+export interface Comment {
+  id: string
+  entity_type: CommentEntityType
+  entity_id: string
+  body: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CommentListResponse {
+  comments: Comment[]
+  total: number
+}
+
+export const comments = {
+  list: (token: string, entityType: CommentEntityType, entityId: string) =>
+    request<CommentListResponse>(`/comments?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  create: (token: string, entityType: CommentEntityType, entityId: string, body: string) =>
+    request<Comment>("/comments", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, body }),
+    }),
+  update: (token: string, commentId: string, body: string) =>
+    request<Comment>(`/comments/${commentId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ body }),
+    }),
+  remove: (token: string, commentId: string) =>
+    request<void>(`/comments/${commentId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
 // ── Skills ────────────────────────────────────────────────────────────────────
 
 export interface Skill {
@@ -2122,6 +2170,11 @@ export const xp = {
 
   lastForgedSkill: (token: string) =>
     request<{ skill_id: string | null; skill_name: string | null }>("/users/me/forge/last-skill", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  forgeSessionDates: (token: string) =>
+    request<{ dates: string[] }>("/users/me/forge/sessions", {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

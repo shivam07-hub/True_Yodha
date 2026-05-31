@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CVUploadProcessing } from "@/components/cv/upload-processing"
+import { CvScoreProgress } from "@/components/cv/cv-score-progress"
+import type { CVUploadPhase } from "@/lib/cv-upload-state"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
@@ -45,6 +46,10 @@ function CVPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
+  // #6 deploy-style loading: live phase + start-time + the done-morph's Improve target.
+  const [uploadPhase, setUploadPhase] = useState<CVUploadPhase | null>(null)
+  const [uploadStartedAt, setUploadStartedAt] = useState<string | null>(null)
+  const [biggestDrag, setBiggestDrag] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadFailureCount, setUploadFailureCount] = useState(0)
   const [lastFailureCode, setLastFailureCode] = useState<string>("unknown")
@@ -52,6 +57,8 @@ function CVPage() {
   const [fallbackSubmitting, setFallbackSubmitting] = useState(false)
   const [fallbackError, setFallbackError] = useState<string | null>(null)
   const [fallbackReceipt, setFallbackReceipt] = useState<CVUploadFallbackSubmissionResponse | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [showPickerHint, setShowPickerHint] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // Reentry guard: setUploading(true) is async, mobile Chrome can fire change
   // twice; the ref blocks the second call synchronously.
@@ -101,9 +108,25 @@ function CVPage() {
   function openFilePicker() {
     setShowUpload(true)
     setUploadError(null)
+    setUploadResult(null); setUploadPhase(null); setUploadStartedAt(null)
     setFallbackError(null)
     // Defer click so dialog mount doesn't intercept the activation gesture
     requestAnimationFrame(() => fileInputRef.current?.click())
+  }
+
+  // #6 — the status payload carries no domain breakdown, so read the freshly
+  // invalidated scores cache to pick the biggest-drag domain for the one
+  // Improve action on the done-morph (Q4 / OPEN GAP resolution).
+  function lowestDomainFromCache(): string | null {
+    const data = queryClient.getQueryData<{ domain_scores?: Record<string, number> }>(dataKeys.scores())
+    const ds = data?.domain_scores
+    if (!ds) return null
+    let lo: string | null = null
+    let loVal = Infinity
+    for (const [k, v] of Object.entries(ds)) {
+      if (typeof v === "number" && v < loVal) { loVal = v; lo = k }
+    }
+    return lo
   }
 
   async function handleUpload(file: File) {
@@ -122,10 +145,14 @@ function CVPage() {
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
     // Start the 10-min CV-promise clock the instant the upload begins (Q4).
     startCvPromiseOptimistic()
     try {
-      const result = await uploadCV(token, file)
+      const result = await uploadCV(token, file, "pdf_upload", (s) => {
+        setUploadPhase(s.current_phase ?? null)
+        if (s.started_at) setUploadStartedAt(s.started_at)
+      })
       if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
@@ -134,12 +161,15 @@ function CVPage() {
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
       queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+      setUploadPhase("ready")
+      setBiggestDrag(lowestDomainFromCache())
       setUploadResult({ skills_detected: result.skills_detected, score: result.score })
       setUploadFailureCount(0)
       setLastFailureCode("unknown")
       setFallbackError(null)
       setFallbackReceipt(null)
-      setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
+      // #6: no auto-close — the done-morph holds the score + Improve action
+      // until the user acts or dismisses (inline-done, Q4).
     } catch (err) {
       if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
@@ -229,7 +259,13 @@ function CVPage() {
     if (!persistedJobId) return
     uploadInFlightRef.current = true
     setShowUpload(true); setUploading(true); setUploadError(null)
-    pollCVUploadStatus(token, persistedJobId)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
+    pollCVUploadStatus(token, persistedJobId, {
+      onProgress: (s) => {
+        setUploadPhase(s.current_phase ?? null)
+        if (s.started_at) setUploadStartedAt(s.started_at)
+      },
+    })
       .then((result) => {
         if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
@@ -237,10 +273,12 @@ function CVPage() {
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
         queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
         queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+        setUploadPhase("ready")
+        setBiggestDrag(lowestDomainFromCache())
         setUploadResult({ skills_detected: result.skills_detected, score: result.score })
         setUploadFailureCount(0)
         clearPersistedCVUploadState()
-        setTimeout(() => { setShowUpload(false); setUploadResult(null) }, 2000)
+        // #6: no auto-close — done-morph holds the score + Improve action.
       })
       .catch((err) => {
         if (err instanceof CVUploadFailure) {
@@ -261,7 +299,18 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, ready])
 
-  if (!ready || profileQuery.isLoading) return <CvSkeleton />
+  // Single source of truth for "is the page bootstrapped enough to show content?".
+  // `hasBaseline` is derived from versionsQuery, so the empty / library / playground
+  // branches below are only honest once that query has SETTLED — an in-flight
+  // versionsQuery means baselines[] is transiently empty, which is "unknown", not
+  // "no CV". Showing the empty state in that window asserts a false fact to a
+  // veteran ("No CV uploaded yet") → distress. Same invariant the auto-upload
+  // picker effect guards with `if (playground.versionsLoading) return`; both sites
+  // must wait for versions before deciding. `versionsLoading` is React Query
+  // `isLoading` (first load, no cache) — not `isFetching` — so background refetches
+  // never re-trigger the skeleton.
+  const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
+  if (bootstrapping) return <CvSkeleton />
 
   const surfacedError = playground.error ?? uploadError
 
@@ -366,7 +415,11 @@ function CVPage() {
       {/* Upload modal */}
       <Dialog
         open={showUpload}
-        onOpenChange={(o) => { if (uploading) return; setShowUpload(o) }}
+        onOpenChange={(o) => {
+          if (uploading) return
+          setShowUpload(o)
+          if (!o) { setUploadResult(null); setUploadPhase(null); setUploadStartedAt(null) }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -378,20 +431,36 @@ function CVPage() {
             </DialogDescription>
           </DialogHeader>
           {uploading || uploadResult ? (
-            <CVUploadProcessing success={!!uploadResult} result={uploadResult ?? undefined} />
+            <CvScoreProgress
+              status={uploadResult ? "done" : "processing"}
+              phase={uploadPhase}
+              startedAt={uploadStartedAt}
+              done={uploadResult ? {
+                score: Math.round(uploadResult.score),
+                skillsDetected: uploadResult.skills_detected,
+                biggestDragDomain: biggestDrag,
+              } : null}
+            />
           ) : (
             <>
               <button
                 type="button"
+                autoFocus
                 onClick={() => fileInputRef.current?.click()}
-                style={{
-                  display: "block", width: "100%", padding: "32px 20px", textAlign: "center",
-                  border: "1px dashed var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)",
-                  cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13,
-                  background: "transparent",
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault(); setDragActive(false)
+                  const f = e.dataTransfer.files?.[0]
+                  if (f) handleUpload(f)
                 }}
+                className={`cvb-upload-drop${dragActive ? " is-drag" : ""}${uploadError ? " is-error" : ""}`}
               >
-                {uploadError ? "Pick another file" : "Tap to choose a PDF or DOCX from your device."}
+                <span className="cvb-upload-icon"><Icon name="upload" size={22} /></span>
+                <span className="cvb-upload-label">
+                  {uploadError ? "Pick another file" : "Drop your CV here, or click to browse"}
+                </span>
+                <span className="cvb-upload-formats">PDF or DOCX · up to 10MB</span>
               </button>
               {uploadError && (
                 <div style={{
@@ -416,12 +485,6 @@ function CVPage() {
                   )}
                 </div>
               )}
-              <div style={{ marginTop: 10, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                Accepted formats: PDF, DOCX · Max size: 10MB
-              </div>
-              <div style={{ marginTop: 4, fontSize: 11, color: "var(--tm-text-faint)" }}>
-                Files greyed out in the picker? Click <em>Options</em> (bottom-left) and switch the file-type dropdown to <em>All Files</em>.
-              </div>
               {uploadFailureCount >= 3 && (
                 <div style={{
                   marginTop: 12,
@@ -469,24 +532,30 @@ function CVPage() {
                   )}
                 </div>
               )}
-              {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
-              <p style={{
-                marginTop: 12,
-                marginBottom: 0,
-                fontSize: 12,
-                lineHeight: 1.5,
-                color: "var(--tm-text-faint)",
-              }}>
-                Your CV is private by default.{" "}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
+              <div className="cvb-upload-foot">
+                {/* Picker troubleshooting — progressive, surfaces only on demand
+                    (native greyed-out picker produces no error to gate on). */}
+                <button
+                  type="button"
+                  className="cvb-upload-hint-toggle"
+                  aria-expanded={showPickerHint}
+                  onClick={() => setShowPickerHint((v) => !v)}
                 >
-                  How we handle your data ↗
-                </a>
-              </p>
+                  Can&apos;t select your file?
+                </button>
+                {showPickerHint && (
+                  <p className="cvb-upload-hint-body">
+                    If files look greyed out, click <em>Options</em> (bottom-left of the picker) and switch the file-type dropdown to <em>All Files</em>.
+                  </p>
+                )}
+                {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
+                <p className="cvb-upload-privacy">
+                  Your CV is private by default.{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                    How we handle your data ↗
+                  </a>
+                </p>
+              </div>
             </>
           )}
         </DialogContent>

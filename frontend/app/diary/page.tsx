@@ -14,10 +14,13 @@ function DiaryRedirectInner() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    const qs = searchParams.toString()
-    const params = new URLSearchParams(qs)
-    params.set("diary", "1")
-    router.replace(`/forge?${params.toString()}`)
+    // Diary merged into Practice; the standalone rail was retired in the
+    // Practice × Skill-Intelligence merge. Preserve deep-link params
+    // (?skill=, ?jobId=) but drop the now-meaningless ?diary= rail flag.
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("diary")
+    const qs = params.toString()
+    router.replace(qs ? `/forge?${qs}` : "/forge")
   }, [router, searchParams])
 
   return null

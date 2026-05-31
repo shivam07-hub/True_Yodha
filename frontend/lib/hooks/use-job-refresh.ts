@@ -2,16 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { type QueryClient } from "@tanstack/react-query"
-import { jobs, type RefreshOutcomeKind, type RefreshStateResponse } from "@/lib/api"
+import { jobs, type RefreshOutcomeKind } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
+import { readSse, type SseEvent } from "@/lib/streaming/read-sse"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
 export const REFRESH_XP_COST = XP_POLICY.matchRefreshCost
-
-const POLL_INTERVAL_MS = 1000
-const POLL_TIMEOUT_MS = 30_000
 
 export type RefreshState =
   | "idle"
@@ -23,6 +21,11 @@ export type RefreshState =
 
 export type { RefreshOutcomeKind }
 
+export interface RevealedJob {
+  title: string | null
+  company: string | null
+}
+
 export interface UseJobRefreshResult {
   state: RefreshState
   progressLabel: string | null
@@ -31,11 +34,28 @@ export interface UseJobRefreshResult {
   matchesWritten: number | null
   outcomeKind: RefreshOutcomeKind | null
   errorMessage: string | null
+  /** Per-job reveal (ADR-0009): jobs ranked so far / total shortlisted. */
+  progressDone: number | null
+  progressTotal: number | null
+  revealed: RevealedJob[]
   refresh: () => void
   reset: () => void
 }
 
-/** Job Refresh view-model — see CONTEXT.md "Job Refresh". */
+interface DoneResult {
+  matches_written?: number | null
+  outcome_kind?: RefreshOutcomeKind | null
+  new_xp_balance?: number | null
+  progress_label?: string | null
+}
+
+interface ErrResult {
+  state?: string
+  new_xp_balance?: number | null
+}
+
+/** Job Refresh view-model — see CONTEXT.md "Job Refresh". ADR-0009 PR2: a single
+ *  SSE stream replaces the old 1s status poll. */
 export function useJobRefresh(
   token: string | null,
   queryClient: QueryClient,
@@ -48,78 +68,77 @@ export function useJobRefresh(
   const [matchesWritten, setMatchesWritten] = useState<number | null>(null)
   const [outcomeKind, setOutcomeKind] = useState<RefreshOutcomeKind | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [progressDone, setProgressDone] = useState<number | null>(null)
+  const [progressTotal, setProgressTotal] = useState<number | null>(null)
+  const [revealed, setRevealed] = useState<RevealedJob[]>([])
 
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pollDeadline = useRef<number>(0)
-  const activeTicket = useRef<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const stopPolling = useCallback(() => {
-    if (pollTimer.current) {
-      clearInterval(pollTimer.current)
-      pollTimer.current = null
-    }
-    activeTicket.current = null
+  const stopStream = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
   }, [])
 
-  const handleTerminal = useCallback(
-    (payload: RefreshStateResponse) => {
-      stopPolling()
-      if (payload.new_xp_balance != null) applyXpChange({ newBalance: payload.new_xp_balance, action: "match_refresh" })
-      if (payload.state === "failed") {
-        setState("error_failed")
-        setErrorMessage(payload.error || "Refresh failed. Please try again.")
-        setProgressLabel(null)
-        setOutcomeKind(null)
-        return
+  const finishDone = useCallback(
+    (result: DoneResult) => {
+      stopStream()
+      if (result.new_xp_balance != null) {
+        applyXpChange({ newBalance: result.new_xp_balance, action: "match_refresh" })
       }
       setState("done")
-      setProgressLabel(payload.progress_label)
-      setMatchesWritten(payload.matches_written ?? 0)
-      setOutcomeKind(payload.outcome_kind)
+      setProgressLabel(result.progress_label ?? null)
+      setMatchesWritten(result.matches_written ?? 0)
+      setOutcomeKind(result.outcome_kind ?? null)
       if (token) clearLocalCache(userCacheKey(token, ["matches"]))
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
-    [queryClient, applyXpChange, stopPolling, token],
+    [queryClient, applyXpChange, stopStream, token],
   )
 
-  const poll = useCallback(async () => {
-    const ticketId = activeTicket.current
-    if (!token || !ticketId) {
-      stopPolling()
-      return
-    }
-    if (Date.now() > pollDeadline.current) {
-      stopPolling()
-      setState("error_failed")
-      setErrorMessage("Refresh timed out. Try again — XP will be refunded if compute didn't run.")
-      setProgressLabel(null)
-      setOutcomeKind(null)
-      return
-    }
-    try {
-      const payload = await jobs.refreshStatus(token, ticketId)
-      if (payload.state === "computing" || payload.state === "queued") {
-        setProgressLabel(payload.progress_label)
-        return
+  const finishError = useCallback(
+    (message: string, refundBalance?: number | null) => {
+      stopStream()
+      if (refundBalance != null) {
+        applyXpChange({ newBalance: refundBalance, action: "match_refresh" })
       }
-      handleTerminal(payload)
-    } catch (err) {
-      stopPolling()
       setState("error_failed")
-      setErrorMessage((err as Error).message || "Lost connection to refresh status.")
+      setErrorMessage(message)
       setProgressLabel(null)
       setOutcomeKind(null)
-    }
-  }, [handleTerminal, stopPolling, token])
-
-  const startPolling = useCallback(
-    (ticketId: string) => {
-      stopPolling()
-      activeTicket.current = ticketId
-      pollDeadline.current = Date.now() + POLL_TIMEOUT_MS
-      pollTimer.current = setInterval(poll, POLL_INTERVAL_MS)
     },
-    [poll, stopPolling],
+    [applyXpChange, stopStream],
+  )
+
+  const startStream = useCallback(
+    (ticketId: string) => {
+      if (!token) return
+      stopStream()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+
+      const onEvent = (ev: SseEvent) => {
+        if (ev.type === "phase") {
+          setProgressLabel((ev.label as string) ?? null)
+        } else if (ev.type === "progress") {
+          setProgressDone((ev.done as number) ?? null)
+          setProgressTotal((ev.total as number) ?? null)
+          setRevealed(((ev.revealed as RevealedJob[]) ?? []).filter((r) => r && (r.title || r.company)))
+        } else if (ev.type === "done") {
+          finishDone((ev.result as DoneResult) ?? {})
+        } else if (ev.type === "error") {
+          const res = (ev.result as ErrResult) ?? {}
+          finishError((ev.message as string) || "Refresh failed. Please try again.", res.new_xp_balance)
+        }
+      }
+
+      void readSse(`/jobs/refresh/${ticketId}/stream`, token, onEvent, ctrl.signal).catch(
+        (err: unknown) => {
+          if ((err as Error)?.name === "AbortError") return
+          finishError((err as Error)?.message || "Lost connection to refresh status.")
+        },
+      )
+    },
+    [token, stopStream, finishDone, finishError],
   )
 
   const refresh = useCallback(async () => {
@@ -127,9 +146,7 @@ export function useJobRefresh(
     if (state === "charging" || state === "computing") return
     if (balance < REFRESH_XP_COST) {
       setState("error_insufficient_xp")
-      setErrorMessage(
-        `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP (refunded if no new matches are found).`,
-      )
+      setErrorMessage(`Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`)
       setProgressLabel(null)
       setOutcomeKind(null)
       return
@@ -138,20 +155,21 @@ export function useJobRefresh(
     setErrorMessage(null)
     setMatchesWritten(null)
     setOutcomeKind(null)
+    setProgressDone(null)
+    setProgressTotal(null)
+    setRevealed([])
     setProgressLabel("Charging XP")
     try {
       const ticket = await jobs.refresh(token)
       applyXpChange({ newBalance: ticket.new_xp_balance, action: "match_refresh" })
       setState("computing")
       setProgressLabel(ticket.progress_label)
-      startPolling(ticket.id)
+      startStream(ticket.id)
     } catch (err) {
       const msg = (err as Error).message || ""
       if (msg.includes("Insufficient XP")) {
         setState("error_insufficient_xp")
-        setErrorMessage(
-          `Not enough XP. Refresh costs ${REFRESH_XP_COST} XP (refunded if no new matches are found).`,
-        )
+        setErrorMessage(`Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`)
       } else {
         setState("error_failed")
         setErrorMessage(msg || "Refresh failed. Please try again.")
@@ -159,18 +177,21 @@ export function useJobRefresh(
       setProgressLabel(null)
       setOutcomeKind(null)
     }
-  }, [balance, applyXpChange, startPolling, state, token])
+  }, [balance, applyXpChange, startStream, state, token])
 
   const reset = useCallback(() => {
-    stopPolling()
+    stopStream()
     setState("idle")
     setProgressLabel(null)
     setMatchesWritten(null)
     setOutcomeKind(null)
     setErrorMessage(null)
-  }, [stopPolling])
+    setProgressDone(null)
+    setProgressTotal(null)
+    setRevealed([])
+  }, [stopStream])
 
-  useEffect(() => () => stopPolling(), [stopPolling])
+  useEffect(() => () => stopStream(), [stopStream])
 
   return {
     state,
@@ -180,6 +201,9 @@ export function useJobRefresh(
     matchesWritten,
     outcomeKind,
     errorMessage,
+    progressDone,
+    progressTotal,
+    revealed,
     refresh,
     reset,
   }

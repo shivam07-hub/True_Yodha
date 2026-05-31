@@ -102,11 +102,12 @@ export function filterSegment(items: FeedItem[], segment: Segment): FeedItem[] {
 }
 
 /** Slide / lens identity, shared by mobile (horizontal slides) + desktop (tabs). */
-export type LensKey = "overview" | "why" | "skills" | "company"
+export type LensKey = "overview" | "why" | "skills" | "company" | "notes"
 
 export const LENSES: ReadonlyArray<{ key: LensKey; label: string }> = [
   { key: "overview", label: "Overview" },
   { key: "why", label: "Why you fit" },
   { key: "skills", label: "Skills" },
   { key: "company", label: "Company" },
+  { key: "notes", label: "Notes" },
 ]

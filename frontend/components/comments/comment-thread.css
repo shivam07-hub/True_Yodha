@@ -1,0 +1,58 @@
+/* ─────────────────────────────────────────────────────────────
+   CommentThread (PR-B) — private note threads on job + skill cards.
+   Component-scoped; mounted in the skill card "Notes" section and the
+   job card "Notes" lens.
+   ───────────────────────────────────────────────────────────── */
+
+.tm-cmt { display: flex; flex-direction: column; gap: 12px; }
+
+.tm-cmt-compose { display: flex; flex-direction: column; gap: 8px; }
+.tm-cmt-input {
+  width: 100%; resize: vertical; min-height: 44px;
+  background: var(--tm-surface-2); border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-sm); color: var(--tm-text);
+  font-family: inherit; font-size: 13px; line-height: 1.6; padding: 10px 12px;
+  outline: none;
+}
+.tm-cmt-input::placeholder { color: var(--tm-text-faint); }
+.tm-cmt-input:focus-visible { border-color: var(--tm-interactive); box-shadow: 0 0 0 3px var(--tm-int-bg-wash); }
+
+.tm-cmt-add {
+  align-self: flex-end; height: 32px; padding: 0 16px;
+  border-radius: var(--tm-radius-pill); border: 1px solid var(--tm-interactive);
+  background: var(--tm-interactive); color: var(--tm-interactive-fg);
+  font-family: inherit; font-size: 12px; font-weight: 750; cursor: pointer;
+}
+.tm-cmt-add:disabled { opacity: 0.5; cursor: default; background: rgba(255, 255, 255, 0.06); border-color: var(--tm-border-soft); color: var(--tm-text-faint); }
+
+.tm-cmt-empty { font-size: 12px; color: var(--tm-text-faint); line-height: 1.55; }
+
+.tm-cmt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.tm-cmt-item {
+  padding: 10px 12px; border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-border-soft); background: rgba(255, 255, 255, 0.02);
+}
+.tm-cmt-body { margin: 0; font-size: 13px; line-height: 1.55; color: var(--tm-text); white-space: pre-wrap; word-break: break-word; }
+.tm-cmt-foot { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.tm-cmt-time { font-family: var(--tm-font-mono); font-size: 10px; color: var(--tm-text-faint); margin-right: auto; }
+.tm-cmt-icon {
+  width: 24px; height: 24px; border-radius: var(--tm-radius-sm);
+  border: 1px solid transparent; background: transparent; color: var(--tm-text-faint);
+  font-size: 12px; cursor: pointer; line-height: 1;
+}
+.tm-cmt-icon:hover { color: var(--tm-interactive); border-color: var(--tm-border-soft); background: var(--tm-int-bg-wash); }
+.tm-cmt-icon:disabled { opacity: 0.4; cursor: default; }
+
+.tm-cmt-edit { display: flex; flex-direction: column; gap: 8px; }
+.tm-cmt-edit-actions { display: flex; gap: 8px; }
+.tm-cmt-save {
+  height: 30px; padding: 0 14px; border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-interactive); background: var(--tm-interactive);
+  color: var(--tm-interactive-fg); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.tm-cmt-save:disabled { opacity: 0.5; cursor: default; }
+.tm-cmt-ghost {
+  height: 30px; padding: 0 14px; border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-border-soft); background: transparent;
+  color: var(--tm-text-faint); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}

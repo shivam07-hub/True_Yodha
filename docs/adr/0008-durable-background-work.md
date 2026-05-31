@@ -37,6 +37,7 @@ Product priority (Shivam): **speed, success, no outages — success is never sac
 6. **Overload Policy** — uploads are **never rejected for load**. The durable rail absorbs the spike; the loading screen surfaces honest backpressure ("high demand — still working, you're in line"). Charge at enqueue; refund only on terminal failure after retries.
 
 7. **Safety nets** — DROP the `_is_async_mode` dev inline-fallback (single prod path; devs run Redis). KEEP the CVUP3 orphan-sweep as an independent "night-watchman" backstop (catches anything the rail drops despite per-job timeout — Redis eviction, stuck registry, misconfig). Per-job timeout configured so a SIGKILLed worker's job auto-fails → refunds.
+8. **Instant refund on retry-exhaustion** (added 2026-05-30) — an RQ `on_failure` callback (`dispatch.run_failure_sync` → per-`job_type` `failure_handler`) refunds the charge the moment retries are exhausted, instead of leaving the user to wait ~5min for the orphan-sweep. The sweep stays as the backstop; the callback is idempotent (refund RPC short-circuits a double refund) and never raises (a crash in the callback must not take down the worker). `cv_parse_score` registers a failure handler that marks the job failed + refunds.
 
 **Upload Guarantee (the invariant this serves):** durable rail (no loss on restart) + transient-retry (self-heal) + never-reject overload + orphan-sweep watchman ⇒ a silently-dropped upload is structurally impossible. The only terminal non-success is a PERMANENT failure, which fails fast, refunds, and tells the user how to fix it.
 

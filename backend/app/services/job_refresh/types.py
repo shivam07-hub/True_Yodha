@@ -31,7 +31,12 @@ class RefreshTicket:
 
 @dataclass(frozen=True)
 class RefreshState:
-    """Result of `JobRefresh.status`. Terminal states carry final XP balance + refund."""
+    """Result of `JobRefresh.status`. Terminal states carry final XP balance + refund.
+
+    `progress_done`/`progress_total`/`revealed` carry the per-job reveal feed
+    during the `computing` phase (ADR-0009): the ranker reports each job as its
+    eval lands; the SSE relay streams them so the UI reveals roles one-by-one.
+    """
     ticket_id: str
     state: RefreshLifecycle
     progress_label: str
@@ -42,3 +47,6 @@ class RefreshState:
     outcome_kind: RefreshOutcomeKind | None = None
     error: str | None = None
     debug: dict[str, Any] = field(default_factory=dict)
+    progress_done: int | None = None
+    progress_total: int | None = None
+    revealed: list[dict[str, Any]] = field(default_factory=list)

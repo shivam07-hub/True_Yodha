@@ -17,8 +17,12 @@ export type CVUploadInitial =
       job_id: string
     }
 
+export type CVUploadPhase = "queued" | "reading" | "scoring" | "ready" | "failed"
+
 export interface CVUploadPolledStatus {
   status: "processing" | "done" | "failed"
+  /** #6 deploy-style loading phase. */
+  current_phase?: CVUploadPhase | null
   skills_detected: number | null
   score: number | null
   error_code: string | null
@@ -60,6 +64,9 @@ export interface ResolveUploadOptions {
   /** Injectable clock — defaults to Date.now + setTimeout. Tests override. */
   now?: () => number
   sleep?: (ms: number) => Promise<void>
+  /** #6 — fired with every processing poll so the loading UI can show the
+   *  live phase (reading → scoring). Not called on the synchronous done path. */
+  onProgress?: (status: CVUploadPolledStatus) => void
 }
 
 const DEFAULT_INTERVAL_MS = 2_000
@@ -95,6 +102,7 @@ export async function resolveCVUploadResult(
     try {
       status = await fetchStatus(initial.job_id)
       transientFailures = 0
+      opts.onProgress?.(status)
     } catch {
       transientFailures += 1
       if (transientFailures > maxTransientFailures) {

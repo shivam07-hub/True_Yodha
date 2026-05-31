@@ -34,3 +34,7 @@ class ForgeSessionResponse(BaseModel):
 class LastForgedSkillResponse(BaseModel):
     skill_id: str | None
     skill_name: str | None
+
+
+class ForgeSessionDatesResponse(BaseModel):
+    dates: list[str]

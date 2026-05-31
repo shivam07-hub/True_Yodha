@@ -20,12 +20,21 @@ export function daysAgo(dateStr: string): string {
 }
 
 export function computeStreak(entries: DiaryEntry[]): number {
-  const dates = new Set(entries.map((e) => e.log_date))
+  return computeStreakFromDates(entries.map((e) => e.log_date))
+}
+
+/**
+ * Consecutive-day streak from a list of ISO datetimes/dates (any order).
+ * Powers the home "practice streak" off forge sessions — the diary streak was
+ * retired when the diary rail moved off Practice (Comments PR).
+ */
+export function computeStreakFromDates(isoDates: string[]): number {
+  const days = new Set(isoDates.map((d) => d.slice(0, 10)))
   let streak = 0
   const d = new Date()
   while (true) {
     const key = d.toISOString().slice(0, 10)
-    if (!dates.has(key)) break
+    if (!days.has(key)) break
     streak++
     d.setDate(d.getDate() - 1)
   }

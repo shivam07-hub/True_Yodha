@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, status
 from app.deps import Principal, get_principal
 from app.schemas.xp import (
     ForgeCompleteRequest,
+    ForgeSessionDatesResponse,
     ForgeSessionResponse,
     LastForgedSkillResponse,
     XPBalanceResponse,
@@ -58,3 +59,11 @@ async def last_forged_skill(
     if not row:
         return LastForgedSkillResponse(skill_id=None, skill_name=None)
     return LastForgedSkillResponse(**row)
+
+
+@router.get("/forge/sessions", response_model=ForgeSessionDatesResponse)
+async def forge_session_dates(
+    principal: Principal = Depends(get_principal),
+) -> ForgeSessionDatesResponse:
+    """Recent forge-session completion timestamps — powers the home practice streak."""
+    return ForgeSessionDatesResponse(dates=forge_service.list_recent_session_dates(principal.id))

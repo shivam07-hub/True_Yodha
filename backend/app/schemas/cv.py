@@ -36,6 +36,8 @@ class CVUploadResponse(BaseModel):
 class CVUploadStatusResponse(BaseModel):
     """Polled job status. `status="processing"` means client should poll again."""
     status: Literal["processing", "done", "failed"]
+    # #6 deploy-style loading phase: queued | reading | scoring | ready | failed.
+    current_phase: Literal["queued", "reading", "scoring", "ready", "failed"] | None = None
     skills_detected: int | None = None
     score: float | None = None
     error_code: str | None = None

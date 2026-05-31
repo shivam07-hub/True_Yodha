@@ -180,3 +180,32 @@ def test_parse_eval_strips_think_block() -> None:
 
 def test_parse_eval_returns_none_on_garbage() -> None:
     assert llm_ranker.parse_eval("no json here") is None
+
+
+# ── per-job reveal callback (ADR-0009) ──────────────────────────────────────────
+
+def test_evaluate_all_fires_on_progress_per_job(monkeypatch) -> None:
+    import asyncio
+
+    async def fake_eval(job, system_prompt, provider):
+        return {"overall_score": 1.0, "summary": "ok"}
+
+    monkeypatch.setattr(llm_ranker, "evaluate_job", fake_eval)
+    monkeypatch.setattr(llm_ranker, "build_system_prompt", lambda *a, **k: "sys")
+
+    jobs = [
+        {"job_id": "a", "title": "A", "company": "X"},
+        {"job_id": "b", "title": "B", "company": "Y"},
+        {"job_id": "c", "title": "C", "company": "Z"},
+    ]
+    calls: list[tuple[int, int, str]] = []
+
+    def cb(done: int, total: int, job: dict) -> None:
+        calls.append((done, total, job["job_id"]))
+
+    res = asyncio.run(llm_ranker.evaluate_all({}, jobs, object(), cb))
+
+    assert len(res) == 3
+    assert sorted(c[0] for c in calls) == [1, 2, 3]   # done counts 1..3
+    assert {c[1] for c in calls} == {3}                # total always 3
+    assert {c[2] for c in calls} == {"a", "b", "c"}    # every job reported

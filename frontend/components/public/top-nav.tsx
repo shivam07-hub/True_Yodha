@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { FileText, Mail } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
@@ -14,9 +15,15 @@ interface PublicTopNavProps {
   showSignIn?: boolean
 }
 
-const STATIC_NAV_ITEMS: { label: string; href: string; id: PublicNavPage; accent?: boolean }[] = [
-  { label: "CV Hub",     href: "/about",     id: "about"     },
-  { label: "Newsletter", href: "/newsletter", id: "newsletter" },
+const STATIC_NAV_ITEMS: {
+  label: string
+  href: string
+  id: PublicNavPage
+  accent?: boolean
+  Icon: typeof FileText
+}[] = [
+  { label: "CV Hub",     href: "/about",      id: "about",      Icon: FileText },
+  { label: "Newsletter", href: "/newsletter", id: "newsletter", Icon: Mail     },
 ]
 
 function formatTodayShort(): string {
@@ -44,22 +51,26 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
       </Link>
 
       <div className="tm-public-nav-links">
-        {STATIC_NAV_ITEMS.map((item) => (
+        {STATIC_NAV_ITEMS.map(({ Icon, ...item }) => (
           <Link
             key={item.id}
             href={item.href}
             className={`tm-public-nav-link${item.accent ? " tm-public-nav-link-accent" : ""}`}
             data-active={item.id === active}
+            title={item.label}
           >
-            {item.label}
+            <Icon className="tm-public-nav-glyph" size={18} aria-hidden="true" />
+            <span className="tm-public-nav-label">{item.label}</span>
           </Link>
         ))}
         <Link
           href="/intel"
-          className="tm-public-nav-link"
+          className="tm-public-nav-link tm-public-nav-link-live"
           data-active={active === "intel"}
+          title="Live Job Data"
         >
-          {intelLabel}
+          <span className="tm-public-nav-livedot" aria-hidden="true" />
+          <span className="tm-public-nav-label">{intelLabel}</span>
         </Link>
       </div>
 

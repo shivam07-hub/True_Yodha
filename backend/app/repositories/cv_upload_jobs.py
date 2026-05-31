@@ -35,6 +35,7 @@ def create_processing_job(
         "status": "processing",
         "xp_charged": 0,
         "content_hash": content_hash,
+        "current_phase": "queued",
     }
     if idempotency_key:
         payload["idempotency_key"] = idempotency_key
@@ -76,6 +77,16 @@ def mark_charged(job_id: str, amount: int) -> None:
     admin.table(_TABLE).update({"xp_charged": amount}).eq("id", job_id).execute()
 
 
+def set_phase(job_id: str, phase: str) -> None:
+    """Advance the coarse loading phase (#6 deploy-style progress). Best-effort —
+    a write failure must never abort the parse/score the user is waiting on."""
+    try:
+        admin = get_supabase_admin()
+        admin.table(_TABLE).update({"current_phase": phase}).eq("id", job_id).execute()
+    except Exception as exc:  # pragma: no cover — telemetry only, never fatal
+        _log.warning("set_phase(%s, %s) failed: %s", job_id, phase, exc)
+
+
 def mark_done(
     job_id: str,
     *,
@@ -85,6 +96,7 @@ def mark_done(
     admin = get_supabase_admin()
     admin.table(_TABLE).update({
         "status": "done",
+        "current_phase": "ready",
         "skills_detected": skills_detected,
         "score": score,
         "finished_at": datetime.now(timezone.utc).isoformat(),
@@ -101,6 +113,7 @@ def mark_failed(
     admin = get_supabase_admin()
     admin.table(_TABLE).update({
         "status": "failed",
+        "current_phase": "failed",
         "error_code": error_code,
         "error_detail": error_detail,
         "xp_refunded": refunded,
@@ -117,7 +130,7 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
     client = db or get_supabase_admin()
     result = (
         client.table(_TABLE)
-        .select("id, status, skills_detected, score, error_code, error_detail, xp_charged, xp_refunded, created_at, finished_at")
+        .select("id, status, current_phase, skills_detected, score, error_code, error_detail, xp_charged, xp_refunded, created_at, finished_at")
         .eq("id", job_id)
         .eq("user_id", user_id)
         .limit(1)

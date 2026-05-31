@@ -15,7 +15,12 @@ Flow:
 """
 from __future__ import annotations
 
+import asyncio
+import time
+from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
@@ -25,7 +30,7 @@ from app.repositories.cv import (
     get_token_cv_repository,
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
-from app.services import background, cv_compose, cv_skill_edit
+from app.services import background, cv_compose, cv_skill_edit, progress_stream
 
 router = APIRouter()
 
@@ -193,6 +198,60 @@ async def recompute_status(
     return RecomputeStatusResponse(
         baseline_id=baseline_id,
         recompute_finished_at=row.get("recompute_finished_at"),
+    )
+
+
+@router.get("/skill-edit/recompute-status/{baseline_id}/stream")
+async def stream_recompute_status(
+    baseline_id: int,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> StreamingResponse:
+    """ADR-0009 PR2 — live re-score progress over SSE (replaces the SE17 3s poll).
+
+    Snapshot-watch relay over cv_versions.recompute_finished_at: emits a single
+    `phase` (scoring) then `done` the moment the async re-tag stamps the flag.
+    A hard timeout closes the stream so the score-ring shimmer never hangs."""
+    user_id = principal.id
+
+    async def gen() -> AsyncIterator[str]:
+        started = time.monotonic()
+        announced = False
+        while True:
+            row = cv_repo.find(baseline_id, user_id)
+            if not row:
+                yield progress_stream.sse(
+                    {"type": "error", "recoverable": False, "message": "Baseline not found."}
+                )
+                return
+            if row.get("recompute_finished_at"):
+                yield progress_stream.sse({
+                    "type": "done",
+                    "result": {
+                        "baseline_id": baseline_id,
+                        "recompute_finished_at": row["recompute_finished_at"],
+                    },
+                })
+                return
+            if not announced:
+                announced = True
+                yield progress_stream.sse(
+                    {"type": "phase", "phase": "scoring", "label": "Re-scoring your CV"}
+                )
+            else:
+                yield progress_stream.HEARTBEAT
+
+            if time.monotonic() - started > progress_stream.TIMEOUT_SECONDS:
+                # Cap hit — settle the client (best-effort refresh on its side).
+                yield progress_stream.sse({
+                    "type": "done",
+                    "result": {"baseline_id": baseline_id, "recompute_finished_at": None, "timeout": True},
+                })
+                return
+            await asyncio.sleep(progress_stream.TICK_SECONDS)
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers=progress_stream.SSE_HEADERS
     )
 
 

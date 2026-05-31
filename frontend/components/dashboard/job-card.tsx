@@ -16,6 +16,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { LENSES, type LensKey } from "@/lib/dashboard/feed-model"
 import { LensOverview, LensWhy, LensSkills } from "./lenses"
 import { LensCompany, type OtherRole } from "./lens-company"
+import { CommentThread } from "@/components/comments/comment-thread"
 
 const STAGE_LABEL: Record<ApplicationStatus, string> = {
   saved: "Saved",
@@ -81,6 +82,9 @@ function LensAction({ lens, job, cartSize }: { lens: LensKey; job: JobMatch; car
       ? <Link className="db-act-btn accent" href="/forge">Open Forge · {cartSize}</Link>
       : <span className="db-act-hint">Tap a skill to lock it</span>
   }
+  if (lens === "notes") {
+    return <span className="db-act-hint">Private to you</span>
+  }
   return <span className="db-act-hint">Dig deeper below</span>
 }
 
@@ -97,6 +101,13 @@ function renderLens(key: LensKey, p: JobCardProps, model: ReturnType<typeof useC
   if (key === "overview") return <LensOverview job={p.job} skills={model.skills} />
   if (key === "why") return <LensWhy {...lensProps} />
   if (key === "skills") return <LensSkills {...lensProps} />
+  if (key === "notes") {
+    return (
+      <div className="db-lens-notes">
+        <CommentThread token={p.token} entityType="job" entityId={p.job.job_id} placeholder={`Note your progress on ${p.job.company ?? "this role"}…`} />
+      </div>
+    )
+  }
   return <LensCompany job={p.job} token={p.token} active={p.active} otherRoles={p.otherRoles} onJump={p.onJump} />
 }
 
