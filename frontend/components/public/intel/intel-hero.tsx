@@ -27,8 +27,8 @@ export function IntelHero(props: HeroProps) {
           <span className="tm-intel-eyebrow-accent">LIVE · PUBLIC MIRROR</span>
         </div>
         <h1 className="tm-intel-display">
-          Every careers page on the internet,{" "}
-          <em>now on one platform.</em>
+          Every careers page,{" "}
+          <em>on one platform.</em>
         </h1>
         <p className="tm-intel-lede">
           A self-hosted, open-source model has been fetching job listings for{" "}
