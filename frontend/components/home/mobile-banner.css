@@ -1,4 +1,4 @@
-/* Q6 mobile next-move banner. Page-scoped per ADR-0003. Sticky, non-snapping.
+/* Q6 mobile greeting banner. Page-scoped per ADR-0003. Sticky, non-snapping.
    Desktop never renders this (home branches on useViewport). */
 
 .mb {
@@ -54,34 +54,4 @@
   color: var(--tm-text-muted);
   background: transparent;
   border-color: var(--tm-border);
-}
-
-.mb-move {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 11px 14px;
-  border-radius: var(--tm-radius, 10px);
-  border: 1px solid var(--tm-int-border);
-  background: var(--tm-int-bg-wash);
-  text-decoration: none;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  width: 100%;
-}
-.mb-move-lbl {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tm-text);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mb-move-go {
-  font-size: 16px;
-  color: var(--tm-interactive, var(--tm-accent));
-  flex-shrink: 0;
 }
