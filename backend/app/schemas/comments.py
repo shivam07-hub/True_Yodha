@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, field_validator
 
-EntityType = Literal["job", "skill"]
+EntityType = Literal["job", "skill", "company"]
 
 _MAX_BODY = 2000
 

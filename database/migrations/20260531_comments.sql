@@ -2,8 +2,9 @@
 --
 -- The freeform daily diary is retired; reborn as private contextual note
 -- threads attached to a specific card:
---   entity_type 'job'   → entity_id = jobs.job_id   (dashboard job card)
---   entity_type 'skill' → entity_id = skill taxonomy_key (Practice skill card)
+--   entity_type 'job'     → entity_id = jobs.job_id        (dashboard job card)
+--   entity_type 'skill'   → entity_id = skill taxonomy_key (Practice skill card)
+--   entity_type 'company' → entity_id = company name       (/companies/[slug])
 --
 -- Many notes per entity (a thread), newest-first, own-only (RLS). No XP, no
 -- LLM skill-delta tagging, no score coupling — inert private notes. daily_logs
@@ -16,7 +17,7 @@
 CREATE TABLE IF NOT EXISTS public.comments (
     id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    entity_type  text NOT NULL CHECK (entity_type IN ('job', 'skill')),
+    entity_type  text NOT NULL CHECK (entity_type IN ('job', 'skill', 'company')),
     entity_id    text NOT NULL,
     body         text NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),

@@ -1965,7 +1965,7 @@ export const diary = {
 }
 
 // ── Comments (PR-B) — private note threads on job + skill cards ──
-export type CommentEntityType = "job" | "skill"
+export type CommentEntityType = "job" | "skill" | "company"
 
 export interface Comment {
   id: string

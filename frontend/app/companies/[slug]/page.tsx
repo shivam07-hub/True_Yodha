@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useState } from "react"
 import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { ParticleLoading } from "@/components/loading/particle-loading"
+import { CommentThread } from "@/components/comments/comment-thread"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 
@@ -202,6 +203,16 @@ export default function CompanyJobsPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* Private notes — logged-in only (RLS own-only) */}
+        {token && (
+          <div style={{ marginTop: 40, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
+            <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
+              Your notes on {companyName}
+            </div>
+            <CommentThread token={token} entityType="company" entityId={companyName} placeholder={`Private note on ${companyName} — what you've heard, applied to, want to track…`} />
+          </div>
         )}
 
         {/* Score CTA */}

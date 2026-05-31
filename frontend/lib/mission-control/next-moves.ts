@@ -32,7 +32,6 @@ export function buildNextMoves({
   cartSkillNames,
   firstMissing,
   loggedToday,
-  streak,
   activeTargets,
 }: NextMovesArgs): NextMove[] {
   const moves: NextMove[] = []
@@ -57,15 +56,6 @@ export function buildNextMoves({
       href: "/forge",
     })
   }
-  if (!loggedToday) {
-    moves.push({
-      icon: "diary",
-      title: "Log today's session",
-      meta: `Streak ${streak} → ${streak + 1} days`,
-      reward: "+10 XP",
-      href: "/forge?diary=1",
-    })
-  }
 
   const addIfRoom = (move: NextMove) => {
     if (moves.length >= 3) return
@@ -87,15 +77,15 @@ export function buildNextMoves({
     reward: "Live Job Data",
     href: "/skills",
   })
-  addIfRoom({
-    icon: "diary",
-    title: loggedToday ? "Review tracker follow-up" : "Log today's session",
-    meta: loggedToday
-      ? `${activeTargets} active target${activeTargets === 1 ? "" : "s"}`
-      : `Streak ${streak} → ${streak + 1} days`,
-    reward: loggedToday ? "Track" : "+10 XP",
-    href: loggedToday ? "/tracker" : "/forge?diary=1",
-  })
+  if (loggedToday) {
+    addIfRoom({
+      icon: "diary",
+      title: "Review tracker follow-up",
+      meta: `${activeTargets} active target${activeTargets === 1 ? "" : "s"}`,
+      reward: "Track",
+      href: "/tracker",
+    })
+  }
 
   return moves.slice(0, 3)
 }
