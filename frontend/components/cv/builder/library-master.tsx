@@ -1,0 +1,140 @@
+"use client"
+
+import { DownloadCVButton } from "@/components/cv/download-cv-button"
+import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import { CVRender } from "./cv-render"
+import { ApertureMark, timeAgoShort } from "./library-shared"
+import { I, LIcon } from "./library-icons"
+
+interface MasterCVHeroProps {
+  baseline: CVVersion | null
+  profile: UserProfile | null
+  onOpen: () => void
+  onReplace: () => void
+}
+
+interface MasterCVPanelProps {
+  token: string
+  baseline: CVVersion | null
+  cv: CVStructured | null
+  profile: UserProfile | null
+  onClose: () => void
+  onReplace: () => void
+}
+
+function masterDisplayName(profile: UserProfile | null): string {
+  return profile?.full_name?.trim() || "Your Name"
+}
+
+function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
+  return {
+    name: masterDisplayName(profile),
+    title: cv?.experience[0]?.role || profile?.target_roles?.[0] || "",
+    location: profile?.target_location ?? "",
+    email: profile?.email ?? "",
+    phone: "",
+    linkedin: profile?.linkedin_url ?? "",
+  }
+}
+
+export function MasterCVHero({ baseline, profile, onOpen, onReplace }: MasterCVHeroProps) {
+  const vNum = baseline ? `v${baseline.user_version_number}` : "v0"
+  const updatedAgo = baseline ? timeAgoShort(baseline.created_at) : "—"
+  const displayName = masterDisplayName(profile)
+  const previewLines = [78, 92, 64, 88, 70, 95, 82, 60]
+
+  return (
+    <div className="tm-lib-master-card">
+      <div className="tm-lib-master-preview">
+        <div className="tm-lib-master-preview-name">{displayName.split(" ")[0].toUpperCase()}</div>
+        {previewLines.map((w, i) => (
+          <div key={i} className="tm-lib-master-preview-line" style={{
+            height: i === 0 ? 6 : 3,
+            width: `${w}%`,
+            background: i === 0 ? "var(--tm-text-muted)" : "var(--tm-border-soft)",
+          }}/>
+        ))}
+        <div className="tm-lib-master-aperture">
+          <ApertureMark size={10}/>
+        </div>
+      </div>
+
+      <div className="tm-lib-master-body">
+        <div className="tm-lib-master-header">
+          <div style={{ minWidth: 0 }}>
+            <div className="tm-lib-eyebrow" style={{ color: "var(--tm-interactive)" }}>
+              MAIN CV · SOURCE OF TRUTH
+            </div>
+            <div className="tm-lib-master-name">{displayName}</div>
+            <div className="tm-lib-master-role">
+              {(profile?.target_roles?.[0]) ?? "Senior Product Manager"}
+              {profile?.target_location ? ` · ${profile.target_location}` : ""}
+            </div>
+          </div>
+          <span className="tm-lib-master-version">{vNum}</span>
+        </div>
+
+        <div className="tm-lib-master-stats">
+          {baseline ? (
+            <span>updated <span className="tm-lib-master-stats-val tm-lib-mono">{updatedAgo}</span> ago</span>
+          ) : (
+            <span style={{ color: "var(--tm-text-faint)" }}>No CV uploaded yet</span>
+          )}
+        </div>
+
+        <div className="tm-lib-master-actions">
+          <button type="button" className="tm-lib-btn primary sm" onClick={onOpen} disabled={!baseline}>
+            <LIcon d={I.file} size={13}/> Open Master CV
+          </button>
+          <button type="button" className="tm-lib-btn ghost sm" onClick={onReplace}>
+            <LIcon d={I.upload} size={13}/> Replace upload
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MasterCVPanel({
+  token, baseline, cv, profile, onClose, onReplace,
+}: MasterCVPanelProps) {
+  const fallbackText = baseline?.body_text?.trim() ?? ""
+
+  return (
+    <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Master CV preview">
+      <div className="tm-lib-master-panel-head">
+        <div style={{ minWidth: 0 }}>
+          <div className="tm-lib-eyebrow">MASTER CV</div>
+          <div className="tm-lib-master-panel-title">
+            {masterDisplayName(profile)}
+            {baseline && <span className="tm-lib-master-version">v{baseline.user_version_number}</span>}
+          </div>
+        </div>
+        <div className="tm-lib-master-panel-actions">
+          <DownloadCVButton
+            token={token}
+            baseline={baseline}
+            cv={cv}
+            fullName={profile?.full_name}
+            className="tm-lib-btn primary sm"
+            label="Download Master"
+          />
+          <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
+            <LIcon d={I.upload} size={12}/> Replace
+          </button>
+          <button type="button" className="tm-lib-btn icon-only sm" onClick={onClose} aria-label="Close master CV preview">
+            <LIcon d={I.close} size={13}/>
+          </button>
+        </div>
+      </div>
+
+      <div className="tm-lib-master-panel-body">
+        {cv ? (
+          <CVRender cv={cv} contact={masterContact(cv, profile)}/>
+        ) : (
+          <pre className="tm-lib-master-panel-text">{fallbackText || "Master CV is still being prepared."}</pre>
+        )}
+      </div>
+    </section>
+  )
+}

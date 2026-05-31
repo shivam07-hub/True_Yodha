@@ -351,11 +351,12 @@ function CVPage() {
 
           {hasBaseline && view === "baseline" && (
             <LibraryView
+              token={token!}
+              cv={cvData}
               versions={playground.allVersions}
               currentBaseline={playground.currentBaseline}
               applications={applicationsQuery.data ?? []}
               profile={profileQuery.data ?? null}
-              onOpenMaster={openFilePicker}
               onOpenJob={openJob}
               onReplaceCV={openFilePicker}
             />

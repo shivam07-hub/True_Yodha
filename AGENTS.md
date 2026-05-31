@@ -277,7 +277,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-05-31 - Integrator item: post-application intelligence + Myrology)
+## LAST SESSION SUMMARY (2026-06-01 - CV workspace action clarity)
+
+Fixed the `/cv` workspace so the page behaves like a job-action CV cockpit instead of a misleading upload/stat dashboard.
+
+- Rewired **Open Master CV** to open an inline loaded Master CV preview instead of the upload picker.
+- Kept **Replace upload** as the deliberate Main CV replacement path and removed the duplicate top-right **Update Master** CTA.
+- Moved Tailored / Companies / Pipeline / Downloads into a compact non-clickable stat strip below the page subheading.
+- Made Downloads honest as `tracking pending` instead of implying a real last-30-days metric exists.
+- Relabeled job-card actions so existing CVs say **Open latest CV** and missing role CVs say **Create tailored CV**.
+- Improved company-folder **Create CV** behavior to prefer a role that does not already have a tailored CV, falling back to opening an existing role CV when all roles are covered.
+- Split the oversized CV library surface into focused files under 300 lines: `library-master.tsx`, `library-company-row.tsx`, `library-icons.tsx`, plus pure helpers in `lib/cv/workspace.ts`.
+- Added `frontend/tests/cv-workspace.test.ts` covering stats semantics, job action labels, and new-CV target selection.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-workspace.test.ts` -> `3 passed`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `.venv/bin/pytest backend/tests -q` -> `462 passed, 13 warnings`
+- `git diff --check` -> clean
+- Browser opened `http://localhost:3022/cv`; local in-app browser redirected to sign-in because no authenticated local session was available, so authenticated visual QA still needs a signed-in browser session.
+
+## OLDER SESSION SUMMARY (2026-05-31 - Integrator item: post-application intelligence + Myrology)
 
 Used `grill-me` to lock the product philosophy for post-application journeys, Referral Intelligence, company reports, and Myrology before writing memory into the cockpit docs.
 

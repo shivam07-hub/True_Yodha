@@ -56,6 +56,10 @@
   margin-bottom: 22px;
   flex-wrap: wrap;
 }
+.tm-lib-page-head-main {
+  flex: 1;
+  min-width: 0;
+}
 .tm-lib-page-title {
   font-size: 30px;
   font-weight: 600;
@@ -68,7 +72,7 @@
   font-size: 14px;
   color: var(--tm-text-muted);
   margin: 0;
-  max-width: 560px;
+  max-width: 680px;
   line-height: 1.5;
 }
 .tm-lib-page-actions {
@@ -97,6 +101,15 @@
   letter-spacing: -0.005em;
 }
 .tm-lib-btn:hover { background: var(--tm-surface-2); border-color: var(--tm-border); }
+.tm-lib-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.tm-lib-btn:disabled:hover {
+  background: transparent;
+  border-color: var(--tm-border-soft);
+}
 .tm-lib-btn.primary {
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
@@ -113,15 +126,15 @@
 /* ── Hero strip: Master CV + stat tiles ─────────────────────────── */
 .tm-lib-hero-strip {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.05fr);
+  grid-template-columns: 1fr;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 /* Master CV card */
 .tm-lib-master-card {
   display: flex;
-  min-height: 168px;
+  min-height: 162px;
   border: 1px solid var(--tm-accent-ring);
   border-radius: 10px;
   overflow: hidden;
@@ -217,28 +230,81 @@
   margin-top: auto;
 }
 
-/* Stat tiles grid */
-.tm-lib-stat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.tm-lib-master-panel {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  background: var(--tm-surface);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.tm-lib-master-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface-2);
+}
+.tm-lib-master-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--tm-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.tm-lib-master-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.tm-lib-master-panel-body {
+  max-height: min(70vh, 760px);
+  overflow: auto;
+  padding: 18px;
+}
+.tm-lib-master-panel-body .cvb-cv-render {
+  max-width: 860px;
+  margin: 0 auto;
+}
+.tm-lib-master-panel-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--tm-text);
+  font-family: "Geist Mono", var(--tm-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Stat strip */
+.tm-lib-header-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(118px, 1fr));
+  gap: 8px;
+}
+.tm-lib-header-stat-strip {
+  max-width: 720px;
+  margin-top: 14px;
 }
 .tm-lib-stat-tile {
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
+  padding: 11px 12px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-height: 78px;
+  gap: 2px;
+  min-height: 68px;
   justify-content: center;
-  transition: border-color 120ms var(--tm-ease);
 }
-.tm-lib-stat-tile:hover { border-color: var(--tm-border); }
 .tm-lib-stat-num {
   font-family: "Geist Mono", var(--tm-font-mono);
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -493,6 +559,10 @@
   gap: 6px;
   margin-top: 2px;
 }
+.tm-lib-job-card-action-primary {
+  flex: 1;
+  justify-content: center;
+}
 
 /* New CV dashed card */
 .tm-lib-new-cv-card {
@@ -513,6 +583,14 @@
 .tm-lib-new-cv-card:hover {
   border-color: var(--tm-accent-ring);
   color: var(--tm-interactive);
+}
+.tm-lib-new-cv-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.tm-lib-new-cv-card:disabled:hover {
+  border-color: var(--tm-border-soft);
+  color: var(--tm-text-muted);
 }
 .tm-lib-new-cv-card-title { font-size: 13px; font-weight: 500; }
 .tm-lib-new-cv-card-sub { font-size: 11px; color: var(--tm-text-faint); }
@@ -675,14 +753,19 @@
 }
 @media (max-width: 900px) {
   .tm-lib-hero-strip { grid-template-columns: 1fr; }
-  .tm-lib-stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .tm-lib-header-stat-strip { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 600px) {
   .tm-lib-main { padding: 16px 16px 32px; }
-  .tm-lib-stat-grid { grid-template-columns: 1fr 1fr; }
+  .tm-lib-header-stat-strip { grid-template-columns: 1fr 1fr; }
   .tm-lib-page-head { flex-direction: column; }
+  .tm-lib-page-actions { width: 100%; }
+  .tm-lib-page-actions .tm-lib-btn { flex: 1; justify-content: center; }
   .tm-lib-master-preview { display: none; }
   .tm-lib-master-name { font-size: 18px; }
+  .tm-lib-master-panel-head { align-items: flex-start; flex-direction: column; }
+  .tm-lib-master-panel-actions { width: 100%; justify-content: flex-start; }
+  .tm-lib-master-panel-body { padding: 12px; }
 }
 
 /* ── Motion safe ─────────────────────────────────────────────────── */
