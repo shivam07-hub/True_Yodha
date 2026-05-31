@@ -52,7 +52,7 @@ export function HomeSkeleton({ phase = "normal" }: { phase?: LoadingPhase }) {
             {sk(120, 34, 10)}
           </div>
 
-          {/* hero: left greeting + next-moves, right score panel */}
+          {/* hero: left greeting + checkpoints, right score panel */}
           <div className="mc-hero">
             <div>
               {sk(360, 40, 10)}
@@ -62,33 +62,6 @@ export function HomeSkeleton({ phase = "normal" }: { phase?: LoadingPhase }) {
               <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
                 {[64, 78, 52, 84, 60].map((w, i) => (
                   <Skeleton key={i} style={{ width: w, height: 24, borderRadius: 999 }} />
-                ))}
-              </div>
-
-              {/* NEXT MOVES card */}
-              <div
-                style={{
-                  marginTop: 22,
-                  border: "1px solid var(--tm-border-soft)",
-                  borderRadius: "var(--tm-radius-lg, 14px)",
-                  background: "var(--tm-surface)",
-                  padding: 16,
-                  maxWidth: 560,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14,
-                }}
-              >
-                {sk(90, 12, 4)}
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Skeleton style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0 }} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                      {sk("60%", 13, 4)}
-                      {sk("40%", 10, 4)}
-                    </div>
-                    {sk(48, 18, 6)}
-                  </div>
                 ))}
               </div>
             </div>

@@ -18,7 +18,6 @@ import { StaleBanner } from "@/components/errors/stale-banner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dashboard } from "@/components/dashboard/dashboard"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
-import { buildNextMoves } from "@/lib/mission-control/next-moves"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
@@ -149,8 +148,6 @@ function MissionControlInner() {
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const hasApplied = apps.some((a) => a.status !== "saved")
   const hasForged = entries.length > 0
-  const primaryJob = (urlJobId ? allMatchedJobs.find((j) => j.job_id === urlJobId) : null) ?? topJobs[0]
-  const firstMissing = primaryJob?.matched_skills?.length ? null : "Product Family Engineering"
 
   const checkpoints = [
     { label: "Find Job", done: topJobs.length > 0 },
@@ -160,20 +157,7 @@ function MissionControlInner() {
     { label: "Apply", done: hasApplied },
   ]
 
-  const cartSkillList = useMemo(() => cartSkills.map((c) => c.skill_name), [cartSkills])
-  const nextMoves = useMemo(
-    () =>
-      buildNextMoves({
-        primaryJob,
-        hasForged,
-        cartSkillNames: cartSkillList,
-        firstMissing,
-        loggedToday,
-        streak,
-        activeTargets,
-      }),
-    [primaryJob, hasForged, cartSkillList, firstMissing, loggedToday, streak, activeTargets],
-  )
+  const scoreDelta = evidenceData?.score_delta ?? 0
 
   // Hold the layout-matched skeleton until auth, nav unlocks, and the core
   // dashboard queries have all settled — then swap to real content in one
@@ -261,9 +245,10 @@ function MissionControlInner() {
                 dateLine={dateLine}
                 activeTargets={activeTargets}
                 checkpoints={checkpoints}
-                nextMoves={nextMoves}
                 score={score}
                 streak={streak}
+                scoreDelta={scoreDelta}
+                loggedToday={loggedToday}
                 sessions={entries.length}
                 diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
               />
@@ -272,7 +257,8 @@ function MissionControlInner() {
                 name={firstName}
                 score={score}
                 streak={streak}
-                topMove={nextMoves[0] ?? null}
+                scoreDelta={scoreDelta}
+                loggedToday={loggedToday}
               />
             )}
 
