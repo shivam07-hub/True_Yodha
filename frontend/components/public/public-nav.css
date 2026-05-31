@@ -39,6 +39,7 @@
 .tm-public-nav-link {
   display: flex;
   align-items: center;
+  gap: 8px;
   padding: 0 12px;
   height: 40px;
   border-radius: var(--tm-radius-pill);
@@ -52,6 +53,30 @@
   transition: color var(--tm-dur-fast) var(--tm-ease),
               background var(--tm-dur-fast) var(--tm-ease),
               border-color var(--tm-dur-fast) var(--tm-ease);
+}
+
+/* Desktop: icons are a redundant cue alongside the label — hide to keep the
+   bar clean. The live dot stays (it carries the "agent is collecting" signal). */
+.tm-public-nav-glyph {
+  display: none;
+  flex-shrink: 0;
+}
+
+/* Pulsing live dot — mirrors .tm-intel-live-dot from the hero so the "live,
+   collecting now" signal reads the same in the nav as on the page. */
+.tm-public-nav-livedot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tm-accent);
+  box-shadow: 0 0 8px var(--tm-accent-glow);
+  animation: tm-public-nav-pulse 1.6s infinite;
+}
+
+@keyframes tm-public-nav-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 
 .tm-public-nav-link:hover {
@@ -122,16 +147,37 @@
 
 @media (max-width: 720px) {
   .tm-public-nav {
-    gap: 10px;
-    padding: 0 16px;
+    gap: 6px;
+    padding: 0 12px;
   }
 
-  .tm-public-nav-links {
+  /* Drop the wordmark — the glyph alone holds the brand and frees the row for
+     the 3 section switchers (CV Hub / Newsletter / Live Job Data). */
+  .tm-public-nav-wordmark {
     display: none;
   }
 
-  .tm-public-nav-wordmark {
-    font-size: 20px;
+  /* Icon-only switchers: label text collapses, leading glyph carries meaning.
+     Labels stay in the DOM (title + text) for screen readers and hover. */
+  .tm-public-nav-label {
+    display: none;
+  }
+
+  .tm-public-nav-glyph {
+    display: block;
+  }
+
+  .tm-public-nav-link {
+    gap: 0;
+    padding: 0;
+    width: 38px;
+    justify-content: center;
+  }
+
+  /* Live switcher keeps just the pulsing dot — its own glyph. */
+  .tm-public-nav-link-live .tm-public-nav-livedot {
+    width: 8px;
+    height: 8px;
   }
 
   .tm-public-nav-signup {
@@ -141,9 +187,15 @@
   }
 
   .tm-public-nav-signin {
-    padding: 0 14px;
+    padding: 0 10px;
     height: 38px;
     font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-public-nav-livedot {
+    animation: none;
   }
 }
 
