@@ -27,6 +27,33 @@ class _FakeChain:
         return type("R", (), {"data": [self.inserted]})()
 
 
+class _CountChain:
+    def __init__(self) -> None:
+        self.filters: dict[str, Any] = {}
+
+    def table(self, _name: str) -> "_CountChain":
+        return self
+
+    def select(self, *_columns: str, count: str | None = None) -> "_CountChain":
+        self.filters["count"] = count
+        return self
+
+    def eq(self, column: str, value: Any) -> "_CountChain":
+        self.filters[column] = value
+        return self
+
+    def gte(self, column: str, value: Any) -> "_CountChain":
+        self.filters[f"{column}__gte"] = value
+        return self
+
+    def limit(self, value: int) -> "_CountChain":
+        self.filters["limit"] = value
+        return self
+
+    def execute(self) -> Any:
+        return type("R", (), {"count": 42, "data": [{"id": "event-1"}]})()
+
+
 @pytest.fixture
 def patch_admin(monkeypatch: pytest.MonkeyPatch) -> _FakeChain:
     chain = _FakeChain()
@@ -118,3 +145,20 @@ def test_record_cv_upload_phase_event_validation(authed_client) -> None:
     client, _ = authed_client
     res = client.post("/v1/telemetry/cv-upload-phase", json={"phase": "unknown", "outcome": "failed"})
     assert res.status_code == 422
+
+
+def test_cv_upload_event_count_uses_supabase_compatible_count_query(monkeypatch: pytest.MonkeyPatch) -> None:
+    chain = _CountChain()
+    monkeypatch.setattr(telemetry_module, "get_supabase_admin", lambda: chain)
+
+    count = telemetry_module._count_cv_upload_events(
+        phase="parse",
+        since_iso="2026-06-01T00:00:00+00:00",
+        outcome="failed",
+    )
+
+    assert count == 42
+    assert chain.filters["count"] == "exact"
+    assert chain.filters["phase"] == "parse"
+    assert chain.filters["outcome"] == "failed"
+    assert chain.filters["limit"] == 1

@@ -69,9 +69,10 @@ def _count_cv_upload_events(
     admin = get_supabase_admin()
     query = (
         admin.table("cv_upload_phase_events")
-        .select("id", count="exact", head=True)
+        .select("id", count="exact")
         .eq("phase", phase)
         .gte("occurred_at", since_iso)
+        .limit(1)
     )
     if outcome:
         query = query.eq("outcome", outcome)

@@ -277,7 +277,25 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - CV workspace action clarity)
+## LAST SESSION SUMMARY (2026-06-01 - Railway CV upload telemetry hotfix)
+
+Fixed the Railway 500 on `POST /v1/telemetry/cv-upload-phase` that was masking CV upload diagnostics.
+
+- Root cause: `_count_cv_upload_events()` used `select("id", count="exact", head=True)`, but Railway's installed Supabase/PostgREST client rejected the `head` keyword.
+- Replaced the alert-count query with SDK-compatible `select("id", count="exact").limit(1)` so exact counts still work without fetching large telemetry result sets.
+- Added a regression test with a Supabase fake that accepts `count` but rejects `head`, matching the production failure shape.
+- Confirmed frontend telemetry remains fire-and-forget, so this 500 was not the direct parser abort, but it removed the signal needed to diagnose slow/stuck CV uploads.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_route_perf_telemetry.py::test_cv_upload_event_count_uses_supabase_compatible_count_query -q` -> red before fix, green after
+- `.venv/bin/pytest backend/tests/test_route_perf_telemetry.py -q` -> `8 passed, 6 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `463 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - CV workspace action clarity)
 
 Fixed the `/cv` workspace so the page behaves like a job-action CV cockpit instead of a misleading upload/stat dashboard.
 
