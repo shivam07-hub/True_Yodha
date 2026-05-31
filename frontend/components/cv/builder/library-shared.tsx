@@ -4,7 +4,7 @@
  */
 "use client"
 
-import type { ApplicationStatus, CVVersion } from "@/lib/api"
+import type { ApplicationStatus } from "@/lib/api"
 
 // ── Company color palette (fixed — hash mod 6) ────────────────────
 const COMPANY_COLORS = ["#3DBEFF", "#1F8FE0", "#FF5A5F", "#7B41B1", "#0696D7", "#A100FF"]
@@ -122,10 +122,4 @@ export function timeAgoShort(iso: string | null | undefined): string {
   if (days < 1) return "today"
   if (days === 1) return "1d"
   return `${days}d`
-}
-
-export function latestVersionForJob(jobId: string, versions: CVVersion[]): CVVersion | null {
-  const matches = versions.filter(v => v.job_id === jobId && v.kind !== "baseline_upload")
-  if (!matches.length) return null
-  return matches.sort((a, b) => b.user_version_number - a.user_version_number)[0]
 }

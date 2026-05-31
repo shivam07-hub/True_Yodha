@@ -132,7 +132,12 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
   }
 
   // Processing — deploy-style phase log + real-shape skeleton.
-  const current = phase ?? "queued"
+  // `queued` is a real multi-second window (phase-1 upload/extract/charge +
+  // pre-worker gap) but has no step of its own → showing it as ordinal 0 left
+  // every step "pending": three dead circles, no spinner, looks frozen. We are
+  // already reading the accepted CV, so collapse queued/null into the first
+  // step active — the deploy log never shows an inert list.
+  const current: Phase = phase && phase !== "queued" ? phase : "reading"
   const currentOrd = ORDINAL[current]
   return (
     <div className="csp csp--running" aria-live="polite" aria-busy="true">

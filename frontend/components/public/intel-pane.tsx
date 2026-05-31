@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { jobs, type CompanyOpenRoleItem } from "@/lib/api"
+import { jobs, type CompanyOpenRoleItem, type JobLocationFilters } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
@@ -12,10 +12,8 @@ import { IntelHero } from "./intel/intel-hero"
 import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { IntelCommons } from "./intel/intel-commons"
-import { sparkFor, velocityFor } from "./intel/intel-data"
-import {
-  countryForCompany, formatUptime, industryForCompany, weekDeltaFromBins,
-} from "./intel/intel-filters"
+import { CHIP_FILTER, COUNTRY_CHIP_IDS, sparkFor, velocityFor } from "./intel/intel-data"
+import { formatUptime, weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
 
 const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
@@ -42,12 +40,28 @@ export function IntelPane() {
 
   useJobsRealtime()
 
-  const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: dataKeys.jobsAnalyticsPublic("", "", "", ""),
+  // Active chips → backend analytics filter. Country chips are mutually exclusive
+  // (backend takes one location_country); "remote" is an independent mode toggle.
+  const locationFilters: JobLocationFilters = useMemo(() => {
+    const f: JobLocationFilters = {}
+    for (const id of activeChips) {
+      const c = CHIP_FILTER[id]
+      if (!c) continue
+      if (c.mode) f.locationMode = c.mode
+      if (c.country) f.locationCountry = c.country
+    }
+    return f
+  }, [activeChips])
+
+  const filterCountry = locationFilters.locationCountry ?? ""
+  const filterMode = locationFilters.locationMode ?? ""
+
+  const { data: analytics, isLoading: analyticsLoading, isFetching: analyticsFetching } = useQuery({
+    queryKey: dataKeys.jobsAnalyticsPublic("", "", filterCountry, filterMode),
     queryFn: () => withLocalCache(
-      cacheKey(["analytics_public", "", "", "", ""]),
+      cacheKey(["analytics_public", "", "", filterCountry, filterMode]),
       ANALYTICS_TTL,
-      () => jobs.analytics(undefined, {}),
+      () => jobs.analytics(undefined, locationFilters),
     ),
     staleTime: ANALYTICS_TTL,
   })
@@ -57,8 +71,8 @@ export function IntelPane() {
 
   // Real open-roles for the active company. DB-bounded LIMIT 6.
   const { data: openRolesData, isLoading: openRolesLoading } = useQuery({
-    queryKey: dataKeys.jobsAtCompany(activeCoId, 6),
-    queryFn: () => jobs.listAtCompany(activeCoId as string, 6),
+    queryKey: [...dataKeys.jobsAtCompany(activeCoId, 6), filterCountry],
+    queryFn: () => jobs.listAtCompany(activeCoId as string, 6, filterCountry || null),
     enabled: !!activeCoId,
     staleTime: OPEN_ROLES_STALE_MS,
   })
@@ -66,18 +80,14 @@ export function IntelPane() {
   // Build company list from real backend analytics + real velocity bins + real last_seen.
   const allCompanies: ResultCompany[] = useMemo(() => {
     if (!analytics) return []
-    const industryNames = analytics.by_industry.map((i) => i.name)
-    const countryCodes = analytics.by_location_country
-      .filter((c) => c.name.toLowerCase() !== "unknown")
-      .map((c) => c.name)
     return analytics.by_company.map((c) => {
       const realBins = c.velocity_bins && c.velocity_bins.length === 14 ? c.velocity_bins : null
       const lastSeenMs = c.last_seen_at ? new Date(c.last_seen_at).getTime() : null
       return {
         id: c.name,
         name: c.name,
-        industry: industryForCompany(c.name, industryNames),
-        country: countryForCompany(c.name, countryCodes),
+        industry: c.industry ?? "",
+        country: c.country ?? "",
         open: c.count,
         velocity: realBins ? weekDeltaFromBins(realBins) : velocityFor(c.name),
         sparks: realBins ?? sparkFor(c.name, c.count),
@@ -110,16 +120,10 @@ export function IntelPane() {
       const filtered = allCompanies.filter((co) => hitCompanies.has(co.name))
       return filtered.slice().sort((a, b) => compareCompanies(a, b, sort))
     }
-    // Quick-filter chips operate server-side ideally; today they narrow the
-    // companies list by industry/country shorthand only (jobs are scoped by
-    // analytics filter params, follow-up). Empty chips = unfiltered list.
+    // Quick-filter chips scope analytics server-side (locationFilters → queryKey),
+    // so allCompanies is already filtered. Here we only sort.
     return allCompanies.slice().sort((a, b) => compareCompanies(a, b, sort))
   }, [allCompanies, globalSearch.isActive, globalSearch.hits, sort])
-
-  // Quick-filter chips don't have a backend application path on the public mirror
-  // yet — keep the toggle for affordance, but they don't filter results today.
-  // Wiring chips to /jobs/analytics location_mode/location_country is a follow-up.
-  void activeChips
 
   // Set default active company once analytics loads
   useEffect(() => {
@@ -180,7 +184,14 @@ export function IntelPane() {
   const jobsShown = globalSearch.isActive ? globalSearch.hits.length : jobsTotal
 
   function toggleChip(id: string) {
-    setActiveChips((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id])
+    setActiveChips((c) => {
+      if (c.includes(id)) return c.filter((x) => x !== id)
+      // Country chips are mutually exclusive — backend takes one location_country.
+      const next = COUNTRY_CHIP_IDS.includes(id)
+        ? c.filter((x) => !COUNTRY_CHIP_IDS.includes(x))
+        : c
+      return [...next, id]
+    })
   }
 
   // Safe defaults during cold-start hydration (avoids flash of 0s). Replaced
@@ -226,6 +237,7 @@ export function IntelPane() {
         jobsForActiveTotal={openRoleJobs.length}
         activeCompanyName={activeCompanyName}
         isAnalyticsLoading={analyticsLoading}
+        isFiltering={analyticsFetching && activeChips.length > 0}
         isOpenRolesLoading={openRolesLoading}
         globalSearch={{
           isActive: globalSearch.isActive,

@@ -339,6 +339,8 @@ class NameCountItem(BaseModel):
     count: int
     last_seen_at: str | None = None
     velocity_bins: list[int] | None = None
+    country: str | None = None
+    industry: str | None = None
 
 
 class SkillCountItem(BaseModel):

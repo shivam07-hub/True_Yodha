@@ -1,19 +1,3 @@
-// Map company → its dominant industry by name-hash. We don't have a true
-// company→industry map in /jobs/analytics, so we synthesize a stable assignment.
-export function industryForCompany(name: string, industries: string[]): string {
-  if (!industries.length) return ""
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i)
-  return industries[Math.abs(h) % industries.length]
-}
-
-export function countryForCompany(name: string, countries: string[]): string {
-  if (!countries.length) return ""
-  let h = 7
-  for (let i = 0; i < name.length; i++) h = ((h << 3) + h) ^ name.charCodeAt(i)
-  return countries[Math.abs(h) % countries.length]
-}
-
 // Public mirror "uptime" anchor — feels live without a server round-trip.
 const UPTIME_ANCHOR = new Date("2026-04-11T00:00:00Z").getTime()
 

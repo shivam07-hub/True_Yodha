@@ -768,6 +768,26 @@
 
 .tm-intel-panel-meta-ok { color: var(--tm-success); }
 
+.tm-intel-panel-meta-spin {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  vertical-align: -1px;
+  border: 1.5px solid var(--tm-border);
+  border-top-color: var(--tm-accent);
+  border-radius: 50%;
+  animation: tm-intel-spin 0.6s linear infinite;
+}
+
+@keyframes tm-intel-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-intel-panel-meta-spin { animation: none; border-top-color: var(--tm-accent); }
+}
+
 /* Company row */
 .tm-intel-co-row {
   display: grid;

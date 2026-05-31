@@ -67,10 +67,10 @@ export function PublicFooter() {
       <div className="pub-footer-bottom">
         <span>© Myro 2026 · All rights reserved</span>
         <span className="pub-footer-bottom-dot">·</span>
-        <span>Built for job seekers, not recruiters.</span>
+        <span>Built for Seekers</span>
         <span className="pub-footer-bottom-dot">·</span>
         <span className="pub-footer-trust">
-          SOC 2-certified infrastructure (Supabase · Vercel · Railway) · AES-256 at rest · TLS in transit · Row-level security
+          SOC 2-certified infrastructure (Supabase · Vercel · Railway) · TLS in transit · Row-level security
         </span>
       </div>
     </footer>

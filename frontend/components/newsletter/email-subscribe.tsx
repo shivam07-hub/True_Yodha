@@ -12,6 +12,7 @@ export function EmailSubscribe({
 }) {
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
+  const [subscribedEmail, setSubscribedEmail] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = async () => {
@@ -26,6 +27,7 @@ export function EmailSubscribe({
     setState("loading")
     try {
       await newsletter.subscribe(val, source)
+      setSubscribedEmail(val)
       setState("success")
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Could not subscribe. Try again.")
@@ -129,6 +131,11 @@ export function EmailSubscribe({
       {state === "error" && errorMsg && (
         <p role="alert" style={{ margin: 0, fontSize: 13, color: "var(--tm-danger)" }}>
           {errorMsg}
+        </p>
+      )}
+      {isDone && (
+        <p role="status" style={{ margin: 0, fontSize: 13, color: "var(--tm-success)" }}>
+          <strong style={{ color: "var(--tm-text)" }}>{subscribedEmail}</strong> is subscribed — intel lands in your inbox every week.
         </p>
       )}
     </div>
