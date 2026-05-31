@@ -3,7 +3,8 @@
 import "./skills.css"
 
 import Link from "next/link"
-import { useState, useMemo } from "react"
+import { Suspense, useEffect, useRef, useState, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ParticleLoading } from "@/components/loading/particle-loading"
@@ -35,13 +36,16 @@ function domainStatus(avg: number): ShowFilter {
   return "strong"
 }
 
-export default function SkillsPage() {
+function SkillsPageInner() {
   const { token, ready } = useAuth()
+  const searchParams = useSearchParams()
+  const domainParam = searchParams.get("domain")
   const [activeDomain, setActiveDomain] = useState<string | null>(null)
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("gap")
   const [show, setShow] = useState<ShowFilter>("all")
   const [view, setView] = useTriadView("skills")
+  const deepLinkApplied = useRef(false)
 
   const { data: scoreData } = useQuery({
     queryKey: dataKeys.scores(),
@@ -85,6 +89,24 @@ export default function SkillsPage() {
     else entries = [...entries].sort((a, b) => b.items.length - a.items.length)
     return entries
   }, [domainEntries, sort, show])
+
+  // Deep-link from the CV score reveal ("Improve {domain} →") — auto-expand the
+  // matching accordion row and scroll it into view, once, after data lands.
+  useEffect(() => {
+    if (deepLinkApplied.current || !domainParam || domainEntries.length === 0) return
+    const target =
+      domainEntries.find(d => d.domain === domainParam)?.domain ??
+      domainEntries.find(d => d.domain.toLowerCase() === domainParam.toLowerCase())?.domain
+    if (!target) return
+    deepLinkApplied.current = true
+    setExpandedDomain(target)
+    setActiveDomain(target)
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-domain="${CSS.escape(target)}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+  }, [domainParam, domainEntries])
 
   const biggestGapDomain = domainEntries.length ? [...domainEntries].sort((a, b) => a.avg - b.avg)[0]?.domain : null
 
@@ -308,5 +330,13 @@ export default function SkillsPage() {
       </div>
       </RequiresCV>
     </>
+  )
+}
+
+export default function SkillsPage() {
+  return (
+    <Suspense fallback={<SkillsSkeleton />}>
+      <SkillsPageInner />
+    </Suspense>
   )
 }
