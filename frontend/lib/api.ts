@@ -1484,6 +1484,8 @@ export interface NameCountItem {
   count: number
   last_seen_at?: string | null
   velocity_bins?: number[] | null
+  country?: string | null
+  industry?: string | null
 }
 
 export interface SkillCountItem {
@@ -1615,10 +1617,15 @@ export const jobs = {
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 
-  listAtCompany: (company: string, limit = 6) =>
-    request<CompanyOpenRolesResponse>(
-      `/jobs/at/${encodeURIComponent(company)}?limit=${limit}`,
-    ),
+  listAtCompany: (company: string, limit = 6, locationCountry?: string | null) => {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (locationCountry && locationCountry.trim()) {
+      params.set("location_country", locationCountry.trim())
+    }
+    return request<CompanyOpenRolesResponse>(
+      `/jobs/at/${encodeURIComponent(company)}?${params.toString()}`,
+    )
+  },
 
   globalSearch: (q: string, limit = 12) =>
     request<GlobalJobSearchResponse>(

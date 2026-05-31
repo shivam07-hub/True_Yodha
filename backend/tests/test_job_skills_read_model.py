@@ -160,6 +160,33 @@ def _make_analytics_db() -> "_FakeDB":
     return _FakeDB({"jobs": jobs, "job_skills": job_skills})
 
 
+def test_compile_market_analytics_enriches_company_with_dominant_country_and_industry() -> None:
+    jobs_module._analytics_cache.clear()
+    jobs = [
+        # Acme: 2 US + 1 IN  → dominant country US; 2 Tech + 1 Finance → Tech
+        {"job_id": "a0", "company_name": "Acme", "industry": "Tech",
+         "location_country": "US", "batch_date": 20260504},
+        {"job_id": "a1", "company_name": "Acme", "industry": "Tech",
+         "location_country": "US", "batch_date": 20260504},
+        {"job_id": "a2", "company_name": "Acme", "industry": "Finance",
+         "location_country": "IN", "batch_date": 20260504},
+        # Globex: only IN
+        {"job_id": "g0", "company_name": "Globex", "industry": "Energy",
+         "location_country": "IN", "batch_date": 20260504},
+    ]
+    db = _FakeDB({"jobs": jobs, "job_skills": []})
+    repo = JobsRepository(db)
+
+    with patch("app.repositories.jobs.time.monotonic", return_value=0.0):
+        result = repo.compile_market_analytics()
+
+    enrichment = result["by_company_enrichment"]
+    assert enrichment["Acme"]["country"] == "US"
+    # normalize_industry_group canonicalizes "Tech" → "Technology"
+    assert enrichment["Acme"]["industry"] == "Technology"
+    assert enrichment["Globex"]["country"] == "IN"
+
+
 def test_compile_market_analytics_caches_within_ttl() -> None:
     jobs_module._analytics_cache.clear()
     db = _make_analytics_db()

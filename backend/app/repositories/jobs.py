@@ -101,6 +101,13 @@ def _sorted_counter_items(counter: Counter[str]) -> list[tuple[str, int]]:
     return sorted(counter.items(), key=lambda item: (-item[1], item[0].lower(), item[0]))
 
 
+def _dominant(counter: Counter[str] | None) -> str | None:
+    """Most-common value in a counter, ties broken alphabetically. None if empty."""
+    if not counter:
+        return None
+    return _sorted_counter_items(counter)[0][0]
+
+
 def _bounded_page(page: int) -> int:
     return max(page, 1)
 
@@ -203,6 +210,8 @@ class MarketAnalyticsCompiler:
         company_last_seen: dict[str, datetime] = {}
         company_first_created: dict[str, datetime] = {}
         company_velocity_bins: dict[str, list[int]] = {}
+        company_country_counters: dict[str, Counter[str]] = {}
+        company_industry_counters: dict[str, Counter[str]] = {}
         now_utc = datetime.now(timezone.utc)
         bin_floor = (now_utc - timedelta(days=13)).replace(hour=0, minute=0, second=0, microsecond=0)
         today_floor = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -233,6 +242,10 @@ class MarketAnalyticsCompiler:
             if company:
                 company_counts[company] += 1
                 company_skill_counters.setdefault(company, Counter()).update(skills)
+                if location_country:
+                    company_country_counters.setdefault(company, Counter())[location_country] += 1
+                if industry:
+                    company_industry_counters.setdefault(company, Counter())[industry] += 1
                 if last_seen_dt is not None:
                     prev = company_last_seen.get(company)
                     if prev is None or last_seen_dt > prev:
@@ -290,6 +303,8 @@ class MarketAnalyticsCompiler:
                 "last_seen_at": company_last_seen[name].isoformat()
                     if name in company_last_seen else None,
                 "velocity_bins": company_velocity_bins.get(name),
+                "country": _dominant(company_country_counters.get(name)),
+                "industry": _dominant(company_industry_counters.get(name)),
             }
             for name in company_counts
         }
@@ -627,24 +642,28 @@ class JobsRepository:
         _heatmap_row_cache[cache_key] = (time.monotonic(), result)
         return result
 
-    def list_jobs_at_company(self, company: str, *, limit: int = 6) -> list[dict[str, Any]]:
+    def list_jobs_at_company(
+        self, company: str, *, limit: int = 6, location_country: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Latest N roles at a company. DB-bounded LIMIT — safe for huge companies.
 
         Public-surface read for the /intel Open Roles panel. No skill filter
-        (use search_jobs_by_filters for skill-scoped reads). 24h cache keyed on
-        (company, limit) — reuses _search_cache shape with a sentinel skill ''.
+        (use search_jobs_by_filters for skill-scoped reads). When a country filter
+        is active on /intel, scope here too so both panels agree. 24h cache keyed
+        on (company, country, limit) — reuses _search_cache shape, sentinel skill ''.
         """
         company_name = (company or "").strip()
         if not company_name:
             return []
+        country = _norm_filter(location_country)
         scoped_limit = max(1, min(50, int(limit)))
-        cache_key = (company_name, "", None, None, None, None, 1, scoped_limit)
+        cache_key = (company_name, "", None, country, None, None, 1, scoped_limit)
         now = time.monotonic()
         cached = _search_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
             return list(cached[1]["rows"])
         try:
-            result = (
+            query = (
                 self._admin_db
                 .table("jobs")
                 .select(
@@ -653,6 +672,11 @@ class JobsRepository:
                     "first_seen, last_seen"
                 )
                 .eq("company_name", company_name)
+            )
+            if country:
+                query = query.eq("location_country", country)
+            result = (
+                query
                 .order("first_seen", desc=True)
                 .limit(scoped_limit)
                 .execute()

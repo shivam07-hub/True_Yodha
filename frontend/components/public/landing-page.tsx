@@ -41,7 +41,8 @@ export function LandingPage() {
           <div className="tm-landing-hero-left">
 
             <h1 className="tm-landing-h1">
-              A job-ready CV<br />in 10 minutes.
+              Build a job-ready CV in 10 minutes.<br />
+              <span className="tm-landing-h1-sub">Manifest your company, align your role.</span>
             </h1>
 
             <p className="tm-landing-subhead">
@@ -70,7 +71,8 @@ export function LandingPage() {
               <div className="tm-landing-dropzone-body">
                 <span className="tm-landing-dropzone-title">Drop your CV — PDF or DOCX</span>
                 <span className="tm-landing-dropzone-trust">
-                  Private
+                  <span>Private</span>
+                  <span className="tm-landing-dropzone-trust-aes">AES-256 at rest</span>
                 </span>
               </div>
               <span className="tm-landing-dropzone-btn" aria-hidden>

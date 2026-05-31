@@ -87,6 +87,12 @@
   text-wrap: balance;
 }
 
+.tm-landing-h1-sub {
+  display: block;
+  color: var(--tm-interactive);
+  margin-top: 4px;
+}
+
 /* ── Subhead ────────────────────────────────────────────────── */
 .tm-landing-subhead {
   display: inline-flex;
@@ -161,10 +167,17 @@
 }
 
 .tm-landing-dropzone-trust {
+  display: flex;
+  flex-direction: column;
   font-family: var(--tm-font-mono);
   font-size: calc(var(--tm-fs-caption) - 1px);
   color: var(--tm-text-muted);
   line-height: 1.4;
+  overflow: hidden;
+}
+
+.tm-landing-dropzone-trust-aes {
+  color: var(--tm-text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

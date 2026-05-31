@@ -38,16 +38,24 @@ export interface QuickFilter {
   label: string
 }
 
+// Only chips that map to a single backend analytics filter are shown. Category
+// chips (AI/ML, Fintech, Design → industry/role), multi-country Europe, and
+// freshness have no single-value backend filter yet — re-add when wired.
 export const QUICK_FILTERS: QuickFilter[] = [
   { id: "remote", label: "Remote" },
-  { id: "fresh", label: "Fresh · 24h" },
-  { id: "ai", label: "AI / ML" },
-  { id: "fintech", label: "Fintech" },
-  { id: "design", label: "Design" },
-  { id: "eu", label: "Europe" },
   { id: "us", label: "US" },
   { id: "india", label: "India" },
 ]
+
+// Chip → backend analytics location filter. Country chips are mutually exclusive
+// (backend takes a single location_country); "remote" is an independent mode.
+export const CHIP_FILTER: Record<string, { country?: string; mode?: "remote" }> = {
+  remote: { mode: "remote" },
+  us: { country: "US" },
+  india: { country: "IN" },
+}
+
+export const COUNTRY_CHIP_IDS = ["us", "india"]
 
 export const SEARCH_SUGGESTIONS = [
   '"remote design lead in europe"',

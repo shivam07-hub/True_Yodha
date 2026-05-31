@@ -66,6 +66,7 @@ interface ResultsProps {
   jobsForActiveTotal: number
   activeCompanyName: string | null
   isAnalyticsLoading: boolean
+  isFiltering: boolean
   isOpenRolesLoading: boolean
   globalSearch: {
     isActive: boolean
@@ -172,8 +173,8 @@ function Tabs({
 function Split(props: ResultsProps) {
   const { tab, companies, industries, cities, activeCo, onActiveCo,
     jobsForActive, jobsForActiveTotal, activeCompanyName,
-    isAnalyticsLoading, isOpenRolesLoading, globalSearch } = props
-  const showLeftSkeleton = isAnalyticsLoading && !companies.length
+    isAnalyticsLoading, isFiltering, isOpenRolesLoading, globalSearch } = props
+  const showLeftSkeleton = (isAnalyticsLoading || isFiltering) && !companies.length
   return (
     <div className="tm-intel-split">
       <div className="tm-intel-panel">
@@ -187,8 +188,14 @@ function Split(props: ResultsProps) {
           </span>
           <div className="tm-intel-spacer" />
           <span className="tm-intel-panel-meta">
-            <span className="tm-intel-panel-meta-ok">●</span> synced ·{" "}
-            {props.latestBatchIso ? `batch ${fmtBatch(props.latestBatchIso)}` : "live mirror"}
+            {isFiltering ? (
+              <><span className="tm-intel-panel-meta-spin" /> filtering…</>
+            ) : (
+              <>
+                <span className="tm-intel-panel-meta-ok">●</span> synced ·{" "}
+                {props.latestBatchIso ? `batch ${fmtBatch(props.latestBatchIso)}` : "live mirror"}
+              </>
+            )}
           </span>
         </div>
 

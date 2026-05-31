@@ -76,6 +76,8 @@ async def get_my_analytics(
                 count=count,
                 last_seen_at=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("last_seen_at"),
                 velocity_bins=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("velocity_bins"),
+                country=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("country"),
+                industry=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("industry"),
             )
             for name, count in analytics["by_company"]
         ],
@@ -161,6 +163,8 @@ async def get_market_analytics(
                 count=count,
                 last_seen_at=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("last_seen_at"),
                 velocity_bins=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("velocity_bins"),
+                country=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("country"),
+                industry=(analytics.get("by_company_enrichment", {}).get(name) or {}).get("industry"),
             )
             for name, count in analytics["by_company"]
         ],
@@ -222,10 +226,11 @@ async def search_jobs(
 async def list_company_open_roles(
     company: str,
     limit: Annotated[int, Query(ge=1, le=50)] = 6,
+    location_country: str | None = None,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> CompanyOpenRolesResponse:
     """Public — latest N roles at a company. Powers /intel Open Roles panel."""
-    rows = repo.list_jobs_at_company(company, limit=limit)
+    rows = repo.list_jobs_at_company(company, limit=limit, location_country=location_country)
     return CompanyOpenRolesResponse(
         company=company,
         jobs=[
