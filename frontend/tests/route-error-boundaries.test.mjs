@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const frontendRoot = join(__dirname, "..")
 
-const protectedRoutes = ["jobs", "tracker", "skills"]
+// tracker route removed (tracker→CV merge 2026-06-02); its surface lives in /cv now.
+const protectedRoutes = ["jobs", "skills"]
 
 test("core app routes have retryable error boundaries", () => {
   for (const route of protectedRoutes) {

@@ -9,6 +9,16 @@ def last_monday() -> date:
     return today - timedelta(days=today.weekday())
 
 
+def _row_batch_week(row: dict, fallback: date) -> date:
+    value = row.get("batch_week")
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return fallback
+
+
 def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     job = row.get("jobs") or {}
     return JobMatchResponse(
@@ -26,7 +36,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         overlap_score=row.get("overlap_score", 0),
         llm_rank=row.get("llm_rank"),
         llm_explanation=row.get("llm_explanation"),
-        batch_week=batch_week,
+        batch_week=_row_batch_week(row, batch_week),
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
         job_description=job.get("job_description"),

@@ -21,7 +21,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
-import type { ApplicationStatus, JobMatch, SkillGapItem } from "@/lib/api"
+import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreakFromDates } from "@/lib/forge-helpers"
@@ -29,7 +29,8 @@ import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
-import { userCacheKey, withLocalCache } from "@/lib/local-cache"
+import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
+import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -55,7 +56,7 @@ function MissionControlInner() {
   })
   const { data: jobsData, isLoading: jobsLoading, isError: jobsIsError, error: jobsErr, refetch: refetchJobs } = useQuery({
     queryKey: dataKeys.jobs(),
-    queryFn: () => withLocalCache(userCacheKey(token!, ["matches"]), MATCHES_TTL, () => jobs.matches(token!)),
+    queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
     enabled: !!token,
     staleTime: MATCHES_TTL,
   })
@@ -85,6 +86,7 @@ function MissionControlInner() {
   })
 
   const allMatchedJobs: JobMatch[] = useMemo(() => jobsData?.jobs ?? [], [jobsData])
+  const dismissedJobIds = useMemo(() => new Set(jobsData?.dismissed_job_ids ?? []), [jobsData])
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
@@ -108,6 +110,27 @@ function MissionControlInner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
       queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
+    },
+  })
+
+  const removeCard = useMutation({
+    mutationFn: (jobId: string) => jobs.dismissMatchCard(token!, jobId),
+    onSuccess: (_data, jobId) => {
+      if (token) {
+        clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
+        clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
+      }
+      queryClient.setQueryData<JobMatchesResponse | undefined>(dataKeys.jobs(), (old) => {
+        if (!old) return old
+        const hadJob = old.jobs.some((job) => job.job_id === jobId)
+        return {
+          ...old,
+          jobs: old.jobs.filter((job) => job.job_id !== jobId),
+          total: Math.max(0, old.total - (hadJob ? 1 : 0)),
+          dismissed_job_ids: Array.from(new Set([...(old.dismissed_job_ids ?? []), jobId])),
+        }
+      })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
   })
 
@@ -306,11 +329,13 @@ function MissionControlInner() {
                   token={token}
                   cartSkillNames={cartSkillNames}
                   refresh={refreshVm}
+                  dismissedJobIds={dismissedJobIds}
                   total={jobsData?.total ?? allMatchedJobs.length}
                   feedUpdatedAt={jobsData?.feed_updated_at ?? null}
                   matchesComputedAt={jobsData?.matches_computed_at ?? null}
                   initialJobId={urlJobId}
                   onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })}
+                  onRemove={(jobId) => removeCard.mutate(jobId)}
                   onSkillToggle={handleSkillToggle}
                 />
               ) : null}

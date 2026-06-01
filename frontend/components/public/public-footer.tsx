@@ -10,7 +10,6 @@ const FOOTER_COLS = [
     links: [
       { label: "CV Hub",        href: "/"             },
       { label: "Live Job Data", href: "/intel"        },
-      { label: "Tracker",       href: "/tracker"      },
       { label: "For Colleges",  href: "/institutions" },
       { label: "Newsletter",    href: "/newsletter"   },
     ],

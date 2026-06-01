@@ -16,7 +16,7 @@ const NODES: LoopNode[] = [
   { id: "forge",    label: "Practice",  xp: "+50 XP" },
   { id: "log",      label: "Log",       xp: "+30 XP" },
   { id: "level",    label: "Level up" },
-  { id: "apply",    label: "Apply",     href: "/tracker" },
+  { id: "apply",    label: "Apply",     href: "/cv?lens=stage" },
 ]
 
 interface LoopBarProps {

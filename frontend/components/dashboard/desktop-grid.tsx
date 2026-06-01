@@ -14,6 +14,7 @@ export interface DesktopGridProps {
   cartSkillNames: Set<string>
   initialJobId?: string | null
   onStatus: (jobId: string, s: ApplicationStatus) => void
+  onRemove: (jobId: string) => void
   onSkillToggle: (s: SkillGapItem) => void
 }
 
@@ -44,6 +45,7 @@ export function DesktopGrid(p: DesktopGridProps) {
                 cartSkillNames={p.cartSkillNames}
                 otherRoles={otherRolesFor(p.allItems, it)}
                 onStatus={(s) => p.onStatus(it.jobId, s)}
+                onRemove={() => p.onRemove(it.jobId)}
                 onSkillToggle={p.onSkillToggle}
                 onJump={(jobId) => setExpanded(jobId)}
               />

@@ -27,8 +27,7 @@ const SHORTCUTS = [
   { href: "/home", label: "Dashboard", detail: "Tackle Today." },
   { href: "/market", label: "Live Job Data", detail: "Live company + skill demand." },
   { href: "/skills", label: "Skills", detail: "Score, gaps, and the 12-domain map." },
-  { href: "/cv", label: "CV Builder", detail: "Tailor a version per job." },
-  { href: "/tracker", label: "Tracker", detail: "Applications by stage." },
+  { href: "/cv", label: "CV & Applications", detail: "Tailor a version per job · track every application." },
 ] as const
 
 export default function MyroPage() {

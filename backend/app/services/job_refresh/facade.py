@@ -24,7 +24,7 @@ class JobRefresh:
         batch_week: date,
     ) -> RefreshTicket:
         """Charge XP, kick off compute, return ticket. Raises 400 on insufficient XP."""
-        excluded_job_ids = repo.get_existing_match_job_ids(user_id, batch_week)
+        excluded_job_ids = repo.get_existing_match_job_ids(user_id)
         new_balance = await _xp_charge.charge(user_id, MATCH_REFRESH_XP_COST)
         return await _dispatch.dispatch(
             user_id=user_id,

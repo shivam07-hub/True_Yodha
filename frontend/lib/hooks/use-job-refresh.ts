@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { type QueryClient } from "@tanstack/react-query"
 import { jobs, type RefreshOutcomeKind } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
 import { readSse, type SseEvent } from "@/lib/streaming/read-sse"
 import { XP_POLICY } from "@/lib/xp-policy"
@@ -89,7 +90,10 @@ export function useJobRefresh(
       setProgressLabel(result.progress_label ?? null)
       setMatchesWritten(result.matches_written ?? 0)
       setOutcomeKind(result.outcome_kind ?? null)
-      if (token) clearLocalCache(userCacheKey(token, ["matches"]))
+      if (token) {
+        clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
+        clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
+      }
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
     [queryClient, applyXpChange, stopStream, token],

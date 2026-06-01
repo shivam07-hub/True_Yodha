@@ -113,6 +113,8 @@
 .db-act-btn { font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--tm-border); color: var(--tm-text); text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .db-act-btn.accent { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border); color: var(--tm-interactive, var(--tm-accent)); }
 .db-act-hint { font-size: 12px; color: var(--tm-text-faint); white-space: nowrap; flex-shrink: 0; }
+.db-remove-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text-faint); cursor: pointer; }
+.db-remove-btn:hover { color: var(--tm-danger, #ef4444); border-color: color-mix(in srgb, var(--tm-danger, #ef4444) 45%, var(--tm-border)); background: color-mix(in srgb, var(--tm-danger, #ef4444) 8%, transparent); }
 
 /* ── Desktop: grid + expand ───────────────────────────────────────────────── */
 .db-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

@@ -29,6 +29,26 @@ _company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _feed_ts_cache: tuple[float, str | None] = (0.0, None)
+
+# /market browse feed — latency is the feature, so cache the DB round-trip on a
+# short TTL. Cached values are RAW DB rows; shaping (matched_skill_count) runs
+# per-request against the caller's CV skills so two users sharing a filter never
+# leak each other's overlap. Keys carry every dimension that changes the query:
+# sort + role_domain + location + free-text + page bounds (DB paths) — the
+# personal path paginates in Python, so its candidate set is page-independent.
+_FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against weekly scrapes
+_feed_page_cache: dict[
+    tuple[str, str | None, str | None, str | None, str | None, str, int, int],
+    tuple[float, tuple[list[dict[str, Any]], int]],
+] = {}
+_feed_personal_cache: dict[
+    tuple[str | None, str | None, str | None, str | None, str],
+    tuple[float, list[dict[str, Any]]],
+] = {}
+# Per-user CV skill keys — recomputed on every feed call before this cache.
+_USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
+_user_skill_keys_cache: dict[str, tuple[float, set[str]]] = {}
+
 _COMPANY_SEARCH_RPC = "search_job_companies"
 
 
@@ -167,6 +187,27 @@ def _hydrate_location_fields(row: dict[str, Any]) -> None:
     row["location_country"] = country or parsed.location_country
     row["location_mode"] = mode or parsed.location_mode
     row["location_quality"] = quality or parsed.location_quality
+
+
+def _match_week(value: Any) -> date:
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return date.min
+
+
+def _match_stack_sort_key(row: dict[str, Any]) -> tuple[date, datetime, int]:
+    try:
+        rank_value = int(row.get("llm_rank") or 9999)
+    except (TypeError, ValueError):
+        rank_value = 9999
+    return (
+        _match_week(row.get("batch_week")),
+        _parse_iso_dt(row.get("computed_at")) or datetime.min.replace(tzinfo=timezone.utc),
+        -rank_value,
+    )
 
 
 def _matches_location_filters(
@@ -859,6 +900,188 @@ class JobsRepository:
         _search_cache[cache_key] = (time.monotonic(), result)
         return result
 
+    # ── authed /market browse feed ──────────────────────────────────────────────
+
+    _FEED_COLUMNS = (
+        "job_id, job_title, company_name, job_description, "
+        "location, location_raw, location_city, location_country, location_mode, location_quality, "
+        "role_domain, industry, industry_group, apply_url, first_seen, is_active, main_skills"
+    )
+    _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
+
+    @staticmethod
+    def _feed_shape_row(row: dict[str, Any], user_skill_keys: set[str] | None) -> dict[str, Any]:
+        _hydrate_location_fields(row)
+        raw_skills = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
+        skills = raw_skills[:5]
+        matched = 0
+        if user_skill_keys:
+            lowered = {s.lower() for s in raw_skills}
+            matched = len(lowered & user_skill_keys)
+        return {
+            "job_id": row.get("job_id"),
+            "job_title": row.get("job_title") or "",
+            "company_name": row.get("company_name"),
+            "job_description": row.get("job_description"),
+            "location": row.get("location"),
+            "location_city": row.get("location_city"),
+            "location_country": row.get("location_country"),
+            "location_mode": row.get("location_mode"),
+            "location_quality": row.get("location_quality"),
+            "role_domain": row.get("role_domain"),
+            "industry": row.get("industry_group") or row.get("industry"),
+            "source_url": row.get("apply_url"),
+            "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
+            "is_active": bool(row.get("is_active", True)),
+            "skills": skills,
+            "matched_skill_count": matched,
+        }
+
+    def feed_jobs(
+        self,
+        *,
+        role_domain: str | None = None,
+        q: str | None = None,
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
+        sort: str = "fresh",
+        user_skill_keys: set[str] | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """Company-agnostic browse feed for the authed /market page.
+
+        sort: 'fresh' (first_seen desc, DB-paginated), 'company' (company asc then
+        first_seen desc, DB-paginated), 'personal' (CV skill-overlap desc within a
+        freshest-N candidate cap, ranked in Python). No LLM scoring.
+        """
+        scoped_page = _bounded_page(page)
+        scoped_page_size = _bounded_page_size(page_size)
+        mode = sort if sort in {"fresh", "company", "personal"} else "fresh"
+        domain = _norm_filter(role_domain)
+        country = _norm_filter(location_country)
+        city = _norm_filter(location_city)
+        loc_mode = _norm_filter(location_mode)
+        term = " ".join((q or "").split())
+        # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
+        # unfiltered cache slot and stay part of the key for ≥2-char terms.
+        effective_term = term if len(term) >= 2 else ""
+        now = time.monotonic()
+
+        def _apply_filters(query: Any) -> Any:
+            query = query.eq("is_active", True)
+            if domain:
+                query = query.eq("role_domain", domain)
+            if country:
+                query = query.eq("location_country", country)
+            if city:
+                query = query.eq("location_city", city)
+            if loc_mode:
+                query = query.eq("location_mode", loc_mode)
+            if effective_term:
+                # Sanitize: PostgREST or() splits on commas/parens.
+                safe = effective_term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
+                if safe:
+                    query = query.or_(
+                        f"job_title.ilike.%{safe}%,company_name.ilike.%{safe}%"
+                    )
+            return query
+
+        if mode == "personal":
+            # Rank a bounded freshest candidate set by skill overlap, paginate in Python.
+            pkey = (domain, city, country, loc_mode, effective_term)
+            cached = _feed_personal_cache.get(pkey)
+            if cached is not None and (now - cached[0]) < _FEED_TTL:
+                rows = cached[1]
+            else:
+                try:
+                    result = _apply_filters(
+                        self._admin_db.table("jobs").select(self._FEED_COLUMNS)
+                    ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
+                except APIError:
+                    result = None
+                rows = (result.data if result else None) or []
+                _feed_personal_cache[pkey] = (now, rows)
+            shaped = [self._feed_shape_row(r, user_skill_keys) for r in rows]
+            # Stable sort: secondary (freshest) first, then primary (overlap) — so
+            # equal-overlap jobs stay newest-first.
+            shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
+            shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
+            # available_total reflects the FEED_PERSONAL_CAP, not the full DB pool:
+            # personal rank is over the freshest N candidates only.
+            available_total = len(shaped)
+            start = (scoped_page - 1) * scoped_page_size
+            end = start + scoped_page_size
+            page_rows = shaped[start:end] if start < available_total else []
+            return {
+                "rows": page_rows,
+                "available_total": available_total,
+                "returned_total": len(page_rows),
+                "page": scoped_page,
+                "page_size": scoped_page_size,
+                "has_next_page": (start + len(page_rows)) < available_total,
+                "sort": mode,
+            }
+
+        # DB-paginated paths: fresh + company
+        start = (scoped_page - 1) * scoped_page_size
+        end = start + scoped_page_size - 1
+        ckey = (mode, domain, city, country, loc_mode, effective_term, scoped_page, scoped_page_size)
+        cached = _feed_page_cache.get(ckey)
+        if cached is not None and (now - cached[0]) < _FEED_TTL:
+            rows, available_total = cached[1]
+        else:
+            try:
+                base = _apply_filters(
+                    self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
+                )
+                if mode == "company":
+                    base = base.order("company_name", desc=False).order("first_seen", desc=True)
+                else:
+                    base = base.order("first_seen", desc=True).order("job_id", desc=True)
+                result = base.range(start, end).execute()
+            except APIError:
+                return {
+                    "rows": [], "available_total": 0, "returned_total": 0,
+                    "page": scoped_page, "page_size": scoped_page_size,
+                    "has_next_page": False, "sort": mode,
+                }
+            rows = result.data or []
+            available_total = result.count if result.count is not None else len(rows)
+            _feed_page_cache[ckey] = (now, (rows, available_total))
+        page_rows = [self._feed_shape_row(r, user_skill_keys) for r in rows]
+        return {
+            "rows": page_rows,
+            "available_total": available_total,
+            "returned_total": len(page_rows),
+            "page": scoped_page,
+            "page_size": scoped_page_size,
+            "has_next_page": (start + len(page_rows)) < available_total,
+            "sort": mode,
+        }
+
+    def user_skill_keys(self, user_id: str) -> set[str]:
+        """Lowercased taxonomy_key + display_name set for the user's CV skills.
+
+        Cached per user on a short TTL: every feed call needs this set, but CV
+        skills only change on edit/re-upload, so the user_skills round-trip is
+        pure waste on repeat browses.
+        """
+        now = time.monotonic()
+        cached = _user_skill_keys_cache.get(user_id)
+        if cached is not None and (now - cached[0]) < _USER_SKILL_KEYS_TTL:
+            return cached[1]
+        keys: set[str] = set()
+        for row in self.get_user_skills_with_taxonomy(user_id):
+            sk = row.get("skills") or {}
+            for field in ("taxonomy_key", "display_name"):
+                val = (sk.get(field) or "").strip().lower()
+                if val:
+                    keys.add(val)
+        _user_skill_keys_cache[user_id] = (now, keys)
+        return keys
+
     # ── user skills / demand ───────────────────────────────────────────────────
 
     def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
@@ -1066,15 +1289,67 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
-    def get_existing_match_job_ids(self, user_id: str, batch_week: date) -> list[str]:
+    def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         result = (
-            self._db.table("user_job_matches")
+            self._db.table("user_dismissed_job_cards")
             .select("job_id")
             .eq("user_id", user_id)
-            .eq("batch_week", str(batch_week))
             .execute()
         )
-        return [r["job_id"] for r in (result.data or [])]
+        return [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+
+    def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
+        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
+        if batch_week is not None:
+            query = query.eq("batch_week", str(batch_week))
+        result = query.execute()
+        ids = [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+        if batch_week is None:
+            ids.extend(self.get_dismissed_job_card_ids(user_id))
+        return list(dict.fromkeys(ids))
+
+    def get_user_match_stack(self, user_id: str) -> list[dict[str, Any]]:
+        """Return the user's durable match stack, newest refresh rows first.
+
+        Matches are weekly snapshots. The dashboard should not go empty at a
+        week boundary, so read every retained row, sort newest-first, and keep
+        the latest row for each job. Fresh refreshes naturally stack above older
+        rows without duplicating the same job card.
+        """
+        result = (
+            self._db.table("user_job_matches")
+            .select(
+                "id, job_id, overlap_score, llm_rank, llm_explanation, "
+                "batch_week, computed_at, matched_skills, "
+                "overall_score, grade, recommendation, application_angle, summary, "
+                "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "jobs(job_title, company_name, industry, location, location_raw, location_city, "
+                "location_country, location_mode, location_quality, apply_url, job_description)"
+            )
+            .eq("user_id", user_id)
+            .execute()
+        )
+        dismissed = set(self.get_dismissed_job_card_ids(user_id))
+        rows = list(result.data or [])
+        rows.sort(key=_match_stack_sort_key, reverse=True)
+
+        stack: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if not job_id or job_id in seen or job_id in dismissed:
+                continue
+            seen.add(job_id)
+            if row.get("jobs"):
+                _hydrate_location_fields(row["jobs"])
+            stack.append(row)
+        return stack
+
+    def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
+        self._db.table("user_dismissed_job_cards").upsert(
+            {"user_id": user_id, "job_id": job_id},
+            on_conflict="user_id,job_id",
+        ).execute()
 
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date

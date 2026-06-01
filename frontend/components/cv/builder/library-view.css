@@ -777,3 +777,73 @@
     transition: none;
   }
 }
+
+/* ── Lens + filter bar (tracker→CV merge 2026-06-02) ───────────────── */
+.tm-lib-lensbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 18px 0 8px;
+}
+.tm-lib-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--tm-border-soft);
+}
+.tm-lib-seg-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--tm-text-faint);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 14px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: color var(--tm-dur, 160ms) var(--tm-ease, ease),
+    background var(--tm-dur, 160ms) var(--tm-ease, ease);
+}
+.tm-lib-seg-btn:hover { color: var(--tm-text-muted); }
+.tm-lib-seg-btn.active {
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+}
+.tm-lib-seg-btn:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 2px;
+}
+/* Single-column workspace (board / verdicts lens) — no pipeline rail. */
+.tm-lib-root-single .tm-lib-main { padding-bottom: 80px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-lib-seg-btn { transition: none; }
+}
+
+/* Inline stage picker on a job card (tracker→CV merge: drop By-stage lens). */
+.tm-lib-job-stage-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border-radius: 99px;
+  transition: background var(--tm-dur, 160ms) var(--tm-ease, ease);
+}
+.tm-lib-job-stage-btn:hover { background: rgba(255, 255, 255, 0.05); }
+.tm-lib-job-stage-btn:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-lib-job-stage-btn { transition: none; }
+}

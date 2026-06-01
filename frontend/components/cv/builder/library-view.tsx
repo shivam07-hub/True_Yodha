@@ -6,13 +6,16 @@
 
 import Link from "next/link"
 import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, ACTIVE_STAGES, STAGE_META, stageRank } from "./library-shared"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
-import { CompanyFolderRow } from "./library-company-row"
 import { MasterCVHero, MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
+import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
 import "./library-view.css"
+
+type Filter = "active" | "closed"
 
 interface LibraryViewProps {
   token: string
@@ -110,27 +113,36 @@ function ActivePipelineRail({ applications, versions, onPickJob }: {
 export function LibraryView({
   token, cv, versions, currentBaseline, applications, profile, onOpenJob, onReplaceCV,
 }: LibraryViewProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [masterOpen, setMasterOpen] = useState(false)
-  const companiesMap = new Map<string, ApplicationResponse[]>()
-  for (const app of applications) {
-    const key = app.company ?? "Unknown"
-    const arr = companiesMap.get(key)
-    if (arr) arr.push(app)
-    else companiesMap.set(key, [app])
+
+  // Lens-collapse (tracker→CV merge, 2026-06-02): the By-stage / By-company toggle
+  // was dropped — company folders already show each pursuit's stage + an inline
+  // stage picker, so there is ONE arrangement. Only the Active | Closed filter
+  // survives (live work vs verdicts). URL-synced so the /tracker redirect
+  // (?filter=closed) still lands right.
+  const filter: Filter = searchParams.get("filter") === "closed" ? "closed" : "active"
+  const showRail = filter === "active"
+
+  function setFilter(f: Filter) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("filter", f)
+    router.replace(`/cv?${params.toString()}`, { scroll: false })
   }
-  const companies = Array.from(companiesMap.entries()).sort(([a], [b]) => a.localeCompare(b))
+
   const stats = buildCVWorkspaceStats(versions, applications)
 
   return (
     <div className="tm-lib-scope">
-      <div className="tm-lib-root">
+      <div className={showRail ? "tm-lib-root" : "tm-lib-root tm-lib-root-single"}>
         <div className="tm-lib-main">
           <div className="tm-lib-page-head">
             <div className="tm-lib-page-head-main">
-              <div className="tm-lib-eyebrow" style={{ marginBottom: 6 }}>CV LIBRARY · BUILDER</div>
+              <div className="tm-lib-eyebrow" style={{ marginBottom: 6 }}>CV &amp; APPLICATIONS</div>
               <h1 className="tm-lib-page-title">Your CV workspace</h1>
               <p className="tm-lib-page-sub">
-                One Main CV. Every job-specific copy lives in its company&apos;s folder. Open, save, polish, and download the right version for each role.
+                One Main CV. Tailor a copy for each job, then track every application — saved, applied, all the way to the offer.
               </p>
               <div className="tm-lib-header-stat-strip" aria-label="CV workspace summary">
                 {stats.map((stat) => (
@@ -171,47 +183,36 @@ export function LibraryView({
             />
           )}
 
-          <div className="tm-lib-folders-head">
-            <div className="tm-lib-folders-head-label">
-              <LIcon d={I.folder}/>
-              Company folders
-            </div>
-            <span className="tm-lib-folders-head-count">{companies.length}</span>
-            <span className="tm-lib-folders-head-divider"/>
-          </div>
+          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
 
-          {companies.length === 0 ? (
-            <div className="tm-lib-empty">
-              <LIcon d={I.folder} size={28}/>
-              <div className="tm-lib-empty-title">No tracked jobs yet</div>
-              <div className="tm-lib-empty-sub">
-                Save jobs from the jobs page to build your library. Each saved job creates a folder for tailored CVs.
-              </div>
-              <Link href="/home#browse" className="tm-lib-empty-link">
-                Browse jobs <LIcon d={I.chevR} size={12}/>
-              </Link>
-            </div>
-          ) : (
-            <div className="tm-lib-folder-list">
-              {companies.map(([name, apps], i) => (
-                <CompanyFolderRow
-                  key={name}
-                  companyName={name}
-                  apps={apps}
-                  versions={versions}
-                  defaultOpen={i < 2}
-                  onOpenJob={onOpenJob}
-                />
-              ))}
-            </div>
-          )}
+          <WorkspacePipeline filter={filter} versions={versions} onOpenJob={onOpenJob} />
         </div>
 
-        <ActivePipelineRail
-          applications={applications}
-          versions={versions}
-          onPickJob={onOpenJob}
-        />
+        {showRail && (
+          <ActivePipelineRail
+            applications={applications}
+            versions={versions}
+            onPickJob={onOpenJob}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function WorkspaceFilterBar({ filter, onFilter }: {
+  filter: Filter
+  onFilter: (f: Filter) => void
+}) {
+  return (
+    <div className="tm-lib-lensbar" role="tablist" aria-label="Pipeline filter">
+      <div className="tm-lib-seg">
+        <button type="button" role="tab" aria-selected={filter === "active"}
+          className={`tm-lib-seg-btn${filter === "active" ? " active" : ""}`}
+          onClick={() => onFilter("active")}>Active</button>
+        <button type="button" role="tab" aria-selected={filter === "closed"}
+          className={`tm-lib-seg-btn${filter === "closed" ? " active" : ""}`}
+          onClick={() => onFilter("closed")}>Closed</button>
       </div>
     </div>
   )

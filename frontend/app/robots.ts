@@ -32,7 +32,6 @@ export default function robots(): MetadataRoute.Robots {
           "/profile/",
           "/signup",
           "/skills",
-          "/tracker",
           "/xp",
         ],
       },

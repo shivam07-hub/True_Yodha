@@ -18,6 +18,8 @@ export type NavSurface = "desktop" | "mobile"
 
 /** Inputs the gate decides on. Derived from the two real queries every authed page shares. */
 export interface NavUnlockCtx {
+  /** A baseline CV has been uploaded — gates the CV & Applications workspace. */
+  hasBaseline: boolean
   /** Count of tailored CV versions (kind ≠ baseline_upload). */
   tailoredCount: number
   /** Distinct companies with at least one tailored CV. */
@@ -57,8 +59,22 @@ export interface NavItem {
   stalePill?: boolean
 }
 
-/** Authed nav, in render order. */
+/** Authed nav, in render order.
+ *
+ * Live Job Data leads the nav (job-feed redesign grill 2026-06-01): it is now a
+ * browsable Inshorts-style job-card feed and the primary daily surface. Order
+ * only — the post-login LANDING route stays /home so the first-run 10-min-CV
+ * onboarding promise is unchanged. */
 export const AUTHED_NAV: NavItem[] = [
+  {
+    id: "market",
+    href: "/market",
+    label: "Live Job Data",
+    desc: "Browse openings read live from career pages",
+    stage: "base",
+    surfaces: ["desktop", "mobile"],
+    mobileIcon: "intel",
+  },
   {
     id: "home",
     href: "/home",
@@ -77,43 +93,25 @@ export const AUTHED_NAV: NavItem[] = [
     surfaces: ["desktop"],
   },
   {
-    id: "market",
-    href: "/market",
-    label: "Live Job Data",
-    desc: "Openings read live from career pages",
-    stage: "base",
-    surfaces: ["desktop", "mobile"],
-    mobileIcon: "intel",
-  },
-  {
+    // Tracker merged into CV (tracker→CV merge grill 2026-06-02): /cv is now the
+    // Career Workspace — Master CV + the full application pipeline (kanban,
+    // verdicts, stale-recovery, manual-add) on one surface. The standalone
+    // /tracker route is gone (next.config redirects it here). Unlock moves to
+    // hasBaseline so pursuits are reachable from the first SAVED job, not the
+    // second tailored company. stalePill migrates here from the dead tracker item.
     id: "cv",
     href: "/cv",
-    label: "CV Library",
-    desc: "Every tailored CV version",
+    label: "CV & Applications",
+    desc: "Build your CV · track every application",
     stage: "gated",
     surfaces: ["desktop", "mobile"],
     mobileIcon: "cv",
-    unlock: (ctx) => ctx.tailoredCount >= 1,
-    coach: {
-      tag: "UNLOCKED · FIRST CV READY",
-      body:
-        "Your first tailored CV just landed. Every job-specific version lives here in its own company folder — open, tweak, download.",
-    },
-  },
-  {
-    id: "tracker",
-    href: "/tracker",
-    label: "Tracker",
-    desc: "Application pipeline",
-    stage: "gated",
-    surfaces: ["desktop", "mobile"],
-    mobileIcon: "tracker",
     stalePill: true,
-    unlock: (ctx) => ctx.tailoredCompanies >= 2,
+    unlock: (ctx) => ctx.hasBaseline,
     coach: {
-      tag: "UNLOCKED · 2 COMPANIES",
-      body:
-        "You're tailoring for two companies now. Track every version, its fit score and outcome on one board — the loop, closed.",
+      // ≤3 impactful words per brand rule (grill Q10). Exact copy → /ux-copy.
+      tag: "UNLOCKED · WORKSPACE",
+      body: "Build. Track. Win.",
     },
   },
   {
@@ -152,6 +150,7 @@ export function deriveNavUnlockCtx(
 ): NavUnlockCtx {
   const vs = versions ?? []
   return {
+    hasBaseline: vs.some((v) => v.kind === "baseline_upload"),
     tailoredCount: tailoredVersions(vs).length,
     tailoredCompanies: distinctTailoredCompanies(vs),
     myrologyInterested: profile?.myrology_interested ?? false,

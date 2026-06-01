@@ -304,7 +304,50 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 · mobile job-card → Perplexity flowing accordion — GRILL LOCKED + BUILT)
+## LAST SESSION SUMMARY (2026-06-01 - Dashboard job-card autonomy)
+
+Added durable user-controlled removal for Home dashboard job cards.
+
+- Added `user_dismissed_job_cards` as a per-user dismissal ledger with RLS own-row select/insert/delete policies. Applied the migration to production Supabase project `gipvxuugajkugntwkeiz` and verified the table plus policies exist.
+- Added `DELETE /jobs/matches/{job_id}` so removing a card hides it from the Home dashboard without deleting tracker/application state or historical `user_job_matches` rows.
+- Updated the match stack read to filter dismissed cards, while refresh novelty treats dismissed cards as already known so explicit removals do not reappear on future refreshes.
+- Extended `/jobs/matches` with `dismissed_job_ids` so the frontend can keep Myro, Liked, and All segments consistent.
+- Added an icon-only remove action on dashboard cards. The frontend clears the local match cache, updates React Query immediately, and refetches the match feed.
+- Added backend repository/router tests plus a dashboard feed-model regression test proving dismissed cards are hidden from all dashboard segments.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_jobs_repository.py backend/tests/test_job_match_router.py backend/tests/test_job_match_response.py backend/tests/test_job_refresh_dispatch.py -q` -> `9 passed, 6 warnings`
+- `cd frontend && npx tsx --test tests/dashboard-feed-model.test.ts tests/job-refresh-notice.test.ts` -> `3 passed`
+- `.venv/bin/pytest backend/tests -q` -> `490 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - Durable stacked job matches + refresh fallback)
+
+Fixed the Home dashboard match-card disappearance and refresh timeout path.
+
+- Root cause confirmed: `/jobs/matches` only read `user_job_matches` for the current `last_monday()` batch. Veteran users with older retained matches could see **Myro found 0** at a week boundary even though their historical match rows still existed.
+- Production read-only check for `shivam.mit20@gmail.com` confirmed match data was present: 52 match rows across seven weeks, 33 unique matched jobs, while the previous current-week read only saw 11 rows after the latest refresh.
+- Added a durable match stack read: `JobsRepository.get_user_match_stack()` reads all retained user match rows, sorts newest refreshes first, dedupes by `job_id`, hydrates location fields, and keeps old cards underneath fresh results.
+- Updated `/jobs/matches` to return the stacked match feed and fixed `to_job_match()` so each card keeps its real historical `batch_week` instead of being stamped with the current week.
+- Refresh novelty now excludes all prior matched job IDs, not only the current week, so fresh results are preferred; the existing pool-relaxation logic still prevents XP-gated refreshes from dead-ending when the pool is fully consumed.
+- Added a job-refresh Redis liveness guard. If `REDIS_URL` is set but no worker is serving the legacy refresh queue, refresh runs inline instead of sitting queued until the frontend times out.
+- Raised the SSE refresh stream cap from 45s to 15min to match the backend refresh job timeout and avoid false "taking too long" failures during slow but live ranking.
+- Bumped the frontend local match-cache key and clears the legacy key after refresh, so users who cached a zero-match response do not stay stuck on it for seven days.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_jobs_repository.py backend/tests/test_job_match_response.py backend/tests/test_job_refresh_dispatch.py -q` -> `5 passed`
+- `.venv/bin/pytest backend/tests/test_workflow_seams.py backend/tests/test_progress_stream_router.py backend/tests/test_job_matcher.py backend/tests/test_llm_ranker.py -q` -> `40 passed, 6 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `486 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `cd frontend && npx tsx --test tests/job-refresh-notice.test.ts` -> `2 passed`
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 · mobile job-card → Perplexity flowing accordion — GRILL LOCKED + BUILT)
 
 Triggered by a 400px phone screenshot of the dashboard: sticky/snapping job cards ruined the scroll, "2 Locations" was a dead-end label, and there was no JD on the card. Ran `/grill-me` (9 branches), verified every claim in code + `graphify-out`, then built the whole thing. **Uncommitted on Develop.** tsc `EXIT_0` · `next lint` 0/0 (3 touched files) · index-sheet deleted with zero dangling refs.
 
