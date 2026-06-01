@@ -19,6 +19,10 @@ This file defines how Codex, Claude, and Shivam share the growth system.
 5. Codex records performance in `Myro Newsletter/growth-agent/reports/`.
 6. The next daily run uses report learnings to adjust the calendar.
 
+Newsletter issue campaigns use `growth-agent/newsletter-distribution-agent.md`.
+Codex can create/import campaign records and queue approved email outreach;
+social/API adapters must still honor the review matrix below.
+
 ## Review Matrix
 
 ### Allowed To Publish Or Schedule Directly

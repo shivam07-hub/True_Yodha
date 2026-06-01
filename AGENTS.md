@@ -277,7 +277,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - CV upload stale idempotency hardening)
+## LAST SESSION SUMMARY (2026-06-01 - Newsletter distribution agent MVP)
+
+Built the review-first backend foundation for sharing Myro Newsletter issues with newspaper/student-publication/company contacts and social channels.
+
+- Added internal-token protected `/newsletter/distribution/*` endpoints, gated by `NEWSLETTER_DISTRIBUTION_ADMIN_TOKEN` and `x-newsletter-agent-token`.
+- Added `newsletter_outreach_contacts` import support with normalized emails, required provenance (`source_url` or `source_label`), outreach basis, contact type, and suppression status.
+- Added `newsletter_distribution_campaigns`, `newsletter_distribution_messages`, and `newsletter_email_outreach_queue` via `20260601_newsletter_distribution_agent.sql`, all RLS-enabled with no public client policies.
+- Added campaign generation from issue metadata with review-ready drafts for email, LinkedIn company-page, six-post X thread, Instagram caption placeholder, and WhatsApp share-message placeholder.
+- Added explicit campaign approval before email queueing; approval marks drafts approved, queueing marks the campaign/message queued.
+- Protected suppression state on duplicate contact imports so an active re-import cannot accidentally reactivate a suppressed/unsubscribed contact.
+- Documented the operator workflow in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md` and linked it from `growth-agent/automation-map.md`.
+- No real email sending or social posting was wired in this slice; the system now prepares/approves/queues distribution safely for later Resend/LinkedIn/X/Meta adapters.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_newsletter_distribution_service.py backend/tests/test_newsletter_distribution_router.py backend/tests/test_newsletter_distribution_repository.py -q` -> `14 passed, 6 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `481 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `cd frontend && npm run newsletter:check` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - CV upload stale idempotency hardening)
 
 Followed up on the Railway/Redis CV upload stall after the worker-outage fix.
 
