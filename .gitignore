@@ -88,3 +88,4 @@ backend/lightcast_skills_taxonomy copy.json
 # Newsletter drafts — local working folder
 Myro Newsletter/
 docs/free-llm-api-resources
+/docs
