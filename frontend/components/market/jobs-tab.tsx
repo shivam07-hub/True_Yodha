@@ -385,7 +385,13 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     initialPageParam: 1,
     getNextPageParam: last => (last.has_next_page ? last.page + 1 : undefined),
     enabled: !!token,
-    staleTime: 60 * 1000,
+    // Feed is weekly-batch scrape data behind a 5-min backend cache; 60s was
+    // needlessly aggressive. 30 min matches the chip/skillDemand/heatmap cadence
+    // on this page (analytics sits at 7d). gcTime 24h = query-persist MAX_AGE, so
+    // the dehydrated cache keeps these pages restorable → a returning user paints
+    // cards instantly (stale-while-revalidate) instead of a cold skeleton.
+    staleTime: 30 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
   })
 
   const allJobs = useMemo(() => feed.data?.pages.flatMap(p => p.jobs) ?? [], [feed.data])

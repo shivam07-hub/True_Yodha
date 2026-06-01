@@ -29,6 +29,26 @@ _company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _feed_ts_cache: tuple[float, str | None] = (0.0, None)
+
+# /market browse feed — latency is the feature, so cache the DB round-trip on a
+# short TTL. Cached values are RAW DB rows; shaping (matched_skill_count) runs
+# per-request against the caller's CV skills so two users sharing a filter never
+# leak each other's overlap. Keys carry every dimension that changes the query:
+# sort + role_domain + location + free-text + page bounds (DB paths) — the
+# personal path paginates in Python, so its candidate set is page-independent.
+_FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against weekly scrapes
+_feed_page_cache: dict[
+    tuple[str, str | None, str | None, str | None, str | None, str, int, int],
+    tuple[float, tuple[list[dict[str, Any]], int]],
+] = {}
+_feed_personal_cache: dict[
+    tuple[str | None, str | None, str | None, str | None, str],
+    tuple[float, list[dict[str, Any]]],
+] = {}
+# Per-user CV skill keys — recomputed on every feed call before this cache.
+_USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
+_user_skill_keys_cache: dict[str, tuple[float, set[str]]] = {}
+
 _COMPANY_SEARCH_RPC = "search_job_companies"
 
 
@@ -939,24 +959,29 @@ class JobsRepository:
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
         mode = sort if sort in {"fresh", "company", "personal"} else "fresh"
+        domain = _norm_filter(role_domain)
         country = _norm_filter(location_country)
         city = _norm_filter(location_city)
         loc_mode = _norm_filter(location_mode)
         term = " ".join((q or "").split())
+        # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
+        # unfiltered cache slot and stay part of the key for ≥2-char terms.
+        effective_term = term if len(term) >= 2 else ""
+        now = time.monotonic()
 
         def _apply_filters(query: Any) -> Any:
             query = query.eq("is_active", True)
-            if role_domain:
-                query = query.eq("role_domain", role_domain)
+            if domain:
+                query = query.eq("role_domain", domain)
             if country:
                 query = query.eq("location_country", country)
             if city:
                 query = query.eq("location_city", city)
             if loc_mode:
                 query = query.eq("location_mode", loc_mode)
-            if len(term) >= 2:
+            if effective_term:
                 # Sanitize: PostgREST or() splits on commas/parens.
-                safe = term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
+                safe = effective_term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
                 if safe:
                     query = query.or_(
                         f"job_title.ilike.%{safe}%,company_name.ilike.%{safe}%"
@@ -965,18 +990,26 @@ class JobsRepository:
 
         if mode == "personal":
             # Rank a bounded freshest candidate set by skill overlap, paginate in Python.
-            try:
-                result = _apply_filters(
-                    self._admin_db.table("jobs").select(self._FEED_COLUMNS)
-                ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
-            except APIError:
-                result = None
-            rows = (result.data if result else None) or []
+            pkey = (domain, city, country, loc_mode, effective_term)
+            cached = _feed_personal_cache.get(pkey)
+            if cached is not None and (now - cached[0]) < _FEED_TTL:
+                rows = cached[1]
+            else:
+                try:
+                    result = _apply_filters(
+                        self._admin_db.table("jobs").select(self._FEED_COLUMNS)
+                    ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
+                except APIError:
+                    result = None
+                rows = (result.data if result else None) or []
+                _feed_personal_cache[pkey] = (now, rows)
             shaped = [self._feed_shape_row(r, user_skill_keys) for r in rows]
             # Stable sort: secondary (freshest) first, then primary (overlap) — so
             # equal-overlap jobs stay newest-first.
             shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
             shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
+            # available_total reflects the FEED_PERSONAL_CAP, not the full DB pool:
+            # personal rank is over the freshest N candidates only.
             available_total = len(shaped)
             start = (scoped_page - 1) * scoped_page_size
             end = start + scoped_page_size
@@ -994,23 +1027,29 @@ class JobsRepository:
         # DB-paginated paths: fresh + company
         start = (scoped_page - 1) * scoped_page_size
         end = start + scoped_page_size - 1
-        try:
-            base = _apply_filters(
-                self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
-            )
-            if mode == "company":
-                base = base.order("company_name", desc=False).order("first_seen", desc=True)
-            else:
-                base = base.order("first_seen", desc=True).order("job_id", desc=True)
-            result = base.range(start, end).execute()
-        except APIError:
-            return {
-                "rows": [], "available_total": 0, "returned_total": 0,
-                "page": scoped_page, "page_size": scoped_page_size,
-                "has_next_page": False, "sort": mode,
-            }
-        rows = result.data or []
-        available_total = result.count if result.count is not None else len(rows)
+        ckey = (mode, domain, city, country, loc_mode, effective_term, scoped_page, scoped_page_size)
+        cached = _feed_page_cache.get(ckey)
+        if cached is not None and (now - cached[0]) < _FEED_TTL:
+            rows, available_total = cached[1]
+        else:
+            try:
+                base = _apply_filters(
+                    self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
+                )
+                if mode == "company":
+                    base = base.order("company_name", desc=False).order("first_seen", desc=True)
+                else:
+                    base = base.order("first_seen", desc=True).order("job_id", desc=True)
+                result = base.range(start, end).execute()
+            except APIError:
+                return {
+                    "rows": [], "available_total": 0, "returned_total": 0,
+                    "page": scoped_page, "page_size": scoped_page_size,
+                    "has_next_page": False, "sort": mode,
+                }
+            rows = result.data or []
+            available_total = result.count if result.count is not None else len(rows)
+            _feed_page_cache[ckey] = (now, (rows, available_total))
         page_rows = [self._feed_shape_row(r, user_skill_keys) for r in rows]
         return {
             "rows": page_rows,
@@ -1023,7 +1062,16 @@ class JobsRepository:
         }
 
     def user_skill_keys(self, user_id: str) -> set[str]:
-        """Lowercased taxonomy_key + display_name set for the user's CV skills."""
+        """Lowercased taxonomy_key + display_name set for the user's CV skills.
+
+        Cached per user on a short TTL: every feed call needs this set, but CV
+        skills only change on edit/re-upload, so the user_skills round-trip is
+        pure waste on repeat browses.
+        """
+        now = time.monotonic()
+        cached = _user_skill_keys_cache.get(user_id)
+        if cached is not None and (now - cached[0]) < _USER_SKILL_KEYS_TTL:
+            return cached[1]
         keys: set[str] = set()
         for row in self.get_user_skills_with_taxonomy(user_id):
             sk = row.get("skills") or {}
@@ -1031,6 +1079,7 @@ class JobsRepository:
                 val = (sk.get(field) or "").strip().lower()
                 if val:
                     keys.add(val)
+        _user_skill_keys_cache[user_id] = (now, keys)
         return keys
 
     # ── user skills / demand ───────────────────────────────────────────────────
