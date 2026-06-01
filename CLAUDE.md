@@ -329,7 +329,38 @@ Triggered by a 400px phone screenshot of the dashboard: sticky/snapping job card
 1. **Commit** (suggested `feat(dashboard): mobile job-card flowing accordion + honest locations + JD expand + expand-only XP`). All of `components/dashboard/` is untracked — part of the larger uncommitted route-group restructure; Shivam to bundle.
 2. **Visual QA** owed (authed, 375px) — chevron rotate, JD 320px scroll-cap, accordion collapse.
 3. **firecrawl_Supabase backlog #6** (per-city capture) is the data-side blocker for real multi-loc chips; `LocationLine` already renders an array the day it lands.
-4. All prior carry-over still open (PR2 living-master, streaming Gemini verify, etc.).
+
+### VERIFICATION QUEUE (Shivam to confirm still-needed, restructured 2026-06-01)
+
+**V1 — Mobile job-card (today's build).** Page: `/home` on phone ≤400px. Confirm: cards flow (no snap/swipe), tap expands in place, locations honest, JD expands, 10 XP only on expand.
+
+**V2 — CV page lane (PR2 + PR3 + 10-min tail — all one surface).** Pages: `/cv` + the score-reveal→Improve→Practice(`/forge`)→tailor→download lane. Confirm three things on the same page family:
+   - **(PR2 living-master)** is master CV still append-N-`baseline_upload`-rows, or already single living-doc? If still N-baselines → PR2 needed.
+   - **(PR3 structured editor)** is every section (summary/skills_line/certs/experience+bullets/projects/edu) add/edit/remove editable, or only single-bullet edit? If single-bullet only → PR3 needed.
+   - **(10-min tail)** does score→`Improve {domain}`→Practice→tailor→`cv/download-pdf` work end-to-end? Note: Practice×Skill merge already committed (`b57f193`) + 10-min CV tail already built — likely mostly done; confirm the seam.
+
+**V3 — Surface analysing model name (was: streaming Gemini verify — reframed, irrelevant as-is).** Instead of verifying the stream, **show the user WHICH model analysed the job** — replace the bare "LLM"/generic wording with the actual provider+model (e.g. "Analysed by Gemini Flash" / "Groq Llama-3.3-70b"). Source = the LLM provider chain that served the call. Touches `LensWhy` / analyse + deepen endpoints (surface `model` in the response) → render under the "Why you fit" block. Small task, not a verify.
+
+**V4 — Durable dispatch Redis flip + INSTITUTIONS_LEAD_EMAIL (Railway MCP — pick up verbatim).** Infra-only, zero code change. Run the prompt below as-is:
+
+> Use the Railway MCP to fix orphaned CV-upload jobs on the True_Yodha backend (Develop env).
+>
+> **SYMPTOM**
+> - Frontend modal: "Job exceeded 5 min in processing – server restart or stuck worker."
+> - Railway log: `metric cv_upload.phase_failed phase=parse reason=orphaned attempts=0 threshold_pending=true`
+>
+> **ROOT CAUSE (already diagnosed — confirm, don't re-litigate)**
+> The backend code at `backend/app/services/background/dispatch.py` routes background jobs to durable RQ ONLY when REDIS_URL is set AND a worker is live for the lane (dispatch.py:69, :89). `settings.redis_url` defaults `""` (config.py:48), so on Railway it falls back to IN-PROCESS execution. Any container restart (redeploy, OOM) kills the in-process parse task → the `cv_upload_jobs` row is stranded in `processing` → the 5-min orphan sweep (main.py:54 / `sweep_stale_cv_upload_jobs`) fails+refunds it. `attempts=0` confirms the job never started = restart mid-flight, not a parse failure. Fix is infra-only, zero code change.
+>
+> **DO (via Railway MCP, on the True_Yodha project, Develop environment)**
+> 1. Confirm: list services + variables; verify REDIS_URL is unset on the backend service. Pull recent deploy/restart history + memory metrics to confirm restart/OOM churn around the failures.
+> 2. Add a Redis database/plugin to the project.
+> 3. Set REDIS_URL on the backend service to the Redis private URL. Redeploy backend.
+> 4. Add a WORKER service (same repo/image, same env incl REDIS_URL + PYTHONPATH=backend) whose start command runs the RQ worker over both lanes. Read dispatch.py for exact lane names (LANE_FAST/LANE_BULK) and the run_job_sync entrypoint + how handlers register on import. Likely: `rq worker fast bulk -u $REDIS_URL` after importing the app so handlers register. Confirm the precise command against the code before deploying.
+> 5. Verify: worker registers (dispatch._has_active_worker_for_lane liveness passes), then do a test CV upload and confirm it completes — no `phase=parse reason=orphaned` line, job ends `done` not `failed`.
+>
+> Report back: the Redis URL var name set, the worker service start command, and the test-upload result.
+> While in there: also set `INSTITUTIONS_LEAD_EMAIL=edu@himyro.com` on the same backend service (new B2B beta notify, fail-soft). One Railway-MCP trip handles both.
 
 ---
 

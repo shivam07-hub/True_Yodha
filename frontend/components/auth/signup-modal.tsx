@@ -152,9 +152,19 @@ export function SignupModal() {
           className="tm-signup-modal__aside"
           aria-label={isLogin ? "Welcome back" : "What you will get"}
         >
-          <span className="tm-signup-modal__aside-eyebrow">
-            {isLogin ? "Your hub" : "What you'll get"}
-          </span>
+          <div className="tm-signup-modal__aside-head">
+            <span className="tm-signup-modal__aside-eyebrow">
+              {isLogin ? "Your hub" : "What you'll get"}
+            </span>
+            <button
+              type="button"
+              className="tm-signup-modal__aside-close"
+              aria-label={isLogin ? "Close sign in" : "Close sign up"}
+              onClick={() => dismiss("x")}
+            >
+              ×
+            </button>
+          </div>
           <div className="tm-signup-modal__aside-glyph" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

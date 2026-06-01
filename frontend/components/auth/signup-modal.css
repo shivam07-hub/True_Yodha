@@ -176,12 +176,48 @@
   overflow-y: auto;
 }
 
+.tm-signup-modal__aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .tm-signup-modal__aside-eyebrow {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 700;
   color: var(--tm-text-faint);
+}
+
+/* Aside close — only needed on mobile, where the absolute corner X scrolls
+   out of view. Hidden on desktop (the corner X stays pinned there). */
+.tm-signup-modal__aside-close {
+  display: none;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+  color: var(--tm-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms var(--tm-ease), color 120ms var(--tm-ease);
+}
+
+.tm-signup-modal__aside-close:hover {
+  background: var(--tm-bg-inset);
+  color: var(--tm-text);
+}
+
+.tm-signup-modal__aside-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
 }
 
 .tm-signup-modal__aside-glyph {
@@ -236,11 +272,21 @@
   }
   .tm-signup-modal {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
     width: 100%;
     max-height: 100dvh;
     height: 100dvh;
     border-radius: 0;
     border: none;
+    /* Sheet scrolls as one column — stacked rows must not clip/overlap. */
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  /* Children stop being independent scroll contexts so their content-sized
+     grid tracks can't collide inside the fixed-height sheet. */
+  .tm-signup-modal__main,
+  .tm-signup-modal__aside {
+    overflow: visible;
   }
   .tm-signup-modal__main {
     padding: 26px 22px 32px;
@@ -249,6 +295,9 @@
     border-left: none;
     border-top: 1px solid var(--tm-border-soft);
     padding: 24px 22px 36px;
+  }
+  .tm-signup-modal__aside-close {
+    display: flex;
   }
   .tm-signup-modal__title {
     font-size: 24px;
