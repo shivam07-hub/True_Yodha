@@ -277,7 +277,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - Durable stacked job matches + refresh fallback)
+## LAST SESSION SUMMARY (2026-06-01 - Dashboard job-card autonomy)
+
+Added durable user-controlled removal for Home dashboard job cards.
+
+- Added `user_dismissed_job_cards` as a per-user dismissal ledger with RLS own-row select/insert/delete policies. Applied the migration to production Supabase project `gipvxuugajkugntwkeiz` and verified the table plus policies exist.
+- Added `DELETE /jobs/matches/{job_id}` so removing a card hides it from the Home dashboard without deleting tracker/application state or historical `user_job_matches` rows.
+- Updated the match stack read to filter dismissed cards, while refresh novelty treats dismissed cards as already known so explicit removals do not reappear on future refreshes.
+- Extended `/jobs/matches` with `dismissed_job_ids` so the frontend can keep Myro, Liked, and All segments consistent.
+- Added an icon-only remove action on dashboard cards. The frontend clears the local match cache, updates React Query immediately, and refetches the match feed.
+- Added backend repository/router tests plus a dashboard feed-model regression test proving dismissed cards are hidden from all dashboard segments.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_jobs_repository.py backend/tests/test_job_match_router.py backend/tests/test_job_match_response.py backend/tests/test_job_refresh_dispatch.py -q` -> `9 passed, 6 warnings`
+- `cd frontend && npx tsx --test tests/dashboard-feed-model.test.ts tests/job-refresh-notice.test.ts` -> `3 passed`
+- `.venv/bin/pytest backend/tests -q` -> `490 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - Durable stacked job matches + refresh fallback)
 
 Fixed the Home dashboard match-card disappearance and refresh timeout path.
 

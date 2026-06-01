@@ -1297,6 +1297,7 @@ export interface JobMatchesResponse {
   total: number
   feed_updated_at: string | null
   matches_computed_at: string | null
+  dismissed_job_ids: string[]
 }
 
 export type RefreshLifecycle = "queued" | "computing" | "done" | "failed"
@@ -1745,6 +1746,11 @@ export const jobs = {
     }),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismissMatchCard: (token: string, jobId: string) =>
+    request<void>(`/jobs/matches/${encodeURIComponent(jobId)}`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
   refresh: (token: string) =>

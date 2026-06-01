@@ -78,6 +78,7 @@ class JobMatchesResponse(BaseModel):
     total: int
     feed_updated_at: datetime | None = None    # MAX(jobs.last_seen) — when the feed last refreshed
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
+    dismissed_job_ids: list[str] = []
 
 
 APPLICATION_STAGES = {"saved", "applied", "screening", "interviewing", "final_round"}

@@ -15,6 +15,7 @@ export interface MobileFeedProps {
   initialJobId?: string | null
   hasMore: boolean
   onStatus: (jobId: string, s: ApplicationStatus) => void
+  onRemove: (jobId: string) => void
   onSkillToggle: (s: SkillGapItem) => void
   onRefresh: () => void
 }
@@ -56,6 +57,7 @@ export function MobileFeed(p: MobileFeedProps) {
           cartSkillNames={p.cartSkillNames}
           otherRoles={otherRolesFor(p.allItems, it)}
           onStatus={(s) => p.onStatus(it.jobId, s)}
+          onRemove={() => p.onRemove(it.jobId)}
           onSkillToggle={p.onSkillToggle}
           onJump={(jobId) => setExpandedId(jobId)}
           onToggle={() => toggle(it.jobId)}

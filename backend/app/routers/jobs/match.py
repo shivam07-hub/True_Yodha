@@ -59,7 +59,17 @@ async def get_job_matches(
         total=len(jobs),
         feed_updated_at=feed_updated_at,
         matches_computed_at=matches_computed_at,
+        dismissed_job_ids=repo.get_dismissed_job_card_ids(principal.id),
     )
+
+
+@router.delete("/matches/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def dismiss_job_match_card(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    repo.dismiss_dashboard_job_card(principal.id, job_id)
 
 
 @router.post("/refresh", response_model=RefreshTicketResponse, status_code=status.HTTP_202_ACCEPTED)

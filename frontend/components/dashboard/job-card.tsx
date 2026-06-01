@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { X } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import {
   jobs as jobsApi,
@@ -38,6 +39,7 @@ export interface JobCardProps {
   cartSkillNames: Set<string>
   otherRoles: OtherRole[]
   onStatus: (s: ApplicationStatus) => void
+  onRemove: () => void
   onSkillToggle: (s: SkillGapItem) => void
   onJump?: (jobId: string) => void
 }
@@ -86,6 +88,20 @@ function LensAction({ lens, job, cartSize }: { lens: LensKey; job: JobMatch; car
     return <span className="db-act-hint">Private to you</span>
   }
   return <span className="db-act-hint">Dig deeper below</span>
+}
+
+function RemoveCardButton({ onRemove }: { onRemove: () => void }) {
+  return (
+    <button
+      type="button"
+      className="db-remove-btn tm-control-focus"
+      aria-label="Remove job card"
+      title="Remove job card"
+      onClick={onRemove}
+    >
+      <X size={15} aria-hidden />
+    </button>
+  )
 }
 
 function renderLens(key: LensKey, p: JobCardProps, model: ReturnType<typeof useCardModel>) {
@@ -199,6 +215,7 @@ export function MobileJobCard(p: MobileJobCardProps) {
         <Link className="db-act-btn" href={`/cv?jobId=${p.job.job_id}`} onClick={(e) => e.stopPropagation()}>
           Tailor CV
         </Link>
+        <RemoveCardButton onRemove={p.onRemove} />
       </div>
     </div>
   )
@@ -230,6 +247,7 @@ export function JobCardTabs(p: JobCardProps) {
       <div className="db-actionbar">
         <StatusBar status={p.status} fit={fit} onStatus={p.onStatus} />
         <LensAction lens={lens} job={p.job} cartSize={p.cartSkillNames.size} />
+        <RemoveCardButton onRemove={p.onRemove} />
       </div>
     </div>
   )

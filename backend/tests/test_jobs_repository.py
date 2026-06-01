@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from app.repositories.jobs import JobsRepository
@@ -32,13 +33,17 @@ class _FakeQuery:
 
 
 class _FakeDB:
-    def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        rows: list[dict[str, Any]] | None = None,
+        tables: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> None:
         self.tape: dict[str, Any] = {}
-        self._rows = rows or []
+        self._tables = tables or {"user_job_matches": rows or []}
 
     def table(self, name: str) -> _FakeQuery:
         self.tape["table"] = name
-        return _FakeQuery(self.tape, list(self._rows))
+        return _FakeQuery(self.tape, list(self._tables.get(name, [])))
 
 
 def test_upsert_job_match_uses_weekly_conflict_key() -> None:
@@ -106,3 +111,70 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
 
     assert [row["job_id"] for row in stack] == ["fresh-job", "repeat-job", "old-job"]
     assert [row["batch_week"] for row in stack] == ["2026-06-01", "2026-06-01", "2026-05-25"]
+
+
+def test_get_user_match_stack_excludes_user_dismissed_cards() -> None:
+    repo = JobsRepository(
+        _FakeDB(
+            tables={
+                "user_job_matches": [
+                    {
+                        "id": 1,
+                        "user_id": "user-1",
+                        "job_id": "keep-job",
+                        "batch_week": "2026-06-01",
+                        "computed_at": "2026-06-01T09:00:00+00:00",
+                        "llm_rank": 1,
+                        "jobs": {"location": "Bengaluru, India"},
+                    },
+                    {
+                        "id": 2,
+                        "user_id": "user-1",
+                        "job_id": "dismissed-job",
+                        "batch_week": "2026-06-01",
+                        "computed_at": "2026-06-01T09:00:00+00:00",
+                        "llm_rank": 2,
+                        "jobs": {"location": "Remote"},
+                    },
+                ],
+                "user_dismissed_job_cards": [
+                    {"user_id": "user-1", "job_id": "dismissed-job"},
+                ],
+            },
+        ),
+        _FakeDB(),
+    )  # type: ignore[arg-type]
+
+    stack = repo.get_user_match_stack("user-1")
+
+    assert [row["job_id"] for row in stack] == ["keep-job"]
+
+
+def test_get_existing_match_job_ids_includes_dismissed_cards_for_refresh_exclusion() -> None:
+    repo = JobsRepository(
+        _FakeDB(
+            tables={
+                "user_job_matches": [
+                    {"user_id": "user-1", "job_id": "prior-job", "batch_week": "2026-06-01"},
+                ],
+                "user_dismissed_job_cards": [
+                    {"user_id": "user-1", "job_id": "dismissed-job"},
+                ],
+            },
+        ),
+        _FakeDB(),
+    )  # type: ignore[arg-type]
+
+    assert repo.get_existing_match_job_ids("user-1") == ["prior-job", "dismissed-job"]
+    assert repo.get_existing_match_job_ids("user-1", batch_week=date(2026, 6, 1)) == ["prior-job"]
+
+
+def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:
+    user_db = _FakeDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    repo.dismiss_dashboard_job_card("user-1", "job-1")
+
+    assert user_db.tape["table"] == "user_dismissed_job_cards"
+    assert user_db.tape["payload"] == {"user_id": "user-1", "job_id": "job-1"}
+    assert user_db.tape["on_conflict"] == "user_id,job_id"

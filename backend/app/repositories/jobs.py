@@ -1087,12 +1087,24 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
+    def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
+        result = (
+            self._db.table("user_dismissed_job_cards")
+            .select("job_id")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+
     def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
         query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
         if batch_week is not None:
             query = query.eq("batch_week", str(batch_week))
         result = query.execute()
-        return [r["job_id"] for r in (result.data or [])]
+        ids = [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+        if batch_week is None:
+            ids.extend(self.get_dismissed_job_card_ids(user_id))
+        return list(dict.fromkeys(ids))
 
     def get_user_match_stack(self, user_id: str) -> list[dict[str, Any]]:
         """Return the user's durable match stack, newest refresh rows first.
@@ -1115,6 +1127,7 @@ class JobsRepository:
             .eq("user_id", user_id)
             .execute()
         )
+        dismissed = set(self.get_dismissed_job_card_ids(user_id))
         rows = list(result.data or [])
         rows.sort(key=_match_stack_sort_key, reverse=True)
 
@@ -1122,13 +1135,19 @@ class JobsRepository:
         seen: set[str] = set()
         for row in rows:
             job_id = str(row.get("job_id") or "")
-            if not job_id or job_id in seen:
+            if not job_id or job_id in seen or job_id in dismissed:
                 continue
             seen.add(job_id)
             if row.get("jobs"):
                 _hydrate_location_fields(row["jobs"])
             stack.append(row)
         return stack
+
+    def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
+        self._db.table("user_dismissed_job_cards").upsert(
+            {"user_id": user_id, "job_id": job_id},
+            on_conflict="user_id,job_id",
+        ).execute()
 
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date

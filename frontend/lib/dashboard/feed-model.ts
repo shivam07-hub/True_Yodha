@@ -50,15 +50,18 @@ const LIKED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus
 export function buildFeed(
   jobs: JobMatch[],
   apps: ApplicationResponse[],
+  dismissedJobIds: ReadonlySet<string> = new Set(),
 ): { items: FeedItem[]; likedIds: Set<string> } {
   const likedIds = new Set<string>()
   for (const a of apps) {
+    if (dismissedJobIds.has(a.job_id)) continue
     if (a.source === "user_discovery" || LIKED_STATUSES.has(a.status)) likedIds.add(a.job_id)
   }
 
   const items: FeedItem[] = []
   const seen = new Set<string>()
   for (const j of jobs) {
+    if (dismissedJobIds.has(j.job_id)) continue
     seen.add(j.job_id)
     items.push({
       jobId: j.job_id,
@@ -71,6 +74,7 @@ export function buildFeed(
     })
   }
   for (const a of apps) {
+    if (dismissedJobIds.has(a.job_id)) continue
     if (seen.has(a.job_id)) continue
     if (!(a.source === "user_discovery" || LIKED_STATUSES.has(a.status))) continue
     seen.add(a.job_id)

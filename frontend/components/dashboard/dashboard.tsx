@@ -30,11 +30,13 @@ export interface DashboardProps {
   token: string
   cartSkillNames: Set<string>
   refresh: UseJobRefreshResult
+  dismissedJobIds: Set<string>
   total: number
   feedUpdatedAt: string | null
   matchesComputedAt: string | null
   initialJobId?: string | null
   onStatus: (jobId: string, status: ApplicationStatus) => void
+  onRemove: (jobId: string) => void
   onSkillToggle: (skill: SkillGapItem) => void
 }
 
@@ -49,8 +51,8 @@ export function Dashboard(props: DashboardProps) {
   const [segment, setSegment] = React.useState<Segment>("myro")
 
   const { items } = React.useMemo(
-    () => buildFeed(props.jobs, props.apps),
-    [props.jobs, props.apps],
+    () => buildFeed(props.jobs, props.apps, props.dismissedJobIds),
+    [props.jobs, props.apps, props.dismissedJobIds],
   )
   const counts = React.useMemo(() => segmentCounts(items), [items])
   const visible = React.useMemo(() => filterSegment(items, segment), [items, segment])
@@ -111,6 +113,7 @@ export function Dashboard(props: DashboardProps) {
           cartSkillNames={props.cartSkillNames}
           initialJobId={props.initialJobId}
           onStatus={props.onStatus}
+          onRemove={props.onRemove}
           onSkillToggle={props.onSkillToggle}
         />
       ) : (
@@ -123,6 +126,7 @@ export function Dashboard(props: DashboardProps) {
           initialJobId={props.initialJobId}
           hasMore={visible.some((r) => r.isMatch)}
           onStatus={props.onStatus}
+          onRemove={props.onRemove}
           onSkillToggle={props.onSkillToggle}
           onRefresh={openRefreshGate}
         />
