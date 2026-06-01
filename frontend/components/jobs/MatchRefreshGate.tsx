@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
@@ -139,7 +140,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
     onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.profile() }),
   })
 
-  if (!open) return null
+  if (!open || typeof document === "undefined") return null
 
   const persistIfDirty = async () => {
     if (dirty) await saveMutation.mutateAsync()
@@ -201,7 +202,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const cvHref = profile?.cv_url || "/cv"
   const shortfall = COST - balance
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -399,7 +400,8 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

@@ -151,9 +151,6 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
         <div style={{ filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}>
           <MyroLogo size={30} />
         </div>
-        <span style={{ fontFamily: "var(--tm-font-sans)", fontSize: 22, fontWeight: 650, color: "var(--tm-text)" }}>
-          Myro
-        </span>
       </Link>
 
       <ForgeXpPill xpBalance={xpBalance} onXpClick={onXPOpen} />

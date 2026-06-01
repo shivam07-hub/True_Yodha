@@ -49,18 +49,23 @@
   --tm-info-border:   rgba(167, 139, 250, 0.30);
 
   /* ── Status ramps (OKLCH) ────────────────────────────────── */
+  /* Washes are TRANSLUCENT tints of each hue so they read as a faint colored
+     fill on the dark surface — light status text / --tm-text rides on top.
+     (Previously oklch L≈0.97 opaque cream — a light-mode value that flooded
+     dark cards white and hid light text. Light-mode cream now lives in the
+     [data-surface="light"] override below.) */
   --tm-success:         oklch(0.74 0.14 145);
-  --tm-success-wash:    oklch(0.97 0.02 145);
+  --tm-success-wash:    oklch(0.74 0.14 145 / 0.13);
   --tm-success-border:  oklch(0.85 0.07 145);
   --tm-success-text:    oklch(0.46 0.11 145);
 
   --tm-warning:         oklch(0.78 0.13 75);
-  --tm-warning-wash:    oklch(0.97 0.04 75);
+  --tm-warning-wash:    oklch(0.78 0.13 75 / 0.14);
   --tm-warning-border:  oklch(0.85 0.10 75);
   --tm-warning-text:    oklch(0.52 0.11 75);
 
   --tm-danger:          oklch(0.66 0.17 25);
-  --tm-danger-wash:     oklch(0.97 0.03 25);
+  --tm-danger-wash:     oklch(0.66 0.17 25 / 0.14);
   --tm-danger-border:   oklch(0.74 0.16 25);
   --tm-danger-text:     oklch(0.52 0.15 25);
 
@@ -261,6 +266,11 @@
   --tm-success:       #15A34A;
   --tm-warning:       #D97706;
   --tm-danger:        #E11D48;
+  /* Opaque cream washes for the light surface — dark status text rides on top.
+     (Base :root now ships translucent-dark washes for the dark theme.) */
+  --tm-success-wash:  oklch(0.97 0.02 145);
+  --tm-warning-wash:  oklch(0.97 0.04 75);
+  --tm-danger-wash:   oklch(0.97 0.03 25);
 
   --tm-shadow-1:      0 1px 2px rgba(10, 20, 40, 0.04);
   --tm-shadow-2:      0 4px 14px rgba(10, 20, 40, 0.06), 0 1px 2px rgba(10, 20, 40, 0.04);
