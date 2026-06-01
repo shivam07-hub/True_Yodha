@@ -26,7 +26,7 @@ HEARTBEAT = ": keepalive\n\n"
 # How often the relay re-reads the source of truth, and the hard cap after which
 # it emits a terminal frame so a connection never hangs forever.
 TICK_SECONDS = 0.7
-TIMEOUT_SECONDS = 45.0
+TIMEOUT_SECONDS = 15 * 60.0
 
 SSE_HEADERS = {
     "Cache-Control": "no-cache",

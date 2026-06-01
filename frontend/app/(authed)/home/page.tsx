@@ -30,6 +30,7 @@ import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { userCacheKey, withLocalCache } from "@/lib/local-cache"
+import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -55,7 +56,7 @@ function MissionControlInner() {
   })
   const { data: jobsData, isLoading: jobsLoading, isError: jobsIsError, error: jobsErr, refetch: refetchJobs } = useQuery({
     queryKey: dataKeys.jobs(),
-    queryFn: () => withLocalCache(userCacheKey(token!, ["matches"]), MATCHES_TTL, () => jobs.matches(token!)),
+    queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
     enabled: !!token,
     staleTime: MATCHES_TTL,
   })

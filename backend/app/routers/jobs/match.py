@@ -37,7 +37,7 @@ async def get_job_matches(
 ) -> JobMatchesResponse:
     from datetime import datetime, timezone
     batch_week = last_monday()
-    rows = repo.get_user_matches_for_week(principal.id, batch_week)
+    rows = repo.get_user_match_stack(principal.id)
     jobs = [to_job_match(row, batch_week) for row in rows]
 
     feed_ts_raw = repo.get_feed_updated_at()

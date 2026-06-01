@@ -51,6 +51,39 @@ def _is_async_mode() -> bool:
     return bool(settings.redis_url.strip())
 
 
+def _has_active_refresh_worker() -> bool:
+    try:
+        from rq import Worker
+
+        from app.services.job_refresh._redis_state import get_redis_connection, queue_name
+
+        target = queue_name()
+        workers = Worker.all(connection=get_redis_connection())
+        return any(target in worker.queue_names() for worker in workers)
+    except Exception as exc:
+        _log.error("Refresh worker liveness check failed: %s", exc)
+        return False
+
+
+def _enqueue_refresh_rq(
+    *,
+    user_id: str,
+    ticket_id: str,
+    batch_week: date,
+    excluded_job_ids: list[str],
+    xp_charged: int,
+) -> str:
+    from app.services.job_refresh._redis_state import enqueue_pipeline
+
+    return enqueue_pipeline(
+        user_id=user_id,
+        ticket_id=ticket_id,
+        batch_week=batch_week,
+        excluded_job_ids=excluded_job_ids,
+        xp_charged=xp_charged,
+    )
+
+
 # ── State persistence ──────────────────────────────────────────────────
 
 def _write_state(user_id: str, state: RefreshState) -> None:
@@ -218,11 +251,9 @@ async def dispatch(
     queued = _state(tid, "queued", batch_week)
     _write_state(user_id, queued)
 
-    if _is_async_mode():
-        from app.services.job_refresh._redis_state import enqueue_pipeline
-
+    if _is_async_mode() and _has_active_refresh_worker():
         try:
-            enqueue_pipeline(
+            _enqueue_refresh_rq(
                 user_id=user_id,
                 ticket_id=tid,
                 batch_week=batch_week,
@@ -249,6 +280,14 @@ async def dispatch(
                 batch_week=batch_week,
                 progress_label=PROGRESS_LABELS["failed"],
             )
+    elif _is_async_mode():
+        _log.critical(
+            "No active job-refresh worker for queue; running ticket=%s inline",
+            tid,
+        )
+        asyncio.create_task(
+            _run_inline(user_id, tid, batch_week, excluded_job_ids, xp_charged)
+        )
     else:
         # Inline: schedule on event loop, don't block POST.
         asyncio.create_task(

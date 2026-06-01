@@ -169,6 +169,27 @@ def _hydrate_location_fields(row: dict[str, Any]) -> None:
     row["location_quality"] = quality or parsed.location_quality
 
 
+def _match_week(value: Any) -> date:
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return date.min
+
+
+def _match_stack_sort_key(row: dict[str, Any]) -> tuple[date, datetime, int]:
+    try:
+        rank_value = int(row.get("llm_rank") or 9999)
+    except (TypeError, ValueError):
+        rank_value = 9999
+    return (
+        _match_week(row.get("batch_week")),
+        _parse_iso_dt(row.get("computed_at")) or datetime.min.replace(tzinfo=timezone.utc),
+        -rank_value,
+    )
+
+
 def _matches_location_filters(
     row: dict[str, Any],
     *,
@@ -1066,15 +1087,48 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
-    def get_existing_match_job_ids(self, user_id: str, batch_week: date) -> list[str]:
+    def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
+        query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
+        if batch_week is not None:
+            query = query.eq("batch_week", str(batch_week))
+        result = query.execute()
+        return [r["job_id"] for r in (result.data or [])]
+
+    def get_user_match_stack(self, user_id: str) -> list[dict[str, Any]]:
+        """Return the user's durable match stack, newest refresh rows first.
+
+        Matches are weekly snapshots. The dashboard should not go empty at a
+        week boundary, so read every retained row, sort newest-first, and keep
+        the latest row for each job. Fresh refreshes naturally stack above older
+        rows without duplicating the same job card.
+        """
         result = (
             self._db.table("user_job_matches")
-            .select("job_id")
+            .select(
+                "id, job_id, overlap_score, llm_rank, llm_explanation, "
+                "batch_week, computed_at, matched_skills, "
+                "overall_score, grade, recommendation, application_angle, summary, "
+                "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "jobs(job_title, company_name, industry, location, location_raw, location_city, "
+                "location_country, location_mode, location_quality, apply_url, job_description)"
+            )
             .eq("user_id", user_id)
-            .eq("batch_week", str(batch_week))
             .execute()
         )
-        return [r["job_id"] for r in (result.data or [])]
+        rows = list(result.data or [])
+        rows.sort(key=_match_stack_sort_key, reverse=True)
+
+        stack: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if not job_id or job_id in seen:
+                continue
+            seen.add(job_id)
+            if row.get("jobs"):
+                _hydrate_location_fields(row["jobs"])
+            stack.append(row)
+        return stack
 
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date
