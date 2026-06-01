@@ -784,7 +784,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 18px 0 8px;
+  margin: 0 0 16px;
 }
 .tm-lib-seg {
   display: inline-flex;

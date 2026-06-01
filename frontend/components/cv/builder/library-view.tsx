@@ -137,6 +137,8 @@ export function LibraryView({
     <div className="tm-lib-scope">
       <div className={showRail ? "tm-lib-root" : "tm-lib-root tm-lib-root-single"}>
         <div className="tm-lib-main">
+          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
+
           <div className="tm-lib-page-head">
             <div className="tm-lib-page-head-main">
               <div className="tm-lib-eyebrow" style={{ marginBottom: 6 }}>CV &amp; APPLICATIONS</div>
@@ -182,8 +184,6 @@ export function LibraryView({
               onReplace={onReplaceCV}
             />
           )}
-
-          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
 
           <WorkspacePipeline filter={filter} versions={versions} onOpenJob={onOpenJob} />
         </div>
