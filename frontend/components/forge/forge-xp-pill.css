@@ -17,8 +17,12 @@
    tone) which flooded the whole capsule bright and washed out the white XP
    text. Wash-over-dark keeps text contrast and kills the blown-out halo. */
 .tm-forge-xp-pill[data-state="running"] {
-  background: var(--tm-int-bg-hover);
-  box-shadow: 0 0 0 1px var(--tm-int-border), 0 0 10px rgba(0, 245, 212, 0.16);
+  /* Faint wash + ring/glow for emphasis. NOT var(--tm-int-bg-hover): under
+     data-accent="forge" (globals.css) that token is remapped to the SOLID
+     border tone, which floods the capsule and hides the XP/timer text.
+     --tm-int-bg-wash is translucent and accent-safe (forge only remaps -hover). */
+  background: var(--tm-int-bg-wash);
+  box-shadow: 0 0 0 1px var(--tm-int-border), 0 0 10px var(--tm-int-bg-wash);
 }
 
 .tm-forge-xp-pill-xp {

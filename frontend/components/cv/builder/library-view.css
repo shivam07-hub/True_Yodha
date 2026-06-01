@@ -757,6 +757,8 @@
 }
 @media (max-width: 600px) {
   .tm-lib-main { padding: 16px 16px 32px; }
+  /* Mobile: drop the explainer paragraph — the tabs carry the meaning. */
+  .tm-lib-page-sub { display: none; }
   .tm-lib-header-stat-strip { grid-template-columns: 1fr 1fr; }
   .tm-lib-page-head { flex-direction: column; }
   .tm-lib-page-actions { width: 100%; }

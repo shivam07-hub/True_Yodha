@@ -282,8 +282,12 @@
     padding-bottom: 52px;
   }
 
+  /* Mobile: drop subheading, CTAs, and the non-interactive stat cards.
+     Kept on desktop (≥561px). */
+  .copyText,
+  .actions,
   .stats {
-    grid-template-columns: 1fr;
+    display: none;
   }
 
   .copy h1 {
