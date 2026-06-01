@@ -52,6 +52,31 @@ class _FakeRepo:
             messages=messages,
         )
 
+    def get_campaign(self, campaign_id: str) -> dict[str, Any]:
+        return {
+            "id": campaign_id,
+            "issue_slug": "2026-05-ncr-20-company-watchlist",
+            "issue_title": "20 companies NCR students should watch this month",
+            "summary": "A public briefing for students comparing active NCR roles.",
+            "canonical_url": "https://www.himyro.com/newsletter/2026-05-ncr-20-company-watchlist",
+            "cta_role": "Business Analyst",
+            "issue_number": 7,
+            "status": "ready_for_review",
+            "approved_by": None,
+            "approved_at": None,
+            "messages": [
+                {
+                    "id": "00000000-0000-0000-0000-000000000303",
+                    "channel": "linkedin",
+                    "variant": "company-page",
+                    "subject": None,
+                    "body": "Students need evidence.",
+                    "call_to_action_url": "https://www.himyro.com/newsletter/2026-05-ncr-20-company-watchlist",
+                    "status": "ready_for_review",
+                }
+            ],
+        }
+
     def approve_campaign(self, campaign_id: str, approved_by: str) -> None:
         self.approved = (campaign_id, approved_by)
 
@@ -167,6 +192,20 @@ def test_import_contacts_preserves_source_and_normalizes_email(
     assert response.status_code == 200, response.text
     assert response.json()["results"][0]["email"] == "desk@campustimes.example"
     assert fake_repo.contacts[0].source_label == "Public newsroom contact page"
+
+
+def test_get_campaign_returns_reviewable_messages(fake_repo: _FakeRepo) -> None:
+    with TestClient(app) as client:
+        response = client.get(
+            "/newsletter/distribution/campaigns/campaign-id",
+            headers=HEADERS,
+        )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["id"] == "campaign-id"
+    assert body["messages"][0]["channel"] == "linkedin"
+    assert body["messages"][0]["status"] == "ready_for_review"
 
 
 def test_queue_email_requires_campaign_approval(fake_repo: _FakeRepo) -> None:

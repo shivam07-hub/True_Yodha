@@ -286,14 +286,15 @@ Built the review-first backend foundation for sharing Myro Newsletter issues wit
 - Added `newsletter_distribution_campaigns`, `newsletter_distribution_messages`, and `newsletter_email_outreach_queue` via `20260601_newsletter_distribution_agent.sql`, all RLS-enabled with no public client policies.
 - Added campaign generation from issue metadata with review-ready drafts for email, LinkedIn company-page, six-post X thread, Instagram caption placeholder, and WhatsApp share-message placeholder.
 - Added explicit campaign approval before email queueing; approval marks drafts approved, queueing marks the campaign/message queued.
+- Added `GET /newsletter/distribution/campaigns/{campaign_id}` so agents/admin surfaces can retrieve an existing campaign and its reviewable channel drafts after creation.
 - Protected suppression state on duplicate contact imports so an active re-import cannot accidentally reactivate a suppressed/unsubscribed contact.
 - Documented the operator workflow in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md` and linked it from `growth-agent/automation-map.md`.
 - No real email sending or social posting was wired in this slice; the system now prepares/approves/queues distribution safely for later Resend/LinkedIn/X/Meta adapters.
 
 Validation:
 
-- `.venv/bin/pytest backend/tests/test_newsletter_distribution_service.py backend/tests/test_newsletter_distribution_router.py backend/tests/test_newsletter_distribution_repository.py -q` -> `14 passed, 6 warnings`
-- `.venv/bin/pytest backend/tests -q` -> `481 passed, 13 warnings`
+- `.venv/bin/pytest backend/tests/test_newsletter_distribution_service.py backend/tests/test_newsletter_distribution_router.py backend/tests/test_newsletter_distribution_repository.py -q` -> `15 passed, 6 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `482 passed, 13 warnings`
 - `cd frontend && npx tsc --noEmit` -> clean
 - `cd frontend && npm run lint` -> clean
 - `cd frontend && npm run newsletter:check` -> clean

@@ -135,6 +135,31 @@ class CampaignCreateResponse(BaseModel):
     messages: list[CampaignMessageDraft]
 
 
+class CampaignMessageResponse(BaseModel):
+    id: str
+    channel: DistributionChannel
+    variant: str
+    subject: str | None = None
+    body: str
+    call_to_action_url: str
+    status: MessageStatus
+
+
+class CampaignResponse(BaseModel):
+    ok: bool = True
+    id: str
+    issue_slug: str
+    issue_title: str
+    summary: str
+    canonical_url: str
+    cta_role: str | None = None
+    issue_number: int | None = None
+    status: CampaignStatus
+    approved_by: str | None = None
+    approved_at: str | None = None
+    messages: list[CampaignMessageResponse]
+
+
 class CampaignApproveRequest(BaseModel):
     approved_by: str = Field(min_length=2, max_length=120)
 

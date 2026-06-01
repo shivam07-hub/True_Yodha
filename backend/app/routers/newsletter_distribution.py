@@ -16,6 +16,7 @@ from app.schemas.newsletter_distribution import (
     CampaignApproveResponse,
     CampaignCreateRequest,
     CampaignCreateResponse,
+    CampaignResponse,
     ContactImportRequest,
     ContactImportResponse,
     QueueEmailRequest,
@@ -73,6 +74,24 @@ async def create_campaign(
         status=created.status,
         messages=created.messages,
     )
+
+
+@router.get(
+    "/campaigns/{campaign_id}",
+    response_model=CampaignResponse,
+    dependencies=[Depends(require_newsletter_distribution_admin)],
+)
+async def get_campaign(
+    campaign_id: str,
+    repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),
+) -> dict:
+    try:
+        return repo.get_campaign(campaign_id)
+    except CampaignNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Newsletter distribution campaign not found.",
+        )
 
 
 @router.post(

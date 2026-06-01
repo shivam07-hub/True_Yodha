@@ -127,6 +127,28 @@ class NewsletterDistributionRepository:
             {"status": "approved"}
         ).eq("campaign_id", campaign_id).eq("status", "ready_for_review").execute()
 
+    def get_campaign(self, campaign_id: str) -> dict[str, Any]:
+        result = (
+            self.db.table("newsletter_distribution_campaigns")
+            .select(
+                "id,issue_slug,issue_title,summary,canonical_url,cta_role,"
+                "issue_number,status,approved_by,approved_at"
+            )
+            .eq("id", campaign_id)
+            .limit(1)
+            .execute()
+        )
+        rows = _rows(result)
+        if not rows:
+            raise CampaignNotFoundError(campaign_id)
+        messages = (
+            self.db.table("newsletter_distribution_messages")
+            .select("id,channel,variant,subject,body,call_to_action_url,status")
+            .eq("campaign_id", campaign_id)
+            .execute()
+        )
+        return {**rows[0], "messages": _rows(messages)}
+
     def queue_email_outreach(self, campaign_id: str, limit: int) -> QueueEmailResponse:
         campaign = self._campaign(campaign_id)
         if campaign.get("status") != "approved":
