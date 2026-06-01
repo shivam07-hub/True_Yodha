@@ -8,10 +8,11 @@ const FOOTER_COLS = [
   {
     title: "Product",
     links: [
-      { label: "CV Hub",        href: "/"           },
-      { label: "Live Job Data", href: "/intel"      },
-      { label: "Tracker",       href: "/tracker"    },
-      { label: "Newsletter",    href: "/newsletter" },
+      { label: "CV Hub",        href: "/"             },
+      { label: "Live Job Data", href: "/intel"        },
+      { label: "Tracker",       href: "/tracker"      },
+      { label: "For Colleges",  href: "/institutions" },
+      { label: "Newsletter",    href: "/newsletter"   },
     ],
   },
   {

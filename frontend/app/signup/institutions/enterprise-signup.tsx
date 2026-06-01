@@ -10,9 +10,9 @@ import "./enterprise-signup.css"
 
 type Mode = "operators" | "institutions"
 
-export function EnterpriseSignup() {
+export function EnterpriseSignup({ initialMode = "operators" }: { initialMode?: Mode } = {}) {
   const next = useNextPath()
-  const [mode, setMode] = useState<Mode>("operators")
+  const [mode, setMode] = useState<Mode>(initialMode)
   const opTabRef = useRef<HTMLButtonElement | null>(null)
   const instTabRef = useRef<HTMLButtonElement | null>(null)
   const pillRef = useRef<HTMLSpanElement | null>(null)

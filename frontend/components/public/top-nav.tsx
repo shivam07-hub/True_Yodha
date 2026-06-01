@@ -2,13 +2,13 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { FileText, Mail } from "lucide-react"
+import { FileText, Mail, GraduationCap } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
 
-export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs"
+export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs" | "institutions"
 
 interface PublicTopNavProps {
   active?: PublicNavPage
@@ -22,8 +22,9 @@ const STATIC_NAV_ITEMS: {
   accent?: boolean
   Icon: typeof FileText
 }[] = [
-  { label: "CV Hub",     href: "/about",      id: "about",      Icon: FileText },
-  { label: "Newsletter", href: "/newsletter", id: "newsletter", Icon: Mail     },
+  { label: "CV Hub",       href: "/about",        id: "about",        Icon: FileText      },
+  { label: "Newsletter",   href: "/newsletter",   id: "newsletter",   Icon: Mail          },
+  { label: "For Colleges", href: "/institutions", id: "institutions", Icon: GraduationCap },
 ]
 
 function formatTodayShort(): string {
