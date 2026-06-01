@@ -17,6 +17,58 @@ export function stripTaxonomySuffix(s: string): string {
 
 const ANALYSE_COST = 10
 
+const MODE_LABEL: Record<string, string> = {
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "On-site",
+}
+
+/** First-occurrence count phrase the scraper stores when a posting spans
+ *  several cities ("2 Locations" / "multiple locations"). Per-city data was
+ *  never captured (see location_normalizer multi-location branch), so the only
+ *  honest deeper view is the source posting itself. */
+function isMultiLocation(loc: string): boolean {
+  return /\b\d+\s*locations?\b|multiple locations|various locations/i.test(loc)
+}
+
+/** Honest location line (Q5). Real city when known; otherwise the count phrase
+ *  as a link to the source posting, plus a mode chip when it adds new info. */
+export function LocationLine({ job }: { job: JobMatch }) {
+  const loc = job.location?.trim() || null
+  const rawMode = job.location_mode && job.location_mode !== "unknown" ? job.location_mode : null
+  const showMode = rawMode && (!loc || !loc.toLowerCase().includes(rawMode))
+  if (!loc && !showMode) return null
+
+  const multi = loc ? isMultiLocation(loc) : false
+  return (
+    <div className="db-loc">
+      {loc ? (
+        multi && job.source_url ? (
+          <a
+            className="db-loc-link"
+            href={job.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {loc} ↗
+          </a>
+        ) : (
+          <span className="db-loc-text">{loc}</span>
+        )
+      ) : null}
+      {showMode ? <span className={`db-loc-mode ${rawMode}`}>{MODE_LABEL[rawMode] ?? rawMode}</span> : null}
+    </div>
+  )
+}
+
+/** Collapsed-card JD preview — one fading line (Q2/Q6). */
+export function jdSnippet(text: string | null | undefined, max = 160): string {
+  if (!text) return ""
+  const flat = text.replace(/\s+/g, " ").trim()
+  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat
+}
+
 interface LensProps {
   job: JobMatch
   skills: SkillGapItem[]
@@ -39,7 +91,8 @@ export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapI
         <div className="lbl">fit</div>
       </div>
       <h2 className="db-ov-role">{job.title}</h2>
-      <div className="db-ov-sub">{[job.company, job.location].filter(Boolean).join(" · ") || "—"}</div>
+      <div className="db-ov-sub">{job.company ?? "—"}</div>
+      <LocationLine job={job} />
       {matched.length > 0 ? (
         <div className="db-ov-pills">
           {matched.map((s) => (

@@ -176,3 +176,22 @@ export function visibleNavItems(surface: NavSurface, ctx: NavUnlockCtx): NavItem
 export function isFirstRun(ctx: NavUnlockCtx): boolean {
   return ctx.tailoredCount === 0
 }
+
+/**
+ * First-run decided straight from the two backing queries, treating the
+ * not-yet-resolved window as NOT first-run.
+ *
+ * `deriveNavUnlockCtx(undefined, …)` collapses to tailoredCount 0, which makes
+ * `isFirstRun` read TRUE before `cv.versions` has loaded — so a returning power
+ * user briefly looks first-run and the "FIRST CV IN 10 min" promise pill flashes
+ * on their topbar (dashboard-loading grill Q3). First-run is a claim we only
+ * make once it's PROVEN: both queries resolved AND zero tailored versions.
+ * Unknown → not-first-run is the safe default (never tell a veteran "your first CV").
+ */
+export function firstRunFromData(
+  versions: CVVersion[] | undefined,
+  profile: Pick<UserProfile, "myrology_interested" | "myrology_unlocked"> | undefined,
+): boolean {
+  if (versions === undefined || profile === undefined) return false
+  return isFirstRun(deriveNavUnlockCtx(versions, profile))
+}

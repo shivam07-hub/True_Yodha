@@ -476,3 +476,49 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
     assert payload["current_phase"] == "scoring"
     assert payload["status"] == "processing"
     assert payload["started_at"] == "2026-05-30T10:00:00+00:00"
+
+
+def test_upload_status_sweeps_stale_queued_job_before_returning(monkeypatch) -> None:
+    """A live worker outage must not leave a polling user stuck in processing
+    until the next deploy. Status reads trigger the same bounded orphan sweep
+    used on startup, then re-read the job."""
+    from app.repositories import cv_upload_jobs
+
+    rows = [
+        {
+            "id": "job-stale", "status": "processing", "current_phase": "queued",
+            "skills_detected": None, "score": None, "error_code": None,
+            "error_detail": None, "xp_charged": 200, "xp_refunded": False,
+            "created_at": "2026-05-30T10:00:00+00:00", "finished_at": None,
+        },
+        {
+            "id": "job-stale", "status": "failed", "current_phase": "queued",
+            "skills_detected": None, "score": None, "error_code": "orphaned",
+            "error_detail": "Job exceeded 5 min in processing - server restart or stuck worker.",
+            "xp_charged": 200, "xp_refunded": True,
+            "created_at": "2026-05-30T10:00:00+00:00", "finished_at": "2026-05-30T10:05:01+00:00",
+        },
+    ]
+    reads = {"count": 0}
+
+    def _fetch(_job, _user):
+        idx = min(reads["count"], len(rows) - 1)
+        reads["count"] += 1
+        return rows[idx]
+
+    swept: list[int] = []
+    monkeypatch.setattr(cv_upload_jobs, "fetch_status_for_owner", _fetch)
+    monkeypatch.setattr(cv_upload_jobs, "sweep_stale_processing_jobs", lambda minutes=5: swept.append(minutes) or [])
+
+    async def _bal(_user): return 3000
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
+    monkeypatch.setattr(cv_workflow, "_now_utc", lambda: cv_workflow._parse_utc_datetime("2026-05-30T10:07:00+00:00"))
+
+    payload = asyncio.run(cv_workflow.get_cv_upload_status("job-stale", "u1"))
+
+    assert swept == [5]
+    assert reads["count"] == 2
+    assert payload["status"] == "failed"
+    assert payload["current_phase"] == "failed"
+    assert payload["error_code"] == "orphaned"
+    assert payload["xp_refunded"] is True

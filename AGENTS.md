@@ -277,7 +277,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - Railway CV upload telemetry hotfix)
+## LAST SESSION SUMMARY (2026-06-01 - CV upload worker outage hardening)
+
+Investigated the Railway CV upload stall where `/cv/upload/status/{job}` returned 200 repeatedly until the browser hit `poll_timeout`.
+
+- Live Supabase check showed job `654f05c9-ae11-4aef-a577-23f6d86abddd` stayed `status=processing`, `current_phase=queued`, `finished_at=NULL`, `xp_charged=200` for 401s. Because `_run_cv_upload_job()` writes `reading` before the LLM call, the LLM was never reached.
+- Root cause: Redis/RQ durable mode can enqueue `fast` jobs while no active Job Runner is consuming the lane. This is a Railway worker-service/config issue, not a slow LLM call.
+- Added a worker-liveness guard in `background.enqueue()`: when Redis is configured but no active worker serves the lane, the job runs inline as an emergency fallback instead of silently sitting in `queued`.
+- Added on-demand stale-job recovery in `get_cv_upload_status()`: polling a stale processing job triggers the same bounded orphan sweep used at startup, then re-reads the row.
+- Normalized terminal status phases so swept failed rows return `current_phase="failed"` even if the DB row still says `queued`.
+- Reordered the CV upload LLM chain to prefer direct Groq then Gemini before paid OpenRouter tiers. Free OpenRouter tiers remain excluded for CV uploads.
+- Production re-check showed the stuck job was already swept to `failed/orphaned` with `xp_refunded=true`.
+- Scale note: this code fallback protects users from a missing worker, but 10k-user reliability still requires a Railway Job Runner service running `python -m app.workers.jobs_compute_worker` with at least two replicas.
+
+Validation:
+
+- New red tests covered worker-missing fallback, stale status sweep, and CV upload provider order.
+- `.venv/bin/pytest backend/tests/test_background_dispatch.py backend/tests/test_cv_upload_api.py backend/tests/test_cv_parser.py backend/tests/test_llm_budget.py -q` -> `64 passed, 9 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `466 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - Railway CV upload telemetry hotfix)
 
 Fixed the Railway 500 on `POST /v1/telemetry/cv-upload-phase` that was masking CV upload diagnostics.
 

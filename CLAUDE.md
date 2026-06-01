@@ -172,6 +172,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## OPEN BACKLOG
 
+18. **Dashboard `/home` loading redesign (GRILL LOCKED 2026-06-01, NOT built):** Triggered by shivam.mit20 screenshot — generic "Loading your dashboard…" + a LYING "FIRST CV IN 10 min" first-run pill shown to a veteran (firstRun defaults TRUE while `cv.versions` undefined). 14 decisions locked in `memory/project_dashboard_loading_redesign.md`. Model = **section-readiness** (not phases — `/home` is parallel client queries, not a server job). Two PRs: **PR1** = correctness — kill global `blocking` gate (`home/page.tsx:187`), `SectionGate` composition, co-located real-shape skeletons (reuse real `mc-hero`/`db-row` classes; delete orphaned `HomeSkeleton` mirroring pre-merge layout), per-section 6s tail copy, **pill-bug fix** (`isFirstRun(undefined)` → not-first-run + `.tm-cv-promise` gap CSS), delete floating `top:76` text. **PR2** = the "no-shimmer" cursor/touch-reactive **teal-edges playground** — extend `EdgeGlow` into a shared `<TealField mode=full-bleed|masked>` primitive; field-fill behind real-shape teal-edged cards that crossfade per-section; ambient-never-blocking, compositor-only + hard-teardown-on-ready, no gyro on mobile. Needs one "loading model" ADR (after ADR-0009). Sibling of the CV-upload loading redesign (`project_cv_loading_redesign`).
+
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
 11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
@@ -297,6 +299,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+---
+
+## LAST SESSION SUMMARY (2026-06-01 · mobile job-card → Perplexity flowing accordion — GRILL LOCKED + BUILT)
+
+Triggered by a 400px phone screenshot of the dashboard: sticky/snapping job cards ruined the scroll, "2 Locations" was a dead-end label, and there was no JD on the card. Ran `/grill-me` (9 branches), verified every claim in code + `graphify-out`, then built the whole thing. **Uncommitted on Develop.** tsc `EXIT_0` · `next lint` 0/0 (3 touched files) · index-sheet deleted with zero dangling refs.
+
+### Grill findings (code/data verified)
+- **"2 Locations" is the real scraped data, not a display bug.** [location_normalizer.py:163-168](backend/app/services/location_normalizer.py#L163) — multi-location regex → `quality='unknown'`, **nulls city**, stores count phrase as `location`. No `locations[]` exists anywhere. `graphify-out` confirms location is only modeled as onboarding/intel, never per-job multi-city.
+- **JD available for Myro matches** too (not just liked) — `job_description` selected in matches query ([jobs.py:1090](backend/app/repositories/jobs.py#L1090)). Render is frontend-only.
+- **Latent XP mass-drain:** [lenses.tsx:78-80](frontend/components/dashboard/lenses.tsx) auto-charged 10 XP the instant a card went `active` (viewport-visible). In a free-scroll feed that drains XP on every card scrolled past. Fixed.
+
+### Locked + built (one frontend PR)
+- **Q1** full Perplexity model — killed vertical scroll-snap **and** horizontal lens-swipe. Cards flow in normal scroll, expand in place.
+- **Q2** collapsed tile = fit·role·company · all-locations · JD snippet · pinned actions (status + Tailor CV). Skills moved to expanded.
+- **Q3/Q4** 10 XP "Why you fit" fires **only on expand** (`active` bound to `expanded`, not viewport) — kills the drain. Top-3 keep free pre-ranked explanation.
+- **Q5** honest location now: real city when known, else count phrase → `source_url` link + mode chip. Real per-city = **firecrawl_Supabase scraper backlog #6** (saved there 2026-06-01 with full reason + fix path).
+- **Q6** JD snippet collapsed, full JD on expand (`<pre>`, newlines kept, no HTML interp — safe).
+- **Q7** accordion — one card open at a time.
+- **Q8** dropped the `N in feed` pull-up index sheet + floating handle; `?jobId` deep-link opens that card on mount.
+- **Q9** actions always on collapsed card. **Q10** desktop untouched (grid + tabs ride shared `lenses.tsx` location/JD honesty for free).
+
+**Files:** EDIT [lenses.tsx](frontend/components/dashboard/lenses.tsx) (new `LocationLine`/`jdSnippet`/`isMultiLocation`), [job-card.tsx](frontend/components/dashboard/job-card.tsx) (`JobCardSlides`→`MobileJobCard` expand-in-place), rewrite [mobile-feed.tsx](frontend/components/dashboard/mobile-feed.tsx) (no IO/snap/sheet; `expandedId` accordion), [dashboard.css](frontend/components/dashboard/dashboard.css) (drop snap/slide/sheet; add `.db-loc*`/`.db-mcard*`/`.db-jd-body`). DELETE `index-sheet.tsx`.
+
+### Carry-over
+1. **Commit** (suggested `feat(dashboard): mobile job-card flowing accordion + honest locations + JD expand + expand-only XP`). All of `components/dashboard/` is untracked — part of the larger uncommitted route-group restructure; Shivam to bundle.
+2. **Visual QA** owed (authed, 375px) — chevron rotate, JD 320px scroll-cap, accordion collapse.
+3. **firecrawl_Supabase backlog #6** (per-city capture) is the data-side blocker for real multi-loc chips; `LocationLine` already renders an array the day it lands.
+4. All prior carry-over still open (PR2 living-master, streaming Gemini verify, etc.).
 
 ---
 

@@ -41,6 +41,7 @@ def test_enqueue_durable_routes_to_rq(monkeypatch):
     def _fake_rq(lane, job_type, payload, correlation_id):
         captured.update(lane=lane, job_type=job_type, payload=payload, cid=correlation_id)
 
+    monkeypatch.setattr(dispatch, "_has_active_worker_for_lane", lambda _lane: True)
     monkeypatch.setattr(dispatch, "_enqueue_rq", _fake_rq)
 
     @background.handler("t_durable")
@@ -54,6 +55,28 @@ def test_enqueue_durable_routes_to_rq(monkeypatch):
         assert captured == {"lane": "bulk", "job_type": "t_durable", "payload": {"y": 2}, "cid": "abc"}
     finally:
         _clear_handler("t_durable")
+
+
+def test_enqueue_durable_runs_inline_when_no_worker_is_active(monkeypatch):
+    monkeypatch.setattr(dispatch.settings, "redis_url", "redis://fake:6379/0")
+    monkeypatch.setattr(dispatch, "_has_active_worker_for_lane", lambda _lane: False)
+    monkeypatch.setattr(dispatch, "_enqueue_rq", lambda *_a, **_k: pytest.fail("should not enqueue to an unserved lane"))
+    seen: list[tuple[dict, bool]] = []
+
+    @background.handler("t_durable_no_worker")
+    async def _h(payload, allow_retry):
+        seen.append((payload, allow_retry))
+
+    async def run():
+        background.enqueue(background.LANE_FAST, "t_durable_no_worker", payload={"x": 3})
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+    try:
+        asyncio.run(run())
+        assert seen == [({"x": 3}, False)]
+    finally:
+        _clear_handler("t_durable_no_worker")
 
 
 def test_enqueue_rejects_unknown_lane(monkeypatch):

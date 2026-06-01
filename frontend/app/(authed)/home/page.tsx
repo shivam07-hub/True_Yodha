@@ -2,21 +2,22 @@
 
 import "./mission-control.css"
 
-import { useEffect, useMemo, Suspense } from "react"
+import { useEffect, useMemo, Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
+import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
-import { HomeSkeleton } from "@/components/mission-control/hero-skeleton"
-import { useLoadingPhase } from "@/components/loading/use-loading-phase"
+import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
 import { RouteLoading } from "@/components/loading/route-loading"
-import { SectionError } from "@/components/errors/section-error"
+import { SectionGate } from "@/components/loading/section-gate"
+import { TealField } from "@/components/loading/teal-field"
 import { StaleBanner } from "@/components/errors/stale-banner"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Dashboard } from "@/components/dashboard/dashboard"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { openFeedbackHub } from "@/components/feedback"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
@@ -159,18 +160,14 @@ function MissionControlInner() {
 
   const scoreDelta = evidenceData?.score_delta ?? 0
 
-  // Hold the layout-matched skeleton until auth, nav unlocks, and the core
-  // dashboard queries have all settled — then swap to real content in one
-  // paint. `isLoading` flips false on error too, so a failing query can never
-  // wedge the skeleton on forever. No blank body, no popping-in.
-  // Hero blocks only on the two queries it can't render without — score and
-  // profile. Jobs and history both degrade instead of wedging the hero: jobs to
-  // a section tile, history (streak/sessions) to computeStreak([]) = 0 that
-  // fills in when it arrives. This is the per-section streaming split.
+  // Section-readiness model (dashboard-loading grill Q1): each region paints when
+  // its own query resolves — no global gate blocking the whole page on the
+  // slowest one. Hero needs score+profile; the jobs feed streams independently;
+  // streak/delta degrade in from history/evidence (computeStreak([]) = 0 until
+  // they arrive). The only thing that must resolve before we pick a LAYOUT is
+  // cv.versions (first-run vs returning), handled by the nav.loading gate below.
   const coreLoading = scoreLoading || profileLoading
   const coreError = scoreErr ?? profileErr ?? null
-  const blocking = !ready || nav.loading || coreLoading
-  const loadingPhase = useLoadingPhase(blocking)
 
   // Stale-while-error: if a refresh failed but persisted cache already gave us
   // the hero's data, show that data with a calm banner instead of a hard
@@ -184,45 +181,61 @@ function MissionControlInner() {
   const staleRefreshFailed = !!coreError && haveCoreData
   const lastViewAt = Math.min(scoreUpdatedAt || Date.now(), profileUpdatedAt || Date.now())
 
-  if (blocking) return <HomeSkeleton phase={loadingPhase} />
+  // Auth not settled — the app shell already shows the full-bleed loader; render
+  // nothing rather than a token-less flash.
+  if (!ready) return null
+
   // Cold error: no cache to fall back on. A settled error would otherwise paint
   // a fake-empty dashboard (isLoading flips false on error). Name it instead.
   if (coreError && !haveCoreData) {
     return <RouteLoading kind="app-data" route="app-shell" queryError={coreError} onRetry={refreshCore} />
   }
 
-  // First-run = promise not yet delivered. The first-run hero absorbs the
-  // pre-upload invitation (no RequiresCV gate) and owns the whole upload →
+  // Selector-unknown window: until cv.versions resolves we can't tell first-run
+  // from returning, so we don't commit a layout. Default to the returning SHAPE
+  // (the common case, grill Q3) — real-shape skeletons, no first-run promise —
+  // then branch once nav resolves.
+  if (nav.loading) {
+    return (
+      <PageShell>
+        <TealField mode="masked">
+          {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+        </TealField>
+        <div style={{ marginTop: isDesktop ? 36 : 16 }}>
+          <TealField mode="masked">
+            <DashboardSkeleton />
+          </TealField>
+        </div>
+      </PageShell>
+    )
+  }
+
+  // First-run (PROVEN) = promise not yet delivered. The first-run hero absorbs
+  // the pre-upload invitation (no RequiresCV gate) and owns the whole upload →
   // score → tailor journey until the first tailored CV exists.
-  if (!nav.loading && nav.firstRun) {
+  if (nav.firstRun) {
     const best = topJobs[0]
     return (
-      <>
-        <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
-          <div className="mc-page">
-            <div className="mc-inner">
-              <FirstRunHero
-                firstName={firstName}
-                hasCv={profile?.has_cv ?? false}
-                cvReadiness={profile?.cv_readiness ?? "missing"}
-                score={score}
-                domainsCount={Object.keys(scoreData?.domain_scores ?? {}).length}
-                bestMatch={
-                  best
-                    ? {
-                        jobId: best.job_id,
-                        title: best.title,
-                        company: best.company,
-                        location: best.location,
-                        fit: Math.round(best.overlap_score),
-                      }
-                    : null
+      <PageShell>
+        <FirstRunHero
+          firstName={firstName}
+          hasCv={profile?.has_cv ?? false}
+          cvReadiness={profile?.cv_readiness ?? "missing"}
+          score={score}
+          domainsCount={Object.keys(scoreData?.domain_scores ?? {}).length}
+          bestMatch={
+            best
+              ? {
+                  jobId: best.job_id,
+                  title: best.title,
+                  company: best.company,
+                  location: best.location,
+                  fit: Math.round(best.overlap_score),
                 }
-              />
-            </div>
-          </div>
-        </div>
-      </>
+              : null
+          }
+        />
+      </PageShell>
     )
   }
 
@@ -231,14 +244,22 @@ function MissionControlInner() {
   return (
     <>
       <RequiresCV>
-      <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
-        <div className="mc-page">
-          <div className="mc-inner">
-            {staleRefreshFailed && (
-              <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
-            )}
-            {/* Q6: mobile collapses the full Hero into a thin sticky banner so
-                the card feed owns the viewport. Desktop keeps the full Hero. */}
+        <PageShell>
+          {staleRefreshFailed && (
+            <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
+          )}
+
+          {/* Hero section — paints on score+profile; Q6: mobile collapses to a
+              thin banner so the card feed owns the viewport. */}
+          <SectionGate
+            loading={coreLoading}
+            fallback={
+              <TealField mode="masked">
+                {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+              </TealField>
+            }
+            slowText="Still loading your dashboard…"
+          >
             {isDesktop ? (
               <Hero
                 name={firstName}
@@ -261,39 +282,41 @@ function MissionControlInner() {
                 loggedToday={loggedToday}
               />
             )}
+          </SectionGate>
 
-            {token && jobsIsError ? (
-              <div style={{ marginTop: 24 }}>
-                <SectionError error={jobsErr} label="job matches" onRetry={() => void refetchJobs()} />
-              </div>
-            ) : token && jobsLoading ? (
-              <div style={{ marginTop: 36, display: "flex", flexDirection: "column", gap: 12 }} aria-hidden="true">
-                <Skeleton style={{ width: 120, height: 12, borderRadius: 4 }} />
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} style={{ width: 220, height: 76, borderRadius: 12 }} />
-                  ))}
-                </div>
-              </div>
-            ) : token ? (
-              <Dashboard
-                jobs={allMatchedJobs}
-                apps={apps}
-                appsByJobId={appsByJobId}
-                token={token}
-                cartSkillNames={cartSkillNames}
-                refresh={refreshVm}
-                total={jobsData?.total ?? allMatchedJobs.length}
-                feedUpdatedAt={jobsData?.feed_updated_at ?? null}
-                matchesComputedAt={jobsData?.matches_computed_at ?? null}
-                initialJobId={urlJobId}
-                onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })}
-                onSkillToggle={handleSkillToggle}
-              />
-            ) : null}
+          {/* Jobs feed — streams independently of the hero. */}
+          <div style={{ marginTop: isDesktop ? 36 : 16 }}>
+            <SectionGate
+              loading={!!token && jobsLoading}
+              error={token && jobsIsError ? jobsErr : null}
+              onRetry={() => void refetchJobs()}
+              errorLabel="job matches"
+              fallback={
+                <TealField mode="masked">
+                  <DashboardSkeleton />
+                </TealField>
+              }
+              slowText="Still loading your matches…"
+            >
+              {token ? (
+                <Dashboard
+                  jobs={allMatchedJobs}
+                  apps={apps}
+                  appsByJobId={appsByJobId}
+                  token={token}
+                  cartSkillNames={cartSkillNames}
+                  refresh={refreshVm}
+                  total={jobsData?.total ?? allMatchedJobs.length}
+                  feedUpdatedAt={jobsData?.feed_updated_at ?? null}
+                  matchesComputedAt={jobsData?.matches_computed_at ?? null}
+                  initialJobId={urlJobId}
+                  onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })}
+                  onSkillToggle={handleSkillToggle}
+                />
+              ) : null}
+            </SectionGate>
           </div>
-        </div>
-      </div>
+        </PageShell>
       </RequiresCV>
 
       {/* Consent + targeting gate for "Refresh matches" — opened via refreshGateStore. */}
@@ -303,6 +326,17 @@ function MissionControlInner() {
         onRun={() => refreshVm.refresh()}
       />
     </>
+  )
+}
+
+/** mc-scope → mc-page → mc-inner wrapper shared by every /home layout branch. */
+function PageShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="mc-scope" style={{ overflowY: "auto", height: "100%" }}>
+      <div className="mc-page">
+        <div className="mc-inner">{children}</div>
+      </div>
+    </div>
   )
 }
 

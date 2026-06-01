@@ -7,10 +7,14 @@
    ──────────────────────────────────────────────────────────────────────── */
 
 .es-page {
-  /* Fallbacks for tokens not present in design-tokens.css */
-  --es-info:         #A78BFA;
+  /* Fallbacks for tokens not present in design-tokens.css.
+     --tm-radius-md is referenced by the commit/intel/cohort cards but the
+     global scale only defines sm/(base)/lg/xl — define it here (custom props
+     inherit to descendants) so those cards stop rendering with 0 radius. */
+  --tm-radius-md:    0.875rem; /* 14px — between --tm-radius (12) and -lg (16) */
+  --es-info:         var(--tm-info);
   --es-shadow-lg:    var(--tm-shadow-2);
-  --es-shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.4);
+  --es-shadow-sm:    var(--tm-shadow-1);
   --es-surface-3:    var(--tm-surface-2);
   --es-border-faint: var(--tm-border-soft);
   --es-radius-xs:    4px;

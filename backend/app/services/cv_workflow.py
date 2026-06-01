@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -90,6 +91,7 @@ def _persist_baseline_cv(
 #   Refund XP on provider failure or empty extraction.
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
+_STALE_PROCESSING_MINUTES = 5
 
 # ADR-0006 §11 — abuse cap on a single user spamming uploads. 5/hour matches
 # the worst-case legitimate iteration cycle (CV → review → re-upload) while
@@ -137,8 +139,61 @@ def _enforce_user_upload_rate_limit(user_id: str) -> None:
 
 
 def _utc_minutes_ago_iso(minutes: int) -> str:
-    from datetime import datetime, timedelta, timezone
     return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_stale_processing_job(row: dict[str, Any]) -> bool:
+    if row.get("status") != "processing":
+        return False
+    created_at = _parse_utc_datetime(row.get("created_at"))
+    if created_at is None:
+        return False
+    return (_now_utc() - created_at) >= timedelta(minutes=_STALE_PROCESSING_MINUTES)
+
+
+def _sweep_stale_processing_job_if_needed(
+    job_id: str,
+    user_id: str,
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    if not _is_stale_processing_job(row):
+        return row
+    try:
+        swept = upload_jobs_repo.sweep_stale_processing_jobs(minutes=_STALE_PROCESSING_MINUTES)
+        if swept:
+            _log.warning("Status sweep recovered %d stale cv_upload_jobs", len(swept))
+    except Exception as exc:  # pragma: no cover — status must remain readable
+        _log.exception("Status sweep failed for cv_upload_job=%s: %s", job_id, exc)
+        return row
+    refreshed = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
+    return refreshed or row
+
+
+def _status_phase(row: dict[str, Any]) -> str | None:
+    if row.get("status") == "done":
+        return "ready"
+    if row.get("status") == "failed":
+        return "failed"
+    return row.get("current_phase")
 
 
 def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
@@ -520,10 +575,11 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
             detail={"code": "job_not_found", "message": "Upload job not found."},
             headers={"X-Myro-Error-Code": "job_not_found"},
         )
+    row = _sweep_stale_processing_job_if_needed(job_id, user_id, row)
     balance = await get_xp_balance(user_id)
     return {
         "status": row["status"],
-        "current_phase": row.get("current_phase"),
+        "current_phase": _status_phase(row),
         "skills_detected": row.get("skills_detected"),
         "score": float(row["score"]) if row.get("score") is not None else None,
         "error_code": row.get("error_code"),

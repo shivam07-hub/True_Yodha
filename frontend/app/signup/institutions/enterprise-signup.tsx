@@ -24,6 +24,18 @@ export function EnterpriseSignup() {
     }
   }, [])
 
+  // Pre-auth signup is a white-mode surface (playground theme). Force light on
+  // the root so a stale data-surface=dark from another page (e.g. /myrology)
+  // can't leak through; restore whatever was set on unmount.
+  useEffect(() => {
+    const root = document.documentElement
+    const prior = root.getAttribute("data-surface")
+    root.setAttribute("data-surface", "light")
+    return () => {
+      if (prior) root.setAttribute("data-surface", prior)
+    }
+  }, [])
+
   const positionPill = useCallback((m: Mode) => {
     const tab = m === "operators" ? opTabRef.current : instTabRef.current
     const pill = pillRef.current
