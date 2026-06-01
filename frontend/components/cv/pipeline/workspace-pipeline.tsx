@@ -1,31 +1,32 @@
 /**
- * WorkspacePipeline — the application pipeline, absorbed into /cv.
+ * WorkspacePipeline — the unified application board inside /cv.
  *
- * Tracker → CV merge (grill 2026-06-02). This is the old /tracker page's
- * orchestration, lifted into a component the CV "CV & Applications" workspace
- * mounts under the By-stage lens. The lens/filter toggle now lives in the
- * workspace shell (LibraryView); this component just renders for a given
- * `filter` ("active" = the 5-stage kanban, "closed" = verdicts/reviews) and
- * reports row clicks up via `onOpenJob` (→ the CV detail/playground).
+ * Tracker → CV merge, lens-collapse pass (2026-06-02): the By-stage / By-company
+ * toggle was cognitive dissonance — the company view already shows each pursuit's
+ * stage on its row + a stage-grouped rail. So there is now ONE arrangement
+ * (company folders + pipeline-health rail) and a single Active | Closed filter.
  *
- * Capability parity with the old tracker: stage moves, stale-recovery banner,
- * manual-add, verdicts + star reviews, delete. No XP coupling (verified).
+ *   filter "active"  → company folders (inline stage picker per row) + stale
+ *                      banner + manual-add + the stage rollup rail.
+ *   filter "closed"  → verdicts + star reviews.
+ *
+ * Capability parity with the old tracker: stage moves (inline picker + the CV
+ * detail's PursuitStageControl), stale-recovery, manual-add, verdicts, delete
+ * (via the Closed/verdicts surface). No XP coupling.
  */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useMemo, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useViewport } from "@/mobile"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus, CVVersion } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { useTrackerBoard, partitionByStage, partitionVerdicts } from "./useTrackerBoard"
-import type { StageKey } from "./useTrackerBoard"
-import { KanbanBoard } from "./KanbanBoard"
+import { CompanyFolderRow } from "@/components/cv/builder/library-company-row"
+import { I, LIcon } from "@/components/cv/builder/library-icons"
+import { useTrackerBoard, partitionVerdicts } from "./useTrackerBoard"
 import { StuckBanner } from "./StuckBanner"
-import { ApplicationCard } from "./ApplicationCard"
-import { MobileStagePills } from "./MobileStagePills"
 import { VerdictsTab } from "./VerdictsTab"
 import { ReviewModal } from "./ReviewModal"
 import { ManualAddModal } from "./ManualAddModal"
@@ -36,53 +37,46 @@ export type PipelineFilter = "active" | "closed"
 
 interface Props {
   filter: PipelineFilter
-  /** Initial mobile stage column (from ?stage= / redirect). */
-  initialStage?: StageKey
+  versions: CVVersion[]
+  onOpenJob: (jobId: string) => void
 }
 
-// Each card opens its CV detail itself via the built-in CVBadgeLink
-// (`/cv?jobId=…`), so no onOpen plumbing is needed here — clicking a card
-// navigates the workspace into the playground/detail view.
-export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
+const ACTIVE_SET = APPLICATION_STAGES as readonly string[]
+
+export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const { isDesktop } = useViewport()
 
-  const [mobileStage, setMobileStage] = useState<StageKey>(initialStage)
   const [manualOpen, setManualOpen] = useState(false)
   const [reviewJobId, setReviewJobId] = useState<string | null>(null)
-  const [reviewDefaultStage, setReviewDefaultStage] = useState<StageKey>("applied")
+  const [reviewDefaultStage, setReviewDefaultStage] = useState<string>("applied")
   const [deleteTarget, setDeleteTarget] = useState<ApplicationResponse | null>(null)
-  const [sparkleJobId, setSparkleJobId] = useState<string | null>(null)
-  const [sparkleTrigger, setSparkleTrigger] = useState(0)
   const [reviewedJobIds, setReviewedJobIds] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<string | null>(null)
   const [stalePickerJobId, setStalePickerJobId] = useState<string | null>(null)
 
   const {
     applications, applicationsLoading, staleApplications,
-    updateStatus, updateNotes, dismissStale, deleteApplication,
+    updateStatus, dismissStale, deleteApplication,
   } = useTrackerBoard()
 
-  const stuckJobIds = useMemo(() => new Set(staleApplications.map(s => s.job_id)), [staleApplications])
-  const byStage = useMemo(() => partitionByStage(applications), [applications])
+  const activeApps = useMemo(
+    () => applications.filter(a => ACTIVE_SET.includes(a.status)),
+    [applications],
+  )
   const verdicts = useMemo(() => partitionVerdicts(applications), [applications])
-  const counts = useMemo(() => {
-    const out: Record<StageKey, number> = {
-      saved: 0, applied: 0, screening: 0, interviewing: 0, final_round: 0,
-    }
-    for (const k of Object.keys(out) as StageKey[]) out[k] = byStage[k].length
-    return out
-  }, [byStage])
 
-  // Reset to default mobile stage if its column is empty AND another has cards.
-  useEffect(() => {
-    if (isDesktop) return
-    if (counts[mobileStage] === 0) {
-      const firstWithCards = (APPLICATION_STAGES as readonly StageKey[]).find(s => counts[s] > 0)
-      if (firstWithCards) setMobileStage(firstWithCards)
+  // Active pursuits grouped into company folders (the one arrangement).
+  const companies = useMemo(() => {
+    const map = new Map<string, ApplicationResponse[]>()
+    for (const app of activeApps) {
+      const key = app.company ?? "Unknown"
+      const arr = map.get(key)
+      if (arr) arr.push(app)
+      else map.set(key, [app])
     }
-  }, [counts, mobileStage, isDesktop])
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [activeApps])
 
   function showToast(message: string) {
     setToast(message)
@@ -92,26 +86,14 @@ export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
   function handleStatusChange(jobId: string, status: ApplicationStatus) {
     const before = applications.find(a => a.job_id === jobId)?.status
     updateStatus.mutate({ jobId, status }, {
-      onSuccess: (res) => {
+      onSuccess: () => {
         const isOutcome = (["ghosted", "rejected", "offer", "withdrew"] as ApplicationStatus[]).includes(status)
         if (isOutcome) {
-          const isStage = before && (APPLICATION_STAGES as readonly string[]).includes(before)
-          setReviewDefaultStage(isStage ? (before as StageKey) : "applied")
+          setReviewDefaultStage(before && ACTIVE_SET.includes(before) ? before : "applied")
           setReviewJobId(jobId)
-        }
-        if (status === "offer" && res?.is_first_offer) {
-          setSparkleJobId(jobId)
-          setSparkleTrigger(n => n + 1)
         }
       },
     })
-  }
-
-  function handleWithdraw(jobId: string) { handleStatusChange(jobId, "withdrew") }
-
-  function handleDeleteClick(jobId: string) {
-    const target = applications.find(a => a.job_id === jobId)
-    if (target) setDeleteTarget(target)
   }
 
   function handleDeleteConfirm() {
@@ -120,12 +102,6 @@ export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
       onSuccess: () => { setDeleteTarget(null); showToast("Deleted") },
     })
   }
-
-  function handleNotesChange(jobId: string, notes: string) {
-    updateNotes.mutate({ jobId, notes })
-  }
-
-  function handleDismiss(jobId: string) { dismissStale.mutate(jobId) }
 
   async function handleReviewSubmit(data: { star_rating: number; last_stage: string; written_note?: string | null }) {
     if (!reviewJobId || !token) return
@@ -141,82 +117,92 @@ export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
     return <EmptyState message="Loading pipeline…" />
   }
 
-  if (applications.length === 0) {
-    return <EmptyBoard onAddManually={() => setManualOpen(true)} />
+  // ── Closed: verdicts + reviews ──────────────────────────────────────
+  if (filter === "closed") {
+    return (
+      <>
+        {verdicts.length === 0 ? (
+          <EmptyState message="No closed applications yet. Outcomes — offers, rejections, ghostings — land here." />
+        ) : (
+          <VerdictsTab
+            apps={applications}
+            reviewedJobIds={reviewedJobIds}
+            onOpenReview={(jobId) => setReviewJobId(jobId)}
+            onDelete={(jobId) => {
+              const t = applications.find(a => a.job_id === jobId)
+              if (t) setDeleteTarget(t)
+            }}
+          />
+        )}
+        {reviewJobId && reviewApp && (
+          <ReviewModal
+            company={reviewApp.company ?? null}
+            defaultStage={reviewDefaultStage}
+            onClose={() => setReviewJobId(null)}
+            onSubmit={handleReviewSubmit}
+          />
+        )}
+        {deleteTarget && (
+          <DeleteConfirmDialog
+            company={deleteTarget.company}
+            title={deleteTarget.title}
+            onConfirm={handleDeleteConfirm}
+            onClose={() => setDeleteTarget(null)}
+          />
+        )}
+        <Toast message={toast} />
+      </>
+    )
   }
 
+  // ── Active: company folders + stale banner + manual-add ─────────────
+  // (the stage-rollup rail is rendered by LibraryView as a tm-lib-root sibling)
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <span className="mono" style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          {filter === "closed"
-            ? `${verdicts.length} closed`
-            : `${Object.values(counts).reduce((a, b) => a + b, 0)} active`}
-        </span>
-        <button
-          type="button"
-          onClick={() => setManualOpen(true)}
-          style={{
-            padding: "7px 14px", borderRadius: 99, background: "transparent",
-            border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)",
-            cursor: "pointer", fontSize: 12, fontFamily: "inherit",
-          }}
-        >
-          + Add manually
+    <>
+      <StuckBanner
+        stale={staleApplications}
+        onMarkGhosted={(jobId) => handleStatusChange(jobId, "ghosted")}
+        onUpdate={(jobId) => setStalePickerJobId(jobId)}
+        onDismiss={(jobId) => dismissStale.mutate(jobId)}
+      />
+
+      <div className="tm-lib-folders-head">
+        <div className="tm-lib-folders-head-label">
+          <LIcon d={I.folder}/>
+          Company folders
+        </div>
+        <span className="tm-lib-folders-head-count">{companies.length}</span>
+        <span className="tm-lib-folders-head-divider"/>
+        <button type="button" className="tm-lib-btn sm" onClick={() => setManualOpen(true)}>
+          <LIcon d={I.plus} size={12}/> Add manually
         </button>
       </div>
 
-      {filter === "active" && (
-        <StuckBanner
-          stale={staleApplications}
-          onMarkGhosted={(jobId) => handleStatusChange(jobId, "ghosted")}
-          onUpdate={(jobId) => setStalePickerJobId(jobId)}
-          onDismiss={handleDismiss}
-        />
-      )}
-
-      {filter === "closed" ? (
-        <VerdictsTab
-          apps={applications}
-          reviewedJobIds={reviewedJobIds}
-          onOpenReview={(jobId) => setReviewJobId(jobId)}
-          onDelete={handleDeleteClick}
-        />
-      ) : isDesktop ? (
-        <KanbanBoard
-          apps={applications}
-          stuckJobIds={stuckJobIds}
-          sparkleJobId={sparkleJobId}
-          sparkleTrigger={sparkleTrigger}
-          onStatusChange={handleStatusChange}
-          onWithdraw={handleWithdraw}
-          onDelete={handleDeleteClick}
-          onNotesChange={handleNotesChange}
-        />
-      ) : (
-        <>
-          <MobileStagePills active={mobileStage} counts={counts} onChange={setMobileStage} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {byStage[mobileStage].length === 0 ? (
-              <EmptyState message={`Nothing in ${mobileStage.replace("_", " ")} yet.`} />
-            ) : (
-              byStage[mobileStage].map(app => (
-                <ApplicationCard
-                  key={app.id}
-                  app={app}
-                  isStuck={stuckJobIds.has(app.job_id)}
-                  isManual={app.source === "manual_web"}
-                  sparkleTrigger={sparkleJobId === app.job_id ? sparkleTrigger : 0}
-                  onStatusChange={(s) => handleStatusChange(app.job_id, s)}
-                  onWithdraw={() => handleWithdraw(app.job_id)}
-                  onDelete={() => handleDeleteClick(app.job_id)}
-                  onNotesChange={(notes) => handleNotesChange(app.job_id, notes)}
-                  isMobile
-                />
-              ))
-            )}
+      {companies.length === 0 ? (
+        <div className="tm-lib-empty">
+          <LIcon d={I.folder} size={28}/>
+          <div className="tm-lib-empty-title">Nothing in your pipeline yet</div>
+          <div className="tm-lib-empty-sub">
+            Save jobs from Live Job Data, or add one manually — every job you tailor a CV for is tracked here.
           </div>
-        </>
+          <Link href="/home#browse" className="tm-lib-empty-link">
+            Browse jobs <LIcon d={I.chevR} size={12}/>
+          </Link>
+        </div>
+      ) : (
+        <div className="tm-lib-folder-list">
+          {companies.map(([name, apps], i) => (
+            <CompanyFolderRow
+              key={name}
+              companyName={name}
+              apps={apps}
+              versions={versions}
+              defaultOpen={i < 2}
+              onOpenJob={onOpenJob}
+              onStageChange={handleStatusChange}
+            />
+          ))}
+        </div>
       )}
 
       {manualOpen && (
@@ -228,24 +214,6 @@ export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
             queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
             showToast("Added to pipeline")
           }}
-        />
-      )}
-
-      {reviewJobId && reviewApp && (
-        <ReviewModal
-          company={reviewApp.company ?? null}
-          defaultStage={reviewDefaultStage}
-          onClose={() => setReviewJobId(null)}
-          onSubmit={handleReviewSubmit}
-        />
-      )}
-
-      {deleteTarget && (
-        <DeleteConfirmDialog
-          company={deleteTarget.company}
-          title={deleteTarget.title}
-          onConfirm={handleDeleteConfirm}
-          onClose={() => setDeleteTarget(null)}
         />
       )}
 
@@ -265,60 +233,35 @@ export function WorkspacePipeline({ filter, initialStage = "applied" }: Props) {
         )
       })()}
 
-      {toast && (
-        <div
-          aria-live="polite"
-          style={{
-            position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
-            background: "var(--tm-surface)", color: "var(--tm-text)",
-            border: "1px solid var(--tm-int-border)",
-            padding: "8px 16px", borderRadius: 99,
-            fontSize: 13, fontFamily: "inherit",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            zIndex: 300,
-          }}
-        >
-          {toast}
-        </div>
+      {reviewJobId && reviewApp && (
+        <ReviewModal
+          company={reviewApp.company ?? null}
+          defaultStage={reviewDefaultStage}
+          onClose={() => setReviewJobId(null)}
+          onSubmit={handleReviewSubmit}
+        />
       )}
-    </div>
+
+      <Toast message={toast} />
+    </>
   )
 }
 
-function EmptyBoard({ onAddManually }: { onAddManually: () => void }) {
+function Toast({ message }: { message: string | null }) {
+  if (!message) return null
   return (
-    <div style={{
-      padding: "32px 28px 24px", textAlign: "center", borderRadius: 12,
-      border: "1.5px dashed var(--tm-border)", background: "rgba(255,255,255,0.01)",
-      display: "flex", flexDirection: "column", gap: 12, alignItems: "center",
-    }}>
-      <div style={{ fontFamily: "var(--tm-font-serif, inherit)", fontSize: 18, color: "var(--tm-text)" }}>
-        Nothing in your pipeline yet
-      </div>
-      <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 380 }}>
-        Save a job from Live Job Data, or add one manually from any portal. Every
-        job you tailor a CV for is tracked here.
-      </div>
-      <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-        <a href="/home#browse" style={{
-          padding: "8px 16px", borderRadius: 99,
-          background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
-          fontSize: 12, fontWeight: 600, textDecoration: "none",
-        }}>
-          Browse jobs →
-        </a>
-        <button
-          onClick={onAddManually}
-          style={{
-            padding: "8px 16px", borderRadius: 99,
-            background: "transparent", border: "1px solid var(--tm-border)",
-            color: "var(--tm-text-muted)", cursor: "pointer",
-            fontSize: 12, fontFamily: "inherit",
-          }}
-        >
-          + Add manually
-        </button>
-      </div>
+    <div
+      aria-live="polite"
+      style={{
+        position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+        background: "var(--tm-surface)", color: "var(--tm-text)",
+        border: "1px solid var(--tm-int-border)",
+        padding: "8px 16px", borderRadius: 99,
+        fontSize: 13, fontFamily: "inherit",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 300,
+      }}
+    >
+      {message}
     </div>
   )
 }

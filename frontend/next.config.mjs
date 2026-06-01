@@ -8,15 +8,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        // Old Verdicts tab → the Closed filter. (By-stage/By-company lens was
+        // dropped in the lens-collapse pass, so ?stage maps to the default view.)
         source: "/tracker",
         has: [{ type: "query", key: "tab", value: "verdicts" }],
         destination: "/cv?filter=closed",
-        permanent: false,
-      },
-      {
-        source: "/tracker",
-        has: [{ type: "query", key: "stage", value: "(?<stage>[^&]+)" }],
-        destination: "/cv?lens=stage&stage=:stage",
         permanent: false,
       },
       {

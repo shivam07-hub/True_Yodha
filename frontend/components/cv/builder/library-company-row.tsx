@@ -1,19 +1,22 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import type { ApplicationResponse, CVVersion } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus, CVVersion } from "@/lib/api"
 import {
   CompanyAvatar, StatusDot, Pill,
   ACTIVE_STAGES, STAGE_META, timeAgoShort,
 } from "./library-shared"
 import { getJobWorkspaceAction, latestCVVersionForJob, pickNewCvJobId } from "@/lib/cv/workspace"
 import { I, LIcon } from "./library-icons"
+import { StatusPicker } from "../pipeline/StatusPicker"
 
-function CVJobCard({ app, cv, onOpen }: {
+function CVJobCard({ app, cv, onOpen, onStageChange }: {
   app: ApplicationResponse
   cv: CVVersion | null
   onOpen: () => void
+  onStageChange?: (jobId: string, status: ApplicationStatus) => void
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
   const stage = STAGE_META[app.status] ?? STAGE_META.saved
   const action = getJobWorkspaceAction(cv)
 
@@ -23,9 +26,32 @@ function CVJobCard({ app, cv, onOpen }: {
       <div className="tm-lib-job-card-top">
         <CompanyAvatar name={app.company ?? "?"} size={22}/>
         <span className="tm-lib-eyebrow" style={{ fontSize: 10 }}>{app.company}</span>
-        <div className="tm-lib-job-stage" style={{ color: stage.color }}>
-          <StatusDot stage={app.status}/>{stage.label}
-        </div>
+        {onStageChange && app.job_id ? (
+          <div className="tm-lib-job-stage-control" style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="tm-lib-job-stage tm-lib-job-stage-btn"
+              style={{ color: stage.color }}
+              onClick={() => setPickerOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={pickerOpen}
+              title="Change stage"
+            >
+              <StatusDot stage={app.status}/>{stage.label} ▾
+            </button>
+            {pickerOpen && (
+              <StatusPicker
+                current={app.status}
+                onPick={(s) => { setPickerOpen(false); onStageChange(app.job_id, s) }}
+                onClose={() => setPickerOpen(false)}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="tm-lib-job-stage" style={{ color: stage.color }}>
+            <StatusDot stage={app.status}/>{stage.label}
+          </div>
+        )}
       </div>
 
       <div>
@@ -65,12 +91,13 @@ function CVJobCard({ app, cv, onOpen }: {
   )
 }
 
-export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onOpenJob }: {
+export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onOpenJob, onStageChange }: {
   companyName: string
   apps: ApplicationResponse[]
   versions: CVVersion[]
   defaultOpen?: boolean
   onOpenJob: (jobId: string) => void
+  onStageChange?: (jobId: string, status: ApplicationStatus) => void
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false)
   const cvsCount = apps.filter((app) => app.job_id && latestCVVersionForJob(app.job_id, versions)).length
@@ -120,6 +147,7 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
                 app={app}
                 cv={app.job_id ? latestCVVersionForJob(app.job_id, versions) : null}
                 onOpen={() => app.job_id && onOpenJob(app.job_id)}
+                onStageChange={onStageChange}
               />
             ))}
             <button className="tm-lib-new-cv-card" onClick={openNewCvTarget} disabled={!newCvJobId}>
