@@ -199,7 +199,7 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/forge")) return <ForgeSkeleton />
-  if (pathname.startsWith("/tracker")) return <TrackerSkeleton />
+  // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CvSkeleton.
   return <GenericPageSkeleton />
 }
 

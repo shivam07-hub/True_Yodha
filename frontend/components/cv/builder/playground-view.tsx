@@ -22,6 +22,7 @@ import type {
   UserProfile,
 } from "@/lib/api"
 import { jobs as jobsApi } from "@/lib/api"
+import { PursuitStageControl } from "./pursuit-stage-control"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { formatGlobalVersionLabel, formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
@@ -202,6 +203,9 @@ export function PlaygroundView({
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {application && (
+              <PursuitStageControl token={token} application={application} />
+            )}
             <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open CV Library">
               <Icon name="folder" size={13}/> CV Library
             </button>
