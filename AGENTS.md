@@ -277,7 +277,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - CV upload worker outage hardening)
+## LAST SESSION SUMMARY (2026-06-01 - CV upload stale idempotency hardening)
+
+Followed up on the Railway/Redis CV upload stall after the worker-outage fix.
+
+- Railway MCP/CLI was not available in this Codex environment, so diagnosis used Claude/Codex notes, git history, and live Supabase job/telemetry state.
+- Production check showed no current `processing` CV upload jobs; the two newest stuck uploads were already swept to `failed/orphaned` and refunded.
+- Recent telemetry still showed the browser polling old job `654f05c9-ae11-4aef-a577-23f6d86abddd`, pointing to a stale local resume/idempotency loop rather than an active Redis job.
+- Hardened the upload idempotency contract: a POST that replays an already failed `cv_upload_jobs` row now returns terminal `status="failed"` with error/refund context instead of pretending it is still `processing`.
+- Updated the frontend upload state machine to treat that initial failed replay as a terminal parse failure without another polling cycle, so stale local keys are cleared through the existing non-retryable failure path.
+- Added regression tests for backend failed-idempotency replay and frontend no-poll terminal replay.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-upload-state.test.ts` -> `7 passed`
+- `.venv/bin/pytest backend/tests/test_cv_upload_api.py -q` -> `16 passed, 9 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `467 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - CV upload worker outage hardening)
 
 Investigated the Railway CV upload stall where `/cv/upload/status/{job}` returned 200 repeatedly until the browser hit `poll_timeout`.
 

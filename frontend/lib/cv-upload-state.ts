@@ -4,6 +4,8 @@
  * without spinning up Next, fetch, or the auth refresh stack.
  */
 
+export type CVUploadPhase = "queued" | "reading" | "scoring" | "ready" | "failed"
+
 export type CVUploadInitial =
   | {
       status: "done"
@@ -16,8 +18,18 @@ export type CVUploadInitial =
       status: "processing"
       job_id: string
     }
-
-export type CVUploadPhase = "queued" | "reading" | "scoring" | "ready" | "failed"
+  | {
+      status: "failed"
+      current_phase?: CVUploadPhase | null
+      skills_detected?: number | null
+      score?: number | null
+      error_code: string | null
+      error_detail: string | null
+      xp_charged?: number | null
+      xp_refunded?: boolean | null
+      new_xp_balance?: number | null
+      redirect_to?: string | null
+    }
 
 export interface CVUploadPolledStatus {
   status: "processing" | "done" | "failed"
@@ -86,6 +98,16 @@ export async function resolveCVUploadResult(
       new_xp_balance: null,
       redirect_to: initial.redirect_to,
     }
+  }
+  if (initial.status === "failed") {
+    throw new CVUploadFailureBase(
+      initial.error_detail ?? "CV analysis failed. Please try again.",
+      initial.error_code ?? "unknown",
+      initial.xp_refunded ?? false,
+      initial.new_xp_balance ?? null,
+      false,
+      "parse",
+    )
   }
 
   const interval = opts.intervalMs ?? DEFAULT_INTERVAL_MS

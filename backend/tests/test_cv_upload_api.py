@@ -437,6 +437,43 @@ def test_upload_with_idempotency_key_returns_existing_job_without_recharging(mon
     assert state["charged"] == 0  # critical: no double-charge on retry
 
 
+def test_upload_with_failed_idempotency_key_returns_terminal_failure(monkeypatch) -> None:
+    """A stale browser idempotency key must not masquerade as a live queued job."""
+    _override_principal_and_repo(_FakeCVRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "find_by_idempotency_key",
+        lambda user_id, key: {
+            "id": "orphaned-job-1",
+            "status": "failed",
+            "xp_charged": 200,
+            "xp_refunded": True,
+            "error_code": "orphaned",
+            "error_detail": "Job exceeded 5 min in processing - server restart or stuck worker.",
+        },
+    )
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+                headers={"Idempotency-Key": "client-uuid-123"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202
+    body = res.json()
+    assert body["status"] == "failed"
+    assert body["job_id"] is None
+    assert body["current_phase"] == "failed"
+    assert body["error_code"] == "orphaned"
+    assert body["xp_refunded"] is True
+    assert state["charged"] == 0
+
+
 def test_status_endpoint_404_when_not_owner(monkeypatch) -> None:
     _override_principal_and_repo(_FakeCVRepository())
     monkeypatch.setattr(

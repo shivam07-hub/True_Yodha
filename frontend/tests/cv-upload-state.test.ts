@@ -91,6 +91,38 @@ test("processing → failed throws CVUploadFailure with refund context", async (
   assert.ok(didThrow, "must throw on failed status")
 })
 
+test("initial failed idempotency replay throws without polling", async () => {
+  let polls = 0
+  let didThrow = false
+  try {
+    await resolveCVUploadResult(
+      {
+        status: "failed",
+        error_code: "orphaned",
+        error_detail: "Job exceeded 5 min in processing - server restart or stuck worker.",
+        xp_charged: 200,
+        xp_refunded: true,
+        new_xp_balance: null,
+      },
+      async () => {
+        polls += 1
+        return makeStatus({ status: "done" })
+      },
+      { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
+    )
+  } catch (e) {
+    didThrow = true
+    assert.ok(e instanceof CVUploadFailureBase)
+    const err = e as CVUploadFailureBase
+    assert.equal(err.code, "orphaned")
+    assert.equal(err.retryable, false)
+    assert.equal(err.xpRefunded, true)
+    assert.match(err.message, /stuck worker/i)
+  }
+  assert.equal(polls, 0)
+  assert.ok(didThrow, "must throw on initial failed replay")
+})
+
 test("timeout throws once the deadline lapses without a terminal status", async () => {
   let virtualNow = 0
   const fakeSleep = async (ms: number) => { virtualNow += ms }

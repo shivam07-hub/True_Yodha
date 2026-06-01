@@ -277,7 +277,18 @@ def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
             "redirect_to": "/onboarding/score",
             "xp_charged": existing.get("xp_charged", 0),
         }
-    # processing or failed — return job_id so client polls / surfaces failure
+    if status == "failed":
+        return {
+            "status": "failed",
+            "current_phase": "failed",
+            "error_code": existing.get("error_code"),
+            "error_detail": existing.get("error_detail") or "CV analysis failed. Please try again.",
+            "xp_charged": existing.get("xp_charged", 0),
+            "xp_refunded": bool(existing.get("xp_refunded")),
+            "new_xp_balance": None,
+            "redirect_to": None,
+        }
+    # processing — return job_id so client resumes polling the live job
     return {"status": "processing", "job_id": str(existing["id"])}
 
 

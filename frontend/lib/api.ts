@@ -1083,7 +1083,7 @@ async function _resolveUploadResult(
       fileMime: telemetry.fileMime ?? null,
       fileBytes: telemetry.fileBytes ?? null,
     })
-  } else {
+  } else if (initial.status === "processing") {
     _emitCVUploadTelemetry(token, {
       phase: "poll",
       outcome: "started",
