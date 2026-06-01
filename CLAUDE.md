@@ -174,6 +174,8 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 18. **Dashboard `/home` loading redesign (GRILL LOCKED 2026-06-01, NOT built):** Triggered by shivam.mit20 screenshot — generic "Loading your dashboard…" + a LYING "FIRST CV IN 10 min" first-run pill shown to a veteran (firstRun defaults TRUE while `cv.versions` undefined). 14 decisions locked in `memory/project_dashboard_loading_redesign.md`. Model = **section-readiness** (not phases — `/home` is parallel client queries, not a server job). Two PRs: **PR1** = correctness — kill global `blocking` gate (`home/page.tsx:187`), `SectionGate` composition, co-located real-shape skeletons (reuse real `mc-hero`/`db-row` classes; delete orphaned `HomeSkeleton` mirroring pre-merge layout), per-section 6s tail copy, **pill-bug fix** (`isFirstRun(undefined)` → not-first-run + `.tm-cv-promise` gap CSS), delete floating `top:76` text. **PR2** = the "no-shimmer" cursor/touch-reactive **teal-edges playground** — extend `EdgeGlow` into a shared `<TealField mode=full-bleed|masked>` primitive; field-fill behind real-shape teal-edged cards that crossfade per-section; ambient-never-blocking, compositor-only + hard-teardown-on-ready, no gyro on mobile. Needs one "loading model" ADR (after ADR-0009). Sibling of the CV-upload loading redesign (`project_cv_loading_redesign`).
 
+19. **B2B Institutions lane — STEP 1 SHIPPED 2026-06-01, growth steps DEFERRED.** Beta-phase decision: ship only the demand-sensing front door, not the platform. **Done this session (uncommitted, Develop):** (a) `/institutions` canonical marketing route — reuses `<EnterpriseSignup initialMode="institutions">`, indexable, OG, `/signup/institutions` canonical→`/institutions` to dedupe; (b) **header entry** "For Colleges" (`GraduationCap`) in `components/public/top-nav.tsx` + footer "For Colleges" under Product; (c) **CRM hook** — `POST /institutions/apply` now schedules a best-effort email to `settings.institutions_lead_email` via `BackgroundTasks` (mirrors Myrology booking-notify; fail-soft, row persisted first). New env `INSTITUTIONS_LEAD_EMAIL` — set it in Railway or applications stay persist-only/silent. The `institution_applications` table + the rich beta-access form already existed. **Re-skin to light also shipped this session:** `/signup/institutions` forced `data-surface=light` on mount + `--tm-radius-md` defined (cards were rendering 0-radius) + `--es-shadow-sm` retuned off dark `rgba(0,0,0,0.4)`. **DEFERRED until we decide to grow B2B (do NOT build until real applications arrive):** Step 2 = proper CRM/pipeline (HubSpot/Salesforce or a lightweight internal review queue UI over `institution_applications`, Slack alert, status workflow). Step 3 = multi-tenant platform — each college = org/tenant, placement-officer admin console, students as sub-users, SSO/SAML (Workspace/365/IdP), domain verification, bulk/CSV student import, cohort dashboards + placement analytics (the 6 capability cards are promises, not built). Also deferred: dedicated long-form `/for-colleges` marketing page with case studies/ROI (today `/institutions` = the rich signup pane doubling as landing), procurement collateral (security doc, DPA, MSA), pricing. Trigger to pick up: inbound beta applications show real business signal. Reverses ADR-0005 "not a B2B sales tool" NOT. Memory: `project_b2b_institutions_lane`.
+
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
 11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
@@ -185,7 +187,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
 
-13. **~~Anonymous trial flow~~ — CLOSED 2026-05-25 (ADR-0006 frictionless signup).** Commits `da0fa0b` + `6cc665e` on Develop. ⚠️ **Migrations `20260524_magic_link_attempts` + `20260524_cv_versions_source` + `20260524_user_profiles_linkedin_meta` STILL UNAPPLIED** — apply via Supabase MCP before any backend deploy.
+13. **~~Anonymous trial flow~~ — CLOSED 2026-05-25 (ADR-0006 frictionless signup).** Commits `da0fa0b` + `6cc665e` on Develop. Migrations `20260524_magic_link_attempts` + `20260524_cv_versions_source` + `20260524_user_profiles_linkedin_meta` ✅ **APPLIED 2026-05-30** (per 2026-05-30 night session). Fully closed.
 
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
@@ -327,7 +329,38 @@ Triggered by a 400px phone screenshot of the dashboard: sticky/snapping job card
 1. **Commit** (suggested `feat(dashboard): mobile job-card flowing accordion + honest locations + JD expand + expand-only XP`). All of `components/dashboard/` is untracked — part of the larger uncommitted route-group restructure; Shivam to bundle.
 2. **Visual QA** owed (authed, 375px) — chevron rotate, JD 320px scroll-cap, accordion collapse.
 3. **firecrawl_Supabase backlog #6** (per-city capture) is the data-side blocker for real multi-loc chips; `LocationLine` already renders an array the day it lands.
-4. All prior carry-over still open (PR2 living-master, streaming Gemini verify, etc.).
+
+### VERIFICATION QUEUE (Shivam to confirm still-needed, restructured 2026-06-01)
+
+**V1 — Mobile job-card (today's build).** Page: `/home` on phone ≤400px. Confirm: cards flow (no snap/swipe), tap expands in place, locations honest, JD expands, 10 XP only on expand.
+
+**V2 — CV page lane (PR2 + PR3 + 10-min tail — all one surface).** Pages: `/cv` + the score-reveal→Improve→Practice(`/forge`)→tailor→download lane. Confirm three things on the same page family:
+   - **(PR2 living-master)** is master CV still append-N-`baseline_upload`-rows, or already single living-doc? If still N-baselines → PR2 needed.
+   - **(PR3 structured editor)** is every section (summary/skills_line/certs/experience+bullets/projects/edu) add/edit/remove editable, or only single-bullet edit? If single-bullet only → PR3 needed.
+   - **(10-min tail)** does score→`Improve {domain}`→Practice→tailor→`cv/download-pdf` work end-to-end? Note: Practice×Skill merge already committed (`b57f193`) + 10-min CV tail already built — likely mostly done; confirm the seam.
+
+**V3 — Surface analysing model name (was: streaming Gemini verify — reframed, irrelevant as-is).** Instead of verifying the stream, **show the user WHICH model analysed the job** — replace the bare "LLM"/generic wording with the actual provider+model (e.g. "Analysed by Gemini Flash" / "Groq Llama-3.3-70b"). Source = the LLM provider chain that served the call. Touches `LensWhy` / analyse + deepen endpoints (surface `model` in the response) → render under the "Why you fit" block. Small task, not a verify.
+
+**V4 — Durable dispatch Redis flip + INSTITUTIONS_LEAD_EMAIL (Railway MCP — pick up verbatim).** Infra-only, zero code change. Run the prompt below as-is:
+
+> Use the Railway MCP to fix orphaned CV-upload jobs on the True_Yodha backend (Develop env).
+>
+> **SYMPTOM**
+> - Frontend modal: "Job exceeded 5 min in processing – server restart or stuck worker."
+> - Railway log: `metric cv_upload.phase_failed phase=parse reason=orphaned attempts=0 threshold_pending=true`
+>
+> **ROOT CAUSE (already diagnosed — confirm, don't re-litigate)**
+> The backend code at `backend/app/services/background/dispatch.py` routes background jobs to durable RQ ONLY when REDIS_URL is set AND a worker is live for the lane (dispatch.py:69, :89). `settings.redis_url` defaults `""` (config.py:48), so on Railway it falls back to IN-PROCESS execution. Any container restart (redeploy, OOM) kills the in-process parse task → the `cv_upload_jobs` row is stranded in `processing` → the 5-min orphan sweep (main.py:54 / `sweep_stale_cv_upload_jobs`) fails+refunds it. `attempts=0` confirms the job never started = restart mid-flight, not a parse failure. Fix is infra-only, zero code change.
+>
+> **DO (via Railway MCP, on the True_Yodha project, Develop environment)**
+> 1. Confirm: list services + variables; verify REDIS_URL is unset on the backend service. Pull recent deploy/restart history + memory metrics to confirm restart/OOM churn around the failures.
+> 2. Add a Redis database/plugin to the project.
+> 3. Set REDIS_URL on the backend service to the Redis private URL. Redeploy backend.
+> 4. Add a WORKER service (same repo/image, same env incl REDIS_URL + PYTHONPATH=backend) whose start command runs the RQ worker over both lanes. Read dispatch.py for exact lane names (LANE_FAST/LANE_BULK) and the run_job_sync entrypoint + how handlers register on import. Likely: `rq worker fast bulk -u $REDIS_URL` after importing the app so handlers register. Confirm the precise command against the code before deploying.
+> 5. Verify: worker registers (dispatch._has_active_worker_for_lane liveness passes), then do a test CV upload and confirm it completes — no `phase=parse reason=orphaned` line, job ends `done` not `failed`.
+>
+> Report back: the Redis URL var name set, the worker service start command, and the test-upload result.
+> While in there: also set `INSTITUTIONS_LEAD_EMAIL=edu@himyro.com` on the same backend service (new B2B beta notify, fail-soft). One Railway-MCP trip handles both.
 
 ---
 

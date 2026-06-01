@@ -14,6 +14,7 @@ from app.schemas.cv import (
     CVEvidenceSummaryResponse,
     CVUploadAcceptedResponse,
     CVUploadDoneResponse,
+    CVUploadFailedResponse,
     CVUploadResponse,
     CVUploadStatusResponse,
 )
@@ -114,7 +115,7 @@ from app.schemas.profile import (
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
-    "CVUploadResponse", "CVUploadAcceptedResponse", "CVUploadDoneResponse",
+    "CVUploadResponse", "CVUploadAcceptedResponse", "CVUploadDoneResponse", "CVUploadFailedResponse",
     "CVUploadStatusResponse", "CVEvidenceSummaryResponse",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",

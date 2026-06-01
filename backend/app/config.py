@@ -29,9 +29,14 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     resend_api_key: str = ""
     resend_from_email: str = "Myro <noreply@himyro.com>"
+    newsletter_distribution_admin_token: str = ""
 
     # Myrology — booking requests are emailed to the in-house astrologer
     myrology_astrologer_email: str = ""
+
+    # Institutions (B2B beta) — placement-cell applications are emailed here for
+    # manual sales follow-up. Empty = persist-only (email send is skipped).
+    institutions_lead_email: str = ""
 
     # Razorpay checkout
     razorpay_key_id: str = ""

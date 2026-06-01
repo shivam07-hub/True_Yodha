@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description:
     "Cohort-level CV scoring, skill-gap analysis against live hiring, and placement analytics for T&P cells, deans, and career services. Apply for the beta cohort.",
   robots: { index: true, follow: true },
+  // /institutions is the canonical B2B front door; this dual-mode entry points
+  // there so the two indexable surfaces don't compete for the same query.
+  alternates: { canonical: "https://www.himyro.com/institutions" },
 }
 
 export default function InstitutionsSignupPage() {

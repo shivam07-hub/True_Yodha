@@ -11,7 +11,6 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVRepository, get_token_cv_repository
 from app.schemas import (
-    CVUploadAcceptedResponse,
     CVUploadDoneResponse,
     CVUploadResponse,
     CVUploadStatusResponse,
@@ -66,7 +65,7 @@ class CVUploadFallbackResponse(BaseModel):
     status_code=status.HTTP_202_ACCEPTED,
     responses={
         200: {"model": CVUploadDoneResponse, "description": "Hash cache hit — no LLM call, no XP charge"},
-        202: {"model": CVUploadAcceptedResponse, "description": "LLM job queued; poll /cv/upload/status/{job_id}"},
+        202: {"model": CVUploadResponse, "description": "LLM job queued, or terminal idempotency replay"},
     },
 )
 async def upload_cv(

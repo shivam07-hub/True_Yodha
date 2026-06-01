@@ -277,7 +277,50 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - CV upload worker outage hardening)
+## LAST SESSION SUMMARY (2026-06-01 - Newsletter distribution agent MVP)
+
+Built the review-first backend foundation for sharing Myro Newsletter issues with newspaper/student-publication/company contacts and social channels.
+
+- Added internal-token protected `/newsletter/distribution/*` endpoints, gated by `NEWSLETTER_DISTRIBUTION_ADMIN_TOKEN` and `x-newsletter-agent-token`.
+- Added `newsletter_outreach_contacts` import support with normalized emails, required provenance (`source_url` or `source_label`), outreach basis, contact type, and suppression status.
+- Added `newsletter_distribution_campaigns`, `newsletter_distribution_messages`, and `newsletter_email_outreach_queue` via `20260601_newsletter_distribution_agent.sql`, all RLS-enabled with no public client policies.
+- Added campaign generation from issue metadata with review-ready drafts for email, LinkedIn company-page, six-post X thread, Instagram caption placeholder, and WhatsApp share-message placeholder.
+- Added explicit campaign approval before email queueing; approval marks drafts approved, queueing marks the campaign/message queued.
+- Added `GET /newsletter/distribution/campaigns/{campaign_id}` so agents/admin surfaces can retrieve an existing campaign and its reviewable channel drafts after creation.
+- Protected suppression state on duplicate contact imports so an active re-import cannot accidentally reactivate a suppressed/unsubscribed contact.
+- Documented the operator workflow in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md` and linked it from `growth-agent/automation-map.md`.
+- No real email sending or social posting was wired in this slice; the system now prepares/approves/queues distribution safely for later Resend/LinkedIn/X/Meta adapters.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_newsletter_distribution_service.py backend/tests/test_newsletter_distribution_router.py backend/tests/test_newsletter_distribution_repository.py -q` -> `15 passed, 6 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `482 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `cd frontend && npm run newsletter:check` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - CV upload stale idempotency hardening)
+
+Followed up on the Railway/Redis CV upload stall after the worker-outage fix.
+
+- Railway MCP/CLI was not available in this Codex environment, so diagnosis used Claude/Codex notes, git history, and live Supabase job/telemetry state.
+- Production check showed no current `processing` CV upload jobs; the two newest stuck uploads were already swept to `failed/orphaned` and refunded.
+- Recent telemetry still showed the browser polling old job `654f05c9-ae11-4aef-a577-23f6d86abddd`, pointing to a stale local resume/idempotency loop rather than an active Redis job.
+- Hardened the upload idempotency contract: a POST that replays an already failed `cv_upload_jobs` row now returns terminal `status="failed"` with error/refund context instead of pretending it is still `processing`.
+- Updated the frontend upload state machine to treat that initial failed replay as a terminal parse failure without another polling cycle, so stale local keys are cleared through the existing non-retryable failure path.
+- Added regression tests for backend failed-idempotency replay and frontend no-poll terminal replay.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/cv-upload-state.test.ts` -> `7 passed`
+- `.venv/bin/pytest backend/tests/test_cv_upload_api.py -q` -> `16 passed, 9 warnings`
+- `.venv/bin/pytest backend/tests -q` -> `467 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npm run lint` -> clean
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - CV upload worker outage hardening)
 
 Investigated the Railway CV upload stall where `/cv/upload/status/{job}` returned 200 repeatedly until the browser hit `poll_timeout`.
 

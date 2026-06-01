@@ -18,19 +18,37 @@ class CVUploadAcceptedResponse(BaseModel):
     job_id: str
 
 
+class CVUploadFailedResponse(BaseModel):
+    """Terminal idempotency replay — prior job failed and must not be re-polled."""
+    status: Literal["failed"] = "failed"
+    current_phase: Literal["failed"] = "failed"
+    error_code: str | None = None
+    error_detail: str | None = None
+    xp_charged: int = 0
+    xp_refunded: bool = False
+    new_xp_balance: int | None = None
+    redirect_to: str | None = None
+
+
 class CVUploadResponse(BaseModel):
-    """Discriminated union over the two upload outcomes.
+    """Discriminated union over upload outcomes.
 
     Frontends switch on `status`:
       - "done"       → take skills_detected/score directly
       - "processing" → poll GET /cv/upload/status/{job_id}
+      - "failed"     → surface prior terminal failure and clear idempotency
     """
-    status: Literal["done", "processing"]
+    status: Literal["done", "processing", "failed"]
     job_id: str | None = None
     skills_detected: int | None = None
     score: float | None = None
+    current_phase: Literal["queued", "reading", "scoring", "ready", "failed"] | None = None
+    error_code: str | None = None
+    error_detail: str | None = None
     redirect_to: str | None = None
     xp_charged: int | None = None
+    xp_refunded: bool | None = None
+    new_xp_balance: int | None = None
 
 
 class CVUploadStatusResponse(BaseModel):
