@@ -14,6 +14,7 @@ import { MobileBanner } from "@/components/home/mobile-banner"
 import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
 import { RouteLoading } from "@/components/loading/route-loading"
 import { SectionGate } from "@/components/loading/section-gate"
+import { TealField } from "@/components/loading/teal-field"
 import { StaleBanner } from "@/components/errors/stale-banner"
 import { Dashboard } from "@/components/dashboard/dashboard"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
@@ -197,9 +198,13 @@ function MissionControlInner() {
   if (nav.loading) {
     return (
       <PageShell>
-        {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+        <TealField mode="masked">
+          {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+        </TealField>
         <div style={{ marginTop: isDesktop ? 36 : 16 }}>
-          <DashboardSkeleton />
+          <TealField mode="masked">
+            <DashboardSkeleton />
+          </TealField>
         </div>
       </PageShell>
     )
@@ -248,7 +253,11 @@ function MissionControlInner() {
               thin banner so the card feed owns the viewport. */}
           <SectionGate
             loading={coreLoading}
-            fallback={isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+            fallback={
+              <TealField mode="masked">
+                {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+              </TealField>
+            }
             slowText="Still loading your dashboard…"
           >
             {isDesktop ? (
@@ -282,7 +291,11 @@ function MissionControlInner() {
               error={token && jobsIsError ? jobsErr : null}
               onRetry={() => void refetchJobs()}
               errorLabel="job matches"
-              fallback={<DashboardSkeleton />}
+              fallback={
+                <TealField mode="masked">
+                  <DashboardSkeleton />
+                </TealField>
+              }
               slowText="Still loading your matches…"
             >
               {token ? (
