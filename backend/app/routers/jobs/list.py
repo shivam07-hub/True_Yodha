@@ -22,7 +22,12 @@ from app.schemas import (
     NameCountItem,
     SkillCountItem,
 )
-from app.schemas.jobs import JobSearchItem, SkillHeatmapResponse
+from app.schemas.jobs import (
+    JobFeedItem,
+    JobFeedResponse,
+    JobSearchItem,
+    SkillHeatmapResponse,
+)
 
 router = APIRouter()
 
@@ -219,6 +224,54 @@ async def search_jobs(
         page=page_result["page"],
         page_size=page_result["page_size"],
         has_next_page=page_result["has_next_page"],
+    )
+
+
+@router.get("/feed", response_model=JobFeedResponse)
+async def job_feed(
+    cluster: str | None = None,
+    role_domain: str | None = None,
+    q: str | None = None,
+    location_city: str | None = None,
+    location_country: str | None = None,
+    location_mode: str | None = None,
+    sort: str = "fresh",
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=50)] = 20,
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    principal: Principal = Depends(get_principal),
+) -> JobFeedResponse:
+    """Authed /market browse feed. Company-agnostic, filterable, paginated.
+
+    Resolves a target-role `cluster` (or explicit `role_domain`) to a jobs.role_domain
+    filter, mirrors the analytics/me cluster logic. Always computes the requesting
+    user's CV-skill overlap so every card can show 'N of your skills match'; the
+    `personal` sort ranks on that overlap.
+    """
+    resolved_domain = role_domain
+    if not resolved_domain and cluster:
+        resolved_domain = repo.resolve_role_domain_for_clusters([cluster])
+    skill_keys = repo.user_skill_keys(principal.id)
+    page_result = repo.feed_jobs(
+        role_domain=resolved_domain,
+        q=q,
+        location_city=location_city,
+        location_country=location_country,
+        location_mode=location_mode,
+        sort=sort,
+        user_skill_keys=skill_keys,
+        page=page,
+        page_size=page_size,
+    )
+    items = [JobFeedItem(**row) for row in page_result["rows"]]
+    return JobFeedResponse(
+        jobs=items,
+        available_total=page_result["available_total"],
+        returned_total=page_result["returned_total"],
+        page=page_result["page"],
+        page_size=page_result["page_size"],
+        has_next_page=page_result["has_next_page"],
+        sort=page_result["sort"],
     )
 
 

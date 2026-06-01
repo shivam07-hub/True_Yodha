@@ -5,203 +5,15 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
-import { IntelLoadingState } from "@/components/market/intel-loading-state"
-import { MARKET_LOADING_STEPS } from "@/lib/market-loading-copy"
-import type { MarketAnalytics, NameCountItem, JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
-import { FilterBar } from "@/components/ui/filter-bar"
+import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
+import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useXPStore } from "@/store/xpStore"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const MAX_FOLLOWED = 10
-const XP_FLOOR = -30
 const FOLLOW_XP_COST = 10
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function seededHash(s: string): number {
-  return s.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0) >>> 0
-}
-
-function genSparkline(seed: number): number[] {
-  const base = (seed % 800) + 200
-  return Array.from({ length: 14 }, (_, i) => {
-    const noise = ((seed * (i + 1) * 137) % 100) / 100
-    return Math.round(base * (0.7 + noise * 0.6))
-  })
-}
-
-function fakeWeeklyDelta(name: string, count: number): { added: number; pct: number } {
-  const h = seededHash(name)
-  const added = Math.max(1, Math.round(count * (0.05 + (h % 17) * 0.004)))
-  const pct = Math.round(((h % 230) * 0.09 + 0.5) * 10) / 10
-  return { added, pct }
-}
-
-// ── Atoms ────────────────────────────────────────────────────────────────────
-
-function Sparkline({ values, width = 300, height = 48 }: { values: number[]; width?: number; height?: number }) {
-  if (!values.length) return null
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-  const step = width / (values.length - 1)
-  const pts = values.map((v, i) => `${i * step},${height - ((v - min) / range) * height}`)
-  const d = `M ${pts.join(" L ")}`
-  const areaD = `${d} L ${width},${height} L 0,${height} Z`
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
-      <defs>
-        <linearGradient id="spk-fill-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--data-1)" stopOpacity="0.32" />
-          <stop offset="100%" stopColor="var(--data-1)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill="url(#spk-fill-grad)" />
-      <path d={d} fill="none" stroke="var(--data-1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function TrendChip({ pct, up }: { pct: number; up: boolean }) {
-  const color = up ? "var(--tm-success)" : "var(--tm-danger)"
-  return (
-    <span style={{ display: "inline-flex", gap: 4, alignItems: "center", color, fontFamily: "var(--tm-font-mono)", fontSize: 12, letterSpacing: "0.02em" }}>
-      {up ? "▲" : "▼"} {pct.toFixed(1)}%
-    </span>
-  )
-}
-
-function AddToHeatmapBtn({
-  isFollowed,
-  onToggle,
-  onHover,
-  disabled,
-  disabledReason,
-}: {
-  isFollowed: boolean
-  onToggle: () => void
-  onHover?: () => void
-  disabled?: boolean
-  disabledReason?: string
-}) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); if (!disabled) onToggle() }}
-      onMouseEnter={onHover}
-      title={disabled ? disabledReason : isFollowed ? "Remove from heatmap" : `Add to heatmap · ${FOLLOW_XP_COST} XP`}
-      style={{
-        flexShrink: 0,
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        minWidth: 116, minHeight: 32, padding: "6px 13px", borderRadius: 999,
-        fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.04em", fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
-        background: isFollowed ? "var(--tm-int-bg-wash)" : "transparent",
-        border: `1px solid ${isFollowed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
-        color: isFollowed ? "var(--tm-interactive)" : disabled ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
-        opacity: disabled && !isFollowed ? 0.45 : 1,
-        transition: "all 120ms ease", whiteSpace: "nowrap",
-      }}
-    >
-      {isFollowed ? (
-        <span>✓ In heatmap</span>
-      ) : (
-        <>
-          <span>+ Heatmap</span>
-          {!disabled && (
-            <span style={{ fontSize: 9, opacity: 0.7, letterSpacing: "0.02em" }}>{FOLLOW_XP_COST} XP</span>
-          )}
-        </>
-      )}
-    </button>
-  )
-}
-
-// ── Progress banner ──────────────────────────────────────────────────────────
-
-function ProgressBanner({
-  analyticsReady,
-  skillsReady,
-  heatmapReady,
-  message,
-}: {
-  analyticsReady: boolean
-  skillsReady: boolean
-  heatmapReady: boolean
-  message: string
-}) {
-  const steps = [
-    { label: "Loading market data", done: analyticsReady },
-    { label: "Mapping your skills", done: skillsReady },
-    { label: "Building heatmap", done: heatmapReady },
-  ]
-  const allDone = steps.every(s => s.done)
-  if (allDone) return null
-
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 16, padding: "10px 16px",
-      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-      borderRadius: "var(--tm-radius-lg)", marginTop: 16,
-    }}>
-      <IntelLoadingState message={message} />
-      <div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
-        {steps.map(s => (
-          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{
-              width: 8, height: 8, borderRadius: "50%",
-              background: s.done ? "var(--tm-success)" : "var(--tm-border)",
-              transition: "background 300ms ease",
-            }} />
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: s.done ? "var(--tm-success)" : "var(--tm-text-faint)", letterSpacing: "0.06em" }}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── KPI pulse strip ──────────────────────────────────────────────────────────
-
-function PulseStrip({ analytics, followedCount }: { analytics: MarketAnalytics; followedCount: number }) {
-  const sparkValues = useMemo(() => genSparkline(analytics.total_jobs), [analytics.total_jobs])
-
-  return (
-    <div className="tm-intel-pulse-strip" style={{
-      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-      borderRadius: "var(--tm-radius-lg)", display: "grid",
-      gridTemplateColumns: "1fr 1fr 1fr 2fr", gap: 24, padding: "20px 24px", marginTop: 24,
-    }}>
-      <div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>OPEN ROLES</div>
-        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-interactive)", marginTop: 6, lineHeight: 1 }}>{analytics.total_jobs.toLocaleString()}</div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>across {analytics.total_companies} companies</div>
-      </div>
-      <div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>COMPANIES</div>
-        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text)", marginTop: 6, lineHeight: 1 }}>{analytics.total_companies.toLocaleString()}</div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>{followedCount} followed</div>
-      </div>
-      <div>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>TRACKED</div>
-        <div style={{ fontSize: 32, fontWeight: 600, fontFamily: "var(--tm-font-mono)", color: "var(--tm-text)", marginTop: 6, lineHeight: 1 }}>{followedCount}</div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 4 }}>in Tackle Today</div>
-      </div>
-      <div style={{ borderLeft: "1px solid var(--tm-border-soft)", paddingLeft: 24 }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>14-DAY POSTING</div>
-        <div style={{ marginTop: 10 }}>
-          <Sparkline values={sparkValues} width={260} height={48} />
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)", marginTop: 4, letterSpacing: "0.06em" }}>
-          <span>−13D</span><span>TODAY</span>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ── Job drill-down panel ─────────────────────────────────────────────────────
 
@@ -622,240 +434,6 @@ function SkillHeatmap({
 
 // ── Top Movers ───────────────────────────────────────────────────────────────
 
-type MoverWindow = "7d" | "30d" | "90d"
-type MoverSort = "added" | "roles" | "latest"
-const WINDOW_SCALE: Record<MoverWindow, number> = { "7d": 1, "30d": 3.2, "90d": 8.4 }
-
-function TopMovers({ companies, followedNames, onToggleFollow, onHoverStar, xpBalance, followedCount }: {
-  companies: NameCountItem[]
-  followedNames: string[]
-  onToggleFollow: (name: string) => void
-  onHoverStar: (name: string) => void
-  xpBalance: number
-  followedCount: number
-}) {
-  const [search, setSearch] = useState("")
-  const [window, setWindow] = useState<MoverWindow>("7d")
-  const [sort, setSort] = useState<MoverSort>("added")
-  const [followedOnly, setFollowedOnly] = useState(false)
-
-  const movers = useMemo(() => {
-    const scale = WINDOW_SCALE[window]
-    return companies.map(co => {
-      const base = fakeWeeklyDelta(co.name, co.count)
-      return { ...co, added: Math.round(base.added * scale), pct: Math.round(base.pct * Math.sqrt(scale) * 10) / 10 }
-    })
-  }, [companies, window])
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    let arr = movers
-    if (q) arr = arr.filter(co => co.name.toLowerCase().includes(q))
-    if (followedOnly) arr = arr.filter(co => followedNames.includes(co.name))
-    if (sort === "added") arr = [...arr].sort((a, b) => b.added - a.added)
-    else if (sort === "roles") arr = [...arr].sort((a, b) => b.count - a.count)
-    else if (sort === "latest") arr = [...arr].sort((a, b) => seededHash(b.name) - seededHash(a.name))
-    return arr
-  }, [movers, search, sort, followedOnly, followedNames])
-
-  return (
-    <div className="tm-intel-top-movers" style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>
-          Top movers
-          <span style={{ marginLeft: 8, color: "var(--tm-text-faint)", fontWeight: 400 }}>{filtered.length}</span>
-        </div>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search…"
-          style={{ background: "var(--tm-bg-inset)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 10px", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text)", outline: "none", width: 120 }}
-        />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <FilterBar
-          groups={[
-            {
-              key: "window", value: window, onChange: (v) => setWindow(v as MoverWindow), ariaLabel: "Time window",
-              options: [
-                { id: "7d", label: "Past 7 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>7D</span> },
-                { id: "30d", label: "Past 30 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>30</span> },
-                { id: "90d", label: "Past 90 days", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, fontWeight: 700 }}>90</span> },
-              ],
-            },
-            {
-              key: "sort", value: sort, onChange: (v) => setSort(v as MoverSort), ariaLabel: "Sort by",
-              options: [
-                { id: "added", label: "Most added", icon: <span style={{ fontSize: 12 }}>▲</span> },
-                { id: "roles", label: "Most roles", icon: <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700 }}>#</span> },
-                { id: "latest", label: "Latest first", icon: <span style={{ fontSize: 11 }}>⏱</span> },
-              ],
-            },
-          ]}
-          toggles={[
-            {
-              key: "followed", label: "Followed only", value: followedOnly, onChange: setFollowedOnly,
-              icon: <span style={{ fontSize: 12 }}>{followedOnly ? "★" : "☆"}</span>,
-            },
-          ]}
-        />
-      </div>
-      <div style={{ overflowY: "auto", maxHeight: 400 }}>
-        {filtered.map((co, idx) => {
-          const isFollowed = followedNames.includes(co.name)
-          const atCap = !isFollowed && followedCount >= MAX_FOLLOWED
-          const atFloor = !isFollowed && xpBalance - FOLLOW_XP_COST < XP_FLOOR
-          const disabled = atCap || atFloor
-          const disabledReason = atCap ? `Limit: ${MAX_FOLLOWED} companies` : `XP floor (${XP_FLOOR}) would be breached`
-          return (
-            <div key={co.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: idx < filtered.length - 1 ? "1px solid var(--tm-border-soft)" : "none" }}>
-              <div style={{ width: 28, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>#{idx + 1}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <Link href={`/companies/${encodeURIComponent(co.name)}`} style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
-                    {co.name}
-                  </Link>
-                  {isFollowed && <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 2 }}>{co.count.toLocaleString()} roles</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 14, color: "var(--tm-interactive)", fontWeight: 600 }}>+{co.added}</div>
-                <TrendChip pct={co.pct} up={true} />
-              </div>
-              <AddToHeatmapBtn
-                isFollowed={isFollowed}
-                onToggle={() => onToggleFollow(co.name)}
-                onHover={() => !isFollowed && onHoverStar(co.name)}
-                disabled={disabled}
-                disabledReason={disabledReason}
-              />
-            </div>
-          )
-        })}
-        {filtered.length === 0 && (
-          <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>No match</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Filters ──────────────────────────────────────────────────────────────────
-
-const LOCATION_SELECT_STYLE = {
-  background: "var(--tm-surface)",
-  border: "1px solid var(--tm-border-soft)",
-  borderRadius: "var(--tm-radius-sm)",
-  padding: "6px 32px 6px 12px",
-  fontFamily: "var(--tm-font-sans)",
-  fontSize: 13,
-  color: "var(--tm-text)",
-  cursor: "pointer",
-  outline: "none",
-  appearance: "none" as const,
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-  backgroundRepeat: "no-repeat",
-  backgroundPosition: "right 10px center",
-}
-
-function TargetRoleBar({ targetRoles, chipCountMap, selectedCluster, onSelect, isLoggedIn }: {
-  targetRoles: string[]
-  chipCountMap: Record<string, number>
-  selectedCluster: string | null
-  onSelect: (cluster: string) => void
-  isLoggedIn: boolean
-}) {
-  const [hoveredRole, setHoveredRole] = useState<string | null>(null)
-
-  if (!isLoggedIn) return null
-
-  const isEmpty = targetRoles.length === 0
-
-  return (
-    <div className="tm-intel-target-bar" style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, flexWrap: "wrap" }}>
-      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>TARGET</span>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {isEmpty ? (
-          <button
-            onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings"))}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px",
-              borderRadius: 999, cursor: "pointer",
-              background: "transparent",
-              border: "1px dashed var(--tm-border-soft)",
-              color: "var(--tm-text-faint)",
-              fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
-            }}
-          >
-            + Add target roles →
-          </button>
-        ) : (
-          targetRoles.map(role => {
-            const selected = selectedCluster === role
-            const hovered = hoveredRole === role && !selected
-            const count = chipCountMap[role]
-            return (
-              <button
-                key={role}
-                onClick={() => onSelect(role)}
-                onMouseEnter={() => setHoveredRole(role)}
-                onMouseLeave={() => setHoveredRole(null)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px",
-                  borderRadius: 999, cursor: "pointer",
-                  background: selected ? "var(--tm-int-bg-wash)" : hovered ? "var(--tm-hover-soft)" : "transparent",
-                  border: `1px solid ${selected ? "var(--tm-interactive)" : hovered ? "var(--tm-border)" : "var(--tm-border-soft)"}`,
-                  color: selected ? "var(--tm-interactive)" : hovered ? "var(--tm-text)" : "var(--tm-text-muted)",
-                  fontFamily: "var(--tm-font-sans)", fontSize: 13, transition: "all 120ms ease",
-                }}
-              >
-                {role}
-                {count != null && (
-                  <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: selected ? "var(--tm-int-bg-wash)" : "var(--tm-text-faint)", fontWeight: 600 }}>
-                    {count.toLocaleString()}
-                  </span>
-                )}
-              </button>
-            )
-          })
-        )}
-      </div>
-    </div>
-  )
-}
-
-function LocationBar({ cities, countries, city, country, mode, onCity, onCountry, onMode }: {
-  cities: NameCountItem[]
-  countries: NameCountItem[]
-  city: string
-  country: string
-  mode: string
-  onCity: (v: string) => void
-  onCountry: (v: string) => void
-  onMode: (v: string) => void
-}) {
-  return (
-    <div className="tm-intel-location-bar" style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)", flexShrink: 0 }}>LOCATION</span>
-      <select value={city} onChange={e => onCity(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 140 }}>
-        <option value="">All cities</option>
-        {cities.slice(0, 40).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-      </select>
-      <select value={country} onChange={e => onCountry(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 160 }}>
-        <option value="">All countries</option>
-        {countries.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-      </select>
-      <select value={mode} onChange={e => onMode(e.target.value)} style={{ ...LOCATION_SELECT_STYLE, minWidth: 130 }}>
-        <option value="">All modes</option>
-        <option value="remote">Remote</option>
-        <option value="hybrid">Hybrid</option>
-        <option value="onsite">On-site</option>
-      </select>
-    </div>
-  )
-}
-
 // ── Skill Selector Panel ─────────────────────────────────────────────────────
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -868,7 +446,6 @@ function IntelPageInner() {
   const paramSkill = searchParams.get("skill")
 
   const [selectedCell, setSelectedCell] = useState<{ ci: number; si: number } | null>(null)
-  const [loadingStep, setLoadingStep] = useState(0)
   const [manualSaved, setManualSaved] = useState<Set<string>>(new Set())
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
@@ -876,6 +453,7 @@ function IntelPageInner() {
   const [locationCity, setLocationCity] = useState("")
   const [locationCountry, setLocationCountry] = useState("")
   const [locationMode, setLocationMode] = useState("")
+  const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">("jobs")
 
   // Sync XP balance if not yet set from another page visit
   useQuery({
@@ -916,7 +494,7 @@ function IntelPageInner() {
     [locationCity, locationCountry, locationMode]
   )
 
-  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+  const { data: analytics } = useQuery({
     queryKey: ["intel-analytics", token ?? "", selectedCluster ?? "", locationCity, locationCountry, locationMode],
     queryFn: () =>
       token
@@ -944,19 +522,13 @@ function IntelPageInner() {
     return map
   }, [targetRoles, chipCountQueries])
 
-  useEffect(() => {
-    if (!analyticsLoading && analytics) return
-    const id = setInterval(() => setLoadingStep(s => (s + 1) % MARKET_LOADING_STEPS.length), 1500)
-    return () => clearInterval(id)
-  }, [analyticsLoading, analytics])
-
-  const { data: followedData, isLoading: followedLoading } = useQuery({
+  const { data: followedData } = useQuery({
     queryKey: ["followedCompanies", token],
     queryFn: () => users.followedCompanies(token!),
     enabled: !!token,
   })
 
-  const { data: skillDemandData, isLoading: skillDemandLoading } = useQuery({
+  const { data: skillDemandData } = useQuery({
     queryKey: ["mySkillDemand", token],
     queryFn: () => jobs.mySkillDemand(token!),
     enabled: !!token && cvReadyForPersonalization,
@@ -1042,15 +614,6 @@ function IntelPageInner() {
     return map
   }, [followedCompanies, heatmapRowQueries])
 
-  const heatmapReady =
-    !followedLoading &&
-    !skillDemandLoading &&
-    (
-      followedCompanies.length === 0 ||
-      heatmapSkills.length === 0 ||
-      heatmapRowQueries.every(q => !q.isLoading)
-    )
-
   // Resolved cell for drill-down
   const resolvedCell = useMemo(() => {
     if (!selectedCell) return null
@@ -1114,18 +677,6 @@ function IntelPageInner() {
     [token, followedNames, followMutation]
   )
 
-  const handleHoverStar = useCallback(
-    (company: string) => {
-      if (heatmapSkills.length === 0) return
-      void queryClient.prefetchQuery({
-        queryKey: ["heatmapRow", company, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
-        queryFn: () => jobs.skillHeatmapRow(company, heatmapSkills, locFilters),
-        staleTime: 30 * 60 * 1000,
-      })
-    },
-    [queryClient, heatmapSkills, locationCity, locationCountry, locationMode, locFilters]
-  )
-
   const handleToggleSkill = useCallback((name: string) => {
     setSelectedSkillNames(prev => {
       const next = new Set(prev)
@@ -1145,7 +696,10 @@ function IntelPageInner() {
 
   const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
 
-  const moversCompanies = useMemo(() => analytics?.by_company ?? [], [analytics])
+  const TABS: { key: "jobs" | "heatmap"; label: string }[] = [
+    { key: "jobs", label: "Jobs" },
+    { key: "heatmap", label: "Heatmap" },
+  ]
 
   return (
     <>
@@ -1156,42 +710,16 @@ function IntelPageInner() {
             padding: 22px 18px 96px !important;
           }
           .tm-intel-page h1 {
-            font-size: 34px !important;
+            font-size: 30px !important;
             line-height: 1.08 !important;
             letter-spacing: -0.03em !important;
           }
-          .tm-intel-target-bar,
-          .tm-intel-location-bar {
-            align-items: stretch !important;
+          .tm-feed-statcards {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 10px !important;
           }
-          .tm-intel-target-bar > span,
-          .tm-intel-location-bar > span {
-            width: 100%;
-          }
-          .tm-intel-location-bar select {
-            width: 100%;
-            min-height: 44px;
-            font-size: 16px !important;
-          }
-          .tm-intel-pulse-strip {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 0 !important;
-            padding: 0 !important;
-            overflow: hidden;
-          }
-          .tm-intel-pulse-strip > div {
-            padding: 16px !important;
-            border-left: 0 !important;
-            border-right: 1px solid var(--tm-border-soft);
-            border-bottom: 1px solid var(--tm-border-soft);
-          }
-          .tm-intel-pulse-strip > div:nth-child(2n) {
-            border-right: 0;
-          }
-          .tm-intel-pulse-strip svg {
-            max-width: 100%;
-          }
+          .tm-feed-searchrow { gap: 10px !important; }
+          .tm-feed-drawer { width: 100vw !important; }
           .tm-intel-heatmap-head {
             flex-direction: column;
             padding: 20px 18px 14px !important;
@@ -1219,13 +747,6 @@ function IntelPageInner() {
             min-width: 76px !important;
             height: auto !important;
           }
-          .tm-intel-top-movers {
-            padding: 18px 12px !important;
-          }
-          .tm-intel-top-movers input {
-            min-height: 40px;
-            font-size: 16px !important;
-          }
         }
       `}</style>
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
@@ -1239,74 +760,82 @@ function IntelPageInner() {
           )}
         </div>
 
-        <TargetRoleBar
-          targetRoles={targetRoles}
-          chipCountMap={chipCountMap}
-          selectedCluster={selectedCluster}
-          onSelect={cluster => setSelectedCluster(prev => prev === cluster ? null : cluster)}
-          isLoggedIn={!!token}
-        />
-
-        <LocationBar
-          cities={analytics?.by_location_city ?? []}
-          countries={analytics?.by_location_country ?? []}
-          city={locationCity}
-          country={locationCountry}
-          mode={locationMode}
-          onCity={setLocationCity}
-          onCountry={setLocationCountry}
-          onMode={setLocationMode}
-        />
-
-        {/* Progress banner — visible only during initial load, never blocks content */}
-        <ProgressBanner
-          analyticsReady={!analyticsLoading && !!analytics}
-          skillsReady={!skillDemandLoading && !!skillDemandData}
-          heatmapReady={heatmapReady}
-          message={MARKET_LOADING_STEPS[loadingStep]}
-        />
-
-        {analytics && <PulseStrip analytics={analytics} followedCount={followedNames.length} />}
-
-        <div style={{ marginTop: 14 }}>
-          <TopMovers
-            companies={moversCompanies}
-            followedNames={followedNames}
-            onToggleFollow={handleToggleFollow}
-            onHoverStar={handleHoverStar}
-            xpBalance={xpBalance}
-            followedCount={followedCompanies.length}
-          />
+        {/* Jobs | Heatmap tab switcher */}
+        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, marginTop: 20, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
+          {TABS.map(t => {
+            const on = activeTab === t.key
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  padding: "7px 20px", borderRadius: 999, border: "none", cursor: "pointer",
+                  fontSize: 13, fontWeight: 600,
+                  background: on ? "var(--tm-interactive)" : "transparent",
+                  color: on ? "var(--tm-on-interactive, #fff)" : "var(--tm-text-muted)",
+                  transition: "all 120ms ease",
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
-        {token && !cvReadyForPersonalization ? (
-          <CVPrerequisiteCard readiness={cvReadiness} errorCode={profileData?.cv_upload_error_code ?? null} />
+        {activeTab === "jobs" ? (
+          <MarketJobsTab
+            token={token ?? ""}
+            analytics={analytics}
+            targetRoles={targetRoles}
+            chipCountMap={chipCountMap}
+            selectedCluster={selectedCluster}
+            onSelectCluster={setSelectedCluster}
+            locationCity={locationCity}
+            locationCountry={locationCountry}
+            locationMode={locationMode}
+            onCity={setLocationCity}
+            onCountry={setLocationCountry}
+            onMode={setLocationMode}
+            followedNames={followedNames}
+            onToggleFollow={handleToggleFollow}
+            followLimit={MAX_FOLLOWED}
+            xpBalance={xpBalance}
+          />
         ) : (
-          <SkillHeatmap
-            companies={followedCompanies}
-            rowDataMap={rowDataMap}
-            skills={heatmapSkills}
-            skillLevels={skillLevels}
-            selectedCell={selectedCell}
-            onCellSelect={handleCellSelect}
-            allSkills={skillDemandData?.skills ?? []}
-            selectedSkillNames={selectedSkillNames}
-            onToggleSkill={handleToggleSkill}
-            isLoggedIn={!!token}
-          />
-        )}
+          <div style={{ marginTop: 20 }}>
+            {token && !cvReadyForPersonalization ? (
+              <CVPrerequisiteCard readiness={cvReadiness} errorCode={profileData?.cv_upload_error_code ?? null} />
+            ) : (
+              <SkillHeatmap
+                companies={followedCompanies}
+                rowDataMap={rowDataMap}
+                skills={heatmapSkills}
+                skillLevels={skillLevels}
+                selectedCell={selectedCell}
+                onCellSelect={handleCellSelect}
+                allSkills={skillDemandData?.skills ?? []}
+                selectedSkillNames={selectedSkillNames}
+                onToggleSkill={handleToggleSkill}
+                isLoggedIn={!!token}
+              />
+            )}
 
-        {resolvedCell && (
-          <JobDrillPanel
-            companyName={resolvedCell.companyName}
-            skillName={resolvedCell.skillName}
-            drillJobs={drillData?.jobs ?? []}
-            isLoading={drillLoading}
-            savedJobIds={savedJobIds}
-            onSave={job => saveMutation.mutate(job.job_id)}
-            onClose={() => setSelectedCell(null)}
-            isLoggedIn={!!token}
-          />
+            {resolvedCell && (
+              <JobDrillPanel
+                companyName={resolvedCell.companyName}
+                skillName={resolvedCell.skillName}
+                drillJobs={drillData?.jobs ?? []}
+                isLoading={drillLoading}
+                savedJobIds={savedJobIds}
+                onSave={job => saveMutation.mutate(job.job_id)}
+                onClose={() => setSelectedCell(null)}
+                isLoggedIn={!!token}
+              />
+            )}
+          </div>
         )}
       </div>
     </>

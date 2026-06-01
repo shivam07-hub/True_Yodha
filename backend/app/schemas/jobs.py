@@ -370,6 +370,37 @@ class JobSearchResponse(BaseModel):
     has_next_page: bool
 
 
+class JobFeedItem(BaseModel):
+    """One job card in the authed /market feed (browse, not scored)."""
+
+    job_id: str
+    job_title: str
+    company_name: str | None
+    job_description: str | None
+    location: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    location_quality: str | None = None
+    role_domain: str | None = None
+    industry: str | None = None
+    source_url: str | None = None
+    first_seen: str | None = None  # ISO date derived from the feed marker
+    is_active: bool = True
+    skills: list[str] = []  # top main_skills display names, capped
+    matched_skill_count: int = 0  # overlap with the requesting user's CV skills (0 if anon)
+
+
+class JobFeedResponse(BaseModel):
+    jobs: list[JobFeedItem]
+    available_total: int
+    returned_total: int
+    page: int
+    page_size: int
+    has_next_page: bool
+    sort: str  # echo of the applied sort mode
+
+
 class CompanyOpenRoleItem(BaseModel):
     job_id: str
     job_title: str

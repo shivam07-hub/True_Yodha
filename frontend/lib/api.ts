@@ -1515,6 +1515,49 @@ export interface JobSearchResponse {
   has_next_page: boolean
 }
 
+export type JobFeedSort = "fresh" | "personal" | "company"
+
+export interface JobFeedItem {
+  job_id: string
+  job_title: string
+  company_name: string | null
+  job_description: string | null
+  location?: string | null
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
+  location_quality?: "ok" | "unknown" | null
+  role_domain?: string | null
+  industry?: string | null
+  source_url?: string | null
+  first_seen?: string | null
+  is_active: boolean
+  skills: string[]
+  matched_skill_count: number
+}
+
+export interface JobFeedResponse {
+  jobs: JobFeedItem[]
+  available_total: number
+  returned_total: number
+  page: number
+  page_size: number
+  has_next_page: boolean
+  sort: JobFeedSort
+}
+
+export interface JobFeedParams {
+  cluster?: string | null
+  roleDomain?: string | null
+  q?: string | null
+  locationCity?: string | null
+  locationCountry?: string | null
+  locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
+  sort?: JobFeedSort
+  page?: number
+  pageSize?: number
+}
+
 export interface MarketAnalytics {
   total_jobs: number
   total_companies: number
@@ -1740,6 +1783,22 @@ export const jobs = {
     }
     return request<JobSearchResponse>(`/jobs/search?${params.toString()}`)
   },
+  feed: (token: string, p: JobFeedParams = {}) => {
+    const params = new URLSearchParams()
+    if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
+    if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
+    if (p.q && p.q.trim()) params.set("q", p.q.trim())
+    if (p.locationCity && p.locationCity.trim()) params.set("location_city", p.locationCity.trim())
+    if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
+    if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
+    if (p.sort) params.set("sort", p.sort)
+    if (p.page && p.page > 0) params.set("page", String(p.page))
+    if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
+    const qs = params.toString()
+    return request<JobFeedResponse>(`/jobs/feed${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
   mySkillDemand: (token: string) =>
     request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
       headers: { Authorization: `Bearer ${token}` },
@@ -1785,6 +1844,11 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  reportInactive: (token: string, jobId: string) =>
+    request<{ report_count: number; already_reported: boolean; xp_earned: number }>(
+      `/jobs/${encodeURIComponent(jobId)}/report`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    ),
   updateApplication: (
     token: string,
     jobId: string,

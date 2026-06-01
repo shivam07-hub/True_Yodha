@@ -880,6 +880,159 @@ class JobsRepository:
         _search_cache[cache_key] = (time.monotonic(), result)
         return result
 
+    # ── authed /market browse feed ──────────────────────────────────────────────
+
+    _FEED_COLUMNS = (
+        "job_id, job_title, company_name, job_description, "
+        "location, location_raw, location_city, location_country, location_mode, location_quality, "
+        "role_domain, industry, industry_group, apply_url, first_seen, is_active, main_skills"
+    )
+    _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
+
+    @staticmethod
+    def _feed_shape_row(row: dict[str, Any], user_skill_keys: set[str] | None) -> dict[str, Any]:
+        _hydrate_location_fields(row)
+        raw_skills = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
+        skills = raw_skills[:5]
+        matched = 0
+        if user_skill_keys:
+            lowered = {s.lower() for s in raw_skills}
+            matched = len(lowered & user_skill_keys)
+        return {
+            "job_id": row.get("job_id"),
+            "job_title": row.get("job_title") or "",
+            "company_name": row.get("company_name"),
+            "job_description": row.get("job_description"),
+            "location": row.get("location"),
+            "location_city": row.get("location_city"),
+            "location_country": row.get("location_country"),
+            "location_mode": row.get("location_mode"),
+            "location_quality": row.get("location_quality"),
+            "role_domain": row.get("role_domain"),
+            "industry": row.get("industry_group") or row.get("industry"),
+            "source_url": row.get("apply_url"),
+            "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
+            "is_active": bool(row.get("is_active", True)),
+            "skills": skills,
+            "matched_skill_count": matched,
+        }
+
+    def feed_jobs(
+        self,
+        *,
+        role_domain: str | None = None,
+        q: str | None = None,
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
+        sort: str = "fresh",
+        user_skill_keys: set[str] | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """Company-agnostic browse feed for the authed /market page.
+
+        sort: 'fresh' (first_seen desc, DB-paginated), 'company' (company asc then
+        first_seen desc, DB-paginated), 'personal' (CV skill-overlap desc within a
+        freshest-N candidate cap, ranked in Python). No LLM scoring.
+        """
+        scoped_page = _bounded_page(page)
+        scoped_page_size = _bounded_page_size(page_size)
+        mode = sort if sort in {"fresh", "company", "personal"} else "fresh"
+        country = _norm_filter(location_country)
+        city = _norm_filter(location_city)
+        loc_mode = _norm_filter(location_mode)
+        term = " ".join((q or "").split())
+
+        def _apply_filters(query: Any) -> Any:
+            query = query.eq("is_active", True)
+            if role_domain:
+                query = query.eq("role_domain", role_domain)
+            if country:
+                query = query.eq("location_country", country)
+            if city:
+                query = query.eq("location_city", city)
+            if loc_mode:
+                query = query.eq("location_mode", loc_mode)
+            if len(term) >= 2:
+                # Sanitize: PostgREST or() splits on commas/parens.
+                safe = term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
+                if safe:
+                    query = query.or_(
+                        f"job_title.ilike.%{safe}%,company_name.ilike.%{safe}%"
+                    )
+            return query
+
+        if mode == "personal":
+            # Rank a bounded freshest candidate set by skill overlap, paginate in Python.
+            try:
+                result = _apply_filters(
+                    self._admin_db.table("jobs").select(self._FEED_COLUMNS)
+                ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
+            except APIError:
+                result = None
+            rows = (result.data if result else None) or []
+            shaped = [self._feed_shape_row(r, user_skill_keys) for r in rows]
+            # Stable sort: secondary (freshest) first, then primary (overlap) — so
+            # equal-overlap jobs stay newest-first.
+            shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
+            shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
+            available_total = len(shaped)
+            start = (scoped_page - 1) * scoped_page_size
+            end = start + scoped_page_size
+            page_rows = shaped[start:end] if start < available_total else []
+            return {
+                "rows": page_rows,
+                "available_total": available_total,
+                "returned_total": len(page_rows),
+                "page": scoped_page,
+                "page_size": scoped_page_size,
+                "has_next_page": (start + len(page_rows)) < available_total,
+                "sort": mode,
+            }
+
+        # DB-paginated paths: fresh + company
+        start = (scoped_page - 1) * scoped_page_size
+        end = start + scoped_page_size - 1
+        try:
+            base = _apply_filters(
+                self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
+            )
+            if mode == "company":
+                base = base.order("company_name", desc=False).order("first_seen", desc=True)
+            else:
+                base = base.order("first_seen", desc=True).order("job_id", desc=True)
+            result = base.range(start, end).execute()
+        except APIError:
+            return {
+                "rows": [], "available_total": 0, "returned_total": 0,
+                "page": scoped_page, "page_size": scoped_page_size,
+                "has_next_page": False, "sort": mode,
+            }
+        rows = result.data or []
+        available_total = result.count if result.count is not None else len(rows)
+        page_rows = [self._feed_shape_row(r, user_skill_keys) for r in rows]
+        return {
+            "rows": page_rows,
+            "available_total": available_total,
+            "returned_total": len(page_rows),
+            "page": scoped_page,
+            "page_size": scoped_page_size,
+            "has_next_page": (start + len(page_rows)) < available_total,
+            "sort": mode,
+        }
+
+    def user_skill_keys(self, user_id: str) -> set[str]:
+        """Lowercased taxonomy_key + display_name set for the user's CV skills."""
+        keys: set[str] = set()
+        for row in self.get_user_skills_with_taxonomy(user_id):
+            sk = row.get("skills") or {}
+            for field in ("taxonomy_key", "display_name"):
+                val = (sk.get(field) or "").strip().lower()
+                if val:
+                    keys.add(val)
+        return keys
+
     # ── user skills / demand ───────────────────────────────────────────────────
 
     def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
