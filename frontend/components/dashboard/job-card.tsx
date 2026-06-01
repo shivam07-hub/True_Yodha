@@ -14,7 +14,7 @@ import {
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { LENSES, type LensKey } from "@/lib/dashboard/feed-model"
-import { LensOverview, LensWhy, LensSkills } from "./lenses"
+import { LensOverview, LensWhy, LensSkills, LocationLine, jdSnippet } from "./lenses"
 import { LensCompany, type OtherRole } from "./lens-company"
 import { CommentThread } from "@/components/comments/comment-thread"
 
@@ -111,34 +111,94 @@ function renderLens(key: LensKey, p: JobCardProps, model: ReturnType<typeof useC
   return <LensCompany job={p.job} token={p.token} active={p.active} otherRoles={p.otherRoles} onJump={p.onJump} />
 }
 
-/* ── Mobile: horizontal scroll-snap slides ────────────────────────────────── */
+/* ── Mobile: expand-in-place accordion card (Perplexity-style flowing list) ─── */
 
-export function JobCardSlides(p: JobCardProps) {
-  const model = useCardModel(p)
+/** Full job description — newlines preserved, no HTML interpretation (safe). */
+function JobDescription({ text }: { text: string }) {
+  return (
+    <div className="db-jd">
+      <div className="db-lens-h">Job description</div>
+      <pre className="db-jd-body">{text}</pre>
+    </div>
+  )
+}
+
+export interface MobileJobCardProps extends JobCardProps {
+  expanded: boolean
+  onToggle: () => void
+}
+
+export function MobileJobCard(p: MobileJobCardProps) {
+  // Skills + "Why you fit" only fetch/charge when the card is open (Q3/Q4 —
+  // expand-only XP). `active` is bound to `expanded`, not viewport visibility.
+  const model = useCardModel({ job: p.job, token: p.token, active: p.expanded })
   const fit = Math.max(0, Math.min(100, Math.round(p.job.overlap_score)))
-  const trackRef = React.useRef<HTMLDivElement | null>(null)
-  const [idx, setIdx] = React.useState(0)
-
-  const onScroll = React.useCallback(() => {
-    const el = trackRef.current
-    if (!el) return
-    const i = Math.round(el.scrollLeft / el.clientWidth)
-    setIdx((prev) => (prev === i ? prev : i))
-  }, [])
+  const snippet = jdSnippet(p.job.job_description)
 
   return (
-    <div className="db-card db-card--slides">
-      <div className="db-slide-track" ref={trackRef} onScroll={onScroll}>
-        {LENSES.map((l) => (
-          <div className="db-slide" key={l.key}>{renderLens(l.key, p, model)}</div>
-        ))}
-      </div>
-      <div className="db-dots" aria-hidden>
-        {LENSES.map((l, i) => <span key={l.key} className={i === idx ? "on" : ""} />)}
-      </div>
+    <div className={`db-mcard${p.expanded ? " open" : ""}`}>
+      <button
+        type="button"
+        className="db-mcard-head"
+        aria-expanded={p.expanded}
+        onClick={p.onToggle}
+      >
+        <div className="db-mcard-top">
+          <span className="db-mcard-fit">{fit}<i>fit</i></span>
+          <span className="db-mcard-chevron" aria-hidden />
+        </div>
+        <h2 className="db-mcard-role">{p.job.title}</h2>
+        {p.job.company ? <div className="db-mcard-co">{p.job.company}</div> : null}
+        <LocationLine job={p.job} />
+        {!p.expanded && snippet ? <p className="db-mcard-snippet">{snippet}</p> : null}
+      </button>
+
+      {p.expanded ? (
+        <div className="db-mcard-body">
+          {p.job.job_description ? <JobDescription text={p.job.job_description} /> : null}
+          <LensWhy
+            job={p.job}
+            skills={model.skills}
+            loadingSkills={model.loadingSkills}
+            token={p.token}
+            active={p.expanded}
+            cartSkillNames={p.cartSkillNames}
+            onSkillToggle={p.onSkillToggle}
+          />
+          <LensSkills
+            job={p.job}
+            skills={model.skills}
+            loadingSkills={model.loadingSkills}
+            token={p.token}
+            active={p.expanded}
+            cartSkillNames={p.cartSkillNames}
+            onSkillToggle={p.onSkillToggle}
+          />
+          <LensCompany
+            job={p.job}
+            token={p.token}
+            active={p.expanded}
+            otherRoles={p.otherRoles}
+            onJump={p.onJump}
+          />
+          <div className="db-lens db-lens-notes">
+            <div className="db-lens-h">Notes</div>
+            <CommentThread
+              token={p.token}
+              entityType="job"
+              entityId={p.job.job_id}
+              placeholder={`Note your progress on ${p.job.company ?? "this role"}…`}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Actions stay on the collapsed card (Q9) — save/tailor without expanding. */}
       <div className="db-actionbar">
         <StatusBar status={p.status} fit={fit} onStatus={p.onStatus} />
-        <LensAction lens={LENSES[idx]?.key ?? "overview"} job={p.job} cartSize={p.cartSkillNames.size} />
+        <Link className="db-act-btn" href={`/cv?jobId=${p.job.job_id}`} onClick={(e) => e.stopPropagation()}>
+          Tailor CV
+        </Link>
       </div>
     </div>
   )

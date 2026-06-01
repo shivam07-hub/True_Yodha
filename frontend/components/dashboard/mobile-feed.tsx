@@ -1,13 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { JobCardSlides } from "./job-card"
-import { IndexSheet } from "./index-sheet"
+import { MobileJobCard } from "./job-card"
 import type { OtherRole } from "./lens-company"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
-
-const RESUME_KEY = "myro_dashboard_feed_v1"
 
 export interface MobileFeedProps {
   items: FeedItem[]
@@ -29,78 +26,43 @@ function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
     .map((o) => ({ jobId: o.jobId, role: o.role, fit: o.fit }))
 }
 
+/** Perplexity-style flowing card list. No scroll-snap, no horizontal swipe —
+ *  cards flow in a normal scroll and expand in place. Accordion: one card open
+ *  at a time (Q7), so at most one card's 10-XP analysis is ever live. */
 export function MobileFeed(p: MobileFeedProps) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
-  const cardRefs = React.useRef<Record<string, HTMLElement | null>>({})
-  const [activeId, setActiveId] = React.useState<string | null>(p.items[0]?.jobId ?? null)
-  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const [expandedId, setExpandedId] = React.useState<string | null>(p.initialJobId ?? null)
 
-  // Determine the visible card via IntersectionObserver against the VIEWPORT
-  // (root: null). The page's own scroll container drives snapping (see
-  // `.mc-scope:has(.db-feed)` in dashboard.css) — the feed is NOT a nested
-  // scroller, so we must not observe a nested root or the iOS scroll-trap (Q6).
-  React.useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting && e.intersectionRatio > 0.6) {
-            const id = (e.target as HTMLElement).dataset.jobid
-            if (id) setActiveId(id)
-          }
-        }
-      },
-      { root: null, threshold: [0.6] },
-    )
-    for (const el of Object.values(cardRefs.current)) if (el) io.observe(el)
-    return () => io.disconnect()
-  }, [p.items])
-
-  const jumpTo = React.useCallback((jobId: string) => {
-    setSheetOpen(false)
-    requestAnimationFrame(() => {
-      cardRefs.current[jobId]?.scrollIntoView({ behavior: "smooth", block: "start" })
-    })
+  const toggle = React.useCallback((jobId: string) => {
+    setExpandedId((cur) => (cur === jobId ? null : jobId))
   }, [])
 
-  // Deep-link / resume: land on the requested card, else last-seen, once on mount.
+  // Deep-link: open the requested card once on mount (replaces the dropped
+  // index sheet as the only "jump to a specific job" path).
   React.useEffect(() => {
-    const want = p.initialJobId || sessionStorage.getItem(RESUME_KEY)
-    if (want && cardRefs.current[want]) {
-      cardRefs.current[want]?.scrollIntoView({ block: "start" })
-      setActiveId(want)
-    }
+    if (p.initialJobId) setExpandedId(p.initialJobId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  React.useEffect(() => {
-    if (activeId) sessionStorage.setItem(RESUME_KEY, activeId)
-  }, [activeId])
-
   return (
-    <div className="db-feed" ref={containerRef}>
+    <div className="db-feed">
       {p.items.map((it) => (
-        <section
+        <MobileJobCard
           key={it.jobId}
-          className="db-feed-card"
-          data-jobid={it.jobId}
-          ref={(el) => { cardRefs.current[it.jobId] = el }}
-        >
-          <JobCardSlides
-            job={it.job}
-            status={p.appsByJobId[it.jobId] ?? "saved"}
-            token={p.token}
-            active={activeId === it.jobId}
-            cartSkillNames={p.cartSkillNames}
-            otherRoles={otherRolesFor(p.allItems, it)}
-            onStatus={(s) => p.onStatus(it.jobId, s)}
-            onSkillToggle={p.onSkillToggle}
-            onJump={jumpTo}
-          />
-        </section>
+          job={it.job}
+          status={p.appsByJobId[it.jobId] ?? "saved"}
+          token={p.token}
+          active={expandedId === it.jobId}
+          expanded={expandedId === it.jobId}
+          cartSkillNames={p.cartSkillNames}
+          otherRoles={otherRolesFor(p.allItems, it)}
+          onStatus={(s) => p.onStatus(it.jobId, s)}
+          onSkillToggle={p.onSkillToggle}
+          onJump={(jobId) => setExpandedId(jobId)}
+          onToggle={() => toggle(it.jobId)}
+        />
       ))}
 
-      {/* Bottom-of-stack: refresh card (Q7). */}
-      <section className="db-feed-card db-feed-end">
+      <div className="db-feed-end">
         <div className="db-end-inner">
           <div className="db-end-title">That&rsquo;s all {p.items.length}.</div>
           <p className="db-end-sub">Refresh after the next market batch for fresh matches.</p>
@@ -108,15 +70,7 @@ export function MobileFeed(p: MobileFeedProps) {
             Refresh matches →
           </button>
         </div>
-      </section>
-
-      <button type="button" className="db-feed-handle" onClick={() => setSheetOpen(true)}>
-        {p.items.length} in feed ⌄
-      </button>
-
-      {sheetOpen ? (
-        <IndexSheet items={p.items} currentJobId={activeId} onJump={jumpTo} onClose={() => setSheetOpen(false)} />
-      ) : null}
+      </div>
     </div>
   )
 }

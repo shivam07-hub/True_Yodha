@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import {
   AUTHED_NAV,
   deriveNavUnlockCtx,
-  isFirstRun,
+  firstRunFromData,
   isNavItemUnlocked,
   visibleNavItems,
   type NavItem,
@@ -156,7 +156,9 @@ export function useNavUnlocks(): NavUnlocksVm {
 
   return {
     ctx,
-    firstRun: isFirstRun(ctx),
+    // Proven-only: not-first-run until BOTH queries resolve, so a returning
+    // user never flashes the first-run promise pill mid-load (grill Q3).
+    firstRun: firstRunFromData(versions, profile),
     hasCv: profile?.has_cv ?? false,
     loading: versionsLoading || profileLoading,
     visibleDesktop: visibleNavItems("desktop", ctx),

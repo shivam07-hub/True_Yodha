@@ -91,14 +91,6 @@ export const FAILURE_COPY: Record<FailureKind, FailureCopy> = {
   },
 }
 
-/** Progressive loading reassurance — shown under a skeleton once it's slow. */
-export const LOADING_PHASE_COPY = {
-  /** >3s — the skeleton is alive, just slow. */
-  slow: "Loading your dashboard…",
-  /** >8s — set the expectation that it's longer than usual, without alarm. */
-  stuck: "Still working — this is taking longer than usual.",
-} as const
-
 /** Append next to any 5xx surface so support can trace the exact request. */
 export function traceRefLine(traceId: string | null | undefined): string | null {
   if (!traceId) return null
