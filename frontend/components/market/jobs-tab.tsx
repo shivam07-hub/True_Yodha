@@ -42,13 +42,13 @@ function StatCard({
         textAlign: "left", cursor: onClick ? "pointer" : "default",
         background: active ? "var(--tm-int-bg-wash)" : "var(--tm-surface)",
         border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
-        borderRadius: "var(--tm-radius-lg)", padding: "18px 20px",
-        display: "flex", flexDirection: "column", gap: 6, minWidth: 0,
+        borderRadius: "var(--tm-radius-lg)", padding: "12px 16px",
+        display: "flex", flexDirection: "column", gap: 4, minWidth: 0,
         transition: "border-color 120ms ease, background 120ms ease",
       }}
     >
       <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 22, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>
+      <span style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>
       {sub ? <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>{sub}</span> : null}
     </button>
   )
@@ -68,7 +68,7 @@ function StatCards({
   const topRole: NameCountItem | undefined = analytics.by_role?.[0]
   const topCountry: NameCountItem | undefined = analytics.by_location_country?.[0]
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14, marginTop: 18 }} className="tm-feed-statcards">
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 16 }} className="tm-feed-statcards">
       <StatCard label="Live jobs" value={analytics.total_jobs.toLocaleString()} sub="in your market" onClick={onClear} active={activeKind === "all"} />
       <StatCard label="Top hiring" value={topCompany?.name ?? "—"} sub={topCompany ? `${topCompany.count} open` : undefined} onClick={topCompany ? () => onCompany(topCompany.name) : undefined} active={activeKind === "company"} />
       <StatCard label="Hot role" value={topRole?.name ?? "—"} sub={topRole ? `${topRole.count} open` : undefined} onClick={topRole ? () => onRole(topRole.name) : undefined} active={activeKind === "role"} />
@@ -433,19 +433,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   return (
     <div>
-      {analytics ? (
-        <StatCards
-          analytics={analytics}
-          activeKind={activeStatKind}
-          onClear={clearAll}
-          onCompany={name => { setPinnedRole(null); onSelectCluster(null); setSearchInput(name); setQ(name) }}
-          onRole={role => { onSelectCluster(null); setSearchInput(""); setQ(""); setPinnedRole(role) }}
-          onCountry={country => { onCountry(country) }}
-        />
-      ) : null}
-
-      {/* Search + sort */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 18, flexWrap: "wrap" }} className="tm-feed-searchrow">
+      {/* Search + sort — the primary action surface leads the page. */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }} className="tm-feed-searchrow">
         <input
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
@@ -489,6 +478,18 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           </select>
         ) : null}
       </div>
+
+      {/* Market stats — ambient context under the filters, not the page hero. */}
+      {analytics ? (
+        <StatCards
+          analytics={analytics}
+          activeKind={activeStatKind}
+          onClear={clearAll}
+          onCompany={name => { setPinnedRole(null); onSelectCluster(null); setSearchInput(name); setQ(name) }}
+          onRole={role => { onSelectCluster(null); setSearchInput(""); setQ(""); setPinnedRole(role) }}
+          onCountry={country => { onCountry(country) }}
+        />
+      ) : null}
 
       {/* Feed */}
       <div style={{ marginTop: 8 }}>
