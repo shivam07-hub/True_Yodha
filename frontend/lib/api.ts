@@ -2339,6 +2339,29 @@ export const newsletter = {
     }),
 }
 
+// ── Home bootstrap (BFF) ────────────────────────────────────────────────────
+// One round-trip that returns the whole above-the-fold dashboard bundle, so the
+// client makes a single call instead of ~9 to paint home. Each field mirrors the
+// payload of its standalone endpoint; the client seeds its TanStack cache from
+// this bundle (see useHomeBootstrap).
+export interface HomeBootstrapResponse {
+  profile: UserProfile
+  score: ScoreResponse | null
+  matches: JobMatchesResponse
+  applications: ApplicationResponse[]
+  evidence: CVEvidenceSummary
+  cv_versions: { versions: CVVersion[] }
+  forge_dates: { dates: string[] }
+  diary: DiaryHistoryResponse
+}
+
+export const home = {
+  bootstrap: (token: string) =>
+    request<HomeBootstrapResponse>("/home/bootstrap", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")

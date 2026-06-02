@@ -26,6 +26,7 @@ import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreakFromDates } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
 import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
@@ -42,46 +43,53 @@ function MissionControlInner() {
 
   const refreshVm = useJobRefresh(token, queryClient)
 
+  // BFF: one /home/bootstrap call seeds every dashboard query below. The leaf
+  // queries are gated on it settling, so a cold load paints from a single
+  // round-trip. On bootstrap error, `settled` still flips and the leaves fall
+  // back to fetching themselves (pre-BFF behaviour).
+  const bootstrap = useHomeBootstrap(token)
+  const bootstrapSettled = bootstrap.settled
+
   const { data: scoreData, isLoading: scoreLoading, error: scoreErr, refetch: refetchScore, dataUpdatedAt: scoreUpdatedAt } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
   const { data: profile, isLoading: profileLoading, error: profileErr, refetch: refetchProfile, dataUpdatedAt: profileUpdatedAt } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: 10 * 60 * 1000,
   })
   const { data: jobsData, isLoading: jobsLoading, isError: jobsIsError, error: jobsErr, refetch: refetchJobs } = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: MATCHES_TTL,
   })
   const { data: applications } = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
   const historyQuery = useQuery({
     queryKey: dataKeys.diary(),
     queryFn: () => diary.history(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
   })
   const { data: evidenceData } = useQuery({
     queryKey: dataKeys.cvEvidence(),
     queryFn: () => cv.evidence(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
   // Practice streak — reads real forge sessions (diary streak retired with the rail).
   const forgeSessionsQuery = useQuery({
     queryKey: ["forge-session-dates", token],
     queryFn: () => xp.forgeSessionDates(token!),
-    enabled: !!token,
+    enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -189,7 +197,9 @@ function MissionControlInner() {
   // streak/delta degrade in from history/evidence (computeStreak([]) = 0 until
   // they arrive). The only thing that must resolve before we pick a LAYOUT is
   // cv.versions (first-run vs returning), handled by the nav.loading gate below.
-  const coreLoading = scoreLoading || profileLoading
+  // Gated leaf queries report isLoading=false while disabled, so the bootstrap
+  // in-flight window is the real "core loading" signal on a cold load.
+  const coreLoading = !bootstrapSettled || scoreLoading || profileLoading
   const coreError = scoreErr ?? profileErr ?? null
 
   // Stale-while-error: if a refresh failed but persisted cache already gave us
