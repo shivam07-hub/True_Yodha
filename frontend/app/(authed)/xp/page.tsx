@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 const quickActions = [
-  { href: "/skills", label: "Practice XP", detail: "Claim XP while Practice builds in the background." },
+  { href: "/forge", label: "Practice XP", detail: "Claim XP while Practice builds in the background." },
   { href: "/cv", label: "Build your CV", detail: "Keep your baseline evidence current." },
   { href: "/market", label: "Use Live Job Data", detail: "Spend XP only when heavier analysis completes." },
 ]

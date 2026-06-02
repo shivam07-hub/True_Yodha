@@ -113,7 +113,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
           <div className="csp-done-actions">
             {done.downloadSlot}
             <Link
-              href={done.biggestDragDomain ? `/skills?domain=${encodeURIComponent(done.biggestDragDomain)}` : "/skills"}
+              href={done.biggestDragDomain ? `/forge?view=map&domain=${encodeURIComponent(done.biggestDragDomain)}` : "/forge"}
               className="csp-done-cta-secondary tm-control-focus"
             >
               {done.biggestDragDomain ? `Improve ${done.biggestDragDomain} →` : "See your full breakdown →"}
@@ -121,7 +121,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
           </div>
         ) : (
           <Link
-            href={done.biggestDragDomain ? `/skills?domain=${encodeURIComponent(done.biggestDragDomain)}` : "/skills"}
+            href={done.biggestDragDomain ? `/forge?view=map&domain=${encodeURIComponent(done.biggestDragDomain)}` : "/forge"}
             className="csp-done-cta tm-control-focus"
           >
             {done.biggestDragDomain ? `Improve ${done.biggestDragDomain} →` : "See your full breakdown →"}

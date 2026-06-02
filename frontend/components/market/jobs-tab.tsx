@@ -479,6 +479,13 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         ) : null}
       </div>
 
+      {/* Live job-data scope — sits under the filters where it belongs. */}
+      {analytics ? (
+        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginTop: 14, letterSpacing: "0.06em" }}>
+          {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
+        </div>
+      ) : null}
+
       {/* Market stats — ambient context under the filters, not the page hero. */}
       {analytics ? (
         <StatCards

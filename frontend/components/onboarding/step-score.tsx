@@ -143,7 +143,7 @@ export function StepScore({ score, token }: Props) {
           }}
         />
         <button
-          onClick={() => router.push("/skills")}
+          onClick={() => router.push("/forge")}
           style={{
             width: "100%", padding: "12px",
             background: "transparent", border: "1px solid var(--tm-border)",

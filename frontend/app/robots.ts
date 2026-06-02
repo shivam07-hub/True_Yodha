@@ -31,7 +31,6 @@ export default function robots(): MetadataRoute.Robots {
           "/onboarding",
           "/profile/",
           "/signup",
-          "/skills",
           "/xp",
         ],
       },
