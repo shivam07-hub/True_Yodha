@@ -450,9 +450,12 @@ function IntelPageInner() {
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
-  const [locationCity, setLocationCity] = useState("")
-  const [locationCountry, setLocationCountry] = useState("")
-  const [locationMode, setLocationMode] = useState("")
+  // Intel/heatmap analytics stay on the FULL market (facets are unscoped); the
+  // job feed is scoped server-side from the user's saved location prefs. The UI
+  // no longer re-asks for geo, so these are fixed empty here.
+  const locationCity = ""
+  const locationCountry = ""
+  const locationMode = ""
   const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">("jobs")
 
   // Sync XP balance if not yet set from another page visit
@@ -705,6 +708,13 @@ function IntelPageInner() {
     <>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .tm-market-live-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: var(--tm-accent, var(--tm-interactive));
+          box-shadow: 0 0 8px var(--tm-accent-glow, var(--tm-interactive));
+          animation: pulse 1.6s infinite;
+        }
+        @media (prefers-reduced-motion: reduce) { .tm-market-live-dot { animation: none; } }
         @media (max-width: 768px) {
           .tm-intel-page {
             padding: 22px 18px 96px !important;
@@ -750,18 +760,14 @@ function IntelPageInner() {
         }
       `}</style>
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
-        <div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>career intelligence</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: "var(--tm-text)", letterSpacing: "-0.01em" }}>Live Job Data</h1>
-          {analytics && (
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginTop: 6, letterSpacing: "0.06em" }}>
-              {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
-            </div>
-          )}
+        {/* No header text — a single pulsing dot signals "live" (show, don't tell). */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <span className="tm-market-live-dot" aria-hidden="true" />
+          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>live</span>
         </div>
 
         {/* Jobs | Heatmap tab switcher */}
-        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, marginTop: 20, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
+        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, marginTop: 16, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
           {TABS.map(t => {
             const on = activeTab === t.key
             return (
@@ -793,12 +799,7 @@ function IntelPageInner() {
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}
             onSelectCluster={setSelectedCluster}
-            locationCity={locationCity}
-            locationCountry={locationCountry}
-            locationMode={locationMode}
-            onCity={setLocationCity}
-            onCountry={setLocationCountry}
-            onMode={setLocationMode}
+            targetLocations={profileData?.target_locations ?? []}
             followedNames={followedNames}
             onToggleFollow={handleToggleFollow}
             followLimit={MAX_FOLLOWED}

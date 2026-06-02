@@ -32,7 +32,7 @@ import {
 import "./settings-modal.css"
 
 type Tab = "Account" | "Following" | "Feedback" | "Billing"
-type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "linkedin_url">
+type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "target_locations" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
 
@@ -96,6 +96,16 @@ const normalizeRoles = (roles: string[]): string[] => {
   return roles.reduce<string[]>((acc, r) => {
     const t = r.trim()
     if (!t || seen.has(t.toLowerCase()) || acc.length >= MAX_TARGET_ROLES) return acc
+    seen.add(t.toLowerCase())
+    return [...acc, t]
+  }, [])
+}
+const MAX_TARGET_LOCATIONS = 5
+const normalizeLocations = (locations: string[]): string[] => {
+  const seen = new Set<string>()
+  return locations.reduce<string[]>((acc, loc) => {
+    const t = loc.trim()
+    if (!t || seen.has(t.toLowerCase()) || acc.length >= MAX_TARGET_LOCATIONS) return acc
     seen.add(t.toLowerCase())
     return [...acc, t]
   }, [])
@@ -201,7 +211,8 @@ export function SettingsModal({ open, onClose, profile }: {
 
   // Account tab state
   const [name, setName] = useState("")
-  const [location, setLocation] = useState("")
+  const [locations, setLocations] = useState<string[]>([])
+  const [locationInput, setLocationInput] = useState("")
   const [linkedin, setLinkedin] = useState("")
   const [roles, setRoles] = useState<string[]>([])
   const [roleInput, setRoleInput] = useState("")
@@ -235,16 +246,19 @@ export function SettingsModal({ open, onClose, profile }: {
   useEffect(() => {
     if (!open) return
     setName(profile?.full_name ?? "")
-    setLocation(profile?.target_location ?? "")
+    setLocations(
+      profile?.target_locations?.filter((l) => l.trim())
+      ?? (profile?.target_location ? [profile.target_location] : [])
+    )
     setLinkedin(profile?.linkedin_url ?? "")
     setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
     setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
-    setLocationDropdown(false); setLocationFocused(false)
+    setLocationInput(""); setLocationDropdown(false); setLocationFocused(false)
     setSaveStatus("idle"); setSaveError(null); setRewardNotice(null)
     setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
-  }, [open, profile?.full_name, profile?.target_location, profile?.linkedin_url, profile?.target_roles])
+  }, [open, profile?.full_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url, profile?.target_roles])
 
   useEffect(() => () => {
     if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current)
@@ -340,7 +354,7 @@ export function SettingsModal({ open, onClose, profile }: {
     if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null }
     const payload: ProfileUpdate = {
       full_name: normalize(name),
-      target_location: normalize(location),
+      target_locations: normalizeLocations(locations),
       linkedin_url: normalizeLinkedIn(linkedin),
       target_roles: normalizeRoles(roles),
     }
@@ -382,7 +396,9 @@ export function SettingsModal({ open, onClose, profile }: {
       .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
     const countryOptions = (locationCatalogQuery.data?.by_location_country ?? [])
       .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
-    const merged = [...cityOptions, ...countryOptions, "Remote", "Hybrid", "Onsite"]
+    // Mode (Remote/Hybrid/Onsite) is intentionally not a location — geo prefs
+    // are city/country only.
+    const merged = [...cityOptions, ...countryOptions]
     const seen = new Set<string>()
     return merged.reduce<string[]>((acc, entry) => {
       const normalized = entry.toLowerCase()
@@ -392,17 +408,29 @@ export function SettingsModal({ open, onClose, profile }: {
     }, [])
   }, [locationCatalogQuery.data])
 
+  const locationsAtMax = locations.length >= MAX_TARGET_LOCATIONS
   const locationSuggestions = useMemo(() => {
-    const needle = location.trim().toLowerCase()
-    if (!needle) return locationCatalog.slice(0, 10)
-    return locationCatalog.filter((entry) => entry.toLowerCase().includes(needle)).slice(0, 10)
-  }, [location, locationCatalog])
+    const chosen = new Set(locations.map((l) => l.toLowerCase()))
+    const pool = locationCatalog.filter((entry) => !chosen.has(entry.toLowerCase()))
+    const needle = locationInput.trim().toLowerCase()
+    if (!needle) return pool.slice(0, 10)
+    return pool.filter((entry) => entry.toLowerCase().includes(needle)).slice(0, 10)
+  }, [locationInput, locationCatalog, locations])
 
-  function selectLocation(nextLocation: string) {
-    setLocation(nextLocation)
-    schedule({ target_location: normalize(nextLocation) })
-    setLocationDropdown(false)
+  function handleLocationsChange(next: string[]) {
+    const cleaned = normalizeLocations(next)
+    setLocations(cleaned)
+    schedule({ target_locations: cleaned })
+  }
+  function selectLocation(loc: string) {
+    if (locationsAtMax) return
+    if (locations.some((l) => l.toLowerCase() === loc.toLowerCase())) return
+    handleLocationsChange([...locations, loc])
+    setLocationInput(""); setLocationDropdown(false)
     locationInputRef.current?.focus()
+  }
+  function removeLocation(i: number) {
+    handleLocationsChange(locations.filter((_, idx) => idx !== i))
   }
 
   async function handleBuyXP() {
@@ -777,18 +805,19 @@ export function SettingsModal({ open, onClose, profile }: {
                 {/* Target location */}
                 <div style={ROW_STYLE}>
                   <div>
-                    <div style={ROW_LABEL}>Target Location</div>
-                    <div style={ROW_DESC}>Where you want to work — filters job matches</div>
+                    <div style={ROW_LABEL}>Target Locations</div>
+                    <div style={ROW_DESC}>Where you want to work — scopes your job feed and matches</div>
                   </div>
                   <div style={{ position: "relative" }}>
                     <input
-                      ref={locationInputRef} id="sm-location" type="text" value={location}
+                      ref={locationInputRef} id="sm-location" type="text" value={locationInput}
                       role="combobox" aria-expanded={locationDropdown && locationSuggestions.length > 0}
-                      aria-controls="sm-location-listbox" aria-autocomplete="list" aria-label="Search target location"
-                      onChange={(e) => { setLocation(e.target.value); schedule({ target_location: normalize(e.target.value) }); setLocationDropdown(true) }}
+                      aria-controls="sm-location-listbox" aria-autocomplete="list" aria-label="Search target locations"
+                      onChange={(e) => { setLocationInput(e.target.value); setLocationDropdown(true) }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (locationSuggestions[0]) selectLocation(locationSuggestions[0]) } if (e.key === "Escape") setLocationDropdown(false) }}
-                      placeholder="City, country, or Remote"
-                      style={{ ...INPUT_STYLE, borderColor: locationFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)" }}
+                      placeholder={locationsAtMax ? `Max ${MAX_TARGET_LOCATIONS} selected` : "Add a city or country…"}
+                      disabled={locationsAtMax} autoComplete="off"
+                      style={{ ...INPUT_STYLE, borderColor: locationFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)", opacity: locationsAtMax ? 0.45 : 1 }}
                       onFocus={(e) => { setLocationFocused(true); setLocationDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
                       onBlur={(e) => { locationCloseTimer.current = setTimeout(() => setLocationDropdown(false), 150); setLocationFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
                     />
@@ -799,7 +828,7 @@ export function SettingsModal({ open, onClose, profile }: {
                         style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
                       >
                         {locationSuggestions.map((entry) => (
-                          <button key={entry} type="button" role="option" aria-selected={entry === location} onClick={() => selectLocation(entry)}
+                          <button key={entry} type="button" role="option" aria-selected={false} onClick={() => selectLocation(entry)}
                             style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
@@ -808,15 +837,17 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
-                  {location.trim() && (
+                  {locations.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
-                        <span style={{ fontWeight: 500 }}>{location.trim()}</span>
-                        <button
-                          type="button" onClick={() => selectLocation("")} aria-label="Clear location"
-                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
-                        >×</button>
-                      </div>
+                      {locations.map((loc, i) => (
+                        <div key={loc} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
+                          <span style={{ fontWeight: 500 }}>{loc}</span>
+                          <button
+                            type="button" onClick={() => removeLocation(i)} aria-label={`Remove ${loc}`}
+                            style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
+                          >×</button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

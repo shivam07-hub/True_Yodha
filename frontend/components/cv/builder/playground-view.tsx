@@ -440,7 +440,7 @@ export function PlaygroundView({
 
           {gap.skills && gap.skills.length === 0 && (
             <Link
-              href="/skills"
+              href="/forge"
               style={{
                 marginTop: 8, padding: 12, border: "1px dashed var(--tm-border-soft)",
                 borderRadius: 8, textAlign: "center", fontSize: 11.5,
@@ -539,7 +539,7 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
         )}
       </div>
       {missing.length > 0 ? (
-        <Link href="/skills" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
+        <Link href="/forge" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
           <Icon name="sparkle" size={12}/> Practice them
         </Link>
       ) : null}

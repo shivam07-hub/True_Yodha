@@ -277,7 +277,22 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - Dashboard job-card autonomy)
+## LAST SESSION SUMMARY (2026-06-02 - Daily social push automation)
+
+Set up the long-term daily social publishing workflow around the latest Myro Newsletter issue.
+
+- Verified Perplexity Comet has usable social routes: X profile `https://x.com/himyro` and LinkedIn company admin `https://www.linkedin.com/company/118214305/admin/dashboard/`.
+- Saved those durable routes in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md` under **Freshest Social Paths**.
+- Captured that `/company/himyro/admin/` is currently a dead LinkedIn slug and the numeric company ID path is the long-term working route for **HiMyro Career Intelligence**.
+- Updated heartbeat automation `daily-himyro-linkedin-post` into **Daily Himyro social push** at 10:00 AM IST.
+- New automation scope: each day create five distinct X thread drafts and one LinkedIn company-page post draft with the latest newsletter image, validate URLs/images, add UTM parameters, save to `growth-agent/outbox/`, and publish through Comet only when logged in and approved in-thread.
+
+Validation:
+
+- Confirmed automation TOML updated under `/Users/incognito/.codex/automations/daily-himyro-linkedin-post/automation.toml`.
+- `git diff --check` -> clean
+
+## OLDER SESSION SUMMARY (2026-06-01 - Dashboard job-card autonomy)
 
 Added durable user-controlled removal for Home dashboard job cards.
 

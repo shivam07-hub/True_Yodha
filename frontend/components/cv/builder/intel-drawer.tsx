@@ -96,8 +96,8 @@ export function IntelDrawer({
             </div>
             {missing.length > 0 && (
               <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
-                <Link href="/skills" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
-                  Forge these gaps in Skills →
+                <Link href="/forge?view=map" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
+                  Practice these gaps →
                 </Link>{" "}
                 to earn XP and unlock new bullet drafts.
               </div>

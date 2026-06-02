@@ -48,6 +48,7 @@ class JobMatchResponse(BaseModel):
     location_country: str | None = None
     location_mode: str | None = None
     location_quality: str | None = None
+    locations: list[str] = []
     industry: str | None = None
     remote: bool
     overlap_score: float                # 0–100 (deterministic skill overlap)
@@ -382,6 +383,7 @@ class JobFeedItem(BaseModel):
     location_country: str | None = None
     location_mode: str | None = None
     location_quality: str | None = None
+    locations: list[str] = []  # per-city array for multi-location postings (firecrawl #6)
     role_domain: str | None = None
     industry: str | None = None
     source_url: str | None = None

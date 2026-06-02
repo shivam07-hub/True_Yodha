@@ -70,7 +70,7 @@ export function GhostRadar({ domains, refNinjaName }: GhostRadarProps) {
         e.preventDefault()
         signup.open({
           surface: "ghost_radar",
-          next: "/skills",
+          next: "/forge",
           source: `ref:${refNinjaName}`,
         })
       }}

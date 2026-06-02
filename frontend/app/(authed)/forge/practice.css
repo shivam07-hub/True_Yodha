@@ -22,46 +22,101 @@
   gap: 18px;
 }
 
-/* ── Header ── */
-.tm-pr-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  flex-wrap: wrap;
+/* ── Persistent Skill-Intelligence header (all tabs) ── */
+.tm-pv-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px; flex-wrap: wrap;
 }
-.tm-pr-title-btn {
-  margin: 0; padding: 0; background: transparent; border: none;
-  cursor: pointer; text-align: left;
-  font-family: var(--tm-font-display);
+.tm-pv-head-id { min-width: 0; flex: 1; }
+.tm-pr-title {
+  margin: 0 0 4px; font-family: var(--tm-font-display);
   font-size: 44px; line-height: 1; font-weight: 500;
   color: var(--tm-text); letter-spacing: var(--tm-tracking-tight);
-  display: inline-flex; align-items: center; gap: 12px;
 }
-.tm-pr-run {
-  font-family: var(--tm-font-mono); font-size: 13px; font-weight: 600;
-  padding: 3px 9px; border-radius: 999px;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--tm-text-faint);
-  border: 1px solid var(--tm-border-soft);
+.tm-pv-head-meta { margin: 0; color: var(--tm-text-faint); font-size: 13px; }
+.tm-pv-head-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+/* ── Stat tiles — compact row on desktop, 2×2 on mobile ── */
+.tm-skills-stat-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
 }
-.tm-pr-run.is-running {
-  background: var(--tm-int-bg-wash); color: var(--tm-interactive);
-  border-color: var(--tm-int-border);
+.tm-skills-stat-tile {
+  appearance: none; text-align: left; font-family: inherit; cursor: default;
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius);
+  background: var(--tm-surface); color: var(--tm-text);
+  padding: 12px 14px; transition: background 160ms var(--tm-ease), border-color 160ms var(--tm-ease);
 }
-.tm-pr-sub {
-  margin-top: 9px;
-  font-family: var(--tm-font-mono); font-size: 12px;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--tm-text-faint);
+button.tm-skills-stat-tile { cursor: pointer; }
+button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color: var(--tm-int-border-soft); }
+.tm-skills-stat-tile .label {
+  display: block; color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
 }
-.tm-pr-bridge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 600; color: var(--tm-text-faint);
-  text-decoration: none;
+.tm-skills-stat-tile .value {
+  display: block; color: var(--tm-text); font-size: 28px; line-height: 1;
+  font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
 }
-.tm-pr-bridge:hover { color: var(--tm-interactive); }
+.tm-skills-stat-tile .value.warning { color: var(--tm-tier-building-fg); }
+.tm-skills-stat-tile .meta { display: block; color: var(--tm-text-muted); font-size: 11px; margin-top: 6px; }
+
+/* ── Practice-weighted view toggle ── */
+.tm-pv-toggle {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--tm-surface-2); border: 1px solid var(--tm-border-soft);
+  border-radius: 999px; align-self: flex-start;
+}
+.tm-pv-seg {
+  display: inline-flex; align-items: center; gap: 7px; position: relative;
+  height: 34px; padding: 0 14px; border: none; border-radius: 999px;
+  background: transparent; color: var(--tm-text-faint);
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 120ms var(--tm-ease), color 120ms var(--tm-ease);
+}
+.tm-pv-seg.is-primary { padding: 0 18px; font-weight: 750; }
+.tm-pv-seg:hover { color: var(--tm-text-muted); }
+.tm-pv-seg.is-active { background: var(--tm-int-bg-wash); color: var(--tm-interactive); }
+.tm-pv-seg.is-primary.is-active { background: var(--tm-interactive); color: var(--tm-interactive-fg); }
+.tm-pv-glyph { font-size: 12px; }
+.tm-pv-live {
+  width: 7px; height: 7px; border-radius: 999px; background: var(--tm-interactive);
+  box-shadow: 0 0 7px var(--tm-int-bg-hover); animation: tm-pv-pulse 1.6s ease-in-out infinite;
+}
+.tm-pv-seg.is-primary.is-active .tm-pv-live { background: var(--tm-interactive-fg); box-shadow: none; }
+@keyframes tm-pv-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── Map tab — radar + drill panel ── */
+.tm-pv-map {
+  display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start;
+}
+.tm-pv-map-radar, .tm-pv-drill-card {
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg); padding: 20px;
+}
+.tm-pv-map-hint { font-size: 12px; color: var(--tm-text-faint); margin-bottom: 16px; }
+.tm-pv-map-empty { height: 200px; display: grid; place-items: center; font-size: 12px; color: var(--tm-text-faint); }
+.tm-pv-map-info {
+  margin-top: 12px; padding: 10px 12px; display: flex; gap: 8px;
+  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); font-size: 10px; line-height: 1.5; color: var(--tm-text-faint);
+}
+.tm-pv-drill-empty {
+  min-height: 200px; display: grid; place-items: center; text-align: center;
+  border: 1.5px dashed var(--tm-border-soft); border-radius: var(--tm-radius-lg);
+  color: var(--tm-text-faint); font-size: 13px; padding: 24px;
+}
+.tm-pv-drill-head { margin-bottom: 14px; }
+.tm-pv-drill-name { margin: 4px 0 2px; font-size: 20px; font-weight: 700; color: var(--tm-text); }
+.tm-pv-drill-sub { font-size: 12px; color: var(--tm-text-faint); }
+.tm-pv-drill-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tm-pv-drill-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius); background: rgba(255, 255, 255, 0.02);
+}
+.tm-pv-drill-skill { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.tm-pv-drill-skill-name { font-size: 14px; font-weight: 600; color: var(--tm-text); }
+.tm-pv-drill-skill-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--tm-text-faint); }
 
 /* ── Forge hero ── */
 .tm-pr-hero {
@@ -242,7 +297,24 @@
 @media (max-width: 768px) {
   .tm-pr-hero { grid-template-columns: 1fr; }
   .tm-pr-gap-body { padding-left: 14px; }
+
+  .tm-pr-title { font-size: 34px; }
+  .tm-pv-head-meta { display: none; }
+
+  /* Stat tiles → 2×2 */
+  .tm-skills-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Toggle full-width, 3 even segments */
+  .tm-pv-toggle { display: flex; width: 100%; }
+  .tm-pv-seg, .tm-pv-seg.is-primary { flex: 1; justify-content: center; padding: 0 8px; }
+
+  /* Map stacks: radar over drill */
+  .tm-pv-map { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) {
+  .tm-pv-seg { font-size: 12px; gap: 5px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tm-pr-dial-breath, .tm-pr-row-body { animation: none; }
+  .tm-pv-live { animation: none; }
 }

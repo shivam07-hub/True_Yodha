@@ -17,6 +17,19 @@ The backend now owns the durable campaign layer:
 It does not auto-send email or auto-post to social. That is deliberate. The
 agent prepares drafts and queue rows; humans approve public distribution.
 
+## Freshest Social Paths
+
+Last verified: 2026-06-02 in Perplexity Comet.
+
+- X profile: `https://x.com/himyro`
+- X composer: `https://x.com/compose/post`
+- LinkedIn company admin: `https://www.linkedin.com/company/118214305/admin/dashboard/`
+- LinkedIn page posts: `https://www.linkedin.com/company/118214305/admin/page-posts/published`
+
+Do not use `https://www.linkedin.com/company/himyro/admin/`; LinkedIn currently
+redirects that slug to an unavailable page. The durable working company path is
+the numeric page ID above for **HiMyro Career Intelligence**.
+
 ## Environment
 
 Set this in the backend environment before using the endpoints:

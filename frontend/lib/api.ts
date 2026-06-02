@@ -239,6 +239,7 @@ export interface UserProfile {
   linkedin_url: string | null
   target_roles: string[]
   target_location: string | null
+  target_locations: string[]
   deal_breakers: string[]
   career_goal: string | null
   superpower: string | null
@@ -266,6 +267,7 @@ export interface ProfileUpdate {
   linkedin_url?: string | null
   target_roles?: string[] | null
   target_location?: string | null
+  target_locations?: string[] | null
   deal_breakers?: string[] | null
   career_goal?: string | null
   superpower?: string | null
@@ -1267,6 +1269,7 @@ export interface JobMatch {
   location_country?: string | null
   location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
   location_quality?: "ok" | "unknown" | null
+  locations?: string[]
   industry?: string | null
   remote: boolean
   overlap_score: number
@@ -1527,6 +1530,7 @@ export interface JobFeedItem {
   location_country?: string | null
   location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
   location_quality?: "ok" | "unknown" | null
+  locations?: string[]
   role_domain?: string | null
   industry?: string | null
   source_url?: string | null
