@@ -55,13 +55,12 @@ function StatCard({
 }
 
 function StatCards({
-  analytics, onClear, onCompany, onRole, onCountry, activeKind,
+  analytics, onClear, onCompany, onRole, activeKind,
 }: {
   analytics: MarketAnalytics
   onClear: () => void
   onCompany: (name: string) => void
   onRole: (role: string) => void
-  onCountry: (country: string) => void
   activeKind: "all" | "company" | "role" | "country" | null
 }) {
   const topCompany: NameCountItem | undefined = analytics.by_company?.[0]
@@ -72,7 +71,7 @@ function StatCards({
       <StatCard label="Live jobs" value={analytics.total_jobs.toLocaleString()} sub="in your market" onClick={onClear} active={activeKind === "all"} />
       <StatCard label="Top hiring" value={topCompany?.name ?? "—"} sub={topCompany ? `${topCompany.count} open` : undefined} onClick={topCompany ? () => onCompany(topCompany.name) : undefined} active={activeKind === "company"} />
       <StatCard label="Hot role" value={topRole?.name ?? "—"} sub={topRole ? `${topRole.count} open` : undefined} onClick={topRole ? () => onRole(topRole.name) : undefined} active={activeKind === "role"} />
-      <StatCard label="Near you" value={topCountry?.name ?? "—"} sub={topCountry ? `${topCountry.count} open` : undefined} onClick={topCountry ? () => onCountry(topCountry.name) : undefined} active={activeKind === "country"} />
+      <StatCard label="Near you" value={topCountry?.name ?? "—"} sub={topCountry ? `${topCountry.count} open` : undefined} active={activeKind === "country"} />
     </div>
   )
 }
@@ -125,10 +124,14 @@ function LocationLine({ job }: { job: JobFeedItem }) {
   const loc = job.location?.trim() || null
   const mode = job.location_mode && job.location_mode !== "unknown" ? job.location_mode : null
   const showMode = mode && (!loc || !loc.toLowerCase().includes(mode))
-  if (!loc && !showMode) return null
+  // Real per-city array (firecrawl #6) wins over the "N Locations" count phrase.
+  const cities = (job.locations ?? []).filter(c => c && c.trim())
+  if (!loc && cities.length === 0 && !showMode) return null
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tm-text-muted)" }}>
-      {loc ? <span>{loc}</span> : null}
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tm-text-muted)", flexWrap: "wrap" }}>
+      {cities.length > 0
+        ? cities.map(c => <span key={c}>{c}</span>)
+        : loc ? <span>{loc}</span> : null}
       {showMode ? (
         <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-faint)" }}>
           {MODE_LABEL[mode!] ?? mode}
@@ -334,12 +337,7 @@ export interface MarketJobsTabProps {
   chipCountMap: Record<string, number>
   selectedCluster: string | null
   onSelectCluster: (cluster: string | null) => void
-  locationCity: string
-  locationCountry: string
-  locationMode: string
-  onCity: (v: string) => void
-  onCountry: (v: string) => void
-  onMode: (v: string) => void
+  targetLocations: string[]
   followedNames: string[]
   onToggleFollow: (name: string) => void
   followLimit: number
@@ -352,7 +350,7 @@ const XP_FLOOR = -30
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
     token, analytics, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
-    locationCity, locationCountry, locationMode, onCity, onCountry, onMode,
+    targetLocations,
     followedNames, onToggleFollow, followLimit, xpBalance,
   } = props
 
@@ -369,15 +367,14 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [searchInput])
 
   const feed = useInfiniteQuery({
-    queryKey: ["jobFeed", token, selectedCluster ?? "", pinnedRole ?? "", q, locationCity, locationCountry, locationMode, sort],
+    // Location scope is fixed from settings and applied server-side from the
+    // user's saved prefs — the feed no longer sends geo filters.
+    queryKey: ["jobFeed", token, selectedCluster ?? "", pinnedRole ?? "", q, sort],
     queryFn: ({ pageParam = 1 }) =>
       jobs.feed(token, {
         cluster: pinnedRole ? null : selectedCluster,
         roleDomain: pinnedRole,
         q: q || null,
-        locationCity: locationCity || null,
-        locationCountry: locationCountry || null,
-        locationMode: (locationMode || null) as "onsite" | "hybrid" | "remote" | "unknown" | null,
         sort,
         page: pageParam,
         pageSize: 20,
@@ -413,23 +410,18 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const clearAll = useCallback(() => {
     setSearchInput(""); setQ(""); setPinnedRole(null)
-    onSelectCluster(null); onCity(""); onCountry(""); onMode("")
-  }, [onSelectCluster, onCity, onCountry, onMode])
+    onSelectCluster(null)
+  }, [onSelectCluster])
 
   const followFull = followedNames.length >= followLimit
   const lowXp = xpBalance - FOLLOW_XP_COST < XP_FLOOR
 
   const activeStatKind: "all" | "company" | "role" | "country" | null = useMemo(() => {
-    const noFilters = !selectedCluster && !pinnedRole && !q && !locationCity && !locationCountry && !locationMode
+    const noFilters = !selectedCluster && !pinnedRole && !q
     if (noFilters) return "all"
     if (pinnedRole) return "role"
-    if (locationCountry && !selectedCluster && !pinnedRole && !q) return "country"
     return null
-  }, [selectedCluster, pinnedRole, q, locationCity, locationCountry, locationMode])
-
-  const cities = analytics?.by_location_city ?? []
-  const countries = analytics?.by_location_country ?? []
-  const modes = analytics?.by_location_mode ?? []
+  }, [selectedCluster, pinnedRole, q])
 
   return (
     <div>
@@ -459,24 +451,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           />
         ))}
         {pinnedRole ? <Pill label={`Role: ${pinnedRole} ✕`} active onClick={() => setPinnedRole(null)} /> : null}
-        {countries.length > 0 ? (
-          <select value={locationCountry} onChange={e => onCountry(e.target.value)} aria-label="Country" style={selectStyle}>
-            <option value="">All countries</option>
-            {countries.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
-          </select>
-        ) : null}
-        {cities.length > 0 ? (
-          <select value={locationCity} onChange={e => onCity(e.target.value)} aria-label="City" style={selectStyle}>
-            <option value="">All cities</option>
-            {cities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
-          </select>
-        ) : null}
-        {modes.length > 0 ? (
-          <select value={locationMode} onChange={e => onMode(e.target.value)} aria-label="Mode" style={selectStyle}>
-            <option value="">All modes</option>
-            {modes.map(m => <option key={m.name} value={m.name}>{MODE_LABEL[m.name] ?? m.name} ({m.count})</option>)}
-          </select>
-        ) : null}
+        <LocationScopePill locations={targetLocations} />
       </div>
 
       {/* Live job-data scope — sits under the filters where it belongs. */}
@@ -494,7 +469,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           onClear={clearAll}
           onCompany={name => { setPinnedRole(null); onSelectCluster(null); setSearchInput(name); setQ(name) }}
           onRole={role => { onSelectCluster(null); setSearchInput(""); setQ(""); setPinnedRole(role) }}
-          onCountry={country => { onCountry(country) }}
         />
       ) : null}
 
@@ -547,9 +521,34 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   )
 }
 
-const selectStyle: React.CSSProperties = {
-  minHeight: 38, padding: "0 12px", borderRadius: 999, border: "1px solid var(--tm-border-soft)",
-  background: "var(--tm-surface)", color: "var(--tm-text)", fontSize: 13, cursor: "pointer",
+// Read-only scope chip: geo is fixed from the user's settings, not re-picked
+// per visit. Tapping opens Settings (the canonical edit surface) via the shared
+// `tm:open-settings` event handled by both the web and mobile chrome.
+function LocationScopePill({ locations }: { locations: string[] }) {
+  const clean = locations.filter(l => l && l.trim())
+  const label = clean.length === 0
+    ? "All locations"
+    : clean.length === 1
+      ? clean[0]
+      : `${clean[0]} +${clean.length - 1}`
+  return (
+    <button
+      type="button"
+      onClick={() => document.dispatchEvent(new Event("tm:open-settings"))}
+      aria-label={clean.length === 0 ? "Set your target locations in settings" : `Target locations: ${clean.join(", ")}. Change in settings`}
+      title={clean.length > 1 ? clean.join(", ") : undefined}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6, minHeight: 38, padding: "0 14px",
+        borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)",
+        color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--tm-int-border)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+    >
+      <span aria-hidden>📍</span>
+      <span>{label}</span>
+    </button>
+  )
 }
 
 function FeedSkeleton({ rows = 4 }: { rows?: number }) {

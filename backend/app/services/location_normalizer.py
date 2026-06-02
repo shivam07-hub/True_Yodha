@@ -187,3 +187,25 @@ def normalize_location(value: Any) -> NormalizedLocation:
         location_mode=mode,
         location_quality=quality,
     )
+
+
+def derive_location_columns(locations: list[str]) -> dict[str, Any]:
+    """Canonical multi-location preference → the four synced profile columns.
+
+    `target_locations` (the freeform labels) is canonical. `target_location` and
+    `target_location_country` are element-0 projections kept for legacy readers;
+    `target_location_countries` is the deduped country set for the country-only
+    match pipeline. One derivation point so the four never drift.
+    """
+    cleaned = [loc.strip() for loc in locations if loc and loc.strip()]
+    countries: list[str] = []
+    for loc in cleaned:
+        country = normalize_location(loc).location_country
+        if country and country not in countries:
+            countries.append(country)
+    return {
+        "target_locations": cleaned,
+        "target_location_countries": countries,
+        "target_location": cleaned[0] if cleaned else None,
+        "target_location_country": countries[0] if countries else None,
+    }

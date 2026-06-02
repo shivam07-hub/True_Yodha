@@ -48,6 +48,8 @@ _feed_personal_cache: dict[
 # Per-user CV skill keys — recomputed on every feed call before this cache.
 _USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
 _user_skill_keys_cache: dict[str, tuple[float, set[str]]] = {}
+_USER_TARGET_LOCATIONS_TTL = 5 * 60  # 5 minutes — prefs change only via Settings
+_user_target_locations_cache: dict[str, tuple[float, list[str]]] = {}
 
 _COMPANY_SEARCH_RPC = "search_job_companies"
 
@@ -225,13 +227,71 @@ def _matches_location_filters(
     country = _norm_filter(row.get("location_country"))
     mode = _norm_filter(row.get("location_mode"))
 
-    if city_filter and (city or "").lower() != city_filter.lower():
-        return False
+    if city_filter:
+        row_cities = {(c or "").strip().lower() for c in (row.get("locations") or [])}
+        # Multi-location rows (firecrawl #6) carry their cities in locations[]
+        # even when the scalar location_city is NULL — match either.
+        if (city or "").lower() != city_filter.lower() and city_filter.lower() not in row_cities:
+            return False
     if country_filter and (country or "").lower() != country_filter.lower():
         return False
     if mode_filter and (mode or "").lower() != mode_filter.lower():
         return False
     return True
+
+
+def _safe_location_token(value: str) -> str | None:
+    """A location value usable inside a PostgREST or() clause.
+
+    or() splits on commas/parens, so any value carrying them is dropped rather
+    than risk a malformed query (mirrors the feed search-term sanitize).
+    """
+    token = (value or "").strip()
+    if not token or "," in token or "(" in token or ")" in token:
+        return None
+    return token
+
+
+def build_location_scope(prefs: list[str] | None) -> tuple[str | None, tuple[str, ...]]:
+    """OR-across-chips location scope for the personal /market feed.
+
+    Each freeform pref label is parsed by normalize_location into a chip. A job
+    matches if it matches ANY chip:
+      - city chip (city resolved): location_city == city OR city ∈ locations[]
+      - country-only chip ("India (All)"): location_country == country
+    Plus: whenever a scope is active, null-country remote/hybrid jobs are
+    included (mirrors the match-pipeline include rule).
+
+    Returns (postgrest_or_clause, signature). The clause is None when prefs are
+    empty or yield no usable chip → no scope (show all). The signature is a
+    stable tuple folded into the feed cache keys.
+    """
+    if not prefs:
+        return None, ()
+    terms: list[str] = []
+    sig: list[str] = []
+    seen_city: set[str] = set()
+    seen_country: set[str] = set()
+    for label in prefs:
+        chip = normalize_location(label)
+        city = _safe_location_token(chip.location_city or "")
+        country = _safe_location_token(chip.location_country or "")
+        if city:
+            # City chip → precise match (scalar or locations[]). A repeat is a
+            # no-op; it must NOT fall through to a broad country-wide term.
+            if city.lower() not in seen_city:
+                seen_city.add(city.lower())
+                terms.append(f"location_city.eq.{city}")
+                terms.append(f"locations.cs.{{{city}}}")
+                sig.append(f"city:{city.lower()}")
+        elif country and country.lower() not in seen_country:
+            seen_country.add(country.lower())
+            terms.append(f"location_country.eq.{country}")
+            sig.append(f"country:{country.lower()}")
+    if not terms:
+        return None, ()
+    terms.append("and(location_country.is.null,location_mode.in.(remote,hybrid))")
+    return ",".join(terms), tuple(sig)
 
 
 class MarketAnalyticsCompiler:
@@ -403,7 +463,7 @@ class JobsRepository:
             table="jobs",
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
-                "location, location_raw, location_city, location_country, location_mode, location_quality, "
+                "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
                 "first_seen, last_seen"
             ),
             query_builder=query_builder,
@@ -834,7 +894,7 @@ class JobsRepository:
             table="jobs",
             columns=(
                 "job_id, job_title, company_name, job_description, "
-                "location, location_raw, location_city, location_country, location_mode, location_quality"
+                "location, location_raw, location_city, location_country, location_mode, location_quality, locations"
             ),
             query_builder=_query_builder,
         )
@@ -904,7 +964,7 @@ class JobsRepository:
 
     _FEED_COLUMNS = (
         "job_id, job_title, company_name, job_description, "
-        "location, location_raw, location_city, location_country, location_mode, location_quality, "
+        "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
         "role_domain, industry, industry_group, apply_url, first_seen, is_active, main_skills"
     )
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
@@ -928,6 +988,7 @@ class JobsRepository:
             "location_country": row.get("location_country"),
             "location_mode": row.get("location_mode"),
             "location_quality": row.get("location_quality"),
+            "locations": [c for c in (row.get("locations") or []) if c and c.strip()],
             "role_domain": row.get("role_domain"),
             "industry": row.get("industry_group") or row.get("industry"),
             "source_url": row.get("apply_url"),
@@ -945,6 +1006,7 @@ class JobsRepository:
         location_city: str | None = None,
         location_country: str | None = None,
         location_mode: str | None = None,
+        location_prefs: list[str] | None = None,
         sort: str = "fresh",
         user_skill_keys: set[str] | None = None,
         page: int = 1,
@@ -955,14 +1017,24 @@ class JobsRepository:
         sort: 'fresh' (first_seen desc, DB-paginated), 'company' (company asc then
         first_seen desc, DB-paginated), 'personal' (CV skill-overlap desc within a
         freshest-N candidate cap, ranked in Python). No LLM scoring.
+
+        location_prefs: the user's saved multi-location preference (freeform
+        labels). When non-empty it supersedes the single city/country/mode
+        filters with an OR-across-chips scope (geo is fixed from settings, not
+        re-picked per visit). Empty → unscoped.
         """
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
         mode = sort if sort in {"fresh", "company", "personal"} else "fresh"
         domain = _norm_filter(role_domain)
-        country = _norm_filter(location_country)
-        city = _norm_filter(location_city)
-        loc_mode = _norm_filter(location_mode)
+        scope_clause, scope_sig = build_location_scope(location_prefs)
+        # Pref scope (fixed-from-settings) supersedes ad-hoc single filters.
+        if scope_clause is not None:
+            country = city = loc_mode = None
+        else:
+            country = _norm_filter(location_country)
+            city = _norm_filter(location_city)
+            loc_mode = _norm_filter(location_mode)
         term = " ".join((q or "").split())
         # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
         # unfiltered cache slot and stay part of the key for ≥2-char terms.
@@ -973,6 +1045,8 @@ class JobsRepository:
             query = query.eq("is_active", True)
             if domain:
                 query = query.eq("role_domain", domain)
+            if scope_clause is not None:
+                query = query.or_(scope_clause)
             if country:
                 query = query.eq("location_country", country)
             if city:
@@ -990,7 +1064,7 @@ class JobsRepository:
 
         if mode == "personal":
             # Rank a bounded freshest candidate set by skill overlap, paginate in Python.
-            pkey = (domain, city, country, loc_mode, effective_term)
+            pkey = (domain, city, country, loc_mode, scope_sig, effective_term)
             cached = _feed_personal_cache.get(pkey)
             if cached is not None and (now - cached[0]) < _FEED_TTL:
                 rows = cached[1]
@@ -1027,7 +1101,7 @@ class JobsRepository:
         # DB-paginated paths: fresh + company
         start = (scoped_page - 1) * scoped_page_size
         end = start + scoped_page_size - 1
-        ckey = (mode, domain, city, country, loc_mode, effective_term, scoped_page, scoped_page_size)
+        ckey = (mode, domain, city, country, loc_mode, scope_sig, effective_term, scoped_page, scoped_page_size)
         cached = _feed_page_cache.get(ckey)
         if cached is not None and (now - cached[0]) < _FEED_TTL:
             rows, available_total = cached[1]
@@ -1081,6 +1155,31 @@ class JobsRepository:
                     keys.add(val)
         _user_skill_keys_cache[user_id] = (now, keys)
         return keys
+
+    def user_target_locations(self, user_id: str) -> list[str]:
+        """The user's saved multi-location preference (freeform labels).
+
+        Falls back to the legacy single `target_location` for rows not yet
+        backfilled. Cached per user on a short TTL — every feed page needs it but
+        prefs only change via Settings.
+        """
+        now = time.monotonic()
+        cached = _user_target_locations_cache.get(user_id)
+        if cached is not None and (now - cached[0]) < _USER_TARGET_LOCATIONS_TTL:
+            return cached[1]
+        result = (
+            self._db.table("user_profiles")
+            .select("target_locations, target_location")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        data = (result.data if result else None) or {}
+        locations = [loc for loc in (data.get("target_locations") or []) if loc and loc.strip()]
+        if not locations and data.get("target_location"):
+            locations = [data["target_location"]]
+        _user_target_locations_cache[user_id] = (now, locations)
+        return locations
 
     # ── user skills / demand ───────────────────────────────────────────────────
 
@@ -1179,14 +1278,17 @@ class JobsRepository:
     def _filter_job_ids_by_location(
         self,
         job_ids: list[str],
-        target_location_country: str,
+        target_location_countries: list[str],
     ) -> list[str]:
-        """Hard-filter job_ids by target country.
+        """Hard-filter job_ids by target countries (OR across the set).
 
-        Include if location_country matches OR (location_country is NULL AND mode is remote/hybrid).
-        Queries in chunks of 200 to stay within PostgREST URL limits.
+        Include if location_country is in the target set OR (location_country is
+        NULL AND mode is remote/hybrid). Queries in chunks of 200 to stay within
+        PostgREST URL limits.
         """
-        country_lower = target_location_country.strip().lower()
+        countries_lower = {c.strip().lower() for c in target_location_countries if c and c.strip()}
+        if not countries_lower:
+            return list(job_ids)
         result: list[str] = []
         for i in range(0, len(job_ids), self._LOCATION_FILTER_CHUNK):
             chunk = job_ids[i:i + self._LOCATION_FILTER_CHUNK]
@@ -1199,7 +1301,7 @@ class JobsRepository:
             for row in rows:
                 country = (row.get("location_country") or "").strip().lower()
                 mode = (row.get("location_mode") or "").strip().lower()
-                if country and country == country_lower:
+                if country and country in countries_lower:
                     result.append(row["job_id"])
                 elif not country and mode in ("remote", "hybrid"):
                     result.append(row["job_id"])
@@ -1209,12 +1311,13 @@ class JobsRepository:
         self,
         skill_keys: list[str],
         *,
-        target_location_country: str | None = None,
+        target_location_countries: list[str] | None = None,
     ) -> list[str]:
         """Job_ids that have at least one skill in skill_keys, filtered by target location.
 
-        target_location_country: if set, only jobs in that country (or remote/hybrid with
-        no country set) are returned. None means no location filter.
+        target_location_countries: if non-empty, only jobs in one of those
+        countries (or remote/hybrid with no country set) are returned. None or
+        empty means no location filter.
         """
         if not skill_keys:
             return []
@@ -1249,9 +1352,9 @@ class JobsRepository:
             query_builder=lambda q: q.in_("skill_id", skill_ids),
         )
         all_job_ids = list({r["job_id"] for r in js_rows})
-        if not target_location_country:
+        if not target_location_countries:
             return all_job_ids
-        return self._filter_job_ids_by_location(all_job_ids, target_location_country)
+        return self._filter_job_ids_by_location(all_job_ids, target_location_countries)
 
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
@@ -1324,7 +1427,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, apply_url, job_description)"
+                "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )
             .eq("user_id", user_id)
             .execute()
@@ -1362,7 +1465,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, apply_url, job_description)"
+                "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )
             .eq("user_id", user_id)
             .eq("batch_week", str(batch_week))
@@ -1465,6 +1568,7 @@ class JobsRepository:
             self._db.table("user_profiles")
             .select(
                 "target_roles, target_location, target_location_country, "
+                "target_locations, target_location_countries, "
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)

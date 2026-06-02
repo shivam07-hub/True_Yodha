@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict
 from supabase import Client
 
 from app.database import get_supabase, get_supabase_admin, get_supabase_for_token
-from app.services.location_normalizer import normalize_location
+from app.services.location_normalizer import derive_location_columns
 from app.services.user_provisioning import ensure_user_provisioned
 
 _bearer = HTTPBearer()
@@ -75,18 +75,20 @@ def _ensure_location_country_backfilled(user_id: str) -> None:
         admin = get_supabase_admin()
         result = (
             admin.table("user_profiles")
-            .select("target_location, target_location_country")
+            .select("target_location, target_location_country, target_locations")
             .eq("id", user_id)
             .maybe_single()
             .execute()
         )
         data = (result.data if result else None) or {}
-        if data.get("target_location") and not data.get("target_location_country"):
-            parsed = normalize_location(data["target_location"])
-            if parsed.location_country:
-                admin.table("user_profiles").update(
-                    {"target_location_country": parsed.location_country}
-                ).eq("id", user_id).execute()
+        # Seed the canonical array (and its synced projections) for any legacy
+        # row that still has only the scalar single set. Migration covers the
+        # bulk; this is the per-request safety net so a profile read always has
+        # target_locations populated.
+        if data.get("target_location") and not data.get("target_locations"):
+            admin.table("user_profiles").update(
+                derive_location_columns([data["target_location"]])
+            ).eq("id", user_id).execute()
         _location_backfilled_users.add(user_id)
     except Exception as exc:
         _logger.warning(

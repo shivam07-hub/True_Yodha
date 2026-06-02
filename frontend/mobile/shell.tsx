@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -145,6 +145,15 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
     ? profile.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
     : "HM"
 
+  // Canonical "open settings" trigger — any surface (e.g. the market location
+  // chip) dispatches `tm:open-settings`; the desktop chrome listens too.
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  useEffect(() => {
+    const h = () => setSettingsOpen(true)
+    document.addEventListener("tm:open-settings", h)
+    return () => document.removeEventListener("tm:open-settings", h)
+  }, [])
+
   return (
     <header className="tm-mobile-topbar">
       <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 }}>
@@ -168,6 +177,7 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
       >
         {initials}
       </button>
+      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={profile} />}
     </header>
   )
 }

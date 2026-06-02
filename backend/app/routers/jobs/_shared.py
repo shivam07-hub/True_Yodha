@@ -31,6 +31,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         location_country=job.get("location_country"),
         location_mode=job.get("location_mode"),
         location_quality=job.get("location_quality"),
+        locations=[c for c in (job.get("locations") or []) if c and c.strip()],
         industry=job.get("industry"),
         remote=False,
         overlap_score=row.get("overlap_score", 0),

@@ -187,8 +187,6 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
 
-13. **~~Anonymous trial flow~~ — CLOSED 2026-05-25 (ADR-0006 frictionless signup).** Commits `da0fa0b` + `6cc665e` on Develop. Migrations `20260524_magic_link_attempts` + `20260524_cv_versions_source` + `20260524_user_profiles_linkedin_meta` ✅ **APPLIED 2026-05-30** (per 2026-05-30 night session). Fully closed.
-
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
 14. **Match refresh stuck at 2 results (bug, root-caused 2026-05-25):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded ("no new matches"), but matches never grow past 2. **Root cause = compound pruning stack inside `job_matcher.get_top_matches`** (commented inline at `backend/app/services/job_matcher.py:73`):
@@ -197,8 +195,6 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
     3. **`COMPANY_CAP_RATIO`** anti-bias (30% per company) prunes further.
     4. **`excluded_job_ids` accumulates** across refreshes within the same batch_week (line 189-191) — by refresh N the pool may be empty.
     Not aspirations-related. Independent of the 2026-05-25 retry/fallback PR. Fix path under design: **tiered overlap floor (3 default → 2 if fewer than top_n/2 candidates qualify)**, raise `top_n` to 10-15, surface "pool exhausted" signal to frontend instead of silent refund, reset `excluded_job_ids` on batch_week boundary. Touches `backend/app/services/job_matcher.py` + `jobs_workflow.compute_job_matches` + match-refresh frontend invalidation. Pick up as standalone PR after Shilpa is re-tested with the 2026-05-25 fallback fix in production.
-
-16. **~~Tracker blank for logged-out users~~ — CLOSED 2026-05-30 night.** `use-auth.ts` `loginRedirectTargetFor` → `/login?next=<path>` (both redirect sites) + `app-shell.tsx` gate `!m.ready || !m.token` (kills token-less render flash). Group-wide via `(authed)/layout.tsx`. `tests/login-redirect-target.test.ts` 3/3.
 
 17. **Legal hardening for 10k scale (in progress 2026-05-30):** Privacy + Terms strengthened this session — Terms now carries a **Data Security** section, a **"Myro is not an employer/recruiter"** liability shield (no guarantee of jobs/interviews/responses, employer owns all hiring decisions, third-party listings disclaimed), **Limitation of Liability** cap, **Indemnification**, and **Governing Law = India (Bengaluru courts)**. Privacy gains a Governing Law / DPDP note. Entity = **Myro Career Intelligence**, Vasant Vihar, West Delhi, Delhi; venue = **Delhi, Delhi** (set 2026-05-30). **REMAINING before 10k (NOT autonomous — needs Shivam + counsel):** (a) lawyer review of both docs; (b) India DPDP Act 2023 compliance — consent notice on signup + named Grievance Officer per IT Rules 2021; (c) EU/UK cookie + consent banner if those users are in scope; (d) confirm the INR 5,000 liability cap. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx` TOC).
 
@@ -304,136 +300,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-01 - Dashboard job-card autonomy)
+## LAST SESSION SUMMARY (2026-06-02 · Live Job Data feed redesign — SHIPPED to Develop)
 
-Added durable user-controlled removal for Home dashboard job cards.
+`/market` rebuilt from movers+heatmap intel into an Inshorts/Perplexity **job-card feed** (grill-locked). Logged-in only; public landing intel untouched. Commits: `907f651` (filters lead, stats demoted, feed cache cadence), `ce77f9b` / `7fe5c44` (feed + intel-page cache), `5b283a0` (Tracker merged into CV workspace), `bee3f95` (practice×job merge).
 
-- Added `user_dismissed_job_cards` as a per-user dismissal ledger with RLS own-row select/insert/delete policies. Applied the migration to production Supabase project `gipvxuugajkugntwkeiz` and verified the table plus policies exist.
-- Added `DELETE /jobs/matches/{job_id}` so removing a card hides it from the Home dashboard without deleting tracker/application state or historical `user_job_matches` rows.
-- Updated the match stack read to filter dismissed cards, while refresh novelty treats dismissed cards as already known so explicit removals do not reappear on future refreshes.
-- Extended `/jobs/matches` with `dismissed_job_ids` so the frontend can keep Myro, Liked, and All segments consistent.
-- Added an icon-only remove action on dashboard cards. The frontend clears the local match cache, updates React Query immediately, and refetches the match feed.
-- Added backend repository/router tests plus a dashboard feed-model regression test proving dismissed cards are hidden from all dashboard segments.
+- **Backend:** new `GET /jobs/feed` (company-agnostic, paginated; filters cluster→role_domain + location + free-text `q`; 3 sorts fresh/personal/company; no LLM). New `POST /jobs/{job_id}/report` (report-inactive per `docs/REPORT_INACTIVE_FEATURE.md`; `job_reports` table CONFIRMED live in Supabase 2026-06-02). `feed_jobs()`/`user_skill_keys()` in `repositories/jobs.py`.
+- **Frontend:** `components/market/jobs-tab.tsx` (clickable stat cards + search + pill filters + 3-mode sort + infinite scroll + detail drawer); `market/page.tsx` gutted to Jobs|Heatmap tabs; `nav-items.ts` → Live Job Data leftmost, `/home` stays landing.
+- **Beta-2 follow-ups CLOSED:** #1 feed contract test ✅ · #2 feed perf/caching ✅ (`907f651` raised cache cadence). Memory: `project_market_feed_redesign`.
+- **Still open (carry-over):** per-city multi-location (firecrawl backlog #6) — feed shows single location string; `main_skills` legacy-column coupling for skill chips (drop-risk when job_skills supersedes).
 
-Validation:
+> Shipped June sessions ≤2026-06-01 (dashboard card autonomy `527d7c1`, stacked match history `aa34b6d`, mobile job-card accordion, Myrology integrator [now in INTEGRATOR ITEMS], replace-CV modal) pruned for a lean cockpit — full detail in `git log`.
 
-- `.venv/bin/pytest backend/tests/test_jobs_repository.py backend/tests/test_job_match_router.py backend/tests/test_job_match_response.py backend/tests/test_job_refresh_dispatch.py -q` -> `9 passed, 6 warnings`
-- `cd frontend && npx tsx --test tests/dashboard-feed-model.test.ts tests/job-refresh-notice.test.ts` -> `3 passed`
-- `.venv/bin/pytest backend/tests -q` -> `490 passed, 13 warnings`
-- `cd frontend && npx tsc --noEmit` -> clean
-- `cd frontend && npm run lint` -> clean
-- `git diff --check` -> clean
-
-## OLDER SESSION SUMMARY (2026-06-01 - Durable stacked job matches + refresh fallback)
-
-Fixed the Home dashboard match-card disappearance and refresh timeout path.
-
-- Root cause confirmed: `/jobs/matches` only read `user_job_matches` for the current `last_monday()` batch. Veteran users with older retained matches could see **Myro found 0** at a week boundary even though their historical match rows still existed.
-- Production read-only check for `shivam.mit20@gmail.com` confirmed match data was present: 52 match rows across seven weeks, 33 unique matched jobs, while the previous current-week read only saw 11 rows after the latest refresh.
-- Added a durable match stack read: `JobsRepository.get_user_match_stack()` reads all retained user match rows, sorts newest refreshes first, dedupes by `job_id`, hydrates location fields, and keeps old cards underneath fresh results.
-- Updated `/jobs/matches` to return the stacked match feed and fixed `to_job_match()` so each card keeps its real historical `batch_week` instead of being stamped with the current week.
-- Refresh novelty now excludes all prior matched job IDs, not only the current week, so fresh results are preferred; the existing pool-relaxation logic still prevents XP-gated refreshes from dead-ending when the pool is fully consumed.
-- Added a job-refresh Redis liveness guard. If `REDIS_URL` is set but no worker is serving the legacy refresh queue, refresh runs inline instead of sitting queued until the frontend times out.
-- Raised the SSE refresh stream cap from 45s to 15min to match the backend refresh job timeout and avoid false "taking too long" failures during slow but live ranking.
-- Bumped the frontend local match-cache key and clears the legacy key after refresh, so users who cached a zero-match response do not stay stuck on it for seven days.
-
-Validation:
-
-- `.venv/bin/pytest backend/tests/test_jobs_repository.py backend/tests/test_job_match_response.py backend/tests/test_job_refresh_dispatch.py -q` -> `5 passed`
-- `.venv/bin/pytest backend/tests/test_workflow_seams.py backend/tests/test_progress_stream_router.py backend/tests/test_job_matcher.py backend/tests/test_llm_ranker.py -q` -> `40 passed, 6 warnings`
-- `.venv/bin/pytest backend/tests -q` -> `486 passed, 13 warnings`
-- `cd frontend && npx tsc --noEmit` -> clean
-- `cd frontend && npm run lint` -> clean
-- `cd frontend && npx tsx --test tests/job-refresh-notice.test.ts` -> `2 passed`
-- `git diff --check` -> clean
-
-## OLDER SESSION SUMMARY (2026-06-01 · mobile job-card → Perplexity flowing accordion — GRILL LOCKED + BUILT)
-
-Triggered by a 400px phone screenshot of the dashboard: sticky/snapping job cards ruined the scroll, "2 Locations" was a dead-end label, and there was no JD on the card. Ran `/grill-me` (9 branches), verified every claim in code + `graphify-out`, then built the whole thing. **Uncommitted on Develop.** tsc `EXIT_0` · `next lint` 0/0 (3 touched files) · index-sheet deleted with zero dangling refs.
-
-### Grill findings (code/data verified)
-- **"2 Locations" is the real scraped data, not a display bug.** [location_normalizer.py:163-168](backend/app/services/location_normalizer.py#L163) — multi-location regex → `quality='unknown'`, **nulls city**, stores count phrase as `location`. No `locations[]` exists anywhere. `graphify-out` confirms location is only modeled as onboarding/intel, never per-job multi-city.
-- **JD available for Myro matches** too (not just liked) — `job_description` selected in matches query ([jobs.py:1090](backend/app/repositories/jobs.py#L1090)). Render is frontend-only.
-- **Latent XP mass-drain:** [lenses.tsx:78-80](frontend/components/dashboard/lenses.tsx) auto-charged 10 XP the instant a card went `active` (viewport-visible). In a free-scroll feed that drains XP on every card scrolled past. Fixed.
-
-### Locked + built (one frontend PR)
-- **Q1** full Perplexity model — killed vertical scroll-snap **and** horizontal lens-swipe. Cards flow in normal scroll, expand in place.
-- **Q2** collapsed tile = fit·role·company · all-locations · JD snippet · pinned actions (status + Tailor CV). Skills moved to expanded.
-- **Q3/Q4** 10 XP "Why you fit" fires **only on expand** (`active` bound to `expanded`, not viewport) — kills the drain. Top-3 keep free pre-ranked explanation.
-- **Q5** honest location now: real city when known, else count phrase → `source_url` link + mode chip. Real per-city = **firecrawl_Supabase scraper backlog #6** (saved there 2026-06-01 with full reason + fix path).
-- **Q6** JD snippet collapsed, full JD on expand (`<pre>`, newlines kept, no HTML interp — safe).
-- **Q7** accordion — one card open at a time.
-- **Q8** dropped the `N in feed` pull-up index sheet + floating handle; `?jobId` deep-link opens that card on mount.
-- **Q9** actions always on collapsed card. **Q10** desktop untouched (grid + tabs ride shared `lenses.tsx` location/JD honesty for free).
-
-**Files:** EDIT [lenses.tsx](frontend/components/dashboard/lenses.tsx) (new `LocationLine`/`jdSnippet`/`isMultiLocation`), [job-card.tsx](frontend/components/dashboard/job-card.tsx) (`JobCardSlides`→`MobileJobCard` expand-in-place), rewrite [mobile-feed.tsx](frontend/components/dashboard/mobile-feed.tsx) (no IO/snap/sheet; `expandedId` accordion), [dashboard.css](frontend/components/dashboard/dashboard.css) (drop snap/slide/sheet; add `.db-loc*`/`.db-mcard*`/`.db-jd-body`). DELETE `index-sheet.tsx`.
-
-### Carry-over
-1. **Commit** (suggested `feat(dashboard): mobile job-card flowing accordion + honest locations + JD expand + expand-only XP`). All of `components/dashboard/` is untracked — part of the larger uncommitted route-group restructure; Shivam to bundle.
-2. **Visual QA** owed (authed, 375px) — chevron rotate, JD 320px scroll-cap, accordion collapse.
-3. **firecrawl_Supabase backlog #6** (per-city capture) is the data-side blocker for real multi-loc chips; `LocationLine` already renders an array the day it lands.
-
-### VERIFICATION QUEUE (Shivam to confirm still-needed, restructured 2026-06-01)
-
-**V1 — Mobile job-card (today's build).** Page: `/home` on phone ≤400px. Confirm: cards flow (no snap/swipe), tap expands in place, locations honest, JD expands, 10 XP only on expand.
-
-**V2 — CV page lane (PR2 + PR3 + 10-min tail — all one surface).** Pages: `/cv` + the score-reveal→Improve→Practice(`/forge`)→tailor→download lane. Confirm three things on the same page family:
-   - **(PR2 living-master)** is master CV still append-N-`baseline_upload`-rows, or already single living-doc? If still N-baselines → PR2 needed.
-   - **(PR3 structured editor)** is every section (summary/skills_line/certs/experience+bullets/projects/edu) add/edit/remove editable, or only single-bullet edit? If single-bullet only → PR3 needed.
-   - **(10-min tail)** does score→`Improve {domain}`→Practice→tailor→`cv/download-pdf` work end-to-end? Note: Practice×Skill merge already committed (`b57f193`) + 10-min CV tail already built — likely mostly done; confirm the seam.
-
-**V3 — Surface analysing model name (was: streaming Gemini verify — reframed, irrelevant as-is).** Instead of verifying the stream, **show the user WHICH model analysed the job** — replace the bare "LLM"/generic wording with the actual provider+model (e.g. "Analysed by Gemini Flash" / "Groq Llama-3.3-70b"). Source = the LLM provider chain that served the call. Touches `LensWhy` / analyse + deepen endpoints (surface `model` in the response) → render under the "Why you fit" block. Small task, not a verify.
-
-**V4 — Durable dispatch Redis flip + INSTITUTIONS_LEAD_EMAIL (Railway MCP — pick up verbatim).** Infra-only, zero code change. Run the prompt below as-is:
-
-> Use the Railway MCP to fix orphaned CV-upload jobs on the True_Yodha backend (Develop env).
->
-> **SYMPTOM**
-> - Frontend modal: "Job exceeded 5 min in processing – server restart or stuck worker."
-> - Railway log: `metric cv_upload.phase_failed phase=parse reason=orphaned attempts=0 threshold_pending=true`
->
-> **ROOT CAUSE (already diagnosed — confirm, don't re-litigate)**
-> The backend code at `backend/app/services/background/dispatch.py` routes background jobs to durable RQ ONLY when REDIS_URL is set AND a worker is live for the lane (dispatch.py:69, :89). `settings.redis_url` defaults `""` (config.py:48), so on Railway it falls back to IN-PROCESS execution. Any container restart (redeploy, OOM) kills the in-process parse task → the `cv_upload_jobs` row is stranded in `processing` → the 5-min orphan sweep (main.py:54 / `sweep_stale_cv_upload_jobs`) fails+refunds it. `attempts=0` confirms the job never started = restart mid-flight, not a parse failure. Fix is infra-only, zero code change.
->
-> **DO (via Railway MCP, on the True_Yodha project, Develop environment)**
-> 1. Confirm: list services + variables; verify REDIS_URL is unset on the backend service. Pull recent deploy/restart history + memory metrics to confirm restart/OOM churn around the failures.
-> 2. Add a Redis database/plugin to the project.
-> 3. Set REDIS_URL on the backend service to the Redis private URL. Redeploy backend.
-> 4. Add a WORKER service (same repo/image, same env incl REDIS_URL + PYTHONPATH=backend) whose start command runs the RQ worker over both lanes. Read dispatch.py for exact lane names (LANE_FAST/LANE_BULK) and the run_job_sync entrypoint + how handlers register on import. Likely: `rq worker fast bulk -u $REDIS_URL` after importing the app so handlers register. Confirm the precise command against the code before deploying.
-> 5. Verify: worker registers (dispatch._has_active_worker_for_lane liveness passes), then do a test CV upload and confirm it completes — no `phase=parse reason=orphaned` line, job ends `done` not `failed`.
->
-> Report back: the Redis URL var name set, the worker service start command, and the test-upload result.
-> While in there: also set `INSTITUTIONS_LEAD_EMAIL=edu@himyro.com` on the same backend service (new B2B beta notify, fail-soft). One Railway-MCP trip handles both.
-
----
-
-## LAST SESSION SUMMARY (2026-05-31 - Integrator item: post-application intelligence + Myrology)
-
-Used `grill-me` to lock the product philosophy for post-application journeys, Referral Intelligence, company reports, and Myrology before writing memory into the cockpit docs.
-
-- Added **Post-Application Intelligence + Myrology** under `INTEGRATOR ITEMS` in `CLAUDE.md`.
-- Locked the tracker branch: 7-day no-response prompts route to **No Response Recovery**, while positive responses route to **Interview/Next Round** work.
-- Locked Practice as the action router for Skill Practice, Referral Route, Interview Prep, No Response Recovery, and Company Intel.
-- Locked Referral Intelligence as a 500 XP automated run with LinkedIn/API, user-assisted, and Myro-referrer repository tiers.
-- Locked the Myrology boundary: separate opt-in premium subbrand, consultation/booking funnel only, not part of Myro Score or job ranking, with non-guarantee language.
-- Captured the pricing follow-up: live Myrology code currently uses INR 499, while Shivam discussed INR 200-300 as the intro payment-loop test.
-
-No app code changed in this session.
-
-## OLDER SESSION SUMMARY (2026-05-30 - replace-CV upload modal redesign - `/frontend-design` critique + build)
-
-Triggered by a screenshot of the "Replace your Main CV" modal. Ran `/frontend-design` lens, found 6 issues: (1) dropzone reads as disabled/empty (dashed box + faint text, no icon, no hover, no drag-drop despite drop-target shape); (2) three stacked grey footer lines = clutter wall, with "Files greyed out…" troubleshooting copy parked permanently in the happy path (violates design-over-words); (3) initial focus landed on the tertiary privacy link; (4) faint-grey CTA text on white = contrast risk; (5) flat 5-tier-grey hierarchy; (6) all inline styles (breaks ADR-0003 page-scoped CSS).
-
-**Built (uncommitted, working-tree only — NOT staged):**
-- [app/(authed)/cv/page.tsx](frontend/app/(authed)/cv/page.tsx) — dropzone rebuilt: `upload` icon + bold label + folded `PDF or DOCX · up to 10MB` line; `onDragOver/Leave/Drop` wired for real drag-and-drop; `autoFocus` on the dropzone (fixes focus order). Standalone accepted-formats + always-on "Files greyed out" lines deleted. New `.cvb-upload-foot`: picker hint demoted behind an on-demand "Can't select your file?" toggle (`showPickerHint` state) — native greyed-out picker produces no error to gate on, so it's progressive-disclosure not error-gated; privacy line kept as the single tertiary footer. New `dragActive` + `showPickerHint` state.
-- [app/(authed)/cv/cv-builder.css](frontend/app/(authed)/cv/cv-builder.css) — appended `.cvb-upload-*` (drop/icon/label/formats/foot/hint-toggle/hint-body/privacy) with hover, `:active` scale, `.is-drag`, `.is-error`, focus-visible, `prefers-reduced-motion`.
-- [components/cv/builder/icons.tsx](frontend/components/cv/builder/icons.tsx) — added `upload` glyph (up-arrow tray).
-
-Verify: `tsc --noEmit` clean · `next lint` 0/0 on page.tsx.
-
-**NOT committed.** Working tree is mid a large pre-existing restructure (route-group `app/* → app/(authed)/*` migration + dashboard merge work, all already staged by prior work). My 3 files were unstaged to avoid entangling — Shivam to bundle. The same "Files greyed out" line also lives in [components/onboarding/step-cv.tsx:162](frontend/components/onboarding/step-cv.tsx) — left untouched (out of scope); apply the same toggle treatment there next pass for consistency.
-
----
 
 ## LAST SESSION SUMMARY (2026-05-30 night · 10-min-CV fix — GRILL LOCKED + PR1 BUILT, master CV download)
 

@@ -9,8 +9,21 @@ from supabase import Client
 
 from app.database import get_supabase_admin
 from app.deps import get_user_db
-from app.services.location_normalizer import normalize_location
+from app.services.location_normalizer import derive_location_columns
 from app.services.scoring import _PROFICIENCY_TITLES
+
+
+def _sync_location_columns(payload: dict[str, Any]) -> None:
+    """In-place: if a write touches location, recompute all four columns from
+    one canonical source (array preferred, else the legacy single string)."""
+    if "target_locations" in payload:
+        source = payload["target_locations"] or []
+    elif "target_location" in payload:
+        single = payload["target_location"]
+        source = [single] if single else []
+    else:
+        return
+    payload.update(derive_location_columns(list(source)))
 
 
 @dataclass(frozen=True)
@@ -78,9 +91,7 @@ class UsersRepository:
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
-        if "target_location" in payload:
-            parsed = normalize_location(payload["target_location"])
-            payload["target_location_country"] = parsed.location_country
+        _sync_location_columns(payload)
         self._db.table("user_profiles").update(payload).eq("id", user_id).execute()
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:

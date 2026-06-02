@@ -480,6 +480,9 @@ def test_feed_endpoint_returns_feed_payload() -> None:
         def user_skill_keys(self, _user_id: str) -> set[str]:
             return {"python"}
 
+        def user_target_locations(self, _user_id: str) -> list[str]:
+            return []
+
         def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "rows": [

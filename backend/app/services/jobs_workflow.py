@@ -198,9 +198,12 @@ async def compute_job_matches(
     }
     profile = repo.get_user_profile_targeting(user_id)
     target_roles_count = len(profile.get("target_roles") or [])
+    target_countries = profile.get("target_location_countries") or []
+    if not target_countries and profile.get("target_location_country"):
+        target_countries = [profile["target_location_country"]]
     candidate_job_ids = repo.get_candidate_job_ids_for_skills(
         list(user_skill_map.keys()),
-        target_location_country=profile.get("target_location_country"),
+        target_location_countries=target_countries,
     )
 
     # Self-healing exclusion (Backlog #14 / 2026-05-30 decision: refresh is

@@ -9,5 +9,5 @@ import type { UserProfile } from "@/lib/api"
  */
 export type SidebarProfile = Pick<
   UserProfile,
-  "full_name" | "target_roles" | "target_location" | "linkedin_url" | "email"
+  "full_name" | "target_roles" | "target_location" | "target_locations" | "linkedin_url" | "email"
 >

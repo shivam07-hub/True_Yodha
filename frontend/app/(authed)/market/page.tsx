@@ -450,9 +450,12 @@ function IntelPageInner() {
   const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(new Set())
   const [skillsInitialized, setSkillsInitialized] = useState(false)
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
-  const [locationCity, setLocationCity] = useState("")
-  const [locationCountry, setLocationCountry] = useState("")
-  const [locationMode, setLocationMode] = useState("")
+  // Intel/heatmap analytics stay on the FULL market (facets are unscoped); the
+  // job feed is scoped server-side from the user's saved location prefs. The UI
+  // no longer re-asks for geo, so these are fixed empty here.
+  const locationCity = ""
+  const locationCountry = ""
+  const locationMode = ""
   const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">("jobs")
 
   // Sync XP balance if not yet set from another page visit
@@ -796,12 +799,7 @@ function IntelPageInner() {
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}
             onSelectCluster={setSelectedCluster}
-            locationCity={locationCity}
-            locationCountry={locationCountry}
-            locationMode={locationMode}
-            onCity={setLocationCity}
-            onCountry={setLocationCountry}
-            onMode={setLocationMode}
+            targetLocations={profileData?.target_locations ?? []}
             followedNames={followedNames}
             onToggleFollow={handleToggleFollow}
             followLimit={MAX_FOLLOWED}

@@ -252,12 +252,17 @@ async def job_feed(
     if not resolved_domain and cluster:
         resolved_domain = repo.resolve_role_domain_for_clusters([cluster])
     skill_keys = repo.user_skill_keys(principal.id)
+    # Geo is fixed from settings: scope the feed to the user's saved location
+    # preferences instead of re-asking. The legacy city/country/mode query params
+    # stay for back-compat but the market UI no longer sends them.
+    location_prefs = repo.user_target_locations(principal.id)
     page_result = repo.feed_jobs(
         role_domain=resolved_domain,
         q=q,
         location_city=location_city,
         location_country=location_country,
         location_mode=location_mode,
+        location_prefs=location_prefs,
         sort=sort,
         user_skill_keys=skill_keys,
         page=page,
