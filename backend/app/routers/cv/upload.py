@@ -143,7 +143,7 @@ async def upload_status(
     response_model=CVUploadFallbackResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_upload_fallback_submission(
+def create_upload_fallback_submission(
     body: CVUploadFallbackRequest,
     principal: Principal = Depends(get_principal),
 ) -> CVUploadFallbackResponse:

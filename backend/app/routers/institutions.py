@@ -87,7 +87,7 @@ def _notify_lead(row: dict, application_id: int) -> None:
 
 
 @router.post("/apply", status_code=status.HTTP_201_CREATED)
-async def apply_for_institution(
+def apply_for_institution(
     body: InstitutionApplicationRequest,
     background_tasks: BackgroundTasks,
 ) -> InstitutionApplicationResponse:

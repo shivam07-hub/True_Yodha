@@ -8,7 +8,8 @@ import Link from "next/link"
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CompanyAvatar, StatTile, StatusDot, ACTIVE_STAGES, STAGE_META, stageRank } from "./library-shared"
+import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
+import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
 import { MasterCVHero, MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
@@ -28,18 +29,27 @@ interface LibraryViewProps {
   onReplaceCV: () => void
 }
 
-function ActivePipelineRail({ applications, versions, onPickJob }: {
+// Display order only (presentation). Membership is the canonical predicate
+// from lib/api — APPLICATION_STAGES / APPLICATION_OUTCOMES — so the rail count,
+// the folder badge, and the main board can never disagree on "active vs closed".
+const ACTIVE_ORDER: ApplicationStatus[] = ["final_round", "interviewing", "screening", "applied", "saved"]
+const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted", "withdrew"]
+
+function PipelineRail({ applications, versions, onPickJob, filter, onFilter }: {
   applications: ApplicationResponse[]
   versions: CVVersion[]
   onPickJob: (jobId: string) => void
+  filter: Filter
+  onFilter: (f: Filter) => void
 }) {
-  const active = applications
-    .filter((application) => ACTIVE_STAGES.includes(application.status))
+  const stages = filter === "closed" ? CLOSED_ORDER : ACTIVE_ORDER
+  const stageSet = filter === "closed" ? APPLICATION_OUTCOMES : APPLICATION_STAGES
+  const scoped = applications
+    .filter((application) => stageSet.includes(application.status))
     .sort((a, b) => stageRank(b.status) - stageRank(a.status))
 
-  const stageOrder: ApplicationStatus[] = ["final_round", "interviewing", "screening", "applied"]
-  const grouped = stageOrder
-    .map((stage) => ({ stage, items: active.filter((application) => application.status === stage) }))
+  const grouped = stages
+    .map((stage) => ({ stage, items: scoped.filter((application) => application.status === stage) }))
     .filter((group) => group.items.length > 0)
 
   return (
@@ -48,18 +58,24 @@ function ActivePipelineRail({ applications, versions, onPickJob }: {
         <div className="tm-lib-rail-head-row">
           <div className="tm-lib-rail-head-eyebrow">
             <LIcon d={I.pulse} size={11}/>
-            ACTIVE · PIPELINE
+            PIPELINE
           </div>
-          <span className="tm-lib-rail-count">{active.length}</span>
+          <span className="tm-lib-rail-count">{scoped.length}</span>
         </div>
-        <div className="tm-lib-rail-title">Jobs in pipeline</div>
-        <div className="tm-lib-rail-sub">Open any job to create, save, preview, and download its CV.</div>
+        <div className="tm-lib-seg tm-lib-rail-seg" role="tablist" aria-label="Pipeline filter">
+          <button type="button" role="tab" aria-selected={filter === "active"}
+            className={`tm-lib-seg-btn${filter === "active" ? " active" : ""}`}
+            onClick={() => onFilter("active")}>Active</button>
+          <button type="button" role="tab" aria-selected={filter === "closed"}
+            className={`tm-lib-seg-btn${filter === "closed" ? " active" : ""}`}
+            onClick={() => onFilter("closed")}>Closed</button>
+        </div>
       </div>
 
       <div className="tm-lib-rail-body">
         {grouped.length === 0 && (
           <div style={{ padding: "20px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-            No active applications yet.
+            {filter === "closed" ? "No closed applications yet." : "No active applications yet."}
           </div>
         )}
         {grouped.map(({ stage, items }) => {
@@ -123,7 +139,6 @@ export function LibraryView({
   // survives (live work vs verdicts). URL-synced so the /tracker redirect
   // (?filter=closed) still lands right.
   const filter: Filter = searchParams.get("filter") === "closed" ? "closed" : "active"
-  const showRail = filter === "active"
 
   function setFilter(f: Filter) {
     const params = new URLSearchParams(searchParams.toString())
@@ -135,8 +150,10 @@ export function LibraryView({
 
   return (
     <div className="tm-lib-scope">
-      <div className={showRail ? "tm-lib-root" : "tm-lib-root tm-lib-root-single"}>
+      <div className="tm-lib-root">
         <div className="tm-lib-main">
+          {/* Desktop toggle lives in the pipeline rail head; this mobile-only
+              bar carries it when the rail is hidden (<1100px). */}
           <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
 
           <div className="tm-lib-page-head">
@@ -188,13 +205,13 @@ export function LibraryView({
           <WorkspacePipeline filter={filter} versions={versions} onOpenJob={onOpenJob} />
         </div>
 
-        {showRail && (
-          <ActivePipelineRail
-            applications={applications}
-            versions={versions}
-            onPickJob={onOpenJob}
-          />
-        )}
+        <PipelineRail
+          applications={applications}
+          versions={versions}
+          onPickJob={onOpenJob}
+          filter={filter}
+          onFilter={setFilter}
+        />
       </div>
     </div>
   )
@@ -205,7 +222,7 @@ function WorkspaceFilterBar({ filter, onFilter }: {
   onFilter: (f: Filter) => void
 }) {
   return (
-    <div className="tm-lib-lensbar" role="tablist" aria-label="Pipeline filter">
+    <div className="tm-lib-lensbar tm-lib-lensbar-mobile" role="tablist" aria-label="Pipeline filter">
       <div className="tm-lib-seg">
         <button type="button" role="tab" aria-selected={filter === "active"}
           className={`tm-lib-seg-btn${filter === "active" ? " active" : ""}`}

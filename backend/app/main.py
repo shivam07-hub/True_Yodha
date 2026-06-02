@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.request_timing import RequestTimingMiddleware
 from app.routers import (
     auth,
     comments,
@@ -10,6 +11,7 @@ from app.routers import (
     cv,
     diary,
     feedback,
+    home,
     institutions,
     jobs,
     myrology,
@@ -42,6 +44,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Server-side per-request timing → X-Process-Time header + slow-request log.
+# Added after CORS so timing wraps the inner app (CORS preflight stays instant).
+app.add_middleware(RequestTimingMiddleware)
+
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(users.router)
@@ -51,6 +57,7 @@ app.include_router(skills.router)
 app.include_router(cv.router)
 app.include_router(scores.router)
 app.include_router(jobs.router)
+app.include_router(home.router)
 app.include_router(diary.router)
 app.include_router(comments.router)
 app.include_router(xp.router)

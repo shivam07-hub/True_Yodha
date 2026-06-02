@@ -52,7 +52,7 @@ Description snippet: {description[:600]}"""
 
 
 @router.get("/{job_id}/deepenings")
-async def list_deepenings(
+def list_deepenings(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),

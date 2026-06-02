@@ -25,7 +25,7 @@ def _to_response(row: dict) -> CommentResponse:
 
 
 @router.get("", response_model=CommentListResponse)
-async def list_comments(
+def list_comments(
     entity_type: EntityType,
     entity_id: str,
     principal: Principal = Depends(get_principal),
@@ -37,7 +37,7 @@ async def list_comments(
 
 
 @router.post("", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
-async def create_comment(
+def create_comment(
     body: CommentCreateRequest,
     principal: Principal = Depends(get_principal),
     repo: CommentsRepository = Depends(get_token_comments_repository),
@@ -49,7 +49,7 @@ async def create_comment(
 
 
 @router.patch("/{comment_id}", response_model=CommentResponse)
-async def update_comment(
+def update_comment(
     comment_id: str,
     body: CommentUpdateRequest,
     principal: Principal = Depends(get_principal),
@@ -62,7 +62,7 @@ async def update_comment(
 
 
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_comment(
+def delete_comment(
     comment_id: str,
     principal: Principal = Depends(get_principal),
     repo: CommentsRepository = Depends(get_token_comments_repository),

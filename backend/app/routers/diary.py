@@ -50,7 +50,7 @@ async def create_or_update_entry(
 
 
 @router.get("/history", response_model=DiaryHistoryResponse)
-async def get_diary_history(
+def get_diary_history(
     principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
@@ -60,7 +60,7 @@ async def get_diary_history(
 
 
 @router.get("/milestones", response_model=MilestoneListResponse)
-async def get_milestones(
+def get_milestones(
     principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
     limit: int = 30,
@@ -73,7 +73,7 @@ async def get_milestones(
 
 
 @router.put("/milestones", response_model=MilestoneResponse)
-async def upsert_milestone(
+def upsert_milestone(
     body: MilestoneRequest,
     principal: Principal = Depends(get_principal),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),

@@ -32,7 +32,6 @@ export const STAGE_META: Record<ApplicationStatus, { label: string; color: strin
   withdrew:     { label: "Withdrew",     color: "var(--tm-text-faint)" },
 }
 
-export const ACTIVE_STAGES: ApplicationStatus[] = ["screening", "interviewing", "final_round", "applied"]
 export const STAGE_RANK: ApplicationStatus[] = ["saved", "applied", "screening", "interviewing", "final_round", "offer", "ghosted", "rejected", "withdrew"]
 
 export function stageRank(s: ApplicationStatus): number { return STAGE_RANK.indexOf(s) }

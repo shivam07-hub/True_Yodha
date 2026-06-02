@@ -8,6 +8,7 @@ from fastapi import Depends
 from supabase import Client
 
 from app.database import get_supabase_admin
+from app.db_safe import safe_profile_update
 from app.deps import get_user_db
 from app.services.location_normalizer import derive_location_columns
 from app.services.scoring import _PROFICIENCY_TITLES
@@ -92,7 +93,16 @@ class UsersRepository:
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
         _sync_location_columns(payload)
-        self._db.table("user_profiles").update(payload).eq("id", user_id).execute()
+        # Tolerant write: survives schema-cache lag so the profile still saves
+        # if a derived location column hasn't been migrated yet (harden-first,
+        # then migrate). Legacy scalar columns persist regardless.
+        safe_profile_update(
+            self._db.table("user_profiles"),
+            payload,
+            match_column="id",
+            match_value=user_id,
+            context="update_profile",
+        )
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (

@@ -31,7 +31,7 @@ class CVDownloadRequest(BaseModel):
 
 
 @router.post("/download-pdf")
-async def download_cv_pdf(
+def download_cv_pdf(
     body: CVDownloadRequest,
     principal: Principal = Depends(get_principal),
 ) -> Response:

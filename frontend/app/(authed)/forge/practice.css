@@ -38,27 +38,27 @@
 
 /* ── Stat tiles — compact row on desktop, 2×2 on mobile ── */
 .tm-skills-stat-grid {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
 }
 .tm-skills-stat-tile {
   appearance: none; text-align: left; font-family: inherit; cursor: default;
+  display: flex; flex-direction: column; gap: 4px;
   border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius);
   background: var(--tm-surface); color: var(--tm-text);
-  padding: 12px 14px; transition: background 160ms var(--tm-ease), border-color 160ms var(--tm-ease);
+  padding: 9px 11px; transition: background 160ms var(--tm-ease), border-color 160ms var(--tm-ease);
 }
 button.tm-skills-stat-tile { cursor: pointer; }
 button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color: var(--tm-int-border-soft); }
 .tm-skills-stat-tile .label {
   display: block; color: var(--tm-text-faint);
-  font-family: var(--tm-font-mono); font-size: 10px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
+  font-family: var(--tm-font-mono); font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
 }
 .tm-skills-stat-tile .value {
-  display: block; color: var(--tm-text); font-size: 28px; line-height: 1;
+  display: block; color: var(--tm-text); font-size: 22px; line-height: 1;
   font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
 }
 .tm-skills-stat-tile .value.warning { color: var(--tm-tier-building-fg); }
-.tm-skills-stat-tile .meta { display: block; color: var(--tm-text-muted); font-size: 11px; margin-top: 6px; }
 
 /* ── Practice-weighted view toggle ── */
 .tm-pv-toggle {
@@ -297,6 +297,12 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
 @media (max-width: 768px) {
   .tm-pr-hero { grid-template-columns: 1fr; }
   .tm-pr-gap-body { padding-left: 14px; }
+
+  /* Stack identity over score so the share/ring never overrun the title.
+     On a row the actions block (share + ring + tier text) is flex-shrink:0
+     and starves the title column → "INTELLIGENCE" overflowed under the icon. */
+  .tm-pv-head { flex-direction: column; align-items: stretch; gap: 14px; }
+  .tm-pv-head-actions { width: 100%; justify-content: space-between; }
 
   .tm-pr-title { font-size: 34px; }
   .tm-pv-head-meta { display: none; }

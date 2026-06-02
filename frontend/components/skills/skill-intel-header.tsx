@@ -31,11 +31,6 @@ export function SkillIntelHeader({ totalScore, ninjaName, stats, onWeakJump }: P
         <div className="tm-pv-head-id">
           <div className="tm-label-caps" style={{ marginBottom: 6 }}>Skill Intelligence</div>
           <h1 className="tm-pr-title">Practice</h1>
-          {stats && (
-            <p className="tm-pv-head-meta">
-              {stats.domainCount} domains · {stats.totalSkills} skills · {stats.needProofCount} need proof · {stats.weakDomainCount} below 40%
-            </p>
-          )}
         </div>
         <div className="tm-pv-head-actions">
           {shareUrl && <ShareButton url={shareUrl} ninjaName={ninjaName ?? undefined} score={totalScore} />}
@@ -56,12 +51,10 @@ export function SkillIntelHeader({ totalScore, ninjaName, stats, onWeakJump }: P
           <div className="tm-skills-stat-tile">
             <span className="label">Need proof</span>
             <span className="value">{stats.needProofCount}</span>
-            <span className="meta">{stats.needProofCount === 0 ? "All evidenced" : "Add CV evidence"}</span>
           </div>
           <button type="button" onClick={onWeakJump} className="tm-skills-stat-tile tm-control-focus">
             <span className="label">Below 40%</span>
             <span className="value warning">{stats.weakDomainCount}</span>
-            <span className="meta">Tap to see on map</span>
           </button>
         </div>
       )}

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import HTTPException
@@ -192,7 +191,7 @@ class _FakeJobsRepo:
 def test_get_market_analytics_groups_industries_and_exposes_roles() -> None:
     repo = _FakeJobsRepo()
 
-    result = asyncio.run(get_market_analytics(repo=repo))
+    result = get_market_analytics(repo=repo)
 
     assert result.total_jobs == 3
     assert result.total_companies == 3
@@ -212,7 +211,7 @@ def test_get_market_analytics_groups_industries_and_exposes_roles() -> None:
 def test_get_market_analytics_passes_role_filter_to_repository() -> None:
     repo = _FakeJobsRepo()
 
-    result = asyncio.run(get_market_analytics(role_domain="Software Engineering", repo=repo))
+    result = get_market_analytics(role_domain="Software Engineering", repo=repo)
 
     assert repo.analytics_args == ("Software Engineering", None, None, None)
     assert result.total_jobs == 1
@@ -223,18 +222,16 @@ def test_get_market_analytics_passes_role_filter_to_repository() -> None:
 def test_search_jobs_passes_role_and_skill_filters() -> None:
     repo = _FakeJobsRepo()
 
-    result = asyncio.run(
-        search_jobs(
-            company="Acme",
-            skill="Python",
-            role_domain="Software Engineering",
-            location_city="Bengaluru",
-            location_country="India",
-            location_mode="onsite",
-            page=1,
-            page_size=50,
-            repo=repo,
-        )
+    result = search_jobs(
+        company="Acme",
+        skill="Python",
+        role_domain="Software Engineering",
+        location_city="Bengaluru",
+        location_country="India",
+        location_mode="onsite",
+        page=1,
+        page_size=50,
+        repo=repo,
     )
 
     assert repo.search_args == (
@@ -257,15 +254,13 @@ def test_search_jobs_passes_role_and_skill_filters() -> None:
 def test_search_jobs_passes_pagination_contract() -> None:
     repo = _FakeJobsRepo()
 
-    result = asyncio.run(
-        search_jobs(
-            company="Acme",
-            skill="Python",
-            role_domain="Software Engineering",
-            page=2,
-            page_size=25,
-            repo=repo,
-        )
+    result = search_jobs(
+        company="Acme",
+        skill="Python",
+        role_domain="Software Engineering",
+        page=2,
+        page_size=25,
+        repo=repo,
     )
 
     assert repo.search_args == ("Acme", "Python", "Software Engineering", None, None, None, 2, 25)
@@ -298,7 +293,7 @@ def test_search_companies_skips_blank_queries_after_trim() -> None:
 
 def test_search_companies_returns_503_when_repository_unavailable() -> None:
     try:
-        asyncio.run(search_companies(q="go", limit=10, repo=_UnavailableCompanySearchRepo()))
+        search_companies(q="go", limit=10, repo=_UnavailableCompanySearchRepo())
     except HTTPException as exc:
         assert exc.status_code == 503
         assert exc.detail == "Company search is temporarily unavailable."

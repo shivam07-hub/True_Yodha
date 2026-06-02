@@ -33,7 +33,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me", response_model=UserProfileResponse)
-async def get_me(
+def get_me(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> UserProfileResponse:
@@ -61,7 +61,7 @@ async def get_me(
 
 
 @router.get("/me/skills", response_model=UserSkillsByDomainResponse)
-async def get_my_skills(
+def get_my_skills(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> UserSkillsByDomainResponse:
@@ -243,7 +243,7 @@ async def update_profile(
 
 
 @router.get("/me/following/companies", response_model=FollowedCompaniesResponse)
-async def get_followed_companies(
+def get_followed_companies(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> FollowedCompaniesResponse:
@@ -293,7 +293,7 @@ async def follow_company(
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def unfollow_company(
+def unfollow_company(
     company_name: str,
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),

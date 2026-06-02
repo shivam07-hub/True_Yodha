@@ -54,7 +54,7 @@ def _require_user_id(credentials: HTTPAuthorizationCredentials | None) -> str:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def submit_feedback(
+def submit_feedback(
     body: FeedbackRequest,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> dict:
@@ -72,7 +72,7 @@ async def submit_feedback(
 
 
 @router.get("/my")
-async def list_my_feedback(
+def list_my_feedback(
     limit: int = Query(50, ge=1, le=200),
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> list[FeedbackReport]:

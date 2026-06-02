@@ -63,7 +63,7 @@ def _safe_user_agent(value: str | None) -> str | None:
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def signup(
+def signup(
     body: SignupRequest,
     myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
 ) -> AuthResponse:
@@ -110,7 +110,7 @@ async def signup(
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(
+def login(
     body: LoginRequest,
     myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
 ) -> AuthResponse:
@@ -143,7 +143,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=RefreshResponse)
-async def refresh_token(body: RefreshRequest) -> RefreshResponse:
+def refresh_token(body: RefreshRequest) -> RefreshResponse:
     try:
         response = get_supabase().auth.refresh_session(body.refresh_token)
     except Exception as e:
@@ -219,7 +219,7 @@ async def post_signin(
 
 
 @router.post("/magic-link-request", response_model=MagicLinkResponse)
-async def magic_link_request(
+def magic_link_request(
     body: MagicLinkRequest,
     request: Request,
     user_agent: str | None = Header(default=None, alias="User-Agent"),
@@ -285,7 +285,7 @@ def _record_attempt(admin: Any, *, email: str, ip: str, ua: str | None, outcome:
 
 
 @router.delete("/integrations/{provider}", response_model=IntegrationRevokeResponse)
-async def revoke_integration(
+def revoke_integration(
     provider: str,
     principal: Principal = Depends(get_principal),
 ) -> IntegrationRevokeResponse:

@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get("/applications/{job_id}/path", response_model=JobPathResponse)
-async def get_application_path(
+def get_application_path(
     job_id: str,
     principal: Principal = Depends(get_principal),
     db: Client = Depends(get_user_db),
@@ -25,7 +25,7 @@ async def get_application_path(
 
 
 @router.put("/applications/{job_id}/targets", response_model=JobPathResponse)
-async def replace_application_targets(
+def replace_application_targets(
     job_id: str,
     body: JobPathTargetsRequest,
     principal: Principal = Depends(get_principal),
@@ -42,7 +42,7 @@ async def replace_application_targets(
 
 
 @router.put("/applications/{job_id}/milestones/{milestone_id}", response_model=JobPathMilestoneResponse)
-async def update_application_milestone(
+def update_application_milestone(
     job_id: str,
     milestone_id: str,
     body: JobPathMilestoneUpdate,

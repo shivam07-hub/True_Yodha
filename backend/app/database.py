@@ -20,19 +20,34 @@ Usage in a FastAPI route:
 from functools import lru_cache
 
 from supabase import Client, create_client
+from supabase.lib.client_options import ClientOptions
 
 from app.config import settings
+
+# Hard ceiling on any single PostgREST round-trip. A hung Supabase call must
+# not occupy a request thread indefinitely — it fails fast instead of holding
+# a threadpool slot for the full client timeout (the 14s 499s we saw). Kept
+# generous enough for legitimately heavy reads, tight enough to bound the tail.
+_POSTGREST_TIMEOUT_SECONDS = 8
+
+
+def _client_options() -> ClientOptions:
+    return ClientOptions(postgrest_client_timeout=_POSTGREST_TIMEOUT_SECONDS)
 
 
 @lru_cache(maxsize=1)
 def get_supabase_admin() -> Client:
     """Service role client — bypasses RLS. Admin/import scripts only."""
-    return create_client(settings.supabase_url, settings.supabase_service_key)
+    return create_client(
+        settings.supabase_url, settings.supabase_service_key, options=_client_options()
+    )
 
 
 def get_supabase() -> Client:
     """Anon client — respects RLS. Use in user-facing FastAPI routes."""
-    return create_client(settings.supabase_url, settings.supabase_anon_key)
+    return create_client(
+        settings.supabase_url, settings.supabase_anon_key, options=_client_options()
+    )
 
 
 def get_supabase_for_token(token: str) -> Client:

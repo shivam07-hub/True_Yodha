@@ -55,7 +55,7 @@ def _resolve_user_id(credentials: HTTPAuthorizationCredentials | None) -> str | 
 
 
 @router.post("/subscribe", status_code=status.HTTP_201_CREATED)
-async def subscribe(
+def subscribe(
     body: SubscribeRequest,
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),

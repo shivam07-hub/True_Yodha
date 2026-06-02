@@ -33,7 +33,7 @@ router = APIRouter()
 
 
 @router.get("/companies/search")
-async def search_companies(
+def search_companies(
     q: Annotated[str, Query(min_length=2, max_length=100)],
     limit: Annotated[int, Query(ge=1, le=20)] = 10,
     repo: JobsRepository = Depends(get_public_jobs_repository),
@@ -48,7 +48,7 @@ async def search_companies(
 
 
 @router.get("/analytics/me", response_model=MarketAnalyticsSummaryResponse)
-async def get_my_analytics(
+def get_my_analytics(
     cluster: str | None = None,
     location_city: str | None = None,
     location_country: str | None = None,
@@ -95,7 +95,7 @@ async def get_my_analytics(
 
 
 @router.get("/analytics/skill-heatmap", response_model=SkillHeatmapResponse)
-async def get_skill_heatmap(
+def get_skill_heatmap(
     companies: Annotated[str, Query(min_length=1)],
     skills: Annotated[str, Query(min_length=1)],
     location_city: str | None = None,
@@ -118,7 +118,7 @@ async def get_skill_heatmap(
 
 
 @router.get("/analytics/skills", response_model=EntitySkillsResponse)
-async def get_entity_skills(
+def get_entity_skills(
     entity: str,
     type: str = "company",
     location_city: str | None = None,
@@ -141,7 +141,7 @@ async def get_entity_skills(
 
 
 @router.get("/analytics", response_model=MarketAnalyticsSummaryResponse)
-async def get_market_analytics(
+def get_market_analytics(
     role_domain: str | None = None,
     location_city: str | None = None,
     location_country: str | None = None,
@@ -182,7 +182,7 @@ async def get_market_analytics(
 
 
 @router.get("/search", response_model=JobSearchResponse)
-async def search_jobs(
+def search_jobs(
     company: Annotated[str, Query(min_length=1)],
     skill: Annotated[str, Query(min_length=1)],
     role_domain: str | None = None,
@@ -228,7 +228,7 @@ async def search_jobs(
 
 
 @router.get("/feed", response_model=JobFeedResponse)
-async def job_feed(
+def job_feed(
     cluster: str | None = None,
     role_domain: str | None = None,
     q: str | None = None,
@@ -281,7 +281,7 @@ async def job_feed(
 
 
 @router.get("/at/{company}", response_model=CompanyOpenRolesResponse)
-async def list_company_open_roles(
+def list_company_open_roles(
     company: str,
     limit: Annotated[int, Query(ge=1, le=50)] = 6,
     location_country: str | None = None,
@@ -306,7 +306,7 @@ async def list_company_open_roles(
 
 
 @router.get("/search/global", response_model=GlobalJobSearchResponse)
-async def global_search_jobs(
+def global_search_jobs(
     q: Annotated[str, Query(min_length=2, max_length=100)],
     limit: Annotated[int, Query(ge=1, le=50)] = 12,
     repo: JobsRepository = Depends(get_public_jobs_repository),
@@ -331,7 +331,7 @@ async def global_search_jobs(
 
 
 @router.post("/analytics/refresh-snapshot", response_model=AnalyticsSnapshotRefreshResponse)
-async def refresh_analytics_snapshot(
+def refresh_analytics_snapshot(
     x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> AnalyticsSnapshotRefreshResponse:

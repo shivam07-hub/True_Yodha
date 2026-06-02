@@ -36,7 +36,7 @@ router = APIRouter()
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])
-async def get_applications(
+def get_applications(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -60,7 +60,7 @@ async def get_applications(
 
 
 @router.post("/import/preview", response_model=JobImportPreviewResponse)
-async def preview_job_import(
+def preview_job_import(
     body: JobImportPreviewRequest,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
@@ -137,7 +137,7 @@ async def import_job(
 
 
 @router.put("/applications/{job_id}", response_model=ApplicationResponse)
-async def update_application(
+def update_application(
     job_id: str,
     body: ApplicationStatusUpdate,
     principal: Principal = Depends(get_principal),
@@ -187,7 +187,7 @@ async def update_application(
 
 
 @router.post("/save/{job_id}", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
-async def save_discovered_job(
+def save_discovered_job(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
@@ -201,7 +201,7 @@ async def save_discovered_job(
 
 
 @router.delete("/tracker/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_tracker_job(
+def remove_tracker_job(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),

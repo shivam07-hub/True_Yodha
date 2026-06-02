@@ -13,7 +13,7 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 
 
 @router.get("/{company_name}/jobs", response_model=CompanyJobsResponse)
-async def get_company_jobs(
+def get_company_jobs(
     company_name: str,
     page: int = Query(1, ge=1, le=200),
     page_size: int = Query(50, ge=1, le=50),
@@ -31,7 +31,7 @@ async def get_company_jobs(
 
 
 @router.get("/{company_name}", response_model=CompanyPageResponse)
-async def get_company_page(company_name: str) -> CompanyPageResponse:
+def get_company_page(company_name: str) -> CompanyPageResponse:
     db = get_supabase_admin()
 
     rows = (

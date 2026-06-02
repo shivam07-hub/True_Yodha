@@ -25,7 +25,7 @@ COMMUNITY_TAXONOMY_KEY = "community_reporter"
 
 
 @router.post("/{job_id}/report", status_code=status.HTTP_200_OK)
-async def report_job_inactive(
+def report_job_inactive(
     job_id: str,
     principal: Principal = Depends(get_principal),
     db: Client = Depends(get_user_db),
