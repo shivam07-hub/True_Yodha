@@ -91,7 +91,7 @@ def _x_thread(issue: NewsletterIssueInput) -> list[CampaignMessageDraft]:
             issue,
             "post-2",
             "2/ The useful question for students is not whether the market is "
-            f"good or bad. It is where the open roles actually cluster.",
+            "good or bad. It is where the open roles actually cluster.",
         ),
         _x_post(issue, "post-3", f"3/ {_fit(summary, 248)}"),
         _x_post(
