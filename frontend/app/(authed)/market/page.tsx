@@ -5,15 +5,12 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
-import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, FollowedCompaniesResponse, JobLocationFilters } from "@/lib/api"
+import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, JobLocationFilters } from "@/lib/api"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useXPStore } from "@/store/xpStore"
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const MAX_FOLLOWED = 10
-const FOLLOW_XP_COST = 10
+import { XP_POLICY } from "@/lib/xp-policy"
 
 // ── Job drill-down panel ─────────────────────────────────────────────────────
 
@@ -228,7 +225,7 @@ function SkillHeatmap({
         <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 8 }}>Your heatmap is empty</div>
         <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
           Tap “+ Heatmap” on companies in the list above to add them here.
-          Each follow costs {FOLLOW_XP_COST} XP — up to {MAX_FOLLOWED} companies.
+          Each follow costs {XP_POLICY.followCompanyCost} XP — up to {XP_POLICY.followedCompanyLimit} companies.
         </div>
       </div>
     )
@@ -441,7 +438,7 @@ function SkillHeatmap({
 function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const { balance: xpBalance, setBalance: setXPBalance, applyXpChange } = useXPStore()
+  const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
   const searchParams = useSearchParams()
   const paramSkill = searchParams.get("skill")
 
@@ -525,11 +522,10 @@ function IntelPageInner() {
     return map
   }, [targetRoles, chipCountQueries])
 
-  const { data: followedData } = useQuery({
-    queryKey: ["followedCompanies", token],
-    queryFn: () => users.followedCompanies(token!),
-    enabled: !!token,
-  })
+  // Optimistic follow/unfollow + IH2 gating, shared with Settings.
+  const following = useFollowCompany(token)
+  const followedCompanies = following.companies
+  const followedNames = following.followedNames
 
   const { data: skillDemandData } = useQuery({
     queryKey: ["mySkillDemand", token],
@@ -537,17 +533,6 @@ function IntelPageInner() {
     enabled: !!token && cvReadyForPersonalization,
     staleTime: 30 * 60 * 1000,
   })
-
-  // followedCompanies sorted most-recently-starred first (already DESC from backend)
-  const followedCompanies = useMemo<FollowedCompany[]>(
-    () => followedData?.companies ?? [],
-    [followedData]
-  )
-
-  const followedNames = useMemo(
-    () => followedCompanies.map(c => c.company_name),
-    [followedCompanies]
-  )
 
   // Seed selected skills from top-8 mySkillDemand on first load.
   // If ?skill= param present (navigating from Skills page), pin that skill first.
@@ -641,45 +626,6 @@ function IntelPageInner() {
     },
   })
 
-  const followMutation = useMutation({
-    mutationFn: async ({ name, follow }: { name: string; follow: boolean }) => {
-      if (follow) return users.followCompany(token!, name)
-      await users.unfollowCompany(token!, name)
-      return null
-    },
-    onMutate: async ({ name, follow }) => {
-      await queryClient.cancelQueries({ queryKey: ["followedCompanies", token] })
-      const previous = queryClient.getQueryData<FollowedCompaniesResponse>(["followedCompanies", token])
-      queryClient.setQueryData<FollowedCompaniesResponse>(["followedCompanies", token], old => {
-        if (!old) return old
-        const companies = follow
-          ? [{ company_name: name, created_at: new Date().toISOString() }, ...old.companies]
-          : old.companies.filter(c => c.company_name !== name)
-        return { companies, total: companies.length }
-      })
-      return { previous }
-    },
-    onSuccess: (data) => {
-      if (data && typeof data.new_xp_balance === "number") {
-        applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
-      }
-      queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["followedCompanies", token], context.previous)
-      }
-    },
-  })
-
-  const handleToggleFollow = useCallback(
-    (name: string) => {
-      if (!token) return
-      followMutation.mutate({ name, follow: !followedNames.includes(name) })
-    },
-    [token, followedNames, followMutation]
-  )
-
   const handleToggleSkill = useCallback((name: string) => {
     setSelectedSkillNames(prev => {
       const next = new Set(prev)
@@ -708,13 +654,6 @@ function IntelPageInner() {
     <>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        .tm-market-live-dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: var(--tm-accent, var(--tm-interactive));
-          box-shadow: 0 0 8px var(--tm-accent-glow, var(--tm-interactive));
-          animation: pulse 1.6s infinite;
-        }
-        @media (prefers-reduced-motion: reduce) { .tm-market-live-dot { animation: none; } }
         @media (max-width: 768px) {
           .tm-intel-page {
             padding: 22px 18px 96px !important;
@@ -760,14 +699,10 @@ function IntelPageInner() {
         }
       `}</style>
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
-        {/* No header text — a single pulsing dot signals "live" (show, don't tell). */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-          <span className="tm-market-live-dot" aria-hidden="true" />
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>live</span>
-        </div>
-
+        {/* The "live" signal now lives beside the Live link in the topbar — the
+            toggle bar stands alone here (no indicator beside it). */}
         {/* Jobs | Heatmap tab switcher */}
-        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, marginTop: 16, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
+        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
           {TABS.map(t => {
             const on = activeTab === t.key
             return (
@@ -801,9 +736,9 @@ function IntelPageInner() {
             onSelectCluster={setSelectedCluster}
             targetLocations={profileData?.target_locations ?? []}
             followedNames={followedNames}
-            onToggleFollow={handleToggleFollow}
-            followLimit={MAX_FOLLOWED}
-            xpBalance={xpBalance}
+            onToggleFollow={following.toggle}
+            canFollow={following.canFollow}
+            disabledReason={following.disabledReason}
           />
         ) : (
           <div style={{ marginTop: 20 }}>

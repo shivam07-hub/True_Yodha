@@ -176,6 +176,131 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 19. **B2B Institutions lane — STEP 1 SHIPPED 2026-06-01, growth steps DEFERRED.** Beta-phase decision: ship only the demand-sensing front door, not the platform. **Done this session (uncommitted, Develop):** (a) `/institutions` canonical marketing route — reuses `<EnterpriseSignup initialMode="institutions">`, indexable, OG, `/signup/institutions` canonical→`/institutions` to dedupe; (b) **header entry** "For Colleges" (`GraduationCap`) in `components/public/top-nav.tsx` + footer "For Colleges" under Product; (c) **CRM hook** — `POST /institutions/apply` now schedules a best-effort email to `settings.institutions_lead_email` via `BackgroundTasks` (mirrors Myrology booking-notify; fail-soft, row persisted first). New env `INSTITUTIONS_LEAD_EMAIL` — set it in Railway or applications stay persist-only/silent. The `institution_applications` table + the rich beta-access form already existed. **Re-skin to light also shipped this session:** `/signup/institutions` forced `data-surface=light` on mount + `--tm-radius-md` defined (cards were rendering 0-radius) + `--es-shadow-sm` retuned off dark `rgba(0,0,0,0.4)`. **DEFERRED until we decide to grow B2B (do NOT build until real applications arrive):** Step 2 = proper CRM/pipeline (HubSpot/Salesforce or a lightweight internal review queue UI over `institution_applications`, Slack alert, status workflow). Step 3 = multi-tenant platform — each college = org/tenant, placement-officer admin console, students as sub-users, SSO/SAML (Workspace/365/IdP), domain verification, bulk/CSV student import, cohort dashboards + placement analytics (the 6 capability cards are promises, not built). Also deferred: dedicated long-form `/for-colleges` marketing page with case studies/ROI (today `/institutions` = the rich signup pane doubling as landing), procurement collateral (security doc, DPA, MSA), pricing. Trigger to pick up: inbound beta applications show real business signal. Reverses ADR-0005 "not a B2B sales tool" NOT. Memory: `project_b2b_institutions_lane`.
 
+20. **Enterprise Polish Sprint — Mobile UX + Core Bug Fixes (PLANNED 2026-06-02, ready to code)** — Triggered by deep audit of `reference/` folder: 100+ screenshots, 20+ user feedback docs, and 6 pre-written `reference/mobile-redesign/*/HANDOFF.md` specs. Goal: make Myro feel like an enterprise-grade B2C product. **Everything below is code-ready — no more grilling needed. Claude Code picks up and executes in order.**
+
+   **Overarching theme from 20+ beta users:**
+   - "Don't know what to do first" — no onboarding flow
+   - "Feels robotic / AI-generated" — harsh contrast, technical jargon
+   - "Confusing on mobile" — 6 specific layout bugs all with HANDOFF docs
+   - "Blank or broken states" — Tracker empty state, Intel empty state feel abandoned
+   - "What does this platform actually do?" — identity confusion on first visit
+
+   ---
+
+   ### PR-K — Design Token Foundation (LAND FIRST — all other PRs depend on this)
+   **Spec:** `reference/mobile-redesign/k-tokens/HANDOFF.md` (complete, self-contained)
+   **Files:** `frontend/app/globals.css`, `frontend/tailwind.config.ts`, `frontend/app/cv/cv-builder.css`, `frontend/components/public/public-nav.css`, `frontend/components/public/intel-pane.css`, `frontend/components/skills/domain-accordion-row.css`, `frontend/components/forge/forge-xp-pill.css`
+   **What changes:**
+   - Page bg `#000` → `--bg-page: #0a0a0c` (near-black, not void)
+   - Cards get `--bg-surface: #13141a` (visibly above page — layered depth)
+   - Primary text `#fff` → `--text-primary: #e8e8ea` (off-white, eye-safe)
+   - Cyan text `#22d3ee` → `--accent-text: #67e8f9` (desaturated when used as text, full saturation for icons/buttons only)
+   - Body min-size floor: `16px / 1.55 line-height` everywhere
+   - Full token table in HANDOFF. No hex literals in any new/updated CSS.
+   **Acceptance:** WCAG AAA primary text vs bg-page. Cards have visual lift without border. Reading a skill card paragraph feels comfortable at arm's length.
+
+   ---
+
+   ### PR-B — Signup Simplification (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/b-signup/HANDOFF.md` (complete)
+   **Files:** `frontend/app/signup/page.tsx`, `frontend/components/onboarding/NinjaNameStep.tsx`
+   **What changes:**
+   - REMOVE "SECRET NINJA USER_CODE" field from `/signup` entirely. Real user typed `"dont know it should not be here"` into it — smoking-gun evidence it breaks conversion.
+   - REMOVE the "BACKGROUND" light/dark theme toggle from the signup form.
+   - Signup = 2 fields only: Email + Password. Plus Google button below "or" divider.
+   - Ninja name moves to `NinjaNameStep` in onboarding (already exists per commit `aa7a879`) with auto-generated default (`silent-fox-9k2` pattern) + Skip option.
+   - Referral attribution: if `?ref=` present, show subtle 1-line "Invited by @{name}" above form (SH7).
+   - Backend: `ninja_name` field in signup payload becomes optional — server auto-generates if absent. Verify `suggest_ninja_name` endpoint (`backend/app/routers/profile/public.py`) handles this.
+   - Mirror styling fixes to `/login` for consistency.
+   **Acceptance:** 2-field form, no ninja field, no theme toggle, NinjaNameStep has pre-filled default + Skip, input height ≥44px, input font ≥16px (no iOS auto-zoom).
+
+   ---
+
+   ### PR-E — Skills Overview Mobile Header (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/e-skills-overview/HANDOFF.md` (complete)
+   **Files:** `frontend/app/skills/page.tsx`, `frontend/components/skills/` (score-ring, stat-line), NEW `frontend/components/skills/skills-overview.css`
+   **What changes:**
+   - KILL the horizontal stat-line `8 domains · 21 skills · 0 need proof · 3 below 40%` that wraps one-word-per-line on mobile (confirmed bug in screenshot, named in 2026-05-21 CLAUDE.md QA).
+   - REPLACE with 2×2 stat tile grid on mobile / 1×4 row on tablet+. Each tile: uppercase label (11px, tertiary) + big number (tabular-nums, primary) + thin divider. Pattern = Stripe Dashboard mobile Home. Tap → filtered skill list (`?filter=below-40` etc).
+   - Score ring becomes the visual anchor — increase to ≥120px diameter, explicitly stack ABOVE the stat tiles.
+   - Score commentary ("Building foundation · Next milestone: 20 — Emerging") sits below the ring.
+   - Tab bar (Intel / Map / Audit) stays BELOW the header — never overlapping.
+   - Empty state for 0-skills users: calm prompt to upload CV, not "0 domains · 0 skills…"
+   **Acceptance:** No single-word-per-line wrapping anywhere. 4 stat tiles tap-targetable. Ring ≥120px. All elements above fold or barely scrolling on 375px.
+
+   ---
+
+   ### PR-G — Intel Heatmap Mobile Layout (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/g-intel-heatmap/HANDOFF.md` (complete)
+   **Files:** `frontend/app/intel/page.tsx` or `frontend/components/intel/` heatmap component
+   **What changes:**
+   - Title "Where to invest your skill points" wraps one-word-per-line on mobile (same grid-shrink bug as skills). Fix: title stacks ABOVE the heatmap on mobile, not beside it.
+   - Rotated column headers (skill names) clip text at 375px. Fix: horizontal-scroll heatmap with non-rotated short labels on mobile OR collapse to list view.
+   - Empty cells showing "no roles match" prose → replace with em-dash `—` in cell (tap for explainer).
+   - Sticky header offset on first row (company name hidden behind search bar shadow).
+   **Acceptance:** Title readable on 375px. Column headers legible. Heatmap scrolls horizontally, nothing clips.
+
+   ---
+
+   ### PR-D — CV Playground Score Ring (depends on PR-K)
+   **Spec:** `reference/mobile-redesign/d-cv-playground/HANDOFF.md` (complete)
+   **Files:** `frontend/components/cv/builder/playground-view.tsx` + score ring component
+   **What changes:**
+   - D1: Score ring center text overlap — `0`, `%`, and `JD MATCH` literally layer on top of each other. Fix: explicit vertical layout — numeral row → `%` baseline-aligned right → "JD MATCH" label as separate row BELOW the ring (not inside center).
+   - D2: "−17 this session" punitive framing → replace with action-oriented copy ("13 skills to add → Forge them") OR drop the negative delta. The chip list below IS the action already.
+   - D3: Job label is generic ("Sciences - Consultant") with no company name — show "Untitled company" explicitly if no company in data.
+   - D4: Title-case chip text (`Time Series Analysis And Forecasting`) → lowercase "and" inside chips.
+   **Acceptance:** Score ring center has clean 3-row layout. No text overlap at any score value 0-100. No punitive framing.
+
+   ---
+
+   ### PR-F — Skill Card Mobile (depends on PR-K + PR-E for tab bar fix)
+   **Spec:** `reference/mobile-redesign/f-skill-card/HANDOFF.md` (complete)
+   **Files:** `frontend/components/skills/skill-card-inline.tsx` + CSS
+   **What changes:**
+   - F1: Sticky "Intel · Map · Audit" tab pill overlaps domain card below it (L3 chip half-hidden). Fix: sticky pill needs solid `--bg-page` background + `box-shadow` to visually detach. OR convert to in-flow element if sticky isn't actually needed.
+   - F2+F3: SE14 regression — mobile buttons show full labels ("Edit CV pointer", "Polish with AI · -20 XP") instead of icons-only at <480px. Fix: add/verify `.tm-skill-card-action-label { display: none }` at <480px. Buttons collapse from 3 full-width stacked (~180px) to one icon row (~48px).
+   **Acceptance:** Tab pill never overlaps cards at any scroll position. At <480px exactly 3 icon buttons in a row with aria-label + title. SE14 enforced.
+
+   ---
+
+   ### PR-JARGON — Language Humanisation (standalone, no deps)
+   **No HANDOFF doc** — but 15+ users explicitly called this out. Confirmed list of confusing strings:
+   - "Forge" → keep the name (brand) but ADD a 1-line descriptor: "Forge · skill practice sessions" in the nav tooltip/label
+   - "Immutable commits" → "CV versions"
+   - "Terse, be specific" (Feedback Hub) → "Keep it short and clear"
+   - "Email me when triaged" → "Notify me when reviewed"
+   - "Low cosmetic" (severity) → "Minor visual issue"
+   - "AT RISK" domain pill → add hover tooltip: "This domain has skills below 40% — needs practice"
+   - "BUILDING" domain pill → add hover tooltip with what building means (L1-L2 range)
+   - "Dispatch" anywhere user-visible → plain English equivalent
+   - Feedback form bottom-left: verify it's actually functional (user Ravali + user Aditya both reported broken)
+   **Files:** `components/nav/`, feedback hub component, domain pill component, anywhere these strings appear.
+
+   ---
+
+   ### PR-EMPTY — Empty State Designs (standalone)
+   **Cross-cutting — multiple users reported Tracker + Intel feeling "broken" when empty**
+   - **Tracker empty state:** Replace multiple `+ Add manually` buttons with single focused CTA → "Browse matched jobs →" (routes to /market feed). Remove duplicate affordances.
+   - **Intel heatmap empty state (no followed companies):** Current state unclear. Add single illustration + "Star a company to track its skill demand" + "Browse companies →" CTA. Per IH1 (heatmap = followed companies only).
+   - **Dashboard stats loading:** Section-readiness skeletons (Backlog #18 PR1) — connect to this sprint if not yet built.
+   - **Jobs feed empty state (no matches yet):** "Your matches are computing — usually under 2 minutes" with shimmer skeleton rows, not a blank page.
+   **Files:** `frontend/components/tracker/`, `frontend/components/intel/heatmap.tsx`, `frontend/app/home/page.tsx`
+
+   ---
+
+   ### PR-FORGE-BG — Forge Timer Background Persistence (standalone)
+   **Bug:** Forge timer stops/freezes when user navigates away from the Forge tab (user Ravali, user feedback report 2). 25-minute sessions that reset on tab switch are unusable.
+   **Fix direction:** Store forge session `startedAt` + `pausedAt` in localStorage (or Zustand persist). On any page mount, check if an active forge session exists → re-derive elapsed time from `Date.now() - startedAt - pausedMs`. The timer widget should render on any authed page while a session is running (the forge XP pill / widget is already a global element — verify it consumes persisted time).
+   **Files:** `frontend/components/forge/forge-xp-pill.tsx` + forge session state store. Backend `forge_sessions` is already the source of truth for completed sessions — this is a frontend-only time-display fix.
+   **Acceptance:** Start a forge session on /forge, navigate to /cv, navigate back — timer shows correct elapsed time throughout. Tab-close + reopen within session window = timer continues from correct position.
+
+   ---
+
+   **Build order:** PR-K → (PR-B, PR-E, PR-G, PR-D, PR-F in parallel, all depend only on K) → PR-JARGON, PR-EMPTY, PR-FORGE-BG (all standalone, can ship any time after K).
+   **Commit pattern:** one PR per item, `fix:` or `feat:` prefix, `tsc --noEmit` + `next lint` clean before merge.
+   Memory file: `memory/project_enterprise_polish_sprint.md` (create on session start).
+
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
 11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
@@ -297,6 +422,24 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+---
+
+## LAST SESSION SUMMARY (2026-06-02 · Scheduled task: Enterprise Polish Sprint audit + plan)
+
+**Automated Cowork session — no code written. Pure audit → plan.**
+
+Deep-read every file in `reference/` folder: 6 mobile redesign HANDOFF.md specs, 2 user feedback aggregate docs (20+ beta users), 100+ screenshots spanning May 22–June 1. Cross-referenced with existing CLAUDE.md decisions.
+
+**Key findings:**
+- 6 mobile layout bugs have complete HANDOFF specs written but **none have been coded yet** (PR-K tokens, PR-B signup, PR-E skills header, PR-G intel heatmap, PR-D playground ring, PR-F skill card). These are blocking the "enterprise feel" every user asked for.
+- 15+ users independently flagged: no onboarding, technical jargon, empty states feel broken, identity confusion on landing, harsh contrast on mobile.
+- 3 functional bugs confirmed: Forge timer resets on tab switch, Feedback form broken (bottom-left widget), CV playground score ring text overlap.
+- **Platform is shipping features faster than polish** — the delta between what's technically possible and what new users experience on day 1 is the primary churn risk.
+
+**Outcome:** Added **Backlog #20 — Enterprise Polish Sprint** with 9 ordered, PR-ready items into CLAUDE.md. The next Claude Code session should read item 20 and execute PR-K first (design token foundation), then the remaining PRs in parallel.
+
+**No commits made** (automated session — read + write CLAUDE.md only).
 
 ---
 

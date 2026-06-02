@@ -69,7 +69,9 @@ export const AUTHED_NAV: NavItem[] = [
   {
     id: "market",
     href: "/market",
-    label: "Live Job Data",
+    // A pulsing dot precedes this label in the topbar (see TopbarNav) — the live
+    // signal lives in the nav now, not beside the in-page Jobs|Heatmap toggle.
+    label: "Live",
     desc: "Browse openings read live from career pages",
     stage: "base",
     surfaces: ["desktop", "mobile"],

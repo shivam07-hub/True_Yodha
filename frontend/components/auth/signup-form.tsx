@@ -123,6 +123,13 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
         }}>{error}</p>
       )}
 
+      <p style={{ fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.55, textAlign: "center", margin: "2px 0 0", maxWidth: 420 }}>
+        By creating an account, you agree to our{" "}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>{" "}
+        and consent to Myro processing your email, uploaded CV, extracted skills, and saved jobs to provide the Service — including processing by our AI providers. You can withdraw consent or delete your data anytime from Settings. See our{" "}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Privacy Policy</a>.
+      </p>
+
       <div style={{
         display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
         gap: 8, marginTop: 4,

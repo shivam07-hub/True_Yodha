@@ -11,7 +11,8 @@ export const NAV = [
   { id: "security",        n: "08", title: "Security" },
   { id: "children",        n: "09", title: "Children" },
   { id: "changes",         n: "10", title: "Changes" },
-  { id: "contact",         n: "11", title: "Contact" },
+  { id: "grievance",       n: "11", title: "Grievance Redressal" },
+  { id: "contact",         n: "12", title: "Contact" },
 ] as const
 
 export const muted: CSSProperties = {

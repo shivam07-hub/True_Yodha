@@ -79,6 +79,7 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
                 onClick={() => { if (isNew) nav.clearNew(item.id) }}
               >
                 {item.id === "home" && <ApertureIcon active={active} />}
+                {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
                 {item.special ? `✦ ${item.label}` : item.label}
                 {item.stalePill && <StaleBadge />}
                 {isNew && <span className="tm-nav-new">NEW</span>}
