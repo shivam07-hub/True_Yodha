@@ -277,7 +277,22 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-02 - Daily social push automation)
+## LAST SESSION SUMMARY (2026-06-02 - LinkedIn native-first social path)
+
+Tightened the newsletter social workflow after the first LinkedIn publishing test.
+
+- Confirmed the HiMyro Career Intelligence LinkedIn company page can publish through Perplexity Comet from `https://www.linkedin.com/company/118214305/admin/page-posts/published/`.
+- Published the first newsletter-linked LinkedIn company post for `2026-05-ncr-20-company-watchlist`. The live post uses LinkedIn's link-preview flow and should be treated as the path test, not the ongoing LinkedIn content model.
+- Updated heartbeat automation `daily-himyro-linkedin-post` so future LinkedIn drafts default to native-first posts: no outbound URL in the body, no raw UTM link, compact human copy, and image/stat-led creative. X drafts still use measurable CTA links with UTM parameters.
+- Documented the LinkedIn native-first rule in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md`.
+- Added a no-link LinkedIn native draft to the 2026-06-02 outbox with the newsletter image and engagement question for the next post.
+
+Validation:
+
+- Confirmed automation TOML updated under `/Users/incognito/.codex/automations/daily-himyro-linkedin-post/automation.toml`.
+- Verified the latest newsletter issue image at `frontend/public/newsletter/issue-007-og.png`.
+
+## OLDER SESSION SUMMARY (2026-06-02 - Daily social push automation)
 
 Set up the long-term daily social publishing workflow around the latest Myro Newsletter issue.
 
