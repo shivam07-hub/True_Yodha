@@ -438,12 +438,13 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 - "FIRST CV IN10 min" → optical gap before the time value.
 - XP balance `3000`→`3,000` (`toLocaleString` + tabular-nums per type.md).
 
-**4 DECISIONS LOCKED 2026-06-03 (grilled w/ Shivam — NOT YET BUILT, see memory `project_first_login_hero_audit`):**
-- **D4 Theme — honor system** (`prefers-color-scheme`, persisted toggle per E9). Replace `app/layout.tsx:69` light hardcode w/ system detection. **PR-K now defines BOTH dark + AA light tokens** (reverses HANDOFF "dark-locked v1").
-- **D3 Contrast — PR-K first, hero is its proof.** AAA primary / AA secondary / locked rows still ≥AA (lock icon, not opacity-on-text). PR-K = Backlog #20 sprint blocker.
-- **D1 Nav — keep Live/Practice base**, fix the real bug: hero "grows" thresholds (`tailoredCount>=1`/`>=2`) disagree w/ real gate `hasBaseline` → rewire to `deriveNavUnlockCtx`, re-frame section.
-- **D2 FAB — neutralize first-run** (`pulse={!firstRun}`, neutral color, dot gated on has-reports), restore accent after CV upload.
-- ⚠️ Theme contradiction resolved by D4: `layout.tsx:69` hardcoded light-everywhere vs PR-K dark-locked vs E9 system — system wins.
+**4 DECISIONS LOCKED + BUILT 2026-06-03 (grilled w/ Shivam; on Develop, not pushed; memory `project_first_login_hero_audit`):**
+- **D4 Theme — honor system** (`2a5bef8`): flash-free `beforeInteractive` script resolves `myro-surface` override else `prefers-color-scheme`; SSR keeps light no-JS fallback. Resolves the `layout.tsx:69` hardcode vs PR-K dark-locked vs E9 system contradiction — system wins. SurfaceToggle UI = follow-up (storage contract live).
+- **D3 Contrast — PR-K-first, hero=proof** (`2a5bef8`): light `--tm-text-faint`→#646F87 (~5.1:1); hero locked steps/rows stop dimming text via opacity (lock icon carries state). **Full PR-K token-table sweep (other 7 files) still owed** — this was the theme system + hero proof only; update HANDOFF "dark-locked" line when it lands.
+- **D1 Nav — keep Live/Practice base, fix copy≠logic** (`c6d4fd3`): hero "grows" now derived from AUTHED_NAV gated items (real `hasBaseline` gate); dropped invented `tailoredCount` thresholds; "NAV GROWS"→"UNLOCKS AS YOU GO".
+- **D2 FAB — neutralize first-run** (`e86e842`): `subdued` prop kills accent/pulse/dot while `!hasCv`, restores after CV.
+- **Gaps (Inshorts/LinkedIn speed): Gap 1** Upload-first hero (big CTA hoisted, fat cards→slim rail) `c6d4fd3` · **Gap 2** scoring skeleton not spinner `c6d4fd3`. **Gap 3** (10-min act→tailor→download tail) = existing Backlog #5 / `project_ten_minute_cv_tail`. App-wide perceived-speed (streaming/optimistic) = streaming + cv-loading backlog tracks.
+- ⚠️ Visual QA owed (authed, Shivam): light AND dark first-login at 1280px + 375px; confirm no theme FOUC.
 
 Full 27-blunder list in this session's audit. tsc 0, lint clean both commits. The deploy repo (root) tracks first-run-hero cleanly; the nested `frontend/.git` has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`) — flag for whoever owns that repo.
 
