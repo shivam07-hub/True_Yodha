@@ -6,7 +6,6 @@ import { useViewport } from "@/mobile"
 import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { Button } from "@/components/ui/button"
-import { IntelStrip } from "./intel-strip"
 import { MobileFeed } from "./mobile-feed"
 import { DesktopGrid } from "./desktop-grid"
 import {
@@ -66,8 +65,6 @@ export function Dashboard(props: DashboardProps) {
 
   return (
     <div className="db" id="browse">
-      <IntelStrip token={props.token} />
-
       <div className="db-head">
         <div className="db-segments" role="tablist" aria-label="Filter matches">
           {SEGMENTS.map((s) => (

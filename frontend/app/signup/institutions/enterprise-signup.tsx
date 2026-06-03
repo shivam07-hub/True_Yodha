@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { useNextPath } from "@/components/auth/auth-page-shell"
+import { PublicTopNav } from "@/components/public/top-nav"
 import { OperatorPane } from "./operator-pane"
 import { InstitutionPane } from "./institution-pane"
 import "./enterprise-signup.css"
@@ -60,31 +60,22 @@ export function EnterpriseSignup({ initialMode = "operators" }: { initialMode?: 
 
   return (
     <div className="es-page">
-      <nav className="es-nav" aria-label="Primary">
-        <div className="es-nav-inner">
-          <Link href="/" className="es-brand">
-            <Image src="/brand/aperture-m.png" alt="" width={28} height={28} />
-            <span>Myro</span>
-            <span className="es-beta" title="Beta — things may still change">beta</span>
-          </Link>
-          <div className="es-nav-links">
-            <Link className="es-nav-link" href="/cv">CV Hub</Link>
-            <Link className="es-nav-link" href="/intel">Intel</Link>
-            <Link className="es-nav-link" href="/newsletter">Newsletter</Link>
-            <Link className="es-nav-link" href="/pricing">Pricing</Link>
-          </div>
-          <div className="es-nav-right">
-            <Link className="es-nav-signin" href="/login">Sign in</Link>
-            <button
-              className="es-nav-cta"
-              type="button"
-              onClick={() => select(mode === "operators" ? "institutions" : "operators")}
-            >
-              {mode === "operators" ? "For institutions →" : "For operators →"}
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Canonical public nav — identical to the homepage bar. Clicking "For
+          Colleges" no longer swaps the whole menu; only the right CTA changes to
+          the operators↔institutions mode toggle (authSlot). */}
+      <PublicTopNav
+        active={mode === "institutions" ? "institutions" : undefined}
+        showSignIn
+        authSlot={
+          <button
+            type="button"
+            className="tm-public-nav-signup"
+            onClick={() => select(mode === "operators" ? "institutions" : "operators")}
+          >
+            {mode === "operators" ? "For institutions →" : "For operators →"}
+          </button>
+        }
+      />
 
       <div className="es-switcher-wrap">
         <div className="es-switcher-eyebrow">Pick the right onboarding</div>

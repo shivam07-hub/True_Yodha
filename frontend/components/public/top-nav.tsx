@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { FileText, Mail, GraduationCap } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { getAccessToken } from "@/lib/session"
@@ -13,6 +13,13 @@ export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "sign
 interface PublicTopNavProps {
   active?: PublicNavPage
   showSignIn?: boolean
+  /**
+   * Replaces the right-side primary CTA (Sign up / Go to app) with a custom
+   * node. Sole sanctioned per-surface variation in the public nav — /institutions
+   * passes its operators↔institutions mode toggle here so the rest of the bar
+   * stays byte-identical to the homepage (no parallel nav).
+   */
+  authSlot?: ReactNode
 }
 
 const STATIC_NAV_ITEMS: {
@@ -34,7 +41,7 @@ function formatTodayShort(): string {
   return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })
 }
 
-export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
+export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps) {
   const [isAuthed, setIsAuthed] = useState(false)
   const signup = useSignupGate()
 
@@ -89,23 +96,27 @@ export function PublicTopNav({ active, showSignIn }: PublicTopNavProps) {
             Sign in →
           </Link>
         )}
-        {!isAuthed && (
-          <Link
-            href="/signup"
-            className="tm-public-nav-signup"
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-              e.preventDefault()
-              signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
-            }}
-          >
-            Sign up
-          </Link>
-        )}
-        {isAuthed && (
-          <Link href="/home" className="tm-public-nav-signup">
-            Go to app →
-          </Link>
+        {authSlot ?? (
+          <>
+            {!isAuthed && (
+              <Link
+                href="/signup"
+                className="tm-public-nav-signup"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+                  e.preventDefault()
+                  signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
+                }}
+              >
+                Sign up
+              </Link>
+            )}
+            {isAuthed && (
+              <Link href="/home" className="tm-public-nav-signup">
+                Go to app →
+              </Link>
+            )}
+          </>
         )}
       </div>
     </nav>

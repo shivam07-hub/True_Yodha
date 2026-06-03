@@ -6,12 +6,12 @@
  * stage on its row + a stage-grouped rail. So there is now ONE arrangement
  * (company folders + pipeline-health rail) and a single Active | Closed filter.
  *
- *   filter "active"  → company folders (inline stage picker per row) + stale
- *                      banner + manual-add + the stage rollup rail.
+ *   filter "active"  → company folders (inline stage picker per row)
+ *                      + manual-add + the stage rollup rail.
  *   filter "closed"  → verdicts + star reviews.
  *
  * Capability parity with the old tracker: stage moves (inline picker + the CV
- * detail's PursuitStageControl), stale-recovery, manual-add, verdicts, delete
+ * detail's PursuitStageControl), manual-add, verdicts, delete
  * (via the Closed/verdicts surface). No XP coupling.
  */
 "use client"
@@ -26,12 +26,10 @@ import { dataKeys } from "@/lib/domain-data"
 import { CompanyFolderRow } from "@/components/cv/builder/library-company-row"
 import { I, LIcon } from "@/components/cv/builder/library-icons"
 import { useTrackerBoard, partitionVerdicts } from "./useTrackerBoard"
-import { StuckBanner } from "./StuckBanner"
 import { VerdictsTab } from "./VerdictsTab"
 import { ReviewModal } from "./ReviewModal"
 import { ManualAddModal } from "./ManualAddModal"
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog"
-import { StatusPicker } from "./StatusPicker"
 
 export type PipelineFilter = "active" | "closed"
 
@@ -53,11 +51,10 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<ApplicationResponse | null>(null)
   const [reviewedJobIds, setReviewedJobIds] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<string | null>(null)
-  const [stalePickerJobId, setStalePickerJobId] = useState<string | null>(null)
 
   const {
-    applications, applicationsLoading, staleApplications,
-    updateStatus, dismissStale, deleteApplication,
+    applications, applicationsLoading,
+    updateStatus, deleteApplication,
   } = useTrackerBoard()
 
   const activeApps = useMemo(
@@ -159,13 +156,6 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
   // (the stage-rollup rail is rendered by LibraryView as a tm-lib-root sibling)
   return (
     <>
-      <StuckBanner
-        stale={staleApplications}
-        onMarkGhosted={(jobId) => handleStatusChange(jobId, "ghosted")}
-        onUpdate={(jobId) => setStalePickerJobId(jobId)}
-        onDismiss={(jobId) => dismissStale.mutate(jobId)}
-      />
-
       <div className="tm-lib-folders-head">
         <div className="tm-lib-folders-head-label">
           <LIcon d={I.folder}/>
@@ -216,22 +206,6 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
           }}
         />
       )}
-
-      {stalePickerJobId && (() => {
-        const target = applications.find(a => a.job_id === stalePickerJobId)
-        if (!target) return null
-        return (
-          <StatusPicker
-            current={target.status}
-            asSheet
-            onClose={() => setStalePickerJobId(null)}
-            onPick={(status) => {
-              handleStatusChange(stalePickerJobId, status)
-              setStalePickerJobId(null)
-            }}
-          />
-        )
-      })()}
 
       {reviewJobId && reviewApp && (
         <ReviewModal
