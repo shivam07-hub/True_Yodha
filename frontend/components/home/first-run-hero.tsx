@@ -23,9 +23,20 @@ export interface FirstRunHeroProps {
   bestMatch?: FirstRunBestMatch | null
 }
 
-type StepState = "done" | "active" | "locked" | "working"
+type StepState = "done" | "active" | "locked" | "working" | "failed"
 
 function StepIcon({ state, n }: { state: StepState; n: number }) {
+  if (state === "failed") {
+    return (
+      <span className="frh-step-chip frh-step-chip--failed" aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z" />
+          <path d="M12 9v4" />
+          <path d="M12 17h.01" />
+        </svg>
+      </span>
+    )
+  }
   if (state === "done") {
     return (
       <span className="frh-step-chip frh-step-chip--done" aria-hidden>
@@ -58,7 +69,7 @@ export function FirstRunHero({
   const failed = cvReadiness === "failed"
   const scored = hasCv && score > 0
 
-  const step1: StepState = hasCv ? "done" : processing ? "working" : "active"
+  const step1: StepState = hasCv ? "done" : processing ? "working" : failed ? "failed" : "active"
   const step2: StepState = scored ? "done" : hasCv ? "working" : "locked"
   const step3: StepState = scored ? "active" : "locked"
 
@@ -75,24 +86,23 @@ export function FirstRunHero({
   return (
     <section className="frh" aria-label="Get to your first CV">
       <div className="frh-eyebrow">
-        <span className="frh-eyebrow-tag">FIRST MISSION</span>
-        <span className="frh-eyebrow-dot" aria-hidden>·</span>
         <span className="frh-eyebrow-clock">{eyebrowClock}</span>
+        <span className="frh-eyebrow-dot" aria-hidden>·</span>
         <span className="frh-eyebrow-rest">to your first CV</span>
       </div>
 
       <h1 className="frh-title">
         {hasCv ? (
-          <>You&apos;re one step from a <em>job-ready CV.</em></>
+          <>You&apos;re one step from a <em>job-ready</em> CV.</>
         ) : (
-          <>Hi {firstName} — your <em>job-ready CV</em> starts here.</>
+          <>Hi {firstName}, your <em>job-ready</em> CV starts here.</>
         )}
       </h1>
 
       <p className="frh-lede">
         {hasCv
-          ? "Myro read your CV and scored it. One more move — tailor it to your best-matched role — and download a scored, job-specific CV."
-          : "Drop in your CV. Myro reads it, scores it across 13 domains, and tailors a version for the exact role you want — in minutes."}
+          ? "Myro read your CV and scored it. Tailor it to your best-matched role to download a scored, job-specific version."
+          : "Drop in your CV. Myro reads it, scores it, and tailors a version for the exact role you want."}
       </p>
 
       {/* Checklist */}
@@ -101,7 +111,13 @@ export function FirstRunHero({
           <StepIcon state={step1} n={1} />
           <div className="frh-step-body">
             <span className="frh-step-title">
-              {hasCv ? "CV uploaded" : processing ? "Reading your CV" : "Upload your CV"}
+              {hasCv
+                ? "CV uploaded"
+                : processing
+                  ? "Reading your CV"
+                  : failed
+                    ? "We couldn't read that file"
+                    : "Upload your CV"}
             </span>
             <span className="frh-step-meta">
               {hasCv
@@ -109,13 +125,15 @@ export function FirstRunHero({
                   ? `${skillsDetected} skills detected`
                   : "parsed and ready"
                 : processing
-                  ? "Myro is reading every line — hang tight"
-                  : "PDF or DOCX · we read it in seconds"}
+                  ? "Myro is reading every line"
+                  : failed
+                    ? "Try a PDF or DOCX export, under 10 MB"
+                    : "PDF or DOCX · read in seconds"}
             </span>
           </div>
-          {step1 === "active" && (
+          {(step1 === "active" || step1 === "failed") && (
             <button type="button" className="frh-step-cta" onClick={goUpload}>
-              Upload
+              {step1 === "failed" ? "Try another" : "Upload"}
             </button>
           )}
           {step1 === "working" && <span className="frh-step-working-dots" aria-hidden />}
@@ -127,7 +145,9 @@ export function FirstRunHero({
             <span className="frh-step-title">Myro Score computed</span>
             <span className="frh-step-meta">
               {scored
-                ? `${score} / 100 · across ${domainsCount || 13} domains`
+                ? domainsCount
+                  ? `${score} / 100 · across ${domainsCount} domains`
+                  : `${score} / 100`
                 : hasCv
                   ? "scoring your domains now"
                   : "unlocks the moment your CV lands"}
@@ -148,13 +168,6 @@ export function FirstRunHero({
           {step3 === "active" && <span className="frh-step-now" aria-hidden>NOW</span>}
         </li>
       </ol>
-
-      {failed && (
-        <p className="frh-failed">
-          We couldn&apos;t read that file.{" "}
-          <button type="button" className="frh-inline-link" onClick={goUpload}>Try another CV →</button>
-        </p>
-      )}
 
       {/* Best-match card → the tailor action */}
       {scored && bestMatch && (
