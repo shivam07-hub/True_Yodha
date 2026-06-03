@@ -10,6 +10,7 @@ from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.database import get_supabase_admin
+from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
@@ -1167,14 +1168,14 @@ class JobsRepository:
         cached = _user_target_locations_cache.get(user_id)
         if cached is not None and (now - cached[0]) < _USER_TARGET_LOCATIONS_TTL:
             return cached[1]
-        result = (
+        data = safe_read(
             self._db.table("user_profiles")
             .select("target_locations, target_location")
             .eq("id", user_id)
-            .maybe_single()
-            .execute()
-        )
-        data = (result.data if result else None) or {}
+            .maybe_single(),
+            default=None,
+            context="user_target_locations",
+        ) or {}
         locations = [loc for loc in (data.get("target_locations") or []) if loc and loc.strip()]
         if not locations and data.get("target_location"):
             locations = [data["target_location"]]

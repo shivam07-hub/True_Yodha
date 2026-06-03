@@ -30,6 +30,17 @@ Do not use `https://www.linkedin.com/company/himyro/admin/`; LinkedIn currently
 redirects that slug to an unavailable page. The durable working company path is
 the numeric page ID above for **HiMyro Career Intelligence**.
 
+## LinkedIn Native-First Rule
+
+Default LinkedIn company-page posts should keep engagement inside LinkedIn:
+
+- no outbound URL in the post body unless Shivam explicitly asks for one
+- use the newsletter OG image or a native stat card instead of a link preview
+- keep copy compact, human, and lightly edited; avoid list-like AI formatting
+- use measured facts from the newsletter, but do not over-stack metrics
+
+X drafts can still use measurable CTA links with UTM parameters.
+
 ## Environment
 
 Set this in the backend environment before using the endpoints:

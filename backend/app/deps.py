@@ -20,17 +20,68 @@ directly — depend on `Principal` instead.
 
 import logging
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict
 from supabase import Client
 
+from app.config import settings
 from app.database import get_supabase, get_supabase_admin, get_supabase_for_token
+from app.db_safe import safe_profile_update, safe_read
 from app.services.location_normalizer import derive_location_columns
 from app.services.user_provisioning import ensure_user_provisioned
 
 _bearer = HTTPBearer()
 _logger = logging.getLogger(__name__)
+
+# Supabase access tokens are HS256, signed with the project JWT secret, with
+# `aud="authenticated"`. Verifying locally (signature + exp + aud) replaces a
+# network round-trip to Supabase Auth on EVERY request — the single biggest
+# per-request latency win. See settings.supabase_jwt_secret.
+_JWT_ALGORITHMS = ["HS256"]
+_JWT_AUDIENCE = "authenticated"
+
+
+class _LocalIdentity(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    id: str
+    email: str | None = None
+    full_name: str | None = None
+
+
+def _decode_local_jwt(token: str) -> _LocalIdentity:
+    """Verify a Supabase access token locally. Raises HTTP 401 on any invalid
+    token (bad signature, expired, wrong audience, missing subject).
+
+    Only called when `settings.supabase_jwt_secret` is set. When the secret is
+    configured, local verification is authoritative — a rejection is a 401, we
+    do NOT silently fall back to the remote path (that would mask a forged or
+    expired token). Projects on asymmetric signing keys (ES256/RS256) must NOT
+    set this HS256 secret; leave it empty to keep the remote path.
+    """
+    try:
+        claims = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=_JWT_ALGORITHMS,
+            audience=_JWT_AUDIENCE,
+            options={"require": ["exp", "sub"]},
+        )
+    except jwt.PyJWTError as exc:
+        _logger.warning("Local JWT verification failed: %s: %s", type(exc).__name__, exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        ) from exc
+
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    metadata = claims.get("user_metadata") or {}
+    full_name = None
+    if isinstance(metadata, dict):
+        full_name = metadata.get("full_name") or metadata.get("name")
+    return _LocalIdentity(id=user_id, email=claims.get("email"), full_name=full_name)
 
 _provisioned_users: set[str] = set()
 _location_backfilled_users: set[str] = set()
@@ -73,22 +124,28 @@ def _ensure_location_country_backfilled(user_id: str) -> None:
         return
     try:
         admin = get_supabase_admin()
-        result = (
+        data = safe_read(
             admin.table("user_profiles")
             .select("target_location, target_location_country, target_locations")
             .eq("id", user_id)
-            .maybe_single()
-            .execute()
-        )
-        data = (result.data if result else None) or {}
+            .maybe_single(),
+            default=None,
+            context="location_country_backfill_read",
+        ) or {}
         # Seed the canonical array (and its synced projections) for any legacy
         # row that still has only the scalar single set. Migration covers the
         # bulk; this is the per-request safety net so a profile read always has
-        # target_locations populated.
+        # target_locations populated. If the array column isn't migrated yet,
+        # safe_read returns {} and safe_profile_update no-ops the new columns —
+        # so we still mark the user done and never retry-storm the log.
         if data.get("target_location") and not data.get("target_locations"):
-            admin.table("user_profiles").update(
-                derive_location_columns([data["target_location"]])
-            ).eq("id", user_id).execute()
+            safe_profile_update(
+                admin.table("user_profiles"),
+                derive_location_columns([data["target_location"]]),
+                match_column="id",
+                match_value=user_id,
+                context="location_country_backfill_write",
+            )
         _location_backfilled_users.add(user_id)
     except Exception as exc:
         _logger.warning(
@@ -103,6 +160,16 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> CurrentUser:
     token = credentials.credentials
+
+    # Fast path: verify the JWT locally (no network) when the secret is set.
+    if settings.supabase_jwt_secret:
+        identity = _decode_local_jwt(token)  # raises 401 on any invalid token
+        _ensure_profile_provisioned(identity.id, identity.email, identity.full_name)
+        _ensure_location_country_backfilled(identity.id)
+        return CurrentUser(id=identity.id, email=identity.email, token=token)
+
+    # Fallback: remote validation via Supabase Auth (one network round-trip per
+    # request). Used only until supabase_jwt_secret is provisioned.
     try:
         response = get_supabase().auth.get_user(token)
         if not response.user:

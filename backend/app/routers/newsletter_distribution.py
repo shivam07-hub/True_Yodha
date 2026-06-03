@@ -49,7 +49,7 @@ def require_newsletter_distribution_admin(
     response_model=ContactImportResponse,
     dependencies=[Depends(require_newsletter_distribution_admin)],
 )
-async def import_contacts(
+def import_contacts(
     body: ContactImportRequest,
     repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),
 ) -> ContactImportResponse:
@@ -62,7 +62,7 @@ async def import_contacts(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_newsletter_distribution_admin)],
 )
-async def create_campaign(
+def create_campaign(
     body: CampaignCreateRequest,
     repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),
 ) -> CampaignCreateResponse:
@@ -81,7 +81,7 @@ async def create_campaign(
     response_model=CampaignResponse,
     dependencies=[Depends(require_newsletter_distribution_admin)],
 )
-async def get_campaign(
+def get_campaign(
     campaign_id: str,
     repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),
 ) -> dict:
@@ -99,7 +99,7 @@ async def get_campaign(
     response_model=CampaignApproveResponse,
     dependencies=[Depends(require_newsletter_distribution_admin)],
 )
-async def approve_campaign(
+def approve_campaign(
     campaign_id: str,
     body: CampaignApproveRequest,
     repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),
@@ -119,7 +119,7 @@ async def approve_campaign(
     response_model=QueueEmailResponse,
     dependencies=[Depends(require_newsletter_distribution_admin)],
 )
-async def queue_email_outreach(
+def queue_email_outreach(
     campaign_id: str,
     body: QueueEmailRequest,
     repo: NewsletterDistributionRepository = Depends(get_newsletter_distribution_repository),

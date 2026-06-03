@@ -17,7 +17,7 @@ router = APIRouter()
     response_model=ApplicationReviewResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def submit_application_review(
+def submit_application_review(
     job_id: str,
     body: ApplicationReviewRequest,
     principal: Principal = Depends(get_principal),

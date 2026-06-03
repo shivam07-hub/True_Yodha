@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.get("/applications/stale", response_model=list[StaleApplicationItem])
-async def get_stale_applications(
+def get_stale_applications(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> list[StaleApplicationItem]:
@@ -28,7 +28,7 @@ async def get_stale_applications(
 
 
 @router.post("/applications/{job_id}/dismiss-stale", status_code=http_status.HTTP_204_NO_CONTENT)
-async def dismiss_stale(
+def dismiss_stale(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),

@@ -11,7 +11,7 @@ router = APIRouter(prefix="/scores", tags=["scores"])
 
 
 @router.get("/me", response_model=MirrorScoreResponse)
-async def get_my_score(
+def get_my_score(
     principal: Principal = Depends(get_principal),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> MirrorScoreResponse:
@@ -33,7 +33,7 @@ async def get_my_score(
 
 
 @router.post("/compute", response_model=ComputeScoreResponse)
-async def recompute_score(
+def recompute_score(
     principal: Principal = Depends(get_principal),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
 ) -> ComputeScoreResponse:

@@ -41,7 +41,7 @@ class CVUploadPhasePayload(BaseModel):
 
 
 @router.post("/route-perf", status_code=201)
-async def record_route_perf(
+def record_route_perf(
     payload: RoutePerfPayload,
     principal: Principal = Depends(get_principal),
 ) -> dict:
@@ -117,7 +117,7 @@ def _maybe_emit_cv_upload_alert(payload: CVUploadPhasePayload) -> bool:
 
 
 @router.post("/cv-upload-phase", status_code=201)
-async def record_cv_upload_phase(
+def record_cv_upload_phase(
     payload: CVUploadPhasePayload,
     principal: Principal = Depends(get_principal),
 ) -> dict:

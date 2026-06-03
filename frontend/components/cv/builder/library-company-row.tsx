@@ -1,10 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus, CVVersion } from "@/lib/api"
 import {
   CompanyAvatar, StatusDot, Pill,
-  ACTIVE_STAGES, STAGE_META, timeAgoShort,
+  STAGE_META, timeAgoShort,
 } from "./library-shared"
 import { getJobWorkspaceAction, latestCVVersionForJob, pickNewCvJobId } from "@/lib/cv/workspace"
 import { I, LIcon } from "./library-icons"
@@ -101,7 +102,7 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false)
   const cvsCount = apps.filter((app) => app.job_id && latestCVVersionForJob(app.job_id, versions)).length
-  const activeCount = apps.filter((app) => ACTIVE_STAGES.includes(app.status)).length
+  const activeCount = apps.filter((app) => APPLICATION_STAGES.includes(app.status)).length
   const newCvJobId = useMemo(() => pickNewCvJobId(apps, versions), [apps, versions])
   const hasUntailoredRole = apps.some((app) => app.job_id && !latestCVVersionForJob(app.job_id, versions))
   const newCvLabel = hasUntailoredRole ? "Create CV" : "Open role CV"

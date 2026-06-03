@@ -1,0 +1,96 @@
+"""Home bootstrap BFF (backend-for-frontend).
+
+LinkedIn-style: ONE endpoint fans out server-side (fast, co-located with
+Supabase) so the client makes a single round-trip instead of ~9 to paint the
+dashboard. It composes the existing route handlers — now plain sync functions
+after the threadpool flip — so there is zero logic duplication: each section's
+behaviour is exactly its standalone endpoint's.
+
+Above-the-fold superset (grill Q2 + viewport split): bundles what the first
+viewport paints on either shell. The client seeds its TanStack cache from this
+bundle and the viewport picks its own above-the-fold slice (desktop = score +
+top-3 jobs + skill strip + xp; phone = score + top-1 + xp). Below-fold surfaces
+still lazy-load from their own endpoints.
+
+Token-scoped (RLS intact). The admin-client perf optimisation (skip per-request
+client construction) is a deliberate later follow-up, gated on a per-repo
+user_id-filter audit — bypassing RLS here without that audit risks cross-user
+leakage.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+
+from app.deps import Principal, get_principal
+from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
+from app.repositories.diary import DiaryRepository, get_token_diary_repository
+from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.repositories.scores import ScoresRepository, get_token_scores_repository
+from app.repositories.users import UsersRepository, get_token_users_repository
+from app.routers.cv.evidence import get_cv_evidence
+from app.routers.cv.versions import CVVersionListResponse, list_cv_versions
+from app.routers.diary import get_diary_history
+from app.routers.jobs.apply import get_applications
+from app.routers.jobs.match import get_job_matches
+from app.routers.scores import get_my_score
+from app.routers.users import get_me
+from app.routers.xp import forge_session_dates
+from app.schemas import (
+    ApplicationResponse,
+    CVEvidenceSummaryResponse,
+    DiaryHistoryResponse,
+    JobMatchesResponse,
+    MirrorScoreResponse,
+    UserProfileResponse,
+)
+from app.schemas.xp import ForgeSessionDatesResponse
+
+router = APIRouter(prefix="/home", tags=["home"])
+
+
+class HomeBootstrapResponse(BaseModel):
+    """Everything the dashboard needs to paint above the fold, in one payload.
+
+    `score` is nullable: a user with no CV yet has no score (the standalone
+    endpoint 404s) — the bundle degrades that to null instead of failing.
+    """
+
+    profile: UserProfileResponse
+    score: MirrorScoreResponse | None
+    matches: JobMatchesResponse
+    applications: list[ApplicationResponse]
+    evidence: CVEvidenceSummaryResponse
+    cv_versions: CVVersionListResponse
+    forge_dates: ForgeSessionDatesResponse
+    diary: DiaryHistoryResponse
+
+
+@router.get("/bootstrap", response_model=HomeBootstrapResponse)
+def home_bootstrap(
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+    scores_repo: ScoresRepository = Depends(get_token_scores_repository),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
+) -> HomeBootstrapResponse:
+    try:
+        score: MirrorScoreResponse | None = get_my_score(
+            principal=principal, scores_repo=scores_repo
+        )
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            score = None
+        else:
+            raise
+
+    return HomeBootstrapResponse(
+        profile=get_me(principal=principal, users_repo=users_repo),
+        score=score,
+        matches=get_job_matches(principal=principal, repo=jobs_repo),
+        applications=get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
+        evidence=get_cv_evidence(principal=principal, cv_repo=cv_repo),
+        cv_versions=list_cv_versions(principal=principal, cv_repo=cv_repo),
+        forge_dates=forge_session_dates(principal=principal),
+        diary=get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
+    )

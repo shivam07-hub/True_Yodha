@@ -63,7 +63,7 @@ def _resolve_owner_id(ninja_name: str, admin: Client) -> Optional[str]:
 # ── Public read ────────────────────────────────────────────────────────────
 
 @router.get("/{ninja_name}", response_model=PublicProfile)
-async def get_public_profile(ninja_name: str) -> PublicProfile:
+def get_public_profile(ninja_name: str) -> PublicProfile:
     name = ninja_name.strip().lower()
     if not nn.is_valid(name):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
@@ -149,7 +149,7 @@ def _fetch_match_scores(admin: Client, user_id: str, job_ids: list[str]) -> dict
 
 
 @router.get("/{ninja_name}/overlap", response_model=JobOverlapResponse)
-async def get_job_overlap(
+def get_job_overlap(
     ninja_name: str,
     principal: Principal = Depends(get_principal),
 ) -> JobOverlapResponse:
@@ -196,7 +196,7 @@ async def get_job_overlap(
 # ── Self-management ────────────────────────────────────────────────────────
 
 @router.post("/ninja-name", response_model=UpdateNinjaNameResponse)
-async def update_ninja_name(
+def update_ninja_name(
     body: UpdateNinjaNameRequest,
     principal: Principal = Depends(get_principal),
 ) -> UpdateNinjaNameResponse:
@@ -223,7 +223,7 @@ async def update_ninja_name(
 
 
 @router.get("/ninja-name/suggest", response_model=SuggestNinjaNameResponse)
-async def suggest_ninja_name(
+def suggest_ninja_name(
     principal: Principal = Depends(get_principal),
 ) -> SuggestNinjaNameResponse:
     """Onboarding seed.

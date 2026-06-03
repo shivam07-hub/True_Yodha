@@ -51,7 +51,7 @@ async def complete_forge_session(
 
 
 @router.get("/forge/last-skill", response_model=LastForgedSkillResponse)
-async def last_forged_skill(
+def last_forged_skill(
     principal: Principal = Depends(get_principal),
 ) -> LastForgedSkillResponse:
     """Return the most recently forged skill. Empty fields when user has none yet."""
@@ -62,7 +62,7 @@ async def last_forged_skill(
 
 
 @router.get("/forge/sessions", response_model=ForgeSessionDatesResponse)
-async def forge_session_dates(
+def forge_session_dates(
     principal: Principal = Depends(get_principal),
 ) -> ForgeSessionDatesResponse:
     """Recent forge-session completion timestamps — powers the home practice streak."""

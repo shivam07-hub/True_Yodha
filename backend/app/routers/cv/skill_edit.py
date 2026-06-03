@@ -79,7 +79,7 @@ class RecomputeStatusResponse(BaseModel):
 
 
 @router.post("/skill-edit", response_model=SkillEditResponse, status_code=status.HTTP_201_CREATED)
-async def skill_edit(
+def skill_edit(
     body: SkillEditRequest,
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -185,7 +185,7 @@ async def skill_edit(
 
 
 @router.get("/skill-edit/recompute-status/{baseline_id}", response_model=RecomputeStatusResponse)
-async def recompute_status(
+def recompute_status(
     baseline_id: int,
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),

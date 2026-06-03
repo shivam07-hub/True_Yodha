@@ -108,7 +108,7 @@ def _auto_title(kind: str, n: int) -> str:
 
 
 @router.get("", response_model=CVVersionListResponse)
-async def list_cv_versions(
+def list_cv_versions(
     job_id: str | None = None,
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -128,7 +128,7 @@ async def list_cv_versions(
 
 
 @router.post("", response_model=CVVersionResponse, status_code=status.HTTP_201_CREATED)
-async def create_cv_version(
+def create_cv_version(
     body: CVVersionCreateRequest,
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
@@ -238,7 +238,7 @@ async def polish_cv_version(
     response_model=CVVersionResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def edit_cv_version(
+def edit_cv_version(
     version_id: int,
     body: CVVersionEditRequest,
     principal: Principal = Depends(get_principal),

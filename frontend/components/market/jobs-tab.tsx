@@ -340,18 +340,15 @@ export interface MarketJobsTabProps {
   targetLocations: string[]
   followedNames: string[]
   onToggleFollow: (name: string) => void
-  followLimit: number
-  xpBalance: number
+  canFollow: (name: string) => boolean
+  disabledReason: (name: string) => string | undefined
 }
-
-const FOLLOW_XP_COST = 10
-const XP_FLOOR = -30
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
     token, analytics, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     targetLocations,
-    followedNames, onToggleFollow, followLimit, xpBalance,
+    followedNames, onToggleFollow, canFollow, disabledReason,
   } = props
 
   const [searchInput, setSearchInput] = useState("")
@@ -412,9 +409,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     setSearchInput(""); setQ(""); setPinnedRole(null)
     onSelectCluster(null)
   }, [onSelectCluster])
-
-  const followFull = followedNames.length >= followLimit
-  const lowXp = xpBalance - FOLLOW_XP_COST < XP_FLOOR
 
   const activeStatKind: "all" | "company" | "role" | "country" | null = useMemo(() => {
     const noFilters = !selectedCluster && !pinnedRole && !q
@@ -495,8 +489,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     followed={followed}
                     onOpen={() => setOpenJob(job)}
                     onToggleFollow={() => job.company_name && onToggleFollow(job.company_name)}
-                    followDisabled={!followed && (followFull || lowXp)}
-                    followDisabledReason={followFull ? `Heatmap limit ${followLimit}` : lowXp ? "Not enough XP" : undefined}
+                    followDisabled={!followed && !!job.company_name && !canFollow(job.company_name)}
+                    followDisabledReason={job.company_name ? disabledReason(job.company_name) : undefined}
                   />
                 )
               })}

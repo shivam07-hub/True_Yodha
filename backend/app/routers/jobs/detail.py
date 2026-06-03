@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)
-async def get_skill_gap(
+def get_skill_gap(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),

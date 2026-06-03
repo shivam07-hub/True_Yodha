@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_key: str = ""
+    # Supabase project JWT secret (HS256). When set, access tokens are verified
+    # LOCALLY in deps.get_current_user — no network round-trip to Supabase Auth
+    # per request. Empty = fall back to the remote auth.get_user() path (ships
+    # safe before the secret is provisioned). Find it in:
+    # Supabase dashboard → Project Settings → API → JWT Settings → JWT Secret.
+    supabase_jwt_secret: str = ""
 
     # Local LLM via LM Studio (priority 0 — no rate limits)
     lm_studio_tagger_model: str    = ""

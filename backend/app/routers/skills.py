@@ -7,7 +7,7 @@ router = APIRouter(prefix="/skills", tags=["skills"])
 
 
 @router.get("", response_model=SkillsListResponse)
-async def list_skills(
+def list_skills(
     skills_repo: SkillsRepository = Depends(get_skills_repository),
 ) -> SkillsListResponse:
     skills = [
@@ -25,7 +25,7 @@ async def list_skills(
 
 
 @router.get("/domains", response_model=list[str])
-async def list_domains(
+def list_domains(
     skills_repo: SkillsRepository = Depends(get_skills_repository),
 ) -> list[str]:
     """Returns distinct L1 category names present in the skills table."""

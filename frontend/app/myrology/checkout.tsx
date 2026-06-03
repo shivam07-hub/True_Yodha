@@ -245,10 +245,16 @@ export function MyrologyCta({ variant }: { variant: "price" | "bridge" }) {
         ) : (
           <>
             <span>Secured by Razorpay · UPI · cards · wallets</span>
-            <span className="mono">7-day refund</span>
+            <span className="mono">Non-refundable</span>
           </>
         )}
       </div>
+      <p className="price-cta-terms">
+        By paying, you agree to Myro&rsquo;s{" "}
+        <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+        {" "}and{" "}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+      </p>
     </>
   )
 }

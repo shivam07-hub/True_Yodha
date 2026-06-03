@@ -27,7 +27,7 @@ def _ping_db() -> bool:
 
 
 @router.get("/status")
-async def get_status() -> dict:
+def get_status() -> dict:
     global _cache_data, _cache_ts
     now = time.monotonic()
     if _cache_data is not None and now - _cache_ts < _CACHE_TTL:

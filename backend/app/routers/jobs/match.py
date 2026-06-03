@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.get("/my-skills/demand", response_model=UserSkillDemandResponse)
-async def get_my_skill_demand(
+def get_my_skill_demand(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> UserSkillDemandResponse:
@@ -31,7 +31,7 @@ async def get_my_skill_demand(
 
 
 @router.get("/matches", response_model=JobMatchesResponse)
-async def get_job_matches(
+def get_job_matches(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobMatchesResponse:
@@ -64,7 +64,7 @@ async def get_job_matches(
 
 
 @router.delete("/matches/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def dismiss_job_match_card(
+def dismiss_job_match_card(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -285,18 +286,8 @@ export function SettingsModal({ open, onClose, profile }: {
     },
   })
 
-  // Following queries/mutations
-  const { data: followingData, isLoading: followingLoading } = useQuery({
-    queryKey: ["followedCompanies"],
-    queryFn: () => users.followedCompanies(token!),
-    enabled: !!token && open && activeTab === "Following",
-    staleTime: 60 * 1000,
-  })
-
-  const unfollowMutation = useMutation({
-    mutationFn: (companyName: string) => users.unfollowCompany(token!, companyName),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
-  })
+  // Following — optimistic follow/unfollow + IH2 gating owned by the hook.
+  const following = useFollowCompany(token, { enabled: open && activeTab === "Following" })
 
   useEffect(() => {
     const term = companyInput.trim()
@@ -312,22 +303,16 @@ export function SettingsModal({ open, onClose, profile }: {
   })
 
   const filteredSuggestions = companySuggestions.filter(
-    (name) => !(followingData?.companies ?? []).some((c) => c.company_name.toLowerCase() === name.toLowerCase())
+    (name) => !following.followedNames.some((n) => n.toLowerCase() === name.toLowerCase())
   )
-
-  const followMutation = useMutation({
-    mutationFn: (companyName: string) => users.followCompany(token!, companyName),
-    onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
-      queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
-      setCompanyInput("")
-      setCompanyDropdown(false)
-    },
-  })
 
   function selectCompany(name: string) {
     if (companyCloseTimer.current) clearTimeout(companyCloseTimer.current)
-    followMutation.mutate(name)
+    // Optimistic: the chip appears instantly inside the hook, so clear the
+    // input and close the dropdown now rather than waiting on the round-trip.
+    following.follow(name)
+    setCompanyInput("")
+    setCompanyDropdown(false)
   }
 
   function schedule(updates: ProfileUpdate) {
@@ -511,7 +496,7 @@ export function SettingsModal({ open, onClose, profile }: {
     }
   }
 
-  const followedCompanies = followingData?.companies ?? []
+  const followedCompanies = following.companies
 
   const statusNode = saveStatus === "saving" ? (
     <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Saving…</span>
@@ -583,13 +568,13 @@ export function SettingsModal({ open, onClose, profile }: {
               >
                 <span className="tm-settings-nav-icon" style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
                 <span>{tab}</span>
-                {tab === "Following" && (followingData?.total ?? 0) > 0 && (
+                {tab === "Following" && following.count > 0 && (
                   <span className="tm-settings-nav-badge" style={{
                     marginLeft: "auto", fontSize: 10, fontWeight: 600,
                     background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
                     borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
                   }}>
-                    {followingData!.total}
+                    {following.count}
                   </span>
                 )}
                 {tab === "Feedback" && (
@@ -920,10 +905,15 @@ export function SettingsModal({ open, onClose, profile }: {
                       </div>
                     )}
                   </div>
+                  {following.error && (
+                    <div role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--tm-danger, #f87171)" }}>
+                      {following.error.message}
+                    </div>
+                  )}
                 </div>
 
                 {/* Followed companies list */}
-                {followingLoading ? (
+                {following.isLoading ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
                     {[1, 2, 3].map((i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
@@ -948,8 +938,8 @@ export function SettingsModal({ open, onClose, profile }: {
                         </Link>
                         <button
                           type="button"
-                          onClick={() => unfollowMutation.mutate(company.company_name)}
-                          disabled={unfollowMutation.isPending}
+                          onClick={() => following.unfollow(company.company_name)}
+                          disabled={following.isPending(company.company_name)}
                           aria-label={`Unfollow ${company.company_name}`}
                           style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
                         >×</button>
@@ -993,6 +983,10 @@ function BillingTabContent({
   onBuy: () => void
 }) {
   const busy = status === "creating" || status === "verifying"
+  // Truth comes from the key Razorpay itself issues: rzp_test_* vs rzp_live_*.
+  // The badge is derived, never hardcoded, so it can never claim "live" while a
+  // test key is configured (or vice-versa).
+  const isTestMode = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "").startsWith("rzp_test_")
   const buttonLabel = status === "creating"
     ? "Opening checkout..."
     : status === "verifying"
@@ -1086,6 +1080,14 @@ function BillingTabContent({
             </div>
           )}
         </div>
+
+        <p style={{ marginTop: 14, fontSize: 11, color: "var(--tm-text-faint)", lineHeight: 1.55, maxWidth: 420 }}>
+          By paying, you agree to Myro&rsquo;s{" "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>
+          {" "}and{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Privacy Policy</a>.
+          XP is an in-platform credit that funds Myro&rsquo;s operation — it is not a payment for any job or hiring outcome.
+        </p>
       </div>
 
       <div style={{
@@ -1106,8 +1108,8 @@ function BillingTabContent({
             Razorpay
           </div>
         </div>
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
-          Test mode
+        <span style={{ fontSize: 11, color: isTestMode ? "var(--tm-warning)" : "var(--tm-text-faint)" }}>
+          {isTestMode ? "Test mode" : "Secure checkout"}
         </span>
       </div>
     </div>

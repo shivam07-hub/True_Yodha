@@ -67,7 +67,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p style={{ fontSize: "var(--tm-fs-meta)", color: "var(--tm-text-muted)", margin: 0 }}>
-            Effective 30 April 2026 · Last updated 30 May 2026
+            Effective 30 April 2026 · Last updated 2 June 2026
           </p>
         </div>
       </header>
@@ -129,7 +129,7 @@ export default function PrivacyPage() {
             </div>
 
             <Section id="who-we-are" n="01" title="Who We Are">
-              <P>Myro is a product of <strong>Myro Career Intelligence</strong>, Vasant Vihar, West Delhi, Delhi, India (&ldquo;we&rdquo;, &ldquo;us&rdquo;). Myro is an Intelligence-as-a-Service platform for job seekers, available at{" "}
+              <P>Myro is a product of <strong>Myro Career Intelligence Private Limited</strong>, a company incorporated in India with its registered office at Vasant Vihar, West Delhi, Delhi, India (&ldquo;we&rdquo;, &ldquo;us&rdquo;). Myro is an Intelligence-as-a-Service platform for job seekers, available at{" "}
                 <a href="https://himyro.com" style={{ color: "var(--tm-interactive)" }}>himyro.com</a>.
                 {" "}We also publish the <strong>Myro Job Tracker</strong> Chrome extension.</P>
             </Section>
@@ -166,6 +166,7 @@ export default function PrivacyPage() {
                 <Li>To generate personalised action plans and CV variants</Li>
                 <Li>To authenticate you and keep your account secure</Li>
               </Ul>
+              <P>We collect and process your personal data <strong>only for the specific purposes described in this policy</strong> and the purposes for which you have given consent. We do not use your data for any new, unrelated purpose without asking you first. We process your data on the basis of the consent you give when you sign up and use the Service, and, where applicable, for the legitimate uses permitted under the Digital Personal Data Protection Act, 2023.</P>
             </Section>
 
             <Section id="who-we-share" n="04" title="Who We Share Data With">
@@ -177,6 +178,7 @@ export default function PrivacyPage() {
                 <Li><strong>OpenRouter / Groq / Google</strong> — LLM inference for skill extraction and job ranking. Job description text and CV text may be sent to these providers.</Li>
               </Ul>
               <p style={{ ...muted, marginTop: 12 }}>No data is sold or shared with employers, recruiters, or data brokers.</p>
+              <P>Some of our infrastructure and AI inference providers process data on servers located outside India (for example, in the European Union or the United States). By using the Service you acknowledge that your data may be processed in these locations. We only use providers that we believe apply appropriate safeguards, and we do not transfer personal data to any country or territory restricted by the Government of India.</P>
             </Section>
 
             <Section id="retention" n="05" title="Data Retention">
@@ -188,12 +190,13 @@ export default function PrivacyPage() {
             </Section>
 
             <Section id="your-rights" n="06" title="Your Rights">
-              <P>You have the right to access your data, correct inaccuracies, request deletion, and export your data.</P>
-              <P>Email <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)" }}>hello@himyro.com</a> to exercise any right.</P>
+              <P>Under India&rsquo;s Digital Personal Data Protection Act, 2023, you have the right to <strong>access</strong> your personal data, <strong>correct</strong> inaccuracies, <strong>request erasure</strong> of your data, <strong>withdraw consent</strong> you have previously given, <strong>nominate</strong> another person to exercise your rights in the event of death or incapacity, and <strong>export</strong> your data. Withdrawing consent is as easy as giving it — you can delete your account or revoke data processing at any time from Settings, or by emailing <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a>. Withdrawing consent does not affect processing already carried out, and may mean we can no longer provide some or all of the Service.</P>
+              <P>To raise a concern or complaint about how we handle your data, see our Grievance Redressal section below.</P>
             </Section>
 
             <Section id="cookies" n="07" title="Cookies">
               <P>Myro uses session cookies for authentication only. No tracking cookies. No third-party advertising cookies.</P>
+              <P>Because we use only strictly-necessary authentication cookies and no analytics, advertising, or tracking cookies, no cookie-consent banner is required under the EU ePrivacy Directive or the UK PECR. If we ever introduce non-essential cookies, we will request your consent first.</P>
             </Section>
 
             <Section id="security" n="08" title="Security">
@@ -209,7 +212,18 @@ export default function PrivacyPage() {
               <P>We will update this page when our practices change. Continued use after changes constitutes acceptance. Check the &ldquo;Last updated&rdquo; date at the top of this page.</P>
             </Section>
 
-            <Section id="contact" n="11" title="Contact">
+            <Section id="grievance" n="11" title="Grievance Redressal">
+              <P>In accordance with the Information Technology Act, 2000 and the rules made under it, and the Digital Personal Data Protection Act, 2023, we have appointed a Grievance Officer to address your concerns about how we handle your personal data or content on the Service.</P>
+              <P>If you have a complaint — for example, about a request to access, correct, or delete your data, a withdrawal of consent that was not honoured, or any other privacy concern — you may contact:</P>
+              <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", marginTop: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.7 }}>
+                <div><strong style={{ color: "var(--tm-text)" }}>Grievance Officer</strong>, Myro Career Intelligence Private Limited</div>
+                <div>Email: <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a></div>
+                <div>Address: Vasant Vihar, West Delhi, Delhi, India</div>
+              </div>
+              <P>We will acknowledge your complaint within <strong>twenty-four (24) hours</strong> of receipt and will resolve it within <strong>fifteen (15) days</strong>, in line with applicable Indian law. If your complaint concerns content you have asked us to remove, we will act within the timelines required by law.</P>
+            </Section>
+
+            <Section id="contact" n="12" title="Contact">
               <P>Questions about this policy? Reach us at:</P>
               <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", marginTop: 8, display: "inline-block" }}>
                 <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)", fontWeight: 600, fontSize: "var(--tm-fs-body)", textDecoration: "none" }}>

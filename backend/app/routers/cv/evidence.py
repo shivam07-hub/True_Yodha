@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get("/evidence", response_model=CVEvidenceSummaryResponse)
-async def get_cv_evidence(
+def get_cv_evidence(
     principal: Principal = Depends(get_principal),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> CVEvidenceSummaryResponse:
