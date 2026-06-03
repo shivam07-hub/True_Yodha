@@ -109,6 +109,9 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
             Next milestone: <strong>{tier.next}</strong> · {tier.nextLabel}
           </div>
         ) : null}
+        <Link href="/docs#scoring" className="csp-done-method tm-control-focus">
+          How this score works
+        </Link>
         {done.downloadSlot ? (
           <div className="csp-done-actions">
             {done.downloadSlot}

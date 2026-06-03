@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
+import { ScoringSection } from "@/components/docs/scoring-section"
 import {
-  ScoringSection,
   CVReadingSection,
   SkillLevelsSection,
   MatchingSection,

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRecomputeStore } from "@/store/recomputeStore"
 import { tierForScore } from "@/lib/score-tiers"
 
@@ -18,7 +19,12 @@ export function ScoreRing({ score }: { score: number }) {
   const recomputing = useRecomputeStore(s => s.pendingBaselineId !== null)
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+    <Link
+      href="/docs#scoring"
+      aria-label={`Myro Score ${score}. See how this score is calculated.`}
+      title="See how this score is calculated"
+      style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0, color: "inherit", textDecoration: "none" }}
+    >
       <svg
         width={68} height={68} viewBox="0 0 68 68"
         aria-busy={recomputing}
@@ -50,6 +56,6 @@ export function ScoreRing({ score }: { score: number }) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   )
 }

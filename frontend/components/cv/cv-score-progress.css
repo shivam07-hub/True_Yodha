@@ -112,6 +112,13 @@
 @keyframes csp-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .csp-done-tier { font-size: 16px; font-weight: 650; color: var(--tm-text); }
 .csp-done-next { font-size: 13px; color: var(--tm-text-muted); }
+.csp-done-method {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--tm-interactive, var(--tm-accent));
+  text-decoration: none;
+}
+.csp-done-method:hover { text-decoration: underline; }
 .csp-done-cta {
   margin-top: 6px;
   font-size: 14px; font-weight: 600;
