@@ -10,6 +10,7 @@ import { WebChrome } from "@/components/shell/web-chrome"
 import { FeedbackHub, FeedbackFAB } from "@/components/feedback"
 import { skeletonForPath } from "@/components/loading/page-skeletons"
 import { useShellModel } from "@/lib/shell/use-shell-model"
+import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import {
   MobileBottomNav,
   MobileProfileSheet,
@@ -38,6 +39,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { isDesktop } = useViewport()
   const m = useShellModel()
+  // No CV uploaded yet → the feedback FAB renders neutral so the first-run
+  // Upload CTA owns the only accent on the page (D2). Cache-shared queries.
+  const { hasCv } = useNavUnlocks()
 
   // Auth bootstrap window — before chrome/profile can render. Show the
   // destination page's own skeleton shape rather than a centered logo splash,
@@ -95,6 +99,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <FeedbackFAB
         hidden={!isDesktop || m.feedbackHubOpen}
+        subdued={!hasCv}
+        pulse={hasCv}
         onOpen={(category) => {
           if (category) m.setFeedbackHubCategory(category)
           m.setFeedbackHubTab("new")
