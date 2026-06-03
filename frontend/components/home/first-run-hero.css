@@ -68,9 +68,12 @@
   border-radius: var(--tm-radius-lg);
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
-  transition: border-color var(--tm-dur-fast) var(--tm-ease), opacity var(--tm-dur-fast) var(--tm-ease);
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
 }
-.frh-step[data-state="locked"] { opacity: 0.5; }
+/* Locked = conveyed by the neutral numbered chip, not by dimming the text
+ * (opacity-on-text fails WCAG — D3/PR-K). Title drops to muted (still ≥AA),
+ * meta stays faint (≥AA on both surfaces). */
+.frh-step[data-state="locked"] .frh-step-title { color: var(--tm-text-muted); }
 .frh-step[data-state="active"] {
   border-color: var(--tm-accent-ring);
   background: var(--tm-accent-wash);
@@ -253,7 +256,7 @@
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
 }
-.frh-grows-row[data-unlocked="false"] { opacity: 0.62; }
+/* Locked rows: the lock icon carries the state — text stays ≥AA, no opacity. */
 .frh-grows-icon {
   flex-shrink: 0;
   width: 24px;

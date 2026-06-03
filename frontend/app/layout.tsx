@@ -64,10 +64,21 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
+// Flash-free theme resolution (D4, 2026-06-03): honor the OS theme by default,
+// with a persisted user override. Runs beforeInteractive so the surface is set
+// on <html> before first paint — no light→dark flicker. `myro-surface` is the
+// storage contract a future SurfaceToggle writes ("light" | "dark"); absent or
+// invalid → fall back to `prefers-color-scheme`. SSR ships data-surface="light"
+// as the no-JS fallback; this script corrects it for system-dark users.
+const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface');if(s!=='light'&&s!=='dark'){s=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.surface=s;}catch(e){}})();`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="light">
       <body className="font-sans antialiased">
+        <Script id="myro-surface-init" strategy="beforeInteractive">
+          {SURFACE_INIT}
+        </Script>
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script

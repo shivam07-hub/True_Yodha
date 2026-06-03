@@ -252,11 +252,11 @@
   /* Light theme text — measured on #F4F6FA page bg
        primary  #050A18 → ~16.6:1 (AAA)
        muted    #3F4D6A → ~8.9:1  (AAA, was 4A5878 ~6.8:1 — lifted for parity w/ dark)
-       faint    #6F7B95 → ~4.6:1  (AA, was 8B96AC ~2.5:1 — fixed FAIL)
-       disabled #A8B0C2 → ~2.4:1  (decorative only) */
+       faint    #646F87 → ~5.1:1  (AA — was 6F7B95 ~4.25:1, under the 4.5 floor; PR-K/D3 fix)
+       disabled #A8B0C2 → ~2.4:1  (decorative only — never load-bearing text) */
   --tm-text:          #050A18;
   --tm-text-muted:    #3F4D6A;
-  --tm-text-faint:    #6F7B95;
+  --tm-text-faint:    #646F87;
   --tm-text-disabled: #A8B0C2;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
