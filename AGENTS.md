@@ -277,6 +277,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
+
+Claude ran a `/frontend-design` audit of the first-login `/home` first-run hero (27 blunders) and shipped two commits to Develop (not pushed). **Codex: the mechanical slice below is already done — do not redo.**
+
+- `7a3fd3e fix(home)` — `components/home/first-run-hero.{tsx,css}`: error folds into step-1 as a real `failed` state in `--tm-danger` (was an orphaned `<p>` after the stepper while step-1 still rendered "active"); accent diet (eyebrow neutralized); voice/vocab fixes (dropped "FIRST MISSION", "13 domains" jargon, em-dash overload).
+- `8dbee60 fix(nav)` — `components/nav/nav.css` + `components/shell/web-chrome.tsx`: "FIRST CV IN10 min" optical gap + XP balance `toLocaleString` + tabular-nums (`3,000 XP`).
+- **Open → Shivam decision (Claude spawned a grill):** top-nav Live/Practice gating, feedback-FAB de-emphasis, greyed-state contrast (PR-K), light-vs-dark first-login theme.
+- tsc 0, lint clean both commits. Note: the nested `frontend/.git` repo has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`); the root deploy repo is clean.
+
 ## LAST SESSION SUMMARY (2026-06-03 - LinkedIn-only social automation)
 
 Paused X activity and narrowed the daily social automation to LinkedIn only.

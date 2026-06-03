@@ -425,6 +425,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-03 · First-login hero design audit → fixes SHIPPED to Develop)
+
+`/frontend-design` + `brand-guidelines` audit of the first-login `/home` first-run hero (screenshot from Shivam). Found **27 distinct blunders**; fixed the high-severity in-component set + the Codex mechanical slice. Two commits on Develop (not pushed).
+
+**SHIPPED (mine) — `7a3fd3e` `fix(home)`:** `components/home/first-run-hero.tsx`+`.css`.
+- Error was an **orphaned `<p>` rendered after the stepper while step-1 still showed "active"** (`failed` + `step1="active"` simultaneously). Now error folds into step-1 as a real `failed` state in `--tm-danger` red with a "Try another" CTA. Killed dead `.frh-failed`/`.frh-inline-link`.
+- Accent diet: neutralized green eyebrow → first-paint hard accents = H1-italic + Upload CTA (three-accent budget).
+- Voice/vocab: dropped "FIRST MISSION" (retired vocab), killed "13 domains" jargon + `||13` magic fallback, removed em-dash overload + time-unit triplication from lede, "we read it"→"read in seconds", italic narrowed to one pivot word.
+
+**SHIPPED (Codex slice, done by Claude) — `8dbee60` `fix(nav)`:** `components/nav/nav.css` + `components/shell/web-chrome.tsx`.
+- "FIRST CV IN10 min" → optical gap before the time value.
+- XP balance `3000`→`3,000` (`toLocaleString` + tabular-nums per type.md).
+
+**OPEN → handed to Shivam (grill in flight, NOT auto-build):** 4 sprint-level decisions surfaced by the audit, queued for `/grill-me`:
+1. Top-nav exposes Live/Practice to a no-CV user vs the "nav grows with you" message — progressive-gating policy.
+2. Feedback FAB competes with the Upload CTA on first paint — de-emphasis.
+3. Greyed-state contrast (steps/locked rows) — this is **PR-K token foundation** (Backlog #20).
+4. Light first-login surface vs dark product — theme-whiplash policy.
+
+Full 27-blunder list in this session's audit. tsc 0, lint clean both commits. The deploy repo (root) tracks first-run-hero cleanly; the nested `frontend/.git` has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`) — flag for whoever owns that repo.
+
 ## LAST SESSION SUMMARY (2026-06-02 · Scheduled task: Enterprise Polish Sprint audit + plan)
 
 **Automated Cowork session — no code written. Pure audit → plan.**
