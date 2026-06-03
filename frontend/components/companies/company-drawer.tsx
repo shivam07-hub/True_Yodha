@@ -163,7 +163,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
               type="button"
               onClick={onClose}
               aria-label="Close drawer"
-              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid transparent", background: "transparent", color: "var(--tm-text-faint)", fontSize: 20, cursor: "pointer", lineHeight: 1, flexShrink: 0 }}
+              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid transparent", background: "transparent", color: "var(--tm-interactive-rest)", fontSize: 20, cursor: "pointer", lineHeight: 1, flexShrink: 0 }}
             >
               ✕
             </button>

@@ -201,7 +201,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             >
               Start forging ↗
             </button>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: "6px 12px" }}>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", padding: "6px 12px" }}>
               Exit
             </button>
           </div>
@@ -222,7 +222,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                   +{totalXP} XP today
                 </div>
               )}
-              <button onClick={onClose} style={{ padding: "5px 14px", borderRadius: "var(--tm-radius-pill)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-faint)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={onClose} style={{ padding: "5px 14px", borderRadius: "var(--tm-radius-pill)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                 Exit
               </button>
             </div>
@@ -268,7 +268,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                   cursor: running ? "default" : "pointer",
                   background: i === durIdx ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.03)",
                   border: `1px solid ${i === durIdx ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
-                  color: i === durIdx ? "var(--tm-interactive)" : "var(--tm-text-faint)",
+                  color: i === durIdx ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
                   opacity: running && i !== durIdx ? 0.3 : 1,
                 }}>{d.label}</button>
               ))}
@@ -344,7 +344,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
             <button onClick={onClose} style={{
               padding: "10px 24px", borderRadius: "var(--tm-radius-pill)",
               background: "transparent", border: "1px solid var(--tm-border)",
-              color: "var(--tm-text-faint)", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+              color: "var(--tm-interactive-rest)", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
             }}>
               Back to dashboard
             </button>

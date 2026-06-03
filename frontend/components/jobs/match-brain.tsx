@@ -196,7 +196,7 @@ export function JobMatchDetail({ job, onClose }: { job: JobMatch; onClose: () =>
             type="button"
             onClick={onClose}
             aria-label="Close"
-            style={{ background: "transparent", border: "none", color: "var(--tm-text-faint)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}
+            style={{ background: "transparent", border: "none", color: "var(--tm-interactive-rest)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}
           >
             ×
           </button>

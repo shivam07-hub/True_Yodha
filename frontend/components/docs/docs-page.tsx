@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
+import { ScoringSection } from "@/components/docs/scoring-section"
 import {
-  ScoringSection,
   CVReadingSection,
   SkillLevelsSection,
   MatchingSection,
@@ -64,9 +64,9 @@ export function DocsPage() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              style={{ fontSize: 13, color: "var(--tm-text-faint)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
+              style={{ fontSize: 13, color: "var(--tm-interactive-rest)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
             >
               {s.label}
             </a>
@@ -86,10 +86,10 @@ export function DocsPage() {
           {/* CTA */}
           <div style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 40, textAlign: "center" }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", marginBottom: 8, letterSpacing: "-0.02em" }}>
-              Ready to see your score?
+              Choose your match.
             </div>
             <p style={{ fontSize: 14, color: "var(--tm-text-faint)", marginBottom: 20, margin: "0 0 20px" }}>
-              Upload your CV and get a full breakdown in under 60 seconds.
+              One CV in. A tailored version for every role — you decide which to send.
             </p>
             <Link
               href="/signup"
@@ -104,7 +104,7 @@ export function DocsPage() {
                 textDecoration: "none",
               }}
             >
-              Start for free →
+              Map my CV →
             </Link>
           </div>
         </div>

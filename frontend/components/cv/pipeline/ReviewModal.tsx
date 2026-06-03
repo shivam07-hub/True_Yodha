@@ -48,7 +48,7 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 4 }}>Leave a review</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>{company ?? "Company"}</div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
         </div>
 
         <div>
@@ -74,7 +74,7 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
               <button
                 key={val}
                 onClick={() => setLastStage(val)}
-                style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer", transition: "all 100ms ease", background: lastStage === val ? "var(--tm-interactive)" : "rgba(255,255,255,0.03)", border: lastStage === val ? "1px solid var(--tm-interactive)" : "1px solid var(--tm-border)", color: lastStage === val ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)" }}
+                style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer", transition: "all 100ms ease", background: lastStage === val ? "var(--tm-interactive)" : "rgba(255,255,255,0.03)", border: lastStage === val ? "1px solid var(--tm-interactive)" : "1px solid var(--tm-border)", color: lastStage === val ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)" }}
               >
                 {label}
               </button>
@@ -96,7 +96,7 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
         {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Skip</button>
+          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Skip</button>
           <button
             onClick={handleSubmit}
             disabled={submitting || stars === 0}

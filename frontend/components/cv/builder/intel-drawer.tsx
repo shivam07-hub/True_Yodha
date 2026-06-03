@@ -12,7 +12,7 @@ import { Icon } from "./icons"
 import { ScoreGauge } from "./score-gauge"
 import { KindDot } from "./commit-graph"
 import { formatGlobalVersionLabel, timeAgo } from "@/lib/cv/version-format"
-import type { KeywordTarget } from "./keyword-utils"
+import { formatKeywordChipLabel, type KeywordTarget } from "./keyword-utils"
 
 interface IntelDrawerProps {
   open: boolean
@@ -77,7 +77,7 @@ export function IntelDrawer({
                 ? <span style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>None yet.</span>
                 : matched.map(k => (
                   <span key={k.kw} className="cvb-kw-chip match" title={k.weight ? `weight ${k.weight}` : undefined}>
-                    <span className="dot"/>{k.kw}
+                    <span className="dot"/>{formatKeywordChipLabel(k.kw)}
                   </span>
                 ))}
             </div>
@@ -90,7 +90,7 @@ export function IntelDrawer({
                 ? <span style={{ fontSize: 11.5, color: "var(--tm-success)" }}>All JD keywords covered.</span>
                 : missing.map(k => (
                   <span key={k.kw} className="cvb-kw-chip miss" title={k.weight ? `weight ${k.weight}` : undefined}>
-                    <span className="dot"/>{k.kw}
+                    <span className="dot"/>{formatKeywordChipLabel(k.kw)}
                   </span>
                 ))}
             </div>

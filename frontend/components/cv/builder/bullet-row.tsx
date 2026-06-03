@@ -6,7 +6,7 @@
 
 import { useEffect, useRef } from "react"
 import { Icon } from "./icons"
-import type { KeywordTarget } from "./keyword-utils"
+import { formatKeywordChipLabel, type KeywordTarget } from "./keyword-utils"
 
 interface BulletRowProps {
   text: string
@@ -57,7 +57,7 @@ export function BulletRow({ text, hits, hidden, editable, onToggle, onEdit }: Bu
           {hits.length > 0 ? (
             hits.slice(0, 4).map(h => (
               <span key={h.kw} className="cvb-kw-chip match" style={{ fontSize: 10.5 }}>
-                <span className="dot"/>{h.kw}
+                <span className="dot"/>{formatKeywordChipLabel(h.kw)}
               </span>
             ))
           ) : (

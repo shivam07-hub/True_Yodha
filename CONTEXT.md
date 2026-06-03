@@ -91,6 +91,16 @@ The resting color of a **clickable control that is not a teal CTA or accent link
 - `--tm-text-muted` and `--tm-icon-muted` are **dual-use** (static labels *and*, historically, clickable controls) — so this is a per-control sweep, not a token redefinition. No automated lint can detect clickability statically; the greppable token name is the durable marker.
 - Rollout is phased: PR1 = token + shared primitives (`Button` ghost variant, segment toggles, the avatar dropdown rows, mobile bottom-nav + drawer). Later PRs sweep ad-hoc inline controls one surface at a time.
 
+## Theme Control
+
+The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme-control.tsx`) is the **canonical** control — there is exactly one place that knows how a user changes theme, rendered in all three homes: the account dropdown (`shell/web-chrome.tsx`), the mobile drawer (`mobile/shell.tsx`), and Settings → Appearance (`settings-modal.tsx`). Adding a new surface theme switch means rendering this primitive, never hand-rolling a segmented control.
+
+**Boundary**
+
+- Owns the `useSurface()` wiring and `radiogroup`/`radio` a11y semantics; the three states are `system` | `light` | `dark` (`system` follows `prefers-color-scheme`).
+- Visually rides `.tm-segment-toggle` (`app/design-tokens.css`), so idle segments inherit the [Interactive-rest](#interactive-rest) brightness contract for free. Do not restyle idle segments to a dull token.
+- `fluid` stretches the pill to fill its row (dropdown / drawer). Bare = auto width (the Settings row, where label + description sit beside it). `label` renders the static caption (`--tm-text-muted`, dull — it is not clickable).
+
 ## Viewport Mode
 
 The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth for any code that needs to behave differently across screen sizes — sidebar vs bottom-nav, hero font size, grid collapse, particle background gating.

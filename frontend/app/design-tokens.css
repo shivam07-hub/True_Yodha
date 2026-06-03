@@ -594,9 +594,35 @@ body::after {
   transition: all var(--tm-dur) var(--tm-ease);
 }
 .tm-segment-toggle button[aria-pressed="true"],
+.tm-segment-toggle button[aria-checked="true"],
 .tm-accent-toggle button[aria-pressed="true"] {
   background: var(--tm-accent-wash);
   color: var(--tm-accent);
+}
+
+/* ── Theme control (canonical surface switcher) ───────────────
+   The <ThemeControl> primitive. Built on .tm-segment-toggle so it
+   inherits the interactive-rest brightness contract (idle segments
+   are clickable → never dull). `--fluid` stretches the pill to fill
+   its row (account dropdown, mobile drawer); the bare form keeps the
+   auto width used in the Settings → Appearance row. */
+.tm-theme-control {
+  font-family: inherit;
+}
+.tm-theme-control--fluid {
+  display: flex;
+  width: 100%;
+}
+.tm-theme-control--fluid button {
+  flex: 1;
+  text-align: center;
+}
+.tm-theme-control-label {
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--tm-text-muted); /* static caption → stays dull (interactive-rest rule) */
+  margin-bottom: 8px;
 }
 
 /* ── Page entrance animation ──────────────────────────────── */

@@ -6,7 +6,7 @@ const BASE = "https://www.himyro.com"
 export const metadata: Metadata = {
   title: "Myro — A job-ready CV in 10 minutes",
   description:
-    "Upload your CV once. AI scores it across 12 career domains, tailors a version for every job, and shows you exactly which one to send. Private by default. Free.",
+    "Upload your CV once. AI scores it across 10 career domains, tailors a version for every job, and shows you exactly which one to send. Private by default. Free.",
   robots: { index: true, follow: true },
   alternates: { canonical: BASE },
   openGraph: {

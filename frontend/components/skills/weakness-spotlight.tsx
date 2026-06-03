@@ -68,13 +68,13 @@ export function WeaknessSpotlight({ weakest, token }: { weakest: WeakDomain; tok
             padding: "7px 14px", borderRadius: "var(--tm-radius-sm)",
             fontSize: 12, fontWeight: 600,
             background: "transparent",
-            color: "var(--tm-text-muted)",
+            color: "var(--tm-interactive-rest)",
             border: "1px solid var(--tm-border-soft)",
             textDecoration: "none",
             transition: "all 200ms var(--tm-ease)",
           }}
             onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-interactive)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
-            onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+            onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-interactive-rest)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
           >
             CV →
           </Link>

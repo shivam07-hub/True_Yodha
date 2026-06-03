@@ -44,7 +44,7 @@ export function DeleteConfirmDialog({ company, title, onConfirm, onClose }: Prop
             style={{
               padding: "8px 16px", borderRadius: 8,
               background: "transparent", border: "1px solid var(--tm-border)",
-              color: "var(--tm-text-muted)", cursor: "pointer",
+              color: "var(--tm-interactive-rest)", cursor: "pointer",
               fontSize: 13, fontFamily: "inherit",
             }}
           >

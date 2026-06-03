@@ -28,7 +28,7 @@ function restoreButtonStyles(
 ) {
   el.style.background = active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)"
   el.style.borderColor = active ? "var(--tm-int-border)" : "var(--tm-border)"
-  el.style.color = active ? "var(--tm-interactive)" : "var(--tm-text-muted)"
+  el.style.color = active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)"
   el.style.opacity = disabled ? "0.55" : "1"
 }
 
@@ -75,7 +75,7 @@ export function SelectionChip({
         cursor: "pointer",
         background: active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)",
         border: `1.5px solid ${active ? "var(--tm-int-border)" : "var(--tm-border)"}`,
-        color: active ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+        color: active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
         boxShadow: active ? "inset 0 0 0 1px var(--tm-int-border-soft)" : "none",
       }}
       onMouseEnter={(e) => {

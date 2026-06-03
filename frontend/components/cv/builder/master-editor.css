@@ -1,0 +1,79 @@
+/* MasterEditor (PR-3 living-master autosave). Tokens only, no hex literals. */
+
+.tm-me { display: flex; flex-direction: column; gap: 18px; }
+.tm-me-loading { padding: 24px; text-align: center; color: var(--tm-text-faint); font-size: 13px; }
+
+/* Save status bar — sticky so the state is always visible while editing. */
+.tm-me-savebar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; margin-bottom: 2px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-surface);
+  font-size: 12px; color: var(--tm-text-muted);
+}
+.tm-me-savebar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tm-border-soft); }
+.tm-me-savebar-saving .tm-me-savebar-dot { background: var(--tm-warning); animation: tm-me-pulse 1s ease-in-out infinite; }
+.tm-me-savebar-saved .tm-me-savebar-dot { background: var(--tm-success, var(--tm-interactive)); }
+.tm-me-savebar-error { color: var(--tm-danger); }
+.tm-me-savebar-error .tm-me-savebar-dot { background: var(--tm-danger); }
+.tm-me-savebar-label { font-weight: 600; }
+.tm-me-retry, .tm-me-savebar-error .tm-me-retry {
+  margin-left: auto; padding: 0; background: none; border: none;
+  color: var(--tm-danger); font-size: 12px; text-decoration: underline; cursor: pointer;
+}
+@keyframes tm-me-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.tm-me-field, .tm-me-section { display: flex; flex-direction: column; gap: 8px; }
+.tm-me-field-label {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tm-text-muted); font-weight: 700;
+}
+.tm-me-section-head { display: flex; align-items: center; justify-content: space-between; }
+
+.tm-me-input, .tm-me-textarea {
+  width: 100%; padding: 8px 10px;
+  background: var(--tm-surface); color: var(--tm-text);
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  font-size: 13px; font-family: inherit; line-height: 1.5;
+}
+.tm-me-input { min-height: 38px; }
+.tm-me-textarea { resize: vertical; }
+.tm-me-input:focus, .tm-me-textarea:focus {
+  outline: none; border-color: var(--tm-interactive);
+}
+
+.tm-me-entry {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); background: var(--tm-surface-2, var(--tm-surface));
+}
+.tm-me-entry-head { display: flex; gap: 8px; align-items: center; }
+.tm-me-entry-head .tm-me-input { flex: 1; }
+.tm-me-entry-meta { display: flex; gap: 8px; }
+.tm-me-entry-meta .tm-me-input { flex: 1; }
+
+.tm-me-bullets { display: flex; flex-direction: column; gap: 6px; }
+.tm-me-bullet-row { display: flex; gap: 6px; align-items: flex-start; }
+.tm-me-bullet { flex: 1; }
+
+.tm-me-cert-row { display: flex; gap: 6px; align-items: center; }
+.tm-me-cert-row .tm-me-input { flex: 1; }
+
+.tm-me-del {
+  flex: 0 0 auto; width: 28px; height: 28px;
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  background: none; color: var(--tm-text-muted); font-size: 16px; line-height: 1;
+  cursor: pointer;
+}
+.tm-me-del:hover { color: var(--tm-danger); border-color: var(--tm-danger); }
+
+.tm-me-add {
+  align-self: flex-start; padding: 6px 10px;
+  background: none; border: 1px dashed var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); color: var(--tm-interactive);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.tm-me-add.sm { padding: 4px 8px; font-size: 11px; }
+.tm-me-add:hover { border-color: var(--tm-interactive); }

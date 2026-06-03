@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
@@ -89,6 +90,53 @@ def _job_feed_marker_to_iso(value: Any) -> str | None:
         except ValueError:
             return None
     return text or None
+
+
+_ROLE_TOKEN_RE = re.compile(r"[a-z0-9+#]+")
+# Seniority/structure words are stripped so a target role matches regardless of
+# the level prefix on the posting ("Data Analyst" target ↔ "Senior Data Analyst").
+_ROLE_STOPWORDS = frozenset(
+    {"and", "of", "the", "in", "for", "to", "with", "a", "an", "at", "on",
+     "senior", "junior", "lead", "principal", "staff", "sr", "jr",
+     "i", "ii", "iii", "iv"}
+)
+
+
+def _role_token_sets(target_roles: list[str] | None) -> list[set[str]]:
+    """Significant-token set per target role, for honest token-subset matching."""
+    sets: list[set[str]] = []
+    for role in target_roles or []:
+        toks = {
+            t for t in _ROLE_TOKEN_RE.findall((role or "").lower())
+            if t not in _ROLE_STOPWORDS and len(t) > 1
+        }
+        if toks:
+            sets.append(toks)
+    return sets
+
+
+def _role_match_score(
+    job_title: str | None, role_domain: str | None, token_sets: list[set[str]]
+) -> int:
+    """How many of the user's target roles this job's title/domain covers.
+
+    A target role 'counts' when all its significant tokens appear in the job's
+    title or role_domain. Token-subset match — no LLM, no fuzzy guessing, no
+    fabricated relevance. Returns 0 when the user has set no target roles.
+    """
+    if not token_sets:
+        return 0
+    hay_tokens = set(_ROLE_TOKEN_RE.findall(f"{job_title or ''} {role_domain or ''}".lower()))
+    if not hay_tokens:
+        return 0
+    return sum(1 for toks in token_sets if toks <= hay_tokens)
+
+
+def _empty_feed(mode: str, page: int, page_size: int) -> dict[str, Any]:
+    return {
+        "rows": [], "available_total": 0, "returned_total": 0,
+        "page": page, "page_size": page_size, "has_next_page": False, "sort": mode,
+    }
 
 
 def _marker_to_dt(value: Any) -> datetime | None:
@@ -971,7 +1019,11 @@ class JobsRepository:
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
     @staticmethod
-    def _feed_shape_row(row: dict[str, Any], user_skill_keys: set[str] | None) -> dict[str, Any]:
+    def _feed_shape_row(
+        row: dict[str, Any],
+        user_skill_keys: set[str] | None,
+        role_token_sets: list[set[str]] | None = None,
+    ) -> dict[str, Any]:
         _hydrate_location_fields(row)
         raw_skills = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
         skills = raw_skills[:5]
@@ -979,6 +1031,9 @@ class JobsRepository:
         if user_skill_keys:
             lowered = {s.lower() for s in raw_skills}
             matched = len(lowered & user_skill_keys)
+        role_match = _role_match_score(
+            row.get("job_title"), row.get("role_domain"), role_token_sets or []
+        )
         return {
             "job_id": row.get("job_id"),
             "job_title": row.get("job_title") or "",
@@ -997,6 +1052,7 @@ class JobsRepository:
             "is_active": bool(row.get("is_active", True)),
             "skills": skills,
             "matched_skill_count": matched,
+            "target_role_match": role_match,
         }
 
     def feed_jobs(
@@ -1010,23 +1066,48 @@ class JobsRepository:
         location_prefs: list[str] | None = None,
         sort: str = "fresh",
         user_skill_keys: set[str] | None = None,
+        user_target_roles: list[str] | None = None,
+        min_skill_matches: int | None = None,
+        target_role_only: bool = False,
+        freshness_days: int | None = None,
+        following_only: bool = False,
+        followed_companies: set[str] | None = None,
+        exclude_job_ids: set[str] | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        """Company-agnostic browse feed for the authed /market page.
+        """Company-agnostic triage feed for the authed /market page. No LLM scoring.
 
-        sort: 'fresh' (first_seen desc, DB-paginated), 'company' (company asc then
-        first_seen desc, DB-paginated), 'personal' (CV skill-overlap desc within a
-        freshest-N candidate cap, ranked in Python). No LLM scoring.
+        sort (the user's fit lens):
+          'fresh'    — first_seen desc.
+          'company'  — company asc, then freshest.
+          'personal' — CV skill-overlap desc (needs a CV).
+          'role'     — target-role match desc (needs saved target roles).
 
-        location_prefs: the user's saved multi-location preference (freeform
-        labels). When non-empty it supersedes the single city/country/mode
-        filters with an OR-across-chips scope (geo is fixed from settings, not
-        re-picked per visit). Empty → unscoped.
+        Narrowing filters:
+          min_skill_matches  — keep only jobs sharing ≥N of the user's CV skills.
+          target_role_only   — keep only jobs that cover a saved target role.
+          freshness_days      — keep only jobs first seen within N days.
+          following_only      — keep only jobs at companies the user follows.
+          exclude_job_ids     — drop jobs the user has already saved or skipped
+                                (the draining-queue model: the feed only shows
+                                roles the user has not yet decided on).
+
+        Computed-signal work (skill overlap, role match, exclusion) only exists
+        after a row is shaped, so any computed sort/filter — or a non-empty
+        exclusion — routes through the in-Python candidate path (bounded to the
+        freshest CAP, same honest contract as the old 'personal' branch:
+        available_total reflects the candidate cap, not the full DB pool). Pure
+        fresh/company browsing with nothing to exclude stays DB-paginated with a
+        true count — that path is only ever hit by users who have not yet saved
+        or skipped anything.
+
+        location_prefs supersedes the single city/country/mode filters with an
+        OR-across-chips scope (geo is fixed from settings, not re-picked).
         """
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
-        mode = sort if sort in {"fresh", "company", "personal"} else "fresh"
+        mode = sort if sort in {"fresh", "company", "personal", "role"} else "fresh"
         domain = _norm_filter(role_domain)
         scope_clause, scope_sig = build_location_scope(location_prefs)
         # Pref scope (fixed-from-settings) supersedes ad-hoc single filters.
@@ -1042,6 +1123,24 @@ class JobsRepository:
         effective_term = term if len(term) >= 2 else ""
         now = time.monotonic()
 
+        role_token_sets = _role_token_sets(user_target_roles)
+        min_skill = min_skill_matches if (min_skill_matches and min_skill_matches > 0) else 0
+        # first_seen is a YYYYMMDD int marker → the cutoff is the same shape.
+        fresh_cutoff: int | None = None
+        if freshness_days and freshness_days > 0:
+            fresh_cutoff = int((date.today() - timedelta(days=freshness_days)).strftime("%Y%m%d"))
+        # following_only with no follows → an empty feed is the honest answer
+        # (IH1: the user's heatmap/follow set is theirs; no global default).
+        follow_scope: list[str] | None = None
+        if following_only:
+            follow_scope = sorted({c for c in (followed_companies or set()) if c})
+            if not follow_scope:
+                return _empty_feed(mode, scoped_page, scoped_page_size)
+        follow_sig = ",".join(follow_scope) if follow_scope is not None else ""
+        exclude = {str(j) for j in (exclude_job_ids or set()) if j}
+
+        # DB-level filters are user-independent (shareable cache); exclusion +
+        # computed filters are per-user and run after shaping.
         def _apply_filters(query: Any) -> Any:
             query = query.eq("is_active", True)
             if domain:
@@ -1054,6 +1153,10 @@ class JobsRepository:
                 query = query.eq("location_city", city)
             if loc_mode:
                 query = query.eq("location_mode", loc_mode)
+            if fresh_cutoff is not None:
+                query = query.gte("first_seen", fresh_cutoff)
+            if follow_scope is not None:
+                query = query.in_("company_name", follow_scope)
             if effective_term:
                 # Sanitize: PostgREST or() splits on commas/parens.
                 safe = effective_term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
@@ -1063,9 +1166,15 @@ class JobsRepository:
                     )
             return query
 
-        if mode == "personal":
-            # Rank a bounded freshest candidate set by skill overlap, paginate in Python.
-            pkey = (domain, city, country, loc_mode, scope_sig, effective_term)
+        wants_inpython = (
+            mode in {"personal", "role"} or min_skill > 0 or target_role_only or bool(exclude)
+        )
+
+        if wants_inpython:
+            # Load + cache the freshest CAP candidates (raw rows, no per-user
+            # data → shared across users on the same filter set). Per-user
+            # shaping, exclusion and computed filters run below the cache.
+            pkey = (domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term)
             cached = _feed_personal_cache.get(pkey)
             if cached is not None and (now - cached[0]) < _FEED_TTL:
                 rows = cached[1]
@@ -1078,13 +1187,25 @@ class JobsRepository:
                     result = None
                 rows = (result.data if result else None) or []
                 _feed_personal_cache[pkey] = (now, rows)
-            shaped = [self._feed_shape_row(r, user_skill_keys) for r in rows]
-            # Stable sort: secondary (freshest) first, then primary (overlap) — so
-            # equal-overlap jobs stay newest-first.
+
+            shaped = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
+            if exclude:
+                shaped = [r for r in shaped if r["job_id"] not in exclude]
+            if min_skill > 0:
+                shaped = [r for r in shaped if r["matched_skill_count"] >= min_skill]
+            if target_role_only:
+                shaped = [r for r in shaped if r["target_role_match"] > 0]
+
+            # Stable sort: lay down the freshest order, then the primary fit key
+            # on top so equal-fit jobs stay newest-first.
             shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
-            shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
-            # available_total reflects the FEED_PERSONAL_CAP, not the full DB pool:
-            # personal rank is over the freshest N candidates only.
+            if mode == "personal":
+                shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
+            elif mode == "role":
+                shaped.sort(key=lambda r: r["target_role_match"], reverse=True)
+            elif mode == "company":
+                shaped.sort(key=lambda r: (r["company_name"] or "").lower())
+
             available_total = len(shaped)
             start = (scoped_page - 1) * scoped_page_size
             end = start + scoped_page_size
@@ -1099,10 +1220,10 @@ class JobsRepository:
                 "sort": mode,
             }
 
-        # DB-paginated paths: fresh + company
+        # DB-paginated browse: fresh + company, nothing computed, nothing excluded.
         start = (scoped_page - 1) * scoped_page_size
         end = start + scoped_page_size - 1
-        ckey = (mode, domain, city, country, loc_mode, scope_sig, effective_term, scoped_page, scoped_page_size)
+        ckey = (mode, domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, scoped_page, scoped_page_size)
         cached = _feed_page_cache.get(ckey)
         if cached is not None and (now - cached[0]) < _FEED_TTL:
             rows, available_total = cached[1]
@@ -1125,7 +1246,7 @@ class JobsRepository:
             rows = result.data or []
             available_total = result.count if result.count is not None else len(rows)
             _feed_page_cache[ckey] = (now, (rows, available_total))
-        page_rows = [self._feed_shape_row(r, user_skill_keys) for r in rows]
+        page_rows = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
         return {
             "rows": page_rows,
             "available_total": available_total,
@@ -1454,6 +1575,44 @@ class JobsRepository:
             {"user_id": user_id, "job_id": job_id},
             on_conflict="user_id,job_id",
         ).execute()
+
+    def undismiss_job_card(self, user_id: str, job_id: str) -> None:
+        """Undo a dismissal (market-feed Skip 'Undo'). Reuses the canonical
+        rejection table — one rejection signal across feed + dashboard."""
+        (
+            self._db.table("user_dismissed_job_cards")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .execute()
+        )
+
+    def get_saved_job_ids(self, user_id: str) -> list[str]:
+        """job_ids the user has saved (any application row exists). Feed excludes
+        these so the draining queue only shows undecided roles (S3: every saved
+        job is an intended application)."""
+        result = (
+            self._db.table("job_applications")
+            .select("job_id")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
+
+    def get_followed_company_names(self, user_id: str) -> set[str]:
+        """Company names the user follows (RLS-scoped). Powers the feed's
+        'Following only' filter without crossing into the users repository."""
+        result = (
+            self._db.table("followed_companies")
+            .select("company_name")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return {
+            (r.get("company_name") or "").strip()
+            for r in (result.data or [])
+            if (r.get("company_name") or "").strip()
+        }
 
     def get_user_matches_for_week(
         self, user_id: str, batch_week: date

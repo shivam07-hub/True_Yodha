@@ -22,7 +22,7 @@ export const CATEGORIES: Record<FeedbackCategory, CategoryMeta> = {
     wash: "var(--tm-warning-wash)",
     placeholder:
       "What did you expect to happen?\nWhat actually happened?\nWhat were you doing when it broke?",
-    submitVerb: "Dispatch bug",
+    submitVerb: "Send bug report",
     triageHint: "median triage: 6h",
   },
   idea: {
@@ -33,7 +33,7 @@ export const CATEGORIES: Record<FeedbackCategory, CategoryMeta> = {
     wash: "var(--tm-accent-wash)",
     placeholder:
       "What would you build?\nWho would use it?\nWhat does it unlock?",
-    submitVerb: "Dispatch idea",
+    submitVerb: "Send idea",
     triageHint: "voted weekly · top ideas ship",
   },
   question: {
@@ -68,7 +68,7 @@ export interface SeverityMeta {
 }
 
 export const SEVERITY: SeverityMeta[] = [
-  { id: "low", label: "Low", desc: "Cosmetic", color: "var(--tm-text-muted)" },
+  { id: "low", label: "Minor", desc: "Visual issue", color: "var(--tm-text-muted)" },
   { id: "medium", label: "Medium", desc: "Annoying", color: "var(--tm-warning)" },
   { id: "blocker", label: "Blocker", desc: "Cannot work", color: "var(--tm-danger)" },
 ]

@@ -229,11 +229,11 @@ export default function OnboardingPage() {
                 width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
                 background: "transparent", border: "none", cursor: "pointer",
                 fontFamily: "var(--tm-font-sans)", fontSize: 22, lineHeight: 1, fontWeight: 300,
-                color: "var(--tm-text-muted)", borderRadius: "var(--tm-radius)",
+                color: "var(--tm-interactive-rest)", borderRadius: "var(--tm-radius)",
                 transition: "color var(--tm-dur) var(--tm-ease)",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-muted)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
             >
               ×
             </button>

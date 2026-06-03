@@ -117,7 +117,7 @@
   box-shadow: 0 0 16px var(--tm-accent-glow);
 }
 .tm-lib-btn.primary:hover { background: var(--tm-interactive-hover); border-color: var(--tm-interactive-hover); }
-.tm-lib-btn.ghost { border-color: transparent; color: var(--tm-text-muted); }
+.tm-lib-btn.ghost { border-color: transparent; color: var(--tm-interactive-rest); }
 .tm-lib-btn.ghost:hover { color: var(--tm-text); background: var(--tm-surface-2); }
 .tm-lib-btn.sm { padding: 5px 10px; font-size: 12px; }
 .tm-lib-btn.xs { padding: 3px 8px; font-size: 11px; border-radius: 4px; }
@@ -792,7 +792,7 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--tm-text-faint);
+  color: var(--tm-interactive-rest);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -803,7 +803,7 @@
   transition: color var(--tm-dur, 160ms) var(--tm-ease, ease),
     background var(--tm-dur, 160ms) var(--tm-ease, ease);
 }
-.tm-lib-seg-btn:hover { color: var(--tm-text-muted); }
+.tm-lib-seg-btn:hover { color: var(--tm-interactive-rest); background: var(--tm-surface-2); }
 .tm-lib-seg-btn.active {
   background: var(--tm-int-bg-wash);
   color: var(--tm-interactive);

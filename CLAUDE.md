@@ -162,11 +162,30 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled
 - `cv_history.content_hash TEXT` — SHA-256 of raw extracted text for re-upload short-circuit
 
-**Infrastructure:**
-- Railway: `True_Yodha` → `Develop` → auto-deploy
-- Vercel: `truemirror.vercel.app` → `main`
-- Supabase: `gipvxuugajkugntwkeiz` (prod DB)
-- LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+**Infrastructure (TOPOLOGY — canonical, verified 2026-06-03):**
+
+**Env split policy: Supabase = 1 env (shared) · Railway = 2 (dev + prod) · Vercel = 2 (prod + preview/dev).** Only the DB is single — deliberate: <10k users, want all real user data in one place. Do NOT split Supabase until scale justifies it.
+
+Railway project = **`clever-embrace`** (`a15c0013-…`), ONE Railway environment object `production` (`f6a22e25-…`). The two "environments" (dev/prod) are the two **backend services**, sharing ONE worker + ONE Redis:
+
+| Railway service | Role | Branch | Public URL | Start cmd |
+|---|---|---|---|---|
+| **`mirror-backend-dev`** (`149a7bdc`) | **DEV API** — ACTIVE (Vercel preview/dev hits this) | `Develop` | `truemirror.up.railway.app` | `uvicorn app.main:app …` |
+| **`mirror-backend-prod`** (`6f9d873b`) | **PROD API** — the live backend | `main` | **`https://api.himyro.com`** (custom domain, LE cert) + `mirror-backend-prod-production.up.railway.app` | `uvicorn app.main:app --host 0.0.0.0 --port 8000` |
+| **`True_Yodha`** (`1b3dca5a`) | **WORKER** — durable RQ runner (ADR-0008), 2/2 replicas, NOT an API. **Shared by both dev+prod.** | `Develop` | internal | `python -m app.workers.jobs_compute_worker` |
+| **`Redis`** (`7f3503cf`) | RQ queue + global provider budget (ADR-0008), has `redis-volume`. **Shared by both dev+prod.** | — | `redis.railway.internal:6379` | — |
+
+All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK.
+
+- **Frontend (Vercel project `truemirror`, 2 envs):** Production env → domain **`himyro.com`** (+`www`, +legacy `truemirror.vercel.app`), `NEXT_PUBLIC_API_URL = https://api.himyro.com`. Preview/Develop env → `NEXT_PUBLIC_API_URL = https://truemirror.up.railway.app` (dev backend). (Prod cutover from `truemirror.up.railway.app`→`api.himyro.com` done 2026-06-03.)
+- **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
+- **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
+- **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
+- **CORS gotcha:** `ALLOWED_ORIGINS` env var is **DEAD CONFIG** — not read anywhere. CORS hardcoded `allow_origins=["*"], allow_credentials=False` in `backend/app/main.py:41` (safe: bearer-token auth, no cookies). To lock origins, wire `main.py` (code change → Develop + tests).
+- **DNS:** himyro.com on **GoDaddy**. `api` = CNAME → `rm336p0v.up.railway.app`; `_railway-verify.api` = TXT `railway-verify=<token>` (**single** prefix — a doubled `railway-verify=railway-verify=…` blocks cert issuance; cost real time 2026-06-03). Railway custom-domain cert needs BOTH records verified or it serves wildcard `*.up.railway.app` → TLS name mismatch → curl 000.
+- **Railway mgmt = MCP** (`mcp__railway__*`). Pass **snake_case `service_id`** or reads default to the linked service. `remove_service` confirm-boolean is broken via MCP → final service deletion needs a dashboard click.
+- **Cutover runbook:** fix DNS → wait cert green (`curl api.himyro.com/health` = 200, not 000) → THEN flip Vercel env + redeploy → verify → only then touch the old service. Flipping Vercel before cert live = outage.
+- **LLM chain:** OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid.
 
 ---
 
@@ -233,6 +252,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    ### PR-G — Intel Heatmap Mobile Layout (depends on PR-K)
    **Spec:** `reference/mobile-redesign/g-intel-heatmap/HANDOFF.md` (complete)
    **Files:** `frontend/app/intel/page.tsx` or `frontend/components/intel/` heatmap component
+   **Status:** CLOSED for the Codex-assigned PR-5 heatmap slice by `3daff43 fix(ui)`.
    **What changes:**
    - Title "Where to invest your skill points" wraps one-word-per-line on mobile (same grid-shrink bug as skills). Fix: title stacks ABOVE the heatmap on mobile, not beside it.
    - Rotated column headers (skill names) clip text at 375px. Fix: horizontal-scroll heatmap with non-rotated short labels on mobile OR collapse to list view.
@@ -245,6 +265,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    ### PR-D — CV Playground Score Ring (depends on PR-K)
    **Spec:** `reference/mobile-redesign/d-cv-playground/HANDOFF.md` (complete)
    **Files:** `frontend/components/cv/builder/playground-view.tsx` + score ring component
+   **Status:** CLOSED for the Codex-assigned PR-5 playground slice by `3daff43 fix(ui)`.
    **What changes:**
    - D1: Score ring center text overlap — `0`, `%`, and `JD MATCH` literally layer on top of each other. Fix: explicit vertical layout — numeral row → `%` baseline-aligned right → "JD MATCH" label as separate row BELOW the ring (not inside center).
    - D2: "−17 this session" punitive framing → replace with action-oriented copy ("13 skills to add → Forge them") OR drop the negative delta. The chip list below IS the action already.
@@ -265,6 +286,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    ---
 
    ### PR-JARGON — Language Humanisation (standalone, no deps)
+   **Status:** Codex-assigned feedback jargon slice CLOSED by `3daff43 fix(ui)`; keep the broader checklist below as historical audit context.
    **No HANDOFF doc** — but 15+ users explicitly called this out. Confirmed list of confusing strings:
    - "Forge" → keep the name (brand) but ADD a 1-line descriptor: "Forge · skill practice sessions" in the nav tooltip/label
    - "Immutable commits" → "CV versions"
@@ -290,6 +312,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    ---
 
    ### PR-FORGE-BG — Forge Timer Background Persistence (standalone)
+   **Status:** CLOSED by Codex in `4b28856 fix(forge)`.
    **Bug:** Forge timer stops/freezes when user navigates away from the Forge tab (user Ravali, user feedback report 2). 25-minute sessions that reset on tab switch are unusable.
    **Fix direction:** Store forge session `startedAt` + `pausedAt` in localStorage (or Zustand persist). On any page mount, check if an active forge session exists → re-derive elapsed time from `Date.now() - startedAt - pausedMs`. The timer widget should render on any authed page while a session is running (the forge XP pill / widget is already a global element — verify it consumes persisted time).
    **Files:** `frontend/components/forge/forge-xp-pill.tsx` + forge session state store. Backend `forge_sessions` is already the source of truth for completed sessions — this is a frontend-only time-display fix.
@@ -298,6 +321,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
    ---
 
    **Build order:** PR-K → (PR-B, PR-E, PR-G, PR-D, PR-F in parallel, all depend only on K) → PR-JARGON, PR-EMPTY, PR-FORGE-BG (all standalone, can ship any time after K).
+   **Codex closure note 2026-06-03:** PR-G/PR-D Codex slices, PR-FORGE-BG, and the feedback-jargon slice are closed. PR-EMPTY remains Claude-owned.
    **Commit pattern:** one PR per item, `fix:` or `feat:` prefix, `tsc --noEmit` + `next lint` clean before merge.
    Memory file: `memory/project_enterprise_polish_sprint.md` (create on session start).
 
@@ -321,7 +345,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
     4. **`excluded_job_ids` accumulates** across refreshes within the same batch_week (line 189-191) — by refresh N the pool may be empty.
     Not aspirations-related. Independent of the 2026-05-25 retry/fallback PR. Fix path under design: **tiered overlap floor (3 default → 2 if fewer than top_n/2 candidates qualify)**, raise `top_n` to 10-15, surface "pool exhausted" signal to frontend instead of silent refund, reset `excluded_job_ids` on batch_week boundary. Touches `backend/app/services/job_matcher.py` + `jobs_workflow.compute_job_matches` + match-refresh frontend invalidation. Pick up as standalone PR after Shilpa is re-tested with the 2026-05-25 fallback fix in production.
 
-17. **Legal hardening for 10k scale (DOCS DONE 2026-06-02, counsel sign-off open):** Entity now = **Myro Career Intelligence Private Limited** (renamed across terms/privacy). Payment T&C shipped on both money surfaces (XP billing modal + Myrology checkout carry Terms+Privacy consent line). Terms §07 **Payments, XP & Refunds** (XP = closed-loop credit, not RBI PPI; funds servers not jobs; Myro = distributor of company listings; **Cancellation & Refunds** — XP final, Myrology full-refund-before-delivery / non-refundable-after). India-compliance pass INTEGRATED via Legal Compliance Checker agent: **DPDP consent microcopy at signup** (`signup-form.tsx`), privacy §06 rights expanded (withdraw/nominate/erase), §03 purpose-limitation, §04 cross-border-transfer, §07 cookie-banner-not-required note, NEW privacy §11 **Grievance Redressal** (24h ack / 15-day SLA, IT Rules 2021), terms §08 operator/grievance disclosure, §10 fraud/gross-negligence carve-out, footer "Cancellation & Refunds"→/terms#payments (Razorpay live-key prereq). Razorpay currently on **dev/test key** (badge auto-derives rzp_test_→Test mode / rzp_live_→Secure checkout). tsc/lint clean, uncommitted. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx`), `frontend/components/settings-modal.tsx`, `frontend/app/myrology/checkout.tsx` (+ `myrology.css`), `frontend/components/auth/signup-form.tsx`, `frontend/components/public/public-footer.tsx`. Memory: `project_payment_legal_terms`. **OPEN — NEEDS SHIVAM + COUNSEL (placeholders live in code, NOT autonomous):** (a) lawyer review of both docs; (b) **CIN number** → `[to be inserted]` in terms §08; (c) **named Grievance Officer** — section shows designation+`grievance@himyro.com` only, IT Rules want a named individual; confirm the `grievance@himyro.com` mailbox exists + is monitored (24h/15-day SLA is now a public commitment); (d) full registered office address (street+PIN, MCA record); (e) confirm Myro is **not** a Significant Data Fiduciary (so no statutory DPO; "Grievance Officer" label correct); (f) sign off INR 5,000 liability cap; (g) confirm Myrology refund mechanics match booking flow + final price (₹499 vs ₹200-300 intro); (h) EU/UK in-scope check (cookie note assumes auth-only cookies). Razorpay live-key activation needs Terms+Privacy+Refund pages visibly linked (done).
+17. **Legal hardening for 10k scale (DOCS DONE 2026-06-02, counsel sign-off open):** Entity now = **Myro Career Intelligence Private Limited** (renamed across terms/privacy). Payment T&C shipped on both money surfaces (XP billing modal + Myrology checkout carry Terms+Privacy consent line). Terms §07 **Payments, XP & Refunds** (XP = closed-loop credit, not RBI PPI; funds servers not jobs; Myro = distributor of company listings; **Cancellation & Refunds** — XP final, Myrology full-refund-before-delivery / non-refundable-after). India-compliance pass INTEGRATED via Legal Compliance Checker agent: **DPDP consent microcopy at signup** (`signup-form.tsx`), privacy §06 rights expanded (withdraw/nominate/erase), §03 purpose-limitation, §04 cross-border-transfer, §07 cookie-banner-not-required note, NEW privacy §11 **Grievance Redressal** (24h ack / 15-day SLA, IT Rules 2021), terms §08 operator/grievance disclosure, §10 fraud/gross-negligence carve-out, footer "Cancellation & Refunds"→/terms#payments (Razorpay live-key prereq). Razorpay is **LIVE** — prod backend (`mirror-backend-prod`) env `RAZORPAY_KEY_ID=rzp_live_SuJDCjSGSSkGAP` + secret, tested by Shivam 2026-06-03. Billing badge is key-derived → auto-shows "Secure checkout" (no test-mode warning) on prod. ⚠️ **Verify the matching frontend public key:** Vercel **production** env `NEXT_PUBLIC_RAZORPAY_KEY_ID` must = `rzp_live_…` (same pair as backend) or checkout signature mismatches. Dev backend has no Razorpay key (payments untestable on pre-prod unless test keys added). tsc/lint clean, uncommitted. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx`), `frontend/components/settings-modal.tsx`, `frontend/app/myrology/checkout.tsx` (+ `myrology.css`), `frontend/components/auth/signup-form.tsx`, `frontend/components/public/public-footer.tsx`. Memory: `project_payment_legal_terms`. **OPEN — NEEDS SHIVAM + COUNSEL (placeholders live in code, NOT autonomous):** (a) lawyer review of both docs; (b) **CIN number** → `[to be inserted]` in terms §08; (c) **named Grievance Officer** — section shows designation+`grievance@himyro.com` only, IT Rules want a named individual; confirm the `grievance@himyro.com` mailbox exists + is monitored (24h/15-day SLA is now a public commitment); (d) full registered office address (street+PIN, MCA record); (e) confirm Myro is **not** a Significant Data Fiduciary (so no statutory DPO; "Grievance Officer" label correct); (f) sign off INR 5,000 liability cap; (g) confirm Myrology refund mechanics match booking flow + final price (₹499 vs ₹200-300 intro); (h) EU/UK in-scope check (cookie note assumes auth-only cookies). Razorpay live-key activation needs Terms+Privacy+Refund pages visibly linked (done).
 
 ---
 
@@ -425,193 +449,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-03 · Settings tab-deeplink + theme toggle + interactive-rest brightness GRILL+PR1 — all uncommitted on Develop)
+## LAST SESSION SUMMARY (2026-06-04 · Claude PR lane CLOSED + memory pruned for beta-2)
 
-Three UI tasks, all on Develop, **uncommitted** (Shivam commits). tsc + lint clean throughout. Memory: `project_interactive_rest_brightness`.
+Codex/Claude PR split executed. **Codex done — do not redo PR-4/PR-5-slice/PR-6/PR-8** (commits `9e65611`/`3daff43`/`4b28856`/`c92cc2d`). Claude lane closed:
 
-**1. "All locations" pill → deep-links Settings to Following tab.** Pill opened Settings on default Account tab; Target Locations live under Following (`settings-modal.tsx:793`). Fix: pill dispatches `CustomEvent("tm:open-settings",{detail:{tab:"Following"}})`; exported `Tab` type + new optional `initialTab` prop seeds `activeTab`; both listeners (`web-chrome.tsx`, `mobile/shell.tsx`) read `detail.tab` → pass through. Avatar-menu "Settings" path resets tab→Account so the deep-link doesn't stick. Modal remounts on open (`{showSettings && …}`) → `useState(initialTab)` reseeds each time.
+- **PR-3 living-master CV autosave — BUILT, migration APPLIED 2026-06-04.** Main CV edits MUTATE `latest_baseline` in place + snapshot prior content to new `cv_master_revisions` (additive — deliberately DECOUPLED from the locked big-bang collapse, which stays a separate Shivam-supervised hygiene migration). `PUT /cv/master` = cheap mutate (no XP, no LLM, save≠score); reuses skill_edit `render_baseline_text` + `skill_retag` bulk-lane re-score (SE17 `recompute_finished_at`). Frontend: `lib/cv-autosave.ts` (pure, 7 tests) + `lib/hooks/use-master-autosave.ts` (1.2s debounce · saving/saved/error · localStorage refresh-recovery · beforeunload persist · re-score shimmer) + `components/cv/builder/master-editor.tsx`(+css) mounted as inline **Edit** toggle in `library-master.tsx` MasterCVPanel. `cv.saveMaster` client + `MasterSaveResponse`. Backend (cv.py/structured.py/test, 3 tests) committed root `e59a84d`; frontend lives in nested `frontend/.git` (progressive-nav reshuffle in flight — Shivam owns those commits). tsc/lint clean. Memory: `project_living_master_autosave`.
+- **PR-2** = 1 line: `forge` → `RequiresCV surface="skills"` (the hub absorbed Skills). Boundary itself already built prior sessions.
+- **PR-1** (first-CV SLO) + **PR-9** (StuckBanner "They went silent" vs "I have an update" branch) found **ALREADY SHIPPED** — verified only (47 tests green, no regressions). PR-9 premium Practice-routing (No-Response-Recovery / Interview-Prep / Referral-Intelligence 500XP) = deferred epic; routes to Practice surfaces that don't exist yet, needs a grill.
+- **PR-7** legal = coordinate-only, nothing built (counsel-gated, Backlog #17).
 
-**2. Theme toggle in Settings → Account → Appearance.** Resolves the D4 follow-up (`2a5bef8` shipped storage contract, UI = TODO). NEW `lib/hooks/use-surface.ts` owns the `myro-surface` contract shared with the `beforeInteractive` script (`layout.tsx`): `light`/`dark` = override, absent = follow OS. 3-way segmented control System/Light/Dark; **System = the custom/default**. Applies live to `<html data-surface>` (no reload), listens to `prefers-color-scheme` flips while on System, SSR-safe (ships `system`, reconciles in effect). Applies instantly — independent of profile Save (theme isn't a profile field).
+**Memory pruned 73→41 files for beta-2 launch:** removed shipped session-build notes (detail in git log + this file), kept durable working rules + governing decisions + active references + unbuilt/parked work. Index regrouped under headings.
 
-**3. Interactive-rest brightness — GRILL LOCKED + PR1 BUILT.** Shivam: dark-mode clickable controls must be **as white as possible at rest**; static words stay dull. Full grill (`/grill-me`, 7 Qs) → **scope C app-wide · white = FLOOR (teal CTAs/links UNTOUCHED, decision A) · brightness = `--tm-text` #E8F0FF not pure #FFF · new semantic token `--tm-interactive-rest`=var(--tm-text) auto-flips dark#E8F0FF/light#050A18 · hover=bg-feedback not text-shift · ALL classes in (nav lights up, clickable icons) · no CI lint (can't detect clickability statically), convention via token name + CONTEXT.md note · phased.** Why a token not a find-replace: `--tm-text-muted`/`--tm-icon-muted` are **dual-use** (static labels AND clickable) so each occurrence must be hand-classified — can't redefine globally.
-- **PR1 (token + shared primitives) BUILT:** `design-tokens.css` (token def + segment/accent toggle inactive), `button.tsx` (ghost variant rest), `web-chrome.tsx` (dropdown rows; desktop top-nav `.tm-topbar-link` was ALREADY bright), `mobile/shell.tsx` (bottom-nav inactive + drawer rows + signout Cancel), `CONTEXT.md` §Interactive-rest. Sign-out stays red (danger accent).
-- **OPEN — PR2..N ad-hoc sweep (~100 files), one surface per PR.** Files-to-audit (subset are clickable; leave static): settings 1 · market 3 · **cv 29 (biggest)** · skills 8 · forge 3 · home 10 · onboarding 8 · public 4 · misc remainder. Plus clickable `--tm-icon-muted` icons. Rec next session: batch settings+market+forge (7 small files) first, then big CV/home/skills as own PRs.
-- ⚠️ All 3 tasks behind authed shell — no browser-preview without login. Visual QA owed (Shivam, dark mode): tab deep-link lands on Following, theme toggle flips live, dropdown + mobile nav read bright-at-rest.
-
----
-
-## LAST SESSION SUMMARY (2026-06-03 · First-login hero design audit → fixes SHIPPED to Develop)
-
-`/frontend-design` + `brand-guidelines` audit of the first-login `/home` first-run hero (screenshot from Shivam). Found **27 distinct blunders**; fixed the high-severity in-component set + the Codex mechanical slice. Two commits on Develop (not pushed).
-
-**SHIPPED (mine) — `7a3fd3e` `fix(home)`:** `components/home/first-run-hero.tsx`+`.css`.
-- Error was an **orphaned `<p>` rendered after the stepper while step-1 still showed "active"** (`failed` + `step1="active"` simultaneously). Now error folds into step-1 as a real `failed` state in `--tm-danger` red with a "Try another" CTA. Killed dead `.frh-failed`/`.frh-inline-link`.
-- Accent diet: neutralized green eyebrow → first-paint hard accents = H1-italic + Upload CTA (three-accent budget).
-- Voice/vocab: dropped "FIRST MISSION" (retired vocab), killed "13 domains" jargon + `||13` magic fallback, removed em-dash overload + time-unit triplication from lede, "we read it"→"read in seconds", italic narrowed to one pivot word.
-
-**SHIPPED (Codex slice, done by Claude) — `8dbee60` `fix(nav)`:** `components/nav/nav.css` + `components/shell/web-chrome.tsx`.
-- "FIRST CV IN10 min" → optical gap before the time value.
-- XP balance `3000`→`3,000` (`toLocaleString` + tabular-nums per type.md).
-
-**4 DECISIONS LOCKED + BUILT 2026-06-03 (grilled w/ Shivam; on Develop, not pushed; memory `project_first_login_hero_audit`):**
-- **D4 Theme — honor system** (`2a5bef8`): flash-free `beforeInteractive` script resolves `myro-surface` override else `prefers-color-scheme`; SSR keeps light no-JS fallback. Resolves the `layout.tsx:69` hardcode vs PR-K dark-locked vs E9 system contradiction — system wins. SurfaceToggle UI = follow-up (storage contract live).
-- **D3 Contrast — PR-K-first, hero=proof** (`2a5bef8`): light `--tm-text-faint`→#646F87 (~5.1:1); hero locked steps/rows stop dimming text via opacity (lock icon carries state). **Full PR-K token-table sweep (other 7 files) still owed** — this was the theme system + hero proof only; update HANDOFF "dark-locked" line when it lands.
-- **D1 Nav — keep Live/Practice base, fix copy≠logic** (`c6d4fd3`): hero "grows" now derived from AUTHED_NAV gated items (real `hasBaseline` gate); dropped invented `tailoredCount` thresholds; "NAV GROWS"→"UNLOCKS AS YOU GO".
-- **D2 FAB — neutralize first-run** (`e86e842`): `subdued` prop kills accent/pulse/dot while `!hasCv`, restores after CV.
-- **Gaps (Inshorts/LinkedIn speed): Gap 1** Upload-first hero (big CTA hoisted, fat cards→slim rail) `c6d4fd3` · **Gap 2** scoring skeleton not spinner `c6d4fd3`. **Gap 3** (10-min act→tailor→download tail) = existing Backlog #5 / `project_ten_minute_cv_tail`. App-wide perceived-speed (streaming/optimistic) = streaming + cv-loading backlog tracks.
-- ⚠️ Visual QA owed (authed, Shivam): light AND dark first-login at 1280px + 375px; confirm no theme FOUC.
-
-Full 27-blunder list in this session's audit. tsc 0, lint clean both commits. The deploy repo (root) tracks first-run-hero cleanly; the nested `frontend/.git` has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`) — flag for whoever owns that repo.
-
-## LAST SESSION SUMMARY (2026-06-02 · Scheduled task: Enterprise Polish Sprint audit + plan)
-
-**Automated Cowork session — no code written. Pure audit → plan.**
-
-Deep-read every file in `reference/` folder: 6 mobile redesign HANDOFF.md specs, 2 user feedback aggregate docs (20+ beta users), 100+ screenshots spanning May 22–June 1. Cross-referenced with existing CLAUDE.md decisions.
-
-**Key findings:**
-- 6 mobile layout bugs have complete HANDOFF specs written but **none have been coded yet** (PR-K tokens, PR-B signup, PR-E skills header, PR-G intel heatmap, PR-D playground ring, PR-F skill card). These are blocking the "enterprise feel" every user asked for.
-- 15+ users independently flagged: no onboarding, technical jargon, empty states feel broken, identity confusion on landing, harsh contrast on mobile.
-- 3 functional bugs confirmed: Forge timer resets on tab switch, Feedback form broken (bottom-left widget), CV playground score ring text overlap.
-- **Platform is shipping features faster than polish** — the delta between what's technically possible and what new users experience on day 1 is the primary churn risk.
-
-**Outcome:** Added **Backlog #20 — Enterprise Polish Sprint** with 9 ordered, PR-ready items into CLAUDE.md. The next Claude Code session should read item 20 and execute PR-K first (design token foundation), then the remaining PRs in parallel.
-
-**No commits made** (automated session — read + write CLAUDE.md only).
-
----
-
-## LAST SESSION SUMMARY (2026-06-02 · Live Job Data feed redesign — SHIPPED to Develop)
-
-`/market` rebuilt from movers+heatmap intel into an Inshorts/Perplexity **job-card feed** (grill-locked). Logged-in only; public landing intel untouched. Commits: `907f651` (filters lead, stats demoted, feed cache cadence), `ce77f9b` / `7fe5c44` (feed + intel-page cache), `5b283a0` (Tracker merged into CV workspace), `bee3f95` (practice×job merge).
-
-- **Backend:** new `GET /jobs/feed` (company-agnostic, paginated; filters cluster→role_domain + location + free-text `q`; 3 sorts fresh/personal/company; no LLM). New `POST /jobs/{job_id}/report` (report-inactive per `docs/REPORT_INACTIVE_FEATURE.md`; `job_reports` table CONFIRMED live in Supabase 2026-06-02). `feed_jobs()`/`user_skill_keys()` in `repositories/jobs.py`.
-- **Frontend:** `components/market/jobs-tab.tsx` (clickable stat cards + search + pill filters + 3-mode sort + infinite scroll + detail drawer); `market/page.tsx` gutted to Jobs|Heatmap tabs; `nav-items.ts` → Live Job Data leftmost, `/home` stays landing.
-- **Beta-2 follow-ups CLOSED:** #1 feed contract test ✅ · #2 feed perf/caching ✅ (`907f651` raised cache cadence). Memory: `project_market_feed_redesign`.
-- **Still open (carry-over):** per-city multi-location (firecrawl backlog #6) — feed shows single location string; `main_skills` legacy-column coupling for skill chips (drop-risk when job_skills supersedes).
-
-> Shipped June sessions ≤2026-06-01 (dashboard card autonomy `527d7c1`, stacked match history `aa34b6d`, mobile job-card accordion, Myrology integrator [now in INTEGRATOR ITEMS], replace-CV modal) pruned for a lean cockpit — full detail in `git log`.
-
-
-## LAST SESSION SUMMARY (2026-05-30 night · 10-min-CV fix — GRILL LOCKED + PR1 BUILT, master CV download)
-
-Triggered by Shivam's question: does a first-time user actually get a downloadable CV inside the 10-min North Star? Codebase audit said **no** — four structural gaps. Grilled the long-term fix end-to-end (Google-Docs-model architecture), locked it, then built PR1 only. **Uncommitted on Develop** — Shivam pushes. tsc clean · `next lint` 0/0 (4 files) · 5/5 new tests.
-
-### The four gaps surfaced (audit)
-1. **No baseline/master download.** `cv/download-pdf` endpoint is content-agnostic (renders any `cv_text`) but the only frontend trigger is `PdfPreviewView`, reachable **only** via `?jobId` (tailored). Master = undownloadable.
-2. **Onboarding dead-ends at `/skills`.** `StepScore` final CTA `router.push("/skills")` — score page, not a downloadable CV.
-3. **Lying journey strip.** `baseline-view` step `03 "See score — download"` advertised a download with no button behind it.
-4. **Add-info is tailored-only.** `playground-view` guards edits with `isEditableSelection = kind !== "baseline_upload"` → master not editable.
-
-### Grill outcome — long-term architecture LOCKED (Google-Docs model)
-Shivam asked "what would Google do?" → scanned the norm (Google Docs = one living document + autosave + derived version history + instant export; "Make a copy" branches). Decisions:
-- **Q1 scope = B (fat):** full master editor, not just download. → phased.
-- **Q2/Q3 = C → C1:** **split the two objects.** Master CV = living Google-Doc (one mutable row, autosave, always downloadable). Tailored versions = immutable commits branched off a master snapshot (SE1 invariant stays for tailored only). C1 = single living master row + new `cv_master_revisions` history table (derived, secondary). Reverses the current append-a-`baseline_upload`-row-per-edit pile — **that pile IS the bug**. `update_structured()` already exists → mutate path half-built.
-- **Q4 = A:** tailored stays frozen content snapshot; `parent_version_id` = stable master row id; `baseline_version_id` = master revision id (exact branch-point preserved via history table). `baseline_version_id` already consumed (`cv.py:335` propagates), so wired-ready.
-- **Q5 = A:** **save ≠ score.** Typing → autosave text (cheap DB UPDATE, no LLM, no XP, instant). Re-score = debounced async via existing SE17 `recompute_finished_at` + shimmer. Baseline edits stay **UNCHARGED** (matches today's skill_edit).
-- **Q6 = A:** full structured editor — every section editable + add/remove (summary, skills_line, certs, experience+bullets, projects, education). Raw-textarea rejected (loses keyword/skill intel that feeds the score).
-- **Q7 = A:** download is the **primary CTA at the score reveal** (inline `downloadPdf`, zero nav) — the value moment at the emotional peak. Journey strip step 03 becomes truthful.
-- **Q8 = A:** persistent master download in `/cv` header (returning users) + Library hero. Filename `{First}_{Last}_CV.pdf`.
-- **Q9 = A:** migration collapses N baselines → 1 master + history. Idempotent (manual-apply safety per `feedback_supabase_migrations_manual`; FK-safe: repoint before delete; data preserved in history table). Dry-run COUNT + backup + branch-DB test before prod.
-- **Q10 = A:** **phased PRs**, one at a time. PR1 this session.
-
-### PR1 SHIPPED (uncommitted, Develop) — master download, zero data-model change
-**New files:**
-- `frontend/lib/cv/download-master.ts` — `masterFilename(fullName)` (`{First}_{Last}_CV.pdf`, fallback `My_CV.pdf`) + `resolveMasterText(baseline, cv)` (persisted `body_text` → `renderDeterministic` fallback).
-- `frontend/components/cv/download-cv-button.tsx` — self-contained one-tap PDF download (inline SVG glyph so it mounts on both authed `/cv` + onboarding surfaces; blob+`File`+anchor dance copied from `pdf-preview-view`; `<60`-char guard since endpoint requires `cv_text >= 60`; inline `role="alert"` error).
-- `frontend/tests/download-master.test.ts` — 5 cases (filename slug, punctuation strip, 3-token cap, fallback; body_text preference + empty path). 5/5 pass via `tsx --test`.
-
-**Edited:**
-- `frontend/components/cv/builder/baseline-view.tsx` — `Download CV` button in the `/cv` header (between "Pick a target job" + "Update Main CV"). Uses existing props (`token`, `currentBaseline`, `cv`, `profile`). Fixes gaps 1+3 for returning users.
-- `frontend/components/onboarding/step-score.tsx` — added `token` prop; fetches latest `baseline_upload` (`cv.versions.list` → filter → max `user_version_number`) + profile (`users.me`); renders **`Download your CV`** primary CTA + demotes `See Full Skill Intelligence` to secondary ghost. Fixes gap 2.
-- `frontend/app/onboarding/page.tsx` — threads `token` into `StepScore` (`step==="score" && scoreData && token`).
-
-### Verify
-- `cd frontend && npx tsc --noEmit` — clean (fixed one TS1501: dropped `\p{L}` unicode-property regex → `[^\w\s-]`, backend `_sanitize_filename` is the final guard anyway).
-- `npx next lint` 4 touched files — 0/0.
-- `npx tsx --test tests/download-master.test.ts` — 5/5.
-- Backend untouched. No migration. `cv/download-pdf` reused as-is.
-
-### ALSO SHIPPED this session — Backlog #16 CLOSED (logged-out blank `/tracker`)
-Stabilise win. Root cause wasn't "no redirect" — `useAuth` already bounced no-token → `/login`. Two real gaps fixed:
-- **`lib/hooks/use-auth.ts`** — new `loginRedirectTargetFor(path)` (pure, exported, tested) + `loginRedirectTarget()` wrapper. Both redirect sites (cold-start bootstrap + cross-tab `storage` signout) now go to `/login?next=<path>` instead of bare `/login`, so post-login bounces the user back. Same-origin guard (reject `//`, `/\`, non-`/`) mirrors `nextFromQuery`; root + `/login` + `/signup` skipped to avoid redirect loop. Login side already consumes `?next=` (`useNextPath` + `LoginForm` push `next ?? "/home"`) — loop now closed.
-- **`components/app-shell.tsx`** — gate widened `if (!m.ready)` → `if (!m.ready || !m.token)`. Stops authed children rendering token-less during the redirect-in-flight window (the actual blank-page cause). `(authed)/layout.tsx` mounts AppShell once for the whole group → this gate covers home/cv/skills/forge/market/xp/myro/mission/tracker uniformly.
-- **`tests/login-redirect-target.test.ts`** — 3 cases (preserve path+query, skip root/auth pages, reject open-redirect shapes). 3/3 pass. tsc + lint clean.
-- Tracker data already RLS-scoped (IH3/S3) — no service-role read on the user path, policies hold post-login. **Backlog #16 CLOSED.**
-
-### 🔴 NEXT SESSION — FIRST THING: finish the 10-min CV delivery loop (#5)
-**10-min CV delivery is Myro's first promise (North Star, [[project_ten_minute_cv_promise]]) — this loop leads next session.** Batch item #5 = "user downloads the improved CV as soon as possible." Status 2026-05-30: the #6 done-morph already delivers the front half (upload → inline score → `Improve {domain}` action). What's left is the **act → tailor → download** tail.
-
-- **It routes through the skill surface — which is being MERGED into Practice (`/forge`).** See [[project_practice_skill_merge_grill]] (GRILL LOCKED 2026-05-30): rich skill cards (Edit CV pointer / Polish with AI) move INTO Practice expand-in-place; `/skills` survives only as overview + bridge link. So before/while building #5, **reconcile the done-morph's `Improve {domain}` target** (`components/cv/cv-score-progress.tsx` → currently `/skills?domain=X`) with the merged Practice surface — the deep link must land on the card where the user actually acts, then flows to tailor → `cv/download-pdf`.
-- Build order next session: (a) land/confirm the Practice×Skill merge so the target surface is stable, (b) wire the 10-min lane end-to-end (score → improve card → tailor → download), (c) measure real p90 upload→downloadable-CV before advertising "10 min" externally.
-- Infra note: durable dispatch ([[project_durable_dispatch_10k]]) is code-closed; the Redis/worker flip is a Railway **MCP** change ([[reference_railway_mcp_infra]]) — do it anytime, not a manual dashboard step.
-
-### Open carry-over — NEXT, to stabilise
-1. **PR2 — C1 living-master refactor** (locked above). New ADR (call it ADR-0008-class — confirm number vs the streaming ADR-0009). Migration is the risky bit: dry-run COUNT, Supabase backup, branch-DB test, idempotent, `NOTIFY pgrst` at end. Touches `cv.py` (latest_baseline → single master), `skill_edit.py` (persist-new-baseline → UPDATE master + snapshot), `cv_workflow._persist_baseline_cv`, `baseline-view.orderRows` (plural masters → single), `commit-graph`/`library-view` master-chain.
-2. **PR3 — full structured editor** (Q6 A) — add/edit/remove every section, autosave text (free), debounced async re-score (SE17), baseline edits UNCHARGED. Depends on PR2 (mutable master).
-3. **Stabilise-the-app open queue:** ~~dashboard-merge + shell-seam VISUAL QA~~ ✅ done · ~~3 `20260524_*` migrations~~ ✅ **APPLIED 2026-05-30** (+ `20260530d_job_deepenings` applied) · Backlog #14 match-refresh-stuck-at-2 → being fixed this session (free-refresh-on-XP) · Backlog #16 `(authed)` group auth-redirect guard (logged-out → blank `/tracker`) · P1 intel country→city cascade · HIGH mobile ledger (M01/M17/M18/M20/M22/M23/M25/M30/M31/M33) · ~~streaming PR1~~ ✅ shipped (`dd9ac59` FitRationale wired) · ~~Develop→main promotion~~ ✅ done · stale `mirror.vercel.app` purge (Shivam ops).
-
-   **STREAMING VERIFY — OPEN (Shivam to confirm, 2026-05-30):** does Gemini's OpenAI-compat endpoint actually honour `stream=True` in `llm_provider.stream_complete`? OpenRouter + Groq confirmed; Gemini flash-lite leg UNVERIFIED in prod. If Gemini ignores `stream` and returns one blob, the typewriter still works (one big token) but loses the live feel + the pre-first-token fallback window shrinks. Confirm by watching a FocusedJob "Why you fit" stream while the chain is on the Gemini leg. Update this line once confirmed.
-4. **Progressive-nav + dashboard-merge + shell-seam still uncommitted/unverified** on Develop — confirm they're in before layering PR1's commit.
-
-
-
-Triggered by a job-card screenshot: Shivam asked why the LLM call shows no visible "thinking/working" like Claude — the user stares at a dead `Analyse this role to see Myro's reasoning.` placeholder while the backend computes. Chose **Option A — real token streaming (SSE)** over staged fake-progress. Ran `/grill-me` to lock the whole tree, then saved + drafted ADR-0009 + closed. **No code written** (Shivam said save + draft + close).
-
-### Codebase reality surfaced during grill
-- `job.llm_explanation` is the source. Top-3 ranked jobs get it FREE from the bulk ranker; the `0 FIT` placeholder = a saved job that never went through the ranker.
-- `POST /jobs/analyse/{job_id}` ([backend/app/routers/jobs/analyse.py](backend/app/routers/jobs/analyse.py)) already exists (overlap → `complete(max_tokens=300)` → charges 10 XP → persists). **But `analyseJob` ([frontend/lib/api.ts:1800](frontend/lib/api.ts)) is called by NOTHING** — the button was never wired. Building = wiring the dead trigger + streaming it.
-- **Pre-existing bug:** analyse charges 10 XP even on `LLMProviderError`. Fixed by the charge-on-success lock.
-- Providers all `AsyncOpenAI` (OpenRouter/Groq/Gemini OpenAI-compat) → all support `stream=True`.
-- No toast/nudge infra; `xpStore` just `setBalance`s silently across ~8 scattered charge sites.
-
-### Locked (full detail → memory `project_streaming_rationale_xp_nudge`)
-Auto-on-mount · charge 10 XP once-per-job, **on success only** (fixes charge-on-fail bug; idempotent re-view = cached) · broke (<10 XP) = **silent skip + discoverable `Analyse · 10 XP` button → XPGate on click** (OVERRODE Shivam's "auto-fire modal" pick — it's the 2026-05-28 per-login-hammer anti-pattern, per-cycle would be worse) · `fetch`+`ReadableStream` vs FastAPI `StreamingResponse` (EventSource rejected, bearer auth) · new `LLMProvider.stream_complete()` with **pre-first-token fallback only**, mid-stream death = partial greyed + retry, no charge · **typewriter smoothing** ~40–60 cps. Universal XP nudge = `−10`/`+30` delta **floats off the XP pill** (red spend / green earn, forge claim `silent`) via explicit `xpStore.applyXpChange({newBalance, action})` (NOT auto-diffing setBalance).
-
-### Scope — PHASED (Q10)
-- **PR1** — analyse streams **direct** (sync `StreamingResponse`, no Redis) + `useStreamingText()` + typewriter + XP-pill nudge seam. Ships the engagement win fast.
-- **ADR-0009** — `docs/adr/0009-progress-stream-protocol.md` DRAFTED (Proposed). Typed envelope `{token|phase|progress|done|error}`, Redis pub/sub → SSE relay. Builds on ADR-0008.
-- **PR2** — match-refresh + skill-edit adopt the relay, **drop polling** (ticket-poll + SE17 3s-poll).
-
-### Carry-over (next session)
-1. **Build PR1** per locked spec. Start: `LLMProvider.stream_complete()` → `StreamingResponse` analyse endpoint (charge-on-`done`) → wire the dead `analyseJob` trigger (auto-on-mount funded / button broke) → `useStreamingText()` + typewriter → XP-pill `applyXpChange` nudge seam (migrate ~8 sites).
-2. Broke-button microcopy → `/ux-copy`. Verify Gemini honours `stream=true`.
-3. PR2 is its own ADR-0009-driven PR after PR1 lands.
-4. **All prior carry-over still open** — dashboard-merge visual QA (Shivam), progressive-nav commit, etc. None touched.
-
----
-
-## LAST SESSION SUMMARY (2026-05-29 · progressive-disclosure nav grill COMPLETE + BUILT)
-
-Resumed the paused progressive-nav `/grill-me` (Q1+Q1b were locked), grilled Q2–Q11 to close, then built the whole thing end-to-end. **Nothing committed** (commit when Shivam says). tsc clean · `next lint` 0/0 · 13 cv-upload-api + 6 cv-upload-state tests pass.
-
-### Grill (Q2–Q11 locked) — full spec in `project_progressive_nav_grill.md`
-Headline finding: **the `/onboarding/state` backend endpoint never existed** — `lib/api.ts` declared a phantom `onboarding` client + `OnboardingCards` (mounted on /home) that 404'd silently and rendered nothing in prod. "Backend already built" premise was false. → All unlocks now derive client-side from `cv.versions` + `users.me`.
-- **Q2** unlocks client-side: cv=`≥1 tailored` · tracker=`≥2 tailored companies` (Shivam: 2 not 3) · myrology=`myrology_unlocked`.
-- **Q3** TWO states only, signal `tailoredCount`: first-run (`=0`) vs returning (`≥1`). `onboarding_complete` dead for gating. First-run hero absorbs pre-upload invitation. Global skeleton contract: data-shaped placeholders.
-- **Q4** countdown pill hybrid C: pre-upload static "First CV in 10 min" → server clock from `cv_upload_jobs.created_at` → expiry "FINISH CV" gentle nudge (no shame). First-run-only.
-- **Q5** retire OnboardingCards + phantom client; CV-centric checklist Upload→Score→Tailor. Dead-code-sweep principle.
-- **Q6** base tour DROPPED (friction vs speed). Bottom-right feedback FAB = "show me around". Keep NEW dots.
-- **Q7** unlock plumbing subscribe+invalidate+localStorage-seen+queue. Returning nudge folds into state-aware-CTA project (NOT built here). Win metrics: first-run→tailor 1st CV · returning→mark next role.
-- **Q8** gate mobile bottom bar; drop Skills; NEW dot only (no popover).
-- **Q9** nav-grows panel first-run-only, CV Library + Tracker rows (omit Myrology).
-- **Q10** drop wordmark, faint `beta` badge, keep /myro. `--tm-scrim` already existed.
-- **Q11** unify authed nav → `lib/nav-items.ts` (stage/unlock/surfaces). Public nav separate. Forge = top pill not bottom slot.
-
-### Built (uncommitted on Develop)
-NEW: `lib/nav-items.ts`, `lib/hooks/use-nav-unlocks.ts`, `lib/cv-promise.ts`, `lib/hooks/use-cv-promise.ts`, `components/nav/{topbar-nav,cv-promise-pill}.tsx` + `nav.css`, `components/home/first-run-hero.tsx` + `first-run-hero.css`. EDIT: `app-shell.tsx`, `mobile/shell.tsx`, `app/home/page.tsx`, `app/cv/page.tsx`, `app/onboarding/page.tsx`, backend `cv_workflow.get_cv_upload_status` + `schemas/cv.py` (`started_at`, no migration — reuses created_at). DELETED: OnboardingCards/OnboardingChip/onboarding-cards.css, phantom `onboarding` client + types, `dataKeys.onboardingState`, dead `.tm-topbar-wordmark`/`.tm-topbar-nudge` CSS.
-
-### Open carry-over for NEXT SESSION (discuss all)
-1. **Commit** this PR (suggested `feat(nav): progressive-disclosure nav + first-run hero + 10-min CV promise pill`) — Shivam hasn't approved a commit yet.
-2. **Visual QA** — dev server + screenshot first-run vs returning at 1280px + 375px; eyeball bg (constellation) + text sizes + coachmark scrim.
-3. **Returning-user nudge** — build via the separate `project_state_aware_landing_cta` PR (S4-idle "pick a role to tailor for"). Q7 deferred it here on purpose.
-4. **First-run loading flash** — has-cv-no-tailor user briefly sees returning layout during `nav.loading`. Cheap fix: data-shaped first-run skeleton while loading.
-5. **Reconcile-from-server** — wire `reconcileCvPromise(status.started_at)` into cv/page `pollCVUploadStatus` resume path (~line 229) for cross-device/tab-close countdown accuracy (optimistic-only today).
-6. **First-run-completion XP** — grant on real `tailoredCount` flip (dropped with OnboardingCards). Follow-up.
-7. **Skills bridge link** inside Practice Yard (Q1b deferred-with-bridge) — not added this pass.
-8. **Backend test** asserting `started_at` in the status payload.
-9. **All prior-session carry-over still open** — 3-layer landing CTA, ScoreBreakdownPopover, Vercel build timer, multi-file CV batch, CV detector enrichment, /institutions page, ADR-0005/0007 promotions. None touched.
-
----
+⚠️ **Other open pre-deploy migration gate:** multi-location `20260602` NOT applied (`project_location_prefs_multiloc`).
 
 > **Older session summaries pruned for a lean cockpit (2026-05-30).** Sessions ≤ 2026-05-28 were committed/shipped — full detail in `git log` and `docs/session-history/2026-05.md`. Live cross-session context lives in memory (`~/.claude/projects/-Users-incognito-True-Yodha/memory/MEMORY.md`). Only the latest sessions with **uncommitted or unbuilt** carry-over are kept above.

@@ -298,6 +298,80 @@ class CVVersionsRepository:
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
 
+    # ── living-master autosave (PR-3) ─────────────────────────────────────────
+    # "Master" ≡ latest_baseline. Autosave MUTATES it in place instead of
+    # appending a new baseline_upload row (the pile the living-master grill
+    # called the bug), snapshotting the prior content into cv_master_revisions
+    # first so nothing is ever lost. Migration 20260603_cv_master_revisions.
+
+    def _next_master_revision_number(self, master_version_id: int) -> int:
+        result = (
+            self._db.table("cv_master_revisions")
+            .select("revision_number")
+            .eq("master_version_id", master_version_id)
+            .order("revision_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return 1
+        return int(result.data[0].get("revision_number") or 0) + 1
+
+    def update_master(
+        self,
+        user_id: str,
+        *,
+        body_text: str,
+        cv_structured: dict[str, Any],
+        snapshot_hash: str | None = None,
+    ) -> dict[str, Any]:
+        """Non-destructive autosave of the user's Main CV (master ≡ latest_baseline).
+
+        1. Snapshot the CURRENT master content into cv_master_revisions.
+        2. Mutate the master row in place; reset recompute_finished_at so the
+           score-ring shimmer reflects the pending async re-tag (SE4/SE17).
+
+        Returns the updated master row. Raises 404 if no baseline exists yet.
+        """
+        master = self.latest_baseline(user_id)
+        if master is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upload a baseline CV first.",
+            )
+        master_id = int(master["id"])
+
+        # 1. Preserve the prior state before overwriting (append-only history).
+        self._db.table("cv_master_revisions").insert({
+            "user_id":           user_id,
+            "master_version_id": master_id,
+            "revision_number":   self._next_master_revision_number(master_id),
+            "body_text":         master.get("body_text") or "",
+            "cv_structured":     master.get("cv_structured") or {},
+            "snapshot_hash":     master.get("snapshot_hash"),
+        }).execute()
+
+        # 2. Mutate the master. user_id filter is defensive (RLS also scopes).
+        result = (
+            self._db.table("cv_versions")
+            .update({
+                "body_text":             body_text,
+                "cv_structured":         cv_structured or {},
+                "snapshot_hash":         snapshot_hash,
+                "confidence_label":      "user-edited",
+                "recompute_finished_at": None,
+            })
+            .eq("id", master_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not save your CV.",
+            )
+        return result.data[0]
+
     # ── cv_versions: the writer seam ──────────────────────────────────────────
 
     def create(self, user_id: str, spec: CVVersionWriteSpec) -> dict[str, Any]:

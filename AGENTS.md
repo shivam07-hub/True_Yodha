@@ -154,11 +154,30 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled
 - `cv_history.content_hash TEXT` — SHA-256 of raw extracted text for re-upload short-circuit
 
-**Infrastructure:**
-- Railway: `True_Yodha` → `Develop` → auto-deploy
-- Vercel: `truemirror.vercel.app` → `main`
-- Supabase: `gipvxuugajkugntwkeiz` (prod DB)
-- LLM chain: OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid
+**Infrastructure (TOPOLOGY — canonical, verified 2026-06-03):**
+
+**Env split policy: Supabase = 1 env (shared) · Railway = 2 (dev + prod) · Vercel = 2 (prod + preview/dev).** Only the DB is single — deliberate: <10k users, want all real user data in one place. Do NOT split Supabase until scale justifies it.
+
+Railway project = **`clever-embrace`** (`a15c0013-…`), ONE Railway environment object `production` (`f6a22e25-…`). The two "environments" (dev/prod) are the two **backend services**, sharing ONE worker + ONE Redis:
+
+| Railway service | Role | Branch | Public URL | Start cmd |
+|---|---|---|---|---|
+| **`mirror-backend-dev`** (`149a7bdc`) | **DEV API** — ACTIVE (Vercel preview/dev hits this) | `Develop` | `truemirror.up.railway.app` | `uvicorn app.main:app …` |
+| **`mirror-backend-prod`** (`6f9d873b`) | **PROD API** — the live backend | `main` | **`https://api.himyro.com`** (custom domain, LE cert) + `mirror-backend-prod-production.up.railway.app` | `uvicorn app.main:app --host 0.0.0.0 --port 8000` |
+| **`True_Yodha`** (`1b3dca5a`) | **WORKER** — durable RQ runner (ADR-0008), 2/2 replicas, NOT an API. **Shared by both dev+prod.** | `Develop` | internal | `python -m app.workers.jobs_compute_worker` |
+| **`Redis`** (`7f3503cf`) | RQ queue + global provider budget (ADR-0008), has `redis-volume`. **Shared by both dev+prod.** | — | `redis.railway.internal:6379` | — |
+
+All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK.
+
+- **Frontend (Vercel project `truemirror`, 2 envs):** Production env → domain **`himyro.com`** (+`www`, +legacy `truemirror.vercel.app`), `NEXT_PUBLIC_API_URL = https://api.himyro.com`. Preview/Develop env → `NEXT_PUBLIC_API_URL = https://truemirror.up.railway.app` (dev backend). (Prod cutover from `truemirror.up.railway.app`→`api.himyro.com` done 2026-06-03.)
+- **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
+- **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
+- **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
+- **CORS gotcha:** `ALLOWED_ORIGINS` env var is **DEAD CONFIG** — not read anywhere. CORS hardcoded `allow_origins=["*"], allow_credentials=False` in `backend/app/main.py:41` (safe: bearer-token auth, no cookies). To lock origins, wire `main.py` (code change → Develop + tests).
+- **DNS:** himyro.com on **GoDaddy**. `api` = CNAME → `rm336p0v.up.railway.app`; `_railway-verify.api` = TXT `railway-verify=<token>` (**single** prefix — a doubled `railway-verify=railway-verify=…` blocks cert issuance; cost real time 2026-06-03). Railway custom-domain cert needs BOTH records verified or it serves wildcard `*.up.railway.app` → TLS name mismatch → curl 000.
+- **Railway mgmt = MCP** (`mcp__railway__*`). Pass **snake_case `service_id`** or reads default to the linked service. `remove_service` confirm-boolean is broken via MCP → final service deletion needs a dashboard click.
+- **Cutover runbook:** fix DNS → wait cert green (`curl api.himyro.com/health` = 200, not 000) → THEN flip Vercel env + redeploy → verify → only then touch the old service. Flipping Vercel before cert live = outage.
+- **LLM chain:** OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid.
 
 ---
 
@@ -277,7 +296,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
+## LAST SESSION SUMMARY (2026-06-03 - Codex assigned reliability pulls closed, Develop)
+
+Closed the Claude-sliced Codex pull set on `Develop`. **Do not redo these slices.**
+
+- `9e65611 feat(score)` — PR-4: upgraded the existing `/docs#scoring` section instead of creating a duplicate score page; score rings and upload result now link there; docs mirror the current backend scoring facades/formulas (`recompute_score`, cluster log coverage, skill-count domain weighting, breadth bonus, mean of evidenced domains), the 10 public domains, and a worked example without invented weights.
+- `4b28856 fix(forge)` — PR-6: frontend-only forge timer wall-clock reconciliation. Persisted `startedAt`, `pausedAt`, `pausedMs`, `claimedMinutes`, `carriedMinutes`, and `lastTickAt`; `ForgeClockDriver` reconciles on mount, focus, pageshow, and visibility changes; backend `forge_sessions` untouched.
+- `c92cc2d test(profile)` — PR-8: verified public profile privacy and OG. No production code change needed; regression test locks no email/full name/LinkedIn/CV text/skill names/skill levels/tracker rows on the public profile API. Prod profile OG returned `image/png`.
+- `3daff43 fix(ui)` — PR-5 Codex slice: heatmap mobile title/short horizontal labels/sticky first column; CV playground score gauge label outside numeric center, `Untitled company` fallback, keyword-chip conjunction casing; feedback jargon cleanup. Empty states intentionally untouched for Claude.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `543 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Focused frontend/backend tests passed: score methodology, forge clock, PR-5 display fixes, public profile + ninja name.
+- Local dev smoke: `/docs`, `/market`, `/cv` compiled cleanly on `127.0.0.1:3000`; server stopped after verification.
+
+Remaining:
+
+- None for Codex assigned PR-4/PR-5/PR-6/PR-8.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
 
 Claude ran a `/frontend-design` audit of the first-login `/home` first-run hero (27 blunders) and shipped two commits to Develop (not pushed). **Codex: the mechanical slice below is already done — do not redo.**
 

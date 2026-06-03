@@ -92,7 +92,7 @@ export function DiaryPanel({
             aria-label="Close journal"
             className="tm-control-focus"
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "var(--tm-text-faint)", fontSize: 16, cursor: "pointer", padding: "2px 6px", lineHeight: 1, borderRadius: 4 }}
+            style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", fontSize: 16, cursor: "pointer", padding: "2px 6px", lineHeight: 1, borderRadius: 4 }}
           >
             ✕
           </button>
@@ -151,7 +151,7 @@ export function DiaryPanel({
                       aria-label={`Remove ${skill.skill_name} from diary cart`}
                       className="tm-control-focus"
                       onClick={() => onRemoveSkill(skill.skill_name)}
-                      style={{ background: "none", border: "none", color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
+                      style={{ background: "none", border: "none", color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
                     >
                       ×
                     </button>

@@ -17,7 +17,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 99px;
   border: 1px solid var(--tm-border); background: transparent;
-  color: var(--tm-text-muted); font-size: 13px; cursor: pointer;
+  color: var(--tm-interactive-rest); font-size: 13px; cursor: pointer;
 }
 .db-seg.active { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border); color: var(--tm-text); }
 .db-seg:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -91,7 +91,7 @@
 .db-act-btn { font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--tm-border); color: var(--tm-text); text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .db-act-btn.accent { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border); color: var(--tm-interactive, var(--tm-accent)); }
 .db-act-hint { font-size: 12px; color: var(--tm-text-faint); white-space: nowrap; flex-shrink: 0; }
-.db-remove-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--tm-border); background: transparent; color: var(--tm-text-faint); cursor: pointer; }
+.db-remove-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--tm-border); background: transparent; color: var(--tm-interactive-rest); cursor: pointer; }
 .db-remove-btn:hover { color: var(--tm-danger, #ef4444); border-color: color-mix(in srgb, var(--tm-danger, #ef4444) 45%, var(--tm-border)); background: color-mix(in srgb, var(--tm-danger, #ef4444) 8%, transparent); }
 
 /* ── Desktop: grid + expand ───────────────────────────────────────────────── */
@@ -102,12 +102,12 @@
 .db-tile-role { font-size: 14px; font-weight: 600; color: var(--tm-text); }
 .db-tile-fit { font-size: 18px; font-weight: 700; font-family: var(--tm-font-mono); color: var(--tm-interactive, var(--tm-accent)); margin-top: 4px; }
 .db-grid-expanded { grid-column: 1 / -1; }
-.db-grid-collapse { font-size: 12px; color: var(--tm-text-muted); background: transparent; border: none; cursor: pointer; padding: 4px 0 8px; }
+.db-grid-collapse { font-size: 12px; color: var(--tm-interactive-rest); background: transparent; border: none; cursor: pointer; padding: 4px 0 8px; }
 
 .db-card { display: flex; flex-direction: column; gap: 12px; }
 .db-card--tabs { background: var(--tm-surface); border: 1px solid var(--tm-int-border); border-radius: var(--tm-radius); padding: 18px; }
 .db-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--tm-border-soft, var(--tm-border)); }
-.db-tab { padding: 8px 14px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--tm-text-faint); font-size: 13px; cursor: pointer; }
+.db-tab { padding: 8px 14px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--tm-interactive-rest); font-size: 13px; cursor: pointer; }
 .db-tab.active { color: var(--tm-text); border-bottom-color: var(--tm-interactive, var(--tm-accent)); }
 .db-tab-panel { min-height: 180px; padding-top: 4px; }
 

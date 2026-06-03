@@ -49,6 +49,8 @@ class _Query:
         self._table = table
         self._count_exact = False
         self._eq: dict[str, Any] = {}
+        self._gte: dict[str, Any] = {}
+        self._in: dict[str, list[Any]] = {}
         self._or_needle: str | None = None
         self._orders: list[tuple[str, bool]] = []
         self._range: tuple[int, int] | None = None
@@ -61,6 +63,14 @@ class _Query:
 
     def eq(self, col: str, val: Any) -> "_Query":
         self._eq[col] = val
+        return self
+
+    def gte(self, col: str, val: Any) -> "_Query":
+        self._gte[col] = val
+        return self
+
+    def in_(self, col: str, vals: list[Any]) -> "_Query":
+        self._in[col] = list(vals)
         return self
 
     def or_(self, expr: str) -> "_Query":
@@ -84,6 +94,10 @@ class _Query:
         rows = [dict(r) for r in self._db.tables.get(self._table, [])]
         for col, val in self._eq.items():
             rows = [r for r in rows if r.get(col) == val]
+        for col, val in self._gte.items():
+            rows = [r for r in rows if r.get(col) is not None and r.get(col) >= val]
+        for col, vals in self._in.items():
+            rows = [r for r in rows if r.get(col) in vals]
         if self._or_needle:
             rows = [
                 r
@@ -247,6 +261,101 @@ def test_unknown_sort_falls_back_to_fresh() -> None:
     result = repo.feed_jobs(sort="bogus", page_size=10)
     assert result["sort"] == "fresh"
     assert [r["job_id"] for r in result["rows"]] == ["b", "a"]
+
+
+# ── new fit lenses + narrowing filters ───────────────────────────────────────
+
+
+def test_role_sort_ranks_by_target_role_match() -> None:
+    repo, _ = _repo([
+        _job("eng", title="Software Engineer", first_seen=20260101),
+        _job("da", title="Senior Data Analyst", first_seen=20260101),
+        _job("pm", title="Product Manager", first_seen=20260101),
+    ])
+    result = repo.feed_jobs(
+        sort="role",
+        user_target_roles=["Data Analyst", "Product Manager"],
+        page_size=10,
+    )
+    ids = [r["job_id"] for r in result["rows"]]
+    # eng covers no target role → ranked last; the two matches lead.
+    assert ids[-1] == "eng"
+    assert set(ids[:2]) == {"da", "pm"}
+    assert {r["job_id"]: r["target_role_match"] for r in result["rows"]} == {
+        "da": 1, "pm": 1, "eng": 0,
+    }
+
+
+def test_role_match_is_seniority_agnostic() -> None:
+    repo, _ = _repo([_job("da", title="Senior Data Analyst", first_seen=20260101)])
+    # 'Data Analyst' target matches a 'Senior Data Analyst' posting.
+    result = repo.feed_jobs(sort="role", user_target_roles=["Data Analyst"], page_size=10)
+    assert result["rows"][0]["target_role_match"] == 1
+
+
+def test_target_role_only_filter_drops_non_matching() -> None:
+    repo, _ = _repo([
+        _job("da", title="Data Analyst", first_seen=20260101),
+        _job("eng", title="Software Engineer", first_seen=20260101),
+    ])
+    result = repo.feed_jobs(
+        target_role_only=True, user_target_roles=["Data Analyst"], page_size=10
+    )
+    assert [r["job_id"] for r in result["rows"]] == ["da"]
+
+
+def test_min_skill_matches_filters_below_threshold() -> None:
+    repo, _ = _repo(
+        [
+            _job("two", skills=["Python", "SQL"], first_seen=20260101),
+            _job("one", skills=["Python", "Go"], first_seen=20260101),
+            _job("none", skills=["Rust"], first_seen=20260101),
+        ],
+        [_user_skill("python", "Python"), _user_skill("sql", "SQL")],
+    )
+    skills = repo.user_skill_keys("u1")
+    result = repo.feed_jobs(min_skill_matches=2, user_skill_keys=skills, page_size=10)
+    assert [r["job_id"] for r in result["rows"]] == ["two"]
+
+
+def test_exclude_job_ids_drains_saved_and_skipped() -> None:
+    repo, _ = _repo([
+        _job("a", first_seen=20260601),
+        _job("b", first_seen=20260501),
+        _job("c", first_seen=20260401),
+    ])
+    result = repo.feed_jobs(sort="fresh", exclude_job_ids={"b"}, page_size=10)
+    # Draining queue: 'b' (saved/skipped) gone; count reflects what's left.
+    assert [r["job_id"] for r in result["rows"]] == ["a", "c"]
+    assert result["available_total"] == 2
+
+
+def test_freshness_days_drops_stale_jobs() -> None:
+    from datetime import date, timedelta
+
+    recent = int((date.today() - timedelta(days=2)).strftime("%Y%m%d"))
+    stale = int((date.today() - timedelta(days=90)).strftime("%Y%m%d"))
+    repo, _ = _repo([_job("recent", first_seen=recent), _job("stale", first_seen=stale)])
+    result = repo.feed_jobs(sort="fresh", freshness_days=7, page_size=10)
+    assert [r["job_id"] for r in result["rows"]] == ["recent"]
+
+
+def test_following_only_scopes_to_followed_companies() -> None:
+    repo, _ = _repo([
+        _job("acme", company="Acme", first_seen=20260601),
+        _job("zeta", company="Zeta", first_seen=20260601),
+    ])
+    result = repo.feed_jobs(
+        sort="fresh", following_only=True, followed_companies={"Acme"}, page_size=10
+    )
+    assert [r["job_id"] for r in result["rows"]] == ["acme"]
+
+
+def test_following_only_with_no_follows_returns_empty() -> None:
+    repo, _ = _repo([_job("acme", company="Acme")])
+    result = repo.feed_jobs(following_only=True, followed_companies=set(), page_size=10)
+    assert result["rows"] == []
+    assert result["available_total"] == 0
 
 
 # ── pagination ───────────────────────────────────────────────────────────────
@@ -482,6 +591,18 @@ def test_feed_endpoint_returns_feed_payload() -> None:
 
         def user_target_locations(self, _user_id: str) -> list[str]:
             return []
+
+        def get_user_target_roles(self, _user_id: str) -> list[str]:
+            return ["Data Engineer"]
+
+        def get_dismissed_job_card_ids(self, _user_id: str) -> list[str]:
+            return []
+
+        def get_saved_job_ids(self, _user_id: str) -> list[str]:
+            return []
+
+        def get_followed_company_names(self, _user_id: str) -> set[str]:
+            return set()
 
         def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
             return {

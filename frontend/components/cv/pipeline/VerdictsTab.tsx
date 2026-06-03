@@ -106,7 +106,7 @@ export function VerdictsTab({ apps, reviewedJobIds, onOpenReview, onDelete }: Pr
                   title="Delete forever"
                   style={{
                     background: "transparent", border: "none",
-                    color: "var(--tm-text-faint)", cursor: "pointer",
+                    color: "var(--tm-interactive-rest)", cursor: "pointer",
                     fontSize: 12, fontFamily: "inherit",
                   }}
                 >
@@ -131,7 +131,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
         fontSize: 12, fontFamily: "inherit",
         background: active ? "var(--tm-interactive)" : "rgba(255,255,255,0.025)",
         border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border)"}`,
-        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)",
         cursor: "pointer",
       }}
     >

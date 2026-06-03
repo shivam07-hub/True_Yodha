@@ -17,27 +17,29 @@ export function ScoreGauge({ value, size = 120, label = "JD MATCH" }: ScoreGauge
   const cx = size / 2
   const cy = size / 2
   return (
-    <div className="cvb-score-gauge" style={{ width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={cx} cy={cy} r={radius} stroke="var(--tm-border)" strokeWidth="6" fill="none"/>
-        <circle
-          cx={cx} cy={cy} r={radius}
-          stroke="var(--data-1)" strokeWidth="6" fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          style={{
-            filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
-            transition: "stroke-dashoffset 600ms var(--tm-ease)",
-          }}
-        />
-      </svg>
-      <div className="score-center mono tabnum">
-        <div className="score-val">
-          {clamped}<span>%</span>
+    <div className="cvb-score-gauge" style={{ width: size }}>
+      <div className="score-ring" style={{ width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={cx} cy={cy} r={radius} stroke="var(--tm-border)" strokeWidth="6" fill="none"/>
+          <circle
+            cx={cx} cy={cy} r={radius}
+            stroke="var(--data-1)" strokeWidth="6" fill="none"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            style={{
+              filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))",
+              transition: "stroke-dashoffset 600ms var(--tm-ease)",
+            }}
+          />
+        </svg>
+        <div className="score-center mono tabnum">
+          <div className="score-val">
+            {clamped}<span>%</span>
+          </div>
         </div>
-        <div className="score-sub">{label}</div>
       </div>
+      <div className="score-label">{label}</div>
     </div>
   )
 }

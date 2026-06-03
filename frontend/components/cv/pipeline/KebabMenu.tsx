@@ -33,11 +33,11 @@ export function KebabMenu({ onWithdraw, onDelete }: Props) {
         style={{
           width: 26, height: 26, borderRadius: 6,
           background: "transparent", border: "1px solid transparent",
-          color: "var(--tm-text-faint)", cursor: "pointer",
+          color: "var(--tm-interactive-rest)", cursor: "pointer",
           fontSize: 16, lineHeight: 1, padding: 0, fontFamily: "inherit",
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--tm-text)" }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-faint)" }}
+        onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
       >
         ⋯
       </button>

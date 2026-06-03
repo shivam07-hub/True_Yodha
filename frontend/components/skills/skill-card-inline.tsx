@@ -275,7 +275,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
                     width: 32, height: 32, borderRadius: "var(--tm-radius-sm)",
                     border: `1px solid ${appealLevel === lvl ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
                     background: appealLevel === lvl ? "var(--tm-int-bg-wash)" : "transparent",
-                    color: appealLevel === lvl ? "var(--tm-interactive)" : "var(--tm-text-faint)",
+                    color: appealLevel === lvl ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
                     fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700, cursor: "pointer",
                   }}
                 >L{lvl}</button>

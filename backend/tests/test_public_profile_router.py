@@ -98,6 +98,10 @@ def test_get_public_profile_returns_no_pii(monkeypatch: Any, _clear_overrides: A
         "email": "leak@example.com",
         "full_name": "Real Name",
         "linkedin_url": "https://linkedin.com/in/leak",
+        "cv_text": "Private CV body",
+        "skill_names": ["Python"],
+        "skill_levels": {"Python": 3},
+        "tracker_rows": [{"company_name": "Private Co"}],
     }
     monkeypatch.setattr(public_router, "_admin", lambda: _admin_with({"public_profile_v": {"data": leaky_row}}))
 
@@ -111,6 +115,10 @@ def test_get_public_profile_returns_no_pii(monkeypatch: Any, _clear_overrides: A
     assert "email" not in body
     assert "full_name" not in body
     assert "linkedin_url" not in body
+    assert "cv_text" not in body
+    assert "skill_names" not in body
+    assert "skill_levels" not in body
+    assert "tracker_rows" not in body
 
 
 def test_get_public_profile_404_when_missing(monkeypatch: Any) -> None:

@@ -59,7 +59,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
               href="/signup"
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Start your journey <ArrowRight className="h-4 w-4" />
+              Map my CV <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/login"
@@ -186,16 +186,16 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
       {showCta && (
         <section className="rounded-xl bg-primary p-6 text-center text-primary-foreground">
           <h2 className={`font-bold ${compact ? "text-lg" : "text-2xl"}`}>
-            See your next move.
+            Choose your match.
           </h2>
           <p className="mt-2 text-sm opacity-80">
-            See where you really stand. Then do something about it.
+            One CV in. A tailored version for every role — you decide which to send.
           </p>
           <Link
             href="/signup"
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary hover:opacity-90 transition-opacity"
           >
-            Start for free <ArrowRight className="h-4 w-4" />
+            Map my CV <ArrowRight className="h-4 w-4" />
           </Link>
         </section>
       )}

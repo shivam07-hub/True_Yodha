@@ -988,7 +988,14 @@ mark.cvb-kw {
 .cvb-kw-chip.miss { color: var(--tm-warning); border-color: rgba(245, 158, 11, 0.3); background: var(--tm-warning-wash); }
 .cvb-kw-chip.miss .dot { background: var(--tm-warning); }
 
-.cvb-score-gauge { position: relative; margin: 0 auto; }
+.cvb-score-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto;
+}
+.cvb-score-gauge .score-ring { position: relative; }
 .cvb-score-gauge .score-center {
   position: absolute;
   inset: 0;
@@ -1017,7 +1024,7 @@ mark.cvb-kw {
   line-height: 1;
   opacity: 0.62;
 }
-.cvb-score-gauge .score-sub {
+.cvb-score-gauge .score-label {
   text-align: center;
   font-size: 10px;
   line-height: 1;

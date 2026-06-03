@@ -34,41 +34,13 @@ export function Detail({ summary = "Technical detail", children }: { summary?: s
   )
 }
 
-// ── Section 1: Myro Score ─────────────────────────────────────────────────────
-
-export function ScoringSection() {
-  return (
-    <Section id="scoring" title="Your Myro Score">
-      <P>
-        Your Myro Score is a number from 0 to 100. It reflects how comprehensively your CV
-        demonstrates experience across 10 career domains — not just whether you have the right
-        keywords, but how strongly you have evidenced each skill.
-      </P>
-      <P>
-        Most professionals score between 30 and 55 when they first upload their CV. A score of
-        60+ means your CV is well-rounded. 85+ means you have documented deep, results-driven
-        experience across multiple domains. There is almost always room to improve by
-        strengthening how your CV describes what you have done.
-      </P>
-      <Detail summary="Step-by-step calculation">
-        <ol style={{ paddingLeft: 18, margin: "4px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-          <li><strong>Skill evidence</strong> — each skill found in your CV is rated by how strongly it is described (see <a href="#cv-reading" style={{ color: "var(--tm-interactive)" }}>How your CV is read</a>). Rating: 1–4.</li>
-          <li><strong>Domain score</strong> — skills are grouped into one of 10 career domains. The domain score is the coverage-weighted average of evidence ratings, with a breadth bonus that rewards having many skills rather than just one strong one. Result: 0–100 per domain.</li>
-          <li><strong>Myro Score</strong> — the arithmetic mean of all 10 domain scores.</li>
-        </ol>
-        <p style={{ marginTop: 8 }}>The 10 career domains are: Technology, Engineering, Growth, Sales, Finance, People, Design, Law, Research, and Health.</p>
-      </Detail>
-    </Section>
-  )
-}
-
 // ── Section 2: CV reading ─────────────────────────────────────────────────────
 
 const EVIDENCE_ROWS = [
-  { label: "Listed",     pct: "25%", strength: "1/4", example: '"Proficient in Python"',                          desc: "The skill is named, but no context is given." },
-  { label: "Applied",    pct: "50%", strength: "2/4", example: '"Built a data pipeline in Python"',               desc: "You describe using the skill in a real situation." },
-  { label: "Proven",     pct: "75%", strength: "3/4", example: '"Reduced pipeline time by 40% using Python"',     desc: "You show a measurable result — numbers, outcomes, impact." },
-  { label: "Led",       pct: "100%", strength: "4/4", example: '"Led 4 engineers building Python services"',       desc: "You directed others using this skill — managed, mentored, architected." },
+  { label: "Listed",     pct: "25%", strength: "L1", example: '"Proficient in Python"',                          desc: "The skill is named, but no context is given." },
+  { label: "Applied",    pct: "50%", strength: "L2", example: '"Built a data pipeline in Python"',               desc: "You describe using the skill in a real situation." },
+  { label: "Proven",     pct: "75%", strength: "L3", example: '"Reduced pipeline time by 40% using Python"',     desc: "You show a measurable result, certification, or outside validation." },
+  { label: "Led",       pct: "100%", strength: "L4", example: '"Led 4 engineers building Python services"',       desc: "You directed others using this skill — managed, mentored, architected." },
 ]
 
 export function CVReadingSection() {
@@ -76,8 +48,8 @@ export function CVReadingSection() {
     <Section id="cv-reading" title="How your CV is read">
       <P>
         When you upload or describe your CV, Myro scans every line and identifies skills. For
-        each skill it finds, it checks how you have described it. Four levels of evidence are
-        recognised — from simply listing a skill to proving it with results:
+        each skill it finds, it checks how you have described it. Four base evidence levels are
+        recognised, and repeated depth evidence can lift a skill to L5:
       </P>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "16px 0" }}>
         {EVIDENCE_ROWS.map(ev => (
@@ -95,10 +67,9 @@ export function CVReadingSection() {
         ))}
       </div>
       <P>
-        Certifications are also recognised as strong evidence (equivalent to &ldquo;Proven&rdquo;). The
-        strongest evidence type found across your entire CV sets each skill&apos;s rating — so
-        adding impact numbers or leadership context to any bullet point automatically upgrades
-        that skill&apos;s score on your next upload.
+        Certifications are also recognised as strong evidence. The strongest evidence type
+        found across your CV sets the skill&apos;s base level; enough accumulated depth evidence
+        can raise it one more step on your next upload.
       </P>
     </Section>
   )

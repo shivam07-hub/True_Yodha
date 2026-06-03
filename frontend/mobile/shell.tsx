@@ -9,6 +9,7 @@ import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
+import { ThemeControl } from "@/components/ui/theme-control"
 import { openFeedbackHub } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
 import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
@@ -339,11 +340,10 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         </div>
 
         {[
-          { label: "My Profile",        icon: "⚙",  action: () => setShowSettings(true),                     danger: false },
-          { label: "Myrology",          icon: "✦",  action: () => { if (myrologyInterested) { onClose(); router.push("/myrology") } else setMyroPromptOpen(true) }, danger: false },
-          { label: "Feedback and ideas", icon: "◎",  action: () => { openFeedbackHub({ category: "idea" }); onClose() }, danger: false },
-          { label: "Sign out",          icon: "→",  action: () => setSignOutConfirm(true),                    danger: true  },
-        ].map((item, i, arr) => (
+          { label: "My Profile",        icon: "⚙",  action: () => setShowSettings(true) },
+          { label: "Myrology",          icon: "✦",  action: () => { if (myrologyInterested) { onClose(); router.push("/myrology") } else setMyroPromptOpen(true) } },
+          { label: "Feedback and ideas", icon: "◎",  action: () => { openFeedbackHub({ category: "idea" }); onClose() } },
+        ].map((item) => (
           <button
             key={item.label}
             onClick={item.action}
@@ -351,15 +351,33 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
               display: "flex", alignItems: "center", gap: 14,
               width: "100%", padding: "14px 4px",
               background: "transparent", border: "none",
-              borderBottom: i < arr.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
+              borderBottom: "1px solid var(--tm-border-soft)",
               cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-              color: item.danger ? "rgba(255,130,130,0.9)" : "var(--tm-interactive-rest)",
+              color: "var(--tm-interactive-rest)",
             }}
           >
             <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>{item.icon}</span>
             <span style={{ fontSize: 15, fontWeight: 500 }}>{item.label}</span>
           </button>
         ))}
+
+        <div style={{ padding: "16px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
+          <ThemeControl label="Appearance" fluid />
+        </div>
+
+        <button
+          onClick={() => setSignOutConfirm(true)}
+          style={{
+            display: "flex", alignItems: "center", gap: 14,
+            width: "100%", padding: "14px 4px",
+            background: "transparent", border: "none",
+            cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+            color: "rgba(255,130,130,0.9)",
+          }}
+        >
+          <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>→</span>
+          <span style={{ fontSize: 15, fontWeight: 500 }}>Sign out</span>
+        </button>
 
       </div>
 

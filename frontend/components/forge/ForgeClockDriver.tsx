@@ -16,9 +16,24 @@ import { useForgeTimerStore } from "@/store/forgeTimerStore"
 export function ForgeClockDriver() {
   const running = useForgeTimerStore((s) => s.running)
   const tick = useForgeTimerStore((s) => s.tick)
+  const reconcile = useForgeTimerStore((s) => s.reconcile)
+
+  useEffect(() => {
+    reconcile()
+    const sync = () => reconcile()
+    window.addEventListener("focus", sync)
+    window.addEventListener("pageshow", sync)
+    document.addEventListener("visibilitychange", sync)
+    return () => {
+      window.removeEventListener("focus", sync)
+      window.removeEventListener("pageshow", sync)
+      document.removeEventListener("visibilitychange", sync)
+    }
+  }, [reconcile])
 
   useEffect(() => {
     if (!running) return
+    tick()
     const id = window.setInterval(() => tick(), 1000)
     return () => window.clearInterval(id)
   }, [running, tick])

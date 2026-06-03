@@ -54,5 +54,5 @@
 .tm-cmt-ghost {
   height: 30px; padding: 0 14px; border-radius: var(--tm-radius-sm);
   border: 1px solid var(--tm-border-soft); background: transparent;
-  color: var(--tm-text-faint); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--tm-interactive-rest); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
 }

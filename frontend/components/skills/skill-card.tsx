@@ -97,7 +97,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
         onClick={() => setExpanded(p => !p)}
         style={{
           padding: "4px 8px", border: "none", background: "transparent",
-          color: "var(--tm-text-faint)", fontSize: 10, cursor: "pointer",
+          color: "var(--tm-interactive-rest)", fontSize: 10, cursor: "pointer",
           textAlign: "left", fontFamily: "inherit",
         }}
       >
@@ -140,17 +140,17 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
 
       <div style={{ display: "flex", gap: 12 }}>
         <Link href="/cv"
-          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
+          style={{ fontSize: 10, color: "var(--tm-interactive-rest)", textDecoration: "none", transition: "color 150ms" }}
           onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-interactive)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-interactive-rest)")}
         >
           CV →
         </Link>
         <Link
           href={`/market?skill=${encodeURIComponent(skill.display_name)}`}
-          style={{ fontSize: 10, color: "var(--tm-text-faint)", textDecoration: "none", transition: "color 150ms" }}
+          style={{ fontSize: 10, color: "var(--tm-interactive-rest)", textDecoration: "none", transition: "color 150ms" }}
           onMouseEnter={e => (e.currentTarget.style.color = "var(--tm-interactive)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-text-faint)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--tm-interactive-rest)")}
         >
           Intel →
         </Link>

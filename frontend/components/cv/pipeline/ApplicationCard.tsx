@@ -74,9 +74,9 @@ export function ApplicationCard({
             {app.company ? (
               <Link
                 href={`/companies/${encodeURIComponent(app.company)}`}
-                style={{ color: "inherit", textDecoration: "none", borderBottom: "1px dotted var(--tm-border)" }}
+                style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", borderBottom: "1px dotted var(--tm-border)" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-muted)" }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
               >
                 {app.company}
               </Link>

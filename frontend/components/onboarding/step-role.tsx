@@ -176,13 +176,13 @@ export function StepRole({ onNext, loading }: Props) {
                       background: "transparent",
                       border: "none",
                       borderBottom: "1px solid var(--tm-border-soft)",
-                      color: "var(--tm-text-muted)",
+                      color: "var(--tm-interactive-rest)",
                       fontSize: 13, fontFamily: "inherit",
                       cursor: "pointer",
                       transition: "background var(--tm-dur)",
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                   >
                     {c}
                   </button>
@@ -268,7 +268,7 @@ export function StepRole({ onNext, loading }: Props) {
                     whiteSpace: "nowrap",
                     background: active ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.04)",
                     border: `1px solid ${active ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
-                    color: active ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+                    color: active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
                     transition: "all var(--tm-dur) var(--tm-ease)",
                     outline: "none",
                   }}
@@ -308,7 +308,7 @@ export function StepRole({ onNext, loading }: Props) {
                 whiteSpace: "nowrap",
                 background: showCustomLoc ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.04)",
                 border: `1px solid ${showCustomLoc ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
-                color: showCustomLoc ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+                color: showCustomLoc ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
                 transition: "all var(--tm-dur) var(--tm-ease)",
                 outline: "none",
               }}
