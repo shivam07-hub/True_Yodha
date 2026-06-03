@@ -528,7 +528,7 @@ function LocationScopePill({ locations }: { locations: string[] }) {
   return (
     <button
       type="button"
-      onClick={() => document.dispatchEvent(new Event("tm:open-settings"))}
+      onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
       aria-label={clean.length === 0 ? "Set your target locations in settings" : `Target locations: ${clean.join(", ")}. Change in settings`}
       title={clean.length > 1 ? clean.join(", ") : undefined}
       style={{

@@ -185,6 +185,18 @@
   --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
   --tm-interactive-fg:     var(--tm-brand-fg);
 
+  /* ── Interactive REST color (non-accent clickable controls) ──────────
+     The resting text/icon color for clickable controls that are NOT teal
+     CTAs or accent links — ghost buttons, menu rows, inactive nav/tabs,
+     filter chips, icon buttons. Rule: a clickable control is never dull at
+     rest. References --tm-text so it auto-flips per surface — dark #E8F0FF
+     (near-white), light #050A18 (near-black) — i.e. "maximally-contrasting
+     resting color", which on dark = as white as possible. Static (non-
+     clickable) labels keep --tm-text-muted / --tm-text-faint. Disabled
+     controls drop to faint — bright ⇔ clickable, dull ⇔ not.
+     See CONTEXT.md §Interactive-rest. */
+  --tm-interactive-rest:   var(--tm-text);
+
   --data-1:                oklch(0.62 0.13 185);
   --data-2:                oklch(0.62 0.14 145);
   --data-3:                oklch(0.62 0.13 75);
@@ -576,7 +588,7 @@ body::after {
   border-radius: var(--tm-radius-pill);
   font-size: var(--tm-fs-meta);
   font-weight: 500;
-  color: var(--tm-text-muted);
+  color: var(--tm-interactive-rest);  /* clickable at rest → bright, not dull */
   background: transparent;
   cursor: pointer;
   transition: all var(--tm-dur) var(--tm-ease);

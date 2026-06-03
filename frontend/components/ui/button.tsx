@@ -52,8 +52,9 @@ const buttonVariants = cva(
         ),
         // ── ghost · the utility button ──────────────────────────────────────
         ghost: cn(
-          "bg-transparent text-[var(--tm-text-muted)] border-transparent",
-          "hover:bg-[var(--tm-hover)] hover:text-[var(--tm-text)]",
+          // Clickable at rest → bright (never dull). Hover/active carried by bg.
+          "bg-transparent text-[var(--tm-interactive-rest)] border-transparent",
+          "hover:bg-[var(--tm-hover)]",
           "active:bg-[var(--tm-hover)]",
           "aria-pressed:bg-[var(--tm-int-bg-wash)] aria-pressed:text-[var(--tm-interactive)] aria-pressed:border-[var(--tm-int-border)]",
           "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",

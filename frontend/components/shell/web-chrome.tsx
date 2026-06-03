@@ -10,7 +10,7 @@ import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { MyroLogo } from "@/components/myro-logo"
 import { TopbarNav } from "@/components/nav/topbar-nav"
 import { CvPromisePill } from "@/components/nav/cv-promise-pill"
-import { SettingsModal } from "@/components/settings-modal"
+import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
@@ -42,6 +42,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
   const nav = useNavUnlocks()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
   const [signOutConfirm, setSignOutConfirm] = useState(false)
   const [forgeOpen, setForgeOpen] = useState(false)
@@ -58,7 +59,11 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
   const clock = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
 
   useEffect(() => {
-    const h = () => setShowSettings(true)
+    const h = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
+      if (tab) setSettingsTab(tab as SettingsTab)
+      setShowSettings(true)
+    }
     document.addEventListener("tm:open-settings", h)
     return () => document.removeEventListener("tm:open-settings", h)
   }, [])
@@ -190,7 +195,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                       >
                         <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                        <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
+                        <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>{a.label}</span>
                       </button>
                       {/* Myrology sits in the old "Suggest an idea" slot (after Report a bug). */}
                       {a.id === "bug" && (
@@ -205,19 +210,19 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                         >
                           <span style={{ fontSize: 13, color: "var(--tm-interactive)", minWidth: 18, textAlign: "center" }}>✦</span>
-                          <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>Myrology</span>
+                          <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>Myrology</span>
                         </button>
                       )}
                     </Fragment>
                   ))}
                   <div className="tm-topbar-menu-divider" />
                   {[
-                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
+                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-interactive-rest)", hoverBg: "rgba(255,255,255,0.04)" },
                     { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
                   ].map((a) => (
                     <button
                       key={a.id}
-                      onClick={() => { setMenuOpen(false); if (a.id === "settings") setShowSettings(true); if (a.id === "signout") setSignOutConfirm(true) }}
+                      onClick={() => { setMenuOpen(false); if (a.id === "settings") { setSettingsTab("Account"); setShowSettings(true) } if (a.id === "signout") setSignOutConfirm(true) }}
                       className="tm-topbar-menu-item"
                       onMouseEnter={(e) => { e.currentTarget.style.background = a.hoverBg }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
@@ -233,7 +238,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
         </div>
       </header>
 
-      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} />}
+      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} initialTab={settingsTab} />}
       <MyrologyOptInPrompt
         open={myroPromptOpen}
         onClose={() => setMyroPromptOpen(false)}

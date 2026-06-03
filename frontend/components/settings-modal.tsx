@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
+import { useSurface, type SurfacePref } from "@/lib/hooks/use-surface"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -32,7 +33,7 @@ import {
 } from "@/components/feedback"
 import "./settings-modal.css"
 
-type Tab = "Account" | "Following" | "Feedback" | "Billing"
+export type Tab = "Account" | "Following" | "Feedback" | "Billing"
 type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "target_locations" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
@@ -200,14 +201,15 @@ const ROW_DESC: React.CSSProperties = {
   fontSize: 12, color: "var(--tm-text-faint)", marginTop: 1,
 }
 
-export function SettingsModal({ open, onClose, profile }: {
-  open: boolean; onClose: () => void; profile: SidebarProfile | null
+export function SettingsModal({ open, onClose, profile, initialTab = "Account" }: {
+  open: boolean; onClose: () => void; profile: SidebarProfile | null; initialTab?: Tab
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const applyXpChange = useXPStore((s) => s.applyXpChange)
-  const [activeTab, setActiveTab] = useState<Tab>("Account")
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
+  const { pref: surfacePref, setPref: setSurfacePref } = useSurface()
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
 
   // Account tab state
@@ -697,6 +699,44 @@ export function SettingsModal({ open, onClose, profile }: {
                       background: myrologyInterested ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)",
                     }} />
                   </button>
+                </div>
+
+                {/* Appearance — applies instantly, independent of Save. */}
+                <div style={SECTION_HEADER}>Appearance</div>
+                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ paddingRight: 16 }}>
+                    <div style={ROW_LABEL}>Theme</div>
+                    <div style={ROW_DESC}>System follows your device.</div>
+                  </div>
+                  <div
+                    role="radiogroup"
+                    aria-label="Theme"
+                    style={{
+                      flexShrink: 0, display: "inline-flex", padding: 3, gap: 2,
+                      borderRadius: 99, border: "1px solid var(--tm-int-border)",
+                      background: "rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    {(["system", "light", "dark"] as SurfacePref[]).map((opt) => {
+                      const active = surfacePref === opt
+                      return (
+                        <button
+                          key={opt} type="button" role="radio" aria-checked={active}
+                          onClick={() => setSurfacePref(opt)}
+                          style={{
+                            padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer",
+                            fontFamily: "inherit", fontSize: 12, fontWeight: active ? 600 : 400,
+                            textTransform: "capitalize",
+                            background: active ? "var(--tm-interactive)" : "transparent",
+                            color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
+                            transition: "background var(--tm-dur) var(--tm-ease), color var(--tm-dur)",
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 {/* Save button */}

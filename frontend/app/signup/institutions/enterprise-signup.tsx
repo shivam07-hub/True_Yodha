@@ -60,21 +60,12 @@ export function EnterpriseSignup({ initialMode = "operators" }: { initialMode?: 
 
   return (
     <div className="es-page">
-      {/* Canonical public nav — identical to the homepage bar. Clicking "For
-          Colleges" no longer swaps the whole menu; only the right CTA changes to
-          the operators↔institutions mode toggle (authSlot). */}
+      {/* Canonical public nav — identical to the homepage bar. Default Sign up
+          CTA; the operators↔institutions choice lives in the in-page es-switcher
+          below, so the nav must not duplicate it. */}
       <PublicTopNav
         active={mode === "institutions" ? "institutions" : undefined}
         showSignIn
-        authSlot={
-          <button
-            type="button"
-            className="tm-public-nav-signup"
-            onClick={() => select(mode === "operators" ? "institutions" : "operators")}
-          >
-            {mode === "operators" ? "For institutions →" : "For operators →"}
-          </button>
-        }
       />
 
       <div className="es-switcher-wrap">

@@ -78,6 +78,19 @@ The directed graph formed by `parent_version_id` across a user's CV Versions.
 
 ---
 
+## Interactive-rest
+
+The resting color of a **clickable control that is not a teal CTA or accent link** — ghost buttons, menu/dropdown rows, inactive nav items and tabs, filter chips, icon buttons. The rule: **a clickable control is never dull at rest.** Such controls rest on `--tm-interactive-rest` (`app/design-tokens.css`), never on `--tm-text-muted` / `--tm-text-faint`.
+
+**Boundary**
+
+- `--tm-interactive-rest` references `--tm-text`, so it auto-flips per surface: dark `#E8F0FF` (as white as possible), light `#050A18` (near-black) — i.e. *maximally-contrasting resting color*.
+- Untouched layer: teal solid CTAs, teal outline buttons, and teal inline links keep their accent color — white is the floor for the previously-dull controls, not a replacement for the teal interactive identity.
+- Stays dull (`--tm-text-muted` / `--tm-text-faint`): **static, non-clickable** labels, captions, meta, helper/description text, placeholders, **disabled** controls, and **decorative** (non-clickable) icons. Bright ⇔ clickable, dull ⇔ not.
+- Hover/active on a now-bright control is carried by **background/border**, not a text-color shift (text is already maxed).
+- `--tm-text-muted` and `--tm-icon-muted` are **dual-use** (static labels *and*, historically, clickable controls) — so this is a per-control sweep, not a token redefinition. No automated lint can detect clickability statically; the greppable token name is the durable marker.
+- Rollout is phased: PR1 = token + shared primitives (`Button` ghost variant, segment toggles, the avatar dropdown rows, mobile bottom-nav + drawer). Later PRs sweep ad-hoc inline controls one surface at a time.
+
 ## Viewport Mode
 
 The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth for any code that needs to behave differently across screen sizes — sidebar vs bottom-nav, hero font size, grid collapse, particle background gating.
