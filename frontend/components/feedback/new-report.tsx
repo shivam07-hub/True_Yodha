@@ -610,7 +610,7 @@ export function NewReport({
             aria-hidden="true"
             tabIndex={-1}
           />
-          Email me when triaged
+          Notify me when reviewed
         </label>
 
         <div className="tm-feedback-send-row" style={{ display: "flex", alignItems: "center", gap: 12 }}>

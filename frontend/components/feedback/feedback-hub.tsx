@@ -228,12 +228,12 @@ export function FeedbackHub({
           >
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 600, color: "var(--tm-text)", margin: 0 }}>
-                {tab === "new" && (sent ? "Dispatch sent" : "Send a signal")}
-                {tab === "reports" && "Your dispatches"}
+                {tab === "new" && (sent ? "Report sent" : "Send feedback")}
+                {tab === "reports" && "Your reports"}
                 {tab === "shipped" && "Shipped from feedback"}
               </h2>
               <div style={{ marginTop: 4, fontSize: 12, color: "var(--tm-text-faint)" }}>
-                {tab === "new" && !sent && "We read every dispatch. Be terse, be specific."}
+                {tab === "new" && !sent && "We read every report. Keep it short and clear."}
                 {tab === "reports" && "Track status. Replies arrive when we have follow-ups."}
                 {tab === "shipped" && "Public log of what user signal turned into."}
               </div>

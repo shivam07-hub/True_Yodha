@@ -11,6 +11,8 @@ export interface KeywordTarget {
   matched?: boolean
 }
 
+const CHIP_LOWER_WORDS = new Set(["and", "or", "of", "for", "to", "in", "with", "on", "at"])
+
 export function targetsFromSkillGap(items: SkillGapItem[]): KeywordTarget[] {
   return items
     .filter(s => s.skill && s.skill.length > 1)
@@ -85,4 +87,21 @@ export function highlightKeywords(text: string, keywords: KeywordTarget[] | unde
 
 export function bulletKeywordHits(text: string, targets: KeywordTarget[]): KeywordTarget[] {
   return targets.filter(t => kwMatches(text, t.kw))
+}
+
+export function resolvePlaygroundCompany(
+  jobCompany: string | null | undefined,
+  gapCompany: string | null | undefined,
+): string {
+  return jobCompany?.trim() || gapCompany?.trim() || "Untitled company"
+}
+
+export function formatKeywordChipLabel(label: string): string {
+  return label
+    .split(/\s+/)
+    .map((word, index) => {
+      if (index > 0 && CHIP_LOWER_WORDS.has(word.toLowerCase())) return word.toLowerCase()
+      return word
+    })
+    .join(" ")
 }

@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useXPStore } from "@/store/xpStore"
 import { XP_POLICY } from "@/lib/xp-policy"
+import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 
 // ── Job drill-down panel ─────────────────────────────────────────────────────
 
@@ -322,7 +323,7 @@ function SkillHeatmap({
         <table className="tm-intel-heatmap-table" style={{ borderCollapse: "separate", borderSpacing: 4, padding: "0 24px 24px", fontFamily: "var(--tm-font-mono)" }}>
           <thead>
             <tr>
-              <th style={{ width: 180, minWidth: 140 }} />
+              <th className="tm-intel-company-th" style={{ width: 180, minWidth: 140 }} />
               {skills.map(sk => {
                 const level = skillLevels[sk.toLowerCase()] ?? 0
                 const isHovered = hoveredCol === sk
@@ -348,7 +349,12 @@ function SkillHeatmap({
                       <span style={{ fontSize: 9, fontWeight: 700, color: isHovered && canRemove ? "var(--tm-danger)" : level >= 3 ? "var(--tm-interactive)" : level >= 1 ? "var(--tm-text-faint)" : "transparent" }}>
                         {isHovered && canRemove ? "×" : `L${level}`}
                       </span>
-                      <span style={{ display: "block", maxWidth: 82, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sk}</span>
+                      <span
+                        aria-label={sk}
+                        style={{ display: "block", maxWidth: 82, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      >
+                        {shortHeatmapSkillLabel(sk)}
+                      </span>
                     </div>
                   </th>
                 )
@@ -364,7 +370,7 @@ function SkillHeatmap({
               const isEmpty = !isLoading && rowSum === 0
               return (
                 <tr key={co.company_name} style={{ opacity: isEmpty ? 0.5 : 1 }}>
-                  <td style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                  <td className="tm-intel-company-td" style={{ paddingRight: 12, fontSize: 13, color: "var(--tm-text)", fontFamily: "var(--tm-font-sans)", fontWeight: 500, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: 999, background: "var(--tm-warning)", flexShrink: 0 }} />
                       <Link href={`/companies/${encodeURIComponent(co.company_name)}`} style={{ color: "inherit", textDecoration: "none" }} onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}>
@@ -677,7 +683,7 @@ function IntelPageInner() {
             font-size: 28px !important;
             line-height: 1.12;
             letter-spacing: -0.02em;
-            max-width: 12ch;
+            max-width: min(100%, 18rem);
           }
           .tm-intel-heatmap-controls {
             width: 100%;
@@ -695,6 +701,19 @@ function IntelPageInner() {
           .tm-intel-skill-th {
             min-width: 76px !important;
             height: auto !important;
+          }
+          .tm-intel-company-th,
+          .tm-intel-company-td {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: var(--tm-surface);
+          }
+          .tm-intel-company-th { min-width: 124px !important; }
+          .tm-intel-company-td {
+            max-width: 124px;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
         }
       `}</style>

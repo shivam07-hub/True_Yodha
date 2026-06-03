@@ -31,7 +31,13 @@ import { Icon } from "./icons"
 import { BulletRow } from "./bullet-row"
 import { LivePreview } from "./live-preview"
 import { IntelDrawer } from "./intel-drawer"
-import { bulletKeywordHits, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
+import {
+  bulletKeywordHits,
+  formatKeywordChipLabel,
+  resolvePlaygroundCompany,
+  targetsFromSkillGap,
+  type KeywordTarget,
+} from "./keyword-utils"
 import { runAtsChecks, atsScore, type AtsCheck } from "./ats-checks"
 
 interface PlaygroundViewProps {
@@ -103,8 +109,8 @@ export function PlaygroundView({
   const gap: Partial<SkillGapResponse> = skillGapQuery.data ?? {}
   const application = applicationsQuery.data?.find(a => a.job_id === jobId) ?? null
   const jdText = application?.job_description?.trim() ?? ""
-  const company = job.company ?? gap.company ?? "Selected role"
-  const jobTitle = job.job_title ?? gap.job_title ?? ""
+  const company = resolvePlaygroundCompany(job.company, gap.company)
+  const jobTitle = job.job_title ?? gap.job_title ?? "Untitled role"
 
   const allTargets: KeywordTarget[] = useMemo(
     () => targetsFromSkillGap(gap.skills ?? []),
@@ -527,7 +533,7 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
             <span style={{ fontSize: 10.5, color: "var(--tm-text-faint)", letterSpacing: "0.08em", textTransform: "uppercase", marginRight: 4 }}>gaps</span>
             {missing.slice(0, 3).map(k => (
               <span key={k.kw} className="cvb-kw-chip miss" style={{ fontSize: 10.5 }}>
-                <span className="dot"/>{k.kw}
+                <span className="dot"/>{formatKeywordChipLabel(k.kw)}
               </span>
             ))}
             {missing.length > 3 && (
