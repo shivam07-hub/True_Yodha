@@ -252,6 +252,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    ### PR-G — Intel Heatmap Mobile Layout (depends on PR-K)
    **Spec:** `reference/mobile-redesign/g-intel-heatmap/HANDOFF.md` (complete)
    **Files:** `frontend/app/intel/page.tsx` or `frontend/components/intel/` heatmap component
+   **Status:** CLOSED for the Codex-assigned PR-5 heatmap slice by `3daff43 fix(ui)`.
    **What changes:**
    - Title "Where to invest your skill points" wraps one-word-per-line on mobile (same grid-shrink bug as skills). Fix: title stacks ABOVE the heatmap on mobile, not beside it.
    - Rotated column headers (skill names) clip text at 375px. Fix: horizontal-scroll heatmap with non-rotated short labels on mobile OR collapse to list view.
@@ -264,6 +265,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    ### PR-D — CV Playground Score Ring (depends on PR-K)
    **Spec:** `reference/mobile-redesign/d-cv-playground/HANDOFF.md` (complete)
    **Files:** `frontend/components/cv/builder/playground-view.tsx` + score ring component
+   **Status:** CLOSED for the Codex-assigned PR-5 playground slice by `3daff43 fix(ui)`.
    **What changes:**
    - D1: Score ring center text overlap — `0`, `%`, and `JD MATCH` literally layer on top of each other. Fix: explicit vertical layout — numeral row → `%` baseline-aligned right → "JD MATCH" label as separate row BELOW the ring (not inside center).
    - D2: "−17 this session" punitive framing → replace with action-oriented copy ("13 skills to add → Forge them") OR drop the negative delta. The chip list below IS the action already.
@@ -284,6 +286,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    ---
 
    ### PR-JARGON — Language Humanisation (standalone, no deps)
+   **Status:** Codex-assigned feedback jargon slice CLOSED by `3daff43 fix(ui)`; keep the broader checklist below as historical audit context.
    **No HANDOFF doc** — but 15+ users explicitly called this out. Confirmed list of confusing strings:
    - "Forge" → keep the name (brand) but ADD a 1-line descriptor: "Forge · skill practice sessions" in the nav tooltip/label
    - "Immutable commits" → "CV versions"
@@ -309,6 +312,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    ---
 
    ### PR-FORGE-BG — Forge Timer Background Persistence (standalone)
+   **Status:** CLOSED by Codex in `4b28856 fix(forge)`.
    **Bug:** Forge timer stops/freezes when user navigates away from the Forge tab (user Ravali, user feedback report 2). 25-minute sessions that reset on tab switch are unusable.
    **Fix direction:** Store forge session `startedAt` + `pausedAt` in localStorage (or Zustand persist). On any page mount, check if an active forge session exists → re-derive elapsed time from `Date.now() - startedAt - pausedMs`. The timer widget should render on any authed page while a session is running (the forge XP pill / widget is already a global element — verify it consumes persisted time).
    **Files:** `frontend/components/forge/forge-xp-pill.tsx` + forge session state store. Backend `forge_sessions` is already the source of truth for completed sessions — this is a frontend-only time-display fix.
@@ -317,6 +321,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    ---
 
    **Build order:** PR-K → (PR-B, PR-E, PR-G, PR-D, PR-F in parallel, all depend only on K) → PR-JARGON, PR-EMPTY, PR-FORGE-BG (all standalone, can ship any time after K).
+   **Codex closure note 2026-06-03:** PR-G/PR-D Codex slices, PR-FORGE-BG, and the feedback-jargon slice are closed. PR-EMPTY remains Claude-owned.
    **Commit pattern:** one PR per item, `fix:` or `feat:` prefix, `tsc --noEmit` + `next lint` clean before merge.
    Memory file: `memory/project_enterprise_polish_sprint.md` (create on session start).
 
@@ -444,7 +449,18 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-03 · Settings tab-deeplink + theme toggle + interactive-rest brightness GRILL+PR1 — all uncommitted on Develop)
+## LAST SESSION SUMMARY (2026-06-03 · Codex assigned reliability pulls CLOSED on Develop)
+
+Codex closed the Claude-sliced pull set. **Do not redo PR-4, PR-5 Codex slice, PR-6, or PR-8.**
+
+- `9e65611 feat(score)` — PR-4 score trust: existing `/docs#scoring` upgraded; no duplicate `/score`; score rings/upload result link there; real backend scoring formula mirrored with 10 public domains and no invented weights.
+- `4b28856 fix(forge)` — PR-6 forge timer: frontend-only wall-clock reconciliation via persisted `startedAt`/`pausedAt`/`pausedMs`/claim counters/`lastTickAt`; `ForgeClockDriver` reconciles on mount/focus/pageshow/visibility; backend untouched.
+- `c92cc2d test(profile)` — PR-8 trust/discovery: production code already respected public-profile privacy; added regression test for no CV text/skill names/levels/tracker rows; prod profile OG returns `image/png`.
+- `3daff43 fix(ui)` — PR-5 Codex slice: heatmap mobile label/title fix, CV playground score/company/chip fixes, feedback jargon cleanup. Empty states remain Claude-owned.
+- Validation: backend `543 passed`, frontend `tsc` clean, `next lint` clean, local dev compiled `/docs`, `/market`, `/cv`.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-03 · Settings tab-deeplink + theme toggle + interactive-rest brightness GRILL+PR1 — all uncommitted on Develop)
 
 Three UI tasks, all on Develop, **uncommitted** (Shivam commits). tsc + lint clean throughout. Memory: `project_interactive_rest_brightness`.
 
@@ -456,8 +472,6 @@ Three UI tasks, all on Develop, **uncommitted** (Shivam commits). tsc + lint cle
 - **PR1 (token + shared primitives) BUILT:** `design-tokens.css` (token def + segment/accent toggle inactive), `button.tsx` (ghost variant rest), `web-chrome.tsx` (dropdown rows; desktop top-nav `.tm-topbar-link` was ALREADY bright), `mobile/shell.tsx` (bottom-nav inactive + drawer rows + signout Cancel), `CONTEXT.md` §Interactive-rest. Sign-out stays red (danger accent).
 - **OPEN — PR2..N ad-hoc sweep (~100 files), one surface per PR.** Files-to-audit (subset are clickable; leave static): settings 1 · market 3 · **cv 29 (biggest)** · skills 8 · forge 3 · home 10 · onboarding 8 · public 4 · misc remainder. Plus clickable `--tm-icon-muted` icons. Rec next session: batch settings+market+forge (7 small files) first, then big CV/home/skills as own PRs.
 - ⚠️ All 3 tasks behind authed shell — no browser-preview without login. Visual QA owed (Shivam, dark mode): tab deep-link lands on Following, theme toggle flips live, dropdown + mobile nav read bright-at-rest.
-
----
 
 ## LAST SESSION SUMMARY (2026-06-03 · First-login hero design audit → fixes SHIPPED to Develop)
 

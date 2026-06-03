@@ -296,7 +296,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
+## LAST SESSION SUMMARY (2026-06-03 - Codex assigned reliability pulls closed, Develop)
+
+Closed the Claude-sliced Codex pull set on `Develop`. **Do not redo these slices.**
+
+- `9e65611 feat(score)` — PR-4: upgraded the existing `/docs#scoring` section instead of creating a duplicate score page; score rings and upload result now link there; docs mirror the current backend scoring facades/formulas (`recompute_score`, cluster log coverage, skill-count domain weighting, breadth bonus, mean of evidenced domains), the 10 public domains, and a worked example without invented weights.
+- `4b28856 fix(forge)` — PR-6: frontend-only forge timer wall-clock reconciliation. Persisted `startedAt`, `pausedAt`, `pausedMs`, `claimedMinutes`, `carriedMinutes`, and `lastTickAt`; `ForgeClockDriver` reconciles on mount, focus, pageshow, and visibility changes; backend `forge_sessions` untouched.
+- `c92cc2d test(profile)` — PR-8: verified public profile privacy and OG. No production code change needed; regression test locks no email/full name/LinkedIn/CV text/skill names/skill levels/tracker rows on the public profile API. Prod profile OG returned `image/png`.
+- `3daff43 fix(ui)` — PR-5 Codex slice: heatmap mobile title/short horizontal labels/sticky first column; CV playground score gauge label outside numeric center, `Untitled company` fallback, keyword-chip conjunction casing; feedback jargon cleanup. Empty states intentionally untouched for Claude.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `543 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Focused frontend/backend tests passed: score methodology, forge clock, PR-5 display fixes, public profile + ninja name.
+- Local dev smoke: `/docs`, `/market`, `/cv` compiled cleanly on `127.0.0.1:3000`; server stopped after verification.
+
+Remaining:
+
+- None for Codex assigned PR-4/PR-5/PR-6/PR-8.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
 
 Claude ran a `/frontend-design` audit of the first-login `/home` first-run hero (27 blunders) and shipped two commits to Develop (not pushed). **Codex: the mechanical slice below is already done — do not redo.**
 
