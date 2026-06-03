@@ -438,11 +438,12 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 - "FIRST CV IN10 min" → optical gap before the time value.
 - XP balance `3000`→`3,000` (`toLocaleString` + tabular-nums per type.md).
 
-**OPEN → handed to Shivam (grill in flight, NOT auto-build):** 4 sprint-level decisions surfaced by the audit, queued for `/grill-me`:
-1. Top-nav exposes Live/Practice to a no-CV user vs the "nav grows with you" message — progressive-gating policy.
-2. Feedback FAB competes with the Upload CTA on first paint — de-emphasis.
-3. Greyed-state contrast (steps/locked rows) — this is **PR-K token foundation** (Backlog #20).
-4. Light first-login surface vs dark product — theme-whiplash policy.
+**4 DECISIONS LOCKED 2026-06-03 (grilled w/ Shivam — NOT YET BUILT, see memory `project_first_login_hero_audit`):**
+- **D4 Theme — honor system** (`prefers-color-scheme`, persisted toggle per E9). Replace `app/layout.tsx:69` light hardcode w/ system detection. **PR-K now defines BOTH dark + AA light tokens** (reverses HANDOFF "dark-locked v1").
+- **D3 Contrast — PR-K first, hero is its proof.** AAA primary / AA secondary / locked rows still ≥AA (lock icon, not opacity-on-text). PR-K = Backlog #20 sprint blocker.
+- **D1 Nav — keep Live/Practice base**, fix the real bug: hero "grows" thresholds (`tailoredCount>=1`/`>=2`) disagree w/ real gate `hasBaseline` → rewire to `deriveNavUnlockCtx`, re-frame section.
+- **D2 FAB — neutralize first-run** (`pulse={!firstRun}`, neutral color, dot gated on has-reports), restore accent after CV upload.
+- ⚠️ Theme contradiction resolved by D4: `layout.tsx:69` hardcoded light-everywhere vs PR-K dark-locked vs E9 system — system wins.
 
 Full 27-blunder list in this session's audit. tsc 0, lint clean both commits. The deploy repo (root) tracks first-run-hero cleanly; the nested `frontend/.git` has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`) — flag for whoever owns that repo.
 
