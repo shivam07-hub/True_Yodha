@@ -49,7 +49,7 @@ function JobDrillPanel({
           <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{skillName}</span>
           {!isLoading && <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", marginLeft: 4 }}>· {drillJobs.length} jobs</span>}
         </div>
-        <button onClick={onClose} style={{ background: "transparent", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 12px", color: "var(--tm-text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--tm-font-mono)" }}>
+        <button onClick={onClose} style={{ background: "transparent", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-sm)", padding: "4px 12px", color: "var(--tm-interactive-rest)", fontSize: 12, cursor: "pointer", fontFamily: "var(--tm-font-mono)" }}>
           ← Close
         </button>
       </div>
@@ -500,15 +500,6 @@ function IntelPageInner() {
     [locationCity, locationCountry, locationMode]
   )
 
-  const { data: analytics } = useQuery({
-    queryKey: ["intel-analytics", token ?? "", selectedCluster ?? "", locationCity, locationCountry, locationMode],
-    queryFn: () =>
-      token
-        ? jobs.analyticsForMe(token, selectedCluster || null, locFilters)
-        : jobs.analytics(undefined, locFilters),
-    staleTime: 7 * 24 * 60 * 60 * 1000,
-  })
-
   // Per-chip counts — one lightweight call per target role
   const chipCountQueries = useQueries({
     queries: targetRoles.map(role => ({
@@ -748,7 +739,7 @@ function IntelPageInner() {
         {activeTab === "jobs" ? (
           <MarketJobsTab
             token={token ?? ""}
-            analytics={analytics}
+            hasCv={!!profileData?.has_cv}
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}

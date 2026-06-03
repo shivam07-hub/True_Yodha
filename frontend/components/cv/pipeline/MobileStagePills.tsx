@@ -31,7 +31,7 @@ export function MobileStagePills({ active, counts, onChange }: Props) {
               fontSize: 12, fontFamily: "inherit",
               border: `1px solid ${isActive ? "var(--tm-interactive)" : "var(--tm-border)"}`,
               background: isActive ? "var(--tm-interactive)" : "rgba(255,255,255,0.025)",
-              color: isActive ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
+              color: isActive ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)",
               cursor: "pointer",
             }}
           >

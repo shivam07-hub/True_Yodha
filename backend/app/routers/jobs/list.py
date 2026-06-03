@@ -236,22 +236,36 @@ def job_feed(
     location_country: str | None = None,
     location_mode: str | None = None,
     sort: str = "fresh",
+    min_skill_matches: Annotated[int, Query(ge=0, le=20)] = 0,
+    target_role_only: bool = False,
+    freshness_days: Annotated[int, Query(ge=0, le=365)] = 0,
+    following_only: bool = False,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=50)] = 20,
     repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
 ) -> JobFeedResponse:
-    """Authed /market browse feed. Company-agnostic, filterable, paginated.
+    """Authed /market triage feed. Company-agnostic, filterable, paginated.
 
     Resolves a target-role `cluster` (or explicit `role_domain`) to a jobs.role_domain
-    filter, mirrors the analytics/me cluster logic. Always computes the requesting
-    user's CV-skill overlap so every card can show 'N of your skills match'; the
-    `personal` sort ranks on that overlap.
+    filter. Always computes the user's CV-skill overlap + target-role match so every
+    card shows its fit; `personal`/`role` sorts and the min_skill_matches /
+    target_role_only filters rank/narrow on those signals. The feed excludes jobs the
+    user has already saved or skipped (draining-queue model) so they only ever see
+    roles they have not yet decided on.
     """
     resolved_domain = role_domain
     if not resolved_domain and cluster:
         resolved_domain = repo.resolve_role_domain_for_clusters([cluster])
     skill_keys = repo.user_skill_keys(principal.id)
+    target_roles = repo.get_user_target_roles(principal.id)
+    # Draining queue: hide what the user has decided on. Skipped = the canonical
+    # rejection table (shared with the dashboard); saved = any application row.
+    exclude_ids = set(repo.get_dismissed_job_card_ids(principal.id))
+    exclude_ids.update(repo.get_saved_job_ids(principal.id))
+    followed: set[str] | None = None
+    if following_only:
+        followed = repo.get_followed_company_names(principal.id)
     # Geo is fixed from settings: scope the feed to the user's saved location
     # preferences instead of re-asking. The legacy city/country/mode query params
     # stay for back-compat but the market UI no longer sends them.
@@ -265,6 +279,13 @@ def job_feed(
         location_prefs=location_prefs,
         sort=sort,
         user_skill_keys=skill_keys,
+        user_target_roles=target_roles,
+        min_skill_matches=min_skill_matches,
+        target_role_only=target_role_only,
+        freshness_days=freshness_days,
+        following_only=following_only,
+        followed_companies=followed,
+        exclude_job_ids=exclude_ids,
         page=page,
         page_size=page_size,
     )
@@ -278,6 +299,27 @@ def job_feed(
         has_next_page=page_result["has_next_page"],
         sort=page_result["sort"],
     )
+
+
+@router.post("/feed/{job_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
+def skip_feed_job(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    """Skip a job from the triage feed → it stops appearing here and in the
+    dashboard match stack (one canonical rejection signal). Reversible via DELETE."""
+    repo.dismiss_dashboard_job_card(principal.id, job_id)
+
+
+@router.delete("/feed/{job_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
+def unskip_feed_job(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    """Undo a Skip (the 5s 'Skipped · Undo' toast)."""
+    repo.undismiss_job_card(principal.id, job_id)
 
 
 @router.get("/at/{company}", response_model=CompanyOpenRolesResponse)

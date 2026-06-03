@@ -145,7 +145,7 @@ export function RightRail({
                   </span>
                   <button
                     onClick={() => onRemoveCart(c)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--tm-text-faint)", fontSize: 13, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--tm-interactive-rest)", fontSize: 13, padding: "2px 4px", lineHeight: 1, fontFamily: "inherit" }}
                   >
                     ×
                   </button>

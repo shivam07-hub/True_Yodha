@@ -135,7 +135,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
               borderRadius: 999,
               border: "none",
               background: mode === id ? "var(--tm-interactive)" : "transparent",
-              color: mode === id ? "var(--tm-bg)" : "var(--tm-text-muted)",
+              color: mode === id ? "var(--tm-bg)" : "var(--tm-interactive-rest)",
               fontSize: 13, fontWeight: mode === id ? 600 : 400,
               cursor: "pointer",
               fontFamily: "inherit",

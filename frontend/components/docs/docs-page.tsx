@@ -64,9 +64,9 @@ export function DocsPage() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              style={{ fontSize: 13, color: "var(--tm-text-faint)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
+              style={{ fontSize: 13, color: "var(--tm-interactive-rest)", textDecoration: "none", padding: "4px 0", fontFamily: "var(--tm-font-mono)", transition: "color 120ms" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
             >
               {s.label}
             </a>

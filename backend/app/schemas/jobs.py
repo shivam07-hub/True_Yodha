@@ -391,6 +391,7 @@ class JobFeedItem(BaseModel):
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
     matched_skill_count: int = 0  # overlap with the requesting user's CV skills (0 if anon)
+    target_role_match: int = 0  # how many of the user's target roles this job covers (0 if none set)
 
 
 class JobFeedResponse(BaseModel):

@@ -78,7 +78,7 @@ function TabPill({
         fontSize: 12, fontFamily: "inherit", cursor: "pointer",
         background: active ? "var(--tm-interactive)" : "transparent",
         border: "none",
-        color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
+        color: active ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)",
       }}
     >
       <span>{label}</span>

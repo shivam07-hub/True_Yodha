@@ -257,7 +257,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             </div>
             <button
               type="button" onClick={requestClose} aria-label="Close"
-              style={{ background: "transparent", border: "none", color: "var(--tm-text-faint)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: 2 }}
+              style={{ background: "transparent", border: "none", color: "var(--tm-interactive-rest)", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: 2 }}
             >×</button>
           </div>
           <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>

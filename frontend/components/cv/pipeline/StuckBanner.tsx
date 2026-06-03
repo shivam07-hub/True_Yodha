@@ -45,7 +45,7 @@ export function StuckBanner({ stale, onMarkGhosted, onUpdate, onDismiss }: Props
               fontSize: 12, padding: "4px 10px", borderRadius: 99,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid var(--tm-border)",
-              color: "var(--tm-text-muted)", cursor: "pointer", fontFamily: "inherit",
+              color: "var(--tm-interactive-rest)", cursor: "pointer", fontFamily: "inherit",
             }}
           >
             I have an update
@@ -56,7 +56,7 @@ export function StuckBanner({ stale, onMarkGhosted, onUpdate, onDismiss }: Props
             style={{
               display: "grid", placeItems: "center", width: 20, height: 20, borderRadius: "50%",
               background: "transparent", border: "none",
-              color: "var(--tm-text-faint)", cursor: "pointer", fontSize: 11, padding: 0,
+              color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: 11, padding: 0,
             }}
           >
             ✕

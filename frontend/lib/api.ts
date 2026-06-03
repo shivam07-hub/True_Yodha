@@ -1532,7 +1532,7 @@ export interface JobSearchResponse {
   has_next_page: boolean
 }
 
-export type JobFeedSort = "fresh" | "personal" | "company"
+export type JobFeedSort = "fresh" | "personal" | "company" | "role"
 
 export interface JobFeedItem {
   job_id: string
@@ -1552,6 +1552,7 @@ export interface JobFeedItem {
   is_active: boolean
   skills: string[]
   matched_skill_count: number
+  target_role_match: number  // how many of the user's target roles this job covers
 }
 
 export interface JobFeedResponse {
@@ -1572,6 +1573,10 @@ export interface JobFeedParams {
   locationCountry?: string | null
   locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
   sort?: JobFeedSort
+  minSkillMatches?: number
+  targetRoleOnly?: boolean
+  freshnessDays?: number
+  followingOnly?: boolean
   page?: number
   pageSize?: number
 }
@@ -1810,6 +1815,10 @@ export const jobs = {
     if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
     if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
     if (p.sort) params.set("sort", p.sort)
+    if (p.minSkillMatches && p.minSkillMatches > 0) params.set("min_skill_matches", String(p.minSkillMatches))
+    if (p.targetRoleOnly) params.set("target_role_only", "true")
+    if (p.freshnessDays && p.freshnessDays > 0) params.set("freshness_days", String(p.freshnessDays))
+    if (p.followingOnly) params.set("following_only", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
     const qs = params.toString()
@@ -1817,6 +1826,16 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
     })
   },
+  skipJob: (token: string, jobId: string) =>
+    request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  unskipJob: (token: string, jobId: string) =>
+    request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   mySkillDemand: (token: string) =>
     request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
       headers: { Authorization: `Bearer ${token}` },

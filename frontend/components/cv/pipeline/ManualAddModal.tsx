@@ -130,7 +130,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
               {step === 1 ? "Track a job from anywhere" : `${company || "Company"} — ${role}`}
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
         </div>
 
         {step === 1 && (
@@ -200,7 +200,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                       padding: "5px 12px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
                       background: status === s ? "var(--tm-interactive)" : "rgba(255,255,255,0.03)",
                       border: status === s ? "1px solid var(--tm-interactive)" : "1px solid var(--tm-border)",
-                      color: status === s ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
+                      color: status === s ? "var(--tm-interactive-fg)" : "var(--tm-interactive-rest)",
                     }}
                   >
                     {STAGE_LABEL[s as StageKey]}
@@ -331,7 +331,7 @@ function SkillSection({
                 padding: "5px 10px", borderRadius: 99, fontSize: 12, fontFamily: "inherit", cursor: "pointer",
                 background: on ? "var(--tm-int-bg-wash)" : "rgba(255,255,255,0.025)",
                 border: `1px solid ${on ? "var(--tm-int-border)" : "var(--tm-border)"}`,
-                color: on ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+                color: on ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
               }}
             >
               {s.label} {on ? "✓" : "✗"}
@@ -354,7 +354,7 @@ const textareaStyle: React.CSSProperties = {
 const buttonGhostStyle: React.CSSProperties = {
   padding: "8px 14px", borderRadius: 8,
   background: "transparent", border: "1px solid var(--tm-border)",
-  color: "var(--tm-text-muted)", cursor: "pointer",
+  color: "var(--tm-interactive-rest)", cursor: "pointer",
   fontSize: 13, fontFamily: "inherit",
 }
 

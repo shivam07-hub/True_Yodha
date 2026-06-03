@@ -19,6 +19,7 @@ const P = {
   acw: "var(--tm-int-bg-wash)",
   acr: "var(--tm-int-border)",
   text: "var(--tm-text)",
+  irest: "var(--tm-interactive-rest)", // clickable-at-rest (never dull)
   muted: "var(--tm-text-muted)",
   faint: "var(--tm-text-faint)",
   warn: "var(--tm-warning)",
@@ -91,11 +92,11 @@ export function JobFitPanel({ job, matchData, gapSkills, onClose, onTrack, track
           onClick={onClose}
           style={{
             background: "none", border: `1px solid ${P.border}`, borderRadius: 6,
-            color: P.muted, cursor: "pointer", padding: "3px 8px",
+            color: P.irest, cursor: "pointer", padding: "3px 8px",
             fontSize: 12, fontFamily: "inherit", flexShrink: 0,
           }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = P.acr; e.currentTarget.style.color = P.ac }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.muted }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = P.border; e.currentTarget.style.color = P.irest }}
         >
           ✕
         </button>

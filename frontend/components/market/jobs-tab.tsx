@@ -1,352 +1,23 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query"
-import { jobs, type JobFeedItem, type JobFeedSort, type NameCountItem, type MarketAnalytics } from "@/lib/api"
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-function jdSnippet(text: string | null | undefined, max = 180): string {
-  if (!text) return ""
-  const flat = text.replace(/\s+/g, " ").trim()
-  return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat
-}
-
-/** first_seen is an ISO date (day-granular). Render a compact age badge. */
-function ageLabel(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const then = new Date(iso)
-  if (Number.isNaN(then.getTime())) return null
-  const days = Math.floor((Date.now() - then.getTime()) / 86_400_000)
-  if (days <= 0) return "today"
-  if (days === 1) return "1d ago"
-  if (days < 7) return `${days}d ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  return `${Math.floor(days / 30)}mo ago`
-}
-
-const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
-
-// ── stat cards (display + clickable) ─────────────────────────────────────────
-
-function StatCard({
-  label, value, sub, onClick, active,
-}: { label: string; value: string; sub?: string; onClick?: () => void; active?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      title={onClick ? `Filter: ${label}` : undefined}
-      style={{
-        textAlign: "left", cursor: onClick ? "pointer" : "default",
-        background: active ? "var(--tm-int-bg-wash)" : "var(--tm-surface)",
-        border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
-        borderRadius: "var(--tm-radius-lg)", padding: "12px 16px",
-        display: "flex", flexDirection: "column", gap: 4, minWidth: 0,
-        transition: "border-color 120ms ease, background 120ms ease",
-      }}
-    >
-      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-muted)" }}>{label}</span>
-      <span style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</span>
-      {sub ? <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>{sub}</span> : null}
-    </button>
-  )
-}
-
-function StatCards({
-  analytics, onClear, onCompany, onRole, activeKind,
-}: {
-  analytics: MarketAnalytics
-  onClear: () => void
-  onCompany: (name: string) => void
-  onRole: (role: string) => void
-  activeKind: "all" | "company" | "role" | "country" | null
-}) {
-  const topCompany: NameCountItem | undefined = analytics.by_company?.[0]
-  const topRole: NameCountItem | undefined = analytics.by_role?.[0]
-  const topCountry: NameCountItem | undefined = analytics.by_location_country?.[0]
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 16 }} className="tm-feed-statcards">
-      <StatCard label="Live jobs" value={analytics.total_jobs.toLocaleString()} sub="in your market" onClick={onClear} active={activeKind === "all"} />
-      <StatCard label="Top hiring" value={topCompany?.name ?? "—"} sub={topCompany ? `${topCompany.count} open` : undefined} onClick={topCompany ? () => onCompany(topCompany.name) : undefined} active={activeKind === "company"} />
-      <StatCard label="Hot role" value={topRole?.name ?? "—"} sub={topRole ? `${topRole.count} open` : undefined} onClick={topRole ? () => onRole(topRole.name) : undefined} active={activeKind === "role"} />
-      <StatCard label="Near you" value={topCountry?.name ?? "—"} sub={topCountry ? `${topCountry.count} open` : undefined} active={activeKind === "country"} />
-    </div>
-  )
-}
-
-// ── sort bar ─────────────────────────────────────────────────────────────────
-
-const SORTS: { key: JobFeedSort; label: string }[] = [
-  { key: "fresh", label: "Freshest first" },
-  { key: "personal", label: "Personalised for me" },
-  { key: "company", label: "Company wise" },
-]
-
-function SortBar({ sort, onSort }: { sort: JobFeedSort; onSort: (s: JobFeedSort) => void }) {
-  return (
-    <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
-      {SORTS.map(s => {
-        const on = sort === s.key
-        return (
-          <button
-            key={s.key}
-            type="button"
-            onClick={() => onSort(s.key)}
-            style={{
-              padding: "6px 14px", borderRadius: 999, border: "none", cursor: "pointer",
-              fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.03em", fontWeight: 600,
-              background: on ? "var(--tm-interactive)" : "transparent",
-              color: on ? "var(--tm-on-interactive, #fff)" : "var(--tm-text-muted)",
-              transition: "all 120ms ease", whiteSpace: "nowrap",
-            }}
-          >
-            {s.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── job card ─────────────────────────────────────────────────────────────────
-
-function SkillChip({ label }: { label: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 999, fontSize: 11, background: "var(--tm-surface-2, var(--tm-surface))", border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", whiteSpace: "nowrap" }}>
-      {label}
-    </span>
-  )
-}
-
-function LocationLine({ job }: { job: JobFeedItem }) {
-  const loc = job.location?.trim() || null
-  const mode = job.location_mode && job.location_mode !== "unknown" ? job.location_mode : null
-  const showMode = mode && (!loc || !loc.toLowerCase().includes(mode))
-  // Real per-city array (firecrawl #6) wins over the "N Locations" count phrase.
-  const cities = (job.locations ?? []).filter(c => c && c.trim())
-  if (!loc && cities.length === 0 && !showMode) return null
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--tm-text-muted)", flexWrap: "wrap" }}>
-      {cities.length > 0
-        ? cities.map(c => <span key={c}>{c}</span>)
-        : loc ? <span>{loc}</span> : null}
-      {showMode ? (
-        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", color: "var(--tm-text-faint)" }}>
-          {MODE_LABEL[mode!] ?? mode}
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-function JobCard({
-  job, followed, onOpen, onToggleFollow, followDisabled, followDisabledReason,
-}: {
-  job: JobFeedItem
-  followed: boolean
-  onOpen: () => void
-  onToggleFollow: () => void
-  followDisabled?: boolean
-  followDisabledReason?: string
-}) {
-  const age = ageLabel(job.first_seen)
-  const snippet = jdSnippet(job.job_description)
-  return (
-    <article
-      onClick={onOpen}
-      style={{
-        cursor: "pointer", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-        borderRadius: "var(--tm-radius-lg)", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12,
-        transition: "border-color 120ms ease",
-      }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--tm-border)")}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--tm-border-soft)")}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start" }}>
-        <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.job_title}</h3>
-          {job.company_name ? <div style={{ fontSize: 14, color: "var(--tm-interactive)", marginTop: 3 }}>{job.company_name}</div> : null}
-        </div>
-        {age ? <span style={{ flexShrink: 0, fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", color: "var(--tm-text-faint)" }}>{age}</span> : null}
-      </div>
-
-      <LocationLine job={job} />
-
-      {snippet ? <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>{snippet}</p> : null}
-
-      {job.skills.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {job.skills.map(s => <SkillChip key={s} label={s} />)}
-        </div>
-      ) : null}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 2 }}>
-        {job.matched_skill_count > 0 ? (
-          <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-success)" }}>
-            ✓ {job.matched_skill_count} of your skills
-          </span>
-        ) : <span />}
-        <div style={{ display: "inline-flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); if (!followDisabled) onToggleFollow() }}
-            title={followDisabled ? followDisabledReason : followed ? "Remove from heatmap" : "Add to heatmap · 10 XP"}
-            style={{
-              padding: "6px 12px", borderRadius: 999, cursor: followDisabled ? "not-allowed" : "pointer",
-              fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", fontWeight: 600,
-              background: followed ? "var(--tm-int-bg-wash)" : "transparent",
-              border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
-              color: followed ? "var(--tm-interactive)" : followDisabled ? "var(--tm-text-faint)" : "var(--tm-text-muted)",
-              opacity: followDisabled && !followed ? 0.5 : 1, whiteSpace: "nowrap",
-            }}
-          >
-            {followed ? "✓ In heatmap" : "+ Heatmap"}
-          </button>
-          {job.source_url ? (
-            <a
-              href={job.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{
-                padding: "6px 14px", borderRadius: 999, textDecoration: "none",
-                fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", fontWeight: 600,
-                background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", whiteSpace: "nowrap",
-              }}
-            >
-              Apply ↗
-            </a>
-          ) : null}
-        </div>
-      </div>
-    </article>
-  )
-}
-
-// ── detail drawer ────────────────────────────────────────────────────────────
-
-function JobDetailDrawer({
-  job, token, onClose, followed, onToggleFollow,
-}: {
-  job: JobFeedItem
-  token: string
-  onClose: () => void
-  followed: boolean
-  onToggleFollow: () => void
-}) {
-  const [reported, setReported] = useState(false)
-  const [tracked, setTracked] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  // Portal to <body> so position:fixed anchors to the viewport, not the
-  // transformed .tm-page-enter scroll container (translateY held by `forwards`
-  // establishes a containing block — that's why the drawer pinned to the page
-  // top-left and scrolled with the feed). SSR guard mirrors ForgeModal.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
-
-  const reportMut = useMutation({
-    mutationFn: () => jobs.reportInactive(token, job.job_id),
-    onSuccess: () => { setReported(true); setMsg("Reported — thanks. +10 XP") },
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Could not report"),
-  })
-  const trackMut = useMutation({
-    mutationFn: () => jobs.saveJob(token, job.job_id),
-    onSuccess: () => { setTracked(true); setMsg("Saved to Tracker") },
-    onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Could not save"),
-  })
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
-
-  if (!mounted) return null
-
-  return createPortal(
-    <>
-      <div onClick={onClose} className="tm-feed-scrim" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 60, animation: "tmScrimIn 200ms ease both" }} />
-      <aside
-        className="tm-feed-drawer"
-        role="dialog"
-        aria-label={job.job_title}
-        style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, width: "min(520px, 100vw)", zIndex: 61,
-          background: "var(--tm-bg, var(--tm-surface))", borderLeft: "1px solid var(--tm-border-soft)",
-          display: "flex", flexDirection: "column", boxShadow: "-12px 0 32px rgba(0,0,0,0.18)",
-          animation: "tmDrawerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
-        }}
-      >
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "20px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.job_title}</h2>
-            {job.company_name ? <div style={{ fontSize: 14, color: "var(--tm-interactive)", marginTop: 4 }}>{job.company_name}</div> : null}
-            <div style={{ marginTop: 8 }}><LocationLine job={job} /></div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-muted)", cursor: "pointer", fontSize: 16 }}>×</button>
-        </header>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
-          {job.skills.length > 0 ? (
-            <div>
-              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Key skills</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
-            </div>
-          ) : null}
-          <div>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Job description</div>
-            <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13.5, lineHeight: 1.6, color: "var(--tm-text)" }}>{job.job_description || "No description available."}</pre>
-          </div>
-        </div>
-
-        {msg ? <div style={{ padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
-
-        <footer style={{ display: "flex", gap: 8, padding: "16px 24px", borderTop: "1px solid var(--tm-border-soft)", flexWrap: "wrap" }}>
-          {job.source_url ? (
-            <a href={job.source_url} target="_blank" rel="noopener noreferrer" style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
-          ) : null}
-          <button type="button" onClick={() => trackMut.mutate()} disabled={tracked || trackMut.isPending} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: tracked ? "default" : "pointer" }}>{tracked ? "✓ Saved" : "Track"}</button>
-          <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>
-          <button type="button" onClick={() => reportMut.mutate()} disabled={reported || reportMut.isPending} title="Report this posting as no longer active" style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-danger)", fontWeight: 600, fontSize: 13, cursor: reported ? "default" : "pointer" }}>{reported ? "✓ Reported" : "Report inactive"}</button>
-        </footer>
-      </aside>
-    </>,
-    document.body,
-  )
-}
-
-// ── filter pills ─────────────────────────────────────────────────────────────
-
-function Pill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "7px 14px", borderRadius: 999, cursor: "pointer", whiteSpace: "nowrap",
-        fontSize: 12.5, fontWeight: 500,
-        background: active ? "var(--tm-int-bg-wash)" : "var(--tm-surface)",
-        border: `1px solid ${active ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`,
-        color: active ? "var(--tm-interactive)" : "var(--tm-text-muted)",
-        transition: "all 120ms ease",
-      }}
-    >
-      {label}
-    </button>
-  )
-}
-
-// ── tab orchestrator ─────────────────────────────────────────────────────────
+import { useRouter } from "next/navigation"
+import { useViewport } from "@/mobile"
+import type { JobFeedItem } from "@/lib/api"
+import { JobCard } from "./job-card"
+import { JobDetailDrawer } from "./job-detail-drawer"
+import { MobileFeed } from "./mobile-feed"
+import { FeedControls, ActiveFilterChips } from "./feed-filters"
+import { useJobFeed } from "./use-job-feed"
+import { DEFAULT_FILTERS, FIT_LENSES, type FeedFilters } from "./feed-types"
+import "./market.css"
 
 export interface MarketJobsTabProps {
   token: string
-  analytics: MarketAnalytics | undefined
+  hasCv: boolean
   targetRoles: string[]
   chipCountMap: Record<string, number>
-  selectedCluster: string | null
+  selectedCluster: string | null         // shared with the page's analytics/heatmap
   onSelectCluster: (cluster: string | null) => void
   targetLocations: string[]
   followedNames: string[]
@@ -357,155 +28,105 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, analytics, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
-    targetLocations,
-    followedNames, onToggleFollow, canFollow, disabledReason,
+    token, hasCv, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    targetLocations, followedNames, onToggleFollow,
   } = props
+  const router = useRouter()
+  const { isDesktop } = useViewport()
+  const hasTargetRoles = targetRoles.length > 0
 
   const [searchInput, setSearchInput] = useState("")
   const [q, setQ] = useState("")
-  const [pinnedRole, setPinnedRole] = useState<string | null>(null)
-  const [sort, setSort] = useState<JobFeedSort>("fresh")
+  // roleDomain is sourced from the page's selectedCluster; the rest is local.
+  const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
+    sort: DEFAULT_FILTERS.sort,
+    minSkillMatches: 0,
+    targetRoleOnly: false,
+    freshnessDays: 0,
+    followingOnly: false,
+  })
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
 
-  // Debounce the search box → q.
   useEffect(() => {
     const id = setTimeout(() => setQ(searchInput.trim()), 350)
     return () => clearTimeout(id)
   }, [searchInput])
 
-  const feed = useInfiniteQuery({
-    // Location scope is fixed from settings and applied server-side from the
-    // user's saved prefs — the feed no longer sends geo filters.
-    queryKey: ["jobFeed", token, selectedCluster ?? "", pinnedRole ?? "", q, sort],
-    queryFn: ({ pageParam = 1 }) =>
-      jobs.feed(token, {
-        cluster: pinnedRole ? null : selectedCluster,
-        roleDomain: pinnedRole,
-        q: q || null,
-        sort,
-        page: pageParam,
-        pageSize: 20,
-      }),
-    initialPageParam: 1,
-    getNextPageParam: last => (last.has_next_page ? last.page + 1 : undefined),
-    enabled: !!token,
-    // Feed is weekly-batch scrape data behind a 5-min backend cache; 60s was
-    // needlessly aggressive. 30 min matches the chip/skillDemand/heatmap cadence
-    // on this page (analytics sits at 7d). gcTime 24h = query-persist MAX_AGE, so
-    // the dehydrated cache keeps these pages restorable → a returning user paints
-    // cards instantly (stale-while-revalidate) instead of a cold skeleton.
-    staleTime: 30 * 60 * 1000,
-    gcTime: 24 * 60 * 60 * 1000,
-  })
+  const filters: FeedFilters = useMemo(() => ({ ...local, roleDomain: selectedCluster }), [local, selectedCluster])
 
-  const allJobs = useMemo(() => feed.data?.pages.flatMap(p => p.jobs) ?? [], [feed.data])
-  const total = feed.data?.pages[0]?.available_total ?? 0
+  const onChangeFilters = useCallback((f: FeedFilters) => {
+    if (f.roleDomain !== selectedCluster) onSelectCluster(f.roleDomain)
+    setLocal({
+      sort: f.sort, minSkillMatches: f.minSkillMatches, targetRoleOnly: f.targetRoleOnly,
+      freshnessDays: f.freshnessDays, followingOnly: f.followingOnly,
+    })
+  }, [selectedCluster, onSelectCluster])
 
-  // Infinite-scroll sentinel.
+  const { feed, allJobs, total, triage, undo, pending, savedCount } =
+    useJobFeed({ token, filters, q })
+
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
     const obs = new IntersectionObserver(entries => {
-      if (entries[0]?.isIntersecting && feed.hasNextPage && !feed.isFetchingNextPage) {
-        void feed.fetchNextPage()
-      }
+      if (entries[0]?.isIntersecting && feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage()
     }, { rootMargin: "600px" })
     obs.observe(el)
     return () => obs.disconnect()
   }, [feed])
 
-  const clearAll = useCallback(() => {
-    setSearchInput(""); setQ(""); setPinnedRole(null)
-    onSelectCluster(null)
-  }, [onSelectCluster])
-
-  const activeStatKind: "all" | "company" | "role" | "country" | null = useMemo(() => {
-    const noFilters = !selectedCluster && !pinnedRole && !q
-    if (noFilters) return "all"
-    if (pinnedRole) return "role"
-    return null
-  }, [selectedCluster, pinnedRole, q])
+  const sortLabel = FIT_LENSES.find(l => l.key === filters.sort)?.label.toLowerCase() ?? "freshest first"
+  const onSave = (j: JobFeedItem) => triage(j, "saved")
+  const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   return (
     <div>
-      {/* Search + sort — the primary action surface leads the page. */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }} className="tm-feed-searchrow">
+      {/* Search leads; everything else is one control row. */}
+      <div className="tm-feed-searchrow" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           placeholder="Search roles, companies, skills…"
-          style={{
-            flex: "1 1 280px", minWidth: 0, minHeight: 42, padding: "0 16px", borderRadius: 999,
-            border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)", color: "var(--tm-text)",
-            fontSize: 14, outline: "none",
-          }}
+          aria-label="Search jobs"
+          style={{ flex: "1 1 260px", minWidth: 0, minHeight: 44, padding: "0 16px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)", color: "var(--tm-text)", fontSize: 16, outline: "none" }}
         />
-        <SortBar sort={sort} onSort={setSort} />
       </div>
 
-      {/* Filter pills: target roles + location */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 14, flexWrap: "wrap" }} className="tm-feed-pillrow">
-        {targetRoles.map(role => (
-          <Pill
-            key={role}
-            label={chipCountMap[role] != null ? `${role} · ${chipCountMap[role]}` : role}
-            active={selectedCluster === role && !pinnedRole}
-            onClick={() => { setPinnedRole(null); onSelectCluster(selectedCluster === role ? null : role) }}
-          />
-        ))}
-        {pinnedRole ? <Pill label={`Role: ${pinnedRole} ✕`} active onClick={() => setPinnedRole(null)} /> : null}
-        <LocationScopePill locations={targetLocations} />
+      <div style={{ marginTop: 12 }}>
+        <FeedControls
+          filters={filters}
+          onChange={onChangeFilters}
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          hasCv={hasCv}
+          hasTargetRoles={hasTargetRoles}
+          savedCount={savedCount}
+          onOpenSaved={() => router.push("/home")}
+          locationPill={<LocationScopePill locations={targetLocations} />}
+        />
+        <ActiveFilterChips filters={filters} onChange={onChangeFilters} />
       </div>
 
-      {/* Live job-data scope — sits under the filters where it belongs. */}
-      {analytics ? (
-        <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive)", marginTop: 14, letterSpacing: "0.06em" }}>
-          {analytics.total_jobs.toLocaleString()} JOBS · {analytics.total_companies.toLocaleString()} COMPANIES · {analytics.total_industries.toLocaleString()} INDUSTRY GROUPS
-        </div>
-      ) : null}
-
-      {/* Market stats — ambient context under the filters, not the page hero. */}
-      {analytics ? (
-        <StatCards
-          analytics={analytics}
-          activeKind={activeStatKind}
-          onClear={clearAll}
-          onCompany={name => { setPinnedRole(null); onSelectCluster(null); setSearchInput(name); setQ(name) }}
-          onRole={role => { onSelectCluster(null); setSearchInput(""); setQ(""); setPinnedRole(role) }}
-        />
-      ) : null}
-
-      {/* Feed */}
       <div style={{ marginTop: 8 }}>
         {feed.isLoading ? (
           <FeedSkeleton />
         ) : allJobs.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--tm-text-muted)", fontSize: 14 }}>
-            No openings match these filters. <button type="button" onClick={clearAll} style={{ background: "none", border: "none", color: "var(--tm-interactive)", cursor: "pointer", fontSize: 14, textDecoration: "underline" }}>Clear filters</button>
-          </div>
+          <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
         ) : (
           <>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", margin: "16px 0 12px", letterSpacing: "0.04em" }}>
-              {total.toLocaleString()} openings · sorted {SORTS.find(s => s.key === sort)?.label.toLowerCase()}
+              {total.toLocaleString()} role{total === 1 ? "" : "s"} · sorted {sortLabel}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {allJobs.map(job => {
-                const followed = job.company_name ? followedNames.includes(job.company_name) : false
-                return (
-                  <JobCard
-                    key={job.job_id}
-                    job={job}
-                    followed={followed}
-                    onOpen={() => setOpenJob(job)}
-                    onToggleFollow={() => job.company_name && onToggleFollow(job.company_name)}
-                    followDisabled={!followed && !!job.company_name && !canFollow(job.company_name)}
-                    followDisabledReason={job.company_name ? disabledReason(job.company_name) : undefined}
-                  />
-                )
-              })}
-            </div>
+            {isDesktop ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {allJobs.map(job => (
+                  <JobCard key={job.job_id} job={job} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
+                ))}
+              </div>
+            ) : (
+              <MobileFeed jobs={allJobs} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} />
+            )}
             <div ref={sentinelRef} style={{ height: 1 }} />
             {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
             {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>— end of feed —</div> : null}
@@ -520,38 +141,28 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           onClose={() => setOpenJob(null)}
           followed={openJob.company_name ? followedNames.includes(openJob.company_name) : false}
           onToggleFollow={() => openJob.company_name && onToggleFollow(openJob.company_name)}
+          onSave={() => { onSave(openJob); setOpenJob(null) }}
         />
       ) : null}
+
+      {pending ? <UndoToast kind={pending.kind} onUndo={undo} /> : null}
     </div>
   )
 }
 
-// Read-only scope chip: geo is fixed from the user's settings, not re-picked
-// per visit. Tapping opens Settings (the canonical edit surface) via the shared
-// `tm:open-settings` event handled by both the web and mobile chrome.
+// Read-only geo scope — fixed from settings, tap opens Settings → Following.
 function LocationScopePill({ locations }: { locations: string[] }) {
   const clean = locations.filter(l => l && l.trim())
-  const label = clean.length === 0
-    ? "All locations"
-    : clean.length === 1
-      ? clean[0]
-      : `${clean[0]} +${clean.length - 1}`
+  const label = clean.length === 0 ? "All locations" : clean.length === 1 ? clean[0] : `${clean[0]} +${clean.length - 1}`
   return (
     <button
       type="button"
       onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
       aria-label={clean.length === 0 ? "Set your target locations in settings" : `Target locations: ${clean.join(", ")}. Change in settings`}
       title={clean.length > 1 ? clean.join(", ") : undefined}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 6, minHeight: 38, padding: "0 14px",
-        borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)",
-        color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--tm-int-border)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--tm-border-soft)"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+      className="tm-feed-ctl"
     >
-      <span aria-hidden>📍</span>
-      <span>{label}</span>
+      <span aria-hidden>📍</span> {label}
     </button>
   )
 }
@@ -562,6 +173,33 @@ function FeedSkeleton({ rows = 4 }: { rows?: number }) {
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} style={{ height: 132, borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
       ))}
+    </div>
+  )
+}
+
+/** Loop-closing empty state: route the user's saved roles into Dashboard. */
+function EmptyHandoff({ savedCount, onBuild, onClear }: { savedCount: number; onBuild: () => void; onClear: () => void }) {
+  return (
+    <div style={{ textAlign: "center", padding: "64px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+      <div style={{ fontSize: 15, color: "var(--tm-text)", fontWeight: 600 }}>You&rsquo;ve triaged everything here</div>
+      {savedCount > 0 ? (
+        <>
+          <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>You saved {savedCount} role{savedCount === 1 ? "" : "s"}. Build a CV for each next.</div>
+          <button type="button" onClick={onBuild} className="tm-filters-apply">Build CVs →</button>
+        </>
+      ) : (
+        <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>Fresh roles land daily — check back, or loosen your filters.</div>
+      )}
+      <button type="button" onClick={onClear} style={{ background: "none", border: "none", color: "var(--tm-interactive)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
+    </div>
+  )
+}
+
+function UndoToast({ kind, onUndo }: { kind: "saved" | "skipped"; onUndo: () => void }) {
+  return (
+    <div className="tm-feed-toast" role="status">
+      <span>{kind === "saved" ? "★ Saved" : "Skipped"}</span>
+      <button type="button" onClick={onUndo}>Undo</button>
     </div>
   )
 }

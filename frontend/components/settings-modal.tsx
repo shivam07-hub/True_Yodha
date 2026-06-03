@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { useSurface, type SurfacePref } from "@/lib/hooks/use-surface"
+import { ThemeControl } from "@/components/ui/theme-control"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -209,7 +209,6 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
   const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const { interested: myrologyInterested, setInterested: setMyrologyInterested } = useMyrologyInterest()
-  const { pref: surfacePref, setPref: setSurfacePref } = useSurface()
   const [myroPromptOpen, setMyroPromptOpen] = useState(false)
 
   // Account tab state
@@ -562,7 +561,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   padding: "10px 12px", borderRadius: "var(--tm-radius-sm)", cursor: "pointer",
                   background: activeTab === tab ? "var(--tm-int-bg-wash)" : "transparent",
                   border: `1px solid ${activeTab === tab ? "var(--tm-int-border)" : "transparent"}`,
-                  color: activeTab === tab ? "var(--tm-interactive)" : "var(--tm-text-muted)",
+                  color: activeTab === tab ? "var(--tm-interactive)" : "var(--tm-interactive-rest)",
                   fontSize: 13, fontWeight: activeTab === tab ? 600 : 400,
                   fontFamily: "inherit", textAlign: "left",
                   transition: "all 180ms var(--tm-ease)",
@@ -613,12 +612,12 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
               type="button" aria-label="Close settings" onClick={flushAndClose}
               style={{
                 background: "transparent", border: "1px solid transparent",
-                color: "var(--tm-text-faint)", fontSize: 20, cursor: "pointer",
+                color: "var(--tm-interactive-rest)", fontSize: 20, cursor: "pointer",
                 lineHeight: 1, padding: "4px 6px", borderRadius: "var(--tm-radius-sm)",
                 transition: "color var(--tm-dur), background var(--tm-dur), border-color var(--tm-dur)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tm-text-faint)"; e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
             >×</button>
           </div>
 
@@ -708,35 +707,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     <div style={ROW_LABEL}>Theme</div>
                     <div style={ROW_DESC}>System follows your device.</div>
                   </div>
-                  <div
-                    role="radiogroup"
-                    aria-label="Theme"
-                    style={{
-                      flexShrink: 0, display: "inline-flex", padding: 3, gap: 2,
-                      borderRadius: 99, border: "1px solid var(--tm-int-border)",
-                      background: "rgba(255,255,255,0.04)",
-                    }}
-                  >
-                    {(["system", "light", "dark"] as SurfacePref[]).map((opt) => {
-                      const active = surfacePref === opt
-                      return (
-                        <button
-                          key={opt} type="button" role="radio" aria-checked={active}
-                          onClick={() => setSurfacePref(opt)}
-                          style={{
-                            padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer",
-                            fontFamily: "inherit", fontSize: 12, fontWeight: active ? 600 : 400,
-                            textTransform: "capitalize",
-                            background: active ? "var(--tm-interactive)" : "transparent",
-                            color: active ? "var(--tm-interactive-fg)" : "var(--tm-text-muted)",
-                            transition: "background var(--tm-dur) var(--tm-ease), color var(--tm-dur)",
-                          }}
-                        >
-                          {opt}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <ThemeControl />
                 </div>
 
                 {/* Save button */}
@@ -805,9 +776,9 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                       >
                         {suggestions.map((c) => (
                           <button key={c} type="button" role="option" aria-selected={false} onClick={() => selectRole(c)}
-                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                           >{c}</button>
                         ))}
                       </div>
@@ -854,9 +825,9 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                       >
                         {locationSuggestions.map((entry) => (
                           <button key={entry} type="button" role="option" aria-selected={false} onClick={() => selectLocation(entry)}
-                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                           >{entry}</button>
                         ))}
                       </div>
@@ -931,9 +902,9 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                             role="option"
                             aria-selected={false}
                             onClick={() => selectCompany(name)}
-                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-text-muted)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
+                            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-text-muted)" }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
                           >
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>

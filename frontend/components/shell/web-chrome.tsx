@@ -12,6 +12,7 @@ import { TopbarNav } from "@/components/nav/topbar-nav"
 import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
+import { ThemeControl } from "@/components/ui/theme-control"
 import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
 import type { SidebarProfile } from "@/lib/shell/contract"
@@ -128,7 +129,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                       </button>
                       <button
                         onClick={() => { dismiss(); setForgeOpen(false) }}
-                        style={{ height: 32, width: 32, borderRadius: 8, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text-faint)", cursor: "pointer", fontFamily: "inherit" }}
+                        style={{ height: 32, width: 32, borderRadius: 8, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-interactive-rest)", cursor: "pointer", fontFamily: "inherit" }}
                       >×</button>
                     </div>
                     <button
@@ -216,6 +217,10 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                     </Fragment>
                   ))}
                   <div className="tm-topbar-menu-divider" />
+                  <div style={{ padding: "6px 10px 8px" }}>
+                    <ThemeControl label="Appearance" fluid />
+                  </div>
+                  <div className="tm-topbar-menu-divider" />
                   {[
                     { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-interactive-rest)", hoverBg: "rgba(255,255,255,0.04)" },
                     { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
@@ -253,7 +258,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
             <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>Your progress is saved. You can sign back in anytime.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setSignOutConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={() => setSignOutConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
               <button onClick={signOut} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "rgba(255,130,130,0.9)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
             </div>
           </div>

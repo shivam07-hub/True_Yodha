@@ -148,9 +148,9 @@ export default function CompanyJobsPage() {
         <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
           <Link
             href="/market"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive-rest)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text-faint)" }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
           >
             ← Live Career Intel
           </Link>
@@ -196,7 +196,7 @@ export default function CompanyJobsPage() {
                 <button
                   type="button"
                   onClick={() => setPage(p => p + 1)}
-                  style={{ padding: "10px 28px", borderRadius: 99, background: "var(--tm-surface)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                  style={{ padding: "10px 28px", borderRadius: 99, background: "var(--tm-surface)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
                 >
                   Load more
                 </button>
