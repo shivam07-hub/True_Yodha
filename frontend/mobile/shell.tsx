@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { MyroLogo } from "@/components/myro-logo"
-import { SettingsModal } from "@/components/settings-modal"
+import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { openFeedbackHub } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
@@ -148,8 +148,13 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
   // Canonical "open settings" trigger — any surface (e.g. the market location
   // chip) dispatches `tm:open-settings`; the desktop chrome listens too.
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
   useEffect(() => {
-    const h = () => setSettingsOpen(true)
+    const h = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
+      if (tab) setSettingsTab(tab as SettingsTab)
+      setSettingsOpen(true)
+    }
     document.addEventListener("tm:open-settings", h)
     return () => document.removeEventListener("tm:open-settings", h)
   }, [])
@@ -177,7 +182,7 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
       >
         {initials}
       </button>
-      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={profile} />}
+      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={profile} initialTab={settingsTab} />}
     </header>
   )
 }
