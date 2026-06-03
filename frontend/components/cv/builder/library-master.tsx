@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVRender } from "./cv-render"
+import { MasterEditor } from "./master-editor"
 import { ApertureMark, timeAgoShort } from "./library-shared"
 import { I, LIcon } from "./library-icons"
 
@@ -98,30 +100,43 @@ export function MasterCVHero({ baseline, profile, onOpen, onReplace }: MasterCVH
 export function MasterCVPanel({
   token, baseline, cv, profile, onClose, onReplace,
 }: MasterCVPanelProps) {
+  const [editing, setEditing] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
+  const canEdit = !!baseline && !!cv
 
   return (
     <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Master CV preview">
       <div className="tm-lib-master-panel-head">
         <div style={{ minWidth: 0 }}>
-          <div className="tm-lib-eyebrow">MASTER CV</div>
+          <div className="tm-lib-eyebrow">{editing ? "EDITING MASTER CV" : "MASTER CV"}</div>
           <div className="tm-lib-master-panel-title">
             {masterDisplayName(profile)}
             {baseline && <span className="tm-lib-master-version">v{baseline.user_version_number}</span>}
           </div>
         </div>
         <div className="tm-lib-master-panel-actions">
-          <DownloadCVButton
-            token={token}
-            baseline={baseline}
-            cv={cv}
-            fullName={profile?.full_name}
-            className="tm-lib-btn primary sm"
-            label="Download Master"
-          />
-          <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
-            <LIcon d={I.upload} size={12}/> Replace
-          </button>
+          {editing ? (
+            <button type="button" className="tm-lib-btn primary sm" onClick={() => setEditing(false)}>
+              <LIcon d={I.file} size={12}/> Done
+            </button>
+          ) : (
+            <>
+              <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
+                <LIcon d={I.edit ?? I.file} size={12}/> Edit
+              </button>
+              <DownloadCVButton
+                token={token}
+                baseline={baseline}
+                cv={cv}
+                fullName={profile?.full_name}
+                className="tm-lib-btn primary sm"
+                label="Download Master"
+              />
+              <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
+                <LIcon d={I.upload} size={12}/> Replace
+              </button>
+            </>
+          )}
           <button type="button" className="tm-lib-btn icon-only sm" onClick={onClose} aria-label="Close master CV preview">
             <LIcon d={I.close} size={13}/>
           </button>
@@ -129,7 +144,9 @@ export function MasterCVPanel({
       </div>
 
       <div className="tm-lib-master-panel-body">
-        {cv ? (
+        {editing ? (
+          <MasterEditor token={token} profile={profile}/>
+        ) : cv ? (
           <CVRender cv={cv} contact={masterContact(cv, profile)}/>
         ) : (
           <pre className="tm-lib-master-panel-text">{fallbackText || "Master CV is still being prepared."}</pre>

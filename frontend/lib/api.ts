@@ -454,6 +454,12 @@ export interface CVStructured {
   certs: string[]
 }
 
+export interface MasterSaveResponse {
+  baseline_id: number
+  user_version_number: number
+  recompute_pending: boolean
+}
+
 export type CVVersionKind = "baseline_upload" | "deterministic" | "polished" | "edited"
 
 export interface CVVersion {
@@ -534,6 +540,14 @@ export const cv = {
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  // PR-3 living-master autosave. Cheap mutate (no LLM, no XP). Server snapshots
+  // prior content to history, then async re-tags → recompute_finished_at (SE17).
+  saveMaster: (token: string, structured: CVStructured) =>
+    request<MasterSaveResponse>("/cv/master", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(structured),
     }),
   requestUploadFallback: (
     token: string,

@@ -199,7 +199,9 @@ function ForgePageInner() {
     <>
       {toast && <div className="tm-pr-toast" role="status">{toast}</div>}
 
-      <RequiresCV>
+      {/* Practice absorbed Skills (Map/Audit tabs) — gate with the skills
+          surface so no-CV users get the domain teaser, not the generic invite. */}
+      <RequiresCV surface="skills">
         <div className="tm-page-enter tm-pr-page">
           <SkillIntelHeader
             totalScore={totalScore}

@@ -86,10 +86,10 @@ export function DocsPage() {
           {/* CTA */}
           <div style={{ borderTop: "1px solid var(--tm-border-soft)", paddingTop: 40, textAlign: "center" }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", marginBottom: 8, letterSpacing: "-0.02em" }}>
-              Ready to see your score?
+              Choose your match.
             </div>
             <p style={{ fontSize: 14, color: "var(--tm-text-faint)", marginBottom: 20, margin: "0 0 20px" }}>
-              Upload your CV and get a full breakdown in under 60 seconds.
+              One CV in. A tailored version for every role — you decide which to send.
             </p>
             <Link
               href="/signup"
@@ -104,7 +104,7 @@ export function DocsPage() {
                 textDecoration: "none",
               }}
             >
-              Start for free →
+              Map my CV →
             </Link>
           </div>
         </div>
