@@ -220,7 +220,7 @@ export function MobileBottomNav() {
     <nav className="tm-mobile-bottomnav">
       {nav.visibleMobile.map(item => {
         const active = pathname.startsWith(item.href)
-        const color = active ? "var(--tm-interactive)" : "var(--tm-text-faint)"
+        const color = active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)"
         const isNew = nav.newItems.has(item.id)
 
         return (
@@ -353,7 +353,7 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
               background: "transparent", border: "none",
               borderBottom: i < arr.length - 1 ? "1px solid var(--tm-border-soft)" : "none",
               cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-              color: item.danger ? "rgba(255,130,130,0.9)" : "var(--tm-text-muted)",
+              color: item.danger ? "rgba(255,130,130,0.9)" : "var(--tm-interactive-rest)",
             }}
           >
             <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>{item.icon}</span>
@@ -392,7 +392,7 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => setSignOutConfirm(false)}
-                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
               >Cancel</button>
               <button
                 onClick={handleSignOut}

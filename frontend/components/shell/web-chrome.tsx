@@ -195,7 +195,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                       >
                         <span style={{ fontSize: 13, color: a.color, minWidth: 18, textAlign: "center" }}>{a.icon}</span>
-                        <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>{a.label}</span>
+                        <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>{a.label}</span>
                       </button>
                       {/* Myrology sits in the old "Suggest an idea" slot (after Report a bug). */}
                       {a.id === "bug" && (
@@ -210,14 +210,14 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
                         >
                           <span style={{ fontSize: 13, color: "var(--tm-interactive)", minWidth: 18, textAlign: "center" }}>✦</span>
-                          <span style={{ fontSize: 13, color: "var(--tm-text-muted)" }}>Myrology</span>
+                          <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>Myrology</span>
                         </button>
                       )}
                     </Fragment>
                   ))}
                   <div className="tm-topbar-menu-divider" />
                   {[
-                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-text-muted)",   hoverBg: "rgba(255,255,255,0.04)" },
+                    { id: "settings", icon: "⚙", label: "Settings",  color: "var(--tm-interactive-rest)", hoverBg: "rgba(255,255,255,0.04)" },
                     { id: "signout",  icon: "→", label: "Sign out",   color: "rgba(255,145,145,0.95)", hoverBg: "rgba(255,80,80,0.08)"   },
                   ].map((a) => (
                     <button

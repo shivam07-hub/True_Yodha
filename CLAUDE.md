@@ -425,6 +425,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-03 · Settings tab-deeplink + theme toggle + interactive-rest brightness GRILL+PR1 — all uncommitted on Develop)
+
+Three UI tasks, all on Develop, **uncommitted** (Shivam commits). tsc + lint clean throughout. Memory: `project_interactive_rest_brightness`.
+
+**1. "All locations" pill → deep-links Settings to Following tab.** Pill opened Settings on default Account tab; Target Locations live under Following (`settings-modal.tsx:793`). Fix: pill dispatches `CustomEvent("tm:open-settings",{detail:{tab:"Following"}})`; exported `Tab` type + new optional `initialTab` prop seeds `activeTab`; both listeners (`web-chrome.tsx`, `mobile/shell.tsx`) read `detail.tab` → pass through. Avatar-menu "Settings" path resets tab→Account so the deep-link doesn't stick. Modal remounts on open (`{showSettings && …}`) → `useState(initialTab)` reseeds each time.
+
+**2. Theme toggle in Settings → Account → Appearance.** Resolves the D4 follow-up (`2a5bef8` shipped storage contract, UI = TODO). NEW `lib/hooks/use-surface.ts` owns the `myro-surface` contract shared with the `beforeInteractive` script (`layout.tsx`): `light`/`dark` = override, absent = follow OS. 3-way segmented control System/Light/Dark; **System = the custom/default**. Applies live to `<html data-surface>` (no reload), listens to `prefers-color-scheme` flips while on System, SSR-safe (ships `system`, reconciles in effect). Applies instantly — independent of profile Save (theme isn't a profile field).
+
+**3. Interactive-rest brightness — GRILL LOCKED + PR1 BUILT.** Shivam: dark-mode clickable controls must be **as white as possible at rest**; static words stay dull. Full grill (`/grill-me`, 7 Qs) → **scope C app-wide · white = FLOOR (teal CTAs/links UNTOUCHED, decision A) · brightness = `--tm-text` #E8F0FF not pure #FFF · new semantic token `--tm-interactive-rest`=var(--tm-text) auto-flips dark#E8F0FF/light#050A18 · hover=bg-feedback not text-shift · ALL classes in (nav lights up, clickable icons) · no CI lint (can't detect clickability statically), convention via token name + CONTEXT.md note · phased.** Why a token not a find-replace: `--tm-text-muted`/`--tm-icon-muted` are **dual-use** (static labels AND clickable) so each occurrence must be hand-classified — can't redefine globally.
+- **PR1 (token + shared primitives) BUILT:** `design-tokens.css` (token def + segment/accent toggle inactive), `button.tsx` (ghost variant rest), `web-chrome.tsx` (dropdown rows; desktop top-nav `.tm-topbar-link` was ALREADY bright), `mobile/shell.tsx` (bottom-nav inactive + drawer rows + signout Cancel), `CONTEXT.md` §Interactive-rest. Sign-out stays red (danger accent).
+- **OPEN — PR2..N ad-hoc sweep (~100 files), one surface per PR.** Files-to-audit (subset are clickable; leave static): settings 1 · market 3 · **cv 29 (biggest)** · skills 8 · forge 3 · home 10 · onboarding 8 · public 4 · misc remainder. Plus clickable `--tm-icon-muted` icons. Rec next session: batch settings+market+forge (7 small files) first, then big CV/home/skills as own PRs.
+- ⚠️ All 3 tasks behind authed shell — no browser-preview without login. Visual QA owed (Shivam, dark mode): tab deep-link lands on Following, theme toggle flips live, dropdown + mobile nav read bright-at-rest.
+
+---
+
 ## LAST SESSION SUMMARY (2026-06-03 · First-login hero design audit → fixes SHIPPED to Develop)
 
 `/frontend-design` + `brand-guidelines` audit of the first-login `/home` first-run hero (screenshot from Shivam). Found **27 distinct blunders**; fixed the high-severity in-component set + the Codex mechanical slice. Two commits on Develop (not pushed).
