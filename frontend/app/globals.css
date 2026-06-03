@@ -37,6 +37,15 @@
 .page-enter {
   animation: pageSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ── Right-side drawer entrance (job detail). Portaled to <body> to escape the
+   transformed .tm-page-enter containing block, so position:fixed is viewport-
+   anchored — not stuck to the scroll container. */
+@keyframes tmDrawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes tmScrimIn  { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .tm-feed-drawer, .tm-feed-scrim { animation: none !important; }
+}
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation: none; }
 }

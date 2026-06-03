@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedSort, type NameCountItem, type MarketAnalytics } from "@/lib/api"
 
@@ -239,6 +240,12 @@ function JobDetailDrawer({
   const [reported, setReported] = useState(false)
   const [tracked, setTracked] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  // Portal to <body> so position:fixed anchors to the viewport, not the
+  // transformed .tm-page-enter scroll container (translateY held by `forwards`
+  // establishes a containing block — that's why the drawer pinned to the page
+  // top-left and scrolled with the feed). SSR guard mirrors ForgeModal.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const reportMut = useMutation({
     mutationFn: () => jobs.reportInactive(token, job.job_id),
@@ -257,9 +264,11 @@ function JobDetailDrawer({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 60 }} />
+      <div onClick={onClose} className="tm-feed-scrim" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 60, animation: "tmScrimIn 200ms ease both" }} />
       <aside
         className="tm-feed-drawer"
         role="dialog"
@@ -268,6 +277,7 @@ function JobDetailDrawer({
           position: "fixed", top: 0, right: 0, bottom: 0, width: "min(520px, 100vw)", zIndex: 61,
           background: "var(--tm-bg, var(--tm-surface))", borderLeft: "1px solid var(--tm-border-soft)",
           display: "flex", flexDirection: "column", boxShadow: "-12px 0 32px rgba(0,0,0,0.18)",
+          animation: "tmDrawerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both",
         }}
       >
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "20px 24px", borderBottom: "1px solid var(--tm-border-soft)" }}>
@@ -303,7 +313,8 @@ function JobDetailDrawer({
           <button type="button" onClick={() => reportMut.mutate()} disabled={reported || reportMut.isPending} title="Report this posting as no longer active" style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-danger)", fontWeight: 600, fontSize: 13, cursor: reported ? "default" : "pointer" }}>{reported ? "✓ Reported" : "Report inactive"}</button>
         </footer>
       </aside>
-    </>
+    </>,
+    document.body,
   )
 }
 
