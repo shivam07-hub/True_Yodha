@@ -89,10 +89,15 @@ def enqueue(
         if _has_active_worker_for_lane(lane):
             _enqueue_rq(lane, job_type, payload, correlation_id)
         else:
+            # REDIS_URL is set but no Job Runner is draining this lane — the
+            # durable rail is effectively off. Run inline so the user is never
+            # dropped (Upload Guarantee), but emit a structured alarm: in prod a
+            # missing worker must page, not silently degrade to in-process work.
             _log.critical(
-                "No active background worker for lane=%s; running job_type=%s inline",
+                "metric worker.absent lane=%s job_type=%s env=%s action=ran_inline",
                 lane,
                 job_type,
+                settings.railway_environment,
             )
             _invoke_inline(job_type, payload)
     else:

@@ -20,10 +20,14 @@ export function FeedbackFAB({
   onOpen,
   pulse = true,
   hidden = false,
+  subdued = false,
 }: {
   onOpen: (category?: FeedbackCategory) => void
   pulse?: boolean
   hidden?: boolean
+  /** First-run (no CV yet): neutral, no accent / pulse / notification dot so the
+   *  Upload CTA owns the only accent on the page (D2, three-accent budget). */
+  subdued?: boolean
 }) {
   const [hover, setHover] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -105,17 +109,19 @@ export function FeedbackFAB({
           height: 56,
           borderRadius: "50%",
           background: "var(--tm-surface)",
-          border: "1px solid var(--tm-interactive)",
-          color: "var(--tm-interactive)",
+          border: subdued ? "1px solid var(--tm-border)" : "1px solid var(--tm-interactive)",
+          color: subdued ? "var(--tm-text-muted)" : "var(--tm-interactive)",
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
           fontFamily: "inherit",
           boxShadow: hover
             ? "0 0 0 4px var(--tm-int-bg-wash), 0 0 24px var(--tm-int-bg-hover), 0 10px 30px rgba(0,0,0,0.5)"
-            : "0 0 18px var(--tm-int-border), 0 8px 24px rgba(0,0,0,0.5)",
+            : subdued
+              ? "0 8px 24px rgba(0,0,0,0.4)"
+              : "0 0 18px var(--tm-int-border), 0 8px 24px rgba(0,0,0,0.5)",
           transition: "all 200ms var(--tm-ease)",
-          animation: pulse && !expanded && !hover ? "glow-pulse 3.2s ease-in-out infinite" : "none",
+          animation: pulse && !subdued && !expanded && !hover ? "glow-pulse 3.2s ease-in-out infinite" : "none",
           transform: hover ? "scale(1.04)" : "scale(1)",
         }}
       >
@@ -128,27 +134,29 @@ export function FeedbackFAB({
           strokeWidth="1.6"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}
+          style={subdued ? undefined : { filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}
         >
           <circle cx="12" cy="12" r="9" />
           <circle cx="12" cy="12" r="5" />
           <circle cx="12" cy="12" r="1.5" fill="currentColor" />
         </svg>
-        {/* Live notification dot */}
-        <span
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: "var(--tm-success)",
-            border: "2px solid var(--tm-surface)",
-            boxShadow: "0 0 6px var(--tm-success)",
-          }}
-        />
+        {/* Live notification dot — only once the user is past first-run (D2). */}
+        {!subdued && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "var(--tm-success)",
+              border: "2px solid var(--tm-surface)",
+              boxShadow: "0 0 6px var(--tm-success)",
+            }}
+          />
+        )}
       </button>
 
       {/* Hover label */}

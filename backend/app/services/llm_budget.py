@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+import uuid
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from openai import (
     APIConnectionError,
@@ -44,14 +46,90 @@ def _get_semaphore() -> asyncio.Semaphore:
     return _semaphore
 
 
+# ── Global Redis Provider Budget (ADR-0008) ─────────────────────────────────────
+# Across many processes (web replicas + Job Runners) an asyncio.Semaphore is
+# per-process — total in-flight = processes × size, which over-admits and trips
+# 429s. The global cap is a leased semaphore in Redis: a ZSET of live slots keyed
+# by a random member with score = lease expiry. Acquire is one atomic Lua step
+# (drop expired → admit if under limit). A crashed holder's slot auto-frees when
+# its lease expires, so the budget can never deadlock. Backpressure (poll-wait),
+# never rejection — ADR-0008 Overload Policy.
+_BUDGET_KEY = "llm:budget:slots"
+# Max seconds a single slot may be held. Generous — longer than any real LLM
+# call (CV parse, 4096 tokens) so we don't free a slot mid-call, short enough
+# that a crashed holder recovers quickly.
+_LEASE_TTL_SECONDS = 180.0
+_POLL_INTERVAL_SECONDS = 0.05
+# Log (don't fail) when a caller has waited this long for a slot — overload signal.
+_WAIT_WARN_SECONDS = 10.0
+
+# Lua: drop expired leases, admit (ZADD) iff live count < limit. Atomic → no
+# two callers can both pass the check. Returns 1 admitted, 0 full.
+_ACQUIRE_LUA = """
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1])
+if redis.call('ZCARD', KEYS[1]) < tonumber(ARGV[3]) then
+  redis.call('ZADD', KEYS[1], ARGV[2], ARGV[4])
+  return 1
+end
+return 0
+"""
+
+_async_redis: Any = None
+
+
+def _get_async_redis() -> Any:
+    global _async_redis
+    if _async_redis is None:
+        from redis.asyncio import Redis
+
+        _async_redis = Redis.from_url(settings.redis_url.strip(), decode_responses=True)
+    return _async_redis
+
+
+@asynccontextmanager
+async def _redis_slot() -> AsyncIterator[None]:
+    redis = _get_async_redis()
+    member = uuid.uuid4().hex
+    limit = max(1, int(settings.llm_max_concurrency))
+    started = time.monotonic()
+    warned = False
+    while True:
+        now = time.time()
+        admitted = await redis.eval(
+            _ACQUIRE_LUA, 1, _BUDGET_KEY, str(now), str(now + _LEASE_TTL_SECONDS), str(limit), member
+        )
+        if admitted:
+            break
+        waited = time.monotonic() - started
+        if waited >= _WAIT_WARN_SECONDS and not warned:
+            warned = True
+            _log.warning("metric llm.budget.wait member=%s waited=%.1fs limit=%d", member, waited, limit)
+        await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+    try:
+        yield
+    finally:
+        try:
+            await redis.zrem(_BUDGET_KEY, member)
+        except Exception:  # pragma: no cover — lease TTL frees the slot anyway
+            _log.warning("llm.budget release failed for member=%s; lease will expire it", member)
+
+
 @asynccontextmanager
 async def provider_slot() -> AsyncIterator[None]:
     """Hold one global LLM slot for the duration of a provider call.
 
     Excess concurrent callers wait here rather than stampeding the provider —
-    backpressure, not failure. This is the ADR-0008 Overload Policy at the
-    provider door: slow under load, never 429-dead.
+    backpressure, not failure (ADR-0008 Overload Policy: slow under load, never
+    429-dead).
+
+    Global across processes via Redis when REDIS_URL is set (web replicas +
+    Job Runners share one ceiling); falls back to a per-process asyncio.Semaphore
+    locally / in tests (single process → identical behaviour).
     """
+    if settings.redis_url.strip():
+        async with _redis_slot():
+            yield
+        return
     sem = _get_semaphore()
     await sem.acquire()
     try:

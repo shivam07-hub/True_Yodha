@@ -10,28 +10,6 @@
   margin-top: 24px;
 }
 
-/* ── Intel strip ──────────────────────────────────────────────────────────── */
-.db-intel {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  text-decoration: none;
-}
-.db-intel-card {
-  background: var(--tm-surface);
-  border: 1px solid var(--tm-border-soft, var(--tm-border));
-  border-radius: var(--tm-radius, 10px);
-  padding: 12px 14px;
-  min-width: 0;
-}
-.db-intel-skel { height: 72px; opacity: 0.5; }
-.db-intel-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint); }
-.db-intel-value {
-  font-size: 16px; font-weight: 650; color: var(--tm-text); margin-top: 4px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.db-intel-sub { font-size: 11px; color: var(--tm-text-muted); margin-top: 2px; }
-
 /* ── Head: segments + refresh ─────────────────────────────────────────────── */
 .db-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .db-segments { display: flex; gap: 6px; }
@@ -187,7 +165,6 @@
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1024px) { .db-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) {
-  .db-intel { grid-template-columns: repeat(2, 1fr); }
   .db-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -157,6 +157,9 @@ export default function TermsPage() {
 
             <Section id="account" n="03" title="Your Account">
               <P>You must provide accurate information when creating an account. You are responsible for keeping your credentials secure. Notify us immediately at <a href="mailto:hello@himyro.com" style={{ color: "var(--tm-interactive)" }}>hello@himyro.com</a> if you suspect unauthorised access.</P>
+              <Sub title="Signing in with Google or LinkedIn" />
+              <P>You may sign in using your Google or LinkedIn account. When you do, we receive only your name, email address, and profile picture — and, for LinkedIn, the public headline you have already published. We receive nothing private and nothing you have not already made public. We use this read-only access solely to create and identify your account.</P>
+              <P>Through these integrations Myro <strong>never</strong> posts on your behalf, messages your network, or reads who you are connected to. If anything ever needs to leave Myro, you do it yourself by tapping a button. Your use of Google and LinkedIn remains subject to their own terms, and you can revoke Myro&rsquo;s access from those providers at any time. See our <a href="/privacy" style={{ color: "var(--tm-interactive)" }}>Privacy Policy</a> for full detail.</P>
             </Section>
 
             <Section id="conduct" n="04" title="Acceptable Use">

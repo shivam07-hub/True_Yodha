@@ -277,7 +277,30 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-02 - LinkedIn native-first social path)
+## LAST SESSION SUMMARY (2026-06-03 - First-login hero design audit fixes, Develop)
+
+Claude ran a `/frontend-design` audit of the first-login `/home` first-run hero (27 blunders) and shipped two commits to Develop (not pushed). **Codex: the mechanical slice below is already done — do not redo.**
+
+- `7a3fd3e fix(home)` — `components/home/first-run-hero.{tsx,css}`: error folds into step-1 as a real `failed` state in `--tm-danger` (was an orphaned `<p>` after the stepper while step-1 still rendered "active"); accent diet (eyebrow neutralized); voice/vocab fixes (dropped "FIRST MISSION", "13 domains" jargon, em-dash overload).
+- `8dbee60 fix(nav)` — `components/nav/nav.css` + `components/shell/web-chrome.tsx`: "FIRST CV IN10 min" optical gap + XP balance `toLocaleString` + tabular-nums (`3,000 XP`).
+- **Open → Shivam decision (Claude spawned a grill):** top-nav Live/Practice gating, feedback-FAB de-emphasis, greyed-state contrast (PR-K), light-vs-dark first-login theme.
+- tsc 0, lint clean both commits. Note: the nested `frontend/.git` repo has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`); the root deploy repo is clean.
+
+## LAST SESSION SUMMARY (2026-06-03 - LinkedIn-only social automation)
+
+Paused X activity and narrowed the daily social automation to LinkedIn only.
+
+- Shivam confirmed `@himyro` on X is suspended and under appeal, so X drafting, scheduling and posting are paused until he confirms the appeal is resolved.
+- Updated heartbeat automation `daily-himyro-linkedin-post` to **Daily Himyro LinkedIn post**: one LinkedIn-native company-page package per day, no X drafts, no X publishing attempts.
+- Kept the LinkedIn approval rule explicit: draft may be prepared automatically, but public LinkedIn posting/editing still needs Shivam's in-thread approval and an action-time confirmation before the final Post/Save click.
+- Documented the X pause in `Myro Newsletter/growth-agent/newsletter-distribution-agent.md`.
+- Marked the 2026-06-03 outbox X drafts as paused/do-not-use; the LinkedIn draft remains ready for review.
+
+Validation:
+
+- Confirmed automation update through Codex app automation store.
+
+## OLDER SESSION SUMMARY (2026-06-02 - LinkedIn native-first social path)
 
 Tightened the newsletter social workflow after the first LinkedIn publishing test.
 

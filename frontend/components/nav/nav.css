@@ -203,6 +203,7 @@
   text-transform: uppercase;
 }
 .tm-cv-promise-time {
+  margin-left: 2px;
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

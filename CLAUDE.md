@@ -425,6 +425,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-03 · First-login hero design audit → fixes SHIPPED to Develop)
+
+`/frontend-design` + `brand-guidelines` audit of the first-login `/home` first-run hero (screenshot from Shivam). Found **27 distinct blunders**; fixed the high-severity in-component set + the Codex mechanical slice. Two commits on Develop (not pushed).
+
+**SHIPPED (mine) — `7a3fd3e` `fix(home)`:** `components/home/first-run-hero.tsx`+`.css`.
+- Error was an **orphaned `<p>` rendered after the stepper while step-1 still showed "active"** (`failed` + `step1="active"` simultaneously). Now error folds into step-1 as a real `failed` state in `--tm-danger` red with a "Try another" CTA. Killed dead `.frh-failed`/`.frh-inline-link`.
+- Accent diet: neutralized green eyebrow → first-paint hard accents = H1-italic + Upload CTA (three-accent budget).
+- Voice/vocab: dropped "FIRST MISSION" (retired vocab), killed "13 domains" jargon + `||13` magic fallback, removed em-dash overload + time-unit triplication from lede, "we read it"→"read in seconds", italic narrowed to one pivot word.
+
+**SHIPPED (Codex slice, done by Claude) — `8dbee60` `fix(nav)`:** `components/nav/nav.css` + `components/shell/web-chrome.tsx`.
+- "FIRST CV IN10 min" → optical gap before the time value.
+- XP balance `3000`→`3,000` (`toLocaleString` + tabular-nums per type.md).
+
+**4 DECISIONS LOCKED + BUILT 2026-06-03 (grilled w/ Shivam; on Develop, not pushed; memory `project_first_login_hero_audit`):**
+- **D4 Theme — honor system** (`2a5bef8`): flash-free `beforeInteractive` script resolves `myro-surface` override else `prefers-color-scheme`; SSR keeps light no-JS fallback. Resolves the `layout.tsx:69` hardcode vs PR-K dark-locked vs E9 system contradiction — system wins. SurfaceToggle UI = follow-up (storage contract live).
+- **D3 Contrast — PR-K-first, hero=proof** (`2a5bef8`): light `--tm-text-faint`→#646F87 (~5.1:1); hero locked steps/rows stop dimming text via opacity (lock icon carries state). **Full PR-K token-table sweep (other 7 files) still owed** — this was the theme system + hero proof only; update HANDOFF "dark-locked" line when it lands.
+- **D1 Nav — keep Live/Practice base, fix copy≠logic** (`c6d4fd3`): hero "grows" now derived from AUTHED_NAV gated items (real `hasBaseline` gate); dropped invented `tailoredCount` thresholds; "NAV GROWS"→"UNLOCKS AS YOU GO".
+- **D2 FAB — neutralize first-run** (`e86e842`): `subdued` prop kills accent/pulse/dot while `!hasCv`, restores after CV.
+- **Gaps (Inshorts/LinkedIn speed): Gap 1** Upload-first hero (big CTA hoisted, fat cards→slim rail) `c6d4fd3` · **Gap 2** scoring skeleton not spinner `c6d4fd3`. **Gap 3** (10-min act→tailor→download tail) = existing Backlog #5 / `project_ten_minute_cv_tail`. App-wide perceived-speed (streaming/optimistic) = streaming + cv-loading backlog tracks.
+- ⚠️ Visual QA owed (authed, Shivam): light AND dark first-login at 1280px + 375px; confirm no theme FOUC.
+
+Full 27-blunder list in this session's audit. tsc 0, lint clean both commits. The deploy repo (root) tracks first-run-hero cleanly; the nested `frontend/.git` has an unrelated in-flight progressive-nav mess (staged-delete `app/home/page.tsx`) — flag for whoever owns that repo.
+
 ## LAST SESSION SUMMARY (2026-06-02 · Scheduled task: Enterprise Polish Sprint audit + plan)
 
 **Automated Cowork session — no code written. Pure audit → plan.**

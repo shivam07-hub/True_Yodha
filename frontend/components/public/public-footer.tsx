@@ -24,9 +24,8 @@ const FOOTER_COLS = [
   {
     title: "Legal",
     links: [
-      { label: "Privacy Policy",       href: "/privacy"        },
-      { label: "Terms of Use",         href: "/terms"          },
-      { label: "Cancellation & Refunds", href: "/terms#payments" },
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "Terms of Use",   href: "/terms"   },
     ],
   },
 ]
