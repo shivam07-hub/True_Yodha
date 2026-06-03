@@ -99,6 +99,69 @@ def test_provider_slot_caps_concurrency(monkeypatch):
     assert state["peak"] <= 2
 
 
+# ── global Redis budget seam ────────────────────────────────────────────────────
+
+class _FakeBudgetRedis:
+    """Emulates the leased-semaphore ZSET: member -> lease-expiry score."""
+
+    def __init__(self) -> None:
+        self.z: dict[str, float] = {}
+
+    async def eval(self, _script, _numkeys, _key, now, expiry, limit, member):
+        now_f = float(now)
+        # ZREMRANGEBYSCORE -inf..now  → drop expired (score <= now)
+        self.z = {m: s for m, s in self.z.items() if s > now_f}
+        if len(self.z) < int(limit):
+            self.z[member] = float(expiry)
+            return 1
+        return 0
+
+    async def zrem(self, _key, member):
+        self.z.pop(member, None)
+
+
+def test_redis_provider_slot_caps_concurrency_globally(monkeypatch):
+    monkeypatch.setattr(llm_budget.settings, "redis_url", "redis://fake:6379")
+    monkeypatch.setattr(llm_budget.settings, "llm_max_concurrency", 3)
+    fake = _FakeBudgetRedis()
+    monkeypatch.setattr(llm_budget, "_get_async_redis", lambda: fake)
+    monkeypatch.setattr(llm_budget, "_POLL_INTERVAL_SECONDS", 0.005)
+
+    state = {"in_flight": 0, "peak": 0}
+
+    async def worker():
+        async with llm_budget.provider_slot():
+            state["in_flight"] += 1
+            state["peak"] = max(state["peak"], state["in_flight"])
+            await asyncio.sleep(0.02)
+            state["in_flight"] -= 1
+
+    async def run():
+        await asyncio.gather(*[worker() for _ in range(12)])
+
+    asyncio.run(run())
+    assert state["peak"] <= 3
+    assert fake.z == {}  # all leases released
+
+
+def test_redis_slot_released_frees_budget(monkeypatch):
+    monkeypatch.setattr(llm_budget.settings, "redis_url", "redis://fake:6379")
+    monkeypatch.setattr(llm_budget.settings, "llm_max_concurrency", 1)
+    fake = _FakeBudgetRedis()
+    monkeypatch.setattr(llm_budget, "_get_async_redis", lambda: fake)
+    monkeypatch.setattr(llm_budget, "_POLL_INTERVAL_SECONDS", 0.005)
+
+    async def run():
+        async with llm_budget.provider_slot():
+            assert len(fake.z) == 1
+        assert len(fake.z) == 0  # released
+        # second acquire succeeds because the first freed its slot
+        async with llm_budget.provider_slot():
+            assert len(fake.z) == 1
+
+    asyncio.run(run())
+
+
 # ── complete() retry behaviour ──────────────────────────────────────────────────
 
 def test_complete_retries_transient_then_succeeds(monkeypatch):
