@@ -157,7 +157,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
             style={{ position: "relative" }}
           >
             <span style={{ color: "var(--tm-interactive)", fontSize: 11 }}>◆</span>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 700 }}>{xpBalance}</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{xpBalance.toLocaleString()}</span>
             <span style={{ fontSize: 11, color: "var(--tm-text-muted)", fontWeight: 400 }}>XP</span>
             <XpDeltaNudge />
           </button>
