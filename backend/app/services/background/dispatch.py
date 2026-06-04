@@ -120,7 +120,9 @@ def _has_active_worker_for_lane(lane: str) -> bool:
         from redis import Redis
         from rq import Worker
 
-        conn = Redis.from_url(settings.redis_url.strip(), decode_responses=True)
+        # RQ needs a binary connection (pickled payloads); a decoded one crashes
+        # the worker on dequeue. See job_refresh._redis_state._rq_connection.
+        conn = Redis.from_url(settings.redis_url.strip())
         workers = Worker.all(connection=conn)
         for worker in workers:
             queue_names = worker.queue_names()
@@ -142,7 +144,8 @@ def _enqueue_rq(
     from redis import Redis
     from rq import Queue, Retry
 
-    conn = Redis.from_url(settings.redis_url.strip(), decode_responses=True)
+    # RQ needs a binary connection (pickled payloads) — never decode_responses.
+    conn = Redis.from_url(settings.redis_url.strip())
     queue = Queue(lane, connection=conn)
     kwargs: dict[str, Any] = dict(
         job_timeout=_JOB_TIMEOUT,

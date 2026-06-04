@@ -17,10 +17,26 @@ _JOB_TIMEOUT = 15 * 60
 
 
 def _connection() -> Redis:
+    """Decoded connection for app JSON state (set_state/get_state) — the values
+    are UTF-8 JSON strings, so decode_responses=True is convenient here."""
     url = settings.redis_url.strip()
     if not url:
         raise RuntimeError("REDIS_URL is required for async job refresh.")
     return Redis.from_url(url, decode_responses=True)
+
+
+def _rq_connection() -> Redis:
+    """Binary connection for RQ (Queue / Worker / liveness).
+
+    RQ job payloads are pickled — a decoded (decode_responses=True) connection
+    makes the worker raise UnicodeDecodeError on the first hgetall of a job
+    hash, which silently kills the worker and forces every refresh to fall back
+    to inline LLM compute on the API event loop. RQ MUST use a binary connection.
+    """
+    url = settings.redis_url.strip()
+    if not url:
+        raise RuntimeError("REDIS_URL is required for async job refresh.")
+    return Redis.from_url(url)
 
 
 def set_state(key: str, payload: dict[str, Any]) -> None:
@@ -47,7 +63,7 @@ def enqueue_pipeline(
     excluded_job_ids: list[str],
     xp_charged: int,
 ) -> str:
-    conn = _connection()
+    conn = _rq_connection()
     queue = Queue(_QUEUE_NAME, connection=conn)
     job = queue.enqueue(
         "app.services.job_refresh._dispatch.run_pipeline_worker",
@@ -69,4 +85,6 @@ def queue_name() -> str:
 
 
 def get_redis_connection() -> Redis:
-    return _connection()
+    # Used by the RQ Worker entrypoint and the worker-liveness check — must be
+    # the binary RQ connection (see _rq_connection).
+    return _rq_connection()
