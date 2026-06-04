@@ -15,7 +15,10 @@ class XPSpendRequest(BaseModel):
 class ForgeCompleteRequest(BaseModel):
     skill_name: str = Field(min_length=1)
     skill_id: str | None = None
-    duration_minutes: int = Field(default=25, ge=1, le=180)
+    # One burst's minutes since the last claim. Continuation model: bursts accrue
+    # across the day, so the ceiling is a full day, not a single 3h block. Mirror
+    # of FORGE_MAX_BURST_MINUTES in frontend/store/forgeTimerStore.ts.
+    duration_minutes: int = Field(default=25, ge=1, le=1440)
     session_type: Literal["ambient", "focused"] = "focused"
 
 

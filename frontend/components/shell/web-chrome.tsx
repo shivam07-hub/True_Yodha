@@ -218,7 +218,7 @@ export function WebChrome({ xpBalance, profile, signOut, onForgeXPEarned, onXPOp
                   ))}
                   <div className="tm-topbar-menu-divider" />
                   <div style={{ padding: "6px 10px 8px" }}>
-                    <ThemeControl label="Appearance" fluid />
+                    <ThemeControl fluid />
                   </div>
                   <div className="tm-topbar-menu-divider" />
                   {[

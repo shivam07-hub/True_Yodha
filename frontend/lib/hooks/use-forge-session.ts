@@ -7,6 +7,7 @@ import { xp } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
 import {
   FORGE_AMBIENT_DURATION,
+  FORGE_MAX_BURST_MINUTES,
   pendingXpFromMinutes,
   useForgeTimerStore,
   type ForgeSessionType,
@@ -85,7 +86,10 @@ export function useForgeSession(options: UseForgeSessionOptions = {}): UseForgeS
 
   const claim = useCallback(
     async (opts?: { onClaimed?: (result: ForgeSessionResult) => void }) => {
-      const minutes = pendingMinutes
+      // Whole minutes only, and never above the backend per-burst ceiling — a
+      // larger value can only be clock skew / a corrupt persisted session, and
+      // would 422. Any remainder stays pending and is claimable on the next tap.
+      const minutes = Math.min(Math.floor(pendingMinutes), FORGE_MAX_BURST_MINUTES)
       if (minutes <= 0 || claimMutation.isPending) return
       const result = await claimMutation.mutateAsync(minutes)
       markClaimed(minutes)

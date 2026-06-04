@@ -1,11 +1,16 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
-import { reconcileForgeClock } from "@/lib/forge-clock"
+import { foldIdleGap, reconcileForgeClock } from "@/lib/forge-clock"
 import type { CartSkill } from "@/types/xp"
 
 export const FORGE_AMBIENT_DURATION = 25 * 60  // seconds in one "session" unit
 export const FORGE_AMBIENT_RATE = 2             // XP per minute (ambient)
 export const FORGE_FOCUSED_RATE = 3             // XP per minute (focused / immersive)
+// Largest single burst a claim may send, in minutes. Mirrors the backend
+// ForgeCompleteRequest.duration_minutes ceiling (app/schemas/xp.py). One day:
+// bursts accrue across the day in the continuation model, but a value beyond
+// this can only be clock skew / a corrupt persisted session, never real practice.
+export const FORGE_MAX_BURST_MINUTES = 1440
 
 export type ForgeSessionType = "ambient" | "focused"
 
@@ -60,14 +65,14 @@ interface ForgeTimerPersistedFields {
   lastTickAt?: number | null
 }
 
-function clockPatch(state: ForgeTimerStore, now: number) {
+function clockPatch(state: ForgeTimerStore, now: number, pausedMs: number = state.pausedMs) {
   return reconcileForgeClock({
     durationSeconds: FORGE_AMBIENT_DURATION,
     sessionActive: state.sessionActive,
     running: state.running,
     startedAt: state.startedAt,
     pausedAt: state.pausedAt,
-    pausedMs: state.pausedMs,
+    pausedMs,
     claimedMinutes: state.claimedMinutes,
     carriedMinutes: state.carriedMinutes,
     lastTickAt: state.lastTickAt,
@@ -119,7 +124,9 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
       setRunning: (r) => set((state) => {
         if (!state.sessionActive || state.startedAt === null) return { running: false }
         const now = Date.now()
-        const clock = clockPatch(state, now)
+        // Exclude any idle gap (tab was hidden/closed) before settling the clock.
+        const foldedPausedMs = foldIdleGap(state.pausedMs, state.running, state.lastTickAt, now)
+        const clock = clockPatch(state, now, foldedPausedMs)
         const clockFields = {
           remaining: clock.remaining,
           pendingMinutes: clock.pendingMinutes,
@@ -127,8 +134,8 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
         }
         if (r) {
           const pausedMs = state.pausedAt === null
-            ? state.pausedMs
-            : state.pausedMs + Math.max(0, now - state.pausedAt)
+            ? foldedPausedMs
+            : foldedPausedMs + Math.max(0, now - state.pausedAt)
           return {
             ...clockFields,
             running: true,
@@ -140,6 +147,7 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
         return {
           ...clockFields,
           running: false,
+          pausedMs: foldedPausedMs,
           pausedAt: state.pausedAt ?? now,
         }
       }),
@@ -147,10 +155,15 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
 
       reconcile: (now = Date.now()) => set((state) => {
         if (!state.sessionActive) return state
-        const clock = clockPatch(state, now)
+        // Fold the gap since the last heartbeat: foreground ticks (~1s) pass
+        // through; a hidden/closed/throttled gap is moved into pausedMs so it
+        // never accrues. This is what keeps a reopened stale session honest.
+        const pausedMs = foldIdleGap(state.pausedMs, state.running, state.lastTickAt, now)
+        const clock = clockPatch(state, now, pausedMs)
         return {
           remaining: clock.remaining,
           pendingMinutes: clock.pendingMinutes,
+          pausedMs,
           lastTickAt: clock.lastTickAt,
         }
       }),
@@ -194,10 +207,12 @@ export const useForgeTimerStore = create<ForgeTimerStore>()(
 
       dismiss: () => set((state) => {
         const now = Date.now()
-        const clock = clockPatch(state, now)
+        const pausedMs = foldIdleGap(state.pausedMs, state.running, state.lastTickAt, now)
+        const clock = clockPatch(state, now, pausedMs)
         return {
           remaining: clock.remaining,
           pendingMinutes: clock.pendingMinutes,
+          pausedMs,
           lastTickAt: clock.lastTickAt,
           dismissed: true,
           running: false,

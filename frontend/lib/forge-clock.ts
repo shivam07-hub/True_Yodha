@@ -17,6 +17,31 @@ export interface ReconciledForgeClock {
   activeElapsedMs: number
 }
 
+// The live heartbeat ticks once a second while the tab is foreground.
+export const FORGE_HEARTBEAT_MS = 1000
+// A gap larger than this between heartbeats means the tab was hidden, closed,
+// or background-throttled — that wall-clock time must NOT accrue. See CONTEXT.md
+// → "Forge Session": the timer is never always-running.
+export const FORGE_IDLE_GAP_GRACE_MS = 4000
+
+/**
+ * Fold any idle gap since the last heartbeat into `pausedMs` so it is excluded
+ * from earned minutes. Only meaningful while `running` — a paused session is
+ * already frozen by `pausedAt`. This is the seam that makes "time only counts
+ * while you are actually here" true, regardless of how the tab was left.
+ */
+export function foldIdleGap(
+  pausedMs: number,
+  running: boolean,
+  lastTickAt: number | null,
+  now: number,
+): number {
+  if (!running || lastTickAt === null) return pausedMs
+  const gap = now - lastTickAt
+  if (gap > FORGE_IDLE_GAP_GRACE_MS) return pausedMs + (gap - FORGE_HEARTBEAT_MS)
+  return pausedMs
+}
+
 export function reconcileForgeClock(
   snapshot: ForgeClockSnapshot,
   now: number,
