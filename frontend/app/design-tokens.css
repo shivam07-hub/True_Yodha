@@ -30,6 +30,13 @@
   --tm-hover:         rgba(255, 255, 255, 0.04);
   --tm-icon-muted:    rgba(240, 244, 255, 0.38);
 
+  /* ── Skeleton (loading placeholder · ADR-0011 §B) ────────────
+     The base must read as a *real shape* against the ink page —
+     a near-invisible blob communicates "empty", not "loading".
+     `sheen` is the directional teal shimmer band that sweeps across. */
+  --tm-skeleton:       #1C2945;   /* visible block fill on #050A18 page */
+  --tm-skeleton-sheen: rgba(120, 220, 235, 0.16);  /* teal sweep highlight */
+
   /* ── Text (Ghost) ──────────────────────────────────────────
      WCAG AA targets on #050A18 page:
        primary  ≥ 7:1 (AAA)
@@ -260,6 +267,10 @@
   --tm-hover-soft:    rgba(32, 33, 36, 0.03);
   --tm-hover:         rgba(32, 33, 36, 0.06);
   --tm-icon-muted:    rgba(32, 33, 36, 0.48);
+
+  /* Skeleton on the cool off-white page — visible block + white sweep */
+  --tm-skeleton:       #E3E8F1;
+  --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
   /* Light theme text — measured on #F4F6FA page bg
        primary  #050A18 → ~16.6:1 (AAA)

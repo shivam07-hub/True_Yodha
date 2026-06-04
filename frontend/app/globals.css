@@ -63,6 +63,32 @@
   @keyframes loop-pulse { 0%, 100% { transform: none; opacity: 1; } }
 }
 
+/* ── Skeleton shimmer (ADR-0011 §B · enterprise directional sweep) ──
+   A teal sheen band travels left→right across a clearly-visible block.
+   This is the unambiguous "content is coming" signal — it replaces the
+   old opacity-only `animate-pulse`, which read as dead/empty on the dark
+   page. The block colour itself comes from --tm-skeleton (theme-aware). */
+.tm-skeleton {
+  background-color: var(--tm-skeleton);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--tm-skeleton-sheen) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: tm-skeleton-sweep 1.6s ease-in-out infinite;
+}
+@keyframes tm-skeleton-sweep {
+  from { background-position: -100% 0; }
+  to   { background-position:  200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No travelling band; keep the visible block so shape still reads. */
+  .tm-skeleton { background-image: none; animation: none; }
+}
+
 /* ── CV upload processing animations ─────────────────────────── */
 @keyframes tm-pulse-ring {
   0%   { transform: scale(1);    opacity: 0.55; }

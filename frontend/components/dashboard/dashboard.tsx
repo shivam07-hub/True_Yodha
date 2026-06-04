@@ -56,6 +56,18 @@ export function Dashboard(props: DashboardProps) {
   const counts = React.useMemo(() => segmentCounts(items), [items])
   const visible = React.useMemo(() => filterSegment(items, segment), [items, segment])
 
+  // Empty copy is scoped to *why* the view is empty, never a blanket
+  // "No matches yet" when the feed actually holds jobs the user just isn't
+  // currently filtered to (e.g. All=23 while the Myro tab is empty).
+  const emptyMessage =
+    items.length === 0
+      ? "No matches yet — refresh after the next market batch."
+      : segment === "myro"
+        ? "No Myro picks in this batch yet — switch to All to browse every match, or refresh after the next batch."
+        : segment === "liked"
+          ? "You haven't liked any matches yet — tap the heart on a card to save it here."
+          : "Nothing in this view."
+
   const isRefreshing = props.refresh.state === "charging" || props.refresh.state === "computing"
   const isFeedStale =
     !!props.feedUpdatedAt &&
@@ -100,7 +112,7 @@ export function Dashboard(props: DashboardProps) {
       ) : null}
 
       {visible.length === 0 ? (
-        <div className="db-empty">No matches yet — refresh after the next market batch.</div>
+        <div className="db-empty">{emptyMessage}</div>
       ) : isDesktop ? (
         <DesktopGrid
           items={visible}
