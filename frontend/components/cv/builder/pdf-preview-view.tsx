@@ -9,10 +9,10 @@
 
 import { useEffect, useMemo, useState } from "react"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { cv as cvApi } from "@/lib/api"
-import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { Icon } from "./icons"
 import { runAtsChecks, atsScore } from "./ats-checks"
+import { PdfPage } from "./pdf-page"
+import { printCvPage } from "@/lib/cv/print-cv"
 
 interface PdfPreviewViewProps {
   token: string
@@ -32,10 +32,8 @@ function slug(s: string | null | undefined): string {
 }
 
 export function PdfPreviewView({
-  token, cv, hidden, selectedVersion, profile, company, jobTitle, matchScore, jobId, onBackToPlayground,
+  cv, hidden, profile, company, jobTitle, matchScore, jobId, onBackToPlayground,
 }: PdfPreviewViewProps) {
-  const [downloadError, setDownloadError] = useState<string | null>(null)
-  const [downloading, setDownloading] = useState(false)
   // sessionStorage fallback: job match % may be missing on direct URL / refresh.
   const [effectiveScore, setEffectiveScore] = useState(matchScore)
   useEffect(() => {
@@ -56,35 +54,11 @@ export function PdfPreviewView({
   const checks = useMemo(() => runAtsChecks(cv, profile, filename), [cv, profile, filename])
   const { passed: passedCount, total: totalChecks } = atsScore(checks)
 
-  // Snapshot text to send to the PDF endpoint — uses the version's polished
-  // text if available, otherwise the deterministic render of the current state.
-  const snapshotText = useMemo(() => {
-    if (selectedVersion?.polished_text?.trim()) return selectedVersion.polished_text
-    return renderDeterministic(cv, hidden)
-  }, [selectedVersion, cv, hidden])
-
-  async function handleDownload() {
-    setDownloadError(null)
-    setDownloading(true)
-    try {
-      const blob = await cvApi.downloadPdf(token, snapshotText, filename)
-      // Wrap in File so mobile Safari + Android Chrome pick up the name
-      // when the `download` attr alone is ignored on blob: URLs.
-      const file = new File([blob], filename, { type: "application/pdf" })
-      const url = URL.createObjectURL(file)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      a.rel = "noopener"
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : "Could not generate PDF.")
-    } finally {
-      setDownloading(false)
-    }
+  // WYSIWYG download: the .cvb-pdf-page below IS the document. Browser
+  // "Save as PDF" prints exactly what is rendered — selectable text, no
+  // plain-text round-trip, no regex re-parse, no orphan bullets.
+  function handleDownload() {
+    printCvPage(filename)
   }
 
   const contact = {
@@ -120,9 +94,9 @@ export function PdfPreviewView({
               <Icon name="sparkle" size={11}/> {effectiveScore}% JD match
             </span>
           )}
-          <button type="button" className="cvb-btn primary" onClick={handleDownload} disabled={downloading}>
+          <button type="button" className="cvb-btn primary" onClick={handleDownload}>
             <Icon name="download" size={14}/>
-            {downloading ? "Generating…" : "Download PDF"}
+            Download PDF
           </button>
         </div>
       </div>
@@ -130,16 +104,10 @@ export function PdfPreviewView({
       <div className="cvb-pdf-stage">
         <PdfPage cv={cv} hidden={hidden} contact={contact} company={company}/>
 
-        {downloadError && (
-          <div role="alert" className="cvb-pill danger" style={{ padding: "8px 14px", fontSize: 12 }}>
-            {downloadError}
-          </div>
-        )}
-
         <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 11.5, color: "var(--tm-text-faint)", flexWrap: "wrap" }}>
-          <span className="mono">A4 · 1 page · 100% scale</span>
+          <span className="mono">A4 · native text · what you see is what downloads</span>
           <span style={{ opacity: 0.5 }}>·</span>
-          <span>Renders as native text + shapes — fully ATS-parseable.</span>
+          <span>Choose “Save as PDF” in the print dialog — fully ATS-parseable.</span>
         </div>
 
         <div style={{
@@ -192,120 +160,3 @@ function AuditRow({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-interface PdfPageProps {
-  cv: CVStructured
-  hidden: Set<string>
-  contact: { name: string; title: string; location: string; email: string; phone: string; linkedin: string }
-  company: string
-}
-
-function PdfPage({ cv, hidden, contact, company }: PdfPageProps) {
-  const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
-    bullets.filter((b, bi) => !hidden.has(itemId(section, ei * 100 + bi, b)))
-
-  const visibleExperience = cv.experience.map((e, ei) => ({
-    ...e,
-    keptBullets: renderBullets(e.bullets, "exp_bullet", ei),
-  })).filter(e => e.keptBullets.length > 0)
-
-  const visibleProjects = cv.projects.map((p, pi) => ({
-    ...p,
-    keptBullets: renderBullets(p.bullets, "proj_bullet", pi),
-  })).filter(p => p.keptBullets.length > 0)
-
-  const visibleEdu = cv.education.filter((ed, i) => {
-    const line = [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · ")
-    return !hidden.has(itemId("edu", i, line))
-  })
-
-  const summaryHidden = cv.summary ? hidden.has(itemId("summary", 0, cv.summary)) : true
-  const skillsHidden = cv.skills_line ? hidden.has(itemId("skills_line", 0, cv.skills_line)) : true
-  const visibleCerts = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
-
-  return (
-    <div className="cvb-pdf-page">
-      <h1 className="pdf-name">{contact.name}</h1>
-      {contact.title && <div className="pdf-title">{contact.title}</div>}
-      <div className="pdf-contact">
-        {contact.location && <span>{contact.location}</span>}
-        {contact.email && <span>{contact.email}</span>}
-        {contact.phone && <span>{contact.phone}</span>}
-        {contact.linkedin && <span>{contact.linkedin}</span>}
-      </div>
-
-      {cv.summary && !summaryHidden && (
-        <>
-          <h2>Summary</h2>
-          <div className="pdf-summary">{cv.summary}</div>
-        </>
-      )}
-
-      {visibleExperience.length > 0 && (
-        <>
-          <h2>Experience</h2>
-          {visibleExperience.map((e, ei) => (
-            <div key={ei}>
-              <div className="pdf-role-head">
-                <div>
-                  <span className="pdf-role">{e.role}</span>
-                  {e.company && <span className="pdf-co"> · {e.company}</span>}
-                </div>
-                {e.dates && <span className="pdf-dates">{e.dates}</span>}
-              </div>
-              <ul>{e.keptBullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-            </div>
-          ))}
-        </>
-      )}
-
-      {visibleProjects.length > 0 && (
-        <>
-          <h2>Projects</h2>
-          {visibleProjects.map((p, pi) => (
-            <div key={pi}>
-              <div className="pdf-role-head">
-                <div><span className="pdf-role">{p.name}</span></div>
-                {p.dates && <span className="pdf-dates">{p.dates}</span>}
-              </div>
-              <ul>{p.keptBullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
-            </div>
-          ))}
-        </>
-      )}
-
-      {visibleEdu.length > 0 && (
-        <>
-          <h2>Education</h2>
-          {visibleEdu.map((ed, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <div>
-                <span style={{ fontWeight: 600 }}>{ed.institution}</span>
-                {ed.degree && <span style={{ color: "#333" }}> · {ed.degree}</span>}
-              </div>
-              {ed.dates && <span className="pdf-dates">{ed.dates}</span>}
-            </div>
-          ))}
-        </>
-      )}
-
-      {cv.skills_line && !skillsHidden && (
-        <>
-          <h2>Skills</h2>
-          <div className="pdf-skills-line">{cv.skills_line}</div>
-        </>
-      )}
-
-      {visibleCerts.length > 0 && (
-        <>
-          <h2>Certifications</h2>
-          <ul>{visibleCerts.map((c, i) => <li key={i}>{c}</li>)}</ul>
-        </>
-      )}
-
-      <div className="pdf-foot">
-        <span>{contact.name} — tailored for {company}</span>
-        <span>Generated via Myro · myro.app</span>
-      </div>
-    </div>
-  )
-}

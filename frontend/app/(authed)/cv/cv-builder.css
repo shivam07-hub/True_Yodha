@@ -1178,6 +1178,58 @@ mark.cvb-kw {
   color: #888;
 }
 
+/* Master CV panel: backdrop that centers the light sheet and scrolls if the
+   816px page is wider than the panel. */
+.tm-lib-master-cv-stage {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  max-height: 70vh;
+  padding: 16px;
+  background: var(--tm-bg, #0a0a0a);
+  border-radius: var(--tm-radius-sm, 8px);
+}
+
+/* ── Print / Save-as-PDF: isolate the resume sheet (WYSIWYG download) ──
+   The `.cvb-pdf-page` the user previews IS the document. Hide everything
+   else, neutralize positioned ancestors so the sheet lands at the page
+   origin (it can be nested in the tailored stage OR the master panel), and
+   strip the on-screen chrome. The browser's "Save as PDF" then emits exactly
+   what is on screen as real, selectable, ATS-parseable text. */
+@media print {
+  body * { visibility: hidden !important; }
+  .cvb-pdf-page, .cvb-pdf-page * { visibility: visible !important; }
+
+  /* Ancestors that carry `position`/`transform`/`overflow` would offset or
+     clip an absolutely positioned descendant — flatten them so top/left:0
+     means the page origin. */
+  .cvb-scope, .cvb-page, .cvb-pdf-stage,
+  .tm-lib-scope, .tm-lib-root, .tm-lib-main,
+  .tm-lib-master-panel, .tm-lib-master-panel-body, .tm-lib-master-cv-stage {
+    position: static !important;
+    transform: none !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .cvb-pdf-page {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  /* Foot is on-screen chrome, not part of the submitted CV. */
+  .cvb-pdf-page .pdf-foot { display: none !important; }
+
+  @page { size: A4; margin: 14mm; }
+}
+
 .cvb-pdf-toolbar {
   position: sticky;
   top: 0;

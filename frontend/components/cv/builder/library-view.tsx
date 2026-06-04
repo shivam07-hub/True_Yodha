@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
@@ -125,6 +125,16 @@ export function LibraryView({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [masterOpen, setMasterOpen] = useState(false)
+  const masterPanelRef = useRef<HTMLDivElement>(null)
+
+  // Bring the panel into view when it opens — the hero button changing state
+  // alone wasn't enough signal that the CV had opened (reported confusion).
+  useEffect(() => {
+    if (!masterOpen) return
+    requestAnimationFrame(() =>
+      masterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    )
+  }, [masterOpen])
 
   // Lens-collapse (tracker→CV merge, 2026-06-02): the By-stage / By-company toggle
   // was dropped — company folders already show each pursuit's stage + an inline
@@ -169,20 +179,23 @@ export function LibraryView({
             <MasterCVHero
               baseline={currentBaseline}
               profile={profile}
-              onOpen={() => setMasterOpen(true)}
+              open={masterOpen}
+              onOpen={() => setMasterOpen(v => !v)}
               onReplace={onReplaceCV}
             />
           </div>
 
           {masterOpen && (
-            <MasterCVPanel
-              token={token}
-              baseline={currentBaseline}
-              cv={cv}
-              profile={profile}
-              onClose={() => setMasterOpen(false)}
-              onReplace={onReplaceCV}
-            />
+            <div ref={masterPanelRef}>
+              <MasterCVPanel
+                token={token}
+                baseline={currentBaseline}
+                cv={cv}
+                profile={profile}
+                onClose={() => setMasterOpen(false)}
+                onReplace={onReplaceCV}
+              />
+            </div>
           )}
 
           {/* Desktop toggle lives in the pipeline rail head; this mobile-only

@@ -3,14 +3,21 @@
 import { useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CVRender } from "./cv-render"
+import { PdfPage } from "./pdf-page"
 import { MasterEditor } from "./master-editor"
 import { ApertureMark, timeAgoShort } from "./library-shared"
 import { I, LIcon } from "./library-icons"
+import { CloseButton } from "@/components/ui/close-button"
+import { printCvPage } from "@/lib/cv/print-cv"
+import { masterFilename } from "@/lib/cv/download-master"
+
+// Master CV has no per-job hidden items — every section renders.
+const NO_HIDDEN: Set<string> = new Set()
 
 interface MasterCVHeroProps {
   baseline: CVVersion | null
   profile: UserProfile | null
+  open: boolean
   onOpen: () => void
   onReplace: () => void
 }
@@ -39,7 +46,7 @@ function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
   }
 }
 
-export function MasterCVHero({ baseline, profile, onOpen, onReplace }: MasterCVHeroProps) {
+export function MasterCVHero({ baseline, profile, open, onOpen, onReplace }: MasterCVHeroProps) {
   const vNum = baseline ? `v${baseline.user_version_number}` : "v0"
   const updatedAgo = baseline ? timeAgoShort(baseline.created_at) : "—"
   const displayName = masterDisplayName(profile)
@@ -85,8 +92,14 @@ export function MasterCVHero({ baseline, profile, onOpen, onReplace }: MasterCVH
         </div>
 
         <div className="tm-lib-master-actions">
-          <button type="button" className="tm-lib-btn primary sm" onClick={onOpen} disabled={!baseline}>
-            <LIcon d={I.file} size={13}/> Open Master CV
+          <button
+            type="button"
+            className={`tm-lib-btn sm ${open ? "ghost" : "primary"}`}
+            onClick={onOpen}
+            disabled={!baseline}
+            aria-pressed={open}
+          >
+            <LIcon d={open ? I.close : I.file} size={13}/> {open ? "Close Master CV" : "Open Master CV"}
           </button>
           <button type="button" className="tm-lib-btn ghost sm" onClick={onReplace}>
             <LIcon d={I.upload} size={13}/> Replace upload
@@ -124,22 +137,32 @@ export function MasterCVPanel({
               <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
                 <LIcon d={I.edit ?? I.file} size={12}/> Edit
               </button>
-              <DownloadCVButton
-                token={token}
-                baseline={baseline}
-                cv={cv}
-                fullName={profile?.full_name}
-                className="tm-lib-btn primary sm"
-                label="Download Master"
-              />
+              {cv ? (
+                // WYSIWYG: print the .cvb-pdf-page shown below — exactly what downloads.
+                <button
+                  type="button"
+                  className="tm-lib-btn primary sm"
+                  onClick={() => printCvPage(masterFilename(profile?.full_name))}
+                >
+                  <LIcon d={I.file} size={12}/> Download Master
+                </button>
+              ) : (
+                // No structured CV yet — fall back to the text-based download path.
+                <DownloadCVButton
+                  token={token}
+                  baseline={baseline}
+                  cv={cv}
+                  fullName={profile?.full_name}
+                  className="tm-lib-btn primary sm"
+                  label="Download Master"
+                />
+              )}
               <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
                 <LIcon d={I.upload} size={12}/> Replace
               </button>
             </>
           )}
-          <button type="button" className="tm-lib-btn icon-only sm" onClick={onClose} aria-label="Close master CV preview">
-            <LIcon d={I.close} size={13}/>
-          </button>
+          <CloseButton onClick={onClose} ariaLabel="Close master CV preview" size={15}/>
         </div>
       </div>
 
@@ -147,9 +170,13 @@ export function MasterCVPanel({
         {editing ? (
           <MasterEditor token={token} profile={profile}/>
         ) : cv ? (
-          <CVRender cv={cv} contact={masterContact(cv, profile)}/>
+          <div className="tm-lib-master-cv-stage">
+            <PdfPage cv={cv} hidden={NO_HIDDEN} contact={masterContact(cv, profile)}/>
+          </div>
         ) : (
-          <pre className="tm-lib-master-panel-text">{fallbackText || "Master CV is still being prepared."}</pre>
+          <pre className="tm-lib-master-panel-text">
+            {fallbackText || "Your structured CV is still loading — the download below still works."}
+          </pre>
         )}
       </div>
     </section>
