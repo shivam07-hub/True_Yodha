@@ -49,6 +49,11 @@
   --tm-text-faint:    #6C7A98;    /*  ~5.1:1 — AA  */
   --tm-text-disabled: #3A4560;    /*  ~2.0:1 — decorative ONLY (icons, dividers, separators) */
   --tm-accent-text:   #67E8F9;
+  /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
+     defined only inside the <=768px block in globals.css (dumping accident), so
+     it resolved to cyan on phones and was undefined on desktop. Aliased here so
+     it resolves on every viewport and flips with surface via --tm-accent-text. */
+  --tm-interactive-text: var(--tm-accent-text);
 
   /* ── Info (neutral notice · applied-stage indicator) ─────── */
   --tm-info:          #A78BFA;
