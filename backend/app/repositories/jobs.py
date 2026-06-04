@@ -1500,14 +1500,15 @@ class JobsRepository:
         return rows
 
     def get_user_target_roles(self, user_id: str) -> list[str]:
-        result = (
+        data = safe_read(
             self._db.table("user_profiles")
             .select("target_roles")
             .eq("id", user_id)
-            .maybe_single()
-            .execute()
+            .maybe_single(),
+            default=None,
+            context="user_target_roles",
         )
-        return ((result.data if result else {}) or {}).get("target_roles") or []
+        return (data or {}).get("target_roles") or []
 
     # ── job matches ────────────────────────────────────────────────────────────
 
@@ -1699,20 +1700,22 @@ class JobsRepository:
         ).execute()
 
     def get_deepening_sampled(self, user_id: str) -> bool:
-        result = (
+        # user_profiles PK is `id`, not `user_id` — filtering on user_id raises
+        # 42703 "column user_profiles.user_id does not exist" and 500s /deepenings.
+        rows = safe_read(
             self._db.table("user_profiles")
             .select("deepening_sampled")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
+            .eq("id", user_id)
+            .limit(1),
+            default=[],
+            context="deepening_sampled",
         )
-        rows = result.data or []
         return bool(rows and rows[0].get("deepening_sampled"))
 
     def set_deepening_sampled(self, user_id: str) -> None:
         self._admin_db.table("user_profiles").update(
             {"deepening_sampled": True}
-        ).eq("user_id", user_id).execute()
+        ).eq("id", user_id).execute()
 
     def get_user_skill_rows(self, user_id: str) -> list[dict[str, Any]]:
         result = (
@@ -1724,7 +1727,10 @@ class JobsRepository:
         return result.data or []
 
     def get_user_profile_targeting(self, user_id: str) -> dict[str, Any]:
-        result = (
+        # On the paid Refresh hot path: a missing profile row (or the postgrest-py
+        # 204 quirk) must degrade to empty targeting, never crash the pipeline and
+        # trigger a refund. safe_read absorbs the benign "no row" case.
+        data = safe_read(
             self._db.table("user_profiles")
             .select(
                 "target_roles, target_location, target_location_country, "
@@ -1732,10 +1738,11 @@ class JobsRepository:
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)
-            .maybe_single()
-            .execute()
+            .maybe_single(),
+            default=None,
+            context="user_profile_targeting",
         )
-        profile = (result.data if result else None) or {}
+        profile = data or {}
         profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
         return profile
 
@@ -1796,15 +1803,15 @@ class JobsRepository:
         self, user_id: str, job_id: str
     ) -> dict[str, Any] | None:
         # NOTE: join on `jobs` requires RLS to allow `authenticated` reads on public.jobs.
-        result = (
+        return safe_read(
             self._db.table("job_applications")
             .select("*, jobs(job_title, company_name, job_description)")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
-            .maybe_single()
-            .execute()
+            .maybe_single(),
+            default=None,
+            context="application_with_job",
         )
-        return (result.data if result else None) or None
 
     def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
         for table_name in ("job_applications", "user_job_matches"):
@@ -1849,19 +1856,20 @@ class JobsRepository:
     def mark_first_offer_if_unset(self, user_id: str, timestamp_iso: str) -> bool:
         # Q6: set first_offer_at exactly once per user. Returns True only when this
         # call was the one that wrote it (drives the one-time sparkle on the tracker card).
-        existing = (
+        # user_profiles PK is `id`, not `user_id` (see get_deepening_sampled).
+        existing = safe_read(
             self._db.table("user_profiles")
             .select("first_offer_at")
-            .eq("user_id", user_id)
-            .maybe_single()
-            .execute()
+            .eq("id", user_id)
+            .maybe_single(),
+            default=None,
+            context="first_offer_at",
         )
-        existing_data = existing.data if existing else None
-        if existing_data and existing_data.get("first_offer_at"):
+        if existing and existing.get("first_offer_at"):
             return False
         self._db.table("user_profiles").update(
             {"first_offer_at": timestamp_iso}
-        ).eq("user_id", user_id).execute()
+        ).eq("id", user_id).execute()
         return True
 
     def insert_application_review(
@@ -1899,14 +1907,15 @@ class JobsRepository:
     # ── skill gap ──────────────────────────────────────────────────────────────
 
     def get_job_skills(self, job_id: str) -> dict[str, Any] | None:
-        meta = (
+        meta = safe_read(
             self._db.table("jobs")
             .select("job_id, job_title, company_name")
             .eq("job_id", job_id)
-            .maybe_single()
-            .execute()
+            .maybe_single(),
+            default=None,
+            context="job_skills_meta",
         )
-        if not meta or not meta.data:
+        if not meta:
             return None
 
         rows = (
@@ -1925,7 +1934,7 @@ class JobsRepository:
             required_level = row.get("required_level") or (4 if is_primary else 2)
             skills.append({"taxonomy_key": key, "is_primary": is_primary, "required_level": required_level})
 
-        return {**meta.data, "skills": skills}
+        return {**meta, "skills": skills}
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

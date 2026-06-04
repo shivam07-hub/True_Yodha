@@ -56,8 +56,10 @@ export function SectionGate({
             role="status"
             aria-live="polite"
             style={{
-              marginTop: 10,
+              marginTop: 12,
+              textAlign: "center",
               fontSize: 12,
+              letterSpacing: "0.01em",
               color: "var(--tm-text-muted)",
               fontFamily: "var(--tm-font-sans)",
               opacity: slow ? 1 : 0,

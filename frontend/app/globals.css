@@ -63,6 +63,32 @@
   @keyframes loop-pulse { 0%, 100% { transform: none; opacity: 1; } }
 }
 
+/* ── Skeleton shimmer (ADR-0011 §B · enterprise directional sweep) ──
+   A teal sheen band travels left→right across a clearly-visible block.
+   This is the unambiguous "content is coming" signal — it replaces the
+   old opacity-only `animate-pulse`, which read as dead/empty on the dark
+   page. The block colour itself comes from --tm-skeleton (theme-aware). */
+.tm-skeleton {
+  background-color: var(--tm-skeleton);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--tm-skeleton-sheen) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: tm-skeleton-sweep 1.6s ease-in-out infinite;
+}
+@keyframes tm-skeleton-sweep {
+  from { background-position: -100% 0; }
+  to   { background-position:  200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No travelling band; keep the visible block so shape still reads. */
+  .tm-skeleton { background-image: none; animation: none; }
+}
+
 /* ── CV upload processing animations ─────────────────────────── */
 @keyframes tm-pulse-ring {
   0%   { transform: scale(1);    opacity: 0.55; }
@@ -592,47 +618,18 @@
 }
 
 @media (max-width: 768px) {
-  :root,
-  :root[data-surface="light"],
-  :root[data-surface="dark"] {
-    --tm-bg: #0a0b10;
-    --tm-surface: #131722;
-    --tm-surface-2: #1a2030;
-    --tm-border: #242b3d;
-    --tm-border-soft: rgba(232, 240, 255, 0.10);
-    --tm-scrim: rgba(2, 6, 23, 0.58);
-    --tm-overlay-soft: rgba(2, 6, 23, 0.42);
-    --tm-hover-soft: rgba(232, 240, 255, 0.04);
-    --tm-hover: rgba(232, 240, 255, 0.07);
-    --tm-icon-muted: rgba(161, 169, 188, 0.72);
-    --tm-text: #e8edf7;
-    --tm-text-muted: #a1a9bc;
-    --tm-text-faint: #717a91;
-    --tm-interactive-text: #67e8f9;
-    --tm-bg-page: #0a0b10;
-    --tm-bg-inset: #07080c;
-    --tm-bg-surface-hover: #1c2231;
-    --tm-border-subtle: rgba(232, 240, 255, 0.08);
-    --tm-text-primary: #e8edf7;
-    --tm-text-secondary: #a1a9bc;
-    --tm-text-tertiary: #717a91;
+  /* Mobile overrides are SURFACE-AGNOSTIC: type scale + spacing only.
+     Color/surface tokens intentionally NOT set here — they are owned by the
+     canonical [data-surface] blocks in design-tokens.css so light mode survives
+     on phones. (Pre-fix this block re-pinned dark values onto data-surface=light
+     at <=768px, breaking light mode on mobile.) */
+  :root {
     --tm-fs-body: 1.125rem;   /* 18px — mobile +2pt */
     --tm-lh-body: 1.75rem;
     --tm-fs-title: 1.875rem;  /* 30px — mobile +2pt */
     --tm-lh-title: 2.25rem;
     --tm-page-px: 1rem;
     --tm-page-py: 1rem;
-
-    --background: 236 23% 5%;
-    --foreground: 220 56% 94%;
-    --card: 222 27% 10%;
-    --card-foreground: 220 56% 94%;
-    --popover: 222 27% 10%;
-    --popover-foreground: 220 56% 94%;
-    --muted: 222 25% 14%;
-    --muted-foreground: 224 18% 64%;
-    --border: 223 23% 19%;
-    --input: 223 23% 19%;
   }
 
   :root[data-accent="forge"],
@@ -675,7 +672,7 @@
     padding: 0 20px 14px;
     padding-top: env(safe-area-inset-top);
     height: calc(72px + env(safe-area-inset-top));
-    background: rgba(10, 11, 16, 0.96);
+    background: color-mix(in srgb, var(--tm-surface) 96%, transparent);
     border-bottom: 1px solid var(--tm-border-soft);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
   }
@@ -692,7 +689,7 @@
     gap: 2px;
     padding: 9px 10px calc(8px + env(safe-area-inset-bottom));
     height: calc(78px + env(safe-area-inset-bottom));
-    background: rgba(10, 11, 16, 0.98);
+    background: color-mix(in srgb, var(--tm-surface) 98%, transparent);
     border-top: 1px solid var(--tm-border-soft);
     border-radius: 26px 26px 0 0;
     box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.34);

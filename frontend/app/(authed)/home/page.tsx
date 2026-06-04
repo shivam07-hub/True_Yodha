@@ -287,7 +287,7 @@ function MissionControlInner() {
           <SectionGate
             loading={coreLoading}
             fallback={
-              <TealField mode="masked">
+              <TealField mode="masked" interactive={false}>
                 {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
               </TealField>
             }
@@ -320,12 +320,17 @@ function MissionControlInner() {
           {/* Jobs feed — streams independently of the hero. */}
           <div style={{ marginTop: isDesktop ? 36 : 16 }}>
             <SectionGate
-              loading={!!token && jobsLoading}
+              // Hold the jobs skeleton until the hero has also resolved, so a
+              // fast-but-empty jobs result never sits beside a still-loading
+              // hero (the half-skeleton / half-"No matches" jolt). The above-
+              // the-fold then fills as one coherent block, ADR-0011 intent
+              // preserved (sections still stream; we only gate the *empty* race).
+              loading={coreLoading || (!!token && jobsLoading)}
               error={token && jobsIsError ? jobsErr : null}
               onRetry={() => void refetchJobs()}
               errorLabel="job matches"
               fallback={
-                <TealField mode="masked">
+                <TealField mode="masked" interactive={false}>
                   <DashboardSkeleton />
                 </TealField>
               }

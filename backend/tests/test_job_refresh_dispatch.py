@@ -86,3 +86,19 @@ def test_refresh_excludes_all_prior_match_jobs_for_novelty(monkeypatch: pytest.M
     assert ticket.id == "ticket-1"
     assert repo.batch_week_arg is None
     assert captured["excluded_job_ids"] == ["old-job", "older-job"]
+
+
+def test_rq_connection_is_binary_state_connection_is_decoded(monkeypatch) -> None:
+    """Regression: RQ pickles job payloads, so its Redis connection MUST be
+    binary. A decoded (decode_responses=True) RQ connection crashes the worker
+    with UnicodeDecodeError on dequeue → no worker → every refresh runs inline.
+    App JSON state stays on a decoded connection."""
+    from app.services.job_refresh import _redis_state
+
+    monkeypatch.setattr(_redis_state.settings, "redis_url", "redis://localhost:6379/0")
+
+    rq = _redis_state._rq_connection()
+    state = _redis_state._connection()
+
+    assert rq.connection_pool.connection_kwargs.get("decode_responses") in (None, False)
+    assert state.connection_pool.connection_kwargs.get("decode_responses") is True
