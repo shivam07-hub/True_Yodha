@@ -172,6 +172,17 @@ The hook auto-updates two stores after a successful claim: forge store (clear pe
 
 `<ForgeClockDriver />` mounts once in `AppShell`. It owns the `setInterval(tick, 1000)`. Every other surface is a read-only consumer. Two ticks per second was a real bug class — concentrating the heartbeat in one place removes it as a possibility.
 
+**Accrual rule — the timer is never always-running (locked)**
+
+Time only counts while the tab is foreground and the 1-second heartbeat is alive. Two mechanisms enforce it; both live in the store/driver, never in the pure clock math:
+
+- **Pause on hidden.** `ForgeClockDriver` calls `setRunning(false)` on `visibilitychange → hidden`. Backgrounding the tab freezes the session; the user resumes deliberately. No auto-resume on return.
+- **Idle-gap fold.** `foldIdleGap()` (`lib/forge-clock.ts`) moves any gap between heartbeats larger than `FORGE_IDLE_GAP_GRACE_MS` into `pausedMs`, so a hidden / closed / background-throttled gap never accrues. This is the safety net for a *closed* tab (no `visibilitychange` guarantee) and for a stale `running` session rehydrated from `localStorage` days later — on the first `reconcile()` the dead time is folded out instead of credited. `reconcile`, `setRunning`, and `dismiss` all route through it.
+
+Without these, the clock reconstructed earned minutes from absolute wall-clock (`now − startedAt`) and credited closed-tab time — producing runaway `pendingMinutes` and a 422 on claim (over the per-burst ceiling). Fixed 2026-06-04.
+
+**Per-burst claim ceiling.** A claim sends whole minutes only, clamped to `FORGE_MAX_BURST_MINUTES` (1440 = one day) — mirror of `ForgeCompleteRequest.duration_minutes` `le=1440` in `backend/app/schemas/xp.py`. Any remainder stays pending and is claimable on the next tap. A value above this can only be clock skew / corruption, never real practice.
+
 **Surfaces consuming the hook**
 
 - Mobile top widget: `<ForgeXpPill />` (always-visible, compact 30px).

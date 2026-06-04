@@ -4,8 +4,7 @@
  */
 "use client"
 
-import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
@@ -116,12 +115,6 @@ function PipelineRail({ applications, versions, onPickJob, filter, onFilter }: {
           )
         })}
       </div>
-
-      <div className="tm-lib-rail-footer">
-        <Link href="/home#browse" className="tm-lib-btn" style={{ width: "100%", justifyContent: "center" }}>
-          <LIcon d={I.target} size={14}/> Find a target job
-        </Link>
-      </div>
     </aside>
   )
 }
@@ -147,22 +140,15 @@ export function LibraryView({
   }
 
   const stats = buildCVWorkspaceStats(versions, applications)
+  const isNewUser = applications.length === 0
 
   return (
     <div className="tm-lib-scope">
       <div className="tm-lib-root">
         <div className="tm-lib-main">
-          {/* Desktop toggle lives in the pipeline rail head; this mobile-only
-              bar carries it when the rail is hidden (<1100px). */}
-          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
-
           <div className="tm-lib-page-head">
             <div className="tm-lib-page-head-main">
-              <div className="tm-lib-eyebrow" style={{ marginBottom: 6 }}>CV &amp; APPLICATIONS</div>
               <h1 className="tm-lib-page-title">Your CV workspace</h1>
-              <p className="tm-lib-page-sub">
-                One Main CV. Tailor a copy for each job, then track every application — saved, applied, all the way to the offer.
-              </p>
               <div className="tm-lib-header-stat-strip" aria-label="CV workspace summary">
                 {stats.map((stat) => (
                   <StatTile
@@ -175,12 +161,9 @@ export function LibraryView({
                 ))}
               </div>
             </div>
-            <div className="tm-lib-page-actions">
-              <Link href="/home#browse" className="tm-lib-btn">
-                <LIcon d={I.target} size={14}/> Target job
-              </Link>
-            </div>
           </div>
+
+          {isNewUser && <WorkspaceIntroCard />}
 
           <div className="tm-lib-hero-strip">
             <MasterCVHero
@@ -202,6 +185,11 @@ export function LibraryView({
             />
           )}
 
+          {/* Desktop toggle lives in the pipeline rail head; this mobile-only
+              bar carries it when the rail is hidden (<1100px). It sits directly
+              above the board it controls, not at the page top. */}
+          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
+
           <WorkspacePipeline filter={filter} versions={versions} onOpenJob={onOpenJob} />
         </div>
 
@@ -214,6 +202,64 @@ export function LibraryView({
         />
       </div>
     </div>
+  )
+}
+
+// One-time orientation for new users (no applications yet). Persisted per-device
+// via localStorage — mirrors the market feed PEEK-hint pattern. Established users
+// never see it (gated on applications.length === 0 by the caller).
+const INTRO_SEEN_KEY = "tm-cv-intro-seen-v1"
+
+const INTRO_STEPS: { d: string; title: string; body: string }[] = [
+  { d: I.file, title: "Keep one Main CV", body: "Your source of truth. Edit it once — every tailored copy starts from here." },
+  { d: I.target, title: "Target a job", body: "Open a job from Browse and we spin up a copy tuned to that role." },
+  { d: I.pulse, title: "Track to the offer", body: "Each copy moves through saved → applied → interviewing → offer." },
+]
+
+function WorkspaceIntroCard() {
+  // Start hidden so SSR and first client paint agree; reveal in an effect once
+  // we can read localStorage. Avoids a hydration flash and an SSR mismatch.
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      if (!window.localStorage.getItem(INTRO_SEEN_KEY)) setShow(true)
+    } catch { /* private mode — skip the card rather than crash */ }
+  }, [])
+
+  function dismiss() {
+    setShow(false)
+    try { window.localStorage.setItem(INTRO_SEEN_KEY, "1") } catch { /* quota / private mode */ }
+  }
+
+  if (!show) return null
+
+  return (
+    <section className="tm-lib-intro tm-lib-fade-in" aria-label="How the CV workspace works">
+      <div className="tm-lib-intro-head">
+        <h2 className="tm-lib-intro-title">Welcome to your CV workspace</h2>
+        <button type="button" className="tm-lib-intro-close" onClick={dismiss} aria-label="Dismiss intro">
+          <LIcon d={I.close} size={15}/>
+        </button>
+      </div>
+      <ol className="tm-lib-intro-steps">
+        {INTRO_STEPS.map((step, i) => (
+          <li key={step.title} className="tm-lib-intro-step">
+            <span className="tm-lib-intro-step-icon"><LIcon d={step.d} size={16}/></span>
+            <div>
+              <div className="tm-lib-intro-step-title">
+                <span className="tm-lib-intro-step-num">{i + 1}</span>{step.title}
+              </div>
+              <p className="tm-lib-intro-step-body">{step.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className="tm-lib-intro-foot">
+        <button type="button" className="tm-lib-btn primary sm" onClick={dismiss}>Got it</button>
+      </div>
+    </section>
   )
 }
 

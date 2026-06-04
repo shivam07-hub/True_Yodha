@@ -362,7 +362,7 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         ))}
 
         <div style={{ padding: "16px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-          <ThemeControl label="Appearance" fluid />
+          <ThemeControl fluid />
         </div>
 
         <button

@@ -17,19 +17,28 @@ export function ForgeClockDriver() {
   const running = useForgeTimerStore((s) => s.running)
   const tick = useForgeTimerStore((s) => s.tick)
   const reconcile = useForgeTimerStore((s) => s.reconcile)
+  const setRunning = useForgeTimerStore((s) => s.setRunning)
 
   useEffect(() => {
     reconcile()
     const sync = () => reconcile()
+    // Locked decision (CONTEXT.md → Forge Session): the timer is never
+    // always-running. When the tab is backgrounded we freeze the session — the
+    // user resumes deliberately. setRunning(false) settles the clock up to the
+    // moment of hiding; reconcile() on return recomputes without the idle gap.
+    const onVisibility = () => {
+      if (document.hidden) setRunning(false)
+      else reconcile()
+    }
     window.addEventListener("focus", sync)
     window.addEventListener("pageshow", sync)
-    document.addEventListener("visibilitychange", sync)
+    document.addEventListener("visibilitychange", onVisibility)
     return () => {
       window.removeEventListener("focus", sync)
       window.removeEventListener("pageshow", sync)
-      document.removeEventListener("visibilitychange", sync)
+      document.removeEventListener("visibilitychange", onVisibility)
     }
-  }, [reconcile])
+  }, [reconcile, setRunning])
 
   useEffect(() => {
     if (!running) return

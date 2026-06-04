@@ -625,6 +625,34 @@ body::after {
   margin-bottom: 8px;
 }
 
+/* ── Icon-only theme control ──────────────────────────────────
+   Words removed; a sun/moon/auto glyph carries the meaning. Each
+   segment is a square hit target; the active glyph rides the same
+   accent-wash chip as the text form, plus a touch of lift so the
+   chosen surface reads instantly. */
+.tm-theme-control--icon button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+}
+.tm-theme-control--icon.tm-theme-control--fluid button {
+  width: auto; /* flex:1 from --fluid handles width; keep the square height */
+}
+.tm-theme-control--icon button svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  transition: transform var(--tm-dur) var(--tm-ease);
+}
+.tm-theme-control--icon button:hover svg {
+  transform: scale(1.12);
+}
+.tm-theme-control--icon button[aria-checked="true"] svg {
+  transform: scale(1.06);
+}
+
 /* ── Page entrance animation ──────────────────────────────── */
 @keyframes tmPageIn {
   from { opacity: 0; transform: translateY(4px); }
