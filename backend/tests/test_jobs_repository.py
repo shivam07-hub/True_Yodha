@@ -178,3 +178,67 @@ def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:
     assert user_db.tape["table"] == "user_dismissed_job_cards"
     assert user_db.tape["payload"] == {"user_id": "user-1", "job_id": "job-1"}
     assert user_db.tape["on_conflict"] == "user_id,job_id"
+
+
+class _Raises204Builder:
+    """Mimics a PostgREST builder whose .execute() hits the postgrest-py
+    204 / 'Missing response' quirk (no row). safe_read must absorb it."""
+
+    def select(self, *_a: Any, **_k: Any) -> "_Raises204Builder":
+        return self
+
+    def eq(self, *_a: Any, **_k: Any) -> "_Raises204Builder":
+        return self
+
+    def maybe_single(self, *_a: Any, **_k: Any) -> "_Raises204Builder":
+        return self
+
+    def limit(self, *_a: Any, **_k: Any) -> "_Raises204Builder":
+        return self
+
+    def execute(self) -> Any:
+        from postgrest.exceptions import APIError
+
+        raise APIError(
+            {
+                "code": "204",
+                "message": "Missing response",
+                "hint": "Please check traceback of the code",
+                "details": "Postgrest couldn't retrieve response",
+            }
+        )
+
+
+class _EmptyRowsBuilder:
+    def select(self, *_a: Any, **_k: Any) -> "_EmptyRowsBuilder":
+        return self
+
+    def eq(self, *_a: Any, **_k: Any) -> "_EmptyRowsBuilder":
+        return self
+
+    def execute(self) -> Any:
+        class _R:
+            data: list[dict[str, Any]] = []
+
+        return _R()
+
+
+class _Profile204DB:
+    """user_profiles read raises the 204 quirk; cv_versions returns no rows."""
+
+    def table(self, name: str) -> Any:
+        if name == "user_profiles":
+            return _Raises204Builder()
+        return _EmptyRowsBuilder()
+
+
+def test_get_user_profile_targeting_survives_postgrest_204() -> None:
+    # Regression: the paid Refresh hot path called .maybe_single().execute()
+    # raw, so a 204 'Missing response' propagated, crashed compute_job_matches,
+    # and refunded XP — the user saw "no new matches". safe_read must absorb it.
+    repo = JobsRepository(_Profile204DB(), _Profile204DB())  # type: ignore[arg-type]
+
+    profile = repo.get_user_profile_targeting("user-1")
+
+    assert profile == {"cv_markdown": ""}
+    assert profile.get("target_roles") is None  # degrades, does not raise
