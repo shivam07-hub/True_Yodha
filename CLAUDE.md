@@ -451,6 +451,18 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-04 PM · Refresh reliability — 3 root-cause fixes)
+
+User hit "Refresh matches" → red `code:204 Missing response` box. Traced to 3 distinct prod failures, all fixed + tested + committed to Develop. Worker redeployed (deploy `6d35501` WAITING at session close — **confirm worker deploy logs are clean next session**, expect RQ worker draining `jobs_compute` instead of crash-looping). Comments migration applied by Shivam.
+
+- **Refresh crash (commit `f334340`):** `get_user_profile_targeting` (paid-refresh hot path) called `.maybe_single().execute()` raw → postgrest-py 204 quirk raised → pipeline refunded XP → "no new matches". `db_safe.safe_read` already existed as the canonical 204/PGRST205 seam but only 1 of 6 `maybe_single` sites in `jobs.py` used it. Routed all 6 through `safe_read`; also fixed `get_deepening_sampled`/`set_deepening_sampled`/`mark_first_offer_if_unset` filtering `user_profiles` on non-existent `user_id` col (PK is `id`) → live 42703 500s. Memory: `feedback_safe_read_invariant`.
+- **Worker crash-loop (commit `619c876`) — the real 10k-reliability bug:** every RQ Redis connection built `decode_responses=True`. RQ pickles payloads → worker `UnicodeDecodeError: 0x9c` on first `hgetall` → never registered on queue → ALL refreshes + fast/bulk lanes (CV parse/score, initial match, skill retag) silently ran inline on the API event loop. Split `_rq_connection()` (binary) from `_connection()` (decoded JSON state) in `_redis_state.py` + fixed `background/dispatch.py:123,145`. `llm_budget.py` decoded conn left alone (counters, not RQ).
+- **Comments 500 (commit `6ab34e3`):** `/deepenings` 500'd with PGRST205 — `20260531_comments.sql` was unapplied (now applied). Wrapped read in `safe_read` so deploys stay order-independent.
+- **Backlog #21 added (NOT built):** read-path latency at scale — heatmap fan-out, 5s bootstrap/feed/demand, broken-pipe 500. Flagged for a perf-profiling pass per Shivam.
+- ⚠️ Still pending: multiloc `20260602` migration (separate gate).
+
+---
+
 ## LAST SESSION SUMMARY (2026-06-04 · Claude PR lane CLOSED + memory pruned for beta-2)
 
 Codex/Claude PR split executed. **Codex done — do not redo PR-4/PR-5-slice/PR-6/PR-8** (commits `9e65611`/`3daff43`/`4b28856`/`c92cc2d`). Claude lane closed:
