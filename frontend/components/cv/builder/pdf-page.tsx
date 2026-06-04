@@ -10,6 +10,7 @@
 
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
+import type { CVTemplate } from "@/lib/cv/templates"
 
 export interface PdfPageContact {
   name: string
@@ -26,9 +27,11 @@ interface PdfPageProps {
   contact: PdfPageContact
   /** When present, the foot reads "tailored for {company}". Omit for the master CV. */
   company?: string
+  /** Print-CSS variant; written to `data-cv-template`. Defaults to "classic". */
+  template?: CVTemplate
 }
 
-export function PdfPage({ cv, hidden, contact, company }: PdfPageProps) {
+export function PdfPage({ cv, hidden, contact, company, template = "classic" }: PdfPageProps) {
   const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
     bullets.filter((b, bi) => !hidden.has(itemId(section, ei * 100 + bi, b)))
 
@@ -52,7 +55,7 @@ export function PdfPage({ cv, hidden, contact, company }: PdfPageProps) {
   const visibleCerts = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
 
   return (
-    <div className="cvb-pdf-page">
+    <div className="cvb-pdf-page" data-cv-template={template}>
       <h1 className="pdf-name">{contact.name}</h1>
       {contact.title && <div className="pdf-title">{contact.title}</div>}
       <div className="pdf-contact">

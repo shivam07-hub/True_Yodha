@@ -10,7 +10,6 @@ import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVUploadPhase } from "@/lib/cv-upload-state"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
-import { PdfPreviewView } from "@/components/cv/builder/pdf-preview-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
 import { Icon } from "@/components/cv/builder/icons"
 import {
@@ -33,7 +32,7 @@ import { useXPStore } from "@/store/xpStore"
 
 import "./cv-builder.css"
 
-type ViewMode = "baseline" | "playground" | "pdf"
+type ViewMode = "baseline" | "playground"
 
 function CVPage() {
   const router = useRouter()
@@ -41,7 +40,6 @@ function CVPage() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
-  const wantsPdf = searchParams.get("view") === "pdf"
   const focusSkill = searchParams.get("skill")
 
   const [showUpload, setShowUpload] = useState(false)
@@ -88,22 +86,20 @@ function CVPage() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const view: ViewMode = !jobId ? "baseline" : wantsPdf ? "pdf" : "playground"
+  const view: ViewMode = !jobId ? "baseline" : "playground"
 
   function navigate(href: string) { router.push(href) }
   function openJob(id: string) { navigate(`/cv?jobId=${encodeURIComponent(id)}`) }
   function backToBaseline() { navigate("/cv") }
+  // Tailored export is a dedicated full-page route (Design C). Carry the match
+  // score so the export header can show the JD-match pill without a refetch.
   function openPdf(matchScore = 0) {
     if (!jobId) return
     if (matchScore > 0) {
       try { sessionStorage.setItem(`myro-cv-score-${jobId}`, String(matchScore)) } catch { /* blocked */ }
     }
     const scoreParam = matchScore > 0 ? `&score=${matchScore}` : ""
-    navigate(`/cv?jobId=${encodeURIComponent(jobId)}&view=pdf${scoreParam}`)
-  }
-  function backToPlayground() {
-    if (!jobId) return
-    navigate(`/cv?jobId=${encodeURIComponent(jobId)}`)
+    navigate(`/cv/export?jobId=${encodeURIComponent(jobId)}${scoreParam}`)
   }
 
   function openFilePicker() {
@@ -225,12 +221,6 @@ function CVPage() {
       setFallbackSubmitting(false)
     }
   }
-
-  // If user lands directly on ?view=pdf without a baseline, drop them back to baseline.
-  useEffect(() => {
-    if (view === "pdf" && !hasBaseline) backToBaseline()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, hasBaseline])
 
   // Auto-open the upload picker when arriving with ?upload=1. This is the
   // FIRST-upload flow (anonymous visitor → signup → /cv?upload=1). The ?next=
@@ -381,21 +371,6 @@ function CVPage() {
             <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
               Loading your CV…
             </div>
-          )}
-
-          {hasBaseline && view === "pdf" && jobId && cvData && (
-            <PdfPreviewView
-              token={token!}
-              cv={cvData}
-              hidden={playground.hiddenItems}
-              selectedVersion={playground.selectedVersion}
-              profile={profileQuery.data ?? null}
-              company={playground.selectedVersion?.company_name ?? "Selected role"}
-              jobTitle={playground.selectedVersion?.job_title ?? ""}
-              matchScore={Number(searchParams.get("score") ?? 0)}
-              jobId={jobId}
-              onBackToPlayground={backToPlayground}
-            />
           )}
         </div>
       </div>

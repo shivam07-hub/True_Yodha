@@ -124,7 +124,9 @@ export function LibraryView({
 }: LibraryViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [masterOpen, setMasterOpen] = useState(false)
+  // `?master=1` is the dashboard "Door 2" — land here with the master CV already
+  // open, ready to download without tailoring.
+  const [masterOpen, setMasterOpen] = useState(() => searchParams.get("master") === "1")
   const masterPanelRef = useRef<HTMLDivElement>(null)
 
   // Bring the panel into view when it opens — the hero button changing state

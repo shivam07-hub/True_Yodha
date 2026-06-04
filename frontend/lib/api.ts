@@ -628,6 +628,30 @@ export const cv = {
     }
     return res.blob()
   },
+  // Structured DOCX export. The body carries the ALREADY-VISIBLE sections
+  // (selectVisibleCV applied client-side) so the .docx matches the on-screen
+  // sheet exactly — same single source of truth as the WYSIWYG PDF.
+  exportDocx: async (
+    token: string,
+    body: {
+      visible: import("@/lib/cv/visible-cv").VisibleCV
+      contact: { name: string; title: string; location: string; email: string; phone: string; linkedin: string }
+      template: string
+      company?: string
+      filename: string
+    },
+  ): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/export-docx`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "DOCX generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
 }
 
 /**

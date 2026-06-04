@@ -3,13 +3,11 @@
 import { useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { PdfPage } from "./pdf-page"
+import { CVExportView } from "./cv-export-view"
 import { MasterEditor } from "./master-editor"
 import { ApertureMark, timeAgoShort } from "./library-shared"
 import { I, LIcon } from "./library-icons"
 import { CloseButton } from "@/components/ui/close-button"
-import { printCvPage } from "@/lib/cv/print-cv"
-import { masterFilename } from "@/lib/cv/download-master"
 
 // Master CV has no per-job hidden items — every section renders.
 const NO_HIDDEN: Set<string> = new Set()
@@ -137,17 +135,10 @@ export function MasterCVPanel({
               <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
                 <LIcon d={I.edit ?? I.file} size={12}/> Edit
               </button>
-              {cv ? (
-                // WYSIWYG: print the .cvb-pdf-page shown below — exactly what downloads.
-                <button
-                  type="button"
-                  className="tm-lib-btn primary sm"
-                  onClick={() => printCvPage(masterFilename(profile?.full_name))}
-                >
-                  <LIcon d={I.file} size={12}/> Download Master
-                </button>
-              ) : (
-                // No structured CV yet — fall back to the text-based download path.
+              {/* When a structured CV exists, CVExportView (below) owns download
+                  — WYSIWYG PDF + DOCX + template picker. Only the text-only
+                  fallback keeps a head-level download button. */}
+              {!cv && (
                 <DownloadCVButton
                   token={token}
                   baseline={baseline}
@@ -170,9 +161,16 @@ export function MasterCVPanel({
         {editing ? (
           <MasterEditor token={token} profile={profile}/>
         ) : cv ? (
-          <div className="tm-lib-master-cv-stage">
-            <PdfPage cv={cv} hidden={NO_HIDDEN} contact={masterContact(cv, profile)}/>
-          </div>
+          // Master export: the inline skin downloads the CV directly — no
+          // tailoring required (the dashboard "Door 2" capability, in-workspace).
+          <CVExportView
+            token={token}
+            cv={cv}
+            hidden={NO_HIDDEN}
+            contact={masterContact(cv, profile)}
+            profile={profile}
+            context="master"
+          />
         ) : (
           <pre className="tm-lib-master-panel-text">
             {fallbackText || "Your structured CV is still loading — the download below still works."}
