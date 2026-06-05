@@ -1,7 +1,6 @@
 /* First-run hero — the 10-min-CV mission surface (progressive-nav grill Q3/Q5/Q9).
- * Sits on the app's dark constellation bg (ParticleBg from AppShell). Editorial:
- * mono eyebrow, serif-italic accent in the headline, restrained body sizes so
- * the operator feels "I got this" — guided, not shouted at.
+ * Sits inside the app shell. Text, spacing, and controls follow the superseding
+ * brand rhythm so the first upload journey feels guided, not shouted at.
  */
 .frh {
   max-width: 640px;
@@ -31,23 +30,23 @@
 .frh-title {
   margin: 14px 0 0;
   font-family: var(--tm-font-display, system-ui);
-  font-size: clamp(30px, 4.4vw, 44px);
-  font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-size: var(--tm-fs-display);
+  font-weight: 700;
+  line-height: var(--tm-lh-display);
+  letter-spacing: 0;
   color: var(--tm-text);
 }
 .frh-title em {
-  font-family: var(--tm-font-serif, Georgia, serif);
-  font-style: italic;
-  font-weight: 500;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 700;
   color: var(--tm-accent);
 }
 .frh-lede {
   margin: 14px 0 0;
   max-width: 540px;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: var(--tm-fs-body);
+  line-height: var(--tm-lh-body);
   color: var(--tm-text-muted);
 }
 
@@ -66,13 +65,13 @@
   width: 100%;
   height: 54px;
   border: none;
-  border-radius: var(--tm-radius-lg);
+  border-radius: var(--tm-button-radius);
   background: var(--tm-accent);
   color: var(--tm-accent-fg);
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   cursor: pointer;
   transition: filter var(--tm-dur-fast) var(--tm-ease), transform var(--tm-dur-fast) var(--tm-ease);
 }
@@ -96,7 +95,7 @@
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: var(--tm-radius-lg);
+  border-radius: var(--tm-panel-radius-lg);
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
 }
@@ -197,13 +196,13 @@
   font-variant-numeric: tabular-nums;
   color: var(--tm-accent);
 }
-@keyframes frh-pulse { 50% { box-shadow: 0 0 0 4px var(--tm-accent-wash); } }
+@keyframes frh-pulse { 50% { outline: 3px solid var(--tm-accent-wash); outline-offset: 2px; } }
 
 /* ── Best-match card ────────────────────────────────────────────────── */
 .frh-match {
   margin: 18px 0 0;
   padding: 16px 17px;
-  border-radius: var(--tm-radius-lg);
+  border-radius: var(--tm-panel-radius-lg);
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
 }
@@ -245,7 +244,7 @@
   margin-top: 14px;
   height: 40px;
   padding: 0 18px;
-  border-radius: var(--tm-radius-pill, 99px);
+  border-radius: var(--tm-button-radius);
   border: none;
   background: var(--tm-accent);
   color: var(--tm-accent-fg);

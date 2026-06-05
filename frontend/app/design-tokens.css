@@ -6,49 +6,45 @@
    @tailwind base. Then delete the inline :root block in
    globals.css — it's superseded by this file.
 
-   Accent switching:
-     <html data-accent="signal">   → teal/mint   (default)
-     <html data-accent="forge">    → amber/gold
-
-   Surface switching:
-     <html data-surface="dark">    → deep dark
-     <html data-surface="light">   → executive light
+   Brand supersession:
+     light default → white/orange
+     dark opt-in   → true black/teal
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Base surface (Ghost — default · MYRO-THM-001 spec) ──── */
-  --tm-bg:            #050A18;
-  --tm-surface:       #0B1424;
-  --tm-surface-2:     #0F1A2E;
-  --tm-surface-3:     #16223C;   /* highest elevation · modals · floating toolbars */
-  --tm-border:        #233158;   /* teal-blue tinted — visible against ink surfaces */
-  --tm-border-soft:   rgba(80, 120, 200, 0.22);  /* blue-tinted transparency — card edges */
-  --tm-border-faint:  rgba(80, 120, 200, 0.10);  /* whisper grid lines */
-  --tm-scrim:         rgba(5, 10, 24, 0.72);
-  --tm-overlay-soft:  rgba(5, 10, 24, 0.50);
-  --tm-hover-soft:    rgba(255, 255, 255, 0.02);
-  --tm-hover:         rgba(255, 255, 255, 0.04);
-  --tm-icon-muted:    rgba(240, 244, 255, 0.38);
+  /* ── Base surface: true-black dark mode (opt-in) ─────────── */
+  --tm-bg:            #050505;
+  --tm-surface:       #101010;
+  --tm-surface-2:     #171717;
+  --tm-surface-3:     #1F1F1F;
+  --tm-border:        #242424;
+  --tm-border-soft:   rgba(255, 255, 255, 0.10);
+  --tm-border-faint:  rgba(255, 255, 255, 0.06);
+  --tm-scrim:         rgba(0, 0, 0, 0.72);
+  --tm-overlay-soft:  rgba(0, 0, 0, 0.50);
+  --tm-hover-soft:    rgba(255, 255, 255, 0.04);
+  --tm-hover:         rgba(255, 255, 255, 0.07);
+  --tm-icon-muted:    rgba(247, 247, 247, 0.42);
 
   /* ── Skeleton (loading placeholder · ADR-0011 §B) ────────────
      The base must read as a *real shape* against the ink page —
      a near-invisible blob communicates "empty", not "loading".
      `sheen` is the directional teal shimmer band that sweeps across. */
-  --tm-skeleton:       #1C2945;   /* visible block fill on #050A18 page */
-  --tm-skeleton-sheen: rgba(120, 220, 235, 0.16);  /* teal sweep highlight */
+  --tm-skeleton:       #1A1A1A;
+  --tm-skeleton-sheen: rgba(18, 191, 165, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
-     WCAG AA targets on #050A18 page:
+     WCAG AA targets on #050505 page:
        primary  ≥ 7:1 (AAA)
        muted    ≥ 4.5:1 (AA body)
        faint    ≥ 4.5:1 (AA body) — never used for primary content
        disabled ≥ 3:1 (AA Large or decorative only — does NOT convey meaning)
      Numbers measured; see docs/DESIGN_SYSTEM.md §Color. */
-  --tm-text:          #E8F0FF;    /* ~16.8:1 — AAA */
-  --tm-text-muted:    #94A3C2;    /*  ~8.5:1 — AAA */
-  --tm-text-faint:    #6C7A98;    /*  ~5.1:1 — AA  */
-  --tm-text-disabled: #3A4560;    /*  ~2.0:1 — decorative ONLY (icons, dividers, separators) */
-  --tm-accent-text:   #67E8F9;
+  --tm-text:          #F7F7F7;
+  --tm-text-muted:    #B9B9B9;
+  --tm-text-faint:    #8F8F8F;
+  --tm-text-disabled: #555555;
+  --tm-accent-text:   #12BFA5;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -56,9 +52,9 @@
   --tm-interactive-text: var(--tm-accent-text);
 
   /* ── Info (neutral notice · applied-stage indicator) ─────── */
-  --tm-info:          #A78BFA;
-  --tm-info-wash:     rgba(167, 139, 250, 0.12);
-  --tm-info-border:   rgba(167, 139, 250, 0.30);
+  --tm-info:          #8BA3FF;
+  --tm-info-wash:     rgba(139, 163, 255, 0.12);
+  --tm-info-border:   rgba(139, 163, 255, 0.30);
 
   /* ── Status ramps (OKLCH) ────────────────────────────────── */
   /* Washes are TRANSLUCENT tints of each hue so they read as a faint colored
@@ -95,44 +91,62 @@
   --tm-tier-strong-border: var(--tm-success-border);
 
   /* ── Typography ──────────────────────────────────────────── */
-  --tm-font-sans:     var(--font-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --tm-font-display:  var(--font-display), "Source Serif 4", Georgia, serif;
+  --tm-font-sans:     var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  --tm-font-display:  var(--tm-font-sans);
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
 
-  --tm-fs-hero:       5.125rem;   /* 82px */
-  --tm-fs-display:    3.125rem;   /* 50px */
-  --tm-fs-title:      2.125rem;   /* 34px */
-  --tm-fs-heading:    1.5rem;     /* 24px */
-  --tm-fs-body:       1.1875rem;  /* 19px */
-  --tm-fs-meta:       1.0625rem;  /* 17px */
-  --tm-fs-caption:    0.9375rem;  /* 15px */
+  --tm-fs-hero:       3.5rem;     /* 56px */
+  --tm-fs-display:    2.5rem;     /* 40px */
+  --tm-fs-title:      1.75rem;    /* 28px */
+  --tm-fs-heading:    1.25rem;    /* 20px */
+  --tm-fs-body:       1rem;       /* 16px */
+  --tm-fs-meta:       0.875rem;   /* 14px */
+  --tm-fs-caption:    0.75rem;    /* 12px */
 
-  --tm-lh-hero:       5.375rem;   /* 86px */
-  --tm-lh-display:    3.625rem;   /* 58px */
-  --tm-lh-title:      2.75rem;    /* 44px */
-  --tm-lh-heading:    2.125rem;   /* 34px */
-  --tm-lh-body:       1.875rem;   /* 30px */
-  --tm-lh-meta:       1.625rem;   /* 26px */
-  --tm-lh-caption:    1.375rem;   /* 22px */
+  --tm-lh-hero:       3.875rem;   /* 62px */
+  --tm-lh-display:    3rem;       /* 48px */
+  --tm-lh-title:      2.25rem;    /* 36px */
+  --tm-lh-heading:    1.75rem;    /* 28px */
+  --tm-lh-body:       1.625rem;   /* 26px */
+  --tm-lh-meta:       1.375rem;   /* 22px */
+  --tm-lh-caption:    1.0625rem;  /* 17px */
 
-  --tm-tracking-tight:    -0.02em;   /* display + title headers — compressed, premium */
+  --tm-tracking-tight:     0;
   --tm-tracking-normal:    0;        /* body copy */
-  --tm-tracking-meta:      0.005em;  /* meta labels — slight lift */
-  --tm-tracking-caps:      0.08em;   /* uppercase caps — essential for readability */
+  --tm-tracking-meta:      0;
+  --tm-tracking-caps:      0.06em;
 
   /* ── Radii ───────────────────────────────────────────────── */
-  --tm-radius-sm:     0.375rem;  /*  6px — chips, badges        */
-  --tm-radius:        0.75rem;   /* 12px — cards, inputs         */
-  --tm-radius-lg:     1rem;      /* 16px — elevated cards        */
-  --tm-radius-xl:     1.25rem;   /* 20px — modals                */
+  --tm-radius-sm:     4px;
+  --tm-radius:        6px;
+  --tm-radius-lg:     8px;
+  --tm-radius-xl:     8px;
+  --tm-button-radius: 10px;
+  --tm-panel-radius:  6px;
+  --tm-panel-radius-lg: 8px;
   --tm-radius-pill:   9999px;    /*       — pills, toggles       */
 
   /* ── Spacing (on top of Tailwind's 4px grid) ─────────────── */
   --tm-sidebar-w:     240px;
-  --tm-content-max:   80rem;     /* 1280px */
-  --tm-card-pad:      1.5rem;    /* 24px */
-  --tm-page-px:       2rem;      /* 32px */
-  --tm-page-py:       2.5rem;    /* 40px */
+  --tm-content-max:   1280px;
+  --tm-public-content-max: 1180px;
+  --tm-card-pad:      24px;
+  --tm-card-pad-sm:   16px;
+  --tm-card-pad-lg:   32px;
+  --tm-page-px:       32px;
+  --tm-page-py:       40px;
+  --tm-section-gap:   40px;
+  --tm-cluster-gap:   24px;
+  --tm-panel-gap:     16px;
+  --tm-mobile-page-px: 16px;
+  --tm-mobile-page-py: 20px;
+  --tm-mobile-section-gap: 28px;
+  --tm-mobile-cluster-gap: 16px;
+  --tm-mobile-panel-gap: 12px;
+  --tm-desktop-nav-h: 60px;
+  --tm-desktop-nav-item-h: 36px;
+  --tm-mobile-topbar-h: 56px;
+  --tm-mobile-bottomnav-h: 64px;
 
   /* ── Motion ──────────────────────────────────────────────── */
   --tm-ease:          cubic-bezier(0.16, 1, 0.3, 1);
@@ -154,17 +168,17 @@
   --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
 
   /* ── Brand + interactive split (PR1) ───────────────────────
-     Brand is reserved for rare moments (XP/completion/logo).
+     Brand is reserved for rare moments (completion/logo).
      Interactive owns CTAs/links/focus by default.
      Keep --tm-accent* as a legacy alias bridge for zero-delta rollout. */
-  --tm-brand:              oklch(0.88 0.18 175);
-  --tm-brand-glow:         oklch(0.88 0.18 175 / 0.35);
-  --tm-brand-fg:           oklch(0.07 0.005 250);
+  --tm-brand:              #12BFA5;
+  --tm-brand-glow:         rgba(18, 191, 165, 0.24);
+  --tm-brand-fg:           #050505;
 
   /* Interactive solid ramp — used for borders / text / fills.
      Surface TINTS (subtle/wash/hover) intentionally do NOT come from this
      ramp because solid 92%-lightness teal on a near-black bg blinds.
-     See "wash tokens" block below — alpha cyan, theme-tuned. */
+     See "wash tokens" block below — alpha teal, theme-tuned. */
   --int-01:                oklch(0.97 0.02 185);
   --int-02:                oklch(0.92 0.04 185);
   --int-03:                oklch(0.85 0.07 185);
@@ -175,34 +189,33 @@
   --int-08:                oklch(0.38 0.09 185);
   --int-09:                oklch(0.32 0.07 185);
 
-  /* Surface wash tokens — alpha cyan so any theme's surface shows through.
-     Dark default — bright cyan (#00F5D4) low-alpha. Light surface override
-     below swaps to a deeper teal alpha for AA on white. */
-  --tm-int-bg-subtle:      rgba(0, 245, 212, 0.04);
-  --tm-int-bg-wash:        rgba(0, 245, 212, 0.10);
-  --tm-int-bg-hover:       rgba(0, 245, 212, 0.16);
-  --tm-int-border-soft:    var(--int-04);
-  --tm-int-border:         var(--int-05);
-  --tm-int-solid:          var(--int-06);
-  --tm-int-solid-hover:    var(--int-07);
-  --tm-int-text:           var(--int-08);
-  --tm-int-text-strong:    var(--int-09);
+  /* Surface wash tokens — alpha teal/orange so each theme's surface shows through.
+     Dark default = teal. Light override below swaps to orange. */
+  --tm-int-bg-subtle:      rgba(18, 191, 165, 0.05);
+  --tm-int-bg-wash:        rgba(18, 191, 165, 0.12);
+  --tm-int-bg-hover:       rgba(18, 191, 165, 0.18);
+  --tm-int-border-soft:    rgba(18, 191, 165, 0.28);
+  --tm-int-border:         rgba(18, 191, 165, 0.44);
+  --tm-int-solid:          #12BFA5;
+  --tm-int-solid-hover:    #18D6BA;
+  --tm-int-text:           #18D6BA;
+  --tm-int-text-strong:    #6EF5DF;
 
-  --tm-interactive:        var(--tm-int-solid);
-  --tm-interactive-hover:  var(--tm-int-solid-hover);
-  --tm-interactive-press:  var(--tm-int-solid-hover);
-  --tm-interactive-glow:   rgba(0, 245, 212, 0.32);
+  --tm-interactive:        #12BFA5;
+  --tm-interactive-hover:  #18D6BA;
+  --tm-interactive-press:  #0F9E89;
+  --tm-interactive-glow:   rgba(18, 191, 165, 0.24);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
-  --tm-interactive-fg:     var(--tm-brand-fg);
+  --tm-interactive-grid:   rgba(18, 191, 165, 0.05);
+  --tm-interactive-fg:     #050505;
 
   /* ── Interactive REST color (non-accent clickable controls) ──────────
-     The resting text/icon color for clickable controls that are NOT teal
+     The resting text/icon color for clickable controls that are NOT primary
      CTAs or accent links — ghost buttons, menu rows, inactive nav/tabs,
      filter chips, icon buttons. Rule: a clickable control is never dull at
-     rest. References --tm-text so it auto-flips per surface — dark #E8F0FF
-     (near-white), light #050A18 (near-black) — i.e. "maximally-contrasting
+     rest. References --tm-text so it auto-flips per surface — dark #F7F7F7
+     (near-white), light #262626 (near-black) — i.e. "maximally-contrasting
      resting color", which on dark = as white as possible. Static (non-
      clickable) labels keep --tm-text-muted / --tm-text-faint. Disabled
      controls drop to faint — bright ⇔ clickable, dull ⇔ not.
@@ -225,7 +238,7 @@
   --tm-accent-grid:        var(--tm-interactive-grid);
   --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
-  --tm-bg-inset:        #030712;
+  --tm-bg-inset:        #080808;
   --tm-bg-surface-hover: var(--tm-surface-2);
   --tm-border-subtle:   var(--tm-border-soft);
   --tm-text-primary:    var(--tm-text);
@@ -259,39 +272,40 @@
    Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
    tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
 :root[data-surface="light"] {
-  --tm-bg:            #F4F6FA;   /* page — cool off-white */
-  --tm-surface:       #FFFFFF;   /* cards — pure paper */
-  --tm-surface-2:     #FAFBFD;   /* hover / nested rows / inset */
-  --tm-surface-3:     #EEF1F6;   /* highest elevation · modals tint */
-  --tm-bg-inset:      #FAFBFD;   /* input wells / inset surfaces on light */
-  --tm-border:        #E1E6EE;
-  --tm-border-soft:   rgba(225, 230, 238, 0.85);
-  --tm-border-faint:  rgba(139, 150, 172, 0.20);
-  --tm-scrim:         rgba(15, 23, 42, 0.32);
-  --tm-overlay-soft:  rgba(15, 23, 42, 0.16);
-  --tm-hover-soft:    rgba(32, 33, 36, 0.03);
-  --tm-hover:         rgba(32, 33, 36, 0.06);
-  --tm-icon-muted:    rgba(32, 33, 36, 0.48);
+  --tm-bg:            #F9F9F9;
+  --tm-surface:       #FFFFFF;
+  --tm-surface-2:     #EFEFEF;
+  --tm-surface-3:     #E7E7E7;
+  --tm-bg-inset:      #F3F3F3;
+  --tm-border:        #D8D8D8;
+  --tm-border-soft:   #E4E4E4;
+  --tm-border-faint:  rgba(38, 38, 38, 0.10);
+  --tm-scrim:         rgba(38, 38, 38, 0.22);
+  --tm-overlay-soft:  rgba(38, 38, 38, 0.12);
+  --tm-hover-soft:    rgba(38, 38, 38, 0.035);
+  --tm-hover:         rgba(38, 38, 38, 0.065);
+  --tm-icon-muted:    rgba(38, 38, 38, 0.48);
 
   /* Skeleton on the cool off-white page — visible block + white sweep */
-  --tm-skeleton:       #E3E8F1;
+  --tm-skeleton:       #E7E7E7;
   --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
-  /* Light theme text — measured on #F4F6FA page bg
-       primary  #050A18 → ~16.6:1 (AAA)
-       muted    #3F4D6A → ~8.9:1  (AAA, was 4A5878 ~6.8:1 — lifted for parity w/ dark)
-       faint    #646F87 → ~5.1:1  (AA — was 6F7B95 ~4.25:1, under the 4.5 floor; PR-K/D3 fix)
-       disabled #A8B0C2 → ~2.4:1  (decorative only — never load-bearing text) */
-  --tm-text:          #050A18;
-  --tm-text-muted:    #3F4D6A;
-  --tm-text-faint:    #646F87;
-  --tm-text-disabled: #A8B0C2;
+  /* Light theme text — measured on #F9F9F9 page bg
+       primary  #262626 → AAA
+       muted    #5F5F5F → AA body
+       faint    #7A7A7A → AA large/supporting
+       disabled #B4B4B4 → decorative only — never load-bearing text */
+  --tm-text:          #262626;
+  --tm-text-muted:    #5F5F5F;
+  --tm-text-faint:    #7A7A7A;
+  --tm-text-disabled: #B4B4B4;
+  --tm-accent-text:   #FF4C00;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
   --tm-info-wash:     rgba(124, 58, 237, 0.08);
   --tm-info-border:   rgba(124, 58, 237, 0.30);
-  --tm-success:       #15A34A;
+  --tm-success:       #138A45;
   --tm-warning:       #D97706;
   --tm-danger:        #E11D48;
   /* Opaque cream washes for the light surface — dark status text rides on top.
@@ -300,30 +314,35 @@
   --tm-warning-wash:  oklch(0.97 0.04 75);
   --tm-danger-wash:   oklch(0.97 0.03 25);
 
-  --tm-shadow-1:      0 1px 2px rgba(10, 20, 40, 0.04);
-  --tm-shadow-2:      0 4px 14px rgba(10, 20, 40, 0.06), 0 1px 2px rgba(10, 20, 40, 0.04);
+  --tm-shadow-1:      0 1px 2px rgba(38, 38, 38, 0.04);
+  --tm-shadow-2:      0 4px 14px rgba(38, 38, 38, 0.06), 0 1px 2px rgba(38, 38, 38, 0.04);
   /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
-  --tm-brand:         oklch(0.55 0.18 175);
-  --tm-brand-glow:    oklch(0.55 0.18 175 / 0.22);
-  --tm-brand-fg:      oklch(0.99 0.002 250);
+  --tm-brand:         #FF4C00;
+  --tm-brand-glow:    rgba(255, 76, 0, 0.18);
+  --tm-brand-fg:      #FFFFFF;
 
-  /* Spirit accent ≈ #00A88F — deeper teal, same DNA, AA on white */
-  --tm-interactive:        oklch(0.46 0.13 185);
-  --tm-interactive-hover:  oklch(0.40 0.13 185);
-  --tm-interactive-press:  oklch(0.34 0.11 185);
-  --tm-interactive-glow:   oklch(0.46 0.13 185 / 0.18);   /* casts, doesn't glow */
-  --tm-interactive-wash:   oklch(0.46 0.13 185 / 0.08);   /* alpha cyan — readable on white */
-  --tm-interactive-ring:   oklch(0.60 0.13 185);
-  --tm-interactive-grid:   oklch(0.92 0.04 185 / 0.06);
+  --tm-interactive:        #FF4C00;
+  --tm-interactive-hover:  #E64500;
+  --tm-interactive-press:  #C93B00;
+  --tm-interactive-glow:   rgba(255, 76, 0, 0.18);
+  --tm-interactive-wash:   rgba(255, 76, 0, 0.08);
+  --tm-interactive-ring:   rgba(255, 76, 0, 0.38);
+  --tm-interactive-grid:   transparent;
   --tm-interactive-fg:     #FFFFFF;
 
-  /* Surface wash tokens — match wash to deeper teal alpha so a white card
-     hover/active state reads as a faint mint tint, not a solid pastel block. */
-  --tm-int-bg-subtle:      oklch(0.46 0.13 185 / 0.04);
-  --tm-int-bg-wash:        oklch(0.46 0.13 185 / 0.08);
-  --tm-int-bg-hover:       oklch(0.46 0.13 185 / 0.14);
+  /* Surface wash tokens — orange alpha so white cards get a clear
+     hover/active state without turning into pastel blocks. */
+  --tm-int-bg-subtle:      rgba(255, 76, 0, 0.04);
+  --tm-int-bg-wash:        rgba(255, 76, 0, 0.08);
+  --tm-int-bg-hover:       rgba(255, 76, 0, 0.14);
+  --tm-int-border-soft:    rgba(255, 76, 0, 0.24);
+  --tm-int-border:         rgba(255, 76, 0, 0.38);
+  --tm-int-solid:          #FF4C00;
+  --tm-int-solid-hover:    #E64500;
+  --tm-int-text:           #E64500;
+  --tm-int-text-strong:    #C93B00;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────
@@ -331,51 +350,56 @@
    Mirror our tokens into that shape so existing components just work.
    ───────────────────────────────────────────────────────────── */
 :root {
-  --background:          219 65% 6%;
-  --foreground:          220 100% 97%;
-  --card:                220 50% 9%;
-  --card-foreground:     220 100% 97%;
-  --popover:             220 50% 9%;
-  --popover-foreground:  220 100% 97%;
-  --primary:             172 100% 48%;        /* signal default */
-  --primary-foreground:  219 65% 6%;
-  --secondary:           220 30% 55%;
-  --secondary-foreground: 220 100% 97%;
-  --muted:               220 40% 12%;
-  --muted-foreground:    220 30% 55%;
-  --accent:              172 100% 48%;        /* signal default */
-  --accent-foreground:   219 65% 6%;
+  --background:          0 0% 2%;
+  --foreground:          0 0% 97%;
+  --card:                0 0% 6%;
+  --card-foreground:     0 0% 97%;
+  --popover:             0 0% 6%;
+  --popover-foreground:  0 0% 97%;
+  --primary:             171 83% 41%;
+  --primary-foreground:  0 0% 2%;
+  --secondary:           0 0% 12%;
+  --secondary-foreground: 0 0% 97%;
+  --muted:               0 0% 9%;
+  --muted-foreground:    0 0% 73%;
+  --accent:              171 83% 41%;
+  --accent-foreground:   0 0% 2%;
   --destructive:         0 84% 60%;
-  --destructive-foreground: 220 100% 97%;
-  --border:              220 25% 18%;
-  --input:               220 25% 18%;
-  --ring:                172 100% 48%;
-  --radius:              0.75rem;
+  --destructive-foreground: 0 0% 97%;
+  --border:              0 0% 14%;
+  --input:               0 0% 14%;
+  --ring:                171 83% 41%;
+  --radius:              6px;
 }
 :root[data-surface="light"] {
   --background:          0 0% 98%;
-  --foreground:          220 7% 14%;
+  --foreground:          0 0% 15%;
   --card:                0 0% 100%;
-  --card-foreground:     220 7% 14%;
+  --card-foreground:     0 0% 15%;
   --popover:             0 0% 100%;
-  --popover-foreground:  220 7% 14%;
-  --secondary:           216 8% 38%;
-  --secondary-foreground: 220 7% 14%;
-  --muted:               210 14% 95%;
-  --muted-foreground:    216 7% 42%;
+  --popover-foreground:  0 0% 15%;
+  --primary:             18 100% 50%;
+  --primary-foreground:  0 0% 100%;
+  --accent:              18 100% 50%;
+  --accent-foreground:   0 0% 100%;
+  --secondary:           0 0% 94%;
+  --secondary-foreground: 0 0% 15%;
+  --muted:               0 0% 94%;
+  --muted-foreground:    0 0% 37%;
   --destructive-foreground: 0 0% 100%;
-  --border:              220 11% 88%;
-  --input:               220 11% 88%;
+  --border:              0 0% 85%;
+  --input:               0 0% 85%;
+  --ring:                18 100% 50%;
 }
 :root[data-accent="forge"] {
-  --primary:             35 100% 64%;
-  --accent:              35 100% 64%;
-  --ring:                35 100% 64%;
+  --primary:             171 83% 41%;
+  --accent:              171 83% 41%;
+  --ring:                171 83% 41%;
 }
 :root[data-surface="light"][data-accent="forge"] {
-  --primary:             33 100% 33%;
-  --accent:              33 100% 33%;
-  --ring:                33 100% 33%;
+  --primary:             18 100% 50%;
+  --accent:              18 100% 50%;
+  --ring:                18 100% 50%;
   --primary-foreground:  0 0% 100%;
   --accent-foreground:   0 0% 100%;
 }
@@ -413,12 +437,7 @@ html {
   scroll-behavior: smooth;
 }
 html, body {
-  /* Depth-glow over the ink base — teal top-left, amethyst bottom-right —
-     so the page reads as lit, not a flat near-black void. */
-  background:
-    radial-gradient(ellipse 60% 50% at 20% 0%, rgba(0, 245, 212, 0.05), transparent 60%),
-    radial-gradient(ellipse 50% 60% at 90% 100%, rgba(176, 132, 255, 0.04), transparent 60%),
-    var(--tm-bg);
+  background: var(--tm-bg);
   background-attachment: fixed;
   color:      var(--tm-text);
   font-family: var(--tm-font-sans);
@@ -428,38 +447,12 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-/* Accent-reactive grid overlay — faint, and masked to a soft center bloom
-   so it never reads as a full-bleed wireframe at the edges. */
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--tm-accent-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--tm-accent-grid) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
-          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent 75%);
+  display: none;
 }
 
-:root[data-surface="light"] body::before {
-  opacity: 0.8;
-}
-
-/* Radial vignette */
 body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%, transparent 40%, var(--tm-scrim) 100%);
-}
-
-:root[data-surface="light"] body::after {
-  background: radial-gradient(ellipse at 50% 50%, transparent 48%, rgba(15, 23, 42, 0.12) 100%);
+  display: none;
 }
 
 /* ── Selection + scrollbar (accent-reactive) ──────────────── */

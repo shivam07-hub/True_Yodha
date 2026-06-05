@@ -3,13 +3,12 @@
 import { Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
-import { ParticleBg } from "@/components/particle-bg"
 import { PublicFooter } from "@/components/public/public-footer"
 
 /**
  * ADR-0006 — page shell shared by /signup + /login + /auth/callback.
  *
- * Owns the chrome (logo, particle bg, theme toggle, footer). The form
+   * Owns the chrome (logo, theme toggle, footer). The form
  * itself is injected via children so each page can render a different
  * component without duplicating layout.
  */
@@ -35,7 +34,6 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
       position: "relative",
       background: "var(--tm-bg)",
     }}>
-      <ParticleBg />
       <div style={{
         flex: 1,
         display: "flex",
@@ -52,7 +50,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
             alignItems: "center",
             marginBottom: 22,
           }}>
-            <div style={{ marginBottom: 10, filter: "drop-shadow(0 0 12px var(--tm-int-bg-hover))" }}>
+            <div style={{ marginBottom: 10 }}>
               <MyroLogo size={42} />
             </div>
             <div style={{
@@ -70,13 +68,13 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
           <div style={{
             background: "var(--tm-surface)",
             border: "1px solid var(--tm-border-soft)",
-            borderRadius: 18,
+            borderRadius: "var(--tm-panel-radius-lg)",
             padding: 26,
             boxShadow: "var(--tm-shadow-2)",
           }}>
             <h1 style={{
-              fontSize: 24, lineHeight: 1.18, fontWeight: 700, color: "var(--tm-text)",
-              marginBottom: subtitle ? 6 : 16, letterSpacing: "-0.015em",
+              fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700, color: "var(--tm-text)",
+              marginBottom: subtitle ? 6 : 16, letterSpacing: 0,
             }}>{title}</h1>
             {subtitle && (
               <p style={{

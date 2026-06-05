@@ -296,7 +296,51 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-05 - Tokens pivot + quiet chrome, Develop)
+## LAST SESSION SUMMARY (2026-06-05 - Brand system supersession implementation, Develop)
+
+Implemented the superseding Myro brand system across the core frontend surfaces.
+
+- Default first paint is now light mode. `app/layout.tsx` uses Inter as the only core product font and defaults unknown/empty `myro-surface` to `light`; OS dark preference no longer overrides first paint.
+- Rebuilt `app/design-tokens.css` around the new contract: light `#F9F9F9` / `#262626` / orange `#FF4C00`; dark `#050505` / `#101010` / white text / teal `#12BFA5`; standardized typography scale, desktop/phone gutters, nav heights, panel gaps, button radius, and shadcn token bridge.
+- Standardized public nav, desktop app chrome, mobile app chrome, landing page, first-run hero, Mission Control, auth shell, route error surface, and public Intel page around the new spacing/type/button contracts.
+- Removed decorative particle canvas backgrounds from shared app/auth/public error/intel shells and fixed `/intel` hydration warnings by making first-render timestamps deterministic before live ticking starts.
+- Added `frontend/tests/brand-system.test.ts` to lock palettes, Inter/default-light, desktop/mobile rhythm tokens, button radius/CTA tokens, one-off font cleanup, public mobile nav height, and no shared particle shells.
+- Wrote the implementation plan in `docs/superpowers/plans/2026-06-05-brand-system-supersession-implementation.md`.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `557 passed, 13 warnings`
+- `cd frontend && npx tsx --test tests/brand-system.test.ts tests/tokens-copy.test.ts tests/pr5-display-fixes.test.tsx tests/nav-first-run.test.ts` -> `15 passed`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Browser QA on `http://localhost:3000`: `/` desktop 1280px and mobile 375px defaulted to light mode, Inter, orange CTA, no horizontal overflow, no framework overlay, no console warnings, no canvas particles; `/intel` desktop rendered with orange CTA, true-black console island, no particles, and clean console after hydration fix. Mobile public nav measured 56px; desktop public nav measured 60px.
+
+Remaining:
+
+- Dark-mode branding is covered by tokens/regression tests; browser QA verified the default light path and public surfaces. Do a logged-in settings toggle smoke later if a persisted user session is available.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-05 - Brand system supersession spec, Develop)
+
+Wrote and committed the superseding Myro brand-system design spec after aligning with Shivam on the branding direction.
+
+- Locked the pilot scope: brand tokens, public landing/nav, app chrome, and first-run/home surfaces.
+- Locked the new brand foundation: light mode defaults for first paint, Firecrawl-like light discipline, orange light-mode primary CTAs, true-black dark mode with white text and teal/green important states, Inter as the core font, and the existing aperture-M mark retained.
+- Made spacing/type standardization the central acceptance gate: desktop web and phone web get separate rhythm contracts for margins, navigation spacing, font sizes, font weights, control sizes, panel padding, section gaps, and 375px mobile behavior.
+- Documented this as a supersession of conflicting `docs/DESIGN_SYSTEM.md` and `docs/CTA_DESIGN_SPEC.md` guidance in `docs/superpowers/specs/2026-06-05-brand-system-supersession-design.md`.
+
+Validation:
+
+- Spec self-review completed: no TBD/TODO placeholders; clarified follow-up notes; scope stays on frontend branding and shell/home/public surfaces.
+- No app code changed and no frontend/backend tests run in this spec-only step.
+
+Remaining:
+
+- User should review the written spec before implementation planning.
+- Implementation should start from the spec, then produce a concrete plan and visual QA path before touching code.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-05 - Tokens pivot + quiet chrome, Develop)
 
 Pivoted user-facing XP language to tokens and removed the visible timer/balance widgets from app chrome.
 

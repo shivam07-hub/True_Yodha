@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
  * Canonical Myro CTA primitive — Phase 1 of the CTA consolidation.
  * Variants and sizes follow docs/CTA_DESIGN_SPEC.md ("Cast & Stamped").
  * All colors reference --tm-* tokens so the component themes correctly across
- * the cyan, teal, amber, and brown accent palettes.
+ * the light-orange and dark-teal brand palettes.
  *
  * Variants: solid · outline · ghost · inline
  * Sizes:    sm · md (default) · lg · icon-sm · icon-md
@@ -72,10 +72,10 @@ const buttonVariants = cva(
       },
       size: {
         sm: "h-8 px-3 gap-1.5 text-[0.8125rem] rounded-[var(--tm-radius-sm)] [&_svg:not([class*='size-'])]:size-3.5",
-        md: "h-10 px-4 gap-2 text-[0.9375rem] rounded-[var(--tm-radius)] [&_svg:not([class*='size-'])]:size-4",
-        lg: "h-12 px-[1.375rem] gap-2 text-[1.0625rem] rounded-[var(--tm-radius)] [&_svg:not([class*='size-'])]:size-5",
+        md: "h-10 px-4 gap-2 text-[0.875rem] rounded-[var(--tm-button-radius)] [&_svg:not([class*='size-'])]:size-4",
+        lg: "h-12 px-[1.375rem] gap-2 text-[0.9375rem] rounded-[var(--tm-button-radius)] [&_svg:not([class*='size-'])]:size-5",
         "icon-sm": "size-8 rounded-[var(--tm-radius-sm)] [&_svg:not([class*='size-'])]:size-4",
-        "icon-md": "size-10 rounded-[var(--tm-radius)] [&_svg:not([class*='size-'])]:size-5",
+        "icon-md": "size-10 rounded-[var(--tm-button-radius)] [&_svg:not([class*='size-'])]:size-5",
       },
     },
     defaultVariants: {

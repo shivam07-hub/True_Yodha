@@ -80,7 +80,7 @@
   border-radius: var(--tm-radius-lg);
   background: var(--tm-surface-2);
   border: 1px solid var(--tm-accent-ring);
-  box-shadow: var(--tm-shadow-lg, 0 18px 48px rgba(0, 0, 0, 0.45)), 0 0 24px var(--tm-accent-glow);
+  box-shadow: var(--tm-shadow-2);
   animation: tm-coach-in 0.26s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .tm-coach--left { left: 0; }
@@ -112,9 +112,10 @@
 }
 .tm-coach-title {
   margin-top: 7px;
-  font-family: var(--tm-font-serif, Georgia, serif);
+  font-family: var(--tm-font-display);
   font-size: 19px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+  font-weight: 600;
   color: var(--tm-text);
 }
 .tm-coach-body {
@@ -135,7 +136,7 @@
   gap: 5px;
   height: 30px;
   padding: 0 13px;
-  border-radius: var(--tm-radius-pill, 99px);
+  border-radius: var(--tm-button-radius);
   border: none;
   background: var(--tm-accent);
   color: var(--tm-accent-fg);
@@ -174,13 +175,11 @@
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 0 currentColor;
   animation: tm-cv-pulse 2.4s ease-out infinite;
 }
 @keyframes tm-cv-pulse {
-  0%   { box-shadow: 0 0 0 0 var(--tm-accent-glow); }
-  70%  { box-shadow: 0 0 0 7px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
 }
 /* Live signal preceding the "Live" job-data link in the topbar. */
 .tm-nav-live-dot {
@@ -189,7 +188,6 @@
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--tm-accent, var(--tm-interactive));
-  box-shadow: 0 0 8px var(--tm-accent-glow, var(--tm-interactive));
   animation: tm-nav-live-pulse 1.6s infinite;
 }
 @keyframes tm-nav-live-pulse {

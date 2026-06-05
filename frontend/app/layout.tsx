@@ -1,19 +1,13 @@
 import type { Metadata, Viewport } from "next"
-import { Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google"
+import { Inter } from "next/font/google"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   weight: ["400", "500", "600", "700", "800"],
-})
-
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700"],
 })
 
 export const metadata: Metadata = {
@@ -64,17 +58,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
-// Flash-free theme resolution (D4, 2026-06-03): honor the OS theme by default,
-// with a persisted user override. Runs beforeInteractive so the surface is set
-// on <html> before first paint — no light→dark flicker. `myro-surface` is the
-// storage contract a future SurfaceToggle writes ("light" | "dark"); absent or
-// invalid → fall back to `prefers-color-scheme`. SSR ships data-surface="light"
-// as the no-JS fallback; this script corrects it for system-dark users.
-const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface');if(s!=='light'&&s!=='dark'){s=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.surface=s;}catch(e){}})();`
+// Flash-free theme resolution: light is the brand default. A persisted user
+// override may opt into dark mode; absent or invalid storage stays light.
+const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface');if(s!=='light'&&s!=='dark'){s='light';}document.documentElement.dataset.surface=s;}catch(e){document.documentElement.dataset.surface='light';}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${sourceSerif.variable}`} data-accent="signal" data-surface="light">
+    <html lang="en" className={inter.variable} data-accent="signal" data-surface="light">
       <body className="font-sans antialiased">
         <Script id="myro-surface-init" strategy="beforeInteractive">
           {SURFACE_INIT}

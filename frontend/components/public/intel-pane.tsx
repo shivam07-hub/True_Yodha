@@ -34,8 +34,8 @@ export function IntelPane() {
   const [activeChips, setActiveChips] = useState<string[]>([])
   const [tab, setTab] = useState<ResultsTab>("companies")
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
-  const [nowMs, setNowMs] = useState(() => Date.now())
-  const [uptime, setUptime] = useState(() => formatUptime(Date.now()))
+  const [nowMs, setNowMs] = useState(0)
+  const [uptime, setUptime] = useState("syncing now")
   const { sort, setSort } = useResultsSort("intel", "velocity")
 
   useJobsRealtime()
@@ -99,13 +99,17 @@ export function IntelPane() {
     })
   }, [analytics, nowMs])
 
-  // Tick "now" every 30s for live "updated Xs ago" display + uptime every second.
+  // Tick "now" after mount so the server/client first paint stays deterministic.
   useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 30_000)
+    const tick = () => setNowMs(Date.now())
+    tick()
+    const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
   useEffect(() => {
-    const id = setInterval(() => setUptime(formatUptime(Date.now())), 1000)
+    const tick = () => setUptime(formatUptime(Date.now()))
+    tick()
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -177,9 +181,9 @@ export function IntelPane() {
       country: j.location_country || "",
       mode: humanMode(j.location_mode),
       comp: null,
-      ageMin: j.created_at ? minutesSince(j.created_at) : 0,
+      ageMin: j.created_at ? minutesSince(j.created_at, nowMs) : 0,
     }))
-  }, [openRolesData])
+  }, [openRolesData, nowMs])
 
   const jobsShown = globalSearch.isActive ? globalSearch.hits.length : jobsTotal
 
@@ -280,8 +284,9 @@ function humanMode(raw?: string | null): string {
   return "—"
 }
 
-function minutesSince(iso: string): number {
+function minutesSince(iso: string, nowMs: number): number {
   const t = Date.parse(iso)
   if (Number.isNaN(t)) return 0
-  return Math.max(0, Math.floor((Date.now() - t) / 60_000))
+  if (nowMs <= 0) return 0
+  return Math.max(0, Math.floor((nowMs - t) / 60_000))
 }

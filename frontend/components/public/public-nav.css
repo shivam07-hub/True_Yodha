@@ -7,10 +7,10 @@
   align-items: center;
   width: 100%;
   min-width: 0;
-  gap: 20px;
-  padding: 0 32px;
-  height: 64px;
-  min-height: 64px;
+  gap: 16px;
+  padding: 0 var(--tm-page-px);
+  height: var(--tm-desktop-nav-h);
+  min-height: var(--tm-desktop-nav-h);
   background: var(--tm-surface);
   border-bottom: 1px solid var(--tm-border-soft);
   flex-shrink: 0;
@@ -27,9 +27,9 @@
 
 .tm-public-nav-wordmark {
   font-family: var(--tm-font-display);
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .tm-public-nav-links {
@@ -39,11 +39,11 @@
 .tm-public-nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 0 12px;
-  height: 40px;
-  border-radius: var(--tm-radius-pill);
-  font-size: 15px;
+  height: var(--tm-desktop-nav-item-h);
+  border-radius: var(--tm-panel-radius);
+  font-size: 14px;
   font-weight: 500;
   color: var(--tm-text);
   background: transparent;
@@ -70,7 +70,6 @@
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--tm-accent);
-  box-shadow: 0 0 8px var(--tm-accent-glow);
   animation: tm-public-nav-pulse 1.6s infinite;
 }
 
@@ -81,7 +80,7 @@
 
 .tm-public-nav-link:hover {
   color: var(--tm-text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tm-hover-soft);
 }
 
 .tm-public-nav-link[data-active="true"] {
@@ -99,14 +98,14 @@
   flex-shrink: 0;
 }
 
-/* Sign up = primary CTA (teal fill) */
+/* Sign up = primary CTA */
 .tm-public-nav-signup {
   display: flex;
   align-items: center;
   padding: 0 18px;
-  height: 42px;
-  border-radius: var(--tm-radius-pill);
-  font-size: 15px;
+  height: 40px;
+  border-radius: var(--tm-button-radius);
+  font-size: 14px;
   font-weight: 700;
   color: var(--tm-interactive-fg);
   background: var(--tm-interactive);
@@ -122,14 +121,14 @@
   border-color: var(--tm-interactive-hover);
 }
 
-/* Sign in = teal text link (secondary) */
+/* Sign in = primary-color text link (secondary) */
 .tm-public-nav-signin {
   display: flex;
   align-items: center;
   padding: 0 12px;
-  height: 42px;
-  border-radius: var(--tm-radius-pill);
-  font-size: 15px;
+  height: 40px;
+  border-radius: var(--tm-button-radius);
+  font-size: 14px;
   font-weight: 600;
   color: var(--tm-interactive);
   background: transparent;
@@ -148,7 +147,9 @@
 @media (max-width: 720px) {
   .tm-public-nav {
     gap: 6px;
-    padding: 0 12px;
+    padding: 0 var(--tm-mobile-page-px);
+    height: var(--tm-mobile-topbar-h);
+    min-height: var(--tm-mobile-topbar-h);
   }
 
   /* Drop the wordmark — the glyph alone holds the brand and frees the row for
@@ -170,7 +171,7 @@
   .tm-public-nav-link {
     gap: 0;
     padding: 0;
-    width: 38px;
+    width: var(--tm-desktop-nav-item-h);
     justify-content: center;
   }
 
@@ -184,12 +185,14 @@
     padding: 0 12px;
     height: 38px;
     font-size: 14px;
+    border-radius: var(--tm-button-radius);
   }
 
   .tm-public-nav-signin {
     padding: 0 10px;
     height: 38px;
     font-size: 14px;
+    border-radius: var(--tm-button-radius);
   }
 }
 

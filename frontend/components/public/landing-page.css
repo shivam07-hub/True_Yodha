@@ -1,13 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Myro — Landing Page (merged /welcome + /about → /)
-   Typography: var(--tm-fs-*) tokens only. No hardcoded px.
-   Font scale (single source of truth — design-tokens.css):
-     --tm-fs-display  3.125rem / 50px   hero headline
-     --tm-fs-title    2.125rem / 34px   mobile headline
-     --tm-fs-heading  1.5rem   / 24px   section heads
-     --tm-fs-body     1.1875rem/ 19px   body / subhead
-     --tm-fs-meta     1.0625rem/ 17px   dropzone title, tl-title
-     --tm-fs-caption  0.9375rem/ 15px   chips, trust, tl-desc
+   Brand-system supersession: Inter, light default, orange primary CTA,
+   standardized desktop/phone spacing, and restrained elevation.
    ───────────────────────────────────────────────────────────── */
 
 /* ── Shell ──────────────────────────────────────────────────── */
@@ -36,9 +30,9 @@
 .tm-landing-hero {
   box-sizing: border-box;
   width: 100%;
-  max-width: var(--tm-content-max);
+  max-width: var(--tm-public-content-max);
   margin: 0 auto;
-  padding: 40px var(--tm-page-px) 56px;
+  padding: var(--tm-page-py) var(--tm-page-px) 56px;
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
   gap: 48px;
@@ -58,9 +52,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--tm-font-mono);
+  font-family: var(--tm-font-sans);
   font-size: var(--tm-fs-caption);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tm-tracking-caps);
   color: var(--tm-text-muted);
   margin-bottom: 20px;
   white-space: nowrap;
@@ -81,7 +75,7 @@
   font-size: var(--tm-fs-display);
   line-height: var(--tm-lh-display);
   letter-spacing: var(--tm-tracking-tight);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--tm-text);
   margin: 0 0 16px;
   text-wrap: balance;
@@ -99,9 +93,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  font-family: var(--tm-font-mono);
+  font-family: var(--tm-font-sans);
   font-size: var(--tm-fs-caption);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tm-tracking-caps);
   color: var(--tm-text-muted);
   margin: 0 0 32px;
   white-space: nowrap;
@@ -117,8 +111,8 @@
   gap: 16px;
   align-items: center;
   padding: 16px 16px 16px 14px;
-  border-radius: var(--tm-radius-lg);
-  background: rgba(0, 245, 212, 0.03);
+  border-radius: var(--tm-panel-radius-lg);
+  background: var(--tm-surface);
   border: 1.5px dashed var(--tm-accent-ring);
   cursor: pointer;
   text-align: left;
@@ -129,7 +123,7 @@
 
 .tm-landing-dropzone:hover {
   border-color: var(--tm-accent);
-  background: rgba(0, 245, 212, 0.06);
+  background: var(--tm-int-bg-subtle);
 }
 
 .tm-landing-dropzone:active {
@@ -188,13 +182,13 @@
   display: inline-flex;
   align-items: center;
   padding: 10px 18px;
-  border-radius: var(--tm-radius);
+  border-radius: var(--tm-button-radius);
   background: var(--tm-accent);
   color: var(--tm-accent-fg);
   font-size: var(--tm-fs-caption);
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 0 8px rgba(0, 245, 212, 0.18);
+  box-shadow: inset 0 -6px 12px rgba(190, 44, 0, 0.22), 0 2px 4px rgba(255, 76, 0, 0.14);
   transition:
     background var(--tm-dur-fast) var(--tm-ease),
     box-shadow var(--tm-dur-fast) var(--tm-ease);
@@ -202,7 +196,7 @@
 
 .tm-landing-dropzone:hover .tm-landing-dropzone-btn {
   background: var(--tm-accent-hover);
-  box-shadow: 0 0 14px rgba(0, 245, 212, 0.28);
+  box-shadow: inset 0 -6px 12px rgba(190, 44, 0, 0.18), 0 2px 6px rgba(255, 76, 0, 0.18);
 }
 
 /* ── Private-by-default stamp — rubber-stamped on the CV mock ─── */
@@ -212,17 +206,17 @@
   bottom: 64px;
   left: -12px;
   padding: 8px 14px;
-  font-family: var(--tm-font-mono);
+  font-family: var(--tm-font-sans);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: center;
-  color: #15a07e;
-  border: 2px solid #15a07e;
+  color: var(--tm-success);
+  border: 2px solid var(--tm-success);
   border-radius: 6px;
-  background: rgba(34, 211, 168, 0.08);
+  background: var(--tm-success-wash);
   transform: rotate(-11deg);
   opacity: 0.92;
 }
@@ -249,8 +243,8 @@
   background: var(--tm-surface);
   border: 1px solid var(--tm-accent-ring);
   border-radius: var(--tm-radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  font-family: var(--tm-font-mono);
+  box-shadow: var(--tm-shadow-2);
+  font-family: var(--tm-font-sans);
   font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   white-space: nowrap;
@@ -258,7 +252,7 @@
 }
 
 .tm-landing-skill-plus {
-  color: #22d3a8;
+  color: var(--tm-success);
   font-weight: 700;
 }
 
@@ -283,32 +277,30 @@
   width: 100%;
   max-width: 440px;
   padding: 28px 30px 32px;
-  background: #f3f6fb;
+  background: var(--tm-surface);
   border: 1px solid var(--tm-border);
-  border-radius: var(--tm-radius-lg);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.5),
-    0 0 0 1px var(--tm-border-soft);
+  border-radius: var(--tm-panel-radius-lg);
+  box-shadow: var(--tm-shadow-2);
   transform: rotate(-2deg);
-  color: #0b1320;
+  color: var(--tm-text);
 }
 
 .tm-landing-cv-name {
   margin: 0 0 6px;
-  font-family: var(--tm-font-display, var(--tm-font-sans));
+  font-family: var(--tm-font-display);
   font-size: 26px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #0b1320;
+  letter-spacing: 0;
+  color: var(--tm-text);
 }
 
 .tm-landing-cv-contact {
   margin: 0 0 16px;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(11, 19, 32, 0.12);
+  border-bottom: 1px solid var(--tm-border-soft);
   font-family: var(--tm-font-mono);
   font-size: 12px;
-  color: rgba(11, 19, 32, 0.55);
+  color: var(--tm-text-muted);
 }
 
 .tm-landing-cv-section + .tm-landing-cv-section {
@@ -317,23 +309,19 @@
 
 .tm-landing-cv-heading {
   margin: 0 0 8px;
-  font-family: var(--tm-font-mono);
+  font-family: var(--tm-font-sans);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tm-tracking-caps);
   text-transform: uppercase;
-  color: rgba(11, 19, 32, 0.45);
+  color: var(--tm-text-faint);
 }
 
 .tm-landing-cv-line {
   display: block;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(11, 19, 32, 0.14) 0%,
-    rgba(11, 19, 32, 0.08) 100%
-  );
+  background: var(--tm-border-soft);
   margin-bottom: 6px;
 }
 
@@ -342,12 +330,7 @@
 .tm-landing-cv-line.long   { width: 100%; }
 
 .tm-landing-cv-line.highlight {
-  background: linear-gradient(
-    90deg,
-    #22d3a8 0%,
-    rgba(34, 211, 168, 0.15) 100%
-  );
-  box-shadow: 0 0 6px rgba(34, 211, 168, 0.3);
+  background: var(--tm-interactive);
 }
 
 /* ── Floating Myro Score badge ──────────────────────────────── */
@@ -362,24 +345,22 @@
   padding: 10px 16px;
   background: var(--tm-surface);
   border: 1px solid var(--tm-accent-ring);
-  border-radius: var(--tm-radius);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4),
-              0 0 16px rgba(0, 245, 212, 0.12);
-  font-family: var(--tm-font-mono);
+  border-radius: var(--tm-panel-radius);
+  box-shadow: var(--tm-shadow-2);
+  font-family: var(--tm-font-sans);
 }
 
 .tm-landing-score-lbl {
   font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .tm-landing-score-num {
   font-size: 22px;
   font-weight: 600;
-  color: #22d3a8;
+  color: var(--tm-interactive);
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 8px rgba(0, 245, 212, 0.45);
 }
 
 .tm-landing-score-denom {
@@ -414,7 +395,7 @@
 
 @media (max-width: 768px) {
   .tm-landing-hero {
-    padding: 40px var(--tm-page-px) 36px;
+    padding: var(--tm-page-py) var(--tm-page-px) 36px;
   }
 
   .tm-landing-h1 {
@@ -433,7 +414,7 @@
 
 @media (max-width: 480px) {
   .tm-landing-hero {
-    padding: 32px 1rem 28px;
+    padding: 28px var(--tm-page-px) 28px;
   }
 
   .tm-landing-dropzone {
