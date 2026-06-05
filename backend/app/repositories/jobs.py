@@ -18,6 +18,9 @@ from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
+# A posting the scraper hasn't re-confirmed live in this many days is flagged
+# stale on job cards. Below the scraper's 45-day hard-delist so it warns first.
+STALE_AFTER_DAYS = 21
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
@@ -147,6 +150,14 @@ def _marker_to_dt(value: Any) -> datetime | None:
     converter before ISO parsing so analytics date math works on real values.
     """
     return _parse_iso_dt(_job_feed_marker_to_iso(value))
+
+
+def _is_marker_stale(value: Any) -> bool:
+    """True when a last_seen marker is older than STALE_AFTER_DAYS."""
+    dt = _marker_to_dt(value)
+    if dt is None:
+        return False
+    return (datetime.now(dt.tzinfo) - dt).days > STALE_AFTER_DAYS
 
 
 def get_feed_updated_at(db: Client) -> str | None:
@@ -1014,7 +1025,7 @@ class JobsRepository:
     _FEED_COLUMNS = (
         "job_id, job_title, company_name, job_description, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-        "role_domain, industry, industry_group, apply_url, first_seen, is_active, main_skills"
+        "role_domain, industry, industry_group, apply_url, first_seen, last_seen, is_active, main_skills"
     )
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
@@ -1049,6 +1060,8 @@ class JobsRepository:
             "industry": row.get("industry_group") or row.get("industry"),
             "source_url": row.get("apply_url"),
             "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
+            "last_seen_at": _job_feed_marker_to_iso(row.get("last_seen")),
+            "is_stale": _is_marker_stale(row.get("last_seen")),
             "is_active": bool(row.get("is_active", True)),
             "skills": skills,
             "matched_skill_count": matched,

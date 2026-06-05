@@ -388,6 +388,8 @@ class JobFeedItem(BaseModel):
     industry: str | None = None
     source_url: str | None = None
     first_seen: str | None = None  # ISO date derived from the feed marker
+    last_seen_at: str | None = None  # ISO date the scraper last confirmed it live
+    is_stale: bool = False  # last_seen older than STALE_AFTER_DAYS — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
     matched_skill_count: int = 0  # overlap with the requesting user's CV skills (0 if anon)
