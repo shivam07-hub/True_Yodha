@@ -174,12 +174,12 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", gap: 32 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.18em", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              PRACTICE XP · {XP_POLICY.forgeFocusedRate} XP/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
+              PRACTICE TOKENS · {XP_POLICY.forgeFocusedRate} TOKENS/MIN · SOFT CAP {DURATIONS[durIdx].label.toUpperCase()}
             </div>
             <div style={{ width: 220, height: 220, borderRadius: "50%", border: "1px solid var(--tm-int-border)", display: "grid", placeItems: "center", margin: "24px auto 0", boxShadow: "0 0 48px var(--tm-int-border-soft), inset 0 0 40px var(--tm-int-bg-subtle)" }}>
               <div>
                 <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 44, color: "var(--tm-interactive)", fontWeight: 700, lineHeight: 1 }}>+0</div>
-                <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 8 }}>XP ready</div>
+                <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginTop: 8 }}>Tokens ready</div>
               </div>
             </div>
           </div>
@@ -214,12 +214,12 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.15em", color: "var(--tm-text-faint)" }}>
-              FORGE XP
+              FORGE tokens
             </div>
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
               {totalXP > 0 && (
                 <div style={{ padding: "3px 10px", borderRadius: 999, background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 11, color: "var(--tm-interactive)", fontFamily: "var(--tm-font-mono)" }}>
-                  +{totalXP} XP today
+                  +{totalXP} tokens today
                 </div>
               )}
               <button onClick={onClose} style={{ padding: "5px 14px", borderRadius: "var(--tm-radius-pill)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
@@ -252,7 +252,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                   +{readyXP}
                 </div>
                 <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-                  XP ready
+                  Tokens ready
                 </div>
               </div>
             </div>
@@ -292,11 +292,11 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 boxShadow: canClaim && !saving ? "0 0 20px var(--tm-int-border)" : "none",
                 opacity: saving ? 0.7 : 1,
               }}>
-                {saving ? "Saving…" : `Claim +${readyXP} XP`}
+                {saving ? "Saving…" : `Claim +${readyXP} tokens`}
               </button>
             </div>
             <div style={{ textAlign: "center", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-faint)" }}>
-              {running ? "Building" : "Paused"} · {XP_POLICY.forgeFocusedRate} XP/min
+              {running ? "Building" : "Paused"} · {XP_POLICY.forgeFocusedRate} tokens/min
             </div>
           </div>
         </div>
@@ -310,7 +310,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
               FORGE COMPLETE · {sessionsDone.length} SESSION{sessionsDone.length !== 1 ? "S" : ""}
             </div>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 36, color: "var(--tm-interactive)", fontWeight: 700, filter: "drop-shadow(0 0 16px var(--tm-int-border))" }}>
-              +{totalXP} XP
+              +{totalXP} tokens
             </div>
           </div>
 
@@ -322,7 +322,7 @@ export function ForgeModal({ cartSkills, onClose, onXPEarned, onCompleteSession,
                 background: "var(--tm-int-bg-subtle)", display: "flex", flexDirection: "column", gap: 4,
               }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tm-text)" }}>Practice claim</div>
-                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-interactive)" }}>+{result.xp_earned} XP</div>
+                <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 13, color: "var(--tm-interactive)" }}>+{result.xp_earned} tokens</div>
                 {result.leveled_up && (
                   <div style={{ fontSize: 11, color: "var(--tm-success)" }}>◆ L{result.level_before} → L{result.level_after}</div>
                 )}

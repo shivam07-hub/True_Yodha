@@ -628,6 +628,30 @@ export const cv = {
     }
     return res.blob()
   },
+  // Structured DOCX export. The body carries the ALREADY-VISIBLE sections
+  // (selectVisibleCV applied client-side) so the .docx matches the on-screen
+  // sheet exactly — same single source of truth as the WYSIWYG PDF.
+  exportDocx: async (
+    token: string,
+    body: {
+      visible: import("@/lib/cv/visible-cv").VisibleCV
+      contact: { name: string; title: string; location: string; email: string; phone: string; linkedin: string }
+      template: string
+      company?: string
+      filename: string
+    },
+  ): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/export-docx`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "DOCX generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
 }
 
 /**
@@ -1532,7 +1556,10 @@ export interface JobSearchResponse {
   has_next_page: boolean
 }
 
-export type JobFeedSort = "fresh" | "personal" | "company" | "role"
+// "fit" = the composite Best-fit rank (market filter rework). "fresh" = Newest.
+// personal/company/role are legacy modes the UI no longer sends (cleanup-debt,
+// CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
+export type JobFeedSort = "fit" | "fresh" | "personal" | "company" | "role"
 
 export interface JobFeedItem {
   job_id: string
@@ -1549,6 +1576,8 @@ export interface JobFeedItem {
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
+  last_seen_at?: string | null  // ISO date the scraper last confirmed it live
+  is_stale?: boolean            // unseen >21d — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
   matched_skill_count: number

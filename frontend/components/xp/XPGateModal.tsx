@@ -8,14 +8,14 @@ import { trackEvent } from "@/lib/analytics"
 import "./xp-gate-modal.css"
 
 /**
- * Singleton insufficient-XP modal. Mounted once in AppShell — never per
+ * Singleton insufficient-tokens modal. Mounted once in AppShell — never per
  * call site. Driven by useXPGateStore. The use-xp-gate hook pushes intent
- * to the store; this component renders the canonical "Not enough XP"
+ * to the store; this component renders the canonical "Not enough tokens"
  * dialog.
  *
- * Branch 2 lock (2026-05-24): generic copy + XP guide link. Does not
+ * Branch 2 lock (2026-05-24): generic copy + tokens guide link. Does not
  * suggest an earn path inline; routes the user to /xp via the existing
- * XP guide content.
+ * tokens guide content.
  */
 export function XPGateModal() {
   const open = useXPGateStore((s) => s.open)
@@ -56,13 +56,13 @@ export function XPGateModal() {
       aria-labelledby="xp-gate-title"
     >
       <div className="tm-xp-gate-modal" onClick={(e) => e.stopPropagation()}>
-        <h2 id="xp-gate-title" className="tm-xp-gate-title">Not enough XP.</h2>
+        <h2 id="xp-gate-title" className="tm-xp-gate-title">Not enough tokens.</h2>
         <p className="tm-xp-gate-body">
           You need {cost}. You have {balance}.
         </p>
         <div className="tm-xp-gate-actions">
-          <Link href="/xp" className="tm-xp-gate-primary" onClick={handleGuide}>
-            See how XP works →
+          <Link href="/tokens" className="tm-xp-gate-primary" onClick={handleGuide}>
+            See how tokens work →
           </Link>
           <button type="button" className="tm-xp-gate-secondary" onClick={handleDismiss}>
             Cancel

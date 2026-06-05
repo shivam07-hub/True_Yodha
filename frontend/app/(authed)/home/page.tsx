@@ -352,6 +352,7 @@ function MissionControlInner() {
                   onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })}
                   onRemove={(jobId) => removeCard.mutate(jobId)}
                   onSkillToggle={handleSkillToggle}
+                  onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}
                 />
               ) : null}
             </SectionGate>

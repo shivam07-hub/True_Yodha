@@ -85,6 +85,13 @@ const DEFAULT_INTERVAL_MS = 2_000
 const DEFAULT_TIMEOUT_MS = 180_000
 const DEFAULT_MAX_TRANSIENT_FAILURES = 4
 
+export function tokenizedUserMessage(message: string): string {
+  return message
+    .replace(/\byour xp has\b/gi, "your tokens have")
+    .replace(/\bxp has\b/gi, "tokens have")
+    .replace(/\bxp\b/gi, "tokens")
+}
+
 export async function resolveCVUploadResult(
   initial: CVUploadInitial,
   fetchStatus: (jobId: string) => Promise<CVUploadPolledStatus>,
@@ -101,7 +108,7 @@ export async function resolveCVUploadResult(
   }
   if (initial.status === "failed") {
     throw new CVUploadFailureBase(
-      initial.error_detail ?? "CV analysis failed. Please try again.",
+      tokenizedUserMessage(initial.error_detail ?? "CV analysis failed. Please try again."),
       initial.error_code ?? "unknown",
       initial.xp_refunded ?? false,
       initial.new_xp_balance ?? null,
@@ -150,7 +157,7 @@ export async function resolveCVUploadResult(
     }
     if (status.status === "failed") {
       throw new CVUploadFailureBase(
-        status.error_detail ?? "CV analysis failed. Please try again.",
+        tokenizedUserMessage(status.error_detail ?? "CV analysis failed. Please try again."),
         status.error_code ?? "unknown",
         status.xp_refunded,
         status.new_xp_balance,

@@ -86,7 +86,8 @@ test("processing → failed throws CVUploadFailure with refund context", async (
     assert.equal(err.code, "provider_unavailable")
     assert.equal(err.xpRefunded, true)
     assert.equal(err.newXpBalance, 3000)
-    assert.match(err.message, /refunded/i)
+    assert.match(err.message, /tokens have been refunded/i)
+    assert.doesNotMatch(err.message, /\bXP\b/)
   }
   assert.ok(didThrow, "must throw on failed status")
 })

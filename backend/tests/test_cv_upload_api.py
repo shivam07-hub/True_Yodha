@@ -67,7 +67,7 @@ def _patch_xp(monkeypatch, *, balance: int = 3000) -> dict[str, Any]:
     async def _charge(user_id, amount, action, *, floor=0, ref_table=None, ref_id=None):
         if state["balance"] - amount < floor:
             from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Out of XP")
+            raise HTTPException(status_code=400, detail="Out of tokens")
         state["balance"] -= amount
         state["charged"] += amount
         state["last_ref"] = (ref_table, ref_id)
@@ -169,7 +169,7 @@ def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert res.status_code == 400
-    assert "Out of XP" in res.json()["detail"]
+    assert "Out of tokens" in res.json()["detail"]
 
 
 def test_submit_text_below_min_length_returns_422(monkeypatch) -> None:

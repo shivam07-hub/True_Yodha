@@ -1,0 +1,97 @@
+/**
+ * /cv/export — the full-page tailored CV export (Design C).
+ *
+ * The high-intent download surface: the user picked a job, tuned the CV in the
+ * playground, and lands here to save the tailored PDF and open the company's
+ * careers page (apply-beside-download). Reuses the same `useCVPlayground` data
+ * as /cv so the rendered `.cvb-pdf-page` matches the playground preview exactly.
+ */
+"use client"
+
+import { Suspense, useEffect, useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { CVExportView } from "@/components/cv/builder/cv-export-view"
+import { CvSkeleton } from "@/components/loading/page-skeletons"
+import { users } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { useAuth } from "@/lib/hooks/use-auth"
+import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
+
+import "../cv-builder.css"
+
+function CVExportPage() {
+  const router = useRouter()
+  const { token, ready } = useAuth()
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get("jobId")
+  const matchScore = Number(searchParams.get("score") ?? 0)
+
+  const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token && !!jobId })
+  const cvData = playground.structuredQuery.data ?? null
+  const hasBaseline = playground.baselines.length > 0
+
+  const profileQuery = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token!),
+    enabled: !!ready && !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+  const profile = profileQuery.data ?? null
+
+  const company = playground.selectedVersion?.company_name ?? "Selected role"
+  const jobTitle = playground.selectedVersion?.job_title ?? ""
+
+  const contact = useMemo(() => ({
+    name: profile?.full_name?.trim() || "Your name",
+    title: cvData?.experience[0]?.role ?? "",
+    location: profile?.target_location ?? "",
+    email: profile?.email ?? "",
+    phone: "",
+    linkedin: profile?.linkedin_url ?? "",
+  }), [profile, cvData])
+
+  // A direct hit without a job, or before any CV exists, has nothing to export.
+  const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
+  useEffect(() => {
+    if (bootstrapping) return
+    if (!jobId || !hasBaseline) router.replace("/cv")
+  }, [bootstrapping, jobId, hasBaseline, router])
+
+  if (bootstrapping || !jobId || !hasBaseline) return <CvSkeleton />
+
+  return (
+    <div className="cvb-scope">
+      <div className="cvb-export-fullpage">
+        {cvData ? (
+          <CVExportView
+            token={token!}
+            cv={cvData}
+            hidden={playground.hiddenItems}
+            contact={contact}
+            profile={profile}
+            context="tailored"
+            company={company}
+            jobTitle={jobTitle}
+            jobId={jobId}
+            matchScore={matchScore}
+            onBack={() => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)}
+            backLabel="Back to playground"
+          />
+        ) : (
+          <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
+            Loading your CV…
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function CVExportPageWithSuspense() {
+  return (
+    <Suspense fallback={<CvSkeleton />}>
+      <CVExportPage />
+    </Suspense>
+  )
+}

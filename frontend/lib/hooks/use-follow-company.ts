@@ -13,7 +13,7 @@ const FLOOR = XP_POLICY.followCompanyFloor
 
 // ── IH2 reasons, single source ───────────────────────────────────────────────
 const REASON_LIMIT = `Heatmap limit ${LIMIT}`
-const REASON_XP = "Not enough XP"
+const REASON_XP = "Not enough tokens"
 
 /**
  * Pure IH2 gate: can this company be *added* right now?
@@ -66,14 +66,14 @@ export interface UseFollowCompany {
  * useFollowCompany — the one deep module for the "follow a target company" act.
  *
  * Owns the whole optimistic contract so no caller can get it half-right:
- *   click → optimistic chip add/remove (instant) → authoritative XP echo on
+ *   click → optimistic chip add/remove (instant) → authoritative tokens echo on
  *   success → rollback + error on failure. The heavy heatmap pipeline (per-row
  *   useQueries on /market) is a *separate*, background concern — this hook only
  *   makes the follow act itself instant, which is the point: feedback now,
  *   pipeline later.
  *
  * Also owns the IH2 invariant (cost 10 · floor −30 · cap 10) via canFollow /
- * disabledReason, reading the live XP balance — so cap/floor gating lives in one
+ * disabledReason, reading the live tokens balance — so cap/floor gating lives in one
  * place instead of being re-derived at each star/chip.
  *
  * Single canonical cache key ["followedCompanies", token]; pass enabled to gate

@@ -46,14 +46,30 @@
 }
 .tm-feed-saved { border-color: var(--tm-interactive); color: var(--tm-interactive); }
 
-.tm-feed-sortbar { display: inline-flex; gap: 4px; padding: 4px; background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: 999px; overflow-x: auto; max-width: 100%; }
-.tm-feed-sort {
-  padding: 6px 13px; border-radius: 999px; border: none; cursor: pointer; white-space: nowrap;
-  font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.03em; font-weight: 600;
+/* ── rank toggle (segmented: Best fit ⇄ Newest) ──────────────────────────── */
+.tm-feed-segmented { display: inline-flex; gap: 2px; padding: 3px; background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: 999px; }
+.tm-feed-seg {
+  min-height: 34px; padding: 0 16px; border-radius: 999px; border: none; cursor: pointer; white-space: nowrap;
+  font-size: 13px; font-weight: 600; font-family: inherit;
   background: transparent; color: var(--tm-text-muted); transition: all 120ms ease;
 }
-.tm-feed-sort.is-on { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
-.tm-feed-sort:disabled { opacity: 0.45; cursor: not-allowed; }
+.tm-feed-seg:hover { color: var(--tm-interactive); }
+.tm-feed-seg.is-on { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
+
+/* ── summary line: count · location · filter chips · adjust ───────────────── */
+.tm-feed-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 12px; }
+.tm-feed-summary-count { font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--tm-text-faint); }
+.tm-feed-summary-loc {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: var(--tm-text-muted);
+  background: transparent; border: 1px solid var(--tm-border-soft); font-family: inherit; transition: all 120ms ease;
+}
+.tm-feed-summary-loc:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
+.tm-feed-summary-adjust {
+  margin-left: auto; background: none; border: none; cursor: pointer; padding: 2px 4px;
+  font-size: 12px; font-weight: 600; color: var(--tm-interactive); font-family: inherit;
+}
+.tm-feed-summary-adjust:hover { text-decoration: underline; }
 
 .tm-feed-activechip {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer;

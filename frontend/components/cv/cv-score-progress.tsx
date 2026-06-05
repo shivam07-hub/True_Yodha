@@ -85,7 +85,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
         <div className="csp-fail-body">
           <div className="csp-fail-title">Couldn’t finish analysing your CV</div>
           <p className="csp-fail-detail">{fail.detail}</p>
-          {fail.xpRefunded ? <div className="csp-fail-refund">XP refunded</div> : null}
+          {fail.xpRefunded ? <div className="csp-fail-refund">Tokens refunded</div> : null}
         </div>
         {onRetry ? (
           <button type="button" className="csp-retry tm-control-focus" onClick={onRetry}>

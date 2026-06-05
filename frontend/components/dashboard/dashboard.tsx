@@ -8,6 +8,7 @@ import { openRefreshGate } from "@/store/refreshGateStore"
 import { Button } from "@/components/ui/button"
 import { MobileFeed } from "./mobile-feed"
 import { DesktopGrid } from "./desktop-grid"
+import { ManualAddModal } from "@/components/cv/pipeline/ManualAddModal"
 import {
   buildFeed,
   filterSegment,
@@ -37,6 +38,8 @@ export interface DashboardProps {
   onStatus: (jobId: string, status: ApplicationStatus) => void
   onRemove: (jobId: string) => void
   onSkillToggle: (skill: SkillGapItem) => void
+  /** Refetch applications after a self-sourced job is added so it joins the feed. */
+  onManualAdded?: () => void
 }
 
 const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
@@ -48,6 +51,7 @@ const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
 export function Dashboard(props: DashboardProps) {
   const { isDesktop } = useViewport()
   const [segment, setSegment] = React.useState<Segment>("myro")
+  const [manualOpen, setManualOpen] = React.useState(false)
 
   const { items } = React.useMemo(
     () => buildFeed(props.jobs, props.apps, props.dismissedJobIds),
@@ -94,7 +98,16 @@ export function Dashboard(props: DashboardProps) {
             </button>
           ))}
         </div>
-        <RefreshMatchesButton vm={props.refresh} disabled={!props.token} />
+        <div className="db-head-actions">
+          <button
+            type="button"
+            className="db-add tm-control-focus"
+            onClick={() => setManualOpen(true)}
+          >
+            + Add a job
+          </button>
+          <RefreshMatchesButton vm={props.refresh} disabled={!props.token} />
+        </div>
       </div>
 
       {isFeedStale && !isRefreshing ? (
@@ -138,6 +151,19 @@ export function Dashboard(props: DashboardProps) {
           onRemove={props.onRemove}
           onSkillToggle={props.onSkillToggle}
           onRefresh={openRefreshGate}
+        />
+      )}
+
+      {manualOpen && (
+        <ManualAddModal
+          token={props.token}
+          onClose={() => setManualOpen(false)}
+          onSaved={() => {
+            setManualOpen(false)
+            props.onManualAdded?.()
+            // Surface the just-added job — self-sourced jobs land in Liked.
+            setSegment("liked")
+          }}
         />
       )}
     </div>

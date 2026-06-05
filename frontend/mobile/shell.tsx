@@ -12,7 +12,6 @@ import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-
 import { ThemeControl } from "@/components/ui/theme-control"
 import { openFeedbackHub } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
-import { ForgeXpPill } from "@/components/forge/ForgeXpPill"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -72,8 +71,8 @@ export function AppShellSkeleton() {
   )
 }
 
-// Forge lives in the top ForgeXpPill (ambient), never a bottom slot. The bottom
-// bar is driven by the shared progressive-disclosure nav (lib/nav-items) so
+// Practice stays in task nav/page surfaces, never as a top chrome timer or
+// balance counter. The bottom bar is driven by shared progressive-disclosure nav so
 // gating matches the desktop topbar: first-run = Mission + Intel, growing to
 // +CV (1st tailor) → +Tracker (2nd company). Skills is deep-link only.
 type MobileNavIconName = "mission" | "intel" | "skills" | "cv" | "tracker"
@@ -136,7 +135,7 @@ function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: bool
   )
 }
 
-export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
+export function MobileTopBar({ profile, onAvatarClick }: {
   xpBalance: number
   profile: SidebarProfile | null
   onAvatarClick: () => void
@@ -167,10 +166,6 @@ export function MobileTopBar({ xpBalance, profile, onAvatarClick, onXPOpen }: {
           <MyroLogo size={30} />
         </div>
       </Link>
-
-      <ForgeXpPill xpBalance={xpBalance} onXpClick={onXPOpen} />
-
-
       <button
         onClick={onAvatarClick}
         style={{

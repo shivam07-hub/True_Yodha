@@ -4,106 +4,89 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import type { JobFeedSort } from "@/lib/api"
 import {
-  type FeedFilters, FIT_LENSES, FRESHNESS_PRESETS,
-  activeFilterCount, freshnessLabel,
+  type FeedFilters, SORT_TOGGLE, canRankByFit, activeFilterCount,
 } from "./feed-types"
 
-// ── the control row: Filters button · Sort · Saved-N pill · location ──────────
+// ── the control row: rank toggle · Filters button · Saved ─────────────────────
 
 export function FeedControls({
-  filters, onChange, targetRoles, chipCountMap, hasCv, hasTargetRoles,
-  savedCount, onOpenSaved, locationPill,
+  filters, onChange, hasCv, hasTargetRoles, savedCount, onOpenSaved, onOpenFilters,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
-  targetRoles: string[]
-  chipCountMap: Record<string, number>
   hasCv: boolean
   hasTargetRoles: boolean
   savedCount: number
   onOpenSaved: () => void
-  locationPill: React.ReactNode
+  onOpenFilters: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const n = activeFilterCount(filters)
-
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-      <button type="button" onClick={() => setOpen(true)} className="tm-feed-ctl" aria-haspopup="dialog">
+      <SortToggle
+        sort={filters.sort}
+        onSort={s => onChange({ ...filters, sort: s })}
+        canFit={canRankByFit(hasCv, hasTargetRoles)}
+      />
+      <button type="button" onClick={onOpenFilters} className="tm-feed-ctl" aria-haspopup="dialog">
         Filters{n > 0 ? <span className="tm-feed-ctl-badge">{n}</span> : null} <span aria-hidden>▾</span>
       </button>
-      <SortInline sort={filters.sort} onSort={s => onChange({ ...filters, sort: s })} hasCv={hasCv} hasTargetRoles={hasTargetRoles} />
-      {locationPill}
       {savedCount > 0 ? (
         <button type="button" onClick={onOpenSaved} className="tm-feed-ctl tm-feed-saved" style={{ marginLeft: "auto" }}>
           ★ Saved {savedCount} <span aria-hidden>→</span>
         </button>
       ) : null}
-      {open ? (
-        <FiltersSheet
-          filters={filters}
-          onChange={onChange}
-          onClose={() => setOpen(false)}
-          targetRoles={targetRoles}
-          chipCountMap={chipCountMap}
-          hasCv={hasCv}
-          hasTargetRoles={hasTargetRoles}
-        />
-      ) : null}
     </div>
   )
 }
 
-function SortInline({
-  sort, onSort, hasCv, hasTargetRoles,
-}: { sort: JobFeedSort; onSort: (s: JobFeedSort) => void; hasCv: boolean; hasTargetRoles: boolean }) {
+/** Segmented two-way rank toggle. Both states visible (no mystery single button).
+ *  "Best fit" is omitted entirely when the user can't be fit-ranked. */
+function SortToggle({
+  sort, onSort, canFit,
+}: { sort: JobFeedSort; onSort: (s: JobFeedSort) => void; canFit: boolean }) {
+  const options = canFit ? SORT_TOGGLE : SORT_TOGGLE.filter(o => o.key === "fresh")
+  if (options.length < 2) return null  // nothing to toggle → no control
   return (
-    <div className="tm-feed-sortbar" role="group" aria-label="Sort jobs by">
-      {FIT_LENSES.map(l => {
-        const locked = (l.needsCv && !hasCv) || (l.needsRoles && !hasTargetRoles)
-        const on = sort === l.key
-        return (
-          <button
-            key={l.key}
-            type="button"
-            disabled={locked}
-            onClick={() => onSort(l.key)}
-            title={locked ? (l.needsCv ? "Upload your CV to rank by skill match" : "Set target roles to rank by role match") : undefined}
-            className={`tm-feed-sort ${on ? "is-on" : ""}`}
-          >
-            {l.label}{locked ? " 🔒" : ""}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── active filter chips (removable) ──────────────────────────────────────────
-
-export function ActiveFilterChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
-  const chips: { key: string; label: string; clear: () => void }[] = []
-  if (filters.roleDomain) chips.push({ key: "role", label: filters.roleDomain, clear: () => onChange({ ...filters, roleDomain: null }) })
-  if (filters.minSkillMatches > 0) chips.push({ key: "skill", label: `≥ ${filters.minSkillMatches} skills`, clear: () => onChange({ ...filters, minSkillMatches: 0 }) })
-  if (filters.targetRoleOnly) chips.push({ key: "trole", label: "Matches my role", clear: () => onChange({ ...filters, targetRoleOnly: false }) })
-  if (filters.freshnessDays > 0) chips.push({ key: "fresh", label: freshnessLabel(filters.freshnessDays), clear: () => onChange({ ...filters, freshnessDays: 0 }) })
-  if (filters.followingOnly) chips.push({ key: "follow", label: "Following only", clear: () => onChange({ ...filters, followingOnly: false }) })
-  if (chips.length === 0) return null
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-      {chips.map(c => (
-        <button key={c.key} type="button" onClick={c.clear} className="tm-feed-activechip">
-          {c.label} <span aria-hidden>✕</span>
+    <div className="tm-feed-segmented" role="group" aria-label="Rank jobs by">
+      {options.map(o => (
+        <button
+          key={o.key}
+          type="button"
+          aria-pressed={sort === o.key}
+          onClick={() => onSort(o.key)}
+          className={`tm-feed-seg ${sort === o.key ? "is-on" : ""}`}
+        >
+          {o.label}
         </button>
       ))}
     </div>
   )
 }
 
-// ── the sheet ────────────────────────────────────────────────────────────────
+// ── removable hard-filter chips (live in the summary line) ────────────────────
 
-function FiltersSheet({
-  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, hasTargetRoles,
+export function FilterChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
+  const chips: { key: string; label: string; clear: () => void }[] = []
+  if (filters.roleDomain) chips.push({ key: "role", label: filters.roleDomain, clear: () => onChange({ ...filters, roleDomain: null }) })
+  if (filters.minSkillMatches > 0) chips.push({ key: "skill", label: `≥ ${filters.minSkillMatches} skills`, clear: () => onChange({ ...filters, minSkillMatches: 0 }) })
+  if (filters.followingOnly) chips.push({ key: "follow", label: "Following", clear: () => onChange({ ...filters, followingOnly: false }) })
+  if (chips.length === 0) return null
+  return (
+    <>
+      {chips.map(c => (
+        <button key={c.key} type="button" onClick={c.clear} className="tm-feed-activechip" aria-label={`Remove filter: ${c.label}`}>
+          {c.label} <span aria-hidden>✕</span>
+        </button>
+      ))}
+    </>
+  )
+}
+
+// ── the sheet (3 sections: Role · Skill match · Companies) ────────────────────
+
+export function FiltersSheet({
+  filters, onChange, onClose, targetRoles, chipCountMap, hasCv,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
@@ -111,7 +94,6 @@ function FiltersSheet({
   targetRoles: string[]
   chipCountMap: Record<string, number>
   hasCv: boolean
-  hasTargetRoles: boolean
 }) {
   const [mounted, setMounted] = useState(false)
   const [draft, setDraft] = useState<FeedFilters>(filters)
@@ -124,7 +106,7 @@ function FiltersSheet({
   if (!mounted) return null
 
   const apply = () => { onChange(draft); onClose() }
-  const reset = () => setDraft({ ...draft, roleDomain: null, minSkillMatches: 0, targetRoleOnly: false, freshnessDays: 0, followingOnly: false })
+  const reset = () => setDraft({ ...draft, roleDomain: null, minSkillMatches: 0, followingOnly: false })
 
   return createPortal(
     <>
@@ -153,20 +135,6 @@ function FiltersSheet({
 
           <Section title="Skill match" locked={!hasCv} lockNote="Upload your CV to filter by skill match">
             <Stepper value={draft.minSkillMatches} onChange={v => setDraft({ ...draft, minSkillMatches: v })} disabled={!hasCv} suffix="skills" />
-          </Section>
-
-          <Section title="Target role" locked={!hasTargetRoles} lockNote="Set target roles in settings">
-            <Toggle checked={draft.targetRoleOnly} onChange={v => setDraft({ ...draft, targetRoleOnly: v })} disabled={!hasTargetRoles} label="Only jobs that match my target role" />
-          </Section>
-
-          <Section title="Freshness">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {FRESHNESS_PRESETS.map(p => (
-                <button key={p.days} type="button" onClick={() => setDraft({ ...draft, freshnessDays: p.days })} className={`tm-sheet-chip ${draft.freshnessDays === p.days ? "is-on" : ""}`}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </Section>
 
           <Section title="Companies">

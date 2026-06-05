@@ -191,6 +191,10 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ## OPEN BACKLOG
 
+23. **Market filter rework — cleanup debt (logged 2026-06-05, do in dedicated hygiene pass):** The filter rework (GRILL LOCKED, `memory/project_market_filter_rework.md`) deliberately leaves dead config to keep its diff small/low-risk. After the rework ships, rip out in a SEPARATE pass: (a) old sort modes `personal`/`role`/`company` in `backend/app/repositories/jobs.py` `feed_jobs` (superseded by `sort=fit`); (b) `targetRoleOnly` + `freshnessDays` params across API/repo (`lib/api.ts` `JobFeedParams`, `use-job-feed.ts`, repo signature) — UI-unused after the 4-section sheet drops Freshness-cutoff + Target-role-only. Touches feed cache-key tuples + tests, hence decoupled. Trigger: after market-filter-rework PR merges + is verified in prod.
+
+22. **Job-card render contract — new scraper columns (HANDOFF 2026-06-04, ready to code):** The firecrawl_Supabase scraper now produces, on the `jobs` table, a clean LLM **`job_summary` (≤100 words)** plus structured chip columns **`date_posted`, `seniority_level`, `work_mode`, `min_years_experience`, `max_years_experience`** (migration `scraper/sql/add_jobs_summary_cols.sql`, project `gipvxuugajkugntwkeiz`). **Ask:** on the live jobs-card feed, render the card body from `job_summary` (NOT the raw `job_description` blob — that carried scrape junk like `[Skip to main content]`/`Date published`/req-IDs for some ATS), each structured fact as its own chip, and keep full `job_description` reserved for the detail view + Tailor-CV flow. Fall back to truncated `job_description` only when `job_summary IS NULL` (legacy rows not re-enriched; old rows are NOT back-enriched — they age out via 45-day delist). `locations[]` chip array already shipped. Full spec + render skeleton: `docs/HANDOFF_job_card_columns_20260604.md`.
+
 21. **Read-path latency at scale — FLAG for next run (raised 2026-06-04, NOT scoped):** Prod logs during a single user's session show pervasive `metric route.slow`: `/home/bootstrap` 4–6.5s, `/jobs/feed` 5–6s, `/jobs/my-skills/demand` 5–6.7s, `/jobs/analytics/me` 3.8–4.5s, plus the **Intel skill-heatmap thundering herd** — one `useQuery` PER followed company (IH3 by design), so a heatmap fires 10–15 parallel `/jobs/analytics/skill-heatmap?companies=X&skills=<~40 skills>` requests at once; several hit 1.2–3.6s and one died mid-stream with `httpcore.WriteError: [Errno 32] Broken pipe` → 500. At 10k concurrent users these read paths are the next thing to fall over (DB connection pressure + Supabase PostgREST saturation), independent of the refresh-crash already fixed (commit `f334340`). **Concern to resolve next session:** (a) is per-company heatmap fan-out the right shape at scale, or should it be ONE batched `?companies=a,b,c` round-trip? (b) why are bootstrap/feed/demand 5s — N+1 reads, missing indexes, or per-request LLM/derive work? (c) the broken-pipe 500 = client aborted (heatmap row unmounted / navigated) while the server still streamed — needs graceful client-abort handling, not a 500. Needs a perf-profiling pass (EXPLAIN ANALYZE the slow RPCs + count queries per endpoint) before deciding. No code yet — Shivam said "don't fully understand the ask, just note it."
 
 18. **Dashboard `/home` loading redesign (GRILL LOCKED 2026-06-01, NOT built):** Triggered by shivam.mit20 screenshot — generic "Loading your dashboard…" + a LYING "FIRST CV IN 10 min" first-run pill shown to a veteran (firstRun defaults TRUE while `cv.versions` undefined). 14 decisions locked in `memory/project_dashboard_loading_redesign.md`. Model = **section-readiness** (not phases — `/home` is parallel client queries, not a server job). Two PRs: **PR1** = correctness — kill global `blocking` gate (`home/page.tsx:187`), `SectionGate` composition, co-located real-shape skeletons (reuse real `mc-hero`/`db-row` classes; delete orphaned `HomeSkeleton` mirroring pre-merge layout), per-section 6s tail copy, **pill-bug fix** (`isFirstRun(undefined)` → not-first-run + `.tm-cv-promise` gap CSS), delete floating `top:76` text. **PR2** = the "no-shimmer" cursor/touch-reactive **teal-edges playground** — extend `EdgeGlow` into a shared `<TealField mode=full-bleed|masked>` primitive; field-fill behind real-shape teal-edged cards that crossfade per-section; ambient-never-blocking, compositor-only + hard-teardown-on-ready, no gyro on mobile. Needs one "loading model" ADR (after ADR-0009). Sibling of the CV-upload loading redesign (`project_cv_loading_redesign`).
@@ -340,12 +344,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
-14. **Match refresh stuck at 2 results (bug, root-caused 2026-05-25):** Account `shivam.mit20@gmail.com` triggers match refresh repeatedly, XP is charged then refunded ("no new matches"), but matches never grow past 2. **Root cause = compound pruning stack inside `job_matcher.get_top_matches`** (commented inline at `backend/app/services/job_matcher.py:73`):
-    1. **MIN_SKILL_OVERLAP = 3** — hard floor. Jobs sharing <3 skills with the user are dropped before scoring. Narrow/junior CVs may only ever clear this on 1-2 jobs.
-    2. **`top_n=5` cap** in `jobs_workflow.compute_job_matches` (line 213).
-    3. **`COMPANY_CAP_RATIO`** anti-bias (30% per company) prunes further.
-    4. **`excluded_job_ids` accumulates** across refreshes within the same batch_week (line 189-191) — by refresh N the pool may be empty.
-    Not aspirations-related. Independent of the 2026-05-25 retry/fallback PR. Fix path under design: **tiered overlap floor (3 default → 2 if fewer than top_n/2 candidates qualify)**, raise `top_n` to 10-15, surface "pool exhausted" signal to frontend instead of silent refund, reset `excluded_job_ids` on batch_week boundary. Touches `backend/app/services/job_matcher.py` + `jobs_workflow.compute_job_matches` + match-refresh frontend invalidation. Pick up as standalone PR after Shilpa is re-tested with the 2026-05-25 fallback fix in production.
+14. ~~**Match refresh stuck at 2 results**~~ — ✅ **CLOSED, deployed in prod (confirmed 2026-06-05).** Tiered overlap floor live in `job_matcher.get_top_matches` (`min_skill_overlap`→`fallback_min_skill_overlap`, `min_viable_pool = top_n//2`, `top_n=10`, debug surfaces selected floor + qualified count). Verified in code.
 
 17. **Legal hardening for 10k scale (DOCS DONE 2026-06-02, counsel sign-off open):** Entity now = **Myro Career Intelligence Private Limited** (renamed across terms/privacy). Payment T&C shipped on both money surfaces (XP billing modal + Myrology checkout carry Terms+Privacy consent line). Terms §07 **Payments, XP & Refunds** (XP = closed-loop credit, not RBI PPI; funds servers not jobs; Myro = distributor of company listings; **Cancellation & Refunds** — XP final, Myrology full-refund-before-delivery / non-refundable-after). India-compliance pass INTEGRATED via Legal Compliance Checker agent: **DPDP consent microcopy at signup** (`signup-form.tsx`), privacy §06 rights expanded (withdraw/nominate/erase), §03 purpose-limitation, §04 cross-border-transfer, §07 cookie-banner-not-required note, NEW privacy §11 **Grievance Redressal** (24h ack / 15-day SLA, IT Rules 2021), terms §08 operator/grievance disclosure, §10 fraud/gross-negligence carve-out, footer "Cancellation & Refunds"→/terms#payments (Razorpay live-key prereq). Razorpay is **LIVE** — prod backend (`mirror-backend-prod`) env `RAZORPAY_KEY_ID=rzp_live_SuJDCjSGSSkGAP` + secret, tested by Shivam 2026-06-03. Billing badge is key-derived → auto-shows "Secure checkout" (no test-mode warning) on prod. ⚠️ **Verify the matching frontend public key:** Vercel **production** env `NEXT_PUBLIC_RAZORPAY_KEY_ID` must = `rzp_live_…` (same pair as backend) or checkout signature mismatches. Dev backend has no Razorpay key (payments untestable on pre-prod unless test keys added). tsc/lint clean, uncommitted. Files: `frontend/app/terms/page.tsx`, `frontend/app/privacy/page.tsx` (+ `privacy-components.tsx`), `frontend/components/settings-modal.tsx`, `frontend/app/myrology/checkout.tsx` (+ `myrology.css`), `frontend/components/auth/signup-form.tsx`, `frontend/components/public/public-footer.tsx`. Memory: `project_payment_legal_terms`. **OPEN — NEEDS SHIVAM + COUNSEL (placeholders live in code, NOT autonomous):** (a) lawyer review of both docs; (b) **CIN number** → `[to be inserted]` in terms §08; (c) **named Grievance Officer** — section shows designation+`grievance@himyro.com` only, IT Rules want a named individual; confirm the `grievance@himyro.com` mailbox exists + is monitored (24h/15-day SLA is now a public commitment); (d) full registered office address (street+PIN, MCA record); (e) confirm Myro is **not** a Significant Data Fiduciary (so no statutory DPO; "Grievance Officer" label correct); (f) sign off INR 5,000 liability cap; (g) confirm Myrology refund mechanics match booking flow + final price (₹499 vs ₹200-300 intro); (h) EU/UK in-scope check (cookie note assumes auth-only cookies). Razorpay live-key activation needs Terms+Privacy+Refund pages visibly linked (done).
 
@@ -451,15 +450,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-04 PM · Refresh reliability — 3 root-cause fixes)
+## LAST SESSION SUMMARY (2026-06-05 · Backlog audit + close-out — onboarding wiring, dashboard manual-add, stale-listing badge)
 
-User hit "Refresh matches" → red `code:204 Missing response` box. Traced to 3 distinct prod failures, all fixed + tested + committed to Develop. Worker redeployed (deploy `6d35501` WAITING at session close — **confirm worker deploy logs are clean next session**, expect RQ worker draining `jobs_compute` instead of crash-looping). Comments migration applied by Shivam.
+User asked to verify (in code) whether the beta-2 backlog items were actually fixed, then close the open ones. **Key finding: the backlog was STALE — most "open" items were already built.** Corrected wrong "NOT built" calls after locating real post-reshuffle file paths. All changes **uncommitted** (user commits): backend → main repo; frontend → nested `frontend/.git`.
 
-- **Refresh crash (commit `f334340`):** `get_user_profile_targeting` (paid-refresh hot path) called `.maybe_single().execute()` raw → postgrest-py 204 quirk raised → pipeline refunded XP → "no new matches". `db_safe.safe_read` already existed as the canonical 204/PGRST205 seam but only 1 of 6 `maybe_single` sites in `jobs.py` used it. Routed all 6 through `safe_read`; also fixed `get_deepening_sampled`/`set_deepening_sampled`/`mark_first_offer_if_unset` filtering `user_profiles` on non-existent `user_id` col (PK is `id`) → live 42703 500s. Memory: `feedback_safe_read_invariant`.
-- **Worker crash-loop (commit `619c876`) — the real 10k-reliability bug:** every RQ Redis connection built `decode_responses=True`. RQ pickles payloads → worker `UnicodeDecodeError: 0x9c` on first `hgetall` → never registered on queue → ALL refreshes + fast/bulk lanes (CV parse/score, initial match, skill retag) silently ran inline on the API event loop. Split `_rq_connection()` (binary) from `_connection()` (decoded JSON state) in `_redis_state.py` + fixed `background/dispatch.py:123,145`. `llm_budget.py` decoded conn left alone (counters, not RQ).
-- **Comments 500 (commit `6ab34e3`):** `/deepenings` 500'd with PGRST205 — `20260531_comments.sql` was unapplied (now applied). Wrapped read in `safe_read` so deploys stay order-independent.
-- **Backlog #21 added (NOT built):** read-path latency at scale — heatmap fan-out, 5s bootstrap/feed/demand, broken-pipe 500. Flagged for a perf-profiling pass per Shivam.
-- ⚠️ Still pending: multiloc `20260602` migration (separate gate).
+- **PR-ONBOARD ✅ FIXED** — root cause: `auth/callback/page.tsx` intentionally routed first-run→`/welcome`, but `/welcome` was reduced to `redirect("/")` when welcome merged into landing → orphaned the complete `/onboarding` 6-step stepper. Flipped the one seam (callback:134 first-run → `/onboarding`). The `/onboarding` flow (cv→role→lens→companies→ninja→score) was fully built, just unreachable.
+- **E1 manual-add (per Shivam directive) ✅** — "+ Add a job" now on the **dashboard** header (Myro/Liked feed), opens existing `ManualAddModal`, invalidates apps, auto-switches to Liked. Self-sourced `manual_web` apps already flow into the feed (`applied` ∈ LIKED_STATUSES). Files: `components/dashboard/dashboard.tsx`+`.css`, `app/(authed)/home/page.tsx`.
+- **BUG-4 stale-listing ✅ BUILT (21d threshold)** — scoped to the market-feed path where the Apply-404 lives. Backend: `STALE_AFTER_DAYS=21` + `_is_marker_stale` + `last_seen` in `_FEED_COLUMNS` + `_feed_shape_row` exposes `last_seen_at`/`is_stale`; `JobFeedItem` schema. Frontend: type + drawer warning above Apply ("Last seen N days ago — may be filled; apply link could be outdated"). **Reverted** an over-scoped JobMatch (dashboard) path — no external Apply there = dead data. Backend `89 passed`, tsc/lint clean.
+- **Verified already-built (my earlier "NOT built" was wrong):** E2 heatmap empty (`market/page.tsx`), E3 jobs-feed empty (`jobs-tab.tsx`), BUG-2 upload retry (api.ts — 3 attempts/90s/backoff/idempotent), BUG-1 filename, BUG-5 session, BUG-6 copy. #18 PR1 (nav.loading gate kills lying pill).
+- **#14 match-refresh ✅ confirmed deployed** (tiered floor in code).
+- **BUG-2 residual:** Android interrupt needs `_emitCVUploadTelemetry` reasonCode from prod — live data, not code (bumping retries = symptom patch).
+- **⚠️ Git topology gotcha:** `frontend/.git` is a nested repo mid progressive-nav reshuffle (renaming `app/home`→`app/(authed)/home`). Main repo's `git status` shows SOME frontend files modified, others clean despite on-disk edits — check BOTH `git status` and `cd frontend && git status` when committing. Memory: `reference_frontend_nested_git`.
+
+---
+
+> **2026-06-04 PM session (refresh reliability — 3 root-cause fixes) shipped & committed to Develop** (`f334340` safe_read fan-out, `619c876` RQ binary-conn worker crash-loop, `6ab34e3` comments 500). Detail in git log. Backlog #21 (read-path latency) added there.
 
 ---
 
@@ -480,118 +485,22 @@ Codex/Claude PR split executed. **Codex done — do not redo PR-4/PR-5-slice/PR-
 
 ---
 
-## BETA-2 UX HARDENING SPRINT — Backlog #21 (AUDIT: 2026-06-04 · READY TO CODE)
+## BETA-2 UX HARDENING SPRINT — Backlog #20/#21 (mostly SHIPPED — verified 2026-06-05)
 
-**Source:** Full audit of `reference/` folder — 150+ screenshots across 20 date-stamped folders, 6 HANDOFF.md specs, 20+ user feedback documents, plus live codebase inspection of `frontend/` and `backend/`.
+Full `reference/` audit (150+ screenshots, 20+ feedback docs) drove this sprint. **Nearly all shipped.** Detail in git log; only live carry-over kept below.
 
-**Audit verdict (confirmed by code inspection 2026-06-04):**
-- ✅ PR-K tokens SHIPPED (`frontend/app/design-tokens.css` — `#050A18` bg, `#E8F0FF` text, full token system)
-- ✅ PR-E stat tiles SHIPPED (`SkillIntelHeader` 4-tile `tm-skills-stat-grid`, `/skills` → `/forge` redirect)
-- ✅ PR-B signup SHIPPED (no ninja name field in `signup-form.tsx`)
-- ✅ PR-D score gauge overlap SHIPPED (`score-label` outside ring in `score-gauge.tsx`, flex column layout)
-- ✅ PR-G heatmap labels SHIPPED (`shortHeatmapSkillLabel()` in `lib/heatmap-labels.ts`)
-- ✅ PR-FORGE-BG timer persistence SHIPPED (Codex `4b28856`)
-- ✅ PR-JARGON (partial) SHIPPED (Codex `3daff43`)
-- ❌ **PR-EMPTY empty states NOT built** — explicitly Claude-owned in prior session summary, still absent
-- ❌ **Onboarding flow NOT built** — #1 cited issue across ALL 20+ user feedback docs
-- ❌ **6 additional bugs NOT in any prior backlog** — discovered fresh from this audit
+**Shipped + verified in code 2026-06-05:**
+- PR-K tokens · PR-B signup · PR-E stat tiles · PR-D score gauge · PR-G heatmap labels · PR-FORGE-BG · PR-JARGON (Codex slices, prior sessions).
+- **PR-ONBOARD ✅ FIXED** — first-run signup→`/onboarding` (callback seam `auth/callback/page.tsx`; `/welcome`→`redirect("/")` had orphaned the complete cv→role→lens→companies→ninja→score stepper).
+- **PR-EMPTY ✅ CLOSED** — E1 dashboard "+ Add a job" (manual-add lives on the Myro/Liked feed per Shivam directive → `ManualAddModal`, invalidates apps, auto-switch to Liked); E2 heatmap empty + E3 jobs-feed empty already existed.
+- **BUG-1 ✅** filename (cv-export derives `{name}_CV.pdf`) · **BUG-2 ✅** upload retry already built+tuned (3 attempts/90s/backoff/idempotent — residual Android failures need telemetry reasonCode, NOT more retries = symptom patch) · **BUG-4 ✅** stale-listing badge (21d threshold, market-feed `JobFeedItem.is_stale` + drawer warning above Apply) · **BUG-5 ✅** session (refresh-exchange + `/login?next=`) · **BUG-6 ✅** punitive copy (action label, no raw negative).
+- **#18 dashboard loading PR1 ✅** — `nav.loading` skeleton gate fires before `nav.firstRun`, killing the lying first-run pill.
 
----
-
-### VERIFIED MISSING — CODE-READY FOR NEXT SESSION
-
-**Build order: PR-ONBOARD → PR-EMPTY → PR-BUGS (all parallel after ONBOARD)**
-
----
-
-#### PR-ONBOARD — First-Time User Onboarding Flow (P0 — #1 user complaint across ALL feedback)
-
-**Evidence:** 15+ users independently said variations of: "I signed up and had no idea what to do", "no guidance after signup", "confused immediately", "would uninstall without onboarding". Users: Komal, Arham, Aparna, Aditya, Vidhi, Bharat, Navneet, Neelesh, and 8 others.
-
-**What exists:** `frontend/app/onboarding/` directory + `NinjaNameStep.tsx` + `step-*.tsx` components already exist. Onboarding route is built. It is NOT wired correctly to the post-signup flow.
-
-**Files to touch:**
-- `frontend/app/onboarding/page.tsx` — audit what steps exist; add missing welcome step
-- `frontend/components/auth/signup-form.tsx` — after successful signup, redirect to `/onboarding` not `/home`
-- `frontend/app/(authed)/home/page.tsx` — remove the first-run "FIRST CV IN 10 min" pill that shows to returning users (Backlog #18 bug — `isFirstRun(undefined)` returns true while cv.versions is loading → LYING pill)
-- `frontend/components/onboarding/NinjaNameStep.tsx` — verify auto-generated default works (SH2: `silent-fox-9k2` pattern)
-
-**Onboarding steps (existing route, verify each exists):**
-1. Welcome → value prop one-liner + "Start building your CV hub →"
-2. NinjaName (skippable, auto-default per SH2)
-3. StepRole → target role + location
-4. StepCV → CV upload drop zone (the real first action)
-5. StepScore → score reveal (celebrate the moment)
-
-**Acceptance:** New user completes signup → lands on `/onboarding` step 1 → progress strip shows steps → CV upload on step 4 → score reveal on step 5 → lands on `/home`. Returning user NEVER sees the onboarding strip or first-run pill.
-
----
-
-#### PR-EMPTY — Empty State Designs (Claude-owned since last session, still not built)
-
-Three surfaces feel broken when empty. Each needs a focused CTA, not multiple competing buttons.
-
-**E1 — Tracker empty state**
-- File: `frontend/components/dashboard/dashboard.tsx` (or wherever Tracker tab renders)
-- Current: multiple `+ Add manually` buttons, feels abandoned
-- Fix: single centered card → icon + headline "No applications yet" + ONE CTA "Browse your matched jobs →" (routes to `/market`). Remove duplicate affordances.
-
-**E2 — Intel heatmap empty state (zero followed companies)**
-- File: `frontend/components/intel/heatmap.tsx` (or `intel-results.tsx`)
-- Current: empty grid, looks broken per IH1
-- Fix: single centered card → icon (radar/crosshair) + "Star companies to build your heatmap" + "Browse Top Movers →" CTA. Per IH1 this is correct behaviour — make it feel intentional not abandoned.
-
-**E3 — Jobs feed empty state (no matches yet / computing)**
-- File: `frontend/components/market/jobs-tab.tsx`  
-- Current: blank page while matches compute
-- Fix: shimmer skeleton rows (3-4) + copy "Your matches are computing — usually under 2 minutes" in tertiary text above skeletons. Once computed with 0 results: "No matches yet — try uploading a more detailed CV" + "Go to CV hub →".
-
-**Acceptance:** All three empty states present, each has exactly ONE primary CTA, no duplicate buttons.
-
----
-
-#### PR-BUGS — 6 Bugs from Fresh Audit (parallel, standalone)
-
-**BUG-1 — PDF download filename is "document.pdf" instead of user's name**
-- Reported by: user Kavyta in `CV issues/User_feedback_report.yml`
-- File: wherever the PDF download is triggered — likely `frontend/components/cv/builder/playground-view.tsx` or the PDF export endpoint
-- Fix: set `Content-Disposition: attachment; filename="{user_name}_CV.pdf"` on the response, OR `document.querySelector('a').download = "${firstName}_CV.pdf"` on the client anchor. Check `backend/app/routers/cv.py` for the export endpoint.
-- Acceptance: Downloaded PDF is named `ShivamPathak_CV.pdf` not `document.pdf`.
-
-**BUG-2 — CV upload "Upload was interrupted" on Android Chrome**
-- Reported by: Arun Dhami (Hindi message), fresher user — both on Android, 5G/WiFi, PDF 106KB + JPG 218KB both failed
-- Files: `backend/app/routers/cv.py` (upload endpoint) + `frontend/components/cv/upload/` (client uploader)
-- Root cause: likely `Content-Length` mismatch or timeout too short for mobile networks. Check if `multipart/form-data` handling has a body-size limit in Railway config. Also check if `CVUP1` idempotency key is being sent correctly from mobile browsers.
-- Fix direction: (a) raise Railway `BODY_LIMIT` if set, (b) add retry logic on the frontend for the upload POST (max 3 retries with exponential backoff), (c) show a real progress bar with percentage (not just a spinner) so user knows upload is in progress.
-- Acceptance: 106KB PDF uploads reliably on Android Chrome over 5G.
-
-**BUG-3 — "AT RISK" and "BUILDING" domain pills have no tooltip explanation**
-- Reported by: user Aman, user Ravali, multiple others — "I wasn't sure why my business skills were 'at risk'"
-- Files: `frontend/components/skills/domain-accordion-row.tsx` (or wherever the AT RISK/BUILDING pill renders)
-- Fix: add `title` attribute + hover tooltip per ABSOLUTE RULES "Design over words" — visual state earns helper text only when it explains a non-visible constraint. AT RISK tooltip: "Skills in this domain score below 40% — practice to close the gap". BUILDING tooltip: "This domain has L1–L2 skills — keep forging to advance".
-- Acceptance: Hovering the AT RISK pill shows the tooltip. Same for BUILDING. No change to label text itself.
-
-**BUG-4 — Stale job listings show "Page Not Found"**
-- Reported by: user feedback report 2, multiple users — "a few listings displayed 'Page Not Found' or 'This job is not available'"
-- Files: `frontend/components/market/job-card.tsx` — the "Apply" link / external job URL
-- Fix: on external link click, instead of navigating directly to the scraped URL, first check if `jobs.external_url` is marked as stale/delisted. If `jobs.last_seen_on_platform_at` is > 14 days ago, show an in-app toast "This listing may be outdated — the company's careers page may have more." + still allow navigation. For delisted jobs (`delisted_at IS NOT NULL`), show a dismissible badge "Job no longer active" on the card and disable the Apply button.
-- Also update job-card to show `last_seen_on_platform_at` as a relative date ("Last seen 3 days ago") near the apply button.
-- Backend: `backend/app/routers/jobs.py` — `GET /jobs/{id}` should return `is_stale: bool` based on `last_seen_on_platform_at`.
-- Acceptance: No user navigates to a 404. Stale jobs are visually flagged.
-
-**BUG-5 — Cross-device session drops (re-login required on device switch)**
-- Reported by: user in `User_feedback_report.yml` ("Cross-Platform Session Dropoffs: Switching operational execution between desktop layouts and mobile viewports flags immediate token invalidation")
-- Files: `frontend/lib/session.ts` — token refresh logic; `frontend/lib/hooks/use-auth.ts`
-- Root cause: likely Supabase session not being refreshed before expiry on mobile, or localStorage token not being shared cross-tab properly
-- Fix: verify `supabase.auth.onAuthStateChange` is wired in `use-auth.ts` and that `PKCE` flow is used (Supabase default). Ensure token is stored in `localStorage` (not `sessionStorage`) so it survives tab/device transitions. Add session-expiry graceful error: show "Session expired — sign in again" toast + redirect to `/login?next={current_path}` instead of silent failure.
-- Acceptance: User starts session on desktop, opens mobile browser while desktop session is active — should either resume or show a clear "session expired" message, never a silent broken state.
-
-**BUG-6 — Punitive CV playground framing may still show for jobs opened fresh**
-- Reported by: HANDOFF.md D2 + multiple users seeing "-17 this session" / "Needs work" without context
-- Code check needed: `frontend/components/cv/builder/playground-view.tsx` — the subtitle below the score ring. `3daff43` only fixed the label overlap (D1), NOT the copy (D2).
-- Fix: in `playground-view.tsx`, replace the delta subtitle copy. When score = 0 on a freshly opened job, render "→ Add matching skills to climb" (link to `/forge`). When score > 0 but dropped from a prior session, render "Previously {prior}% — add skills to recover" in secondary text. NEVER show a raw negative delta in red with no context.
-- Files: `frontend/components/cv/builder/playground-view.tsx`, look for the subtitle/delta text below `<ScoreGauge>`
-- Acceptance: Opening a new job for the first time shows a neutral/inviting subtitle. No standalone red negative number.
+**STILL OPEN (carry-over):**
+- **BUG-3 (minor)** — old "AT RISK/BUILDING" domain pill was DELETED in the skills redesign; the new per-skill tier label `L{n}·{label}` ([practice-skill-list.tsx](frontend/components/skills/practice-skill-list.tsx)) has no explanatory tooltip. Decide: add tooltip to the tier label, or drop (the pill it targeted is gone).
+- **PR-F 375px QA (UNVERIFIED)** — open `/forge` on a 375px browser: confirm (a) Intel/Map/Audit sticky tab doesn't overlap cards, (b) skill-card buttons icons-only at <480px (SE14). If broken → fix.
+- **#18 PR2 (NOT built)** — the "no-shimmer" teal-edges `<TealField>` playground (ambient, compositor-only, hard-teardown-on-ready). Sibling of CV-upload loading redesign.
+- **BUG-2 next step** — root-cause the residual Android upload interrupt from the `_emitCVUploadTelemetry` reasonCode/network_type in prod logs (needs live data, not code).
 
 ---
 
@@ -607,25 +516,6 @@ Multiple users (Aparna, Aditya, Arham, honest user) report they wouldn't sign up
 
 **ND3 — Special character corruption in CV parsing**
 Reported: "R&D", "Néstor", and other non-ASCII strings corrupt during ingestion. Root cause: likely the CV text extractor (pdfplumber or similar) isn't handling UTF-8 edge cases. **Needs backend investigation — touch `backend/app/services/cv_parser.py` and add a test for special characters before fixing.**
-
----
-
-### AUDIT STATUS OF ENTERPRISE POLISH SPRINT (Backlog #20) — UPDATED 2026-06-04
-
-| PR | Status | Notes |
-|---|---|---|
-| PR-K tokens | ✅ SHIPPED | `design-tokens.css` confirmed |
-| PR-B signup | ✅ SHIPPED | No ninja field in `signup-form.tsx` |
-| PR-E skills header | ✅ SHIPPED | 4-tile grid in `SkillIntelHeader` |
-| PR-G heatmap labels | ✅ SHIPPED (partial) | `shortHeatmapSkillLabel` exists, horizontal scroll unverified |
-| PR-D score ring overlap | ✅ SHIPPED | CSS flex-column layout confirmed |
-| PR-F sticky tab + SE14 | ⚠️ UNVERIFIED | `3daff43` touched `playground-view.tsx` but F1/F2 not in diff — needs live QA on 375px |
-| PR-FORGE-BG | ✅ SHIPPED | Codex `4b28856` |
-| PR-JARGON | ✅ SHIPPED (partial) | Codex `3daff43` — feedback jargon slice |
-| PR-EMPTY | ❌ NOT BUILT | Claude-owned — see PR-EMPTY above |
-| Backlog #18 dashboard loading | ❌ NOT BUILT | `isFirstRun(undefined)` lying pill still present |
-
-**F1/F2 verification needed:** Before next session, open `/forge` on a 375px mobile browser and confirm: (a) Intel/Map/Audit sticky tab does NOT overlap domain card content, (b) skill-card action buttons show icons-only at <480px. If still broken, add to PR-F in the next sprint.
 
 ---
 

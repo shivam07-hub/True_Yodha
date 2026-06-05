@@ -19,10 +19,10 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
  *  - Persists edits to the CANONICAL profile (single source of truth).
  *  - The 6 Career Ops agent inputs are VISIBLE by default as a compact
  *    manifest; 5 are inline-editable, the CV is a read-only chip → new tab.
- *  - Honest conditional charge: "Up to 150 XP · charged only if new matches".
+ *  - Honest conditional charge: "Up to 150 tokens · charged only if new matches".
  *  - Three exits: Run analysis (save+spend) / Save targeting only / Discard.
  *  - Broke: gate opens, edits stay free, Run disabled + shortfall + /xp link
- *    (reuses the canonical "See how XP works →" route, not a new earn path).
+ *    (reuses the canonical "See how tokens works →" route, not a new earn path).
  *  - Reuses useXPGate (policy/telemetry) + the JobMatchDetail dialog pattern.
  *
  * EXTRACTABLE CORE: everything below the manifest rows (ConsentReadout + the
@@ -55,7 +55,7 @@ interface Draft {
 interface MatchRefreshGateProps {
   token: string | null
   profile?: GateProfile | null
-  /** Fired after edits persist + XP consent passes. Hands off to useJobRefresh. */
+  /** Fired after edits persist + tokens consent passes. Hands off to useJobRefresh. */
   onRun: () => void
 }
 
@@ -337,7 +337,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             <XPCoin />
             {canAfford ? (
               <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
-                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} XP</strong>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} tokens</strong>
                 {" · "}<span style={{ color: "var(--tm-text-muted)" }}>charged only if new matches are found</span>
               </div>
             ) : (
@@ -346,8 +346,8 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
                   Need {COST} · you have {balance}
                 </strong>
                 <span style={{ color: "var(--tm-text-muted)" }}>{` (${shortfall} short)`}</span>{" — "}
-                <Link href="/xp" onClick={() => close()} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
-                  See how XP works →
+                <Link href="/tokens" onClick={() => close()} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
+                  See how tokens work →
                 </Link>
               </div>
             )}

@@ -32,8 +32,8 @@ function resolveMove(
     return {
       tag: "START HERE",
       headline: "Upload your CV",
-      sub: "Unlocks job matching, skill scoring, and XP",
-      xp: "+3000 XP",
+      sub: "Unlocks job matching, skill scoring, and tokens",
+      xp: "+3000 tokens",
       action: { label: "Upload CV →", href: "/cv" },
     }
   }
@@ -51,16 +51,16 @@ function resolveMove(
     return {
       tag: "YOUR MOVE",
       headline: `Practice ${skill}`,
-      sub: "Practice the skill · log the session · earn XP · keeps streak",
-      xp: "+50 XP",
+      sub: "Practice the skill · log the session · earn tokens · keeps streak",
+      xp: "+50 tokens",
       action: { label: "Enter Practice ↗", onClick: onForge },
     }
   }
   return {
     tag: "CLOSE THE LOOP",
     headline: "Log today's work",
-    sub: "Lock in your proof · diary entry earns XP · loop complete",
-    xp: "+30 XP",
+    sub: "Lock in your proof · diary entry earns tokens · loop complete",
+    xp: "+30 tokens",
     action: { label: "Open Diary →", onClick: onDiary },
   }
 }
@@ -122,7 +122,7 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
         </div>
       </div>
 
-      {/* XP badge + CTA */}
+      {/* tokens badge + CTA */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
         {move.xp && (
           <div style={{

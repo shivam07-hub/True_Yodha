@@ -81,7 +81,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       if (data.advice) setAdvice(data.advice)
       if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "polish_skill" })
     },
-    onError: () => setErrorMsg("Couldn't fetch advice. No XP was spent."),
+    onError: () => setErrorMsg("Couldn't fetch advice. No tokens were spent."),
   })
 
 
@@ -193,7 +193,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
           onClick={() => setEditOpen(true)}
         />
         <ActionBtn
-          label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} XP`}
+          label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} tokens`}
           icon={askAdvice.isPending ? "…" : "✦"}
           onClick={() => isFree
             ? askAdvice.mutate()

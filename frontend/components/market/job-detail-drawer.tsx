@@ -28,9 +28,11 @@ export function JobDetailDrawer({
 
   const reportMut = useMutation({
     mutationFn: () => jobs.reportInactive(token, job.job_id),
-    onSuccess: () => { setReported(true); setMsg("Reported — thanks. +10 XP") },
+    onSuccess: () => { setReported(true); setMsg("Reported — thanks. +10 tokens") },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Could not report"),
   })
+
+  const staleDays = job.is_stale ? daysAgo(job.last_seen_at) : null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -71,6 +73,15 @@ export function JobDetailDrawer({
           </div>
         </div>
 
+        {job.is_stale ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+            <span aria-hidden>⚠</span>
+            <span>
+              {staleDays != null ? `Last seen ${staleDays} days ago — ` : ""}this posting may be filled; the apply link could be outdated.
+            </span>
+          </div>
+        ) : null}
+
         {msg ? <div style={{ padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
 
         <footer style={{ display: "flex", gap: 8, padding: "16px 24px", borderTop: "1px solid var(--tm-border-soft)", flexWrap: "wrap" }}>
@@ -85,4 +96,12 @@ export function JobDetailDrawer({
     </>,
     document.body,
   )
+}
+
+/** Whole days between an ISO date and now, or null when unparseable. */
+function daysAgo(iso?: string | null): number | null {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return null
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000))
 }

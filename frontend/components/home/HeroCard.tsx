@@ -165,6 +165,22 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
         >
           → Tailor CV for this role
         </Link>
+        {/* Door 2 — download the master CV without tailoring. */}
+        <Link
+          href="/cv?master=1"
+          style={{
+            display: "inline-flex", alignItems: "center",
+            padding: "9px 18px", borderRadius: 99,
+            background: "transparent", textDecoration: "none",
+            color: "var(--tm-text-muted)", fontSize: 13, fontWeight: 600,
+            border: "1px solid var(--tm-border-soft)",
+            transition: "color 150ms, border-color 150ms",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = "var(--tm-text)"; e.currentTarget.style.borderColor = "var(--tm-int-border)" }}
+          onMouseLeave={e => { e.currentTarget.style.color = "var(--tm-text-muted)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
+        >
+          ↓ Download my CV
+        </Link>
       </div>
 
       {/* Expanded block */}

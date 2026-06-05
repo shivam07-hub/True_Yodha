@@ -1,22 +1,34 @@
 import type { JobFeedSort } from "@/lib/api"
 
 /**
- * The user's fit lens (rank-by) + narrowing filters for the triage feed.
- * One object so the orchestrator, the filters sheet and the query hook share a
- * single source of truth. `personal` / `role` lenses + min_skill / target_role
- * filters all need a CV or target roles — gated in the UI, never fabricated.
+ * The user's rank toggle + narrowing filters for the triage feed. One object so
+ * the orchestrator, the filters sheet and the query hook share a single source
+ * of truth.
+ *
+ * Ranking (market filter rework, locked 2026-06-05): the four legacy sort pills
+ * collapse to a single visible toggle — "Best fit" (the `fit` composite, blends
+ * skill·role·fresh server-side) ⇄ "Newest" (`fresh`). The skill/role signals
+ * live INSIDE the fit score, never as separate user-picked sorts.
+ *
+ * Filters are the hard inclusion gates: roleDomain (cluster pin), minSkillMatches
+ * (optional floor, default off), followingOnly. Location is NOT here — it is
+ * fixed-from-settings server-side (the feed scopes to the user's saved target
+ * locations), surfaced read-only in the summary line, never a per-session filter.
+ *
+ * `targetRoleOnly` / `freshnessDays` remain on the shape for API back-compat but
+ * the UI no longer sets them (cleanup-debt, CLAUDE.md OPEN BACKLOG #23).
  */
 export interface FeedFilters {
   sort: JobFeedSort
   roleDomain: string | null   // a target-role cluster pin
   minSkillMatches: number     // 0 = off
-  targetRoleOnly: boolean
-  freshnessDays: number       // 0 = any age
+  targetRoleOnly: boolean     // legacy, UI no longer sets
+  freshnessDays: number       // legacy, UI no longer sets
   followingOnly: boolean
 }
 
 export const DEFAULT_FILTERS: FeedFilters = {
-  sort: "fresh",
+  sort: "fit",
   roleDomain: null,
   minSkillMatches: 0,
   targetRoleOnly: false,
@@ -24,32 +36,30 @@ export const DEFAULT_FILTERS: FeedFilters = {
   followingOnly: false,
 }
 
-/** Fit lenses. `personal` + `role` are gated (need CV / target roles). */
-export const FIT_LENSES: { key: JobFeedSort; label: string; needsCv?: boolean; needsRoles?: boolean }[] = [
-  { key: "fresh", label: "Freshest first" },
-  { key: "personal", label: "Best skill match", needsCv: true },
-  { key: "role", label: "Best role match", needsRoles: true },
-  { key: "company", label: "By company" },
+/** The two-way rank toggle. "Best fit" is hidden when the user has neither a CV
+ *  nor target roles — there is no signal to rank fit on, so we default to Newest
+ *  and don't offer a hollow fit mode. */
+export const SORT_TOGGLE: { key: Extract<JobFeedSort, "fit" | "fresh">; label: string }[] = [
+  { key: "fit", label: "Best fit" },
+  { key: "fresh", label: "Newest" },
 ]
 
-export const FRESHNESS_PRESETS: { days: number; label: string }[] = [
-  { days: 0, label: "Any time" },
-  { days: 1, label: "Past 24 hours" },
-  { days: 7, label: "Past week" },
-  { days: 30, label: "Past month" },
-]
+/** Can the "Best fit" rank produce a meaningful order for this user? */
+export function canRankByFit(hasCv: boolean, hasTargetRoles: boolean): boolean {
+  return hasCv || hasTargetRoles
+}
 
-/** Count of active narrowing filters — drives the "Filters · N" badge. */
+/** The default rank for a user: fit when there's signal, else newest. */
+export function pickDefaultSort(hasCv: boolean, hasTargetRoles: boolean): JobFeedSort {
+  return canRankByFit(hasCv, hasTargetRoles) ? "fit" : "fresh"
+}
+
+/** Count of active narrowing filters — drives the "Filters · N" badge. Only the
+ *  three surviving hard filters count; rank (fit/newest) is not a filter. */
 export function activeFilterCount(f: FeedFilters): number {
   let n = 0
   if (f.roleDomain) n += 1
   if (f.minSkillMatches > 0) n += 1
-  if (f.targetRoleOnly) n += 1
-  if (f.freshnessDays > 0) n += 1
   if (f.followingOnly) n += 1
   return n
-}
-
-export function freshnessLabel(days: number): string {
-  return FRESHNESS_PRESETS.find(p => p.days === days)?.label ?? "Any time"
 }

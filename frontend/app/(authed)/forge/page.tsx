@@ -169,7 +169,7 @@ function ForgePageInner() {
     try {
       await forgeSession.claim({
         onClaimed: (result) => {
-          setToast(`+${result.xp_earned} XP · practice logged`)
+          setToast(`+${result.xp_earned} tokens · practice logged`)
           queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
           queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
           queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
@@ -231,7 +231,7 @@ function ForgePageInner() {
                     </svg>
                     <div className="tm-pr-dial-center">
                       <div className="tm-pr-dial-xp">+{readyXP}</div>
-                      <div className="tm-pr-dial-xplbl">XP ready</div>
+                      <div className="tm-pr-dial-xplbl">Tokens ready</div>
                       <div className="tm-pr-dial-clock">{clock}</div>
                     </div>
                   </div>
@@ -255,7 +255,7 @@ function ForgePageInner() {
                     </button>
                     <button type="button" className="tm-pr-btn tm-pr-btn-claim tm-control-focus"
                       onClick={handleClaim} disabled={!canClaim || forgeSession.claiming}>
-                      {forgeSession.claiming ? "Saving..." : `Claim +${readyXP} XP`}
+                      {forgeSession.claiming ? "Saving..." : `Claim +${readyXP} tokens`}
                     </button>
                   </div>
                   {forgeSession.claimError && (

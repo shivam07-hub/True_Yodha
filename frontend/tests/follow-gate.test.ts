@@ -22,12 +22,12 @@ test("blocks at the company cap", () => {
   )
 })
 
-test("blocks when the next charge would breach the XP floor", () => {
+test("blocks when the next charge would breach the token floor", () => {
   // balance - cost must be >= floor. At floor + cost - 1 it breaches.
   const balance = FLOOR + COST - 1 // -21: -21 - 10 = -31 < -30
   assert.equal(
     followGateReason({ name: "Google", followedNames: [], count: 0, balance }),
-    "Not enough XP",
+    "Not enough tokens",
   )
 })
 
@@ -46,7 +46,7 @@ test("already-followed is not a block (returns null, treated as no-op/unfollow)"
   )
 })
 
-test("cap takes precedence over XP when both would block", () => {
+test("cap takes precedence over tokens when both would block", () => {
   const followed = Array.from({ length: LIMIT }, (_, i) => `Co${i}`)
   assert.equal(
     followGateReason({ name: "Google", followedNames: followed, count: LIMIT, balance: -999 }),

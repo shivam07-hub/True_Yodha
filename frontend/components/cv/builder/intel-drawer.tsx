@@ -99,7 +99,7 @@ export function IntelDrawer({
                 <Link href="/forge?view=map" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
                   Practice these gaps →
                 </Link>{" "}
-                to earn XP and unlock new bullet drafts.
+                to earn tokens and unlock new bullet drafts.
               </div>
             )}
           </section>

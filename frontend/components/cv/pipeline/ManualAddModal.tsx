@@ -171,7 +171,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                     {parsing ? "Reading the posting…" : parsedFrom ? `Loaded from ${parsedFrom}` : "Upload PDF, Word, or a screenshot"}
                   </span>
                   <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 2 }}>
-                    {parsing ? "Extracting company, role & description" : `Myro fills the fields below · +${XP_POLICY.addJobReward} XP when you save`}
+                    {parsing ? "Extracting company, role & description" : `Myro fills the fields below · +${XP_POLICY.addJobReward} tokens when you save`}
                   </span>
                 </span>
               </button>

@@ -296,7 +296,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-03 - Codex assigned reliability pulls closed, Develop)
+## LAST SESSION SUMMARY (2026-06-05 - Tokens pivot + quiet chrome, Develop)
+
+Pivoted user-facing XP language to tokens and removed the visible timer/balance widgets from app chrome.
+
+- Desktop `WebChrome` no longer renders the forge timer chip, claim popover, or top-bar balance pill. Mobile `MobileTopBar` no longer renders `ForgeXpPill`. `ForgeClockDriver` and the underlying wallet/session economy remain active in the background.
+- Added `/tokens` as the token guide route and changed `/xp` to redirect to `/tokens`. Updated visible token copy across docs, terms, settings/billing, market follows, CV upload, Practice, diary, skills advice, job refresh, newsletter CTA, onboarding, and shell modals.
+- Updated backend user-visible error/SSE messages from XP to tokens for wallet failures, CV upload/refund failures, skill advice, job analyse, and deepeners. Internal DB/API names like `xp_balance`, `XP_POLICY`, service names, logs, and migrations were intentionally left unchanged.
+- Added `frontend/tests/tokens-copy.test.ts` to lock no standalone `XP` in rendered frontend source roots and to ensure desktop chrome does not expose the old timer/balance controls. Added CV upload error sanitization so legacy backend "XP" details display as tokens.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `557 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Focused checks passed: `tokens-copy`, `cv-upload-state`, `job-refresh-notice`, `follow-gate`, plus backend `test_xp_service.py`, `test_users_api.py`, `test_cv_upload_api.py`, `test_deepen_router.py`.
+- Browser smoke on `127.0.0.1:3000`: `/docs` and `/terms` rendered token copy with no standalone visible XP; `/tokens` compiled with title `How Tokens Work | Myro`. Dev server stopped after verification.
+
+Remaining:
+
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+- Internal architecture/docs still use XP terminology for the existing DB/service layer. Do a deliberate schema/API rename later only if Shivam wants a deeper migration.
+
+## OLDER SESSION SUMMARY (2026-06-03 - Codex assigned reliability pulls closed, Develop)
 
 Closed the Claude-sliced Codex pull set on `Develop`. **Do not redo these slices.**
 

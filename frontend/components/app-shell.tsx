@@ -33,7 +33,7 @@ export type { SidebarProfile } from "@/lib/shell/contract"
  * reuses useShellModel + the mobile chrome, never this file.
  */
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/home", "/forge", "/xp"]
+const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/home", "/forge", "/tokens", "/xp"]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

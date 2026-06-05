@@ -58,10 +58,10 @@ export function XpExplainerModal({
           </div>
           <div className="tm-xp-explainer-header-title" style={{ minWidth: 0, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--tm-text)" }}>
-              How XP Works
+              How Tokens Work
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.45 }}>
-              Earn XP by doing career work. Spend it on heavier analysis.
+              Earn tokens by doing career work. Spend them on heavier analysis.
             </p>
           </div>
           <div className="tm-xp-explainer-header-balance" style={{
@@ -75,12 +75,12 @@ export function XpExplainerModal({
             color: "var(--tm-text)",
             whiteSpace: "nowrap",
           }}>
-            {balance} XP
+            {balance} tokens
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close XP guide"
+            aria-label="Close tokens guide"
             style={{
               width: 32,
               height: 32,
@@ -113,7 +113,7 @@ export function XpExplainerModal({
         }}>
           <XpFairnessNote compact />
           <Link
-            href="/xp"
+            href="/tokens"
             onClick={onClose}
             className="tm-xp-explainer-footer-cta"
             style={{

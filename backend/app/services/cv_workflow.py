@@ -364,7 +364,7 @@ async def _start_async_upload_job(
         upload_jobs_repo.mark_failed(
             job_id,
             error_code="insufficient_xp",
-            error_detail="Not enough XP to start this upload.",
+            error_detail="Not enough tokens to start this upload.",
             refunded=False,
         )
         # Re-raise with the CV-specific recovery CTA appended. Other call
@@ -375,8 +375,8 @@ async def _start_async_upload_job(
             detail={
                 "code": "insufficient_xp",
                 "message": (
-                    f"{exc.detail} Earn 30 XP in 5min via a diary entry, or "
-                    "complete a forge session for +50 XP."
+                    f"{exc.detail} Earn 30 tokens in 5 minutes via a diary entry, or "
+                    "complete a practice session for +50 tokens."
                 ),
             },
             headers={"X-Myro-Error-Code": "insufficient_xp"},
@@ -423,7 +423,7 @@ async def _cv_parse_score_failure(payload: dict[str, Any]) -> None:
         payload["job_id"],
         payload["user_id"],
         error_code="provider_unavailable",
-        detail="Our CV analysis service was busy and couldn’t finish. Your XP has been refunded — please try again.",
+        detail="Our CV analysis service was busy and couldn’t finish. Your tokens have been refunded — please try again.",
     )
 
 
@@ -496,7 +496,7 @@ async def _run_cv_upload_job(
         await _handle_job_failure(
             job_id, user_id,
             error_code="internal",
-            detail="Unexpected error while analysing your CV. Your XP has been refunded.",
+            detail="Unexpected error while analysing your CV. Your tokens have been refunded.",
             transient=True, allow_retry=allow_retry,
         )
         return
@@ -505,7 +505,7 @@ async def _run_cv_upload_job(
         await _handle_job_failure(
             job_id, user_id,
             error_code="provider_unavailable",
-            detail="Our CV analysis service was down. Your XP has been refunded — please try again in a few minutes.",
+            detail="Our CV analysis service was down. Your tokens have been refunded — please try again in a few minutes.",
             transient=True, allow_retry=allow_retry,
         )
         return
@@ -515,7 +515,7 @@ async def _run_cv_upload_job(
         await _handle_job_failure(
             job_id, user_id,
             error_code="no_skills",
-            detail="No skills could be extracted from this CV. Your XP has been refunded — try a more detailed document.",
+            detail="No skills could be extracted from this CV. Your tokens have been refunded — try a more detailed document.",
             transient=False, allow_retry=allow_retry,
         )
         return
@@ -527,7 +527,7 @@ async def _run_cv_upload_job(
         await _handle_job_failure(
             job_id, user_id,
             error_code="taxonomy_unmapped",
-            detail="CV skills could not be mapped to the skill taxonomy. Your XP has been refunded.",
+            detail="CV skills could not be mapped to the skill taxonomy. Your tokens have been refunded.",
             transient=False, allow_retry=allow_retry,
         )
         return
