@@ -296,7 +296,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-05 - Tokens pivot + quiet chrome, Develop)
+## LAST SESSION SUMMARY (2026-06-05 - Brand system supersession spec, Develop)
+
+Wrote and committed the superseding Myro brand-system design spec after aligning with Shivam on the branding direction.
+
+- Locked the pilot scope: brand tokens, public landing/nav, app chrome, and first-run/home surfaces.
+- Locked the new brand foundation: light mode defaults for first paint, Firecrawl-like light discipline, orange light-mode primary CTAs, true-black dark mode with white text and teal/green important states, Inter as the core font, and the existing aperture-M mark retained.
+- Made spacing/type standardization the central acceptance gate: desktop web and phone web get separate rhythm contracts for margins, navigation spacing, font sizes, font weights, control sizes, panel padding, section gaps, and 375px mobile behavior.
+- Documented this as a supersession of conflicting `docs/DESIGN_SYSTEM.md` and `docs/CTA_DESIGN_SPEC.md` guidance in `docs/superpowers/specs/2026-06-05-brand-system-supersession-design.md`.
+
+Validation:
+
+- Spec self-review completed: no TBD/TODO placeholders; clarified follow-up notes; scope stays on frontend branding and shell/home/public surfaces.
+- No app code changed and no frontend/backend tests run in this spec-only step.
+
+Remaining:
+
+- User should review the written spec before implementation planning.
+- Implementation should start from the spec, then produce a concrete plan and visual QA path before touching code.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-05 - Tokens pivot + quiet chrome, Develop)
 
 Pivoted user-facing XP language to tokens and removed the visible timer/balance widgets from app chrome.
 
