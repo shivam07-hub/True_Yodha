@@ -22,6 +22,10 @@ export type RefreshState =
 
 export type { RefreshOutcomeKind }
 
+function tokenizedErrorMessage(message: string): string {
+  return message.replace(/\bxp\b/gi, "tokens")
+}
+
 export interface RevealedJob {
   title: string | null
   company: string | null
@@ -150,7 +154,7 @@ export function useJobRefresh(
     if (state === "charging" || state === "computing") return
     if (balance < REFRESH_XP_COST) {
       setState("error_insufficient_xp")
-      setErrorMessage(`Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`)
+      setErrorMessage(`Not enough tokens. Refresh costs ${REFRESH_XP_COST} tokens.`)
       setProgressLabel(null)
       setOutcomeKind(null)
       return
@@ -162,7 +166,7 @@ export function useJobRefresh(
     setProgressDone(null)
     setProgressTotal(null)
     setRevealed([])
-    setProgressLabel("Charging XP")
+    setProgressLabel("Charging tokens")
     try {
       const ticket = await jobs.refresh(token)
       applyXpChange({ newBalance: ticket.new_xp_balance, action: "match_refresh" })
@@ -171,12 +175,13 @@ export function useJobRefresh(
       startStream(ticket.id)
     } catch (err) {
       const msg = (err as Error).message || ""
-      if (msg.includes("Insufficient XP")) {
+      const normalizedMsg = msg.toLowerCase()
+      if (normalizedMsg.includes("insufficient xp") || normalizedMsg.includes("insufficient tokens")) {
         setState("error_insufficient_xp")
-        setErrorMessage(`Not enough XP. Refresh costs ${REFRESH_XP_COST} XP.`)
+        setErrorMessage(`Not enough tokens. Refresh costs ${REFRESH_XP_COST} tokens.`)
       } else {
         setState("error_failed")
-        setErrorMessage(msg || "Refresh failed. Please try again.")
+        setErrorMessage(msg ? tokenizedErrorMessage(msg) : "Refresh failed. Please try again.")
       }
       setProgressLabel(null)
       setOutcomeKind(null)

@@ -95,7 +95,7 @@ export function RightRail({
         <div style={railCard}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tm-text)" }}>Today&apos;s milestone</span>
-            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>+30 XP</span>
+            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>+30 tokens</span>
           </div>
           <MilestoneCard
             milestone={todayMilestone}
@@ -154,7 +154,7 @@ export function RightRail({
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
               <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>
-                +{cartSkills.length * 30} XP est.
+                +{cartSkills.length * 30} tokens est.
               </span>
               <button
                 onClick={onSendBatch}

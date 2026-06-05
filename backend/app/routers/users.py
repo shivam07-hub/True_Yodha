@@ -173,7 +173,7 @@ async def get_skill_level_up_advice(
     if not evidence_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Skill advice needs CV evidence before XP can be spent.",
+            detail="Skill advice needs CV evidence before tokens can be spent.",
         )
     if not body.free_unlock:
         await assert_can_spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
@@ -186,7 +186,7 @@ async def get_skill_level_up_advice(
     if not advice:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Skill advice is unavailable right now. No XP was spent.",
+            detail="Skill advice is unavailable right now. No tokens were spent.",
         )
     if body.free_unlock:
         new_balance = await get_xp_balance(user_id)

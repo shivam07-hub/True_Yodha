@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
-import type { CVUploadPhase } from "@/lib/cv-upload-state"
+import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -171,10 +171,10 @@ function CVPage() {
       if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
         setLastFailureCode(err.code)
-        setUploadError(err.message)
+        setUploadError(tokenizedUserMessage(err.message))
       } else {
         setLastFailureCode("upload_unknown_error")
-        setUploadError(err instanceof Error ? err.message : "Could not upload CV")
+        setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Could not upload CV")
       }
       setUploadFailureCount((n) => n + 1)
     } finally {
@@ -281,7 +281,7 @@ function CVPage() {
           clearPersistedCVUploadState()
         }
         setUploadFailureCount((n) => n + 1)
-        setUploadError(err instanceof Error ? err.message : "Upload could not be resumed.")
+        setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Upload could not be resumed.")
       })
       .finally(() => {
         setUploading(false)
@@ -303,7 +303,8 @@ function CVPage() {
   const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
   if (bootstrapping) return <CvSkeleton />
 
-  const surfacedError = playground.error ?? uploadError
+  const displayedUploadError = uploadError ? tokenizedUserMessage(uploadError) : null
+  const surfacedError = playground.error ? tokenizedUserMessage(playground.error) : displayedUploadError
 
   return (
     <>
@@ -441,23 +442,23 @@ function CVPage() {
                   const f = e.dataTransfer.files?.[0]
                   if (f) handleUpload(f)
                 }}
-                className={`cvb-upload-drop${dragActive ? " is-drag" : ""}${uploadError ? " is-error" : ""}`}
+                className={`cvb-upload-drop${dragActive ? " is-drag" : ""}${displayedUploadError ? " is-error" : ""}`}
               >
                 <span className="cvb-upload-icon"><Icon name="upload" size={22} /></span>
                 <span className="cvb-upload-label">
-                  {uploadError ? "Pick another file" : "Drop your CV here, or click to browse"}
+                  {displayedUploadError ? "Pick another file" : "Drop your CV here, or click to browse"}
                 </span>
                 <span className="cvb-upload-formats">PDF or DOCX · up to 10MB</span>
               </button>
-              {uploadError && (
+              {displayedUploadError && (
                 <div style={{
                   marginTop: 10, padding: "8px 12px",
                   border: "1px solid var(--tm-border-soft)",
                   borderRadius: "var(--tm-radius-sm)",
                   color: "var(--tm-text)", fontSize: 12,
                 }}>
-                  <div>{uploadError}</div>
-                  {uploadError.startsWith("Out of XP") && (
+                  <div>{displayedUploadError}</div>
+                  {displayedUploadError.toLowerCase().startsWith("out of tokens") && (
                     <button
                       type="button"
                       onClick={() => router.push("/forge")}
@@ -467,7 +468,7 @@ function CVPage() {
                         textDecoration: "underline",
                       }}
                     >
-                      Earn 50 XP from a practice session →
+                      Earn 50 tokens from a practice session →
                     </button>
                   )}
                 </div>

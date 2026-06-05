@@ -167,7 +167,7 @@ export function LensWhy({ job, token, active }: LensProps) {
         <div className="db-lens-h">Why you fit</div>
         <p className="db-lens-empty">See Myro&rsquo;s reasoning on why this role matches you.</p>
         <button type="button" className="db-mini-btn" onClick={() => gate.attempt(run)}>
-          Analyse · {ANALYSE_COST} XP
+          Analyse · {ANALYSE_COST} tokens
         </button>
       </div>
     )

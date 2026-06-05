@@ -151,7 +151,7 @@ async def deepen_job_stream(
                     ref_table="job_deepenings", ref_id=f"{job_id}:{prompt_key}",
                 )
             except xp_service.InsufficientXPError:
-                yield _sse({"type": "error", "recoverable": False, "message": "Out of XP."})
+                yield _sse({"type": "error", "recoverable": False, "message": "Out of tokens."})
                 return
 
         repo.upsert_deepening(user_id, job_id, prompt_key, text)

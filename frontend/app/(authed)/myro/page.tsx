@@ -16,8 +16,8 @@ const RESOURCES = [
     detail: "How the product reads live demand and turns it into career signals.",
   },
   {
-    href: "/xp",
-    label: "How to gain XP",
+    href: "/tokens",
+    label: "Tokens guide",
     kicker: "Earn and spend fairly",
     detail: "Practice skills, complete your diary, add LinkedIn, and build your CV.",
   },
@@ -60,7 +60,7 @@ export default function MyroPage() {
             Welcome to Myro
           </h1>
           <p style={{ margin: "12px 0 0", maxWidth: 660, fontSize: 15, lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
-            Live hiring intelligence, your skill map, and a fair XP economy. Start with the resources below or jump into a
+            Live hiring intelligence, your skill map, and a fair token economy. Start with the resources below or jump into a
             workspace.
           </p>
         </header>
@@ -76,7 +76,7 @@ export default function MyroPage() {
               </h2>
             </div>
             <div style={{ fontSize: 12, color: "var(--tm-text-faint)" }}>
-              Newsletter, product context, and XP rules live here.
+              Newsletter, product context, and token rules live here.
             </div>
           </div>
 

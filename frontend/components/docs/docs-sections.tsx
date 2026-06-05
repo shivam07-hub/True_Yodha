@@ -107,7 +107,7 @@ export function SkillLevelsSection() {
       </div>
       <P>
         Levels never expire. A partial session still accumulates — every minute counts toward
-        your next threshold. You earn +50 XP for every completed session.
+        your next threshold. You earn +50 tokens for every completed session.
       </P>
     </Section>
   )
@@ -154,17 +154,17 @@ export function MatchingSection() {
   )
 }
 
-// ── Section 5: XP ────────────────────────────────────────────────────────────
+// ── Section 5: tokens ────────────────────────────────────────────────────────────
 
-const EARN_ROWS = [["Welcome bonus", "+3,000 XP"], ["Practice session completed", "+50 XP"], ["Daily diary entry", "+30 XP"]]
-const SPEND_ROWS = [["Refresh your job matches", "50 XP"], ["Follow a company on the heatmap", "10 XP"]]
+const EARN_ROWS = [["Welcome bonus", "+3,000 tokens"], ["Practice session completed", "+50 tokens"], ["Daily diary entry", "+30 tokens"]]
+const SPEND_ROWS = [["Refresh your job matches", "50 tokens"], ["Follow a company on the heatmap", "10 tokens"]]
 
 export function XPSection() {
   return (
-    <Section id="xp" title="XP & rewards">
+    <Section id="tokens" title="Tokens & rewards">
       <P>
-        XP (experience points) is Myro&apos;s activity currency. It is a permanent record of your
-        engagement — XP never expires or resets.
+        Tokens are Myro&apos;s activity currency. They are a permanent record of your
+        engagement — tokens never expire or reset.
       </P>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0" }}>
         {[{ heading: "You earn", rows: EARN_ROWS }, { heading: "You spend", rows: SPEND_ROWS }].map(col => (
@@ -180,8 +180,8 @@ export function XPSection() {
         ))}
       </div>
       <P>
-        XP is not pay-to-win. Every core feature — CV upload, skill scoring, viewing job
-        matches — is free. XP gates only optional actions like triggering a fresh batch of job
+        Tokens are not pay-to-win. Every core feature — CV upload, skill scoring, viewing job
+        matches — is free. Token gates only optional actions like triggering a fresh batch of job
         matches or building a personalised company watchlist.
       </P>
     </Section>

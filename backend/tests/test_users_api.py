@@ -288,7 +288,7 @@ def test_skill_advice_does_not_spend_xp_when_provider_returns_no_advice(monkeypa
         app.dependency_overrides.clear()
 
     assert response.status_code == 503
-    assert "No XP was spent" in response.json()["detail"]
+    assert "No tokens were spent" in response.json()["detail"]
 
 
 def test_skill_advice_spends_xp_after_advice_is_generated(monkeypatch) -> None:

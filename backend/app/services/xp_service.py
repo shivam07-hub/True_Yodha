@@ -98,7 +98,7 @@ async def spend_xp(user_id: str, amount: int, action: str) -> int:
     if current < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient XP — need {amount}, have {current}. Action: {action}",
+            detail=f"Insufficient tokens — need {amount}, have {current}. Action: {action}",
         )
     new_balance = current - amount
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
@@ -112,7 +112,7 @@ async def assert_can_spend_xp(user_id: str, amount: int, action: str) -> int:
     if current < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient XP — need {amount}, have {current}. Action: {action}",
+            detail=f"Insufficient tokens — need {amount}, have {current}. Action: {action}",
         )
     return current
 
@@ -125,7 +125,7 @@ async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int =
     if new_balance < floor:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"XP floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
+            detail=f"Token floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
         )
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
@@ -150,7 +150,7 @@ class InsufficientXPError(HTTPException):
         self.action = action
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Out of XP — this action costs {amount} XP and you have {balance}.",
+            detail=f"Out of tokens — this action costs {amount} tokens and you have {balance}.",
         )
 
 

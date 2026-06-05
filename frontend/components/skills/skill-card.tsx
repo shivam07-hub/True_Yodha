@@ -118,7 +118,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} XP`}
+              {askAdvice.isPending ? "Thinking…" : `How do I level up? · -${XP_POLICY.skillAdviceCost} tokens`}
             </button>
           )}
         </div>
@@ -134,7 +134,7 @@ export function SkillCard({ skill, token }: { skill: UserSkillItem; token: strin
       )}
       {askAdvice.isError && (
         <div style={{ marginTop: 4, fontSize: 10, color: "var(--tm-danger)" }}>
-          Couldn&apos;t fetch advice. No XP was spent.
+          Couldn&apos;t fetch advice. No tokens were spent.
         </div>
       )}
 

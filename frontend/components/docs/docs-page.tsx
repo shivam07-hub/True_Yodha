@@ -20,7 +20,7 @@ const TOC = [
   { id: "cv-reading",   label: "How your CV is read" },
   { id: "skill-levels", label: "Skill levels" },
   { id: "matching",     label: "Job matching" },
-  { id: "xp",           label: "XP & rewards" },
+  { id: "tokens",       label: "Tokens & rewards" },
   { id: "data",         label: "Data & privacy" },
   { id: "faq",          label: "FAQ" },
 ]

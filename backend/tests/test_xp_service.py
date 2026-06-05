@@ -72,7 +72,7 @@ async def test_spend_xp_insufficient_raises_400():
         with pytest.raises(HTTPException) as exc_info:
             await spend_xp("user-1", 100, "test_action")
     assert exc_info.value.status_code == 400
-    assert "Insufficient XP" in exc_info.value.detail
+    assert "Insufficient tokens" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
@@ -130,7 +130,7 @@ async def test_charge_or_raise_raises_400_when_rpc_returns_null():
         with pytest.raises(HTTPException) as exc_info:
             await charge_or_raise("user-1", 200, "cv_upload", floor=0)
     assert exc_info.value.status_code == 400
-    assert "Out of XP" in exc_info.value.detail
+    assert "Out of tokens" in exc_info.value.detail
     # Detail surfaces the floor-respecting current balance from get_xp_balance
     assert "have 50" in exc_info.value.detail
 

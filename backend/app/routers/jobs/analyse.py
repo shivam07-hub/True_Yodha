@@ -214,7 +214,7 @@ async def analyse_job_stream(
                 ref_table="user_job_matches", ref_id=f"{job_id}:{batch_week}",
             )
         except xp_service.InsufficientXPError:
-            yield _sse({"type": "error", "recoverable": False, "message": "Out of XP."})
+            yield _sse({"type": "error", "recoverable": False, "message": "Out of tokens."})
             return
 
         repo.upsert_job_match(user_id, job_id, {

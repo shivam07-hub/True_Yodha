@@ -8,11 +8,11 @@ import { XpDeltaNudge } from "@/components/xp/xp-delta-nudge"
 import "./forge-xp-pill.css"
 
 interface Props {
-  /** User's current XP balance, controlled by parent. */
+  /** User's current tokens balance, controlled by parent. */
   xpBalance: number
   /** Called when a successful claim returns from backend with the new balance. */
   onClaimed?: (newBalance: number, xpEarned: number) => void
-  /** Optional click on the XP segment (e.g. open XP guide modal). */
+  /** Optional click on the tokens segment (e.g. open tokens guide modal). */
   onXpClick?: () => void
 }
 
@@ -51,12 +51,12 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
         type="button"
         onClick={onXpClick}
         className="tm-forge-xp-pill-xp"
-        aria-label={`${xpBalance} XP — open XP guide`}
+        aria-label={`${xpBalance} tokens — open tokens guide`}
         style={{ position: "relative" }}
       >
         <span className="tm-forge-xp-pill-diamond" aria-hidden>◆</span>
         <span className="tm-forge-xp-pill-num">{xpBalance.toLocaleString()}</span>
-        <span className="tm-forge-xp-pill-unit">XP</span>
+        <span className="tm-forge-xp-pill-unit">tokens</span>
         <XpDeltaNudge />
       </button>
 
@@ -88,7 +88,7 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
           onClick={handleClaim}
           disabled={claiming}
           className="tm-forge-xp-pill-claim"
-          aria-label={`Claim ${pendingXp} XP`}
+          aria-label={`Claim ${pendingXp} tokens`}
         >
           {claiming ? "…" : `+${pendingXp}`}
         </button>
@@ -96,7 +96,7 @@ export function ForgeXpPill({ xpBalance, onClaimed, onXpClick }: Props) {
 
       {toast !== null && (
         <div className="tm-forge-xp-pill-toast" aria-live="polite">
-          +{toast} XP
+          +{toast} tokens
         </div>
       )}
     </div>

@@ -31,18 +31,18 @@ export function deriveRefreshNotice({
 
   if (state === "done") {
     if (matchesWritten != null && matchesWritten > 0) {
-      return { msg: `+${matchesWritten} new matches · -${XP_POLICY.matchRefreshCost} XP`, kind: "success" }
+      return { msg: `+${matchesWritten} new matches · -${XP_POLICY.matchRefreshCost} tokens`, kind: "success" }
     }
     if (outcomeKind === "cache_hit") {
-      return { msg: "Already current · XP refunded", kind: "info" }
+      return { msg: "Already current · tokens refunded", kind: "info" }
     }
     if (outcomeKind === "needs_onboarding") {
-      return { msg: "Upload CV to refresh matches · XP refunded", kind: "info" }
+      return { msg: "Upload CV to refresh matches · tokens refunded", kind: "info" }
     }
     if (outcomeKind === "exhausted") {
-      return { msg: "No strong matches in this pool · XP refunded", kind: "info" }
+      return { msg: "No strong matches in this pool · tokens refunded", kind: "info" }
     }
-    return { msg: "No new matches · XP refunded", kind: "info" }
+    return { msg: "No new matches · tokens refunded", kind: "info" }
   }
 
   if (state === "error_insufficient_xp" || state === "error_failed") {

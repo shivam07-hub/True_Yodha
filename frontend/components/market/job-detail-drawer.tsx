@@ -28,7 +28,7 @@ export function JobDetailDrawer({
 
   const reportMut = useMutation({
     mutationFn: () => jobs.reportInactive(token, job.job_id),
-    onSuccess: () => { setReported(true); setMsg("Reported — thanks. +10 XP") },
+    onSuccess: () => { setReported(true); setMsg("Reported — thanks. +10 tokens") },
     onError: (e: unknown) => setMsg(e instanceof Error ? e.message : "Could not report"),
   })
 

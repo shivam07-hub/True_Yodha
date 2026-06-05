@@ -14,7 +14,7 @@ test("exhausted refresh outcome explains that no strong match pool was found", (
 
   assert.equal(notice?.kind, "info")
   assert.match(notice?.msg ?? "", /no strong matches/i)
-  assert.match(notice?.msg ?? "", /xp refunded/i)
+  assert.match(notice?.msg ?? "", /tokens refunded/i)
 })
 
 test("cache-hit refresh outcome tells the user the batch is current", () => {
