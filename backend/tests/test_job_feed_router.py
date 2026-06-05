@@ -263,6 +263,64 @@ def test_unknown_sort_falls_back_to_fresh() -> None:
     assert [r["job_id"] for r in result["rows"]] == ["b", "a"]
 
 
+# ── fit composite (Best fit) — data-aware weight degrade (market rework Q7) ────
+
+
+def test_fit_sort_both_signals_blends_skill_role_fresh() -> None:
+    # CV + roles → weights .5 skill / .3 role / .2 fresh. The job that wins on
+    # the two heavy signals (skill+role) outranks a fresher job with neither.
+    repo, _ = _repo(
+        [
+            _job("fresh_only", title="Designer", skills=["Go"], first_seen=20260601),
+            _job("strong", title="Data Analyst", skills=["Python", "SQL"], first_seen=20260101),
+        ],
+        [_user_skill("python", "Python"), _user_skill("sql", "SQL")],
+    )
+    skills = repo.user_skill_keys("u1")
+    result = repo.feed_jobs(
+        sort="fit", user_skill_keys=skills, user_target_roles=["Data Analyst"], page_size=10
+    )
+    assert result["sort"] == "fit"
+    assert [r["job_id"] for r in result["rows"]] == ["strong", "fresh_only"]
+
+
+def test_fit_sort_cv_only_ranks_by_skill_then_fresh() -> None:
+    # No target roles → role weight is dead, skill (.7) dominates over fresh (.3).
+    repo, _ = _repo(
+        [
+            _job("newer_weak", skills=["Go"], first_seen=20260601),
+            _job("older_strong", skills=["Python", "SQL"], first_seen=20260101),
+        ],
+        [_user_skill("python", "Python"), _user_skill("sql", "SQL")],
+    )
+    skills = repo.user_skill_keys("u1")
+    result = repo.feed_jobs(sort="fit", user_skill_keys=skills, page_size=10)
+    assert [r["job_id"] for r in result["rows"]] == ["older_strong", "newer_weak"]
+
+
+def test_fit_sort_roles_only_ranks_by_role_then_fresh() -> None:
+    # No CV → skill weight dead, role (.6) dominates over fresh (.4).
+    repo, _ = _repo([
+        _job("newer_norole", title="Designer", first_seen=20260601),
+        _job("older_role", title="Data Analyst", first_seen=20260101),
+    ])
+    result = repo.feed_jobs(
+        sort="fit", user_target_roles=["Data Analyst"], page_size=10
+    )
+    assert [r["job_id"] for r in result["rows"]] == ["older_role", "newer_norole"]
+
+
+def test_fit_sort_no_signals_degrades_to_pure_freshness() -> None:
+    # Neither CV nor roles → weights collapse to 1.0 fresh → identical to 'fresh'.
+    repo, _ = _repo([
+        _job("a", first_seen=20260101),
+        _job("b", first_seen=20260603),
+        _job("c", first_seen=20260315),
+    ])
+    result = repo.feed_jobs(sort="fit", page_size=10)
+    assert [r["job_id"] for r in result["rows"]] == ["b", "c", "a"]
+
+
 # ── new fit lenses + narrowing filters ───────────────────────────────────────
 
 

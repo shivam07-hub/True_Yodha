@@ -7,9 +7,9 @@ import type { JobFeedItem } from "@/lib/api"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
-import { FeedControls, ActiveFilterChips } from "./feed-filters"
+import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
-import { DEFAULT_FILTERS, FIT_LENSES, type FeedFilters } from "./feed-types"
+import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
 import "./market.css"
 
 export interface MarketJobsTabProps {
@@ -38,14 +38,17 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [searchInput, setSearchInput] = useState("")
   const [q, setQ] = useState("")
   // roleDomain is sourced from the page's selectedCluster; the rest is local.
+  // Rank defaults to "Best fit" when the user has signal (CV or roles), else
+  // "Newest" — set once on mount so the initial deck lands honestly ranked.
   const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
-    sort: DEFAULT_FILTERS.sort,
+    sort: pickDefaultSort(hasCv, hasTargetRoles),
     minSkillMatches: 0,
     targetRoleOnly: false,
     freshnessDays: 0,
     followingOnly: false,
   })
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   useEffect(() => {
     const id = setTimeout(() => setQ(searchInput.trim()), 350)
@@ -76,7 +79,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return () => obs.disconnect()
   }, [feed])
 
-  const sortLabel = FIT_LENSES.find(l => l.key === filters.sort)?.label.toLowerCase() ?? "freshest first"
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
@@ -97,15 +99,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         <FeedControls
           filters={filters}
           onChange={onChangeFilters}
-          targetRoles={targetRoles}
-          chipCountMap={chipCountMap}
           hasCv={hasCv}
           hasTargetRoles={hasTargetRoles}
           savedCount={savedCount}
           onOpenSaved={() => router.push("/home")}
-          locationPill={<LocationScopePill locations={targetLocations} />}
+          onOpenFilters={() => setFiltersOpen(true)}
         />
-        <ActiveFilterChips filters={filters} onChange={onChangeFilters} />
       </div>
 
       <div style={{ marginTop: 8 }}>
@@ -115,8 +114,11 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
         ) : (
           <>
-            <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", margin: "16px 0 12px", letterSpacing: "0.04em" }}>
-              {total.toLocaleString()} role{total === 1 ? "" : "s"} · sorted {sortLabel}
+            <div className="tm-feed-summary">
+              <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
+              <LocationScopePill locations={targetLocations} />
+              <FilterChips filters={filters} onChange={onChangeFilters} />
+              <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
             </div>
             {isDesktop ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -145,6 +147,17 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         />
       ) : null}
 
+      {filtersOpen ? (
+        <FiltersSheet
+          filters={filters}
+          onChange={onChangeFilters}
+          onClose={() => setFiltersOpen(false)}
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          hasCv={hasCv}
+        />
+      ) : null}
+
       {pending ? <UndoToast kind={pending.kind} onUndo={undo} /> : null}
     </div>
   )
@@ -160,7 +173,7 @@ function LocationScopePill({ locations }: { locations: string[] }) {
       onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
       aria-label={clean.length === 0 ? "Set your target locations in settings" : `Target locations: ${clean.join(", ")}. Change in settings`}
       title={clean.length > 1 ? clean.join(", ") : undefined}
-      className="tm-feed-ctl"
+      className="tm-feed-summary-loc"
     >
       <span aria-hidden>📍</span> {label}
     </button>

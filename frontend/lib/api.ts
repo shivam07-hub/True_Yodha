@@ -1556,7 +1556,10 @@ export interface JobSearchResponse {
   has_next_page: boolean
 }
 
-export type JobFeedSort = "fresh" | "personal" | "company" | "role"
+// "fit" = the composite Best-fit rank (market filter rework). "fresh" = Newest.
+// personal/company/role are legacy modes the UI no longer sends (cleanup-debt,
+// CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
+export type JobFeedSort = "fit" | "fresh" | "personal" | "company" | "role"
 
 export interface JobFeedItem {
   job_id: string

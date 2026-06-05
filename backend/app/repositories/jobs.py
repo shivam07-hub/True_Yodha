@@ -135,6 +135,64 @@ def _role_match_score(
     return sum(1 for toks in token_sets if toks <= hay_tokens)
 
 
+# Fit-rank weights — the "Best fit" composite (market filter rework, Q7,
+# locked 2026-06-05). (skill, role, fresh). Renormalized to whatever signals
+# the user actually has so an absent CV / absent target roles never zeros a
+# whole deck. Source of truth ↔ frontend feed-types.ts FIT_WEIGHTS.
+_FIT_WEIGHTS: dict[str, tuple[float, float, float]] = {
+    "both": (0.5, 0.3, 0.2),   # CV + target roles
+    "cv": (0.7, 0.0, 0.3),     # CV only
+    "roles": (0.0, 0.6, 0.4),  # target roles only
+    "none": (0.0, 0.0, 1.0),   # neither → pure freshness
+}
+
+
+def _fit_scores(
+    rows: list[dict[str, Any]],
+    *,
+    has_cv: bool,
+    has_roles: bool,
+    num_target_roles: int,
+) -> dict[str, float]:
+    """Composite 'Best fit' score per job_id, normalized over the candidate set.
+
+    Weighted sum of three signals already shaped onto every row — skill-overlap,
+    target-role match, recency — each min-max normalized within `rows` so the
+    weights stay comparable regardless of absolute counts. Weights renormalize
+    to the signals the user has (no CV → skill weight redistributes), so the
+    score never collapses to zero for a whole deck. Pure ordering: no new
+    fetch, no new column. job_ids absent from the result sort as 0.
+    """
+    if has_cv and has_roles:
+        w_skill, w_role, w_fresh = _FIT_WEIGHTS["both"]
+    elif has_cv:
+        w_skill, w_role, w_fresh = _FIT_WEIGHTS["cv"]
+    elif has_roles:
+        w_skill, w_role, w_fresh = _FIT_WEIGHTS["roles"]
+    else:
+        w_skill, w_role, w_fresh = _FIT_WEIGHTS["none"]
+
+    max_skill = max((r["matched_skill_count"] for r in rows), default=0)
+    role_denom = num_target_roles if num_target_roles > 0 else 1
+    fresh_ts: dict[str, float] = {}
+    for r in rows:
+        dt = _parse_iso_dt(r["first_seen"])
+        if dt is not None:
+            fresh_ts[r["job_id"]] = dt.timestamp()
+    fresh_min = min(fresh_ts.values(), default=0.0)
+    fresh_max = max(fresh_ts.values(), default=0.0)
+    fresh_span = (fresh_max - fresh_min) or 1.0
+
+    scores: dict[str, float] = {}
+    for r in rows:
+        skill_norm = (r["matched_skill_count"] / max_skill) if max_skill > 0 else 0.0
+        role_norm = min(1.0, r["target_role_match"] / role_denom)
+        ts = fresh_ts.get(r["job_id"])
+        fresh_norm = ((ts - fresh_min) / fresh_span) if ts is not None else 0.0
+        scores[r["job_id"]] = w_skill * skill_norm + w_role * role_norm + w_fresh * fresh_norm
+    return scores
+
+
 def _empty_feed(mode: str, page: int, page_size: int) -> dict[str, Any]:
     return {
         "rows": [], "available_total": 0, "returned_total": 0,
@@ -1120,7 +1178,7 @@ class JobsRepository:
         """
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
-        mode = sort if sort in {"fresh", "company", "personal", "role"} else "fresh"
+        mode = sort if sort in {"fresh", "company", "personal", "role", "fit"} else "fresh"
         domain = _norm_filter(role_domain)
         scope_clause, scope_sig = build_location_scope(location_prefs)
         # Pref scope (fixed-from-settings) supersedes ad-hoc single filters.
@@ -1180,7 +1238,7 @@ class JobsRepository:
             return query
 
         wants_inpython = (
-            mode in {"personal", "role"} or min_skill > 0 or target_role_only or bool(exclude)
+            mode in {"personal", "role", "fit"} or min_skill > 0 or target_role_only or bool(exclude)
         )
 
         if wants_inpython:
@@ -1212,7 +1270,15 @@ class JobsRepository:
             # Stable sort: lay down the freshest order, then the primary fit key
             # on top so equal-fit jobs stay newest-first.
             shaped.sort(key=lambda r: (r["first_seen"] or ""), reverse=True)
-            if mode == "personal":
+            if mode == "fit":
+                fit_scores = _fit_scores(
+                    shaped,
+                    has_cv=bool(user_skill_keys),
+                    has_roles=bool(role_token_sets),
+                    num_target_roles=len(role_token_sets),
+                )
+                shaped.sort(key=lambda r: fit_scores[r["job_id"]], reverse=True)
+            elif mode == "personal":
                 shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
             elif mode == "role":
                 shaped.sort(key=lambda r: r["target_role_match"], reverse=True)
