@@ -87,7 +87,7 @@ function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: bool
     strokeWidth: 1.7,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    style: { filter: active ? "drop-shadow(0 0 6px var(--tm-int-bg-hover))" : "none" },
+    style: { opacity: active ? 1 : 0.82 },
   }
 
   if (name === "mission") {
@@ -162,15 +162,13 @@ export function MobileTopBar({ profile, onAvatarClick }: {
   return (
     <header className="tm-mobile-topbar">
       <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 }}>
-        <div style={{ filter: "drop-shadow(0 0 6px var(--tm-int-bg-hover))" }}>
-          <MyroLogo size={30} />
-        </div>
+        <MyroLogo size={30} />
       </Link>
       <button
         onClick={onAvatarClick}
         style={{
           width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-          background: "linear-gradient(135deg, var(--tm-border), var(--tm-int-bg-wash))",
+          background: "var(--tm-surface-2)",
           border: "1px solid var(--tm-border)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 12, fontWeight: 700, color: "var(--tm-text)", cursor: "pointer",
@@ -241,7 +239,6 @@ export function MobileBottomNav() {
                   style={{
                     position: "absolute", top: -3, right: -7, width: 7, height: 7,
                     borderRadius: "50%", background: "var(--tm-accent)",
-                    boxShadow: "0 0 6px var(--tm-accent-glow)",
                   }}
                 />
               )}
@@ -301,7 +298,7 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 201,
         background: "var(--tm-surface)",
         borderTop: "1px solid var(--tm-border-soft)",
-        borderRadius: "16px 16px 0 0",
+        borderRadius: "var(--tm-panel-radius-lg) var(--tm-panel-radius-lg) 0 0",
         padding: "16px 20px 20px",
         paddingBottom: "calc(20px + env(safe-area-inset-bottom))",
         transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
@@ -321,8 +318,8 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--tm-border-soft)" }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-            background: "linear-gradient(135deg, var(--tm-int-bg-wash), var(--tm-int-border))",
-            border: "1.5px solid var(--tm-int-border)",
+            background: "var(--tm-surface-2)",
+            border: "1px solid var(--tm-border)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 16, fontWeight: 700, color: "var(--tm-text)",
           }}>

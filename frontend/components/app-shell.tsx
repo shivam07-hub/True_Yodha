@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation"
 
-import { ParticleBg } from "@/components/particle-bg"
 import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
@@ -33,8 +32,6 @@ export type { SidebarProfile } from "@/lib/shell/contract"
  * reuses useShellModel + the mobile chrome, never this file.
  */
 
-const SUPPRESS_PARTICLE_PATHS = ["/market", "/cv", "/skills", "/home", "/forge", "/tokens", "/xp"]
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { isDesktop } = useViewport()
@@ -54,11 +51,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // (Backlog #16 — logged-out visitor landed on a blank /tracker).
   if (!m.ready || !m.token) return <>{skeletonForPath(pathname)}</>
 
-  const showParticle = isDesktop && !SUPPRESS_PARTICLE_PATHS.some((p) => pathname.startsWith(p))
-
   return (
     <div className="tm-shell-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
-      {showParticle && <ParticleBg />}
       <ForgeClockDriver />
       <XPGateModal />
 

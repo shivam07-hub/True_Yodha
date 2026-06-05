@@ -296,7 +296,31 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-05 - Brand system supersession spec, Develop)
+## LAST SESSION SUMMARY (2026-06-05 - Brand system supersession implementation, Develop)
+
+Implemented the superseding Myro brand system across the core frontend surfaces.
+
+- Default first paint is now light mode. `app/layout.tsx` uses Inter as the only core product font and defaults unknown/empty `myro-surface` to `light`; OS dark preference no longer overrides first paint.
+- Rebuilt `app/design-tokens.css` around the new contract: light `#F9F9F9` / `#262626` / orange `#FF4C00`; dark `#050505` / `#101010` / white text / teal `#12BFA5`; standardized typography scale, desktop/phone gutters, nav heights, panel gaps, button radius, and shadcn token bridge.
+- Standardized public nav, desktop app chrome, mobile app chrome, landing page, first-run hero, Mission Control, auth shell, route error surface, and public Intel page around the new spacing/type/button contracts.
+- Removed decorative particle canvas backgrounds from shared app/auth/public error/intel shells and fixed `/intel` hydration warnings by making first-render timestamps deterministic before live ticking starts.
+- Added `frontend/tests/brand-system.test.ts` to lock palettes, Inter/default-light, desktop/mobile rhythm tokens, button radius/CTA tokens, one-off font cleanup, public mobile nav height, and no shared particle shells.
+- Wrote the implementation plan in `docs/superpowers/plans/2026-06-05-brand-system-supersession-implementation.md`.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `557 passed, 13 warnings`
+- `cd frontend && npx tsx --test tests/brand-system.test.ts tests/tokens-copy.test.ts tests/pr5-display-fixes.test.tsx tests/nav-first-run.test.ts` -> `15 passed`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Browser QA on `http://localhost:3000`: `/` desktop 1280px and mobile 375px defaulted to light mode, Inter, orange CTA, no horizontal overflow, no framework overlay, no console warnings, no canvas particles; `/intel` desktop rendered with orange CTA, true-black console island, no particles, and clean console after hydration fix. Mobile public nav measured 56px; desktop public nav measured 60px.
+
+Remaining:
+
+- Dark-mode branding is covered by tokens/regression tests; browser QA verified the default light path and public surfaces. Do a logged-in settings toggle smoke later if a persisted user session is available.
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-05 - Brand system supersession spec, Develop)
 
 Wrote and committed the superseding Myro brand-system design spec after aligning with Shivam on the branding direction.
 

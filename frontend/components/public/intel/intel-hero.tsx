@@ -129,14 +129,16 @@ function HeroCtas() {
 
 interface LogEntry extends LogSeed { id: number; t: string }
 
-function stamp(offsetSec: number): string {
-  const d = new Date(Date.now() - offsetSec * 1000)
-  return d.toTimeString().slice(0, 8)
+const CONSOLE_BASE_MS = Date.UTC(2026, 5, 5, 22, 45, 51)
+
+function stamp(offsetSec: number, baseMs: number): string {
+  const d = new Date(baseMs - Math.round(offsetSec * 1000))
+  return d.toISOString().slice(11, 19)
 }
 
 function Console({ parsedToday }: { parsedToday: number }) {
   const [entries, setEntries] = useState<LogEntry[]>(() =>
-    LOG_SEEDS.slice(0, 9).reverse().map((e, i) => ({ ...e, id: i, t: stamp(i * 1.2) })),
+    LOG_SEEDS.slice(0, 9).reverse().map((e, i) => ({ ...e, id: i, t: stamp(i * 1.2, CONSOLE_BASE_MS) })),
   )
   const [gpu, setGpu] = useState(87)
   const [tps, setTps] = useState(184)
@@ -145,7 +147,7 @@ function Console({ parsedToday }: { parsedToday: number }) {
   useEffect(() => {
     const id = setInterval(() => {
       const seed = LOG_SEEDS[Math.floor(Math.random() * LOG_SEEDS.length)]
-      const next: LogEntry = { ...seed, id: idRef.current++, t: stamp(0) }
+      const next: LogEntry = { ...seed, id: idRef.current++, t: stamp(0, Date.now()) }
       setEntries((prev) => [...prev.slice(-8), next])
       setGpu(() => 78 + Math.round(Math.random() * 18))
       setTps(() => 150 + Math.round(Math.random() * 90))

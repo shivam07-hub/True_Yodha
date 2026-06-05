@@ -4,7 +4,6 @@ import Link from "next/link"
 import type { CSSProperties } from "react"
 import { Home, RefreshCw } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
-import { ParticleBg } from "@/components/particle-bg"
 import { PublicFooter } from "@/components/public/public-footer"
 import { PublicTopNav } from "@/components/public/top-nav"
 
@@ -39,7 +38,7 @@ const buttonStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 8,
-  borderRadius: 8,
+  borderRadius: "var(--tm-button-radius)",
   padding: "0 14px",
   border: "1px solid var(--tm-int-border)",
   background: "var(--tm-int-bg-wash)",
@@ -58,11 +57,11 @@ function ErrorPanel({
 }: Pick<AppRouteErrorProps, "title" | "reset"> & { homeHref: string }) {
   return (
     <section aria-labelledby="route-error-title" style={panelStyle}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center", border: "1px solid var(--tm-danger)", color: "var(--tm-danger)", background: "rgba(251,113,133,0.08)" }}>
+      <div style={{ width: 44, height: 44, borderRadius: "var(--tm-panel-radius-lg)", display: "grid", placeItems: "center", border: "1px solid var(--tm-danger)", color: "var(--tm-danger)", background: "var(--tm-danger-wash)" }}>
         !
       </div>
       <div>
-        <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "clamp(1.25rem, 4vw, 1.75rem)", fontWeight: 650 }}>
+        <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700 }}>
           {title}
         </h1>
         <p style={{ margin: "8px 0 0", color: "var(--tm-text-faint)", fontSize: 14, lineHeight: 1.5 }}>
@@ -87,7 +86,6 @@ export function AppRouteError({ surface, title, reset }: AppRouteErrorProps) {
   if (surface === "public") {
     return (
       <div style={{ minHeight: "100dvh", width: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
-        <ParticleBg />
         <PublicTopNav active="intel" showSignIn />
         <main style={{ flex: 1, display: "grid", placeItems: "center", padding: "var(--tm-page-py) var(--tm-page-px)", position: "relative", zIndex: 2 }}>
           <ErrorPanel title={title} reset={reset} homeHref="/about" />
