@@ -8,14 +8,16 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
-import { APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
+import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
 import { MasterCVHero, MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
 import "./library-view.css"
 
-type Filter = "active" | "closed"
+// Top-level view switcher (market Jobs/Heatmap pill pattern). CV = master CV on
+// its own full-width page; Active = stat strip + live pipeline + closed rail.
+type View = "cv" | "active"
 
 interface LibraryViewProps {
   token: string
@@ -29,52 +31,47 @@ interface LibraryViewProps {
 }
 
 // Display order only (presentation). Membership is the canonical predicate
-// from lib/api — APPLICATION_STAGES / APPLICATION_OUTCOMES — so the rail count,
-// the folder badge, and the main board can never disagree on "active vs closed".
-const ACTIVE_ORDER: ApplicationStatus[] = ["final_round", "interviewing", "screening", "applied", "saved"]
+// from lib/api — APPLICATION_OUTCOMES — so the rail count, the folder badge, and
+// the main board can never disagree on what counts as closed.
 const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted", "withdrew"]
 
-function PipelineRail({ applications, versions, onPickJob, filter, onFilter }: {
+// Closed verdicts list — the right rail no longer toggles. It is a single
+// always-closed surface (outcomes only). Active pursuits live in the main panel
+// now, so the rail's job is purely "what already resolved". Rendered as an
+// <aside> on desktop and an inline block on mobile (variant), since the aside is
+// CSS-hidden below 1100px and closed work must stay reachable.
+function ClosedRail({ applications, versions, onPickJob, variant = "aside" }: {
   applications: ApplicationResponse[]
   versions: CVVersion[]
   onPickJob: (jobId: string) => void
-  filter: Filter
-  onFilter: (f: Filter) => void
+  variant?: "aside" | "inline"
 }) {
-  const stages = filter === "closed" ? CLOSED_ORDER : ACTIVE_ORDER
-  const stageSet = filter === "closed" ? APPLICATION_OUTCOMES : APPLICATION_STAGES
   const scoped = applications
-    .filter((application) => stageSet.includes(application.status))
+    .filter((application) => APPLICATION_OUTCOMES.includes(application.status))
     .sort((a, b) => stageRank(b.status) - stageRank(a.status))
 
-  const grouped = stages
+  const grouped = CLOSED_ORDER
     .map((stage) => ({ stage, items: scoped.filter((application) => application.status === stage) }))
     .filter((group) => group.items.length > 0)
 
+  const Wrapper = variant === "inline" ? "section" : "aside"
+
   return (
-    <aside className="tm-lib-rail">
+    <Wrapper className={variant === "inline" ? "tm-lib-rail tm-lib-closed-inline" : "tm-lib-rail"}>
       <div className="tm-lib-rail-head">
         <div className="tm-lib-rail-head-row">
           <div className="tm-lib-rail-head-eyebrow">
             <LIcon d={I.pulse} size={11}/>
-            PIPELINE
+            CLOSED
           </div>
           <span className="tm-lib-rail-count">{scoped.length}</span>
-        </div>
-        <div className="tm-lib-seg tm-lib-rail-seg" role="tablist" aria-label="Pipeline filter">
-          <button type="button" role="tab" aria-selected={filter === "active"}
-            className={`tm-lib-seg-btn${filter === "active" ? " active" : ""}`}
-            onClick={() => onFilter("active")}>Active</button>
-          <button type="button" role="tab" aria-selected={filter === "closed"}
-            className={`tm-lib-seg-btn${filter === "closed" ? " active" : ""}`}
-            onClick={() => onFilter("closed")}>Closed</button>
         </div>
       </div>
 
       <div className="tm-lib-rail-body">
         {grouped.length === 0 && (
           <div style={{ padding: "20px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-            {filter === "closed" ? "No closed applications yet." : "No active applications yet."}
+            No closed applications yet.
           </div>
         )}
         {grouped.map(({ stage, items }) => {
@@ -115,7 +112,7 @@ function PipelineRail({ applications, versions, onPickJob, filter, onFilter }: {
           )
         })}
       </div>
-    </aside>
+    </Wrapper>
   )
 }
 
@@ -124,32 +121,41 @@ export function LibraryView({
 }: LibraryViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // `?master=1` is the dashboard "Door 2" — land here with the master CV already
-  // open, ready to download without tailoring.
-  const [masterOpen, setMasterOpen] = useState(() => searchParams.get("master") === "1")
   const masterPanelRef = useRef<HTMLDivElement>(null)
+
+  // Top-level view (market Jobs/Heatmap pill). CV leads by default — the master
+  // CV is the source of truth, so it gets its own full-width page. Legacy deep
+  // links resolve here: `?master=1` (dashboard "Door 2") and the old
+  // `?filter=closed` /tracker redirect both land on a sensible view — master CV
+  // for the former, the pipeline (closed now lives in the rail) for the latter.
+  const legacyMaster = searchParams.get("master") === "1"
+  const legacyClosed = searchParams.get("filter") === "closed"
+  const viewParam = searchParams.get("view")
+  const view: View =
+    viewParam === "active" || legacyClosed ? "active"
+    : viewParam === "cv" || legacyMaster ? "cv"
+    : "cv"
+
+  function setView(next: View) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("view", next)
+    params.delete("filter")
+    params.delete("master")
+    router.replace(`/cv?${params.toString()}`, { scroll: false })
+  }
+
+  // On the CV view the master panel is the whole point, so it opens by default;
+  // the hero button still collapses it. `?master=1` forces it open on arrival.
+  const [masterOpen, setMasterOpen] = useState(() => true)
 
   // Bring the panel into view when it opens — the hero button changing state
   // alone wasn't enough signal that the CV had opened (reported confusion).
   useEffect(() => {
-    if (!masterOpen) return
+    if (!masterOpen || view !== "cv") return
     requestAnimationFrame(() =>
       masterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     )
-  }, [masterOpen])
-
-  // Lens-collapse (tracker→CV merge, 2026-06-02): the By-stage / By-company toggle
-  // was dropped — company folders already show each pursuit's stage + an inline
-  // stage picker, so there is ONE arrangement. Only the Active | Closed filter
-  // survives (live work vs verdicts). URL-synced so the /tracker redirect
-  // (?filter=closed) still lands right.
-  const filter: Filter = searchParams.get("filter") === "closed" ? "closed" : "active"
-
-  function setFilter(f: Filter) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("filter", f)
-    router.replace(`/cv?${params.toString()}`, { scroll: false })
-  }
+  }, [masterOpen, view])
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
@@ -161,7 +167,42 @@ export function LibraryView({
           <div className="tm-lib-page-head">
             <div className="tm-lib-page-head-main">
               <h1 className="tm-lib-page-title">Your CV workspace</h1>
-              <div className="tm-lib-header-stat-strip" aria-label="CV workspace summary">
+              <ViewSwitch view={view} onChange={setView} />
+            </div>
+          </div>
+
+          {/* ── CV view: master CV on its own, full width ───────────── */}
+          {view === "cv" && (
+            <>
+              {isNewUser && <WorkspaceIntroCard />}
+              <div className="tm-lib-hero-strip">
+                <MasterCVHero
+                  baseline={currentBaseline}
+                  profile={profile}
+                  open={masterOpen}
+                  onOpen={() => setMasterOpen(v => !v)}
+                  onReplace={onReplaceCV}
+                />
+              </div>
+              {masterOpen && (
+                <div ref={masterPanelRef}>
+                  <MasterCVPanel
+                    token={token}
+                    baseline={currentBaseline}
+                    cv={cv}
+                    profile={profile}
+                    onClose={() => setMasterOpen(false)}
+                    onReplace={onReplaceCV}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Active view: thin stat strip + live pipeline ─────────── */}
+          {view === "active" && (
+            <>
+              <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin" aria-label="CV workspace summary">
                 {stats.map((stat) => (
                   <StatTile
                     key={stat.key}
@@ -172,50 +213,58 @@ export function LibraryView({
                   />
                 ))}
               </div>
-            </div>
-          </div>
 
-          {isNewUser && <WorkspaceIntroCard />}
+              <WorkspacePipeline filter="active" versions={versions} onOpenJob={onOpenJob} />
 
-          <div className="tm-lib-hero-strip">
-            <MasterCVHero
-              baseline={currentBaseline}
-              profile={profile}
-              open={masterOpen}
-              onOpen={() => setMasterOpen(v => !v)}
-              onReplace={onReplaceCV}
-            />
-          </div>
-
-          {masterOpen && (
-            <div ref={masterPanelRef}>
-              <MasterCVPanel
-                token={token}
-                baseline={currentBaseline}
-                cv={cv}
-                profile={profile}
-                onClose={() => setMasterOpen(false)}
-                onReplace={onReplaceCV}
+              {/* Mobile fallback: the closed rail is CSS-hidden below 1100px,
+                  so render the closed verdicts inline here to keep them reachable. */}
+              <ClosedRail
+                applications={applications}
+                versions={versions}
+                onPickJob={onOpenJob}
+                variant="inline"
               />
-            </div>
+            </>
           )}
-
-          {/* Desktop toggle lives in the pipeline rail head; this mobile-only
-              bar carries it when the rail is hidden (<1100px). It sits directly
-              above the board it controls, not at the page top. */}
-          <WorkspaceFilterBar filter={filter} onFilter={setFilter} />
-
-          <WorkspacePipeline filter={filter} versions={versions} onOpenJob={onOpenJob} />
         </div>
 
-        <PipelineRail
-          applications={applications}
-          versions={versions}
-          onPickJob={onOpenJob}
-          filter={filter}
-          onFilter={setFilter}
-        />
+        {/* Right rail = closed verdicts only, and only on the Active view. */}
+        {view === "active" && (
+          <ClosedRail
+            applications={applications}
+            versions={versions}
+            onPickJob={onOpenJob}
+          />
+        )}
       </div>
+    </div>
+  )
+}
+
+// 2-pill view switcher — filled-active pill, mirrors the market Jobs/Heatmap
+// toggle. Click swaps the whole panel below; no stacking.
+function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const TABS: { key: View; label: string }[] = [
+    { key: "cv", label: "CV" },
+    { key: "active", label: "Active" },
+  ]
+  return (
+    <div className="tm-lib-viewseg" role="tablist" aria-label="CV workspace view">
+      {TABS.map((t) => {
+        const on = view === t.key
+        return (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            className={`tm-lib-viewseg-btn${on ? " active" : ""}`}
+            onClick={() => onChange(t.key)}
+          >
+            {t.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -275,23 +324,5 @@ function WorkspaceIntroCard() {
         <button type="button" className="tm-lib-btn primary sm" onClick={dismiss}>Got it</button>
       </div>
     </section>
-  )
-}
-
-function WorkspaceFilterBar({ filter, onFilter }: {
-  filter: Filter
-  onFilter: (f: Filter) => void
-}) {
-  return (
-    <div className="tm-lib-lensbar tm-lib-lensbar-mobile" role="tablist" aria-label="Pipeline filter">
-      <div className="tm-lib-seg">
-        <button type="button" role="tab" aria-selected={filter === "active"}
-          className={`tm-lib-seg-btn${filter === "active" ? " active" : ""}`}
-          onClick={() => onFilter("active")}>Active</button>
-        <button type="button" role="tab" aria-selected={filter === "closed"}
-          className={`tm-lib-seg-btn${filter === "closed" ? " active" : ""}`}
-          onClick={() => onFilter("closed")}>Closed</button>
-      </div>
-    </div>
   )
 }

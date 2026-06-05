@@ -884,6 +884,70 @@
   .tm-lib-seg-btn { transition: none; }
 }
 
+/* ── View switcher (CV | Active) — filled-active pill, market Jobs/Heatmap ── */
+.tm-lib-viewseg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+}
+.tm-lib-viewseg-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--tm-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--tm-dur, 120ms) var(--tm-ease, ease),
+    color var(--tm-dur, 120ms) var(--tm-ease, ease);
+}
+.tm-lib-viewseg-btn:hover:not(.active) { color: var(--tm-text); }
+.tm-lib-viewseg-btn.active {
+  background: var(--tm-interactive);
+  color: var(--tm-on-interactive, #fff);
+}
+.tm-lib-viewseg-btn:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-lib-viewseg-btn { transition: none; }
+}
+
+/* Active-view stat strip — full width, sits below the pills. */
+.tm-lib-stat-strip-thin {
+  max-width: none;
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+/* Closed verdicts — the desktop aside is .tm-lib-rail (already styled as a
+   300px sticky sidebar). The inline twin reuses the rail internals but drops
+   the sidebar chrome and appears only when the aside is hidden (<1100px). The
+   compound selector outranks the plain `.tm-lib-rail { display:none }` rule. */
+.tm-lib-rail.tm-lib-closed-inline { display: none; }
+@media (max-width: 1100px) {
+  .tm-lib-rail.tm-lib-closed-inline {
+    display: flex;
+    width: auto;
+    height: auto;
+    max-height: 70vh;
+    position: static;
+    top: auto;
+    border: 1px solid var(--tm-border-soft);
+    border-radius: 12px;
+    margin-top: 20px;
+    overflow: hidden;
+  }
+}
+
 /* Inline stage picker on a job card (tracker→CV merge: drop By-stage lens). */
 .tm-lib-job-stage-btn {
   appearance: none;

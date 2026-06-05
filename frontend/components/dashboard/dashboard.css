@@ -23,6 +23,16 @@
 .db-seg:disabled { opacity: 0.4; cursor: not-allowed; }
 .db-seg-count { font-size: 11px; font-family: var(--tm-font-mono); color: var(--tm-text-faint); }
 
+.db-head-actions { display: flex; align-items: center; gap: 8px; }
+.db-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 99px;
+  border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive-rest); font-size: 13px; cursor: pointer;
+  font-family: inherit; white-space: nowrap;
+}
+.db-add:hover { color: var(--tm-text); }
+
 .db-stale {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 10px 14px; border-radius: var(--tm-radius);

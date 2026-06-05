@@ -18,7 +18,9 @@ import { getStoredReferral } from "@/lib/referral"
  *   - run the welcome XP grant via the BEFORE INSERT trigger
  *
  * Then we route to ?next= (whitelisted same-origin) or /home, except for
- * brand-new users who land on /welcome (Day 1 first-run).
+ * brand-new users who land on /onboarding (Day 1 first-run stepper:
+ * cv → role → lens → companies → ninja → score). /welcome was merged into
+ * the public landing (/), so first-run users go straight to the stepper.
  */
 
 function safeNext(raw: string | null): string | null {
@@ -129,7 +131,7 @@ function CallbackInner() {
       if (isMagicLink) {
         signupEvents.magicLinkConsumed({ latency_ms: Date.now() - arrivedAt })
       }
-      routeOnce(next ?? (firstSignup === "1" ? "/welcome" : "/home"))
+      routeOnce(next ?? (firstSignup === "1" ? "/onboarding" : "/home"))
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
