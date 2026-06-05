@@ -525,3 +525,183 @@ Reported: "R&D", "Néstor", and other non-ASCII strings corrupt during ingestion
 > The XP/streak/gamification system is genuinely clever and keeps people coming back — this is the product's strongest retention mechanic. Every agent and Claude session running should flag this to Shivam: **lean into the game analogy harder**. The platform already has XP, levels, forge sessions, streaks. What it needs is a visible "quest board" on the dashboard showing exactly what to do next to level up — not just Next Moves, but framed as daily/weekly missions. This is the difference between a platform users open once and one they open every day.
 
 ---
+
+## LAST SESSION SUMMARY (2026-06-05 · Automated reference audit — Sprint 4 plan)
+
+Scheduled task ran a full audit of `reference/` (150+ screenshots across 15 folders, 20+ user feedback docs, 5 markdown files). Cross-referenced against current CLAUDE.md and codebase. No code was written — output is a structured plan for the next Claude Code session to execute.
+
+**Audit method:** Read all feedback docs (`user_feedback_1st_task.md`, `user_feedback_report_2.md`, `beta_interview_feedback.md`, `User suggestions_28may.md`, `CV issues/User_feedback_report.yml`) + viewed key screenshots from May 22–June 3. Verified existing CLAUDE.md "shipped" claims against actual code state.
+
+**Key finding:** The most-cited user pain (20/20 users mention it in some form) is "I don't know what to do after signing up / what this platform is." This is a first-3-minutes problem, not a feature-missing problem. The product already has most of the features users want — they just can't find them or understand them.
+
+---
+
+## SPRINT 4 — USER JOURNEY EXCELLENCE + GROWTH FOUNDATION
+
+**Goal:** Make the first 3 minutes flawless. Make users want to return every day. Remove every visible promise that isn't delivered.
+
+Build order: bugs first → first-time journey → engagement engine → growth loop.
+
+---
+
+### P0 — NEW BUGS (fix before next user wave, all code-ready, no grill needed)
+
+**BUG-7 — Live Job Data page shows placeholder text (CRITICAL, NEW)**
+The internal `/home`→`Live Job Data` tab renders a page saying "Carries the thread next pass" with bullet points about future features. This is a development stub visible in production (confirmed in May 29 screenshot). Users see this and think the app is broken.
+- **Fix:** Find the component rendering this stub. Either wire real content (the public intel page already exists at `/newsletter`/`/intel`) OR redirect this nav link to the actual public intel page OR hide the tab until the page is real. Locate: search for "Carries the thread" in `frontend/` to find the stub component.
+- **Files:** Wherever `Live Job Data` tab content renders inside the authed shell.
+
+**BUG-8 — "India, India" duplicate location in job drawer (LOW, NEW)**
+Job drawer shows location as "India, India" — `location_city` is being set to the country name for some jobs, so the display concatenates `city · country` = "India · India". Cosmetic but looks broken.
+- **Fix:** In the job card/drawer location display, de-duplicate: if `city === country`, show only country. Files: job drawer component (`frontend/components/jobs/` or `dashboard/`).
+
+**BUG-9 — "Share with a friend: PLANNED" row in XP/tokens screen (MEDIUM, NEW)**
+The tokens page (`/forge` XP wallet section, confirmed May 23 screenshot) shows "Share with a friend · PLANNED · +100 XP". Users see an unfulfilled promise. This erodes trust.
+- **Fix:** Either (a) remove the row until referral ships, OR (b) make it non-interactive with "coming soon" styling that doesn't look like a broken feature. Do NOT leave it as a clickable "PLANNED" tag. Files: `frontend/app/(authed)/tokens/page.tsx`.
+
+**BUG-3 — Skill tier label has no tooltip (MINOR, EXISTING OPEN)**
+New tier label `L1·Building` / `L2·At Risk` pill in the skill card has no explanatory tooltip. Multiple users confused by "BUILDING" / "AT RISK". Single-line fix: add `title` attribute + `aria-label` to the tier pill. Files: `frontend/components/skills/practice-skill-list.tsx`.
+
+**BUG-10 — Feedback form bottom-left not working (MEDIUM, NEW CONFIRMED)**
+Two users independently reported (Ravali: "Feedback form: question not getting selected 24th May 3:30PM"; Aditya: "The feedback form was not working on the bottom left") — this is the main bug-reporting surface. Investigate and fix. Files: `frontend/components/feedback/` or wherever the bottom-left feedback widget lives.
+
+**PR-F VERIFY — 375px skill card QA (STILL UNVERIFIED)**
+Load `/skills` on a 375px-wide Chrome DevTools viewport. Verify: (a) Intel/Map/Audit sticky tab pill does NOT overlap domain cards at any scroll position — if it does, add solid `--bg-page` background + `box-shadow`. (b) At <480px, skill-card action buttons show icons-only, not full labels (SE14). If broken → fix `.tm-skill-card-action-label` CSS. Files: `frontend/components/skills/`.
+
+---
+
+### P1 — FIRST-TIME USER JOURNEY (the #1 cited problem across all 20+ users)
+
+Every user, without exception, said some version of "I didn't know what to do" or "I couldn't figure out if this was a resume builder, job tracker, or career coach." The onboarding stepper was fixed (PR-ONBOARD), but users still get lost inside the product after onboarding.
+
+**PR-COACHMARKS — First-visit contextual tooltips (NO grill needed, code-ready)**
+Lightweight single-visit coachmarks that appear the FIRST time a user visits each page. Dismiss on any interaction. Never show again (localStorage flag per page). NOT intrusive modals — a single callout banner beneath the page title.
+
+Pages + copy:
+| Page | Coachmark copy |
+|---|---|
+| `/home` | "Your Mission Control — saved jobs, your next skill move, and your daily loop." |
+| `/skills` | "Your Skill Intelligence — how your CV maps against what the market's actually hiring for." |
+| `/intel` | "Follow companies to see which skills they demand most. Start by starring one." |
+| `/cv` | "Your Master CV lives here. Every tailored version you create stays in your library." |
+| `/forge` | "Practice Yard — 25-minute sessions build your skill level and earn XP. Pick a gap skill to start." |
+| `/market` | "Live job feed matched to your skills. Save a role to unlock CV tailoring for it." |
+
+Design: teal left-border callout card, `×` dismiss, max 2 lines, `font-size: 13px`, fades in 400ms on page mount. Component: `<PageCoachmark storageKey="…" body="…" />`. Shared across all pages. Files: new `frontend/components/common/PageCoachmark.tsx` + `.css`, wired into each page.
+
+**PR-LANDING-CLARITY — 3-step flow + social proof on landing page (grill needed: ND5)**
+Multiple users said the landing doesn't show them the workflow or prove others are using it.
+
+Part A (no grill needed — ship now):
+- Below the hero CTA, add a horizontal 3-step visual: `① Upload your CV → ② Get your Myro Score → ③ Tailor & send the right one`. Styled as connected numbered steps, not a feature list.
+- Add "Free to start · No credit card" in 12px below the primary CTA button.
+- Add 3 real user quotes from beta feedback as a testimonial strip (use Aman, Aditya, and the "game-changer" quote from CV issues feedback). Plain names, no photos needed — just initials + city.
+- Add "Join {count} job seekers" count above the hero (pull real user count from a cached API call or hardcode as a floor).
+
+Part B (needs ND5 decision — Shivam to confirm before coding):
+- Static 3-screenshot product gallery (Dashboard, Skills, Intel) OR a 60-second Loom embed.
+
+**PR-LANDING-FAQ — FAQ section on landing (no grill, code-ready)**
+5 FAQs address the top anxieties from user feedback:
+1. "Is Myro free?" → Yes, free to start. XP lets you unlock skill advice and company intel. No credit card needed.
+2. "How is this different from LinkedIn or Naukri?" → Myro scores your CV against live job data and shows you exactly which skills to build. LinkedIn shows you jobs; Myro shows you what's stopping you from getting them.
+3. "What is the Myro Score?" → A 0–100 score across 10 career domains, computed from your CV skills against real hiring demand. It goes up as you practice skills and add evidence.
+4. "Is my CV private?" → Yes. Your CV is never shared or visible to recruiters. Only you see it. Your public profile shows only your Myro Score and domain map — never your actual CV text.
+5. "What is Forge?" → Forge is your practice yard. Pick a skill you want to level up, run a 25-minute focused session, and earn XP. Each session moves your skill level from L0 to L5.
+
+Files: `frontend/components/public/landing-page.tsx` + `landing-page.css`.
+
+---
+
+### P2 — ENGAGEMENT ENGINE: QUEST BOARD (the #1 retention lever, flagged as "very important")
+
+**⚠️ Needs ND4 decision from Shivam before coding.** See ND4 below.
+
+**PR-QUEST-BOARD — Daily Missions widget on /home dashboard**
+The existing `YourMoveCard` shows ONE move at a time. Users want to see a BOARD. The game analogy in `user_feedback_1st_task.md` explicitly says: "a visible quest board showing exactly what to do next to level up — not just Next Moves, but framed as daily/weekly missions."
+
+Design (pending ND4 layout decision):
+- Widget title: "TODAY'S MISSIONS" with a "WEEKLY" tab toggle
+- 3 daily missions, generated deterministically from user state:
+  - **Always-on loop:** "Practice a skill · 25 min session" → `+50 XP` → routes to `/forge`
+  - **Skill-specific:** "Improve {top_gap_skill} from L{n} to L{n+1}" → `+30 XP` → routes to `/forge?skill=…`
+  - **Application loop:** "Save a matched job this week" OR "Log today's diary entry" → `+30 XP`
+- Each mission row: icon · title · XP badge · `→` CTA · checkbox-style completion state
+- Progress indicator: "1 / 3 done today" with a teal fill bar
+- Completed missions: ✓ green check, muted opacity, non-clickable
+- Reset at midnight (use local timezone)
+
+Backend needs: no new API — derive missions client-side from existing `useHomeBootstrap` data (has `hasCv`, `hasJob`, `loggedToday`, `topGapSkill`, `streak`). XP reward on completion is already handled by forge/diary flows.
+
+Files: new `frontend/components/home/DailyMissions.tsx` + `.css`, replace or wrap `YourMoveCard` in `HomeColumns.tsx`.
+
+---
+
+### P3 — REFERRAL LOOP (remove broken promise, wire what's already designed)
+
+**PR-REFERRAL-V1 — Wire the referral flow end-to-end**
+Per decisions SH6, SH7 in CLAUDE.md, the referral system is designed but not wired:
+- `myro_ref` cookie on `?ref=` landing → already designed
+- `user_profiles.referred_by_user_id` → already in schema spec
+- `welcome_xp_granted` trigger → already in DB
+
+What's missing:
+1. **Backend:** signup handler must read `myro_ref` cookie and write `referred_by_user_id` on profile creation. Credit referrer: when new user's `welcome_xp_granted` flips TRUE and `referred_by_user_id IS NOT NULL`, award +100 XP to referrer via `charge_xp` (negative = credit). Self-referral guard: `referred_by_user_id != user_id`.
+2. **Frontend:** Remove "PLANNED" tag from tokens page referral row. Make row show real state: "You've referred {n} friends · Invite 3 to unlock bonus missions →" with the share link pre-filled.
+3. **Share URL:** `/skills` share button (SH6) already exists — confirm it passes `?ref={ninja_name}` and that the landing page reads the param and sets the cookie.
+
+Files: `backend/app/routers/auth.py` or profile creation path, `frontend/app/(authed)/tokens/page.tsx`, `frontend/app/page.tsx` (cookie read from URL param).
+
+---
+
+### P4 — DESIGN POLISH (address "robotic / AI-generated" feedback)
+
+**PR-LANDING-VISUAL-WARMTH — Soften the hero aesthetic**
+Multiple users (Ashu, Aditya, Ravali) called the dark theme "too AI", "robotic", "futuristic in a bad way." The PR-K token shift already started this. The landing page needs one more pass:
+- Reduce particle animation intensity by 50% OR replace with a very subtle dot-grid pattern (CSS only, no JS)
+- The Gemini-generated images in `reference/branding/` show the brand aesthetic Shivam has in mind — reference those for tone
+- Warm the hero background slightly toward `--bg-page: #0a0a0c` (already in PR-K) — verify it's applied on the public landing page too, not just the authed shell
+
+**PR-NAV-DATE-DYNAMIC — "Live Job Data · 29 May" date is stale in public nav**
+Public nav bar shows "Live Job Data · 29 May" (confirmed May 31 screenshot). This date should update to today's date or the last scraper run date. Fix: either derive date from a cached API response or make it dynamic from `new Date()`. Files: `frontend/components/public/top-nav.tsx` or wherever the nav label is composed.
+
+---
+
+### NEW DESIGN DECISIONS FOR SHIVAM (confirm before next session codes)
+
+**ND4 — Quest Board layout** *(BLOCKING PR-QUEST-BOARD)*
+Should "Today's Missions" (a) replace YourMoveCard entirely, (b) sit above it as a wider section, or (c) on mobile become a horizontal scrolling chip strip? Key constraint: dashboard on mobile is already dense. Recommended: replace YourMoveCard with a 3-row mission list on desktop; collapse to 2-chip horizontal strip on mobile (<480px). **Shivam to confirm or override.**
+
+**ND5 — Landing page product preview format** *(BLOCKING Part B of PR-LANDING-CLARITY)*
+Option A: static 3-screenshot gallery (can ship same session, no recording needed). Option B: 60-second Loom embed (higher impact, needs recording by Shivam). Option C: animated GIF of the dashboard. Recommended: start with Option A, replace with B when video exists. **Shivam to confirm.**
+
+**ND6 — "PLANNED" features in tokens screen** *(BLOCKING BUG-9 full resolution)*
+"Share with a friend +100 XP" row is "PLANNED". Options: (a) hide until referral ships [fastest, clean], (b) show as non-interactive "coming soon" chip [honest], (c) sprint to ship PR-REFERRAL-V1 first [best UX]. Recommended: (a) hide it now, (c) ship referral in same sprint. **Shivam to confirm.**
+
+**ND7 — Feedback form fix priority** *(BLOCKING BUG-10)*
+Two users independently reported the bottom-left feedback form is broken (question not selectable). This is the primary bug-reporting surface. Is this still broken in prod today? If Shivam confirms yes — treat as P0 alongside BUG-7. **Shivam to verify in prod and confirm priority.**
+
+**ND8 — Special character UTF-8 corruption** *(BLOCKING ND3 from prior session)*
+"R&D", "Néstor", accented characters corrupt during CV ingestion (confirmed multiple users). Root cause: likely `pdfplumber` returning Latin-1 then being decoded as UTF-8. Fix: force `encoding='utf-8'` + `errors='replace'` in `cv_parser.py`, add test for `résumé`, `R&D`, `Señor`. **Shivam to confirm this is still active (not fixed in a backend deploy we don't see here).**
+
+---
+
+### BUILD ORDER FOR NEXT SESSION
+
+```
+Phase 1 (bugs, no decisions needed):
+  BUG-7 → BUG-9 → BUG-10 verify → BUG-8 → BUG-3 → PR-F verify
+
+Phase 2 (first-time journey, no decisions needed):  
+  PR-COACHMARKS → PR-LANDING-FAQ → PR-LANDING-CLARITY Part A → PR-NAV-DATE-DYNAMIC
+
+Phase 3 (engagement + growth, needs ND4/ND5/ND6 confirmed):
+  PR-QUEST-BOARD (after ND4) → PR-REFERRAL-V1 (after ND6) → PR-LANDING-CLARITY Part B (after ND5)
+
+Phase 4 (design polish, standalone):
+  PR-LANDING-VISUAL-WARMTH → PR-SKILL-TIER-TOOLTIPS (= BUG-3)
+```
+
+**Commit pattern:** one PR per item, `fix:` / `feat:` prefix. `tsc --noEmit` + `next lint` clean before merge. All work to `Develop`.
+
+---

@@ -35,6 +35,18 @@ class RefreshResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ExtensionSessionResponse(BaseModel):
+    """POST /auth/extension-session — a fresh, INDEPENDENT Supabase session
+    minted for the authenticated caller so the browser extension holds its own
+    refresh-token family (never shares rotation with the web app session)."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_at: int | None = None
+    user_id: str
+    email: EmailStr | None = None
+
+
 # ── ADR-0006 ─────────────────────────────────────────────────────────────
 
 class MagicLinkRequest(BaseModel):

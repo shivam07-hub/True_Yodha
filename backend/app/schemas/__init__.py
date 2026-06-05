@@ -1,5 +1,6 @@
 from app.schemas.auth import (
     AuthResponse as AuthResponse,
+    ExtensionSessionResponse as ExtensionSessionResponse,
     IntegrationRevokeResponse as IntegrationRevokeResponse,
     LoginRequest as LoginRequest,
     MagicLinkRequest as MagicLinkRequest,
@@ -115,6 +116,7 @@ from app.schemas.profile import (
 
 __all__ = [
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
+    "ExtensionSessionResponse",
     "CVUploadResponse", "CVUploadAcceptedResponse", "CVUploadDoneResponse", "CVUploadFailedResponse",
     "CVUploadStatusResponse", "CVEvidenceSummaryResponse",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",

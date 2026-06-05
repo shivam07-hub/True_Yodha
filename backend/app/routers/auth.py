@@ -22,6 +22,7 @@ from app.database import get_supabase, get_supabase_admin
 from app.deps import Principal, get_principal
 from app.schemas import (
     AuthResponse,
+    ExtensionSessionResponse,
     IntegrationRevokeResponse,
     LoginRequest,
     MagicLinkRequest,
@@ -155,6 +156,61 @@ def refresh_token(body: RefreshRequest) -> RefreshResponse:
     return RefreshResponse(
         access_token=response.session.access_token,
         refresh_token=response.session.refresh_token,
+    )
+
+
+@router.post("/extension-session", response_model=ExtensionSessionResponse)
+def extension_session(
+    principal: Principal = Depends(get_principal),
+) -> ExtensionSessionResponse:
+    """Mint a fresh, INDEPENDENT Supabase session for the browser extension.
+
+    The extension carries a real Supabase access token (the backend feeds it to
+    PostgREST for RLS — see deps.get_user_db). Handing it a copy of the web
+    app's session would make both share one refresh-token family; Supabase
+    rotates refresh tokens on use, so the two clients would eventually invalidate
+    each other and one would be logged out at random. Minting a brand-new
+    session here gives the extension its own family. The admin generate-link →
+    verify-otp dance issues a session for the caller without a password and
+    without sending any email.
+    """
+    if not principal.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your account has no email on file, so the extension can't be connected.",
+        )
+
+    try:
+        link = get_supabase_admin().auth.admin.generate_link(
+            {"type": "magiclink", "email": principal.email}
+        )
+        token_hash = link.properties.hashed_token
+        # get_supabase() returns a fresh anon client (not lru_cached), so
+        # verify_otp's internal _save_session won't pollute shared client state.
+        verified = get_supabase().auth.verify_otp(
+            {"token_hash": token_hash, "type": "magiclink"}
+        )
+    except Exception as exc:
+        _log.warning("extension-session mint failed for %s: %s", principal.id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Couldn't connect the extension right now. Try again.",
+        )
+
+    session = getattr(verified, "session", None)
+    if not session or not session.access_token or not session.refresh_token:
+        _log.warning("extension-session mint returned no session for %s", principal.id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Couldn't connect the extension right now. Try again.",
+        )
+
+    return ExtensionSessionResponse(
+        access_token=session.access_token,
+        refresh_token=session.refresh_token,
+        expires_at=getattr(session, "expires_at", None),
+        user_id=principal.id,
+        email=principal.email,
     )
 
 
