@@ -1,18 +1,15 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import type { UserSkillItem } from "@/lib/api"
-import { readSse } from "@/lib/streaming/read-sse"
 import { dataKeys } from "@/lib/domain-data"
 import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
-import { useRecomputeStore } from "@/store/recomputeStore"
 import { LevelDots } from "@/components/skills/level-dots"
-import { SkillEditDialog } from "@/components/skills/skill-edit-dialog"
 import { CommentThread, useCommentCount } from "@/components/comments/comment-thread"
 import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 
@@ -30,14 +27,10 @@ const LADDER_DESCRIPTOR: Record<string, string> = {
 export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const queryClient = useQueryClient()
   const applyXpChange = useXPStore((s) => s.applyXpChange)
-  const startRecompute = useRecomputeStore(s => s.start)
-  const clearRecompute = useRecomputeStore(s => s.clear)
 
-  const [editOpen, setEditOpen] = useState(false)
   const [advice, setAdvice] = useState<string | null>(null)
   const [adviceExpanded, setAdviceExpanded] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const recomputeAbort = useRef<AbortController | null>(null)
 
   // Appeal state
   const [appealOpen, setAppealOpen] = useState(false)
@@ -84,42 +77,9 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
     onError: () => setErrorMsg("Couldn't fetch advice. No tokens were spent."),
   })
 
-
-  // SE17 — ADR-0009 PR2: a single SSE stream replaces the 3s recompute poll.
-  // Settles the score-ring shimmer the moment the async re-tag stamps the flag
-  // (or on stream timeout / error — best-effort refresh either way).
-  function beginRecomputePoll(baselineId: number) {
-    startRecompute(baselineId)
-    recomputeAbort.current?.abort()
-    const ctrl = new AbortController()
-    recomputeAbort.current = ctrl
-
-    const settle = () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      clearRecompute()
-    }
-
-    void readSse(
-      `/cv/skill-edit/recompute-status/${baselineId}/stream`,
-      token,
-      (ev) => {
-        if (ev.type === "done" || ev.type === "error") settle()
-      },
-      ctrl.signal,
-    ).catch((err: unknown) => {
-      if ((err as Error)?.name === "AbortError") return
-      settle() // network drop — refresh + stop shimmer rather than hang
-    })
-  }
-
-  useEffect(() => () => {
-    recomputeAbort.current?.abort()
-  }, [])
-
   return (
     <div className="tm-skill-card-inline" style={{
-      background: "rgba(255,255,255,0.03)",
+      background: "var(--tm-surface)",
       border: "1px solid var(--tm-border-soft)",
       borderRadius: "var(--tm-radius-sm)",
       padding: "16px 18px",
@@ -156,13 +116,24 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
 
       {/* Row 4 — CV pointer boxed mono pre */}
       <div>
-        <div className="tm-label-caps" style={{ letterSpacing: "0.1em", marginBottom: 6, color: "var(--tm-text-faint)" }}>
-          CV pointer · current evidence
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+          <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-text-faint)" }}>
+            CV pointer · current evidence
+          </div>
+          {skill.evidence_text && (
+            <Link
+              href={`/cv?skill=${encodeURIComponent(skill.display_name)}`}
+              className="tm-skill-card-cvlink"
+              style={{ fontSize: 11, fontWeight: 600, color: "var(--tm-interactive-text)", textDecoration: "none", flexShrink: 0 }}
+            >
+              Edit in CV →
+            </Link>
+          )}
         </div>
         <div style={{
           padding: "10px 12px",
-          background: "rgba(0,0,0,0.25)",
-          border: "1px dashed var(--tm-border-soft)",
+          background: "var(--tm-surface-2)",
+          border: "1px solid var(--tm-border-soft)",
           borderRadius: "var(--tm-radius-sm)",
           fontFamily: "var(--tm-font-mono)",
           fontSize: 12, lineHeight: 1.65,
@@ -188,18 +159,13 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
         display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2,
       }}>
         <ActionBtn
-          label="Edit CV pointer"
-          icon="✎"
-          onClick={() => setEditOpen(true)}
-        />
-        <ActionBtn
-          label={isFree ? "Polish with AI · FREE" : `Polish with AI · -${XP_POLICY.skillAdviceCost} tokens`}
+          label={isFree ? "Ask Mentor · FREE" : `Ask Mentor · -${XP_POLICY.skillAdviceCost} tokens`}
           icon={askAdvice.isPending ? "…" : "✦"}
           onClick={() => isFree
             ? askAdvice.mutate()
             : gate.attempt(() => askAdvice.mutate())}
           disabled={askAdvice.isPending || !!advice}
-          accent={isFree}
+          accent
         />
       </div>
 
@@ -252,14 +218,14 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
             cursor: "pointer", textAlign: "left",
           }}
         >
-          ↑ Appeal level
+          ↑ Prove it
         </button>
       ) : null}
 
       {appealOpen && !appealResult && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", borderRadius: "var(--tm-radius-sm)", border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
           <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-interactive)" }}>
-            Appeal level · {(skill.correction_count ?? 0) + 1} of 2
+            Prove your level · {(skill.correction_count ?? 0) + 1} of 2
           </div>
 
           {/* Level picker */}
@@ -378,18 +344,10 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
 
       <div className="tm-skill-card-notes" style={{ borderTop: "1px solid var(--tm-border-faint)", paddingTop: 12 }}>
         <div className="tm-label-caps" style={{ letterSpacing: "0.1em", color: "var(--tm-text-faint)", marginBottom: 8 }}>
-          Notes{noteCount > 0 ? ` · ${noteCount}` : ""}
+          Add detail{noteCount > 0 ? ` · ${noteCount}` : ""}
         </div>
-        <CommentThread token={token} entityType="skill" entityId={skill.key} placeholder={`Note your progress on ${skill.display_name}…`} />
+        <CommentThread token={token} entityType="skill" entityId={skill.key} placeholder={`What else have you done with ${skill.display_name}? Capture it — we'll use it to sharpen your CV.`} />
       </div>
-
-      <SkillEditDialog
-        skill={skill}
-        token={token}
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSaved={(baselineId) => beginRecomputePoll(baselineId)}
-      />
     </div>
   )
 }

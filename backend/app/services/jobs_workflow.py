@@ -138,6 +138,31 @@ def build_user_skill_demand(
             }
         )
 
+    # Demand band — percentile rank of weighted_demand across the user's set.
+    # Relative (not absolute thresholds) so it stays meaningful as job volume
+    # grows. Single source of truth for the per-skill demand badge (Skills page),
+    # the landing chips, and the newsletter — no per-surface band-logic drift.
+    nonzero = sorted(
+        int(i.get("weighted_demand") or 0)
+        for i in enriched_items
+        if int(i.get("weighted_demand") or 0) > 0
+    )
+
+    def _band(value: int) -> str:
+        if value <= 0 or not nonzero:
+            return "none"
+        rank = sum(1 for d in nonzero if d <= value) / len(nonzero)
+        if rank >= 0.8:
+            return "very_high"
+        if rank >= 0.5:
+            return "high"
+        if rank >= 0.2:
+            return "moderate"
+        return "low"
+
+    for item in enriched_items:
+        item["demand_band"] = _band(int(item.get("weighted_demand") or 0))
+
     enriched_items.sort(
         key=lambda item: (
             -item["weighted_demand"],

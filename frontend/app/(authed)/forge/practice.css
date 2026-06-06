@@ -59,6 +59,27 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
   font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
 }
 .tm-skills-stat-tile .value.warning { color: var(--tm-tier-building-fg); }
+.tm-skills-stat-tile.is-active {
+  background: var(--tm-int-bg-wash); border-color: var(--tm-interactive);
+}
+.tm-skills-stat-tile.is-active .label,
+.tm-skills-stat-tile.is-active .value { color: var(--tm-interactive); }
+
+/* Domain picker — revealed by the Domains tile */
+.tm-skills-domain-pick {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 8px; padding: 10px 12px;
+  border: 1px solid var(--tm-int-border); border-radius: var(--tm-radius);
+  background: var(--tm-int-bg-subtle);
+}
+.tm-skills-domain-select {
+  appearance: none; font-family: inherit; font-size: 13px; font-weight: 600;
+  color: var(--tm-text); background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  padding: 7px 30px 7px 12px; cursor: pointer; min-width: 180px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16' fill='none' stroke='%2390a0b8' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
 
 /* ── Practice-weighted view toggle ── */
 .tm-pv-toggle {
@@ -242,6 +263,17 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
   white-space: nowrap; flex-shrink: 0;
 }
 .tm-pr-tier-gap { color: var(--tm-tier-gap-fg); background: var(--tm-tier-gap-bg); border: 1px solid var(--tm-tier-gap-border); }
+
+/* Demand badge — surfaces the north-star "what the market wants" signal. */
+.tm-pr-demand-badge {
+  font-family: var(--tm-font-mono); font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.06em; padding: 3px 8px; border-radius: 99px;
+  white-space: nowrap; line-height: 1;
+}
+.tm-pr-demand-strong   { color: var(--tm-tier-strong-fg);   background: var(--tm-tier-strong-bg);   border: 1px solid var(--tm-tier-strong-border); }
+.tm-pr-demand-building { color: var(--tm-tier-building-fg); background: var(--tm-tier-building-bg); border: 1px solid var(--tm-tier-building-border); }
+.tm-pr-demand-gap      { color: var(--tm-tier-gap-fg);      background: var(--tm-tier-gap-bg);      border: 1px solid var(--tm-tier-gap-border); }
+.tm-pr-demand-muted    { display: none; }
 .tm-pr-tier-building { color: var(--tm-tier-building-fg); background: var(--tm-tier-building-bg); border: 1px solid var(--tm-tier-building-border); }
 .tm-pr-tier-strong { color: var(--tm-tier-strong-fg); background: var(--tm-tier-strong-bg); border: 1px solid var(--tm-tier-strong-border); }
 .tm-pr-row-meta {

@@ -31,6 +31,9 @@ class UserSkillDemandItem(BaseModel):
     needs_upgrade: bool
     job_count_30d: int
     weighted_demand: int
+    # Percentile band of weighted_demand across the user's set. Single source of
+    # truth for the demand badge. very_high | high | moderate | low | none.
+    demand_band: str = "none"
 
 
 class UserSkillDemandResponse(BaseModel):

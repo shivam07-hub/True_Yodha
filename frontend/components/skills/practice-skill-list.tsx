@@ -1,44 +1,44 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { InlineSkillCard } from "@/components/skills/skill-card-inline"
-import { skillTier, skillTierLabel } from "@/lib/skill-tier"
+import { skillTier, skillTierLabel, skillTierHint } from "@/lib/skill-tier"
 import type {
   GapPracticeSkill,
   OwnedPracticeSkill,
   PracticeSkills,
 } from "@/lib/practice-skills"
-
-type Filter = "all" | "owned" | "gap"
+import type { SkillFilterState } from "@/lib/skill-filter"
+import type { DemandBand } from "@/lib/api"
+import { demandBandDisplay, bandFromJobCount } from "@/lib/demand-band"
 
 const PROFICIENCY_TITLES = ["None", "Scout", "Trailblazer", "Excavator", "Cartographer", "Legend"]
 
 interface PracticeSkillListProps {
   token: string
+  /** Already filtered + sorted by the page (applySkillFilter). */
   skills: PracticeSkills
+  /** Total before filtering — to tell "no skills yet" from "filter matched none". */
+  totalCount: number
   activeSkillName: string | null
   onPractice: (skillName: string, levelFrom: number, levelTo: number) => void
+  filter: SkillFilterState
+  onFilterChange: (next: SkillFilterState) => void
 }
 
 /**
- * The merged Practice skill surface (PR-A). Owned skills expand in place into
- * the full `InlineSkillCard` (CV-pointer edit / polish / appeal); gap skills
- * expand into the lighter "acquire" card. One place to act on a skill — no
- * route-hop to improve a CV pointer.
+ * The Intel skill surface. Status + domain filtering is owned by the page (the
+ * header stat tiles drive it); this component renders the filtered result and
+ * owns only the demand-sort toggle. Owned skills expand into the full
+ * `InlineSkillCard`; gap skills expand into the lighter "acquire" card.
  */
-export function PracticeSkillList({ token, skills, activeSkillName, onPractice }: PracticeSkillListProps) {
-  const [filter, setFilter] = useState<Filter>("all")
-
+export function PracticeSkillList({
+  token, skills, totalCount, activeSkillName, onPractice, filter, onFilterChange,
+}: PracticeSkillListProps) {
   const { owned, gaps } = skills
-  const counts = useMemo(
-    () => ({ all: owned.length + gaps.length, owned: owned.length, gap: gaps.length }),
-    [owned.length, gaps.length],
-  )
-
-  const showOwned = filter === "all" || filter === "owned"
-  const showGap = filter === "all" || filter === "gap"
-  const empty = counts.all === 0
+  const empty = owned.length + gaps.length === 0
+  const noSkillsAtAll = totalCount === 0
 
   return (
     <section className="tm-pr-skills">
@@ -49,18 +49,33 @@ export function PracticeSkillList({ token, skills, activeSkillName, onPractice }
             {owned.length} on your CV · {gaps.length} gaps from target jobs
           </div>
         </div>
-        <div className="tm-pr-tabs" role="tablist" aria-label="Filter skills">
-          <FilterTab active={filter === "all"} onClick={() => setFilter("all")} label="All" n={counts.all} />
-          <FilterTab active={filter === "owned"} onClick={() => setFilter("owned")} label="On my CV" n={counts.owned} />
-          <FilterTab active={filter === "gap"} onClick={() => setFilter("gap")} label="Job gaps" n={counts.gap} />
+        <div className="tm-pr-tabs" role="group" aria-label="Sort skills">
+          <button
+            type="button"
+            className="tm-pr-tab tm-control-focus"
+            aria-pressed={filter.sort === "default"}
+            onClick={() => onFilterChange({ ...filter, sort: "default" })}
+          >
+            Default
+          </button>
+          <button
+            type="button"
+            className="tm-pr-tab tm-control-focus"
+            aria-pressed={filter.sort === "demand"}
+            onClick={() => onFilterChange({ ...filter, sort: "demand" })}
+          >
+            Hot skills
+          </button>
         </div>
       </div>
 
       {empty ? (
-        <div className="tm-pr-empty">No skills mapped from your CV yet.</div>
+        <div className="tm-pr-empty">
+          {noSkillsAtAll ? "No skills mapped from your CV yet." : "No skills match this filter."}
+        </div>
       ) : (
         <>
-          {showOwned && owned.length > 0 && (
+          {owned.length > 0 && (
             <>
               <GroupHeading text="On your CV — improve the pointer or level up" />
               <div className="tm-pr-rows">
@@ -76,7 +91,7 @@ export function PracticeSkillList({ token, skills, activeSkillName, onPractice }
               </div>
             </>
           )}
-          {showGap && gaps.length > 0 && (
+          {gaps.length > 0 && (
             <>
               <GroupHeading text="Gaps from target jobs — add to your CV, then practice" />
               <div className="tm-pr-rows">
@@ -97,17 +112,16 @@ export function PracticeSkillList({ token, skills, activeSkillName, onPractice }
   )
 }
 
-function FilterTab({ active, onClick, label, n }: { active: boolean; onClick: () => void; label: string; n: number }) {
+function DemandBadge({ band, jobCount }: { band: DemandBand; jobCount: number }) {
+  // Owned/target skills carry a real percentile band; job-gap-only skills fall
+  // back to a job-count-derived band so the demand signal is never silently lost.
+  const resolved: DemandBand = band !== "none" ? band : bandFromJobCount(jobCount)
+  const display = demandBandDisplay(resolved)
+  if (!display) return null
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className="tm-pr-tab tm-control-focus"
-      onClick={onClick}
-    >
-      {label} <span className="tm-pr-tab-n">{n}</span>
-    </button>
+    <span className={`tm-pr-demand-badge tm-pr-demand-${display.tone}`} title={`${display.label}${jobCount > 0 ? ` · ${jobCount} of your target jobs` : ""}`}>
+      {display.label}{jobCount > 0 ? ` · ${jobCount}` : ""}
+    </span>
   )
 }
 
@@ -150,7 +164,14 @@ function OwnedRow({ skill, token, active, onPractice }: {
           <div className="tm-pr-row-nameline">
             <span className="tm-pr-kind-dot tm-pr-dot-owned" aria-hidden />
             <span className="tm-pr-row-name">{item.display_name}</span>
-            <span className={`tm-pr-tier tm-pr-tier-${tier}`}>L{item.level} · {skillTierLabel(item.level)}</span>
+            <span
+              className={`tm-pr-tier tm-pr-tier-${tier}`}
+              title={skillTierHint(item.level)}
+              aria-label={skillTierHint(item.level)}
+            >
+              L{item.level} · {skillTierLabel(item.level)}
+            </span>
+            <DemandBadge band={skill.demandBand} jobCount={skill.jobCount} />
           </div>
           <div className="tm-pr-row-meta">
             <span className="tm-pr-mono">L{item.level} → L{skill.targetLevel}</span>
@@ -191,6 +212,7 @@ function GapRow({ skill, active, onPractice }: {
             <span className="tm-pr-kind-dot tm-pr-dot-gap" aria-hidden />
             <span className="tm-pr-row-name">{skill.skill_name}</span>
             <span className="tm-pr-tier tm-pr-tier-gap">Not on CV</span>
+            <DemandBadge band={skill.demandBand} jobCount={skill.jobCount} />
           </div>
           <div className="tm-pr-row-meta">
             <span className="tm-pr-mono">L0 → L{skill.levelTo}</span>

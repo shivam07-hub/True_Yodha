@@ -16,6 +16,7 @@ import { jobs, scores, users, xp } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { buildPracticeSkills } from "@/lib/practice-skills"
+import { applySkillFilter, DEFAULT_SKILL_FILTER, type SkillFilterState } from "@/lib/skill-filter"
 import { buildDomainEntries, skillIntelStats } from "@/lib/skill-domains"
 import { forgeProgressRatio } from "@/lib/forge-progress"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -53,6 +54,7 @@ function ForgePageInner() {
 
   const [selectedSkill, setSelectedSkill] = useState<HeroSkill | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [skillFilter, setSkillFilter] = useState<SkillFilterState>(DEFAULT_SKILL_FILTER)
 
   const skillParam = searchParams.get("skill")
   const domainParam = searchParams.get("domain")
@@ -137,8 +139,15 @@ function ForgePageInner() {
     [userSkills, jobGaps, skillDemand],
   )
 
+  const filteredSkills = useMemo(
+    () => applySkillFilter(practiceSkills, skillFilter),
+    [practiceSkills, skillFilter],
+  )
+  const practiceTotal = practiceSkills.owned.length + practiceSkills.gaps.length
+
   const skills = userSkills ?? EMPTY_SKILLS
   const domainEntries = useMemo(() => buildDomainEntries(skills), [skills])
+  const domainNames = useMemo(() => domainEntries.map((d) => d.domain).sort(), [domainEntries])
   const stats = useMemo(
     () => (scoreData ? skillIntelStats(skills, domainEntries) : null),
     [scoreData, skills, domainEntries],
@@ -207,7 +216,9 @@ function ForgePageInner() {
             totalScore={totalScore}
             ninjaName={profile?.ninja_name}
             stats={stats}
-            onWeakJump={() => setView("map")}
+            domains={domainNames}
+            filter={skillFilter}
+            onFilterChange={setSkillFilter}
           />
 
           <PracticeViewToggle value={view} onChange={setView} sessionRunning={sessionActive && running} />
@@ -268,7 +279,15 @@ function ForgePageInner() {
                 skillsLoading ? (
                   <div className="tm-pr-skills"><div className="tm-pr-empty">Loading your skills…</div></div>
                 ) : (
-                  <PracticeSkillList token={token} skills={practiceSkills} activeSkillName={activeSessionName} onPractice={handlePractice} />
+                  <PracticeSkillList
+                    token={token}
+                    skills={filteredSkills}
+                    totalCount={practiceTotal}
+                    activeSkillName={activeSessionName}
+                    onPractice={handlePractice}
+                    filter={skillFilter}
+                    onFilterChange={setSkillFilter}
+                  />
                 )
               )}
             </>

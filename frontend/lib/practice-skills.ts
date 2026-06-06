@@ -1,4 +1,5 @@
 import type {
+  DemandBand,
   SkillGapResponse,
   UserSkillDemandResponse,
   UserSkillItem,
@@ -27,6 +28,7 @@ export interface OwnedPracticeSkill {
   sources: string[]
   jobCount: number
   demand: number
+  demandBand: DemandBand
 }
 
 export interface GapPracticeSkill {
@@ -35,6 +37,7 @@ export interface GapPracticeSkill {
   sources: string[]
   jobCount: number
   demand: number
+  demandBand: DemandBand
   company: string | null
 }
 
@@ -64,6 +67,7 @@ export function buildPracticeSkills(
         sources: [],
         jobCount: 0,
         demand: 0,
+        demandBand: "none",
       }
       ownedByName.set(norm(item.display_name), owned)
       if (item.key) ownedByKey.set(item.key, owned)
@@ -78,6 +82,7 @@ export function buildPracticeSkills(
     company: string | null,
     demand = 0,
     jobCount = 0,
+    band: DemandBand = "none",
   ): void {
     const key = norm(name)
     if (!key) return
@@ -89,6 +94,7 @@ export function buildPracticeSkills(
         sources: source ? [source] : [],
         jobCount,
         demand,
+        demandBand: band,
         company,
       })
       return
@@ -96,6 +102,7 @@ export function buildPracticeSkills(
     existing.levelTo = Math.max(existing.levelTo, levelTo)
     existing.jobCount = Math.max(existing.jobCount, jobCount)
     existing.demand = Math.max(existing.demand, demand)
+    if (band !== "none") existing.demandBand = band
     if (source && !existing.sources.includes(source)) existing.sources.push(source)
     if (!existing.company && company) existing.company = company
   }
@@ -128,9 +135,10 @@ export function buildPracticeSkills(
         if (skill.target_level) owned.targetLevel = Math.max(owned.targetLevel, skill.target_level)
         owned.demand = Math.max(owned.demand, skill.weighted_demand)
         owned.jobCount = Math.max(owned.jobCount, skill.job_count_30d)
+        if (skill.demand_band && skill.demand_band !== "none") owned.demandBand = skill.demand_band
         if (!owned.sources.includes("Target upgrade")) owned.sources.push("Target upgrade")
       } else {
-        addGap(skill.display_name || skill.skill, skill.target_level ?? 1, "Target upgrade", null, skill.weighted_demand, skill.job_count_30d)
+        addGap(skill.display_name || skill.skill, skill.target_level ?? 1, "Target upgrade", null, skill.weighted_demand, skill.job_count_30d, skill.demand_band ?? "none")
       }
     })
 
