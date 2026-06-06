@@ -26,7 +26,11 @@ async function refreshSession(apiUrl) {
 }
 
 async function request(apiUrl, token, path, body, _retried = false) {
-  if (!token) throw new Error("Connect Myro before saving jobs.")
+  if (!token) {
+    const err = new Error("Connect Myro before saving jobs.")
+    err.code = "auth_required"
+    throw err
+  }
   const response = await fetch(endpoint(apiUrl, path), {
     method: "POST",
     headers: {
@@ -40,7 +44,12 @@ async function request(apiUrl, token, path, body, _retried = false) {
   if (response.status === 401 && !_retried) {
     const fresh = await refreshSession(apiUrl)
     if (fresh) return request(apiUrl, fresh, path, body, true)
-    throw new Error("Your Myro session expired. Click Connect with Myro to reconnect.")
+    // No working refresh token (stale/expired session) — signal the popup to
+    // drop the dead token and surface "Connect with Myro" instead of trapping
+    // the user on a retry loop.
+    const err = new Error("Your Myro session expired. Reconnect to continue.")
+    err.code = "auth_required"
+    throw err
   }
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
