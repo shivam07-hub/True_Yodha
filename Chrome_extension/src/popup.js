@@ -289,9 +289,23 @@ function frontendBaseUrl(apiUrl) {
 }
 
 function showError(error) {
+  // Auth failures (no token, or expired session with no working refresh) must
+  // route to the Connect view — the error view's "Try again" would just re-hit
+  // the same 401 and trap the user. Drop the dead token first.
+  if (error && error.code === "auth_required") {
+    void resetToAuth()
+    return
+  }
   elements.errorText.textContent = error instanceof Error ? error.message : String(error)
   setStatus("Check needed")
   setView("error")
+}
+
+async function resetToAuth() {
+  await saveConfig({ apiUrl: state.config.apiUrl, token: "", refreshToken: "" })
+  state.config = await getConfig()
+  setStatus("Connect")
+  setView("auth")
 }
 
 function addFromInput(input, list) {

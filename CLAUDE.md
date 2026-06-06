@@ -705,3 +705,176 @@ Phase 4 (design polish, standalone):
 **Commit pattern:** one PR per item, `fix:` / `feat:` prefix. `tsc --noEmit` + `next lint` clean before merge. All work to `Develop`.
 
 ---
+
+## LAST SESSION SUMMARY (2026-06-06 · Automated deep audit — Sprint 5 plan)
+
+Scheduled task ran a second, deeper audit of `reference/` — this time reading **all 15 PDF feedback documents** (never previously analyzed), all 5 DOCX files, 4 markdown feedback files, the `BRAND_IDENTITY.md`, `mobile-redesign/DESIGN_REFERENCES.md`, and `mobile-redesign/INVENTORY.md`. Also verified Sprint 4's bug list against live code. No code was written — output is Sprint 5 plan below.
+
+**New source materials analyzed this session:**
+- `User feedback docs/*.pdf` (15 PDFs: Aparna, Hetvi, Mannat ×2, Krrish Sain, 6+ anonymous beta users)
+- `User feedback docs/*.docx` (5 DOCX: HiMyro_Review_Final, Myro_Website_Feedback_Report, Platform Assessment, Task Submission, Feedback for Himyro)
+- `branding/BRAND_IDENTITY.md` — full dual-accent visual system spec
+- `mobile-redesign/DESIGN_REFERENCES.md` — 7 reference apps + brightness/typography tokens
+
+**Key NEW findings not previously logged:**
+
+1. **BUG-7 status: ALREADY FIXED** — `myro/page.tsx` is a proper "Welcome to Myro" page with resource shelf + shortcuts. "Carries the thread" stub is gone. Do NOT touch.
+2. **BUG-12 CONFIRMED** — "Lightcast taxonomy" jargon lives in `app/(authed)/cv/page.tsx` line ~300. Confirmed user-facing, needs plain English.
+3. **BUG-11 NEW** — Forge session *completion* UX is unclear — multiple users independently confused about how to "fully end" a session. `ForgeModal.tsx` has a complete-screen but the path to it is opaque.
+4. **BUG-13 NEW** — Zero-skill extraction with no guidance. Users with minimal CVs get 0 skills, no inline tip on what makes extraction work.
+5. **ND9 NEW** — "The 10 domains are never explained" — called out explicitly in 3 independent feedback docs. Before upload, the scoring framework is a complete black box.
+6. **ND10 NEW** — "Free vs paid" ambiguity — Aparna + 4 others hesitated to explore because no "free to start" signal exists anywhere. Critical conversion killer.
+7. **Feedback form (BUG-10)**: `CategoryCard` is structurally fine (proper `<button onClick>`). The "broken" reports are likely mobile pointer-events or z-index. Needs live QA on phone, not a code rewrite.
+8. **Brand identity doc** (`BRAND_IDENTITY.md`) defines dual-accent Signal/Forge system + Space Grotesk typography scale that is NOT fully implemented. Deferred but noted for design system work.
+
+**Synthesis from 30+ unique user voices:** The universal pain has 3 layers:
+- **Layer 1 (trust):** "Is this free? Will I be charged? What am I even being scored on?"
+- **Layer 2 (orientation):** "I don't know what to do first or why the nav labels mean."
+- **Layer 3 (retention):** "No reason to come back after I see my score."
+
+Sprint 4 addressed Layer 2 (coachmarks, FAQ, onboarding wiring). Sprint 5 must address **Layer 1** (trust signals) and **Layer 3** (daily missions / referral). The Arham / game-analogy feedback remains the single strongest product insight: XP + missions + daily loop = the retention engine. It just needs to be made visible.
+
+---
+
+## SPRINT 5 — TRUST SIGNALS + RETENTION ENGINE
+
+**Goal:** Make users trust Myro before they sign up. Give them a reason to open it tomorrow.
+
+**What Sprint 4 left for Sprint 5 (carry-over + new):**
+- BUG-9, BUG-10, BUG-8, BUG-3, PR-F verify (carry-over from Sprint 4 P0 — still open)
+- PR-COACHMARKS, PR-LANDING-FAQ, PR-LANDING-CLARITY, PR-QUEST-BOARD, PR-REFERRAL-V1, PR-LANDING-VISUAL-WARMTH, PR-NAV-DATE-DYNAMIC (Sprint 4 items, code not yet written)
+- Plus new items from this audit below
+
+---
+
+### P0 — CARRY-OVER BUGS (fix first, no decisions needed)
+
+**BUG-7 — RESOLVED.** `myro/page.tsx` is a real page. Remove from tracking.
+
+**BUG-9 — "Share with a friend: PLANNED" on tokens page**
+`frontend/app/(authed)/tokens/page.tsx` — hide the PLANNED row until referral ships. One-line conditional. Decision: per ND6, hide it (option a).
+
+**BUG-8 — "India, India" duplicate location**
+Job card/drawer: if `location_city === location_country`, show only country. Files: `frontend/components/jobs/` or `dashboard/`.
+
+**BUG-3 — Skill tier label needs tooltip**
+Add `title="Building: L1–L2. Active practice needed to reach the next level."` + `aria-label` to the tier pill. Files: `frontend/components/skills/practice-skill-list.tsx`.
+
+**BUG-10 — Feedback form category selection broken on mobile**
+The `CategoryCard` buttons look structurally correct, but two independent users report failure on phone. Likely: `pointer-events: none` on a parent, or z-index conflict with a modal overlay, or `touch-action` missing. Fix: QA on a real phone with DevTools remote debugging. Check `feedback-fab.tsx` parent `pointerEvents: "none"` container — the quick-pill buttons inherit `pointer-events: none` from their parent div. **This is likely the root cause**: `feedback-fab.tsx` wraps everything in `pointerEvents: "none"` and only restores it on the child buttons — but `CategoryCard` buttons inside the hub may be inside this container. Verify and fix pointer-events inheritance. Files: `frontend/components/feedback/feedback-fab.tsx`, `feedback-hub.tsx`.
+
+**PR-F VERIFY — 375px skill card QA**
+Open `/skills` at 375px Chrome DevTools. Check (a) sticky tab pill background, (b) SE14 icon-only buttons. Fix CSS if broken.
+
+---
+
+### P0-NEW — NEW BUGS (from this audit, code-ready)
+
+**BUG-11 — Forge session completion path unclear (MEDIUM)**
+Multiple users say "I couldn't figure out how to fully end/complete a forging session." The `ForgeModal.tsx` has a `complete` screen and a "Complete session" button — but it's gated on `canClaim` (timer must finish). Users who want to stop early don't see an exit path. Fix: add a clearly labeled "End session early" link beneath the timer. When clicked → confirms with "You'll forfeit XP for this session. Continue?" → closes modal, logs partial session, does NOT award XP. Separate affordance from "Claim XP" CTA which remains the primary action on timer completion. Files: `frontend/components/forge/ForgeModal.tsx`.
+
+**BUG-12 — "Lightcast taxonomy" jargon in CV upload (LOW, easy win)**
+`frontend/app/(authed)/cv/page.tsx` line ~300: `"We extract skills, map them to the Lightcast taxonomy, and parse your CV into sections."` Replace with: `"We identify your skills and map them to 32,000+ recognized skill types used by real hiring managers."` One string change. Files: `frontend/app/(authed)/cv/page.tsx`.
+
+**BUG-13 — No CV extraction guidance for sparse CVs (MEDIUM)**
+Users with minimal CVs get 0 skills extracted, no explanation. Add a teal info callout beneath the file upload button with 3 tips: (a) "Include your tools and technologies by name (e.g. Python, Figma, SQL)", (b) "List bullet-point achievements, not just job titles", (c) "Add a Skills section to your CV before uploading." Shown always (not on error) — pre-empts the frustration. Files: `frontend/app/(authed)/cv/page.tsx` or upload component.
+
+---
+
+### P1 — TRUST SIGNALS (highest conversion impact, code-ready, no grill needed)
+
+**PR-TRUST-SIGNALS — Three landing-page trust fixes (ship together as one PR)**
+
+These all address the same root cause: users don't trust the platform before they sign up. All three are copy/layout changes, no API work.
+
+**T1 — "Free to start" badge**
+Add `Free to start · No credit card` in 11px `--text-muted` directly below the primary CTA button on the landing page AND below the "Create account" button on the signup form. Single line, no box. Files: `frontend/components/public/landing-page.tsx`, `frontend/app/signup/page.tsx`.
+
+**T2 — What you'll be scored on**
+On the CV upload screen (pre-upload state in `app/(authed)/cv/page.tsx`), add a compact collapsible "What is the Myro Score?" section showing the 10 domains as small chips. Copy: "Your CV is scored across 10 career domains: [Technology · Data · Communication · Leadership · Strategy · Marketing · Operations · Finance · Product · People]. The score reflects how your skills map to live hiring demand." Collapsed by default, opens on click. Also add one sentence to the landing FAQ ("What is the Myro Score?") listing the 10 domains. Files: `frontend/app/(authed)/cv/page.tsx`, `frontend/components/public/landing-page.tsx`.
+
+**T3 — Social proof count on landing hero**
+Add "Join X,XXX job seekers already using Myro" above or below the hero CTA. Derive from a lightweight `GET /health` or `GET /public/stats` endpoint returning user count, or hardcode a conservative floor (e.g. 500) until the endpoint exists. File: `frontend/components/public/landing-page.tsx`, `backend/app/routers/public.py` (add `/public/stats` endpoint if not exists).
+
+---
+
+### P1 — FIRST-TIME JOURNEY (carry-over from Sprint 4, code-ready)
+
+**PR-COACHMARKS** — See Sprint 4 P1 for full spec. Ship as-is.
+
+**PR-LANDING-FAQ** — See Sprint 4 P1 for full spec. Ship as-is. Amend FAQ #3 to include domain list per T2 above.
+
+**PR-LANDING-CLARITY Part A** — 3-step visual + testimonials. See Sprint 4 P1. Ship as-is.
+
+**PR-NAV-DATE-DYNAMIC** — Stale "29 May" nav date. See Sprint 4 P4. Ship as-is.
+
+---
+
+### P2 — RETENTION ENGINE (needs decisions ND4 + ND6)
+
+**PR-QUEST-BOARD** — Daily missions. See Sprint 4 P2 for full spec. Blocked on ND4.
+
+**PR-REFERRAL-V1** — Wire referral end-to-end. See Sprint 4 P3 for full spec. Blocked on ND6.
+
+**PR-LANDING-CLARITY Part B** — Product preview. Blocked on ND5.
+
+---
+
+### P3 — DESIGN POLISH (standalone, ship any time)
+
+**PR-LANDING-VISUAL-WARMTH** — Reduce particle animation 50%, apply `--bg-page: #0a0a0c` to public landing too. See Sprint 4 P4.
+
+---
+
+### NEW DESIGN DECISIONS FOR SHIVAM (Sprint 5 additions)
+
+Decisions ND4–ND8 from Sprint 4 carry over unchanged. New decisions added this session:
+
+**ND9 — Domain preview placement** *(INFORMS T2 above)*
+The 10 domains need to appear somewhere before/during CV upload. Option A: collapsible section on the upload screen (described in T2). Option B: one-line chip strip in the landing FAQ answer. Option C: both. Recommended: both (minimal effort, maximum coverage). Shivam to confirm copy for the 10 domain names — are these the exact names shown in the skill map?
+
+**ND10 — "Free to start" badge wording** *(INFORMS T1 above)*
+Suggested: `Free to start · No credit card`. Alternative: `Always free · Premium features unlock with XP`. Which framing is more accurate given the current XP model? Recommended: the first — simpler, more universal. Shivam to confirm.
+
+**ND11 — CV extraction tips — always visible or on-error?** *(INFORMS BUG-13)*
+Option A: Always visible beneath upload button (pre-empts frustration before it starts). Option B: Show only after failed extraction (0 skills found). Option C: Show on first upload only, then hide. Recommended: Option A — most visible, no state logic needed. Shivam to confirm.
+
+**ND12 — Forge early-exit confirmation copy** *(INFORMS BUG-11)*
+When user exits mid-session: (a) "End session — forfeit XP for this session?" or (b) "Stop practice — no XP will be awarded for incomplete sessions." Recommended: (a) — shorter, more conversational. Shivam to confirm.
+
+---
+
+### BUILD ORDER FOR SPRINT 5
+
+```
+Phase 1 — bugs (no decisions needed):
+  BUG-9 → BUG-8 → BUG-3 → BUG-10 → BUG-12 → PR-F verify
+  BUG-11 (after ND12) → BUG-13 (after ND11)
+
+Phase 2 — trust signals (no decisions needed for T1/T3; ND9 needed for T2):
+  PR-TRUST-SIGNALS (T1 + T3 first, T2 after ND9)
+
+Phase 3 — first-time journey (no decisions needed):
+  PR-COACHMARKS → PR-LANDING-FAQ → PR-LANDING-CLARITY Part A → PR-NAV-DATE-DYNAMIC
+
+Phase 4 — retention (needs ND4/ND5/ND6 + ND10):
+  PR-QUEST-BOARD → PR-REFERRAL-V1 → PR-LANDING-CLARITY Part B
+
+Phase 5 — polish (standalone):
+  PR-LANDING-VISUAL-WARMTH
+```
+
+**Commit pattern:** one PR per item, `fix:` / `feat:` prefix. `tsc --noEmit` + `next lint` clean before merge. All work to `Develop`.
+
+**Questions for Shivam (confirm at session start before Phase 2 coding):**
+- ND4: Quest Board layout (desktop list vs mobile chip strip)
+- ND5: Landing preview format (screenshot gallery vs Loom vs GIF)
+- ND6: PLANNED referral row (hide vs ship referral now)
+- ND7: Feedback form — still broken on phone? P0 or P1?
+- ND8: UTF-8 corruption — still active in prod?
+- ND9: Domain preview placement + exact 10 domain names
+- ND10: "Free to start" badge wording
+- ND11: CV extraction tips — always visible or on-error?
+- ND12: Forge early-exit confirmation copy
+
+---
