@@ -12,9 +12,13 @@ async function init() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault()
+    // Preserve any refresh token from a "Connect with Myro" handshake so saving
+    // an API-URL override here doesn't silently drop auto-refresh.
+    const current = await getConfig()
     await saveConfig({
       apiUrl: apiUrl.value.trim(),
       token: token.value.trim(),
+      refreshToken: current.refreshToken,
     })
     statusText.textContent = "Saved. Myro can now track jobs from the extension."
   })

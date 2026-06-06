@@ -1,6 +1,6 @@
 import { saveImport, previewImport } from "./api.js"
 import { extractFromDocument, KNOWN_SELECTOR_LIST } from "./extractors.js"
-import { getConfig } from "./storage.js"
+import { getConfig, saveConfig } from "./storage.js"
 
 const browserPreview = typeof chrome === "undefined" || !chrome.tabs || !chrome.scripting
 
@@ -12,6 +12,7 @@ const elements = {
   savedView: document.querySelector("#saved-view"),
   errorView: document.querySelector("#error-view"),
   trackButton: document.querySelector("#track-button"),
+  connectButton: document.querySelector("#connect-button"),
   retryButton: document.querySelector("#retry-button"),
   saveButton: document.querySelector("#save-button"),
   settingsLinks: document.querySelectorAll("[data-open-settings]"),
@@ -32,7 +33,7 @@ const elements = {
 }
 
 const state = {
-  config: { apiUrl: "", token: "" },
+  config: { apiUrl: "", token: "", refreshToken: "" },
   sourceUrl: "",
   sourcePlatform: "generic",
   captureMethod: "visible_page",
@@ -258,6 +259,9 @@ async function trackCurrentJob() {
 
 async function saveCurrentJob() {
   try {
+    // Preview may have silently refreshed + rotated the access token into
+    // storage. Re-sync so save uses the current token, not a stale one.
+    if (!browserPreview) state.config = await getConfig()
     syncStateFromFields()
     if (!state.roleName || !state.jobDescription) throw new Error("Role name and job description are required.")
     setStatus("Saving")
@@ -266,7 +270,7 @@ async function saveCurrentJob() {
       ? { title: state.roleName, job_id: "preview" }
       : await saveImport(state.config.apiUrl, state.config.token, state)
     elements.savedTitle.textContent = saved.title || state.roleName
-    elements.trackerLink.href = `${state.config.apiUrl.replace(/\/$/, "").replace(":8000", ":3000")}/tracker`
+    elements.trackerLink.href = `${frontendBaseUrl(state.config.apiUrl)}/tracker`
     setStatus("Saved")
     setView("saved")
   } catch (error) {
@@ -274,6 +278,14 @@ async function saveCurrentJob() {
   } finally {
     elements.saveButton.disabled = false
   }
+}
+
+function frontendBaseUrl(apiUrl) {
+  const base = apiUrl.replace(/\/$/, "")
+  // api.himyro.com -> himyro.com (prod); localhost:8000 -> localhost:3000 (dev)
+  if (base.includes("api.himyro.com")) return base.replace("api.himyro.com", "himyro.com")
+  if (base.includes("truemirror.up.railway.app")) return "https://himyro.com"
+  return base.replace(":8000", ":3000")
 }
 
 function showError(error) {
@@ -296,6 +308,47 @@ async function openSettings() {
   location.href = "options.html"
 }
 
+// Opens the Myro web app's /extension/connect handshake in a managed auth tab.
+// The page mints an independent session for the signed-in user and bounces the
+// tokens back to chromiumapp.org in the URL fragment, which we parse + store.
+// No copy-paste, no manual token.
+async function connectMyro() {
+  if (browserPreview || !chrome.identity?.launchWebAuthFlow) {
+    showError(new Error("Open this from the Myro extension icon to connect."))
+    return
+  }
+  try {
+    setStatus("Connecting")
+    elements.connectButton.disabled = true
+    const redirectUri = chrome.identity.getRedirectURL()
+    const authUrl = `${frontendBaseUrl(state.config.apiUrl)}/extension/connect?redirect_uri=${encodeURIComponent(redirectUri)}`
+    const responseUrl = await new Promise((resolve, reject) => {
+      chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (url) => {
+        if (chrome.runtime.lastError || !url) {
+          reject(new Error(chrome.runtime.lastError?.message || "Connection cancelled."))
+        } else {
+          resolve(url)
+        }
+      })
+    })
+    const frag = new URLSearchParams(new URL(responseUrl).hash.slice(1))
+    const accessToken = frag.get("access_token")
+    if (!accessToken) throw new Error("Myro didn't return a session. Try again.")
+    await saveConfig({
+      apiUrl: frag.get("api_url") || state.config.apiUrl,
+      token: accessToken,
+      refreshToken: frag.get("refresh_token") || "",
+    })
+    state.config = await getConfig()
+    setStatus("Ready")
+    setView("ready")
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.connectButton.disabled = false
+  }
+}
+
 async function init() {
   state.config = await getConfig()
   if (!state.config.token && !browserPreview) {
@@ -307,6 +360,7 @@ async function init() {
   }
 
   elements.trackButton.addEventListener("click", trackCurrentJob)
+  elements.connectButton?.addEventListener("click", connectMyro)
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)
   elements.settingsLinks.forEach((link) => link.addEventListener("click", openSettings))

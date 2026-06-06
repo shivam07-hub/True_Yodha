@@ -200,6 +200,15 @@ export interface IntegrationRevokeResponse {
   message: string
 }
 
+export interface ExtensionSessionResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_at: number | null
+  user_id: string
+  email: string | null
+}
+
 export const auth = {
   signup: (email: string, password: string, fullName?: string | null, myroRef?: string | null) =>
     request<AuthResponse>("/auth/signup", {
@@ -226,6 +235,12 @@ export const auth = {
   revokeIntegration: (token: string, provider: "google" | "linkedin_oidc") =>
     request<IntegrationRevokeResponse>(`/auth/integrations/${provider}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Mint a fresh, independent Supabase session for the browser extension. */
+  extensionSession: (token: string) =>
+    request<ExtensionSessionResponse>("/auth/extension-session", {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

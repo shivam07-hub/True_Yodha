@@ -1,8 +1,31 @@
+import { getRefreshToken, setTokens } from "./storage.js"
+
 function endpoint(apiUrl, path) {
   return `${apiUrl.replace(/\/$/, "")}${path}`
 }
 
-async function request(apiUrl, token, path, body) {
+/**
+ * Exchange the stored refresh token for a fresh session via the backend.
+ * Reads + writes storage (not args) so it always rotates the LATEST token —
+ * Supabase invalidates a refresh token once used, so a stale copy would fail.
+ * Returns the new access token, or null when refresh isn't possible.
+ */
+async function refreshSession(apiUrl) {
+  const refreshToken = await getRefreshToken()
+  if (!refreshToken) return null
+  const response = await fetch(endpoint(apiUrl, "/auth/refresh"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  })
+  if (!response.ok) return null
+  const data = await response.json().catch(() => null)
+  if (!data?.access_token) return null
+  await setTokens({ token: data.access_token, refreshToken: data.refresh_token })
+  return data.access_token
+}
+
+async function request(apiUrl, token, path, body, _retried = false) {
   if (!token) throw new Error("Connect Myro before saving jobs.")
   const response = await fetch(endpoint(apiUrl, path), {
     method: "POST",
@@ -12,6 +35,13 @@ async function request(apiUrl, token, path, body) {
     },
     body: JSON.stringify(body),
   })
+  // Access token expired (1h Supabase TTL) — refresh once and retry so the user
+  // never has to reconnect mid-session.
+  if (response.status === 401 && !_retried) {
+    const fresh = await refreshSession(apiUrl)
+    if (fresh) return request(apiUrl, fresh, path, body, true)
+    throw new Error("Your Myro session expired. Click Connect with Myro to reconnect.")
+  }
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))
     throw new Error(errorBody.detail || `Myro API returned HTTP ${response.status}`)
