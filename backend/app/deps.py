@@ -33,7 +33,10 @@ from app.db_safe import safe_profile_update, safe_read
 from app.services.location_normalizer import derive_location_columns
 from app.services.user_provisioning import ensure_user_provisioned
 
-_bearer = HTTPBearer()
+# auto_error=False so a MISSING Authorization header yields 401 (unauthenticated)
+# below, not Starlette's default 403 (which means "authenticated but forbidden" —
+# wrong for an absent credential). We raise the 401 explicitly in get_current_user.
+_bearer = HTTPBearer(auto_error=False)
 _logger = logging.getLogger(__name__)
 
 # Supabase access tokens are verified LOCALLY (signature + exp + aud) to replace
@@ -219,8 +222,14 @@ def _ensure_location_country_backfilled(user_id: str) -> None:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
 
     # Fast path: verify the JWT locally (no network). Handles asymmetric
