@@ -50,7 +50,7 @@ export default function TokensPage() {
           </h1>
           <p style={{ margin: "10px 0 0", maxWidth: 650, fontSize: 15, lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
             Tokens keep expensive career intelligence fair. Earn them by improving your profile, practicing skills,
-            writing diary evidence, and sharing Myro with other job seekers.
+            and writing diary evidence.
           </p>
         </header>
 

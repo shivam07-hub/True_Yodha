@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, JobLocationFilters } from "@/lib/api"
+import { formatJobLocation } from "@/lib/format-location"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -61,6 +62,7 @@ function JobDrillPanel({
         ) : (
           drillJobs.map((job, idx) => {
             const isSaved = savedJobIds.has(job.job_id)
+            const jobLocation = formatJobLocation({ city: job.location_city, country: job.location_country })
             return (
               <div key={job.job_id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "14px 24px", borderBottom: idx < drillJobs.length - 1 ? "1px solid var(--tm-border-soft)" : "none" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -69,7 +71,7 @@ function JobDrillPanel({
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: "var(--tm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{job.job_title}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                    {(job.location_city || job.location_country) && <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{[job.location_city, job.location_country].filter(Boolean).join(", ")}</span>}
+                    {jobLocation && <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>{jobLocation}</span>}
                     <LocationBadge mode={job.location_mode} />
                   </div>
                   {job.job_description && <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 6, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{job.job_description}</div>}

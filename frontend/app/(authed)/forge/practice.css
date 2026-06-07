@@ -194,6 +194,32 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
 .tm-pr-btn-claim:disabled { border: 1px dashed var(--tm-border-soft); background: rgba(255, 255, 255, 0.03); color: var(--tm-text-faint); }
 .tm-pr-hero-err { color: var(--tm-danger); font-size: 12px; margin-top: 10px; }
 
+/* End-session — secondary/ghost: never competes with Start or Claim */
+.tm-pr-btn-end {
+  height: 42px; padding: 0 16px; border-radius: 999px;
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--tm-text-faint);
+  transition: color var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease);
+}
+.tm-pr-btn-end:hover { color: var(--tm-text-muted); border-color: var(--tm-border-soft); }
+.tm-pr-btn-end:disabled { cursor: default; opacity: 0.5; }
+
+.tm-pr-end-scrim {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: rgba(7, 7, 17, 0.82); backdrop-filter: blur(4px);
+  animation: tmPageIn 160ms var(--tm-ease) both;
+}
+.tm-pr-end-card {
+  max-width: 360px; width: 100%; text-align: center;
+  padding: 26px 28px; border-radius: var(--tm-radius-lg);
+  border: 1px solid var(--tm-border); background: var(--tm-surface);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+.tm-pr-end-title { font-size: 15px; font-weight: 700; color: var(--tm-text); margin-bottom: 6px; }
+.tm-pr-end-body { font-size: 13px; color: var(--tm-text-muted); margin-bottom: 20px; line-height: 1.5; }
+.tm-pr-end-actions { display: flex; gap: 8px; justify-content: center; }
+
 /* ── Skills surface ── */
 .tm-pr-skills {
   border: 1px solid var(--tm-border-soft);

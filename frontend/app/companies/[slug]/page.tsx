@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
 import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
+import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -36,10 +37,11 @@ function modeLabel(mode: string | null): string | null {
 }
 
 function locationStr(job: CompanyJobCard): string | null {
-  if (job.location) return job.location
-  const c = job.location_city, co = job.location_country
-  if (c && co) return `${c}, ${co}`
-  return c || co || null
+  return formatJobLocation({
+    location: job.location,
+    city: job.location_city,
+    country: job.location_country,
+  })
 }
 
 // ── Components ────────────────────────────────────────────────────────────────

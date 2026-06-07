@@ -6,21 +6,13 @@ import { Button } from "@/components/ui/button"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { GradeBadge, VerdictPill } from "@/components/jobs/match-brain"
 import type { JobMatch } from "@/lib/api"
+import { formatJobLocation } from "@/lib/format-location"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 
 function fitColor(score: number): string {
   if (score >= 75) return "var(--tm-success)"
   if (score >= 50) return "var(--tm-warning)"
   return "var(--tm-danger)"
-}
-
-function locationLabel(job: JobMatch): string {
-  const explicit = (job.location || "").trim()
-  if (explicit) return explicit
-  const city = (job.location_city || "").trim()
-  const country = (job.location_country || "").trim()
-  if (city && country) return `${city}, ${country}`
-  return city || country || "Location unknown"
 }
 
 function modeLabel(mode: JobMatch["location_mode"]): string | null {
@@ -40,7 +32,12 @@ interface JobCardProps {
 export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
   const fit = Math.min(100, Math.max(0, Math.round(job.overlap_score)))
   const fitTone = fitColor(fit)
-  const location = locationLabel(job)
+  const location =
+    formatJobLocation({
+      location: job.location,
+      city: job.location_city,
+      country: job.location_country,
+    }) ?? "Location unknown"
   const mode = modeLabel(job.location_mode)
 
   return (
