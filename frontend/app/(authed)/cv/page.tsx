@@ -405,30 +405,50 @@ function CVPage() {
             <DialogDescription>
               {hasBaseline
                 ? "This becomes your new Main CV. Existing tailored CVs stay in your library."
-                : "We extract skills, map them to the Lightcast taxonomy, and parse your CV into sections."}
+                : "We identify your skills, map them to 32,000+ recognized skill types used by real hiring managers, and parse your CV into sections."}
             </DialogDescription>
           </DialogHeader>
           {uploading || uploadResult ? (
-            <CvScoreProgress
-              status={uploadResult ? "done" : "processing"}
-              phase={uploadPhase}
-              startedAt={uploadStartedAt}
-              done={uploadResult ? {
-                score: Math.round(uploadResult.score),
-                skillsDetected: uploadResult.skills_detected,
-                biggestDragDomain: biggestDrag,
-                downloadSlot: token ? (
-                  <DownloadCVButton
-                    token={token}
-                    baseline={playground.currentBaseline}
-                    cv={cvData}
-                    fullName={profileQuery.data?.full_name}
-                    className="csp-done-download"
-                    label="Download your CV"
-                  />
-                ) : null,
-              } : null}
-            />
+            <>
+              <CvScoreProgress
+                status={uploadResult ? "done" : "processing"}
+                phase={uploadPhase}
+                startedAt={uploadStartedAt}
+                done={uploadResult ? {
+                  score: Math.round(uploadResult.score),
+                  skillsDetected: uploadResult.skills_detected,
+                  biggestDragDomain: biggestDrag,
+                  downloadSlot: token ? (
+                    <DownloadCVButton
+                      token={token}
+                      baseline={playground.currentBaseline}
+                      cv={cvData}
+                      fullName={profileQuery.data?.full_name}
+                      className="csp-done-download"
+                      label="Download your CV"
+                    />
+                  ) : null,
+                } : null}
+              />
+              {uploadResult?.skills_detected === 0 && (
+                <div style={{
+                  marginTop: 14, padding: "12px 14px",
+                  borderLeft: "2px solid var(--tm-interactive)",
+                  borderRadius: "var(--tm-radius-sm)",
+                  background: "var(--tm-int-bg-subtle)",
+                  fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55,
+                }}>
+                  <div style={{ fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>
+                    No skills found — try this, then re-upload:
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <li>Name your tools and technologies — e.g. Python, Figma, SQL.</li>
+                    <li>List bullet-point achievements, not just job titles.</li>
+                    <li>Add a dedicated Skills section before re-uploading.</li>
+                  </ul>
+                </div>
+              )}
+            </>
           ) : (
             <>
               <button

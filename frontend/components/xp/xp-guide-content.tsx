@@ -1,12 +1,12 @@
 import type { ElementType } from "react"
 import {
   BookOpen,
+  Briefcase,
   Building2,
   Clock,
   FileText,
   Lightbulb,
   RefreshCw,
-  Share2,
   Target,
 } from "lucide-react"
 import { LinkedInIcon } from "@/components/icons/social-icons"
@@ -15,19 +15,21 @@ import { XP_EARN_ACTIONS, XP_POLICY, XP_SPEND_ACTIONS } from "@/lib/xp-policy"
 type XpAction = typeof XP_EARN_ACTIONS[number] | typeof XP_SPEND_ACTIONS[number]
 type XpIcon = ElementType
 
-const earnIcons: XpIcon[] = [Clock, BookOpen, LinkedInIcon, FileText, Share2]
+// Only live earn actions are surfaced. Planned actions (e.g. referral) stay in
+// XP_EARN_ACTIONS so flipping status:"live" auto-surfaces them once shipped —
+// we never show an unearnable "PLANNED" reward to the user.
+const liveEarnActions = XP_EARN_ACTIONS.filter((item) => item.status === "live")
+const earnIcons: XpIcon[] = [Clock, BookOpen, LinkedInIcon, FileText, Briefcase]
 const spendIcons: XpIcon[] = [Target, Building2, Lightbulb, RefreshCw]
 
 function XpActionRow({
   item,
   icon: Icon,
   compact,
-  muted,
 }: {
   item: XpAction
   icon: XpIcon
   compact?: boolean
-  muted?: boolean
 }) {
   const iconSize = compact ? 15 : 17
   const iconBox = compact ? 28 : 34
@@ -41,7 +43,6 @@ function XpActionRow({
         alignItems: "start",
         padding: compact ? "10px 0" : "14px 0",
         borderBottom: "1px solid var(--tm-border-soft)",
-        opacity: muted ? 0.68 : 1,
       }}
     >
       <div
@@ -63,20 +64,6 @@ function XpActionRow({
           <span style={{ fontSize: compact ? 13 : 15, fontWeight: 700, color: "var(--tm-text)" }}>
             {item.title}
           </span>
-          {muted && (
-            <span
-              style={{
-                fontSize: 10,
-                fontFamily: "var(--tm-font-mono)",
-                color: "var(--tm-text-faint)",
-                border: "1px solid var(--tm-border-soft)",
-                borderRadius: 999,
-                padding: "1px 6px",
-              }}
-            >
-              PLANNED
-            </span>
-          )}
         </div>
         <div
           style={{
@@ -129,13 +116,12 @@ export function XpGuideLists({ compact = false }: { compact?: boolean }) {
         >
           Earn tokens
         </div>
-        {XP_EARN_ACTIONS.map((item, index) => (
+        {liveEarnActions.map((item, index) => (
           <XpActionRow
             key={item.title}
             item={item}
             icon={earnIcons[index] ?? Clock}
             compact={compact}
-            muted={item.status === "planned"}
           />
         ))}
       </section>

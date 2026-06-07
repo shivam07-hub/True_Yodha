@@ -1,6 +1,5 @@
 export { FeedbackHub } from "./feedback-hub"
 export type { FeedbackHubProps } from "./feedback-hub"
-export { FeedbackFAB } from "./feedback-fab"
 export { CategoryGlyph } from "./category-glyph"
 export {
   CATEGORIES,

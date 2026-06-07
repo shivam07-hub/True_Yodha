@@ -8,7 +8,8 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ForgeSkeleton } from "@/components/loading/page-skeletons"
 import { PracticeSkillList } from "@/components/skills/practice-skill-list"
-import { PracticeViewToggle, type PracticeView } from "@/components/skills/practice-view-toggle"
+import { ViewTriadToggle } from "@/components/ui/view-triad-toggle"
+import type { TriadView } from "@/lib/views/triad"
 import { SkillIntelHeader } from "@/components/skills/skill-intel-header"
 import { SkillMapTab } from "@/components/skills/skill-map-tab"
 import { SkillAuditView } from "@/components/skills/skill-audit-view"
@@ -16,6 +17,7 @@ import { jobs, scores, users, xp } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { buildPracticeSkills } from "@/lib/practice-skills"
+import { applySkillFilter, DEFAULT_SKILL_FILTER, type SkillFilterState } from "@/lib/skill-filter"
 import { buildDomainEntries, skillIntelStats } from "@/lib/skill-domains"
 import { forgeProgressRatio } from "@/lib/forge-progress"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -46,29 +48,32 @@ function ForgePageInner() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const {
-    sessionActive, skillName, remaining, running, dismissed, startSession, setRunning,
+    sessionActive, skillName, remaining, running, dismissed, startSession, setRunning, resetSession,
   } = useForgeTimerStore()
 
   const forgeSession = useForgeSession({ sessionType: "ambient" })
 
   const [selectedSkill, setSelectedSkill] = useState<HeroSkill | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [confirmEnd, setConfirmEnd] = useState(false)
+  const [skillFilter, setSkillFilter] = useState<SkillFilterState>(DEFAULT_SKILL_FILTER)
 
   const skillParam = searchParams.get("skill")
   const domainParam = searchParams.get("domain")
   const viewParam = searchParams.get("view")
 
-  // Default = Practice (verb-surface defaults to action). ?view / ?domain / ?skill
-  // override. No localStorage sticky — never strand habit-intent on a detour.
-  const view: PracticeView =
-    skillParam ? "practice"
+  // Intel (the skills list) leads — the page's primary job per ADR-0019. URL is
+  // the source of truth: ?view / ?domain / ?skill override. No localStorage
+  // sticky (TRIAD_STICKY.skills = false) — never strand intent on a detour.
+  const view: TriadView =
+    skillParam ? "intel"
       : domainParam ? "map"
         : viewParam === "map" || viewParam === "audit" ? viewParam
-          : "practice"
+          : "intel"
 
-  const setView = useCallback((next: PracticeView) => {
+  const setView = useCallback((next: TriadView) => {
     const params = new URLSearchParams(searchParams.toString())
-    if (next === "practice") params.delete("view")
+    if (next === "intel") params.delete("view")
     else params.set("view", next)
     params.delete("domain")
     const qs = params.toString()
@@ -137,8 +142,15 @@ function ForgePageInner() {
     [userSkills, jobGaps, skillDemand],
   )
 
+  const filteredSkills = useMemo(
+    () => applySkillFilter(practiceSkills, skillFilter),
+    [practiceSkills, skillFilter],
+  )
+  const practiceTotal = practiceSkills.owned.length + practiceSkills.gaps.length
+
   const skills = userSkills ?? EMPTY_SKILLS
   const domainEntries = useMemo(() => buildDomainEntries(skills), [skills])
+  const domainNames = useMemo(() => domainEntries.map((d) => d.domain).sort(), [domainEntries])
   const stats = useMemo(
     () => (scoreData ? skillIntelStats(skills, domainEntries) : null),
     [scoreData, skills, domainEntries],
@@ -182,7 +194,7 @@ function ForgePageInner() {
     setSelectedSkill({ skill_name: name, level_from: levelFrom, level_to: levelTo })
     startSession({ skill_name: name })
     setToast(`Practicing · ${name}`)
-    if (view !== "practice") setView("practice")
+    if (view !== "intel") setView("intel")
   }
 
   function handleToggleTimer() {
@@ -193,11 +205,47 @@ function ForgePageInner() {
     setRunning(!running)
   }
 
+  // Stop a session without claiming. Forfeits any unclaimed tokens, so guard it
+  // behind a confirm only when there's something to lose.
+  function attemptEnd() {
+    if (forgeSession.claiming) return
+    if (readyXP > 0) {
+      setRunning(false)
+      setConfirmEnd(true)
+      return
+    }
+    endSession()
+  }
+
+  function endSession() {
+    setConfirmEnd(false)
+    resetSession()
+    setSelectedSkill(null)
+    setToast("Session ended")
+  }
+
   if (!ready || scoreLoading) return <ForgeSkeleton />
 
   return (
     <>
       {toast && <div className="tm-pr-toast" role="status">{toast}</div>}
+
+      {confirmEnd && (
+        <div className="tm-pr-end-scrim" role="dialog" aria-modal="true" aria-label="End session" onClick={() => setConfirmEnd(false)}>
+          <div className="tm-pr-end-card" onClick={(e) => e.stopPropagation()}>
+            <div className="tm-pr-end-title">End session — forfeit tokens?</div>
+            <div className="tm-pr-end-body">You&apos;ll lose the +{readyXP} tokens built this session.</div>
+            <div className="tm-pr-end-actions">
+              <button type="button" className="tm-pr-btn tm-pr-btn-primary tm-control-focus" onClick={() => setConfirmEnd(false)}>
+                Keep going
+              </button>
+              <button type="button" className="tm-pr-btn-end tm-control-focus" onClick={endSession}>
+                End session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Practice absorbed Skills (Map/Audit tabs) — gate with the skills
           surface so no-CV users get the domain teaser, not the generic invite. */}
@@ -207,12 +255,20 @@ function ForgePageInner() {
             totalScore={totalScore}
             ninjaName={profile?.ninja_name}
             stats={stats}
-            onWeakJump={() => setView("map")}
+            domains={domainNames}
+            filter={skillFilter}
+            onFilterChange={setSkillFilter}
           />
 
-          <PracticeViewToggle value={view} onChange={setView} sessionRunning={sessionActive && running} />
+          <ViewTriadToggle
+            page="skills"
+            value={view}
+            onChange={setView}
+            ariaLabel="Skill view"
+            live={sessionActive && running ? "intel" : undefined}
+          />
 
-          {view === "practice" && (
+          {view === "intel" && (
             <>
               <section className="tm-pr-hero">
                 <div className="tm-pr-dial-wrap">
@@ -257,6 +313,12 @@ function ForgePageInner() {
                       onClick={handleClaim} disabled={!canClaim || forgeSession.claiming}>
                       {forgeSession.claiming ? "Saving..." : `Claim +${readyXP} tokens`}
                     </button>
+                    {sessionActive && (
+                      <button type="button" className="tm-pr-btn-end tm-control-focus"
+                        onClick={attemptEnd} disabled={forgeSession.claiming}>
+                        End session
+                      </button>
+                    )}
                   </div>
                   {forgeSession.claimError && (
                     <div className="tm-pr-hero-err">Could not save practice session. Try again in a moment.</div>
@@ -268,7 +330,15 @@ function ForgePageInner() {
                 skillsLoading ? (
                   <div className="tm-pr-skills"><div className="tm-pr-empty">Loading your skills…</div></div>
                 ) : (
-                  <PracticeSkillList token={token} skills={practiceSkills} activeSkillName={activeSessionName} onPractice={handlePractice} />
+                  <PracticeSkillList
+                    token={token}
+                    skills={filteredSkills}
+                    totalCount={practiceTotal}
+                    activeSkillName={activeSessionName}
+                    onPractice={handlePractice}
+                    filter={skillFilter}
+                    onFilterChange={setSkillFilter}
+                  />
                 )
               )}
             </>

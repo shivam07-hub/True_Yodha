@@ -1690,7 +1690,10 @@ export interface UserSkillDemandItem {
   needs_upgrade: boolean
   job_count_30d: number
   weighted_demand: number
+  demand_band?: DemandBand
 }
+
+export type DemandBand = "very_high" | "high" | "moderate" | "low" | "none"
 
 export interface UserSkillDemandResponse {
   skills: UserSkillDemandItem[]

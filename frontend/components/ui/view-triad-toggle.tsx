@@ -5,6 +5,8 @@ import {
   TRIAD,
   TRIAD_DEFAULTS,
   TRIAD_ORDER,
+  TRIAD_STICKY,
+  triadLabel,
   triadStorageKey,
   type TriadPage,
   type TriadView,
@@ -17,17 +19,16 @@ interface ToggleProps {
   /** Hide text labels — leaves only glyphs. */
   compact?: boolean
   ariaLabel?: string
+  /** Pulse a live dot on this view's segment (e.g. a running Practice session). */
+  live?: TriadView
 }
 
 /**
- * Single segmented control rendering the Intel / Map / Audit triad.
+ * Single segmented control rendering the canonical triad. Labels resolve
+ * per-page via triadLabel() (ADR-0019) — same semantic, surface-true wording.
  * Re-used wherever a page exposes the triad.
- *
- * Sticky pref lives in localStorage at `tm.view.{page}`. Pages should
- * read it once on mount via useTriadView() and pass the value/setter
- * back in.
  */
-export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLabel }: ToggleProps) {
+export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLabel, live }: ToggleProps) {
   return (
     <div
       role="group"
@@ -44,14 +45,15 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
     >
       {TRIAD_ORDER.map((v) => {
         const semantics = TRIAD[v]
+        const label = triadLabel(page, v)
         const active = value === v
         return (
           <button
             key={v}
             type="button"
             aria-pressed={active}
-            aria-label={`${semantics.label} — ${semantics.meaning}`}
-            title={`${semantics.label} — ${semantics.meaning}`}
+            aria-label={`${label} — ${semantics.meaning}`}
+            title={`${label} — ${semantics.meaning}`}
             onClick={() => onChange(v)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -68,7 +70,18 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
             }}
           >
             <span aria-hidden style={{ fontSize: 11 }}>{semantics.glyph}</span>
-            {!compact && <span>{semantics.label}</span>}
+            {!compact && <span>{label}</span>}
+            {live === v && (
+              <span
+                aria-hidden
+                style={{
+                  width: 6, height: 6, borderRadius: 999,
+                  background: "var(--tm-interactive)",
+                  boxShadow: "0 0 7px var(--tm-int-bg-hover)",
+                  animation: "tm-pv-pulse 1.6s ease-in-out infinite",
+                }}
+              />
+            )}
           </button>
         )
       })}
@@ -82,19 +95,20 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
  * render uses TRIAD_DEFAULTS[page] so SSR stays deterministic.
  */
 export function useTriadView(page: TriadPage): [TriadView, (next: TriadView) => void] {
+  const sticky = TRIAD_STICKY[page]
   const [view, setView] = useState<TriadView>(TRIAD_DEFAULTS[page])
 
   useEffect(() => {
-    if (typeof window === "undefined") return
+    if (!sticky || typeof window === "undefined") return
     const stored = localStorage.getItem(triadStorageKey(page))
     if (stored === "intel" || stored === "map" || stored === "audit") {
       setView(stored)
     }
-  }, [page])
+  }, [page, sticky])
 
   const set = (next: TriadView) => {
     setView(next)
-    if (typeof window !== "undefined") {
+    if (sticky && typeof window !== "undefined") {
       try { localStorage.setItem(triadStorageKey(page), next) } catch { /* quota */ }
     }
   }
