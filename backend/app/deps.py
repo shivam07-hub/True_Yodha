@@ -19,6 +19,7 @@ directly — depend on `Principal` instead.
 """
 
 import logging
+import threading
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -35,12 +36,26 @@ from app.services.user_provisioning import ensure_user_provisioned
 _bearer = HTTPBearer()
 _logger = logging.getLogger(__name__)
 
-# Supabase access tokens are HS256, signed with the project JWT secret, with
-# `aud="authenticated"`. Verifying locally (signature + exp + aud) replaces a
-# network round-trip to Supabase Auth on EVERY request — the single biggest
-# per-request latency win. See settings.supabase_jwt_secret.
-_JWT_ALGORITHMS = ["HS256"]
+# Supabase access tokens are verified LOCALLY (signature + exp + aud) to replace
+# a network round-trip to Supabase Auth on EVERY request — the single biggest
+# per-request latency win. Two signing schemes are supported, chosen per token
+# from its header `alg`:
+#   • Asymmetric (ES256/RS256…): projects on JWT signing keys sign with a
+#     private key; we verify against the project's PUBLIC keys (JWKS). No secret.
+#   • HS256: legacy shared-secret projects; verify with settings.supabase_jwt_secret.
+# Anything we cannot verify locally (JWKS unreachable, unknown alg, HS256 with no
+# secret) raises `_LocalVerifyUnavailable` and the caller falls back to the remote
+# path — so local verification is a pure optimization that can never lock users
+# out. A genuine signature/exp/aud failure (we held the key) is an authoritative 401.
+_HS_ALGORITHMS = ["HS256"]
+_ASYMMETRIC_ALGORITHMS = ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512"]
 _JWT_AUDIENCE = "authenticated"
+
+
+class _LocalVerifyUnavailable(Exception):
+    """Local verification could not be ATTEMPTED for this token (no key material
+    on hand). Not an auth failure — the caller falls back to the remote path. A
+    forged/expired token instead raises HTTPException(401)."""
 
 
 class _LocalIdentity(BaseModel):
@@ -50,21 +65,68 @@ class _LocalIdentity(BaseModel):
     full_name: str | None = None
 
 
-def _decode_local_jwt(token: str) -> _LocalIdentity:
-    """Verify a Supabase access token locally. Raises HTTP 401 on any invalid
-    token (bad signature, expired, wrong audience, missing subject).
+_jwk_client: jwt.PyJWKClient | None = None
+_jwk_client_lock = threading.Lock()
 
-    Only called when `settings.supabase_jwt_secret` is set. When the secret is
-    configured, local verification is authoritative — a rejection is a 401, we
-    do NOT silently fall back to the remote path (that would mask a forged or
-    expired token). Projects on asymmetric signing keys (ES256/RS256) must NOT
-    set this HS256 secret; leave it empty to keep the remote path.
-    """
+
+def _get_jwk_client() -> jwt.PyJWKClient:
+    """Lazy singleton JWKS client. Caches the fetched key set in-memory and
+    refetches on an unknown `kid` (key rotation), so steady state is network-free.
+    Raises `_LocalVerifyUnavailable` when no JWKS URL is configured."""
+    global _jwk_client
+    if _jwk_client is None:
+        with _jwk_client_lock:
+            if _jwk_client is None:
+                url = settings.jwks_url
+                if not url:
+                    raise _LocalVerifyUnavailable("no jwks_url configured")
+                _jwk_client = jwt.PyJWKClient(url, cache_keys=True, lifespan=600)
+    return _jwk_client
+
+
+def _asymmetric_signing_key(token: str):
+    """Resolve the public signing key for an asymmetric token from JWKS. Any
+    failure (JWKS unreachable, unknown kid) degrades to the remote path rather
+    than rejecting — remote Supabase Auth stays authoritative for such tokens."""
+    client = _get_jwk_client()
+    try:
+        return client.get_signing_key_from_jwt(token).key
+    except _LocalVerifyUnavailable:
+        raise
+    except Exception as exc:  # PyJWKClientError, urllib URLError, etc.
+        _logger.warning("metric auth.jwks_unavailable reason=%s: %s", type(exc).__name__, exc)
+        raise _LocalVerifyUnavailable(f"jwks key lookup failed: {exc}") from exc
+
+
+def _decode_local_jwt(token: str) -> _LocalIdentity:
+    """Verify a Supabase access token locally. Raises HTTP 401 on a token we
+    could verify but found invalid (bad signature, expired, wrong audience,
+    missing subject). Raises `_LocalVerifyUnavailable` when we lack the key
+    material to verify it at all (caller then falls back to the remote path)."""
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from exc
+
+    alg = header.get("alg", "")
+    if alg in _ASYMMETRIC_ALGORITHMS:
+        key = _asymmetric_signing_key(token)
+        algorithms = [alg]
+    elif alg in _HS_ALGORITHMS:
+        if not settings.supabase_jwt_secret:
+            raise _LocalVerifyUnavailable("HS256 token but no jwt secret configured")
+        key = settings.supabase_jwt_secret
+        algorithms = _HS_ALGORITHMS
+    else:
+        raise _LocalVerifyUnavailable(f"unsupported token alg {alg!r}")
+
     try:
         claims = jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=_JWT_ALGORITHMS,
+            key,
+            algorithms=algorithms,
             audience=_JWT_AUDIENCE,
             options={"require": ["exp", "sub"]},
         )
@@ -161,15 +223,22 @@ async def get_current_user(
 ) -> CurrentUser:
     token = credentials.credentials
 
-    # Fast path: verify the JWT locally (no network) when the secret is set.
-    if settings.supabase_jwt_secret:
-        identity = _decode_local_jwt(token)  # raises 401 on any invalid token
+    # Fast path: verify the JWT locally (no network). Handles asymmetric
+    # (ES256/RS256, via JWKS) and HS256 (via shared secret) tokens. A token we
+    # can verify but find invalid raises 401 here (authoritative — no remote
+    # masking of a forged/expired token). Only an inability to verify locally
+    # (`_LocalVerifyUnavailable`) drops through to the remote path below.
+    try:
+        identity = _decode_local_jwt(token)
+    except _LocalVerifyUnavailable as exc:
+        _logger.info("metric auth.local_verify_unavailable reason=%s", exc)
+    else:
         _ensure_profile_provisioned(identity.id, identity.email, identity.full_name)
         _ensure_location_country_backfilled(identity.id)
         return CurrentUser(id=identity.id, email=identity.email, token=token)
 
     # Fallback: remote validation via Supabase Auth (one network round-trip per
-    # request). Used only until supabase_jwt_secret is provisioned.
+    # request). Used only when the token can't be verified locally.
     try:
         response = get_supabase().auth.get_user(token)
         if not response.user:

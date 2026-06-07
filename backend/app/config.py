@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # Supabase dashboard → Project Settings → API → JWT Settings → JWT Secret.
     supabase_jwt_secret: str = ""
 
+    # ASYMMETRIC (ES256/RS256) access-token verification. Supabase projects on
+    # JWT signing keys (ECC P-256 / RSA) sign tokens with a private key; we
+    # verify locally against the project's PUBLIC keys (JWKS) — no secret, no
+    # per-request round-trip. Empty = derived from supabase_url. Override only
+    # for a non-standard auth host. See deps._asymmetric_signing_key.
+    supabase_jwks_url: str = ""
+
     # Local LLM via LM Studio (priority 0 — no rate limits)
     lm_studio_tagger_model: str    = ""
     lm_studio_ranker_model: str    = ""
@@ -83,6 +90,18 @@ class Settings(BaseSettings):
         if self.allowed_origins.strip() == "*":
             return ["*"]
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def jwks_url(self) -> str:
+        """JWKS endpoint for asymmetric token verification. Explicit override
+        wins; otherwise derived from the Supabase project URL. Empty when no
+        Supabase URL is configured (local verification then can't run for
+        asymmetric tokens, and deps falls back to the remote path)."""
+        if self.supabase_jwks_url:
+            return self.supabase_jwks_url
+        if self.supabase_url:
+            return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        return ""
 
 
 settings = Settings()
