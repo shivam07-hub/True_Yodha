@@ -30,7 +30,8 @@ from app.repositories.cv import (
     get_token_cv_repository,
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
-from app.services import background, cv_compose, cv_skill_edit, progress_stream
+from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream
+from app.services.llm_provider import get_llm_provider
 
 router = APIRouter()
 
@@ -73,6 +74,32 @@ class SkillEditResponse(BaseModel):
 class RecomputeStatusResponse(BaseModel):
     baseline_id:           int
     recompute_finished_at: str | None
+
+
+# Per-bullet Mentor rewrite (DESIGN_cv_playground_redesign §6) ──────────────────
+
+
+class RewriteBulletRequest(BaseModel):
+    bullet:           str = Field(..., min_length=1)
+    role:             str | None = None
+    missing_keywords: list[str] = Field(default_factory=list)
+    metric:           str | None = None
+    allow_no_metric:  bool = False
+
+
+class RewriteBulletResponse(BaseModel):
+    mode:           str               # "rewrite" | "question" | "error"
+    rewritten_text: str | None = None
+    question:       str | None = None
+    rationale:      str | None = None
+
+
+class RewriteApplyRequest(BaseModel):
+    old_text:     str = Field(..., min_length=1)
+    new_text:     str = Field(..., min_length=1)
+    section_hint: str | None = None
+    item_index:   int | None = None
+    bullet_index: int | None = None
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -163,6 +190,124 @@ def skill_edit(
 
     # ADR-0008 — bulk Work Lane. Durable via RQ when REDIS_URL is set, else the
     # in-process fallback (same as the old BackgroundTasks behaviour).
+    background.enqueue(
+        background.LANE_BULK,
+        "skill_retag",
+        payload={
+            "user_id": user_id,
+            "baseline_id": new_baseline["id"],
+            "new_body_text": new_body_text,
+        },
+        correlation_id=str(new_baseline["id"]),
+    )
+
+    return SkillEditResponse(
+        baseline_id=new_baseline["id"],
+        user_version_number=new_baseline.get("user_version_number") or next_n,
+        body_text=new_body_text,
+        title=title,
+        dropped_skill_keys=dropped,
+        recompute_pending=True,
+    )
+
+
+@router.post("/rewrite-bullet", response_model=RewriteBulletResponse)
+async def rewrite_bullet(
+    body: RewriteBulletRequest,
+    principal: Principal = Depends(get_principal),  # noqa: ARG001 — auth gate
+) -> RewriteBulletResponse:
+    """Propose a stronger rewrite for ONE bullet, or (no-fabrication guard) ask
+    for the real metric. Stateless — applies nothing. Free per ADR-0004 (floor-0
+    wedge; REWRITE pricing is DEC-H, pending)."""
+    result = await cv_rewrite.suggest_rewrite(
+        body.bullet,
+        body.role,
+        body.missing_keywords,
+        body.metric,
+        get_llm_provider(),
+        allow_no_metric=body.allow_no_metric,
+    )
+    return RewriteBulletResponse(**result)
+
+
+@router.post("/rewrite-bullet/apply", response_model=SkillEditResponse, status_code=status.HTTP_201_CREATED)
+def rewrite_bullet_apply(
+    body: RewriteApplyRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+    scores_repo: ScoresRepository = Depends(get_token_scores_repository),
+) -> SkillEditResponse:
+    """Apply an accepted rewrite to the Main CV. Locates the bullet by its old
+    text (no skill key) and writes a new baseline — mirrors /cv/skill-edit so the
+    rewrite flows to every tailored copy. SE1–SE17 invariants reused verbatim."""
+    user_id = principal.id
+
+    baseline = cv_repo.latest_baseline(user_id)
+    if baseline is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Upload a baseline CV first.")
+
+    structured: dict = baseline.get("cv_structured") or {}
+    if not structured:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Baseline CV has no structured payload — re-upload the CV to enable edits.",
+        )
+
+    located = cv_skill_edit.locate_bullet(
+        structured,
+        body.old_text,
+        section_hint=body.section_hint,
+        item_index=body.item_index,
+        bullet_index=body.bullet_index,
+    )
+
+    if located is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Could not find this bullet in your CV. Refresh and try again.",
+        )
+
+    if isinstance(located, cv_skill_edit.LocateConflict):
+        candidates = [
+            SkillEditCandidate(
+                section=loc.section,
+                item_index=loc.item_index,
+                bullet_index=loc.bullet_index,
+                text=loc.text,
+                label=loc.label,
+            )
+            for loc in located.candidates
+        ]
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=SkillEditConflictDetail(skill_key="", candidates=candidates).model_dump(),
+        )
+
+    if located.section not in cv_skill_edit.EDITABLE_SECTIONS:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Rewrite is not supported for {located.section!r}. Edit on the CV page.",
+        )
+
+    new_structured = cv_skill_edit.apply_bullet_edit(structured, located, body.new_text)
+    new_body_text = cv_skill_edit.render_baseline_text(new_structured)
+
+    next_n = cv_repo.next_user_version_number(user_id)
+    title = "Master CV · rewrite"
+    spec = CVVersionWriteSpec(
+        kind="baseline_upload",
+        job_id=None,
+        parent_version_id=None,
+        body_text=new_body_text,
+        cv_structured=new_structured,
+        title=title,
+        snapshot_hash=cv_compose.item_id("rewrite", next_n, new_body_text),
+        confidence_label="user-edited",
+    )
+    new_baseline = cv_repo.create(user_id, spec)
+
+    dropped = cv_skill_edit.diff_keyword_skills(scores_repo, user_id, new_body_text)
+
     background.enqueue(
         background.LANE_BULK,
         "skill_retag",

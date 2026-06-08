@@ -13,7 +13,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type {
   CVStructured,
   CVVersion,
@@ -21,8 +21,9 @@ import type {
   SkillGapResponse,
   UserProfile,
 } from "@/lib/api"
-import { jobs as jobsApi } from "@/lib/api"
+import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { PursuitStageControl } from "./pursuit-stage-control"
+import { BulletRewrite } from "./bullet-rewrite"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { formatGlobalVersionLabel, formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
@@ -39,6 +40,7 @@ import {
   type KeywordTarget,
 } from "./keyword-utils"
 import { runAtsChecks, atsScore, type AtsCheck } from "./ats-checks"
+import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, pageFillBand, type PageFill } from "@/lib/cv/page-fill"
 
 interface PlaygroundViewProps {
   token: string
@@ -88,6 +90,21 @@ export function PlaygroundView({
 
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit")
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [exportConfirm, setExportConfirm] = useState(false)
+  const queryClient = useQueryClient()
+
+  // Accept a per-bullet rewrite → writes a new Main-CV baseline (mirrors
+  // skill-edit), so the stronger bullet flows to every tailored copy.
+  const rewriteApply = useMutation({
+    mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
+      cvApi.rewriteApply(token, { old_text: oldText, new_text: newText }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+    },
+  })
 
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
@@ -171,9 +188,56 @@ export function PlaygroundView({
     return n
   }, [hiddenItems, cv])
 
+  // Page-fill estimate (one-page guarantee). Deterministic line-budget model over
+  // the VISIBLE content (DESIGN_cv_playground_redesign §5) — drives the meter and
+  // the soft export block. Exact pagination stays the PDF's job.
+  const pageFill: PageFill = useMemo(() => {
+    const cpl = IDEAL_CV_SPEC.charsPerLine
+    let lines = 3 // contact header: name + title + contact row
+    if (cv.summary && !hiddenItems.has(itemId("summary", 0, cv.summary))) {
+      lines += 1 + estimateLines(cv.summary, cpl)
+    }
+    let expVisible = false
+    cv.experience.forEach((e, ei) => {
+      const kept = e.bullets.filter((b, bi) => !hiddenItems.has(itemId("exp_bullet", ei * 100 + bi, b)))
+      if (kept.length) {
+        expVisible = true
+        lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0) // role line + bullets
+      }
+    })
+    if (expVisible) lines += 1 // section heading
+    let projVisible = false
+    cv.projects.forEach((p, pi) => {
+      const kept = p.bullets.filter((b, bi) => !hiddenItems.has(itemId("proj_bullet", pi * 100 + bi, b)))
+      if (kept.length) {
+        projVisible = true
+        lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0)
+      }
+    })
+    if (projVisible) lines += 1
+    const eduVisible = cv.education
+      .map((ed, i) => ({ line: [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · "), i }))
+      .filter(({ line, i }) => !hiddenItems.has(itemId("edu", i, line)))
+    if (eduVisible.length) lines += 1 + eduVisible.length
+    if (cv.skills_line && !hiddenItems.has(itemId("skills_line", 0, cv.skills_line))) {
+      lines += 1 + estimateLines(cv.skills_line, cpl)
+    }
+    const certVisible = cv.certs.filter((c, i) => !hiddenItems.has(itemId("cert", i, c)))
+    if (certVisible.length) lines += 1 + certVisible.length
+    return pageFillFromLines(lines)
+  }, [cv, hiddenItems])
+
   const selectedVersion = playground.selectedVersion
   const isEditableSelection = selectedVersion?.kind !== "baseline_upload"
   const writeReceipt = playground.lastWrite
+
+  // Action law (L1): exactly one state-driven primary CTA lives in the top-bar
+  // action group. Save while there are unsaved edits; otherwise Export. Polish /
+  // Edit-text are secondary actions in the same group — never scattered, never
+  // duplicated. The JD-match score lives in the meter (IntelStrip), not on a button.
+  const isPolishable = isEditableSelection && !!selectedVersion && selectedVersion.kind !== "polished"
+  const canEditPolished = isEditableSelection && !!selectedVersion
+  const isSavePrimary = canSave
 
   // ATS checks — deterministic, client-side, no backend needed.
   const cvFilename = useMemo(() => {
@@ -187,6 +251,35 @@ export function PlaygroundView({
   function handlePolish() {
     if (!selectedVersion) return
     playground.polishVersion.mutate(selectedVersion.id)
+  }
+
+  // Soft auto-trim: hide the lowest-impact visible bullets until the estimated
+  // overflow is reclaimed. Best-effort single pass — the user watches the meter
+  // recover and can trim further. Never deletes; only toggles visibility.
+  function autoTrimToFit() {
+    const overflow = Math.max(0, Math.round(pageFill.ratio * IDEAL_CV_SPEC.lineBudget) - IDEAL_CV_SPEC.lineBudget)
+    setExportConfirm(false)
+    if (overflow <= 0) return
+    const cpl = IDEAL_CV_SPEC.charsPerLine
+    const cands: { iid: string; impact: number; lines: number }[] = []
+    cv.experience.forEach((e, ei) => e.bullets.forEach((b, bi) => {
+      const iid = itemId("exp_bullet", ei * 100 + bi, b)
+      if (hiddenItems.has(iid)) return
+      cands.push({ iid, impact: bulletKeywordHits(b, evaluatedTargets).reduce((s, h) => s + (h.weight ?? 1), 0), lines: estimateLines(b, cpl) })
+    }))
+    cv.projects.forEach((p, pi) => p.bullets.forEach((b, bi) => {
+      const iid = itemId("proj_bullet", pi * 100 + bi, b)
+      if (hiddenItems.has(iid)) return
+      cands.push({ iid, impact: bulletKeywordHits(b, evaluatedTargets).reduce((s, h) => s + (h.weight ?? 1), 0), lines: estimateLines(b, cpl) })
+    }))
+    // Lowest impact first; tie-break: longer bullet first (frees more lines).
+    cands.sort((a, b) => a.impact - b.impact || b.lines - a.lines)
+    let freed = 0
+    for (const c of cands) {
+      if (freed >= overflow) break
+      toggleItem(c.iid)
+      freed += c.lines
+    }
   }
 
   return (
@@ -208,25 +301,30 @@ export function PlaygroundView({
               Choose the proof this job needs. Myro keeps the saved copies in your CV Library.
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div className="cvb-action-group">
             {application && (
               <PursuitStageControl token={token} application={application} />
             )}
-            <button type="button" className="cvb-btn sm" onClick={onBackToBaseline} title="Open CV Library">
-              <Icon name="folder" size={13}/> CV Library
-            </button>
-            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Open JD live job data">
-              <Icon name="intel" size={13}/> Live Job Data
+            <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Job description & keyword gaps">
+              <Icon name="intel" size={13}/> Intel
               {missingTargets.length > 0 && (
-                <span style={{
-                  display: "inline-grid", placeItems: "center",
-                  minWidth: 16, height: 16, padding: "0 4px",
-                  borderRadius: 99, fontSize: 10, fontWeight: 600,
-                  background: "var(--tm-warning)", color: "#000",
-                }}>{missingTargets.length}</span>
+                <span className="cvb-action-badge" aria-label={`${missingTargets.length} keyword gaps`}>{missingTargets.length}</span>
               )}
             </button>
-            {isEditableSelection && selectedVersion && (
+            {(isPolishable || canEditPolished) && <span className="cvb-action-sep" aria-hidden="true" />}
+            {isPolishable && (
+              <button
+                type="button"
+                className="cvb-btn sm"
+                onClick={handlePolish}
+                disabled={playground.polishVersion.isPending}
+                title="Rewrite this copy with AI"
+              >
+                <Icon name="sparkle" size={13}/>
+                {playground.polishVersion.isPending ? "Polishing…" : "Polish"}
+              </button>
+            )}
+            {canEditPolished && selectedVersion && (
               <button
                 type="button"
                 className="cvb-btn sm"
@@ -234,27 +332,29 @@ export function PlaygroundView({
                 disabled={!selectedVersion.polished_text}
                 title={selectedVersion.polished_text ? "Edit polished text" : "Polish first to edit"}
               >
-                <Icon name="edit" size={13}/> Edit polished
+                <Icon name="edit" size={13}/> Edit text
               </button>
             )}
-            <button
-              type="button"
-              className={`cvb-btn sm${matchScore >= 60 ? " primary" : ""}`}
-              onClick={() => onExportPDF(matchScore)}
-              title={matchScore >= 60 ? `Score ${matchScore}% — ready to download` : "Export as PDF"}
-            >
-              <Icon name="download" size={13}/>
-              {matchScore >= 60 ? `Download CV (${matchScore}%)` : "Download CV"}
-            </button>
-            <button
-              type="button"
-              className={`cvb-btn sm${matchScore < 60 ? " primary" : ""}`}
-              onClick={handleSave}
-              disabled={!canSave || playground.saveVersion.isPending}
-            >
-              <Icon name="save" size={13}/>
-              {playground.saveVersion.isPending ? "Saving…" : "Save copy"}
-            </button>
+            {isSavePrimary ? (
+              <button
+                type="button"
+                className="cvb-btn sm primary"
+                onClick={handleSave}
+                disabled={!canSave || playground.saveVersion.isPending}
+              >
+                <Icon name="save" size={13}/>
+                {playground.saveVersion.isPending ? "Saving…" : "Save"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cvb-btn sm primary"
+                onClick={() => pageFill.fits ? onExportPDF(matchScore) : setExportConfirm(true)}
+                title={pageFill.fits ? "Export your one-page CV as PDF" : `Spills onto ${pageFill.pages} pages — trim to fit`}
+              >
+                <Icon name="download" size={13}/> Export PDF
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -285,16 +385,6 @@ export function PlaygroundView({
             </button>
           )
         })}
-        <button
-          type="button"
-          className="cvb-version-tab new-tab"
-          title="Save as new copy"
-          aria-label="Save as new copy"
-          onClick={handleSave}
-          disabled={!canSave || playground.saveVersion.isPending}
-        >
-          <Icon name="plus" size={14}/>
-        </button>
       </div>
 
       {writeReceipt && (
@@ -359,15 +449,27 @@ export function PlaygroundView({
                 <div className="cvb-bullet-list">
                   {exp.bullets.map((bullet, bi) => {
                     const iid = itemId("exp_bullet", ei * 100 + bi, bullet)
+                    const visible = !hiddenItems.has(iid)
                     return (
-                      <BulletRow
-                        key={iid}
-                        text={bullet}
-                        hits={bulletKeywordHits(bullet, evaluatedTargets)}
-                        hidden={hiddenItems.has(iid)}
-                        editable={false}
-                        onToggle={() => toggleItem(iid)}
-                      />
+                      <div key={iid}>
+                        <BulletRow
+                          text={bullet}
+                          hits={bulletKeywordHits(bullet, evaluatedTargets)}
+                          hidden={!visible}
+                          editable={false}
+                          onToggle={() => toggleItem(iid)}
+                        />
+                        {visible && (
+                          <BulletRewrite
+                            token={token}
+                            bullet={bullet}
+                            role={exp.role}
+                            missingKeywords={missingTargets.map(t => t.kw)}
+                            applying={rewriteApply.isPending}
+                            onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -380,32 +482,10 @@ export function PlaygroundView({
               <span>{hiddenItems.size} hidden</span>
               <span style={{ opacity: 0.4 }}>·</span>
               {isDirty
-                ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes</span>
+                ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes — Save in the top bar</span>
                 : <span style={{ color: "var(--tm-success)" }}>
                     in sync{selectedVersion ? ` with ${formatThreadVersionLabel(selectedVersion, threadVersions)}` : ""}
                   </span>}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {isEditableSelection && selectedVersion && selectedVersion.kind !== "polished" && (
-                <button
-                  type="button"
-                  className="cvb-btn sm"
-                  onClick={handlePolish}
-                  disabled={playground.polishVersion.isPending}
-                >
-                  <Icon name="sparkle" size={11}/>
-                  {playground.polishVersion.isPending ? "Polishing…" : "Polish with AI"}
-                </button>
-              )}
-              <button
-                type="button"
-                className="cvb-btn sm primary"
-                onClick={handleSave}
-                disabled={!canSave || playground.saveVersion.isPending}
-              >
-                <Icon name="save" size={11}/>
-                {playground.saveVersion.isPending ? "Saving…" : "Save copy"}
-              </button>
             </div>
           </div>
         </div>
@@ -416,9 +496,9 @@ export function PlaygroundView({
             delta={delta}
             missing={missingTargets}
             allCovered={evaluatedTargets.length > 0 && missingTargets.length === 0}
-            onOpenDrawer={() => setDrawerOpen(true)}
             atsSc={atsSc}
             atsChecks={atsChecks}
+            pageFill={pageFill}
           />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
@@ -471,6 +551,34 @@ export function PlaygroundView({
         selectedVId={selectedVersionId}
         jobLabel={`${company} · ${jobTitle}`}
       />
+
+      {exportConfirm && (
+        <div
+          className="cvb-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Trim to fit one page"
+          onClick={() => setExportConfirm(false)}
+        >
+          <div className="cvb-modal" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="cvb-modal-head">Spills onto {pageFill.pages} pages</div>
+            <div className="cvb-modal-body" style={{ padding: 18 }}>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
+                Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or export as-is.
+              </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
+                <button type="button" className="cvb-btn sm" onClick={() => setExportConfirm(false)}>Cancel</button>
+                <button type="button" className="cvb-btn sm" onClick={autoTrimToFit}>
+                  <Icon name="sparkle" size={12}/> Auto-trim to fit
+                </button>
+                <button type="button" className="cvb-btn sm primary" onClick={() => { setExportConfirm(false); onExportPDF(matchScore) }}>
+                  <Icon name="download" size={12}/> Export anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -480,12 +588,12 @@ interface IntelStripProps {
   delta: number
   missing: KeywordTarget[]
   allCovered: boolean
-  onOpenDrawer: () => void
   atsSc: { passed: number; total: number }
   atsChecks: AtsCheck[]
+  pageFill: PageFill
 }
 
-function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, atsChecks }: IntelStripProps) {
+function IntelStrip({ score, delta, missing, allCovered, atsSc, atsChecks, pageFill }: IntelStripProps) {
   const atsAllPass = atsSc.passed === atsSc.total
   const atsFailedLabels = atsChecks.filter(c => !c.pass).map(c => c.detail ?? c.label)
   const scoreLabel = missing.length > 0
@@ -521,6 +629,21 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
         ATS {atsSc.passed}/{atsSc.total}
       </span>
 
+      <span
+        className={`cvb-pill${pageFill.fits ? " success" : pageFillBand(pageFill) === "tight" ? " warning" : " danger"}`}
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.min(100, pageFill.pct)}
+        aria-valuetext={`${pageFill.pct}% of one page`}
+        aria-label="Page fill"
+        title={pageFill.fits ? "Fits on one page" : `Spills onto ${pageFill.pages} pages — trim to fit`}
+        style={{ cursor: "default", fontSize: 11 }}
+      >
+        <Icon name={pageFill.fits ? "check" : "x"} size={10} stroke={3}/>
+        Page {pageFill.pct}%
+      </span>
+
       <div className="gaps" style={{ flex: 1 }}>
         {allCovered ? (
           <span className="cvb-pill success">
@@ -549,9 +672,6 @@ function IntelStrip({ score, delta, missing, allCovered, onOpenDrawer, atsSc, at
           <Icon name="sparkle" size={12}/> Practice them
         </Link>
       ) : null}
-      <button type="button" className="cvb-btn ghost sm" onClick={onOpenDrawer}>
-        <Icon name="intel" size={12}/> View live job data
-      </button>
     </div>
   )
 }

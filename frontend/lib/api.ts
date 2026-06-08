@@ -548,6 +548,13 @@ export interface CVUploadFallbackSubmissionResponse {
   sla_hours: number
 }
 
+export interface RewriteBulletResponse {
+  mode: "rewrite" | "question" | "error"
+  rewritten_text?: string | null
+  question?: string | null
+  rationale?: string | null
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -632,6 +639,26 @@ export const cv = {
       `/cv/skill-edit/recompute-status/${baselineId}`,
       { headers: { Authorization: `Bearer ${token}` } },
     ),
+  // Per-bullet Mentor rewrite (suggest = stateless proposal / no-fab question).
+  rewriteBullet: (
+    token: string,
+    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean },
+  ) =>
+    request<RewriteBulletResponse>("/cv/rewrite-bullet", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  // Apply an accepted rewrite — writes a new baseline (mirrors skill-edit).
+  rewriteApply: (
+    token: string,
+    body: { old_text: string; new_text: string; section_hint?: string | null; item_index?: number | null; bullet_index?: number | null },
+  ) =>
+    request<SkillEditResponse>("/cv/rewrite-bullet/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
   downloadPdf: async (token: string, cvText: string, filename?: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",

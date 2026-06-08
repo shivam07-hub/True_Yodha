@@ -243,10 +243,7 @@ export function MyrologyCta({ variant }: { variant: "price" | "bridge" }) {
         {payError ? (
           <span className="cta-error">{payError}</span>
         ) : (
-          <>
-            <span>Secured by Razorpay · UPI · cards · wallets</span>
-            <span className="mono">Non-refundable</span>
-          </>
+          <span>Secured by Razorpay · UPI · cards · wallets</span>
         )}
       </div>
       <p className="price-cta-terms">

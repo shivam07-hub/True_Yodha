@@ -14,6 +14,11 @@ ADD_JOB_REWARD_XP = 20
 
 SKILL_ADVICE_XP_COST = 20
 
+# Per-bullet Mentor rewrite (DESIGN_cv_playground_redesign §6). v1 ships FREE —
+# the CV-fix wedge is effectively free per ADR-0004 (floor-0 + welcome grant).
+# Final pricing is DEC-H (pending Shivam); wire charge_or_raise here when set.
+REWRITE_BULLET_XP_COST = 0
+
 FOLLOW_COMPANY_XP_COST = 10
 FOLLOW_COMPANY_XP_FLOOR = -30
 FOLLOWED_COMPANY_LIMIT = 10

@@ -96,6 +96,18 @@
 .cvb-btn.sm { padding: 5px 10px; font-size: 11.5px; gap: 5px; }
 .cvb-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 
+/* Top-bar action group (Action Law L1/L2): context lives left, actions right.
+   Holds the two utilities + secondary actions + the single state-driven primary.
+   The primary (.cvb-btn.primary) is always the last child. */
+.cvb-action-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.cvb-action-sep { width: 1px; align-self: stretch; min-height: 22px; background: var(--tm-border-soft); margin: 0 2px; }
+.cvb-action-badge {
+  display: inline-grid; place-items: center;
+  min-width: 16px; height: 16px; padding: 0 4px; margin-left: 4px;
+  border-radius: 99px; font-size: 10px; font-weight: 600;
+  background: var(--tm-warning); color: #000;
+}
+
 /* ─── Pills ───────────────────────────────────────────────────── */
 .cvb-pill {
   display: inline-flex;
@@ -1380,12 +1392,62 @@ mark.cvb-kw {
   .cvb-version-tab { min-width: 180px; padding: 9px 14px 8px; }
   .cvb-save-confirm { margin: 8px 18px 0; }
   .cvb-save-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+  /* Action group goes full-width; primary pins right in the thumb zone; all
+     targets clear 44px (WCAG 2.5.5). */
+  .cvb-action-group { width: 100%; justify-content: flex-start; }
+  .cvb-action-group .cvb-btn { min-height: 44px; }
+  .cvb-action-group .cvb-btn.primary { margin-left: auto; }
   .cvb-drawer { width: 100vw; }
   .cvb-pdf-page { width: 100%; padding: 32px 24px; min-height: auto; }
   .cvb-modal-backdrop { padding: 0; }
   .cvb-modal { max-width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; border: none; }
   .cvb-cv-render { padding: 28px 22px; }
   .cvb-cv-render .cv-name { font-size: 22px; }
+}
+
+/* ── Per-bullet Mentor rewrite (Phase 3) ─────────────────────────────────── */
+.cvb-rw-trigger-row { display: flex; justify-content: flex-end; margin: 2px 0 4px; }
+.cvb-rw-trigger { opacity: 0.7; }
+.cvb-rw-trigger:hover, .cvb-rw-trigger:focus-visible { opacity: 1; }
+.cvb-rw-panel {
+  margin: 4px 0 8px;
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-int-bg-wash);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cvb-rw-status { font-size: 12px; color: var(--tm-interactive); }
+.cvb-rw-ask { display: flex; flex-direction: column; gap: 8px; }
+.cvb-rw-ask-q { font-size: 12.5px; line-height: 1.5; color: var(--tm-text); }
+.cvb-rw-ask-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cvb-rw-input {
+  flex: 1; min-width: 0; height: 34px; padding: 0 10px;
+  font: inherit; font-size: 12.5px; color: var(--tm-text);
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); outline: none;
+}
+.cvb-rw-input:focus-visible { border-color: var(--tm-int-border); }
+.cvb-rw-skip {
+  align-self: flex-start; background: none; border: none; padding: 0;
+  font: inherit; font-size: 11px; color: var(--tm-interactive); cursor: pointer;
+}
+.cvb-rw-nofab { font-size: 10px; color: var(--tm-text-faint); font-family: var(--cvb-font-mono); }
+.cvb-rw-diff { display: flex; flex-direction: column; gap: 4px; }
+.cvb-rw-diff-tag {
+  font-family: var(--cvb-font-mono); font-size: 9px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--tm-text-faint);
+}
+.cvb-rw-diff-old {
+  font-size: 12px; line-height: 1.5; color: var(--tm-text-faint);
+  text-decoration: line-through; text-decoration-color: var(--tm-border-soft);
+}
+.cvb-rw-diff-new { font-size: 12.5px; line-height: 1.55; color: var(--tm-text); }
+.cvb-rw-rationale { font-size: 11px; color: var(--tm-text-muted); margin-top: 2px; }
+.cvb-rw-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.cvb-rw-error { font-size: 12px; color: var(--tm-danger); display: flex; gap: 10px; align-items: center; }
+@media (max-width: 720px) {
+  .cvb-rw-input, .cvb-rw-panel .cvb-btn { min-height: 44px; }
 }
 
 /* ── 10-minute first-use guide ───────────────────────────────────────────── */

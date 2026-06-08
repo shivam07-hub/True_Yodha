@@ -589,7 +589,7 @@ function CVPage() {
       <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditTarget(null) } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit polished CV</DialogTitle>
+            <DialogTitle>Edit CV text</DialogTitle>
             <DialogDescription>
               Edits save a new copy. Your Main CV stays untouched.
             </DialogDescription>
@@ -609,7 +609,7 @@ function CVPage() {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
             <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
-              Save copy
+              Save
             </Button>
           </div>
         </DialogContent>
