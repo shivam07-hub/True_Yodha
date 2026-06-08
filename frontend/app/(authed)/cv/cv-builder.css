@@ -1113,70 +1113,11 @@ mark.cvb-kw {
   align-items: center;
   gap: 24px;
 }
-.cvb-pdf-page {
-  width: 816px;
-  min-height: 1056px;
-  background: #FAFAF7;
-  color: #111;
-  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
-  font-size: 10.5pt;
-  line-height: 1.45;
-  padding: 56px 60px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.4);
-  border-radius: 4px;
-  position: relative;
-}
-.cvb-pdf-page .pdf-name {
-  font-family: "Geist", sans-serif;
-  font-size: 28pt;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #0A0A0A;
-  margin: 0 0 4px;
-  line-height: 1.05;
-}
-.cvb-pdf-page .pdf-title { font-size: 11pt; color: #4A4A4A; margin: 0 0 14px; font-weight: 400; }
-.cvb-pdf-page .pdf-contact {
-  font-family: "Geist Mono", monospace;
-  font-size: 9pt;
-  color: #555;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  border-top: 1.5px solid #0A0A0A;
-  border-bottom: 0.5px solid #ccc;
-  padding: 10px 0;
-  margin-bottom: 22px;
-}
-.cvb-pdf-page h2 {
-  font-size: 9.5pt;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: #0A0A0A;
-  margin: 18px 0 8px;
-  padding-bottom: 4px;
-  border-bottom: 0.5px solid #aaa;
-}
-.cvb-pdf-page .pdf-role-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; }
-.cvb-pdf-page .pdf-role { font-weight: 600; font-size: 11pt; color: #0A0A0A; }
-.cvb-pdf-page .pdf-co { color: #333; font-size: 10pt; }
-.cvb-pdf-page .pdf-dates { font-family: "Geist Mono", monospace; font-size: 9pt; color: #555; }
-.cvb-pdf-page ul { margin: 5px 0 8px 16px; padding: 0; }
-.cvb-pdf-page li { font-size: 10pt; line-height: 1.5; margin-bottom: 2px; color: #1A1A1A; }
-.cvb-pdf-page .pdf-summary { font-size: 10.5pt; color: #1A1A1A; line-height: 1.55; }
-.cvb-pdf-page .pdf-skills-line { font-family: "Geist Mono", monospace; font-size: 9.5pt; color: #1A1A1A; line-height: 1.7; }
-.cvb-pdf-page .pdf-foot {
-  position: absolute;
-  bottom: 18px; left: 60px; right: 60px;
-  border-top: 0.5px solid #ddd;
-  padding-top: 6px;
-  display: flex;
-  justify-content: space-between;
-  font-family: "Geist Mono", monospace;
-  font-size: 8pt;
-  color: #888;
-}
+/* ── The CV sheet (`.cvb-pdf-page`) base + template variants live in
+   cv-sheet.css — the canonical document styling shared verbatim with the
+   backend server-PDF renderer so the two can never drift. Imported alongside
+   this file in cv/page.tsx and cv/export/page.tsx. Only app chrome and the
+   @media print / mobile-scale rules for the sheet remain below. ── */
 
 /* Master CV panel: backdrop that centers the light sheet and scrolls if the
    816px page is wider than the panel. */
@@ -1314,6 +1255,22 @@ mark.cvb-kw {
   font-size: 12px;
 }
 
+/* Close-the-loop tracker — the apply step records the application so the
+   export is no longer a dead end. */
+.cvb-export-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--tm-border-soft);
+}
+.cvb-export-track-nudge {
+  font-size: 12.5px;
+  color: var(--tm-text-muted);
+}
+
 /* Template picker (segmented control). */
 .cvb-tpl-picker {
   display: inline-flex;
@@ -1341,31 +1298,8 @@ mark.cvb-kw {
   color: var(--tm-interactive-fg);
 }
 
-/* ── Template variants (print-CSS only — same DOM, same selectable text) ──
-   `data-cv-template` lives on `.cvb-pdf-page` itself, so these apply on screen
-   AND through the @media print isolation. All three stay single-column,
-   real-heading, real-bullet — ATS-safe by construction. "classic" is the base. */
-
-/* Modern Minimal — lighter rules, tighter name, airier headings. */
-.cvb-pdf-page[data-cv-template="modern"] .pdf-name { font-size: 22pt; letter-spacing: -0.01em; }
-.cvb-pdf-page[data-cv-template="modern"] .pdf-contact { border-top-width: 0.75px; }
-.cvb-pdf-page[data-cv-template="modern"] h2 {
-  border-bottom: none;
-  letter-spacing: 0.10em;
-  color: #222;
-}
-
-/* Compact One-Page — condensed type + spacing to fit a dense CV on one page. */
-.cvb-pdf-page[data-cv-template="compact"] { padding: 40px 44px; font-size: 9.5pt; line-height: 1.32; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-name { font-size: 21pt; margin-bottom: 2px; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-title { margin-bottom: 8px; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-contact { padding: 6px 0; margin-bottom: 14px; }
-.cvb-pdf-page[data-cv-template="compact"] h2 { margin: 11px 0 5px; font-size: 9pt; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-role-head { margin-top: 6px; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-role { font-size: 10pt; }
-.cvb-pdf-page[data-cv-template="compact"] ul { margin: 3px 0 5px 15px; }
-.cvb-pdf-page[data-cv-template="compact"] li { font-size: 9pt; line-height: 1.34; margin-bottom: 1px; }
-.cvb-pdf-page[data-cv-template="compact"] .pdf-summary { font-size: 9.5pt; line-height: 1.4; }
+/* ── Template variants (modern / compact) moved to cv-sheet.css so the server
+   PDF renderer shares them verbatim. ── */
 
 /* ─── Fade-in + reduced motion ─────────────────────────────── */
 @keyframes cvb-fade-in {

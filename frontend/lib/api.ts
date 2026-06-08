@@ -644,6 +644,26 @@ export const cv = {
     }
     return res.blob()
   },
+  // WYSIWYG PDF export. The body carries the literal rendered .cvb-pdf-page
+  // outerHTML — the SAME DOM the user previewed — and headless Chromium renders
+  // it server-side with the shared sheet stylesheet, so the PDF is byte-faithful
+  // to the preview (no plain-text round-trip like downloadPdf). On 503 the caller
+  // falls back to the browser's native Save-as-PDF (printCvPage).
+  exportPdf: async (
+    token: string,
+    body: { html: string; filename: string },
+  ): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/export-pdf`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "PDF generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
   // Structured DOCX export. The body carries the ALREADY-VISIBLE sections
   // (selectVisibleCV applied client-side) so the .docx matches the on-screen
   // sheet exactly — same single source of truth as the WYSIWYG PDF.

@@ -52,7 +52,10 @@ pytest-asyncio==0.23.6
 ruff==0.4.4
 
 # ── PDF generation ──────────────────────────────────────────────
-reportlab>=4.2.0                 # CV PDF export
+reportlab>=4.2.0                 # legacy plain-text CV PDF (/cv/download-pdf)
+playwright==1.44.0               # WYSIWYG CV PDF — headless Chromium renders the
+                                 # previewed .cvb-pdf-page (/cv/export-pdf).
+                                 # Chromium browser installed in Dockerfile.
 
 # ── Internal tools ──────────────────────────────────────────────
 streamlit==1.35.0                # tagger_ui.py — browser-based HITL tagger

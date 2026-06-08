@@ -1,13 +1,14 @@
 import re
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.services.cv_docx import generate_cv_docx
 from app.services.cv_pdf import generate_cv_pdf
+from app.services.cv_pdf_html import CVPdfError, render_html_to_pdf
 
 router = APIRouter()
 
@@ -104,6 +105,41 @@ class CVDocxRequest(BaseModel):
     template: str = "classic"
     company: str | None = None
     filename: str | None = Field(default=None, max_length=160)
+
+
+# ── WYSIWYG PDF export ────────────────────────────────────────────────
+# The body carries the literal rendered `.cvb-pdf-page` outerHTML — the SAME
+# DOM the user previewed. Headless Chromium renders it with the shared sheet
+# stylesheet, so the PDF is byte-faithful to the preview (no plain-text round
+# trip like /download-pdf). On any render failure we return 503 so the client
+# transparently falls back to the browser's native Save-as-PDF (printCvPage).
+
+
+class CVExportPdfRequest(BaseModel):
+    html: str = Field(..., min_length=40, max_length=512_000)
+    filename: str | None = Field(default=None, max_length=160)
+
+
+@router.post("/export-pdf")
+def export_cv_pdf(
+    body: CVExportPdfRequest,
+    principal: Principal = Depends(get_principal),
+) -> Response:
+    """Render the previewed CV sheet HTML to a WYSIWYG, ATS-parseable PDF."""
+    try:
+        pdf_bytes = render_html_to_pdf(body.html)
+    except CVPdfError as exc:
+        # Soft failure: the client falls back to native print on 503.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    safe = _sanitize_filename(body.filename, ext="pdf")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition(safe)},
+    )
 
 
 @router.post("/export-docx")

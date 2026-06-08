@@ -2,7 +2,7 @@
 
 import "./mission-control.css"
 
-import { useEffect, useMemo, Suspense, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
@@ -20,6 +20,7 @@ import { Dashboard } from "@/components/dashboard/dashboard"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { openFeedbackHub } from "@/components/feedback"
+import { useParticleMoment } from "@/components/particle"
 import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -107,6 +108,36 @@ function MissionControlInner() {
     for (const a of apps) m[a.job_id] = a.status
     return m
   }, [apps])
+
+  // WOW moment #1 — the peak. The first time this user ever sees job matches
+  // ("it sees me"), light up the whole dashboard with a big centre burst.
+  // Once-ever per browser (localStorage), so it stays scarce and special.
+  const fireMoment = useParticleMoment()
+  useEffect(() => {
+    if (jobsLoading || allMatchedJobs.length === 0) return
+    try {
+      if (localStorage.getItem("myro:firstMatchWow")) return
+      localStorage.setItem("myro:firstMatchWow", "1")
+    } catch { /* storage blocked — skip the guard, still fire once this mount */ }
+    fireMoment({ intensity: 1.6, durationMs: 4200 })
+  }, [jobsLoading, allMatchedJobs.length, fireMoment])
+
+  // WOW moment #4 — every successful Refresh that lands new matches. Refresh is
+  // a deliberate, token-charged action, so it earns a celebration EVERY time
+  // (unlike the once-ever first match). Fires on the done-transition; gated on
+  // matches actually written so a "0 new" finish doesn't fake a payoff.
+  // refreshFiredRef guards the done edge so a re-render can't double-fire.
+  const refreshFiredRef = useRef(false)
+  useEffect(() => {
+    if (refreshVm.state === "done" && (refreshVm.matchesWritten ?? 0) > 0) {
+      if (!refreshFiredRef.current) {
+        refreshFiredRef.current = true
+        fireMoment({ intensity: 1.4 })
+      }
+    } else {
+      refreshFiredRef.current = false
+    }
+  }, [refreshVm.state, refreshVm.matchesWritten, fireMoment])
 
   // ── Deep-link: ?jobId= opens that card in the Dashboard on first paint.
   const urlJobId = searchParams.get("jobId")
