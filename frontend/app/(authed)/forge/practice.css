@@ -323,6 +323,10 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
 }
 
 .tm-pr-row-body { padding: 0 14px 16px; animation: tmPrBodyIn var(--tm-dur-slow) var(--tm-ease); }
+.tm-pr-about {
+  margin: 0 0 12px; color: var(--tm-text-dim, var(--tm-text-faint));
+  font-size: 13px; line-height: 1.55;
+}
 @keyframes tmPrBodyIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ── Gap body ── */

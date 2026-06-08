@@ -37,6 +37,7 @@ class UserSkillRecord:
     forge_sessions_count: int
     forged_level_up_available: bool
     correction_count: int = 0
+    description: str | None = None  # Lightcast definition from skills.description
 
 
 class UsersRepository:
@@ -107,7 +108,7 @@ class UsersRepository:
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, correction_count, skills(taxonomy_key, display_name)")
+            .select("matched_level, proficiency_title, evidence_text, forge_sessions_count, correction_count, skills(taxonomy_key, display_name, description)")
             .eq("user_id", user_id)
             .execute()
         )
@@ -132,6 +133,7 @@ class UsersRepository:
                     forge_sessions_count=forge_sessions_count,
                     forged_level_up_available=key in forged_level_up_keys,
                     correction_count=correction_count,
+                    description=skill.get("description"),
                 )
             )
         return records
