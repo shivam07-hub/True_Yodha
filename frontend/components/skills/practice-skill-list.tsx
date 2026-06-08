@@ -186,6 +186,7 @@ function OwnedRow({ skill, token, active, onPractice }: {
       </div>
       {open && (
         <div className="tm-pr-row-body">
+          {item.description && <p className="tm-pr-about">{item.description}</p>}
           <InlineSkillCard skill={item} token={token} />
         </div>
       )}

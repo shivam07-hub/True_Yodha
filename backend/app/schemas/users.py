@@ -49,6 +49,7 @@ class UserSkillItem(BaseModel):
     display_name: str
     level: int
     proficiency_title: str
+    description: str | None = None  # Lightcast definition (skills.description); null until enriched
     evidence_text: str | None = None
     forge_sessions_count: int = 0
     forged_level_up_available: bool = False

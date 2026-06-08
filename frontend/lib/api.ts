@@ -294,6 +294,7 @@ export interface UserSkillItem {
   display_name: string
   level: number
   proficiency_title: string
+  description?: string | null   // Lightcast definition (skills.description); null until enriched
   evidence_text: string | null
   forge_sessions_count: number
   forged_level_up_available: boolean

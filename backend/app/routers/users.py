@@ -75,6 +75,7 @@ def get_my_skills(
             "display_name": record.display_name,
             "level": record.level,
             "proficiency_title": record.proficiency_title,
+            "description": record.description,
             "evidence_text": record.evidence_text,
             "forge_sessions_count": record.forge_sessions_count,
             "forged_level_up_available": record.forged_level_up_available,
