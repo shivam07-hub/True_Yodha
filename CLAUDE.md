@@ -908,3 +908,231 @@ Phase 5 — polish (standalone):
 - ND12: Forge early-exit confirmation copy
 
 ---
+
+## LAST SESSION SUMMARY (2026-06-08 · Automated deep audit — Sprint 6 plan)
+
+Scheduled task ran a third autonomous audit of `reference/` — this time covering every folder not previously analyzed, including two new handoff bundles that were missed in prior sessions. No code was written.
+
+**New materials analyzed this session:**
+- `reference/building-10-min-cv-onboarding-extracted/design_handoff_progressive_nav/README.md` — complete high-fidelity spec for the progressive-disclosure nav including the **first-run base tour** (3-step coachmark sequence)
+- `reference/_bsup_extract/design_handoff_signup/README.md` + 4 screenshots — complete signup modal redesign (2-mode: operators + institutions, step progress, light theme, success state)
+- `reference/branding/BRAND_IDENTITY.md` — canonical brand system: dual-accent toggle (Signal Teal / Forge Amber), Space Grotesk primary font, 5-size type scale, four-signal interactive rule
+- `reference/AAAAAA/` — 10 screenshots from 28th May showing "About CV hub landing page" design vision
+- `reference/User suggestions_28may.md` — 8 additional user voices (all converge on: simpler onboarding, faster wow moment, "I didn't know what to do")
+
+**Code state verified against Sprint 5 carry-overs:**
+- BUG-3 ✅ CLOSED (`skillTierHint` + `title`/`aria-label` on tier pill in `practice-skill-list.tsx`)
+- BUG-8 ✅ CLOSED (`lib/format-location.ts` de-dupes city===country)
+- BUG-9 ✅ CLOSED (PLANNED row no longer present in `tokens/page.tsx`)
+- BUG-11 ✅ CLOSED (`forge/page.tsx:236` "End session — forfeit tokens?" confirm)
+- BUG-12 ✅ CLOSED (`cv/page.tsx:423` "32,000+ recognized skill types used by real hiring managers")
+- BUG-13 ✅ CLOSED (`cv/page.tsx:460-461` extraction tips, gated on skills_detected===0)
+- Nav date ✅ CLOSED (`top-nav.tsx:41` uses `new Date()` dynamically)
+- BUG-10 ⚠️ NEEDS PHONE QA — `CategoryCard` is a proper `<button onClick>`, no pointer-events issue visible in code; the "broken" reports may be a z-index/overlay conflict on specific Android Chrome versions. Needs live device repro.
+- PR-F ⚠️ NEEDS PHONE QA — sticky tab + SE14 icon-only need visual confirm on 375px device
+- Landing page items — ALL UNBUILT (`landing-page.tsx` is 148 lines: hero + SampleDiagnostic + footer only)
+
+**Critical new finding: BASE TOUR is missing.**
+`use-nav-unlocks.ts` fires coachmarks only on mid-session unlock transitions. The progressive-nav handoff spec requires a 3-step first-run tour (dashboard→yard→market) with 650ms delay, step dots, and scrim. This was never built. Given that 30/30 users said "I didn't know what to do after signing up", this is the single highest-impact unbuilt item.
+
+---
+
+## SPRINT 6 — FIRST-RUN EXCELLENCE + LANDING PAGE DEPTH
+
+**Goal:** Make every first-time user know exactly what to do within 60 seconds of signing up. Make the landing page earn its conversion.
+
+**What Sprint 5 left unbuilt (carry-over):**
+- BUG-10 phone QA, PR-F 375px QA
+- PR-TRUST-SIGNALS (T1/T2/T3), PR-LANDING-FAQ, PR-LANDING-CLARITY, PR-LANDING-VISUAL-WARMTH
+- PR-QUEST-BOARD (blocked on ND4), PR-REFERRAL-V1 (blocked on ND6)
+
+---
+
+### P0 — CARRY-OVER PHONE QA (do on a real device, not DevTools)
+
+**BUG-10 — Feedback form category cards broken on mobile (VERIFY FIRST)**
+`CategoryCard` is a valid `<button onClick>`. Likely culprit: the hub dialog overlay has a touch-passthrough issue on Android Chrome — modal's root element may not stop touch propagation, so taps fall through to content behind. Check `feedback-hub.tsx` root div's `onPointerDown`/`onTouchStart` handling and the hub's z-index stacking context. Fix: add `onPointerDown={e => e.stopPropagation()}` on the modal backdrop and verify it captures touch events. Files: `components/feedback/feedback-hub.tsx`, `feedback-hub.css`.
+
+**PR-F VERIFY — 375px skill card (confirm or fix)**
+Load `/skills` at 375px Chrome DevTools. Check: (a) `Intel · Map · Audit` sticky pill has `--bg-page` background so it doesn't overlap cards; (b) `<480px` skill-card action buttons = icons only (SE14). If either fails → fix CSS. Files: `components/skills/`.
+
+---
+
+### P0-NEW — FIRST-RUN BASE TOUR (CRITICAL, highest-impact unbuilt item)
+
+**PR-BASE-TOUR — 3-step coachmark tour for first-time users**
+
+Full spec in `reference/building-10-min-cv-onboarding-extracted/design_handoff_progressive_nav/README.md`. This is the "base tour" section. The current `use-nav-unlocks.ts` only handles mid-session unlock coachmarks; first-time users get zero guidance.
+
+**What to build:**
+1. Add `baseTourSeen` to `use-nav-unlocks.ts` — reads/writes `localStorage["myro_tour_base_v1"]`.
+2. On first authed mount where `versions` and `profile` both resolve AND `baseTourSeen === false`: after **650ms** delay, open a tour queue for `["home", "forge", "market"]` (the 3 base nav items).
+3. Separate `tourQueue` state (distinct from `coachQueue` for unlock events) — `tourQueue[0]` is the active tour step.
+4. Update `Coachmark` in `topbar-nav.tsx` to accept a `tourStep?: {current: number; total: number}` prop. When `tourStep` is present, render **step dots** below the body: 3×6px pill; current = `var(--tm-accent)` 16px wide; done = `var(--tm-accent-ring)`; upcoming = `var(--tm-border)`. Last step button = "Got it"; earlier steps = "Next →".
+5. Tour-step coachmark copy (use verbatim, from the handoff spec):
+   - `home`: tag `01 · MISSION CONTROL`; body: "Home base. Your Myro Score, your best-matched role, and the single next move toward an offer."
+   - `forge`: tag `02 · CLOSE THE GAP`; body: "Daily reps that close the exact skill gaps standing between you and the roles you want."
+   - `market`: tag `03 · STRAIGHT FROM CAREER PAGES`; body: "Real openings read live from company career pages — matched to your skills and scored for fit. This is where your next CV begins."
+6. Scrim already exists (`tm-nav-scrim`); while tour is active, non-target nav items get `opacity: 0.32`.
+7. On "Got it" (last step): mark `baseTourSeen = true`, clear tour queue.
+8. While tour active: clicking scrim advances tour (same as Next).
+9. Respect `prefers-reduced-motion` — entrance animates transform only (existing pattern in nav CSS).
+
+**Files:** `lib/hooks/use-nav-unlocks.ts`, `components/nav/topbar-nav.tsx`, `components/nav/topbar-nav.css` (step dots styles).
+**Acceptance:** Fresh account (clear `myro_tour_base_v1`) → land on `/home` → after 650ms coachmark appears on Dashboard item with step dots `● ○ ○` → click Next → Forge coachmark `● ● ○` → click Next → Market coachmark `● ● ●` + "Got it" → tour done, flag set, never auto-runs again. Blocked on ND13.
+
+---
+
+### P1 — LANDING PAGE DEPTH (all unbuilt, ship as one PR)
+
+**PR-LANDING-DEPTH — Full landing page build-out**
+`components/public/landing-page.tsx` is 148 lines. Every Sprint 5 item for the landing page is unbuilt. Build all together as one PR:
+
+**T1 — "Free to start" trust badge**
+Add `Free to start · No credit card` in `var(--tm-text-muted)` 11px directly below the "Choose file" / "Drop CV" CTA button. Single inline line, no box. Mirror to the signup form (`components/auth/signup-modal.tsx`).
+
+**T2 — What you'll be scored on**
+Add a `?` icon or "How is scoring calculated?" link beside the Myro Score badge on the landing hero. Opens an inline collapsible showing 10 domain chips: `Technology · Data · Communication · Leadership · Strategy · Marketing · Operations · Finance · Product · People`. Same copy goes into FAQ answer #3. Blocked on ND9 (confirm exact domain names).
+
+**T3 — Social proof count**
+Add "Join 500+ job seekers already using Myro" above hero CTA (or wire to `GET /public/stats` if endpoint exists in `backend/app/routers/public.py`). 500 is a conservative floor; update when real count is known. Files: `landing-page.tsx`, optionally `backend/app/routers/public.py`.
+
+**FAQ section** — 5 items, collapsible (details/summary or custom accordion):
+1. "Is Myro free?" → Yes, free to start. XP lets you unlock skill advice and company intel. No credit card.
+2. "How is this different from LinkedIn or Naukri?" → Myro scores your CV against live job data and shows exactly which skills to build. LinkedIn shows you jobs; Myro shows what's stopping you from getting them.
+3. "What is the Myro Score?" → A 0–100 score across 10 career domains, computed from your CV skills against real hiring demand: [domain chips]. It goes up as you practice skills and add evidence.
+4. "Is my CV private?" → Yes. Your CV is never shared or visible to recruiters. Only you see it. Your public profile shows only your Myro Score and domain map — never your actual CV text.
+5. "What is Forge?" → Forge is your practice yard. Pick a skill, run a 25-minute focused session, earn XP. Each session moves your skill level from L0 to L5.
+
+**3-step visual flow**
+Below the hero, add a horizontal "How it works" block: three connected numbered steps: `① Upload your CV → ② Get your Myro Score → ③ Tailor & send the right one`. Each step: number pill + title + one-line description. Connected with a thin dashed line on desktop; stacked on mobile.
+
+**Testimonials**
+3 user quotes from beta feedback (use verbatim from `reference/User feedback docs/`):
+- Aman: "The Myro Score and skill mapping made the platform feel highly intelligent from the start."
+- Ananya: "Having multiple CV versions in one place instead of random PDFs scattered everywhere is genuinely useful."
+- Ashu: "The light theme looks clean and professional. The job-targeting system is a strong idea."
+Add as a minimal text strip: quote + initial + city. No photos.
+
+**Files:** `components/public/landing-page.tsx`, `components/public/landing-page.css`.
+**Acceptance:** Landing page has trust badge, 3-step visual, 3 testimonials, FAQ accordion (5 items), social proof count. All visible above or near fold on 375px.
+
+---
+
+### P2 — SIGNUP REDESIGN (after ND14 confirmed)
+
+**PR-SIGNUP-REDESIGN — Implement light-theme signup modal spec**
+Full high-fidelity spec at `reference/_bsup_extract/design_handoff_signup/README.md`. Screenshots at `reference/_bsup_extract/design_handoff_signup/screenshots/`.
+
+Key elements to implement:
+- **Two-mode switcher**: "For operators" / "For institutions" sliding pill tab (`role="tablist"`).
+- **Step progress visualization**: 5-step connected progress bar (Upload · Read · Target · Tailor · Download for operators). Display-only, advances one step on success.
+- **Eyebrow**: mono 12px uppercase "SIGN UP · 30 SECONDS".
+- **Headline**: Newsreader serif 38px "Start your CV hub."
+- **Success state**: replaces left column — green check badge, serif title "Check your inbox.", what's-next 3-row numbered list.
+- **Right rail ("What you'll get")**: 3 perk cards matching the mode (Score CV / Tailor versions / Track jobs for operators).
+- **Light theme**: emerald primary `#148462`, white surfaces, ink `#0E1B17`. This already matches the existing `/institutions` route styling.
+- **Institution email validation**: reject `@gmail|yahoo|outlook|...` on blur, accept institutional domains.
+- Design tokens are in `reference/_bsup_extract/design_handoff_signup/README.md` section "Design tokens (exact)".
+- The signup HTML prototype is at `reference/_bsup_extract/design_handoff_signup/signup.html` — open it in a browser to see the exact target.
+**Files:** `app/signup/page.tsx`, `components/auth/signup-modal.tsx`, `app/signup/institutions/`.
+Blocked on ND14.
+
+---
+
+### P3 — RETENTION ENGINE (blocked on decisions)
+
+**PR-QUEST-BOARD** — Daily missions. See Sprint 5 P2 for full spec. Blocked on ND4.
+
+**PR-REFERRAL-V1** — Wire referral end-to-end. See Sprint 5 P3 for full spec. Blocked on ND6.
+
+**PR-LANDING-VISUAL-WARMTH** — Reduce particle animation 50%, apply `--bg-page` to public landing. See Sprint 5 P4. Standalone, no decisions needed.
+
+---
+
+### P4 — BRAND SYSTEM (new, decisions required)
+
+**PR-BRAND-TOKEN-AUDIT — Enforce 5-size type scale (non-blocking, Sprint 6 if bandwidth allows)**
+`reference/branding/BRAND_IDENTITY.md` section 6 defines a strict 5-token type scale:
+- `--fs-display: 36px/40px` · `--fs-title: 24px/32px` · `--fs-heading: 18px/26px` · `--fs-body: 16px/24px` · `--fs-meta: 13px/18px`
+Many page-scoped CSS files use one-off `font-size` values outside this scale. Audit and normalize. Files: `app/globals.css`, all page-scoped `*.css` files.
+
+Dual-accent toggle and Space Grotesk migration: see ND15 and ND17. Deferred pending decisions.
+
+---
+
+### NEW DESIGN DECISIONS FOR SHIVAM (Sprint 6)
+
+Decisions ND4–ND12 from Sprint 5 carry over unchanged. New:
+
+**ND13 — First-run base tour scope** *(BLOCKING PR-BASE-TOUR)*
+Handoff specifies 3-step coachmark tour (650ms delay, step dots, scrim, specific copy). Options:
+(a) Build exactly per handoff spec — scrim, step dots, 650ms delay, copy verbatim ← recommended
+(b) Simpler — single "welcome" coachmark on home only, no tour sequence
+(c) Skip — rely on PR-COACHMARKS page-level banners instead
+**Recommended: (a).** This is the original spec and directly addresses "I didn't know what to do" (30/30 users). Single biggest retention lever before the quest board. **Confirm before coding.**
+
+**ND14 — Signup redesign scope** *(BLOCKING PR-SIGNUP-REDESIGN)*
+Complete redesign spec exists at `reference/_bsup_extract/design_handoff_signup/README.md`. Options:
+(a) Minimal: remove ninja name field + add "free to start" badge (1h work)
+(b) Full redesign per spec: two-mode switcher + step progress + light theme + success state (~3 sessions)
+(c) Full redesign + merge `/institutions` into the same modal (replaces current separate `/institutions` page)
+**Recommended: (b).** The light-theme spec is self-contained and the `/institutions` route is already light-themed, so the design language is established. **Confirm before coding.**
+
+**ND15 — Dual accent toggle (Signal/Forge) timeline**
+`reference/branding/BRAND_IDENTITY.md` defines dual-accent as a core differentiator. `reference/branding/AccentToggle.tsx` prototype exists. Options:
+(a) Sprint 6: implement toggle — CSS var swap, localStorage persistence, Signal/Forge pill in settings
+(b) Defer to dedicated branding sprint after beta-3 launch
+(c) Drop — Signal teal is the only accent
+**Recommended: (b) defer.** CSS variables are already scoped for this. Higher-value sprint 6 work (base tour, landing) comes first.
+
+**ND16 — Zero-friction "wow moment" pre-CV**
+Multiple users (especially `User suggestions_28may.md`) want value before CV upload. `SampleDiagnostic` already exists. Options:
+(a) Enhance `SampleDiagnostic` — expandable domains, animated score build-up, "what these domains mean" tooltips
+(b) Add a "Try without CV" path — role selector → instant sample score for that role
+(c) 30-second Loom/product video embed
+**Recommended: (a) for Sprint 6 — SampleDiagnostic exists and can be deepened without backend work.** Confirm.
+
+**ND17 — Font migration (Space Grotesk → primary)**
+`BRAND_IDENTITY.md` says Space Grotesk is the primary UI font. Current app uses Geist.
+**Recommended: defer.** Font migrations surface unexpected edge cases. Prioritize user-facing impact first. Confirm.
+
+---
+
+### BUILD ORDER FOR SPRINT 6
+
+```
+Phase 1 — phone QA (do on a real device):
+  BUG-10 verify → PR-F 375px verify
+
+Phase 2 — first-run excellence (after ND13 confirmed):
+  PR-BASE-TOUR
+
+Phase 3 — landing page (no decisions needed for T1/T3/3-step/testimonials/FAQ):
+  PR-LANDING-DEPTH (T1 + T3 + FAQ + 3-step + testimonials)
+  T2 after ND9 domain-names confirmed
+
+Phase 4 — signup redesign (after ND14 confirmed):
+  PR-SIGNUP-REDESIGN
+
+Phase 5 — retention + polish (after ND4/ND6 confirmed):
+  PR-QUEST-BOARD → PR-REFERRAL-V1 → PR-LANDING-VISUAL-WARMTH
+
+Phase 6 — brand (after ND15/ND16/ND17 confirmed):
+  SampleDiagnostic enhancement → PR-BRAND-TOKEN-AUDIT → AccentToggle (if ND15=yes)
+```
+
+**Commit pattern:** one PR per item, `fix:` / `feat:` prefix. `tsc --noEmit` + `next lint` clean before merge. All work to `Develop`.
+
+**Questions for Shivam (confirm at session start before coding):**
+- ND13: First-run base tour — full spec per handoff or simpler?
+- ND14: Signup redesign — minimal fix or full redesign?
+- ND15: Dual accent toggle — sprint 6 or defer?
+- ND16: "Wow moment" — enhance SampleDiagnostic or try-without-CV path?
+- ND17: Font migration — now or defer?
+- ND4 (carry-over): Quest Board layout (desktop list vs mobile chip strip)
+- ND5 (carry-over): Landing preview format
+- ND6 (carry-over): PLANNED referral row
+- ND7 (carry-over): Feedback form still broken on phone?
+- ND9 (carry-over): Exact 10 domain names for landing copy
+

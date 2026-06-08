@@ -18,6 +18,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 
+import "../cv-fonts.css"
 import "../cv-sheet.css"
 import "../cv-builder.css"
 

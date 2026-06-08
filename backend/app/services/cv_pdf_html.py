@@ -12,20 +12,18 @@ fails ATS. The server reproduces the *print* form of the sheet (white page, no
 foot, A4 margins) so it matches what `window.print()` produced before.
 
 Fonts: the sheet's family chain is `"Geist", "Helvetica Neue", Arial, sans-serif`
-(and `"Geist Mono", monospace`). Geist is *not* actually loaded on the frontend
-— there is no @font-face for it — so the on-screen preview already renders in the
-Helvetica/Arial fallback. To match that on Linux, the runtime image installs an
-Arial-metric font (fonts-liberation → Liberation Sans/Mono, aliased to Arial by
-fontconfig). The structural layout (real bullets, aligned dates, parseable text)
-is byte-identical to the preview; only sub-pixel font rendering can differ, which
-is not the structural "betrayal" the WYSIWYG redesign eliminated.
+(and `"Geist Mono", monospace`). The frontend now loads real Geist via @font-face
+(cv-fonts.css → app/fonts/*.woff), so this renderer embeds the SAME woff bytes as
+a base64 @font-face (`_font_face_css`) — preview and PDF share identical glyphs
+and cannot drift. fonts-liberation stays installed only as an Arial-metric safety
+net for the fallback chain.
 
 Requires Chromium (installed via `playwright install --with-deps chromium` in the
-Dockerfile, Phase 0). If a future change wires real Geist on the frontend, embed
-the same woff here as a base64 @font-face to keep parity.
+Dockerfile, Phase 0).
 """
 from __future__ import annotations
 
+import base64
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -34,6 +32,12 @@ from playwright.sync_api import sync_playwright
 
 _ASSETS = Path(__file__).resolve().parent.parent / "assets"
 _SHEET_CSS_PATH = _ASSETS / "cv_sheet.css"
+_FONTS_DIR = _ASSETS / "fonts"
+# (css family name, woff filename) — must match cv-fonts.css on the frontend.
+_FONT_FACES = (
+    ("Geist", "GeistVF.woff"),
+    ("Geist Mono", "GeistMonoVF.woff"),
+)
 
 # Reproduces the @media print block in cv-builder.css: the submitted CV is a
 # white A4 page with no on-screen chrome (shadow/radius/foot). Page margins are
@@ -65,6 +69,25 @@ def _sheet_css() -> str:
     return _SHEET_CSS_PATH.read_text(encoding="utf-8")
 
 
+@lru_cache(maxsize=1)
+def _font_face_css() -> str:
+    """Embed the Geist woff fonts as base64 @font-face so Chromium renders the
+    exact same glyphs as the frontend — no network, no system-font dependency.
+    Missing font files degrade gracefully to the Helvetica/Arial fallback."""
+    rules: list[str] = []
+    for family, fname in _FONT_FACES:
+        path = _FONTS_DIR / fname
+        if not path.is_file():
+            continue
+        b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+        rules.append(
+            f"@font-face{{font-family:'{family}';"
+            f"src:url(data:font/woff;base64,{b64}) format('woff');"
+            "font-weight:100 900;font-style:normal;font-display:block;}"
+        )
+    return "".join(rules)
+
+
 def _sanitize(body_html: str) -> str:
     """Strip <script> defensively. The HTML is the user's own CV markup and is
     rendered in an isolated, network-blocked headless page with no secrets, so
@@ -75,6 +98,7 @@ def _sanitize(body_html: str) -> str:
 def _document(body_html: str) -> str:
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
+        f"<style>{_font_face_css()}</style>"
         f"<style>{_sheet_css()}</style>"
         f"<style>{_SERVER_PRINT_OVERRIDE}</style>"
         f"</head><body>{_sanitize(body_html)}</body></html>"

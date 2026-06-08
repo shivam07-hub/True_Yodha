@@ -31,6 +31,7 @@ import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useXPStore } from "@/store/xpStore"
 import { useParticleMoment } from "@/components/particle"
 
+import "./cv-fonts.css"
 import "./cv-sheet.css"
 import "./cv-builder.css"
 

@@ -72,3 +72,33 @@ def test_render_html_to_pdf_rejects_empty():
 
     with pytest.raises(CVPdfError):
         render_html_to_pdf("   ")
+
+
+# ── Geist font parity (Option B) ──────────────────────────────────────
+
+
+def test_backend_geist_fonts_vendored():
+    fonts = _REPO_ROOT / "backend" / "app" / "assets" / "fonts"
+    assert (fonts / "GeistVF.woff").is_file()
+    assert (fonts / "GeistMonoVF.woff").is_file()
+
+
+@pytest.mark.skipif(not _FRONTEND_SHEET.is_file(), reason="frontend tree not present")
+def test_geist_woff_in_sync_with_frontend():
+    """The backend must embed the SAME woff bytes the frontend serves, or the PDF
+    glyphs drift from the preview."""
+    for fname in ("GeistVF.woff", "GeistMonoVF.woff"):
+        fe = (_REPO_ROOT / "frontend" / "app" / "fonts" / fname).read_bytes()
+        be = (_REPO_ROOT / "backend" / "app" / "assets" / "fonts" / fname).read_bytes()
+        assert fe == be, f"{fname} differs between frontend and backend"
+
+
+def test_font_face_css_embeds_geist():
+    try:
+        from app.services.cv_pdf_html import _font_face_css
+    except Exception:
+        pytest.skip("cv_pdf_html not importable (playwright missing)")
+    css = _font_face_css()
+    assert "font-family:'Geist'" in css
+    assert "font-family:'Geist Mono'" in css
+    assert "data:font/woff;base64," in css
