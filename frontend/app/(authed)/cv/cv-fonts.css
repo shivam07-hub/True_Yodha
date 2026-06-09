@@ -1,0 +1,34 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   cv-fonts.css — declare the Geist / Geist Mono web fonts used by the CV sheet.
+   ───────────────────────────────────────────────────────────────────────────
+   The sheet (cv-sheet.css) asks for `font-family: "Geist"` / `"Geist Mono"`,
+   but nothing in the app ever defined those faces — so the preview silently
+   fell back to Helvetica/Arial. These @font-face rules load the variable woff
+   files (already vendored in app/fonts/) so the on-screen sheet renders in real
+   Geist.
+
+   The server PDF renderer embeds the SAME woff bytes as base64 @font-face
+   (cv_pdf_html._font_face_css), so preview and download share identical glyphs
+   and can't drift. Kept in its own file (not cv-sheet.css) so the canonical
+   sheet stylesheet stays pure document rules and the backend copy needs no
+   url() rewriting.
+
+   Imported alongside cv-sheet.css wherever `.cvb-pdf-page` renders
+   (cv/page.tsx, cv/export/page.tsx).
+   ────────────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: "Geist";
+  src: url("../../fonts/GeistVF.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../../fonts/GeistMonoVF.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}

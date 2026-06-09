@@ -29,7 +29,10 @@ import { startCvPromiseOptimistic } from "@/lib/cv-promise"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useXPStore } from "@/store/xpStore"
+import { useParticleMoment } from "@/components/particle"
 
+import "./cv-fonts.css"
+import "./cv-sheet.css"
 import "./cv-builder.css"
 
 type ViewMode = "baseline" | "playground"
@@ -66,6 +69,19 @@ function CVPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
   const [editDraft, setEditDraft] = useState("")
+
+  // WOW moment #2 — CV processing just resolved. Celebrate the reveal with a
+  // centre burst once per transition into a result. (firedRef guards the
+  // null→result edge so a poll-resume re-render doesn't double-fire.)
+  const fireMoment = useParticleMoment()
+  const cvResultFiredRef = useRef(false)
+  useEffect(() => {
+    if (uploadResult && !cvResultFiredRef.current) {
+      cvResultFiredRef.current = true
+      fireMoment({ intensity: 1.2 })
+    }
+    if (!uploadResult) cvResultFiredRef.current = false
+  }, [uploadResult, fireMoment])
 
   const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token })
   const baselines = playground.baselines
@@ -573,7 +589,7 @@ function CVPage() {
       <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditTarget(null) } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit polished CV</DialogTitle>
+            <DialogTitle>Edit CV text</DialogTitle>
             <DialogDescription>
               Edits save a new copy. Your Main CV stays untouched.
             </DialogDescription>
@@ -593,7 +609,7 @@ function CVPage() {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
             <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
-              Save copy
+              Save
             </Button>
           </div>
         </DialogContent>

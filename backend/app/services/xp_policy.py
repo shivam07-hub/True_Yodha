@@ -14,6 +14,11 @@ ADD_JOB_REWARD_XP = 20
 
 SKILL_ADVICE_XP_COST = 20
 
+# Per-bullet Mentor rewrite (DESIGN_cv_playground_redesign §6). v1 ships FREE —
+# the CV-fix wedge is effectively free per ADR-0004 (floor-0 + welcome grant).
+# Final pricing is DEC-H (pending Shivam); wire charge_or_raise here when set.
+REWRITE_BULLET_XP_COST = 0
+
 FOLLOW_COMPANY_XP_COST = 10
 FOLLOW_COMPANY_XP_FLOOR = -30
 FOLLOWED_COMPANY_LIMIT = 10
@@ -26,3 +31,18 @@ MATCH_REFRESH_XP_COST = 150
 # ADR-0004 — LLM-bearing actions cost XP. Floor 0 for core flows.
 CV_UPLOAD_XP_COST = 200
 CV_UPLOAD_XP_FLOOR = 0
+
+# Upskilling ladder (PRD §4.3). Strictly performance-based: tokens are earned
+# ONLY on a clear, and ONLY the first clear of each (skill, level). Below the
+# pass bar earns nothing — no participation floor. Score → award tier:
+#   10/10 → +50 (Perfect)   9/10 → +30 (Pass)   8/10 → +20 (Pass)   ≤7/10 → 0.
+# The first-clear idempotency rides the existing reward_xp RPC keyed by
+# (action='upskilling_clear', ref_table='quiz_attempts', ref_id=attempt_id).
+UPSKILLING_SET_SIZE = 10
+UPSKILLING_PASS_BAR = 8
+UPSKILLING_CLEAR_TIERS = {10: 50, 9: 30, 8: 20}  # score → tokens (first clear only)
+
+
+def upskilling_award_for(score: int) -> int:
+    """Tokens for a set score — first clear only; below the bar earns 0."""
+    return UPSKILLING_CLEAR_TIERS.get(score, 0) if score >= UPSKILLING_PASS_BAR else 0

@@ -191,6 +191,11 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ## OPEN BACKLOG
 
+26. **CV Playground redesign — Phases 4 & 5 (LOGGED 2026-06-08, Phases 1–3 BUILT this session, uncommitted).** Full spec: `docs/DESIGN_cv_playground_redesign.md` (§6, §8). Phases 1–3 shipped: toolbar Action-Law re-zone (one state-driven primary, duplicates killed), page-fill meter + soft-block + auto-trim (`lib/cv/page-fill.ts`), per-bullet Mentor Rewrite with the no-fabrication guard (`backend/app/services/cv_rewrite.py`, `POST /cv/rewrite-bullet[/apply]`, `components/cv/builder/bullet-rewrite.tsx`). Remaining:
+
+   - **Phase 4 — "Restructure with Mentor" (whole-CV).** A higher-order action (in the primary's "⋯ More", or auto-offered when page-fill > 100% or JD-match is low): Mentor proposes a reordered/merged/cut version targeting one page + the JD — reorder sections, merge weak bullets, drop lowest-impact lines — shown as a **reviewable proposed `cv_version`** (existing `polished` lineage), accept creates it, reject discards. Never auto-overwrites. **Why build it:** Phase 3 fixes ONE bullet at a time; a CV that's 1.4 pages or structurally weak (wrong section order, buried impact, 6 bullets where recruiters read 4) needs a whole-document pass. Auto-trim (Phase 2) only *hides* lowest-impact bullets — it can't *reorder or merge*. Restructure is the single action that turns a sprawling CV into a recruiter-ready one-pager, which is the core JTBD ("customise the CV fast for any job"). It's also the natural home for the user's explicit ask: "restructure their resume with specialised prompts from the Mentor playbook DB." Bounded (one proposed version, reviewable) so it's safe.
+   - **Phase 5 — swap rewrite grounding to live Mentor RAG.** Replace the static playbook rules injected in `cv_rewrite._build_messages` with live pgvector retrieval over the authored CV playbook shelf (ADR-0013/0014). **No API/UI change** — only the message-assembly step changes. **Why build it:** Phase 3 ships on a static prompt, so every rewrite leans on the same hard-coded XYZ/ATS rules. RAG lets the rewrite cite the *specific* playbook passage relevant to THIS bullet/role/JD ("per the Google XYZ formula…"), which is the whole differentiator in the Myro Tutor thesis (grounded, citable, not generic ChatGPT). It also means new playbook content improves rewrites the day it's published (design §2) without a code change. Blocked on the Mentor retriever infra (pgvector + embeddings, ADR-0014) — that's the prerequisite epic. **Open decisions still pending (design §9):** DEC-C1 (A4 default — assumed), DEC-G (tailor opens all-visible vs AI-proposed cut), DEC-H (Rewrite/Restructure XP price — v1 free). **Verify before commit:** run `pytest backend/tests/test_cv_rewrite.py` + `npx tsx --test tests/page-fill.test.ts` in the real toolchain (sandbox had a macOS/Linux `node_modules` mismatch so `tsx`/backend deps couldn't run there; `tsc`/`eslint`/`py_compile` were clean + logic validated standalone).
+
 25. **Rename "XP" / "Tokens" → "Myro Coins" — FULL deep rename (LOGGED 2026-06-07, not started).** Product decision: "Token" is a misnomer (collides with auth/LLM tokens) and "XP" over-gamifies; the canonical name is **Myro Coins**. This is a cross-cutting rename across user-facing copy, internal identifiers, API field names, and DB semantics — NOT a blind find-replace. Owner repo: True_Yodha (the scraper repo only produces job/skill data; it has no XP concept). **Scope discovered via grep (do a fresh grep before starting — counts drift):** dedicated modules `backend/app/services/xp_service.py`, `frontend/lib/xp-policy.ts`, the `frontend/app/(authed)/tokens/` route, the `frontend/components/xp/` folder (`XPGateModal.tsx`, `xp-explainer-modal.tsx`) and `frontend/components/forge/ForgeXpPill.tsx` (+ `forge-xp-pill.css`); heavy hit-count files `frontend/lib/api.ts` (~127), `home/page.tsx`, `forge/page.tsx`, `market/page.tsx`, `settings-modal.tsx`, `cv/page.tsx`, plus `backend/app/deps.py` and `backend/app/services/cv_workflow.py`. DB/earn semantics: XP is written to `daily_logs.skills_delta` keyed e.g. `community_reporter` (+10) — those keys + any `xp`-named columns/RPC params are part of the rename. **Execution order (locked):** (1) Land a user-facing **copy/label pass first** — every visible "XP"/"Tokens"/"points" string → "Myro Coins" (and any unit abbreviation), tests in `frontend/tests/brand-system.test.ts` updated; this is low-risk and shippable alone. (2) Then the **identifier/contract pass** behind it — rename files, vars, components, API request/response field names, and DB columns/keys, each with a migration and a back-compat read shim where an API or column is renamed (avoid a flag-day break: accept both old+new field for one release, then drop old). Keep the `/tokens` route working via redirect to the new path. (3) Update memory + ADR note. **Do NOT** rename internal identifiers and user copy in the same PR — split so the risky contract changes are reviewable in isolation. Cross-link: this is the naming half of the broader Myro currency model; the earn-rate policy lives in `xp-policy.ts` → renamed `myro-coins-policy.ts`.
 
 24. ~~**Set `SUPABASE_JWT_SECRET` on prod → kill per-request auth round-trip**~~ — ❌ **VOID/DANGEROUS. Superseded by #24b (CLOSED 2026-06-07).** Original premise (set HS256 shared secret → local verify) was wrong: Supabase project signs user session tokens with **ES256 (asymmetric, ECC P-256)**, proven by dashboard screenshot 2026-06-07. Setting an HS256 `SUPABASE_JWT_SECRET` on the old code → local HS256 verify rejects every real ES256 token → **total auth outage.** Do NOT set that env var. The perf goal (kill the per-request Supabase Auth round-trip) is delivered correctly by #24b below.
@@ -453,6 +458,87 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+---
+
+## LAST SESSION SUMMARY (2026-06-09 · Upskilling overhaul — Slices 1–2 + api clients BUILT, verified)
+
+All work UNCOMMITTED on `Develop` (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). This session executes the PRD from the 2026-06-08 entry below (`docs/PRD_practice_upskilling_skillgap.md`), driven by a Claude-Design handoff prototype the user supplied at `reference/Overhauling practice design-handoff.zip` (unzipped → `/tmp/overhaul_design/overhauling-practice-design/`; **re-unzip if /tmp cleared** — it is the pixel-source for the UI port). The prototype is a self-contained React/CSS mock of the redesigned `/forge` (Spirit/light theme) whose tokens already match `frontend/app/design-tokens.css` 1:1.
+
+**DEC-1…6 LOCKED by Shivam this session (all the PRD's recommended options):**
+- **DEC-1a** — Upskilling clears DRIVE the headline skill level (replacing the deprecated time-based forge counter), grandfathered `max(legacy_forge_level, assessed_level)` so nobody regresses. One number on screen.
+- **DEC-2** — RETIRE the free-text "Prove it" appeal; leveling is earned by demonstration (clearing the Lₙ set).
+- **DEC-4** — pass bar **8/10**; tiers **10→+50, 9→+30, 8→+20, ≤7→0**.
+- **DEC-6** — pilot bank = top `job_count_30d` skills.
+- **Gap entry (Surface B)** lives on BOTH the Job Tracker AND the Market drawer.
+- (DEC-3 keep the lone "Edit in CV Playground →" nav link; DEC-5 first-clear-only — both recommended defaults.)
+
+**Plan = 7 vertical slices, one PR each → `Develop`. Done this session: Slices 1, 2, and the Slice-3 API clients.**
+
+**Slice 1 — data model (DONE, NOT RUN).** `database/migrations/20260609_upskilling_quiz_bank.sql` — 4 tables: `skill_questions` (scraper-written, **service-read only — NO RLS SELECT policy so the answer key can't leak to a browser**), `quiz_attempts`, `quiz_answers`, `skill_assessed_level`. `skill_id` is **INT REFERENCES skills(id)** (PRD §6 said bigint — that was illustrative; live taxonomy is INT, matches job_skills/user_skills). Idempotent. ⚠️ **Shivam runs it manually via Supabase dashboard** (project `gipvxuugajkugntwkeiz`) per the manual-migration rule — agent did NOT execute it.
+
+**Slice 2 — backend (DONE, 5 tests pass).**
+- `backend/app/services/xp_policy.py` — added `UPSKILLING_SET_SIZE=10`, `UPSKILLING_PASS_BAR=8`, `UPSKILLING_CLEAR_TIERS`, `upskilling_award_for(score)`.
+- `backend/app/schemas/upskilling.py` — full Surface A + Surface B contracts (served-set schemas carry NO `correct_index`).
+- `backend/app/services/upskilling_service.py` — Surface A: `list_skills`, `start_set` (serves key-stripped), `submit_set` (grades server-side, idempotent replay, awards + advances).
+- `backend/app/routers/upskilling.py` — `GET /upskilling/skills`, `POST /upskilling/sets`, `POST /upskilling/sets/{id}/submit`. Registered in `backend/app/main.py`.
+- `backend/tests/test_upskilling_service.py` — **5 passing** (tier table; perfect first-clear pays +50 & unlocks; re-clear of already-paid level pays 0; below-bar pays 0 & no unlock; same-attempt re-submit replays without re-award). Uses an in-memory fake of the supabase fluent client.
+- **TWO deliberate divergences from the PRD's literal text (both correctness wins, keep them):**
+  1. **No new `award_upskilling_clear` RPC.** The existing `reward_xp` RPC (`20260528_reward_xp_rpc.sql` / `xp_service.reward`) already does atomic, idempotent, ledger-audited credit keyed by `(action, ref_table, ref_id)`. Reused it.
+  2. **First-clear idempotency key = `(skill_id, level)`, NOT `attempt_id`.** PRD said `ref_id=attempt_id`, but that only dedupes retries of ONE attempt; D5 ("first clear of each skill+level") requires the level as the key so re-clearing via a *different* attempt pays 0. Implemented as `action='upskilling_clear'`, `ref_table='skill_level_clear'`, `ref_id=f"{skill_id}:{level}"`.
+- **DEC-1a wired in `submit_set`:** a pass upserts `skill_assessed_level` and bumps `user_skills.matched_level = max(prev, level)`.
+
+**Slice 3 (API clients only, DONE).** `frontend/lib/api.ts` — added `upskilling.skills/startSet/submitSet` + types (`UpskillingSkill`, `ServedQuestion`, `StartSetResponse`, `SubmitSetResponse`, …). **`tsc --noEmit` exit 0.**
+
+**⚠️ Local-env gotcha:** `app.main` won't import in the agent venv — `playwright` missing, eagerly pulled by the unrelated `cv` export router via `app/routers/__init__.py`. Pre-existing; NOT caused by this work. New modules `py_compile` clean and the service imports fine (tests pass). Verify full `from app.main import app` in the real toolchain (where playwright is installed).
+
+**NEXT — pick up Slice 3 component port (in progress), then 4–6, plus the scraper-repo pipeline:**
+1. **Slice 3 UI port (BIGGEST remaining):** port the prototype's `primitives.jsx / home.jsx / quiz.jsx / results.jsx` → TS components under `frontend/components/skills/upskilling/`; fold the `up-*` CSS from the prototype `styles.css` into `frontend/app/(authed)/forge/practice.css` (tokens already match); replace mock `BANK`/`SKILLS`/`drawSet` with the new `api.upskilling.*` clients; swap the prototype `ParticleBurst` for the real `useParticleMoment` (reduced-motion gated); source the skill list from real `buildPracticeSkills` (`frontend/lib/practice-skills.ts`) merged over the backend `/skills` progress; gate with `RequiresCV surface="skills"`; mount into `frontend/app/(authed)/forge/page.tsx`. Honor PRD §10.7 partial-bank states (`max_bank_level`/`locked`) and §9 WCAG (the prototype already implements radiogroup/arrow-keys/role=status — preserve it).
+2. **Slice 4:** delete the time-based forge XP earn (the `useForgeTimerStore` dial / `forgeAmbientRate`·`forgeFocusedRate` in `page.tsx` + `xp.completeForge`), keep `forge_service.py` ↔ `level-thresholds.ts` in sync; DEC-1a leveling already lives in `upskilling_service`.
+3. **Slice 5 (Surface B):** build the gap endpoints in `upskilling_service`/router (schemas already exist: `StartGapResponse`/`SubmitGapResponse`/`ReadinessRow`) — reuse `GET /jobs/{job_id}/skill-gap`, rank gap skills by `gap_score × job_count_30d`, cap ~5–6, 3 Qs/skill, **diagnostic (no tokens)**, write `skill_assessed_level`. Port `gap.jsx` → readiness map; add the "Assess my readiness" entry on BOTH Tracker and Market drawer.
+4. **Slice 6 (Part C, ships alone):** strip CV-authoring out of `frontend/components/skills/skill-card-inline.tsx` (evidence/Ask-Mentor/Edit-in-CV/comment-thread) into the CV Playground reusing `POST /cv/skill-edit`; replace "Prove it" appeal per DEC-2; lean card = name + ladder + assessed badge + Start set + one nav link.
+5. **Scraper-repo pipeline (separate repo `firecrawl_Supabase`):** hybrid scrape→LLM-clean→verifier→publish into `skill_questions`. **RAG source = `reference/Interview Prep/`** (user-attached; ~461 PDFs/167 docx — Shivam's MBA/consulting/PM corpus: guesstimates, profitability cases, PM interviews, budget docs). NOTE this corpus is **consulting/product/finance**, NOT the SQL/Python/ML in the prototype mock — pilot skill domain should follow the corpus + top `job_count_30d`.
+
+**Shivam open items:** (1) run the migration on the branch DB. (2) `pytest backend/tests/test_upskilling_service.py` in real toolchain. (3) confirm full `app.main` import once playwright present. (4) commit both repos.
+
+---
+
+## LAST SESSION SUMMARY (2026-06-08 · Practice/CV split — Upskilling PRD + CV Playground redesign Phases 1–3 BUILT)
+
+All work UNCOMMITTED (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). Frontend `tsc --noEmit` exit 0 + `next lint` clean on every touched file; backend `py_compile` clean (backend deps + `tsx` NOT runnable in agent env — macOS `node_modules` on Linux sandbox; pure logic validated standalone).
+
+**Two strands this session.**
+
+**(A) Practice → Upskilling split — PRD ONLY (another agent builds it).** `docs/PRD_practice_upskilling_skillgap.md`: move ALL CV-rewrite logic OUT of Practice into the CV Playground; rebuild Practice as an **Upskilling** module — MCQ (auto-graded), L1–L5 sets of 50–60 questions per skill, sourced **hybrid (scrape → LLM-clean)**, **strictly performance-based** rewards (first-clear-only, 8/10 bar, server-held keys, idempotent via `xp_ledger`), plus a job-anchored **skill-gap assessment**. Aligns to the Myro Tutor ADRs (§11 "earn on quiz cleared"). Deprecates the time-based forge earn (= the participation reward being removed). Decisions DEC-1…6 open.
+
+**(B) CV Playground redesign — DESIGN + Phases 1–3 BUILT.** `docs/DESIGN_cv_playground_redesign.md` + `docs/mockups/cv-playground-redesign.html`. The Action Law: **context left, actions right, object-actions on the object, one state-driven primary, no verb twice.**
+- **Phase 1 — toolbar re-zone** (`components/cv/builder/playground-view.tsx` + `cv-builder.css`): Save collapsed 3→1 (killed the save-bar button + the `+` version-tab dup); one state-driven primary **Save → Export PDF**; dropped duplicate "CV Library" + IntelStrip "View live job data" (removed dead `onOpenDrawer`); match-% moved off the button into the meter; lexicon tightened (Intel/Polish/Edit text/Save). New `.cvb-action-group` (44px mobile). **Editor consistency:** Edit modal in `cv/page.tsx` → "Edit CV text" / "Save". Master editor already compliant (autosave + status-only).
+- **Phase 2 — page-fill meter** (NEW `lib/cv/page-fill.ts` + `tests/page-fill.test.ts`): deterministic **line-budget** model (`IDEAL_CV_SPEC`: A4/10.5pt/0.6in/~98 cpl/50-line budget) — NOT pixel measurement. `role="meter"` pill in the IntelStrip; **soft block** on Export when it spills (confirm → **Auto-trim** lowest-impact bullets / Export anyway). ⚠️ `lineBudget=50`/`charsPerLine=98` need ONE eyeball-calibration vs a real export (soft, so can't trap).
+- **Phase 3 — per-bullet Mentor Rewrite** (NEW `backend/app/services/cv_rewrite.py`, `POST /cv/rewrite-bullet[/apply]` in `routers/cv/skill_edit.py`, NEW `components/cv/builder/bullet-rewrite.tsx`, `backend/tests/test_cv_rewrite.py`): `✦ Rewrite` on each visible bullet → before→after diff. **No-fabrication guard (ADR-0016):** bullet w/o a metric → Mentor asks for the real number (with a "reframe qualitatively" opt-out via `allow_no_metric`), never invents. Ships on `get_llm_provider()` (Phase 5 swaps to RAG, no UI change). **Accept writes a NEW Main-CV baseline** — reuses `cv_skill_edit.locate_bullet`+`apply_bullet_edit`+the SE1–SE17 write/async-retag verbatim, keyed by raw bullet text → rewrite flows to every tailored copy. Free in v1 (`REWRITE_BULLET_XP_COST=0`, DEC-H pending).
+
+**Phases 4 & 5 → Backlog #26** (Restructure-with-Mentor; RAG grounding swap) with rationale.
+
+**Shivam's open items:** (1) run `pytest backend/tests/test_cv_rewrite.py` + `npx tsx --test tests/page-fill.test.ts` in real toolchain. (2) Calibrate page-fill `lineBudget`/`charsPerLine` vs a real export. (3) Confirm DEC-G (tailor opens all-visible vs AI-proposed cut), DEC-H (rewrite price; v1 free), and the Phase-3 baseline-write behavior (rewrite edits the master → propagates; OK or scope per-copy?). (4) Commit both repos (frontend nested git + backend root).
+
+---
+
+## LAST SESSION SUMMARY (2026-06-08 · CV export — server-PDF WYSIWYG + close-the-loop + Geist parity)
+
+Closed the **CV export/download** chapter (NOT the CV building page — see open items). All UNCOMMITTED. Frontend `tsc --noEmit` exit 0 + eslint 0 on every touched file; CSS + woff byte-synced. Backend not runnable in agent env (no fastapi/playwright) — syntax OK, tests written skip-safe w/o Chromium. Memory: `project_cv_export_redesign`.
+
+**The redesign:** PDF download was `window.print()` → manual "Save as PDF" (worst on mobile) and dead-ended at download. Now it's a **server render** (the Google Docs pattern — model→server→blob, which the DOCX path already did) + **download→apply→track**.
+
+- **Phase 1 — server PDF.** Frontend posts the EXACT previewed `.cvb-pdf-page` outerHTML; headless Chromium renders it with the shared sheet CSS → byte-faithful PDF, no dialog, mobile==desktop. NEW `cv-sheet.css` (canonical sheet styling extracted from cv-builder.css; `backend/app/assets/cv_sheet.css` byte-identical copy, drift-guarded). NEW `backend/app/services/cv_pdf_html.py` (`render_html_to_pdf`, sync Playwright, network-blocked, script-stripped, 512KB cap, reproduces @media print form). `POST /cv/export-pdf` → **503 on fail so client auto-falls back to `printCvPage`** (nothing regresses pre-deploy). `cvApi.exportPdf` + `CVExportView` swap (grabs sheet via `display:contents` ref — transforms must NEVER go on `.cvb-pdf-page` or they pollute the posted outerHTML).
+- **Phase 0 — image (built, Shivam deploys).** Dockerfile `playwright install --with-deps chromium` + `fonts-liberation`; requirements `playwright==1.44.0`. **Server PDF is DEAD until the image is rebuilt** — print() fallback carries it until then.
+- **Phase 3 — close-the-loop.** Tailored export records the application via existing `jobsApi.updateApplication(jobId,{status:"applied"})` (PUT upserts + stamps `applied_at`). Post-download "Mark as applied" nudge → "Applied to {company} on {date}"; export page seeds state from `jobsApi.applications()`. Tracker infra (saved→…→offer) already existed.
+- **Phase 4 — resilience + clarity.** `withRetry` (2 attempts, backoff) wraps exportPdf/exportDocx (weak IN networks); DOCX error invites retry; format guidance "PDF suits most ATS — pick DOCX only if the portal asks for Word"; killed stale "Save as PDF in the print dialog" copy.
+- **Option B — real Geist parity.** NEW `cv-fonts.css` (@font-face from vendored variable woff) + backend base64-embeds the SAME woff (`cv_pdf_html._font_face_css`, vendored `backend/app/assets/fonts/Geist*.woff`, byte-synced + test-guarded).
+- **⚠️ FONT CORRECTION:** earlier-session claim "Geist never loaded / falls back to Helvetica" was WRONG — a pre-existing Google Fonts `@import` (`cv-builder.css:6`, `family=Geist:wght@300..700`) already loaded Geist. So the preview was always Geist → Phase 0's Arial-on-server would have DRIFTED, making Option B **necessary, not optional.** Now **two frontend Geist sources** coexist: Google CDN (cv-builder.css:6, parses last → wins weights 300–700) + local woff (cv-fonts.css); server embeds the local woff. Minor frontend(Google)/server(woff) version nuance. **Recommend: pick ONE Geist source** (drop the Google `@import` and rely on local woff = server, OR drop cv-fonts.css and embed Google's exact Geist server-side) for guaranteed byte-parity.
+- **Phase 2 (mobile 375px scale-to-fit) NOT built** — needs visual iteration; current mobile still reflows (`.cvb-pdf-page{width:100%}`) which diverges from the A4 download. Explained + parked awaiting go-ahead.
+
+**Still OPEN on the CV *building* page (not this session):** fresher "build from scratch", CV-upload reliability (P0 regression), mobile editor (drag/large fields), version mgmt + side-by-side compare, auto-save/draft recovery, state-blind "Upload CV" CTA after success, pricing clarity before download.
+
+**Shivam's open items:** (1) Rebuild/deploy backend image w/ Chromium → test the real PDF round-trip (the one thing unverifiable in-agent). (2) Decide the single Geist source. (3) Eyeball CV export at 375px → greenlight Phase 2 mobile. (4) Commit both repos (backend root + nested `frontend/.git`).
 
 ---
 
@@ -908,3 +994,231 @@ Phase 5 — polish (standalone):
 - ND12: Forge early-exit confirmation copy
 
 ---
+
+## LAST SESSION SUMMARY (2026-06-08 · Automated deep audit — Sprint 6 plan)
+
+Scheduled task ran a third autonomous audit of `reference/` — this time covering every folder not previously analyzed, including two new handoff bundles that were missed in prior sessions. No code was written.
+
+**New materials analyzed this session:**
+- `reference/building-10-min-cv-onboarding-extracted/design_handoff_progressive_nav/README.md` — complete high-fidelity spec for the progressive-disclosure nav including the **first-run base tour** (3-step coachmark sequence)
+- `reference/_bsup_extract/design_handoff_signup/README.md` + 4 screenshots — complete signup modal redesign (2-mode: operators + institutions, step progress, light theme, success state)
+- `reference/branding/BRAND_IDENTITY.md` — canonical brand system: dual-accent toggle (Signal Teal / Forge Amber), Space Grotesk primary font, 5-size type scale, four-signal interactive rule
+- `reference/AAAAAA/` — 10 screenshots from 28th May showing "About CV hub landing page" design vision
+- `reference/User suggestions_28may.md` — 8 additional user voices (all converge on: simpler onboarding, faster wow moment, "I didn't know what to do")
+
+**Code state verified against Sprint 5 carry-overs:**
+- BUG-3 ✅ CLOSED (`skillTierHint` + `title`/`aria-label` on tier pill in `practice-skill-list.tsx`)
+- BUG-8 ✅ CLOSED (`lib/format-location.ts` de-dupes city===country)
+- BUG-9 ✅ CLOSED (PLANNED row no longer present in `tokens/page.tsx`)
+- BUG-11 ✅ CLOSED (`forge/page.tsx:236` "End session — forfeit tokens?" confirm)
+- BUG-12 ✅ CLOSED (`cv/page.tsx:423` "32,000+ recognized skill types used by real hiring managers")
+- BUG-13 ✅ CLOSED (`cv/page.tsx:460-461` extraction tips, gated on skills_detected===0)
+- Nav date ✅ CLOSED (`top-nav.tsx:41` uses `new Date()` dynamically)
+- BUG-10 ⚠️ NEEDS PHONE QA — `CategoryCard` is a proper `<button onClick>`, no pointer-events issue visible in code; the "broken" reports may be a z-index/overlay conflict on specific Android Chrome versions. Needs live device repro.
+- PR-F ⚠️ NEEDS PHONE QA — sticky tab + SE14 icon-only need visual confirm on 375px device
+- Landing page items — ALL UNBUILT (`landing-page.tsx` is 148 lines: hero + SampleDiagnostic + footer only)
+
+**Critical new finding: BASE TOUR is missing.**
+`use-nav-unlocks.ts` fires coachmarks only on mid-session unlock transitions. The progressive-nav handoff spec requires a 3-step first-run tour (dashboard→yard→market) with 650ms delay, step dots, and scrim. This was never built. Given that 30/30 users said "I didn't know what to do after signing up", this is the single highest-impact unbuilt item.
+
+---
+
+## SPRINT 6 — FIRST-RUN EXCELLENCE + LANDING PAGE DEPTH
+
+**Goal:** Make every first-time user know exactly what to do within 60 seconds of signing up. Make the landing page earn its conversion.
+
+**What Sprint 5 left unbuilt (carry-over):**
+- BUG-10 phone QA, PR-F 375px QA
+- PR-TRUST-SIGNALS (T1/T2/T3), PR-LANDING-FAQ, PR-LANDING-CLARITY, PR-LANDING-VISUAL-WARMTH
+- PR-QUEST-BOARD (blocked on ND4), PR-REFERRAL-V1 (blocked on ND6)
+
+---
+
+### P0 — CARRY-OVER PHONE QA (do on a real device, not DevTools)
+
+**BUG-10 — Feedback form category cards broken on mobile (VERIFY FIRST)**
+`CategoryCard` is a valid `<button onClick>`. Likely culprit: the hub dialog overlay has a touch-passthrough issue on Android Chrome — modal's root element may not stop touch propagation, so taps fall through to content behind. Check `feedback-hub.tsx` root div's `onPointerDown`/`onTouchStart` handling and the hub's z-index stacking context. Fix: add `onPointerDown={e => e.stopPropagation()}` on the modal backdrop and verify it captures touch events. Files: `components/feedback/feedback-hub.tsx`, `feedback-hub.css`.
+
+**PR-F VERIFY — 375px skill card (confirm or fix)**
+Load `/skills` at 375px Chrome DevTools. Check: (a) `Intel · Map · Audit` sticky pill has `--bg-page` background so it doesn't overlap cards; (b) `<480px` skill-card action buttons = icons only (SE14). If either fails → fix CSS. Files: `components/skills/`.
+
+---
+
+### P0-NEW — FIRST-RUN BASE TOUR (CRITICAL, highest-impact unbuilt item)
+
+**PR-BASE-TOUR — 3-step coachmark tour for first-time users**
+
+Full spec in `reference/building-10-min-cv-onboarding-extracted/design_handoff_progressive_nav/README.md`. This is the "base tour" section. The current `use-nav-unlocks.ts` only handles mid-session unlock coachmarks; first-time users get zero guidance.
+
+**What to build:**
+1. Add `baseTourSeen` to `use-nav-unlocks.ts` — reads/writes `localStorage["myro_tour_base_v1"]`.
+2. On first authed mount where `versions` and `profile` both resolve AND `baseTourSeen === false`: after **650ms** delay, open a tour queue for `["home", "forge", "market"]` (the 3 base nav items).
+3. Separate `tourQueue` state (distinct from `coachQueue` for unlock events) — `tourQueue[0]` is the active tour step.
+4. Update `Coachmark` in `topbar-nav.tsx` to accept a `tourStep?: {current: number; total: number}` prop. When `tourStep` is present, render **step dots** below the body: 3×6px pill; current = `var(--tm-accent)` 16px wide; done = `var(--tm-accent-ring)`; upcoming = `var(--tm-border)`. Last step button = "Got it"; earlier steps = "Next →".
+5. Tour-step coachmark copy (use verbatim, from the handoff spec):
+   - `home`: tag `01 · MISSION CONTROL`; body: "Home base. Your Myro Score, your best-matched role, and the single next move toward an offer."
+   - `forge`: tag `02 · CLOSE THE GAP`; body: "Daily reps that close the exact skill gaps standing between you and the roles you want."
+   - `market`: tag `03 · STRAIGHT FROM CAREER PAGES`; body: "Real openings read live from company career pages — matched to your skills and scored for fit. This is where your next CV begins."
+6. Scrim already exists (`tm-nav-scrim`); while tour is active, non-target nav items get `opacity: 0.32`.
+7. On "Got it" (last step): mark `baseTourSeen = true`, clear tour queue.
+8. While tour active: clicking scrim advances tour (same as Next).
+9. Respect `prefers-reduced-motion` — entrance animates transform only (existing pattern in nav CSS).
+
+**Files:** `lib/hooks/use-nav-unlocks.ts`, `components/nav/topbar-nav.tsx`, `components/nav/topbar-nav.css` (step dots styles).
+**Acceptance:** Fresh account (clear `myro_tour_base_v1`) → land on `/home` → after 650ms coachmark appears on Dashboard item with step dots `● ○ ○` → click Next → Forge coachmark `● ● ○` → click Next → Market coachmark `● ● ●` + "Got it" → tour done, flag set, never auto-runs again. Blocked on ND13.
+
+---
+
+### P1 — LANDING PAGE DEPTH (all unbuilt, ship as one PR)
+
+**PR-LANDING-DEPTH — Full landing page build-out**
+`components/public/landing-page.tsx` is 148 lines. Every Sprint 5 item for the landing page is unbuilt. Build all together as one PR:
+
+**T1 — "Free to start" trust badge**
+Add `Free to start · No credit card` in `var(--tm-text-muted)` 11px directly below the "Choose file" / "Drop CV" CTA button. Single inline line, no box. Mirror to the signup form (`components/auth/signup-modal.tsx`).
+
+**T2 — What you'll be scored on**
+Add a `?` icon or "How is scoring calculated?" link beside the Myro Score badge on the landing hero. Opens an inline collapsible showing 10 domain chips: `Technology · Data · Communication · Leadership · Strategy · Marketing · Operations · Finance · Product · People`. Same copy goes into FAQ answer #3. Blocked on ND9 (confirm exact domain names).
+
+**T3 — Social proof count**
+Add "Join 500+ job seekers already using Myro" above hero CTA (or wire to `GET /public/stats` if endpoint exists in `backend/app/routers/public.py`). 500 is a conservative floor; update when real count is known. Files: `landing-page.tsx`, optionally `backend/app/routers/public.py`.
+
+**FAQ section** — 5 items, collapsible (details/summary or custom accordion):
+1. "Is Myro free?" → Yes, free to start. XP lets you unlock skill advice and company intel. No credit card.
+2. "How is this different from LinkedIn or Naukri?" → Myro scores your CV against live job data and shows exactly which skills to build. LinkedIn shows you jobs; Myro shows what's stopping you from getting them.
+3. "What is the Myro Score?" → A 0–100 score across 10 career domains, computed from your CV skills against real hiring demand: [domain chips]. It goes up as you practice skills and add evidence.
+4. "Is my CV private?" → Yes. Your CV is never shared or visible to recruiters. Only you see it. Your public profile shows only your Myro Score and domain map — never your actual CV text.
+5. "What is Forge?" → Forge is your practice yard. Pick a skill, run a 25-minute focused session, earn XP. Each session moves your skill level from L0 to L5.
+
+**3-step visual flow**
+Below the hero, add a horizontal "How it works" block: three connected numbered steps: `① Upload your CV → ② Get your Myro Score → ③ Tailor & send the right one`. Each step: number pill + title + one-line description. Connected with a thin dashed line on desktop; stacked on mobile.
+
+**Testimonials**
+3 user quotes from beta feedback (use verbatim from `reference/User feedback docs/`):
+- Aman: "The Myro Score and skill mapping made the platform feel highly intelligent from the start."
+- Ananya: "Having multiple CV versions in one place instead of random PDFs scattered everywhere is genuinely useful."
+- Ashu: "The light theme looks clean and professional. The job-targeting system is a strong idea."
+Add as a minimal text strip: quote + initial + city. No photos.
+
+**Files:** `components/public/landing-page.tsx`, `components/public/landing-page.css`.
+**Acceptance:** Landing page has trust badge, 3-step visual, 3 testimonials, FAQ accordion (5 items), social proof count. All visible above or near fold on 375px.
+
+---
+
+### P2 — SIGNUP REDESIGN (after ND14 confirmed)
+
+**PR-SIGNUP-REDESIGN — Implement light-theme signup modal spec**
+Full high-fidelity spec at `reference/_bsup_extract/design_handoff_signup/README.md`. Screenshots at `reference/_bsup_extract/design_handoff_signup/screenshots/`.
+
+Key elements to implement:
+- **Two-mode switcher**: "For operators" / "For institutions" sliding pill tab (`role="tablist"`).
+- **Step progress visualization**: 5-step connected progress bar (Upload · Read · Target · Tailor · Download for operators). Display-only, advances one step on success.
+- **Eyebrow**: mono 12px uppercase "SIGN UP · 30 SECONDS".
+- **Headline**: Newsreader serif 38px "Start your CV hub."
+- **Success state**: replaces left column — green check badge, serif title "Check your inbox.", what's-next 3-row numbered list.
+- **Right rail ("What you'll get")**: 3 perk cards matching the mode (Score CV / Tailor versions / Track jobs for operators).
+- **Light theme**: emerald primary `#148462`, white surfaces, ink `#0E1B17`. This already matches the existing `/institutions` route styling.
+- **Institution email validation**: reject `@gmail|yahoo|outlook|...` on blur, accept institutional domains.
+- Design tokens are in `reference/_bsup_extract/design_handoff_signup/README.md` section "Design tokens (exact)".
+- The signup HTML prototype is at `reference/_bsup_extract/design_handoff_signup/signup.html` — open it in a browser to see the exact target.
+**Files:** `app/signup/page.tsx`, `components/auth/signup-modal.tsx`, `app/signup/institutions/`.
+Blocked on ND14.
+
+---
+
+### P3 — RETENTION ENGINE (blocked on decisions)
+
+**PR-QUEST-BOARD** — Daily missions. See Sprint 5 P2 for full spec. Blocked on ND4.
+
+**PR-REFERRAL-V1** — Wire referral end-to-end. See Sprint 5 P3 for full spec. Blocked on ND6.
+
+**PR-LANDING-VISUAL-WARMTH** — Reduce particle animation 50%, apply `--bg-page` to public landing. See Sprint 5 P4. Standalone, no decisions needed.
+
+---
+
+### P4 — BRAND SYSTEM (new, decisions required)
+
+**PR-BRAND-TOKEN-AUDIT — Enforce 5-size type scale (non-blocking, Sprint 6 if bandwidth allows)**
+`reference/branding/BRAND_IDENTITY.md` section 6 defines a strict 5-token type scale:
+- `--fs-display: 36px/40px` · `--fs-title: 24px/32px` · `--fs-heading: 18px/26px` · `--fs-body: 16px/24px` · `--fs-meta: 13px/18px`
+Many page-scoped CSS files use one-off `font-size` values outside this scale. Audit and normalize. Files: `app/globals.css`, all page-scoped `*.css` files.
+
+Dual-accent toggle and Space Grotesk migration: see ND15 and ND17. Deferred pending decisions.
+
+---
+
+### NEW DESIGN DECISIONS FOR SHIVAM (Sprint 6)
+
+Decisions ND4–ND12 from Sprint 5 carry over unchanged. New:
+
+**ND13 — First-run base tour scope** *(BLOCKING PR-BASE-TOUR)*
+Handoff specifies 3-step coachmark tour (650ms delay, step dots, scrim, specific copy). Options:
+(a) Build exactly per handoff spec — scrim, step dots, 650ms delay, copy verbatim ← recommended
+(b) Simpler — single "welcome" coachmark on home only, no tour sequence
+(c) Skip — rely on PR-COACHMARKS page-level banners instead
+**Recommended: (a).** This is the original spec and directly addresses "I didn't know what to do" (30/30 users). Single biggest retention lever before the quest board. **Confirm before coding.**
+
+**ND14 — Signup redesign scope** *(BLOCKING PR-SIGNUP-REDESIGN)*
+Complete redesign spec exists at `reference/_bsup_extract/design_handoff_signup/README.md`. Options:
+(a) Minimal: remove ninja name field + add "free to start" badge (1h work)
+(b) Full redesign per spec: two-mode switcher + step progress + light theme + success state (~3 sessions)
+(c) Full redesign + merge `/institutions` into the same modal (replaces current separate `/institutions` page)
+**Recommended: (b).** The light-theme spec is self-contained and the `/institutions` route is already light-themed, so the design language is established. **Confirm before coding.**
+
+**ND15 — Dual accent toggle (Signal/Forge) timeline**
+`reference/branding/BRAND_IDENTITY.md` defines dual-accent as a core differentiator. `reference/branding/AccentToggle.tsx` prototype exists. Options:
+(a) Sprint 6: implement toggle — CSS var swap, localStorage persistence, Signal/Forge pill in settings
+(b) Defer to dedicated branding sprint after beta-3 launch
+(c) Drop — Signal teal is the only accent
+**Recommended: (b) defer.** CSS variables are already scoped for this. Higher-value sprint 6 work (base tour, landing) comes first.
+
+**ND16 — Zero-friction "wow moment" pre-CV**
+Multiple users (especially `User suggestions_28may.md`) want value before CV upload. `SampleDiagnostic` already exists. Options:
+(a) Enhance `SampleDiagnostic` — expandable domains, animated score build-up, "what these domains mean" tooltips
+(b) Add a "Try without CV" path — role selector → instant sample score for that role
+(c) 30-second Loom/product video embed
+**Recommended: (a) for Sprint 6 — SampleDiagnostic exists and can be deepened without backend work.** Confirm.
+
+**ND17 — Font migration (Space Grotesk → primary)**
+`BRAND_IDENTITY.md` says Space Grotesk is the primary UI font. Current app uses Geist.
+**Recommended: defer.** Font migrations surface unexpected edge cases. Prioritize user-facing impact first. Confirm.
+
+---
+
+### BUILD ORDER FOR SPRINT 6
+
+```
+Phase 1 — phone QA (do on a real device):
+  BUG-10 verify → PR-F 375px verify
+
+Phase 2 — first-run excellence (after ND13 confirmed):
+  PR-BASE-TOUR
+
+Phase 3 — landing page (no decisions needed for T1/T3/3-step/testimonials/FAQ):
+  PR-LANDING-DEPTH (T1 + T3 + FAQ + 3-step + testimonials)
+  T2 after ND9 domain-names confirmed
+
+Phase 4 — signup redesign (after ND14 confirmed):
+  PR-SIGNUP-REDESIGN
+
+Phase 5 — retention + polish (after ND4/ND6 confirmed):
+  PR-QUEST-BOARD → PR-REFERRAL-V1 → PR-LANDING-VISUAL-WARMTH
+
+Phase 6 — brand (after ND15/ND16/ND17 confirmed):
+  SampleDiagnostic enhancement → PR-BRAND-TOKEN-AUDIT → AccentToggle (if ND15=yes)
+```
+
+**Commit pattern:** one PR per item, `fix:` / `feat:` prefix. `tsc --noEmit` + `next lint` clean before merge. All work to `Develop`.
+
+**Questions for Shivam (confirm at session start before coding):**
+- ND13: First-run base tour — full spec per handoff or simpler?
+- ND14: Signup redesign — minimal fix or full redesign?
+- ND15: Dual accent toggle — sprint 6 or defer?
+- ND16: "Wow moment" — enhance SampleDiagnostic or try-without-CV path?
+- ND17: Font migration — now or defer?
+- ND4 (carry-over): Quest Board layout (desktop list vs mobile chip strip)
+- ND5 (carry-over): Landing preview format
+- ND6 (carry-over): PLANNED referral row
+- ND7 (carry-over): Feedback form still broken on phone?
+- ND9 (carry-over): Exact 10 domain names for landing copy
+

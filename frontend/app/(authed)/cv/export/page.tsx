@@ -13,11 +13,13 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
-import { users } from "@/lib/api"
+import { jobs as jobsApi, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 
+import "../cv-fonts.css"
+import "../cv-sheet.css"
 import "../cv-builder.css"
 
 function CVExportPage() {
@@ -38,6 +40,19 @@ function CVExportPage() {
     staleTime: 5 * 60 * 1000,
   })
   const profile = profileQuery.data ?? null
+
+  // Seed the close-the-loop tracker: if this job is already marked applied, the
+  // export shows "Applied on …" instead of the "Mark as applied" nudge.
+  const applicationsQuery = useQuery({
+    queryKey: dataKeys.applications(),
+    queryFn: () => jobsApi.applications(token!),
+    enabled: !!ready && !!token,
+    staleTime: 2 * 60 * 1000,
+  })
+  const appliedAt = useMemo(() => {
+    const row = applicationsQuery.data?.find(a => a.job_id === jobId)
+    return row && row.status !== "saved" ? row.applied_at : null
+  }, [applicationsQuery.data, jobId])
 
   const company = playground.selectedVersion?.company_name ?? "Selected role"
   const jobTitle = playground.selectedVersion?.job_title ?? ""
@@ -75,6 +90,7 @@ function CVExportPage() {
             jobTitle={jobTitle}
             jobId={jobId}
             matchScore={matchScore}
+            appliedAt={appliedAt}
             onBack={() => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)}
             backLabel="Back to playground"
           />

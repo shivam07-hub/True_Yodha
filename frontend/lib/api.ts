@@ -548,6 +548,13 @@ export interface CVUploadFallbackSubmissionResponse {
   sla_hours: number
 }
 
+export interface RewriteBulletResponse {
+  mode: "rewrite" | "question" | "error"
+  rewritten_text?: string | null
+  question?: string | null
+  rationale?: string | null
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -632,11 +639,51 @@ export const cv = {
       `/cv/skill-edit/recompute-status/${baselineId}`,
       { headers: { Authorization: `Bearer ${token}` } },
     ),
+  // Per-bullet Mentor rewrite (suggest = stateless proposal / no-fab question).
+  rewriteBullet: (
+    token: string,
+    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean },
+  ) =>
+    request<RewriteBulletResponse>("/cv/rewrite-bullet", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  // Apply an accepted rewrite — writes a new baseline (mirrors skill-edit).
+  rewriteApply: (
+    token: string,
+    body: { old_text: string; new_text: string; section_hint?: string | null; item_index?: number | null; bullet_index?: number | null },
+  ) =>
+    request<SkillEditResponse>("/cv/rewrite-bullet/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
   downloadPdf: async (token: string, cvText: string, filename?: string): Promise<Blob> => {
     const res = await fetch(`${BASE}/cv/download-pdf`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ cv_text: cvText, filename }),
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "PDF generation failed")
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
+  // WYSIWYG PDF export. The body carries the literal rendered .cvb-pdf-page
+  // outerHTML — the SAME DOM the user previewed — and headless Chromium renders
+  // it server-side with the shared sheet stylesheet, so the PDF is byte-faithful
+  // to the preview (no plain-text round-trip like downloadPdf). On 503 the caller
+  // falls back to the browser's native Save-as-PDF (printCvPage).
+  exportPdf: async (
+    token: string,
+    body: { html: string; filename: string },
+  ): Promise<Blob> => {
+    const res = await fetch(`${BASE}/cv/export-pdf`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       const msg = await res.text().catch(() => "PDF generation failed")
@@ -2440,6 +2487,81 @@ export const home = {
   bootstrap: (token: string) =>
     request<HomeBootstrapResponse>("/home/bootstrap", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+// ── Upskilling (Practice → Upskilling overhaul, PRD §7) ──────────────────────
+
+export interface UpskillingSkill {
+  skill_id: number
+  skill_key: string
+  display_name: string
+  cleared_level: number
+  next_level: number
+  assessed_level: number
+  on_cv: boolean
+  demand: string
+  job_count: number
+  max_bank_level: number
+  locked: boolean
+}
+
+/** A served question — the answer key is withheld until grading. */
+export interface ServedQuestion {
+  id: number
+  question_text: string
+  options: string[]
+}
+
+export interface StartSetResponse {
+  set_id: string
+  skill_id: number
+  skill_key: string
+  level: number
+  questions: ServedQuestion[]
+}
+
+export interface QuestionResult {
+  question_id: number
+  correct_index: number
+  is_correct: boolean
+  explanation: string
+}
+
+export interface SubmitSetResponse {
+  score: number
+  max: number
+  passed: boolean
+  first_clear: boolean
+  tokens_awarded: number
+  new_xp_balance: number
+  next_level_unlocked: number | null
+  results: QuestionResult[]
+}
+
+export const upskilling = {
+  skills: (token: string) =>
+    request<UpskillingSkill[]>("/upskilling/skills", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  startSet: (token: string, skillId: number, level: number) =>
+    request<StartSetResponse>("/upskilling/sets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ skill_id: skillId, level }),
+    }),
+
+  submitSet: (
+    token: string,
+    setId: string,
+    answers: Array<{ question_id: number; selected_index: number }>,
+    idempotencyKey: string,
+  ) =>
+    request<SubmitSetResponse>(`/upskilling/sets/${encodeURIComponent(setId)}/submit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ answers, idempotency_key: idempotencyKey }),
     }),
 }
 

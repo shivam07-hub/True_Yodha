@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
@@ -10,6 +10,7 @@ import { useXPGate } from "@/lib/hooks/use-xp-gate"
 import { XP_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { LevelDots } from "@/components/skills/level-dots"
+import { useParticleMoment } from "@/components/particle"
 import { CommentThread, useCommentCount } from "@/components/comments/comment-thread"
 import { skillTier, skillTierLabel, TIER_TOKENS } from "@/lib/skill-tier"
 
@@ -27,6 +28,11 @@ const LADDER_DESCRIPTOR: Record<string, string> = {
 export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token: string }) {
   const queryClient = useQueryClient()
   const applyXpChange = useXPStore((s) => s.applyXpChange)
+
+  // WOW moment #3 — skill level-up approved. Burst originates from this card so
+  // the celebration points at the thing that just leveled. (cardRef → rect centre.)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const fireMoment = useParticleMoment()
 
   const [advice, setAdvice] = useState<string | null>(null)
   const [adviceExpanded, setAdviceExpanded] = useState(false)
@@ -57,6 +63,11 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
       if (data.approved) {
         queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+        const r = cardRef.current?.getBoundingClientRect()
+        fireMoment({
+          intensity: 1.3,
+          anchor: r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined,
+        })
       }
     },
     onError: (err: Error) => {
@@ -78,7 +89,7 @@ export function InlineSkillCard({ skill, token }: { skill: UserSkillItem; token:
   })
 
   return (
-    <div className="tm-skill-card-inline" style={{
+    <div ref={cardRef} className="tm-skill-card-inline" style={{
       background: "var(--tm-surface)",
       border: "1px solid var(--tm-border-soft)",
       borderRadius: "var(--tm-radius-sm)",

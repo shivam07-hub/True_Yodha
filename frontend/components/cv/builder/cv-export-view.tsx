@@ -18,8 +18,10 @@
  */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { cv as cvApi, type CVStructured, type UserProfile } from "@/lib/api"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { cv as cvApi, jobs as jobsApi, type CVStructured, type UserProfile } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { Icon } from "./icons"
 import { runAtsChecks, atsScore } from "./ats-checks"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
@@ -47,6 +49,9 @@ interface CVExportViewProps {
   jobTitle?: string
   jobId?: string | null
   matchScore?: number
+  /** ISO date the user already marked this job applied, if any — seeds the
+   *  close-the-loop tracker so a return visit shows "Applied on …". */
+  appliedAt?: string | null
   /** Navigation out of the export surface. */
   onBack?: () => void
   backLabel?: string
@@ -54,6 +59,28 @@ interface CVExportViewProps {
 
 function slug(s: string | null | undefined): string {
   return (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+}
+
+function formatAppliedDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+}
+
+/** Retry a flaky export call with linear backoff — weak mobile networks (the
+ *  core audience) drop a single request often, but a second attempt usually
+ *  lands. Keeps the export from failing on one transient blip. */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 600): Promise<T> {
+  let lastErr: unknown
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastErr = err
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, baseDelayMs * (i + 1)))
+    }
+  }
+  throw lastErr
 }
 
 function triggerBlobDownload(blob: Blob, filename: string, mime: string) {
@@ -72,7 +99,7 @@ function triggerBlobDownload(blob: Blob, filename: string, mime: string) {
 
 export function CVExportView({
   token, cv, hidden, contact, profile, context,
-  template, company, jobTitle, jobId, matchScore = 0,
+  template, company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back",
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
@@ -120,8 +147,57 @@ export function CVExportView({
   const [docxBusy, setDocxBusy] = useState(false)
   const [docxError, setDocxError] = useState<string | null>(null)
 
-  function handleDownloadPdf() {
-    printCvPage(filename)
+  // Grabs the exact `.cvb-pdf-page` the user sees so the server renders the
+  // literal previewed DOM. The wrapper is `display:contents` → no layout box,
+  // so it cannot affect the sheet's flow.
+  const pageWrapRef = useRef<HTMLDivElement>(null)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  // Close-the-loop: the export is no longer a dead end. Once the tailored CV is
+  // saved we nudge the user to record the application so the CV hub doubles as a
+  // tracker ("applied to {company} on {date}").
+  const [downloaded, setDownloaded] = useState(false)
+  const queryClient = useQueryClient()
+  const [appliedDate, setAppliedDate] = useState<string | null>(appliedAt)
+  const [trackBusy, setTrackBusy] = useState(false)
+  const [trackError, setTrackError] = useState<string | null>(null)
+
+  async function handleDownloadPdf() {
+    if (pdfBusy) return
+    const sheet = pageWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
+    if (!sheet) {
+      // Nothing to grab — use the browser's native Save-as-PDF.
+      printCvPage(filename)
+      setDownloaded(true)
+      return
+    }
+    setPdfBusy(true)
+    try {
+      const blob = await withRetry(() => cvApi.exportPdf(token, { html: sheet.outerHTML, filename }))
+      triggerBlobDownload(blob, filename, "application/pdf")
+    } catch {
+      // Server renderer unavailable (503 / network) → native browser print is
+      // the WYSIWYG fallback, so the user always gets a real PDF.
+      printCvPage(filename)
+    } finally {
+      setPdfBusy(false)
+      setDownloaded(true)
+    }
+  }
+
+  async function handleMarkApplied() {
+    if (trackBusy || !jobId || appliedDate) return
+    setTrackBusy(true)
+    setTrackError(null)
+    try {
+      const res = await jobsApi.updateApplication(token, jobId, { status: "applied" })
+      setAppliedDate(res.applied_at ?? new Date().toISOString())
+      // Refresh the tracker so /cv and the applications view reflect it.
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+    } catch (err) {
+      setTrackError(err instanceof Error ? err.message : "Could not record the application.")
+    } finally {
+      setTrackBusy(false)
+    }
   }
 
   async function handleDownloadDocx() {
@@ -131,29 +207,32 @@ export function CVExportView({
     try {
       const visible = selectVisibleCV(cv, hidden)
       const docxName = filename.replace(/\.pdf$/i, "") + ".docx"
-      const blob = await cvApi.exportDocx(token, {
+      const blob = await withRetry(() => cvApi.exportDocx(token, {
         visible,
         contact,
         template: activeTemplate,
         company: isTailored ? company : undefined,
         filename: docxName,
-      })
+      }))
       triggerBlobDownload(blob, docxName, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    } catch (err) {
-      setDocxError(err instanceof Error ? err.message : "Could not generate DOCX.")
+      setDownloaded(true)
+    } catch {
+      setDocxError("Couldn't build the DOCX — tap Download DOCX to retry.")
     } finally {
       setDocxBusy(false)
     }
   }
 
   const page = (
-    <PdfPage
-      cv={cv}
-      hidden={hidden}
-      contact={contact}
-      company={isTailored ? company : undefined}
-      template={activeTemplate}
-    />
+    <div ref={pageWrapRef} style={{ display: "contents" }}>
+      <PdfPage
+        cv={cv}
+        hidden={hidden}
+        contact={contact}
+        company={isTailored ? company : undefined}
+        template={activeTemplate}
+      />
+    </div>
   )
 
   const templatePicker = <TemplatePicker value={activeTemplate} onChange={pickTemplate} />
@@ -180,10 +259,13 @@ export function CVExportView({
               <Icon name="check" size={11} /> ATS · {passedCount}/{totalChecks}
             </span>
             {docxButton}
-            <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf}>
-              <Icon name="download" size={14} /> Download PDF
+            <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+              <Icon name="download" size={14} /> {pdfBusy ? "Building PDF…" : "Download PDF"}
             </button>
           </div>
+        </div>
+        <div className="cvb-export-track-nudge" style={{ marginTop: 6 }}>
+          PDF suits most ATS — pick DOCX only if the portal asks for a Word file.
         </div>
         {docxError && <div className="cvb-export-err">{docxError}</div>}
         <div className="cvb-export-inline-stage">{page}</div>
@@ -217,9 +299,9 @@ export function CVExportView({
             </span>
           )}
           {docxButton}
-          <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf}>
+          <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
             <Icon name="download" size={14} />
-            Download PDF
+            {pdfBusy ? "Building PDF…" : "Download PDF"}
           </button>
         </div>
       </div>
@@ -239,7 +321,7 @@ export function CVExportView({
         <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 11.5, color: "var(--tm-text-faint)", flexWrap: "wrap" }}>
           <span className="mono">A4 · native text · what you see is what downloads</span>
           <span style={{ opacity: 0.5 }}>·</span>
-          <span>Choose &ldquo;Save as PDF&rdquo; in the print dialog — fully ATS-parseable.</span>
+          <span>PDF suits most ATS — pick DOCX only if the portal asks for a Word file.</span>
         </div>
 
         {(company || jobId) && (
@@ -248,6 +330,33 @@ export function CVExportView({
               Apply with this CV
             </div>
             <ApplyRow company={company ?? null} title={jobTitle ?? null} jobId={jobId ?? null} variant="block" />
+
+            {jobId && (
+              <div className="cvb-export-track">
+                {appliedDate ? (
+                  <span className="cvb-pill success">
+                    <Icon name="check" size={11} /> Applied{company ? ` to ${company}` : ""} · {formatAppliedDate(appliedDate)}
+                  </span>
+                ) : (
+                  <>
+                    {downloaded && (
+                      <span className="cvb-export-track-nudge">
+                        Saved ✓ — did you apply? Track it so your CV hub remembers.
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className={`cvb-btn ${downloaded ? "primary" : "ghost"}`}
+                      onClick={handleMarkApplied}
+                      disabled={trackBusy}
+                    >
+                      <Icon name="check" size={14} /> {trackBusy ? "Saving…" : "Mark as applied"}
+                    </button>
+                  </>
+                )}
+                {trackError && <div className="cvb-export-err">{trackError}</div>}
+              </div>
+            )}
           </div>
         )}
 
