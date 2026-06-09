@@ -23,6 +23,7 @@ from app.routers import (
     skills,
     status,
     telemetry,
+    upskilling,
     users,
     xp,
 )
@@ -68,6 +69,7 @@ app.include_router(newsletter.router)
 app.include_router(newsletter_distribution.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)
+app.include_router(upskilling.router)
 
 
 @app.on_event("startup")

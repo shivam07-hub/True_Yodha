@@ -2490,6 +2490,81 @@ export const home = {
     }),
 }
 
+// ── Upskilling (Practice → Upskilling overhaul, PRD §7) ──────────────────────
+
+export interface UpskillingSkill {
+  skill_id: number
+  skill_key: string
+  display_name: string
+  cleared_level: number
+  next_level: number
+  assessed_level: number
+  on_cv: boolean
+  demand: string
+  job_count: number
+  max_bank_level: number
+  locked: boolean
+}
+
+/** A served question — the answer key is withheld until grading. */
+export interface ServedQuestion {
+  id: number
+  question_text: string
+  options: string[]
+}
+
+export interface StartSetResponse {
+  set_id: string
+  skill_id: number
+  skill_key: string
+  level: number
+  questions: ServedQuestion[]
+}
+
+export interface QuestionResult {
+  question_id: number
+  correct_index: number
+  is_correct: boolean
+  explanation: string
+}
+
+export interface SubmitSetResponse {
+  score: number
+  max: number
+  passed: boolean
+  first_clear: boolean
+  tokens_awarded: number
+  new_xp_balance: number
+  next_level_unlocked: number | null
+  results: QuestionResult[]
+}
+
+export const upskilling = {
+  skills: (token: string) =>
+    request<UpskillingSkill[]>("/upskilling/skills", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  startSet: (token: string, skillId: number, level: number) =>
+    request<StartSetResponse>("/upskilling/sets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ skill_id: skillId, level }),
+    }),
+
+  submitSet: (
+    token: string,
+    setId: string,
+    answers: Array<{ question_id: number; selected_index: number }>,
+    idempotencyKey: string,
+  ) =>
+    request<SubmitSetResponse>(`/upskilling/sets/${encodeURIComponent(setId)}/submit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ answers, idempotency_key: idempotencyKey }),
+    }),
+}
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")

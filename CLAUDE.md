@@ -461,6 +461,48 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-09 · Upskilling overhaul — Slices 1–2 + api clients BUILT, verified)
+
+All work UNCOMMITTED on `Develop` (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). This session executes the PRD from the 2026-06-08 entry below (`docs/PRD_practice_upskilling_skillgap.md`), driven by a Claude-Design handoff prototype the user supplied at `reference/Overhauling practice design-handoff.zip` (unzipped → `/tmp/overhaul_design/overhauling-practice-design/`; **re-unzip if /tmp cleared** — it is the pixel-source for the UI port). The prototype is a self-contained React/CSS mock of the redesigned `/forge` (Spirit/light theme) whose tokens already match `frontend/app/design-tokens.css` 1:1.
+
+**DEC-1…6 LOCKED by Shivam this session (all the PRD's recommended options):**
+- **DEC-1a** — Upskilling clears DRIVE the headline skill level (replacing the deprecated time-based forge counter), grandfathered `max(legacy_forge_level, assessed_level)` so nobody regresses. One number on screen.
+- **DEC-2** — RETIRE the free-text "Prove it" appeal; leveling is earned by demonstration (clearing the Lₙ set).
+- **DEC-4** — pass bar **8/10**; tiers **10→+50, 9→+30, 8→+20, ≤7→0**.
+- **DEC-6** — pilot bank = top `job_count_30d` skills.
+- **Gap entry (Surface B)** lives on BOTH the Job Tracker AND the Market drawer.
+- (DEC-3 keep the lone "Edit in CV Playground →" nav link; DEC-5 first-clear-only — both recommended defaults.)
+
+**Plan = 7 vertical slices, one PR each → `Develop`. Done this session: Slices 1, 2, and the Slice-3 API clients.**
+
+**Slice 1 — data model (DONE, NOT RUN).** `database/migrations/20260609_upskilling_quiz_bank.sql` — 4 tables: `skill_questions` (scraper-written, **service-read only — NO RLS SELECT policy so the answer key can't leak to a browser**), `quiz_attempts`, `quiz_answers`, `skill_assessed_level`. `skill_id` is **INT REFERENCES skills(id)** (PRD §6 said bigint — that was illustrative; live taxonomy is INT, matches job_skills/user_skills). Idempotent. ⚠️ **Shivam runs it manually via Supabase dashboard** (project `gipvxuugajkugntwkeiz`) per the manual-migration rule — agent did NOT execute it.
+
+**Slice 2 — backend (DONE, 5 tests pass).**
+- `backend/app/services/xp_policy.py` — added `UPSKILLING_SET_SIZE=10`, `UPSKILLING_PASS_BAR=8`, `UPSKILLING_CLEAR_TIERS`, `upskilling_award_for(score)`.
+- `backend/app/schemas/upskilling.py` — full Surface A + Surface B contracts (served-set schemas carry NO `correct_index`).
+- `backend/app/services/upskilling_service.py` — Surface A: `list_skills`, `start_set` (serves key-stripped), `submit_set` (grades server-side, idempotent replay, awards + advances).
+- `backend/app/routers/upskilling.py` — `GET /upskilling/skills`, `POST /upskilling/sets`, `POST /upskilling/sets/{id}/submit`. Registered in `backend/app/main.py`.
+- `backend/tests/test_upskilling_service.py` — **5 passing** (tier table; perfect first-clear pays +50 & unlocks; re-clear of already-paid level pays 0; below-bar pays 0 & no unlock; same-attempt re-submit replays without re-award). Uses an in-memory fake of the supabase fluent client.
+- **TWO deliberate divergences from the PRD's literal text (both correctness wins, keep them):**
+  1. **No new `award_upskilling_clear` RPC.** The existing `reward_xp` RPC (`20260528_reward_xp_rpc.sql` / `xp_service.reward`) already does atomic, idempotent, ledger-audited credit keyed by `(action, ref_table, ref_id)`. Reused it.
+  2. **First-clear idempotency key = `(skill_id, level)`, NOT `attempt_id`.** PRD said `ref_id=attempt_id`, but that only dedupes retries of ONE attempt; D5 ("first clear of each skill+level") requires the level as the key so re-clearing via a *different* attempt pays 0. Implemented as `action='upskilling_clear'`, `ref_table='skill_level_clear'`, `ref_id=f"{skill_id}:{level}"`.
+- **DEC-1a wired in `submit_set`:** a pass upserts `skill_assessed_level` and bumps `user_skills.matched_level = max(prev, level)`.
+
+**Slice 3 (API clients only, DONE).** `frontend/lib/api.ts` — added `upskilling.skills/startSet/submitSet` + types (`UpskillingSkill`, `ServedQuestion`, `StartSetResponse`, `SubmitSetResponse`, …). **`tsc --noEmit` exit 0.**
+
+**⚠️ Local-env gotcha:** `app.main` won't import in the agent venv — `playwright` missing, eagerly pulled by the unrelated `cv` export router via `app/routers/__init__.py`. Pre-existing; NOT caused by this work. New modules `py_compile` clean and the service imports fine (tests pass). Verify full `from app.main import app` in the real toolchain (where playwright is installed).
+
+**NEXT — pick up Slice 3 component port (in progress), then 4–6, plus the scraper-repo pipeline:**
+1. **Slice 3 UI port (BIGGEST remaining):** port the prototype's `primitives.jsx / home.jsx / quiz.jsx / results.jsx` → TS components under `frontend/components/skills/upskilling/`; fold the `up-*` CSS from the prototype `styles.css` into `frontend/app/(authed)/forge/practice.css` (tokens already match); replace mock `BANK`/`SKILLS`/`drawSet` with the new `api.upskilling.*` clients; swap the prototype `ParticleBurst` for the real `useParticleMoment` (reduced-motion gated); source the skill list from real `buildPracticeSkills` (`frontend/lib/practice-skills.ts`) merged over the backend `/skills` progress; gate with `RequiresCV surface="skills"`; mount into `frontend/app/(authed)/forge/page.tsx`. Honor PRD §10.7 partial-bank states (`max_bank_level`/`locked`) and §9 WCAG (the prototype already implements radiogroup/arrow-keys/role=status — preserve it).
+2. **Slice 4:** delete the time-based forge XP earn (the `useForgeTimerStore` dial / `forgeAmbientRate`·`forgeFocusedRate` in `page.tsx` + `xp.completeForge`), keep `forge_service.py` ↔ `level-thresholds.ts` in sync; DEC-1a leveling already lives in `upskilling_service`.
+3. **Slice 5 (Surface B):** build the gap endpoints in `upskilling_service`/router (schemas already exist: `StartGapResponse`/`SubmitGapResponse`/`ReadinessRow`) — reuse `GET /jobs/{job_id}/skill-gap`, rank gap skills by `gap_score × job_count_30d`, cap ~5–6, 3 Qs/skill, **diagnostic (no tokens)**, write `skill_assessed_level`. Port `gap.jsx` → readiness map; add the "Assess my readiness" entry on BOTH Tracker and Market drawer.
+4. **Slice 6 (Part C, ships alone):** strip CV-authoring out of `frontend/components/skills/skill-card-inline.tsx` (evidence/Ask-Mentor/Edit-in-CV/comment-thread) into the CV Playground reusing `POST /cv/skill-edit`; replace "Prove it" appeal per DEC-2; lean card = name + ladder + assessed badge + Start set + one nav link.
+5. **Scraper-repo pipeline (separate repo `firecrawl_Supabase`):** hybrid scrape→LLM-clean→verifier→publish into `skill_questions`. **RAG source = `reference/Interview Prep/`** (user-attached; ~461 PDFs/167 docx — Shivam's MBA/consulting/PM corpus: guesstimates, profitability cases, PM interviews, budget docs). NOTE this corpus is **consulting/product/finance**, NOT the SQL/Python/ML in the prototype mock — pilot skill domain should follow the corpus + top `job_count_30d`.
+
+**Shivam open items:** (1) run the migration on the branch DB. (2) `pytest backend/tests/test_upskilling_service.py` in real toolchain. (3) confirm full `app.main` import once playwright present. (4) commit both repos.
+
+---
+
 ## LAST SESSION SUMMARY (2026-06-08 · Practice/CV split — Upskilling PRD + CV Playground redesign Phases 1–3 BUILT)
 
 All work UNCOMMITTED (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). Frontend `tsc --noEmit` exit 0 + `next lint` clean on every touched file; backend `py_compile` clean (backend deps + `tsx` NOT runnable in agent env — macOS `node_modules` on Linux sandbox; pure logic validated standalone).

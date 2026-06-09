@@ -1,0 +1,270 @@
+"""Upskilling grading + first-clear idempotency (PRD §4.3).
+
+Covers the un-gameable reward contract:
+  - server-side grading produces the right score/pass verdict,
+  - the FIRST clear of a (skill, level) pays the score tier,
+  - a re-clear of an already-paid level pays 0 (idempotent, no double-pay),
+  - below the pass bar pays 0,
+  - a re-submit of the SAME attempt replays without re-awarding.
+
+Uses a tiny in-memory fake of the supabase fluent client so the real query
+shapes in upskilling_service are exercised end-to-end without a DB.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from app.services import upskilling_service
+from app.services.xp_policy import upskilling_award_for
+
+SKILL_ID = 7
+LEVEL = 2
+
+
+# ── pure tier function ───────────────────────────────────────────────────────
+
+
+def test_award_tiers():
+    assert upskilling_award_for(10) == 50
+    assert upskilling_award_for(9) == 30
+    assert upskilling_award_for(8) == 20
+    assert upskilling_award_for(7) == 0   # below the bar earns nothing
+    assert upskilling_award_for(0) == 0
+
+
+# ── in-memory fake supabase ──────────────────────────────────────────────────
+
+
+class _Result:
+    def __init__(self, data):
+        self.data = data
+
+
+class _Query:
+    def __init__(self, store, table):
+        self._store = store
+        self._table = table
+        self._op = "select"
+        self._payload = None
+        self._filters: list[tuple[str, str, object]] = []
+        self._single = False
+
+    # builders
+    def select(self, *_a, **_k):
+        self._op = "select"
+        return self
+
+    def insert(self, payload):
+        self._op = "insert"
+        self._payload = payload
+        return self
+
+    def update(self, payload):
+        self._op = "update"
+        self._payload = payload
+        return self
+
+    def upsert(self, payload, on_conflict=None):
+        self._op = "upsert"
+        self._payload = payload
+        self._conflict = (on_conflict or "").split(",")
+        return self
+
+    def eq(self, col, val):
+        self._filters.append(("eq", col, val))
+        return self
+
+    def gt(self, col, val):
+        self._filters.append(("gt", col, val))
+        return self
+
+    def in_(self, col, vals):
+        self._filters.append(("in", col, list(vals)))
+        return self
+
+    def limit(self, _n):
+        return self
+
+    def maybe_single(self):
+        self._single = True
+        return self
+
+    def single(self):
+        self._single = True
+        return self
+
+    # resolution
+    def _match(self, row):
+        for kind, col, val in self._filters:
+            if kind == "eq" and str(row.get(col)) != str(val):
+                return False
+            if kind == "gt" and not (row.get(col) or 0) > val:
+                return False
+            if kind == "in" and row.get(col) not in val:
+                return False
+        return True
+
+    def execute(self):
+        rows = self._store.setdefault(self._table, [])
+        if self._op == "select":
+            hit = [r for r in rows if self._match(r)]
+            return _Result(hit[0] if hit else None) if self._single else _Result(hit)
+        if self._op == "insert":
+            items = self._payload if isinstance(self._payload, list) else [self._payload]
+            created = []
+            for it in items:
+                row = dict(it)
+                row.setdefault("id", f"{self._table}-{len(rows) + 1}")
+                rows.append(row)
+                created.append(row)
+            return _Result(created)
+        if self._op == "update":
+            hit = [r for r in rows if self._match(r)]
+            for r in hit:
+                r.update(self._payload)
+            return _Result(hit)
+        if self._op == "upsert":
+            items = self._payload if isinstance(self._payload, list) else [self._payload]
+            for it in items:
+                existing = next(
+                    (r for r in rows if all(str(r.get(k)) == str(it.get(k)) for k in self._conflict)),
+                    None,
+                )
+                if existing:
+                    existing.update(it)
+                else:
+                    rows.append(dict(it))
+            return _Result(items)
+        return _Result(None)
+
+
+class _FakeAdmin:
+    def __init__(self, store):
+        self._store = store
+
+    def table(self, name):
+        return _Query(self._store, name)
+
+
+def _seed_store(*, answer_all_correct=True, prior_clear=False):
+    """A started 10-question attempt for (SKILL_ID, LEVEL). correct_index=1 for all."""
+    questions = [
+        {
+            "id": qid,
+            "skill_id": SKILL_ID,
+            "skill_key": "sql",
+            "level": LEVEL,
+            "status": "active",
+            "question_text": f"Q{qid}",
+            "options": ["a", "b", "c", "d"],
+            "correct_index": 1,
+            "explanation": f"because {qid}",
+        }
+        for qid in range(1, 11)
+    ]
+    attempt = {
+        "id": "att-1",
+        "user_id": "u1",
+        "skill_id": SKILL_ID,
+        "level": LEVEL,
+        "mode": "upskilling",
+        "question_ids": [q["id"] for q in questions],
+        "max_score": 10,
+        "submitted_at": None,
+        "score": None,
+        "passed": None,
+        "tokens_awarded": 0,
+    }
+    store = {
+        "skill_questions": questions,
+        "quiz_attempts": [attempt],
+        "quiz_answers": [],
+        "skill_assessed_level": [],
+        "user_skills": [],
+        "xp_ledger": [],
+    }
+    if prior_clear:
+        store["xp_ledger"].append(
+            {
+                "id": "led-1",
+                "action": upskilling_service.CLEAR_ACTION,
+                "ref_table": upskilling_service.CLEAR_REF_TABLE,
+                "ref_id": upskilling_service._clear_ref_id(SKILL_ID, LEVEL),
+                "delta": 20,
+            }
+        )
+    return store
+
+
+def _answers(correct: int):
+    """First `correct` answers right (index 1), the rest wrong (index 0)."""
+    return [
+        {"question_id": qid, "selected_index": 1 if qid <= correct else 0}
+        for qid in range(1, 11)
+    ]
+
+
+async def _run(store, answers):
+    fake = _FakeAdmin(store)
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=fake), \
+         patch("app.services.upskilling_service.xp_service.get_xp_balance", new=AsyncMock(return_value=1000)), \
+         patch("app.services.upskilling_service.xp_service.reward", new=AsyncMock(return_value=1020)) as reward:
+        result = await upskilling_service.submit_set("u1", "att-1", answers, "idem-1")
+    return result, reward
+
+
+# ── behaviors ────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_perfect_first_clear_awards_and_advances():
+    store = _seed_store()
+    result, reward = await _run(store, _answers(10))
+    assert result["score"] == 10
+    assert result["passed"] is True
+    assert result["first_clear"] is True
+    assert result["tokens_awarded"] == 50
+    assert result["next_level_unlocked"] == LEVEL + 1
+    reward.assert_awaited_once()
+    # assessed level + grandfathered headline level advanced
+    assert store["skill_assessed_level"][0]["assessed_level"] == LEVEL
+
+
+@pytest.mark.asyncio
+async def test_reclear_already_paid_level_awards_zero():
+    store = _seed_store(prior_clear=True)
+    result, reward = await _run(store, _answers(10))
+    assert result["passed"] is True
+    assert result["first_clear"] is False
+    assert result["tokens_awarded"] == 0
+    reward.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_below_bar_awards_zero_and_does_not_unlock():
+    store = _seed_store()
+    result, reward = await _run(store, _answers(7))  # 7/10 — under the 8 bar
+    assert result["score"] == 7
+    assert result["passed"] is False
+    assert result["tokens_awarded"] == 0
+    assert result["next_level_unlocked"] is None
+    reward.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resubmit_same_attempt_replays_without_reawarding():
+    store = _seed_store()
+    first, reward1 = await _run(store, _answers(10))
+    assert first["tokens_awarded"] == 50
+    # second submit of the SAME (now graded) attempt → replay, no new award
+    fake = _FakeAdmin(store)
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=fake), \
+         patch("app.services.upskilling_service.xp_service.get_xp_balance", new=AsyncMock(return_value=1020)), \
+         patch("app.services.upskilling_service.xp_service.reward", new=AsyncMock()) as reward2:
+        replay = await upskilling_service.submit_set("u1", "att-1", _answers(10), "idem-1")
+    assert replay["score"] == 10
+    assert replay["passed"] is True
+    reward2.assert_not_awaited()
