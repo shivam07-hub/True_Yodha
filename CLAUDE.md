@@ -461,7 +461,30 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-09 · Upskilling overhaul — Slices 1–2 + api clients BUILT, verified)
+## LAST SESSION SUMMARY (2026-06-10 · Upskilling + Myrology completion audit)
+
+Confirmed Claude's June 9–10 implementation against git, the live database, deployed APIs, and the full local checks.
+
+**Upskilling core is shipped.**
+- Slices 1–6 landed in `d6713cf`; the home-bootstrap contract fix landed in `1811502`. Both are on `Develop` and production through PR #115 (`ab45199`).
+- The four quiz tables and `user_skills.correction_count` cleanup are live in Supabase.
+- Prod and dev OpenAPI expose the Upskilling skill, activity, and gap-assessment routes.
+- The time-based Practice earn, appeal, and separate advice paths are gone; activity now comes from submitted Upskilling attempts.
+- Full verification: `575 passed, 13 warnings`; frontend `tsc --noEmit` and `next lint` clean.
+
+**Boundary still open outside the shipped core:** the sister `firecrawl_Supabase` repo has no question-bank publisher yet, and the live `skill_questions` count is `0`. Surface B is implemented but has no direct test coverage. Until the publisher fills the bank, the UI correctly shows its empty state. Do not describe the end-to-end Upskilling content system as complete until those two items close.
+
+**Myrology payment reliability is deployed.**
+- Webhook reconciliation, shared exactly-once fulfilment, lifecycle transitions, delivery timestamps, and corrected refund copy landed in `d6713cf` and are live in prod.
+- The lifecycle columns are live in Supabase.
+- Prod webhook and admin routes are configured: unsigned calls return `401`, not the unconfigured `503`; dev intentionally leaves these prod-only secrets unset.
+- Resend sender/API configuration is present on prod and dev according to the completed Railway operations. The Razorpay dashboard registration itself is a provider-side setting and is not independently visible from this repo; treat Shivam's completion confirmation as the source for that final dashboard action.
+
+Remaining for this workstream: run one real payment/webhook delivery smoke when making the next Myrology purchase. No implementation or deployment task remains.
+
+---
+
+## OLDER SESSION SUMMARY (2026-06-09 · Upskilling overhaul — Slices 1–2 + api clients BUILT, verified)
 
 All work UNCOMMITTED on `Develop` (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). This session executes the PRD from the 2026-06-08 entry below (`docs/PRD_practice_upskilling_skillgap.md`), driven by a Claude-Design handoff prototype the user supplied at `reference/Overhauling practice design-handoff.zip` (unzipped → `/tmp/overhaul_design/overhauling-practice-design/`; **re-unzip if /tmp cleared** — it is the pixel-source for the UI port). The prototype is a self-contained React/CSS mock of the redesigned `/forge` (Spirit/light theme) whose tokens already match `frontend/app/design-tokens.css` 1:1.
 
@@ -1221,4 +1244,3 @@ Phase 6 — brand (after ND15/ND16/ND17 confirmed):
 - ND6 (carry-over): PLANNED referral row
 - ND7 (carry-over): Feedback form still broken on phone?
 - ND9 (carry-over): Exact 10 domain names for landing copy
-

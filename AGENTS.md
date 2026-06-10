@@ -296,7 +296,24 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-10 - Home bootstrap CI collection fix, Develop)
+## LAST SESSION SUMMARY (2026-06-10 - Upskilling and Myrology completion audit, Develop)
+
+Audited Claude's June 9–10 work against git, Supabase, deployed API contracts, and the full local test suite.
+
+- Upskilling Slices 1–6 and the bootstrap fix are committed, merged, and deployed. Supabase has the quiz schema and correction-column cleanup; prod/dev expose the Upskilling routes.
+- Core Upskilling is closed, but the separate `firecrawl_Supabase` question publisher is not built, the live `skill_questions` table has 0 rows, and Surface B lacks direct tests. Those remain explicit follow-ups rather than being hidden under the shipped UI/API work.
+- Myrology webhook reconciliation and booking lifecycle work are committed, merged, deployed, and migrated. Prod webhook/admin configuration gates respond as configured; Resend configuration was completed on both Railway backends.
+- Provider-side Razorpay webhook registration is accepted from Shivam's completion confirmation; verify one real event on the next purchase.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `575 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Live Supabase `skill_questions` count -> `0`
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-10 - Home bootstrap CI collection fix, Develop)
 
 Fixed the backend CI collection failure caused by a stale home-bootstrap test contract.
 
