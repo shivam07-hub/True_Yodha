@@ -34,7 +34,6 @@ from app.schemas import (
     MirrorScoreResponse,
     UserProfileResponse,
 )
-from app.schemas.xp import ForgeSessionDatesResponse
 
 _PROFILE = {
     "id": "u1",
@@ -87,9 +86,7 @@ def _stub_all(monkeypatch, *, score_exc: HTTPException | None = None) -> None:
     monkeypatch.setattr(
         home_module, "list_cv_versions", lambda **_: CVVersionListResponse(versions=[])
     )
-    monkeypatch.setattr(
-        home_module, "forge_session_dates", lambda **_: ForgeSessionDatesResponse(dates=[])
-    )
+    monkeypatch.setattr(home_module.upskilling_service, "list_activity_dates", lambda _: [])
     monkeypatch.setattr(
         home_module, "get_diary_history", lambda **_: DiaryHistoryResponse(entries=[], total=0)
     )
@@ -117,10 +114,11 @@ def test_bootstrap_returns_full_bundle(client, monkeypatch):
     body = r.json()
     assert set(body) == {
         "profile", "score", "matches", "applications",
-        "evidence", "cv_versions", "forge_dates", "diary",
+        "evidence", "cv_versions", "practice_activity", "diary",
     }
     assert body["profile"]["full_name"] == "Test Ninja"
     assert body["score"]["total_score"] == 42
+    assert body["practice_activity"] == {"dates": []}
 
 
 def test_score_404_degrades_to_null(client, monkeypatch):
