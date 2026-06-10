@@ -8,11 +8,12 @@ best-effort and never blocks the durable booking row.
 
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
 from app.config import settings
@@ -22,6 +23,7 @@ from app.schemas.myrology import (
     BookingListResponse,
     BookingRequest,
     BookingResponse,
+    BookingStatusUpdate,
     IntakeRequest,
     IntakeResponse,
 )
@@ -29,6 +31,35 @@ from app.services import email_service
 
 router = APIRouter(prefix="/myrology", tags=["myrology"])
 logger = logging.getLogger(__name__)
+
+# Lifecycle: requested -> confirmed -> done, with cancel reachable from either
+# live state. 'done' and 'cancelled' are terminal. Keyed by target status =>
+# the set of source statuses it may be reached from.
+_ALLOWED_BOOKING_TRANSITIONS: dict[str, set[str]] = {
+    "confirmed": {"requested"},
+    "done": {"requested", "confirmed"},
+    "cancelled": {"requested", "confirmed"},
+}
+_BOOKING_TIMESTAMP_COLUMN: dict[str, str] = {
+    "confirmed": "confirmed_at",
+    "done": "done_at",
+    "cancelled": "cancelled_at",
+}
+
+
+def require_myrology_admin(x_myro_admin_token: str | None = Header(default=None)) -> None:
+    expected = settings.myrology_admin_token.strip()
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Myrology admin endpoint is not configured.",
+        )
+    supplied = (x_myro_admin_token or "").strip()
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Myrology admin token.",
+        )
 
 
 def _require_unlocked(user_id: str) -> None:
@@ -95,6 +126,48 @@ def _list_bookings(user_id: str) -> list[dict[str, Any]]:
         .execute()
     )
     return result.data or []
+
+
+def _transition_booking(booking_id: str, new_status: str) -> dict[str, Any]:
+    """Advance a booking to ``new_status``, stamping the matching timestamp.
+
+    Validates the transition against the current row (terminal states can't
+    move; illegal jumps are rejected) and writes via an atomic compare-and-set
+    on the source status so concurrent transitions can't both apply.
+    """
+    admin = get_supabase_admin()
+    current = (
+        admin.table("myrology_bookings").select("*").eq("id", booking_id).maybe_single().execute()
+    )
+    row = current.data if current else None
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+    from_status = str(row.get("status"))
+    if from_status == new_status:
+        return row  # idempotent no-op
+    allowed_from = _ALLOWED_BOOKING_TRANSITIONS.get(new_status, set())
+    if from_status not in allowed_from:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot move a '{from_status}' booking to '{new_status}'.",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    patch = {"status": new_status, "updated_at": now, _BOOKING_TIMESTAMP_COLUMN[new_status]: now}
+    updated = (
+        admin.table("myrology_bookings")
+        .update(patch)
+        .eq("id", booking_id)
+        .eq("status", from_status)  # CAS: only if nobody else moved it first
+        .execute()
+    )
+    if not updated.data:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Booking status changed concurrently — reload and retry.",
+        )
+    return updated.data[0]
 
 
 def _notify_astrologer(*, user_email: str, intake: dict[str, Any] | None, booking: dict[str, Any]) -> None:
@@ -176,3 +249,17 @@ async def create_booking(
         booking=booking,
     )
     return BookingResponse(**booking)
+
+
+@router.patch(
+    "/bookings/{booking_id}/status",
+    response_model=BookingResponse,
+    dependencies=[Depends(require_myrology_admin)],
+)
+async def update_booking_status(booking_id: str, body: BookingStatusUpdate) -> BookingResponse:
+    """Internal/ops transition of a booking through its lifecycle. Token-guarded
+    (X-Myro-Admin-Token) — no end-user principal. Stamps the lifecycle timestamp
+    that anchors the terms §07 refund cutoff (done_at = delivered = non-refundable)."""
+    row = await run_in_threadpool(_transition_booking, booking_id, body.status)
+    logger.info("metric myrology.booking_transition id=%s status=%s", booking_id, body.status)
+    return BookingResponse(**row)

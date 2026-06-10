@@ -7,8 +7,21 @@ import { useMyrology } from "./checkout"
 const STATUS_LABEL: Record<string, string> = {
   requested: "Requested",
   confirmed: "Confirmed",
-  done: "Done",
+  done: "Delivered",
   cancelled: "Cancelled",
+}
+
+// The transition timestamp that anchors each status, so the row can say WHEN it
+// happened — the badge alone only says what state it's in.
+function statusMoment(b: {
+  status: string
+  confirmed_at: string | null
+  done_at: string | null
+  cancelled_at: string | null
+}): string | null {
+  const iso = b.status === "done" ? b.done_at : b.status === "confirmed" ? b.confirmed_at : b.status === "cancelled" ? b.cancelled_at : null
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" })
 }
 
 function IntakeForm() {
@@ -142,7 +155,10 @@ function BookingPanel() {
                 <div className="my-booking-windows">{b.preferred_windows}</div>
                 {b.topic ? <div className="my-booking-topic">{b.topic}</div> : null}
               </div>
-              <span className={`my-booking-status status-${b.status}`}>{STATUS_LABEL[b.status] ?? b.status}</span>
+              <span className={`my-booking-status status-${b.status}`}>
+                {STATUS_LABEL[b.status] ?? b.status}
+                {statusMoment(b) ? <em className="my-booking-when"> · {statusMoment(b)}</em> : null}
+              </span>
             </div>
           ))}
         </div>

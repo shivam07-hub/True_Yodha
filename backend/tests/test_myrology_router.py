@@ -168,3 +168,120 @@ def test_create_booking_survives_email_failure(monkeypatch: pytest.MonkeyPatch) 
 
     assert response.status_code == 201, response.text
     assert response.json()["id"] == "bk-2"
+
+
+# ── Booking lifecycle transition (G3) ───────────────────────────────────────
+
+ADMIN_HEADERS = {"X-Myro-Admin-Token": "ops-secret"}
+
+
+def test_transition_503_when_admin_token_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(myrology_router.settings, "myrology_admin_token", "")
+    with TestClient(app) as client:
+        response = client.patch("/myrology/bookings/bk-1/status", json={"status": "confirmed"})
+    assert response.status_code == 503
+
+
+def test_transition_401_on_bad_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(myrology_router.settings, "myrology_admin_token", "ops-secret")
+    with TestClient(app) as client:
+        response = client.patch(
+            "/myrology/bookings/bk-1/status",
+            json={"status": "confirmed"},
+            headers={"X-Myro-Admin-Token": "wrong"},
+        )
+    assert response.status_code == 401
+
+
+def test_transition_rejects_invalid_target_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(myrology_router.settings, "myrology_admin_token", "ops-secret")
+    with TestClient(app) as client:
+        response = client.patch(
+            "/myrology/bookings/bk-1/status", json={"status": "requested"}, headers=ADMIN_HEADERS
+        )
+    assert response.status_code == 422  # 'requested' not in the Literal target set
+
+
+def test_transition_confirms_and_stamps_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(myrology_router.settings, "myrology_admin_token", "ops-secret")
+
+    def _transition(booking_id: str, new_status: str) -> dict[str, Any]:
+        assert booking_id == "bk-1"
+        assert new_status == "confirmed"
+        return {
+            "id": "bk-1",
+            "preferred_windows": "Weekday evenings IST",
+            "topic": None,
+            "status": "confirmed",
+            "created_at": "2026-06-09T00:00:00+00:00",
+            "confirmed_at": "2026-06-09T01:00:00+00:00",
+        }
+
+    monkeypatch.setattr(myrology_router, "_transition_booking", _transition)
+
+    with TestClient(app) as client:
+        response = client.patch(
+            "/myrology/bookings/bk-1/status", json={"status": "confirmed"}, headers=ADMIN_HEADERS
+        )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "confirmed"
+    assert body["confirmed_at"] == "2026-06-09T01:00:00Z"
+
+
+def _admin_with_row(row: Any, update_data: Any) -> Any:
+    """Fake supabase admin whose select returns `row` and update returns `update_data`."""
+
+    class _Q:
+        def select(self, *_a: Any, **_k: Any) -> "_Q":
+            return self
+
+        def eq(self, *_a: Any, **_k: Any) -> "_Q":
+            return self
+
+        def maybe_single(self) -> "_Q":
+            return self
+
+        def update(self, _payload: dict[str, Any]) -> "_Q":
+            return self
+
+        def execute(self) -> Any:
+            return type("R", (), {"data": self._mode})()
+
+    class _SelectQ(_Q):
+        _mode = row
+
+    class _UpdateQ(_Q):
+        _mode = update_data
+
+    class _Admin:
+        def table(self, _name: str) -> Any:
+            return _Router()
+
+    class _Router:
+        def select(self, *_a: Any, **_k: Any) -> Any:
+            return _SelectQ()
+
+        def update(self, _payload: dict[str, Any]) -> Any:
+            return _UpdateQ()
+
+    return _Admin()
+
+
+def test_transition_booking_rejects_terminal_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A 'done' booking cannot move to 'confirmed'.
+    admin = _admin_with_row({"id": "bk-1", "status": "done"}, [{"id": "bk-1", "status": "confirmed"}])
+    monkeypatch.setattr(myrology_router, "get_supabase_admin", lambda: admin)
+
+    with pytest.raises(myrology_router.HTTPException) as exc:
+        myrology_router._transition_booking("bk-1", "confirmed")
+    assert exc.value.status_code == 409
+
+
+def test_transition_booking_404_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    admin = _admin_with_row(None, None)
+    monkeypatch.setattr(myrology_router, "get_supabase_admin", lambda: admin)
+    with pytest.raises(myrology_router.HTTPException) as exc:
+        myrology_router._transition_booking("nope", "confirmed")
+    assert exc.value.status_code == 404

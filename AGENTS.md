@@ -296,7 +296,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-05 - Brand system supersession implementation, Develop)
+## LAST SESSION SUMMARY (2026-06-10 - Home bootstrap CI collection fix, Develop)
+
+Fixed the backend CI collection failure caused by a stale home-bootstrap test contract.
+
+- Updated `backend/tests/test_home_bootstrap_router.py` to stop importing the removed `ForgeSessionDatesResponse`.
+- Replaced the deleted `forge_session_dates` stub with the current `upskilling_service.list_activity_dates` service boundary.
+- Updated the expected bootstrap payload from `forge_dates` to `practice_activity` and asserted its serialized response.
+- Root cause: commit `d6713cf` intentionally migrated the production bootstrap API to practice activity, but the original bootstrap test from `5f51428` was not migrated with it.
+
+Validation:
+
+- `cd backend && ../.venv/bin/pytest tests/test_home_bootstrap_router.py -v` -> `3 passed`
+- `cd backend && ../.venv/bin/pytest tests/ -v` -> `575 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+
+Remaining:
+
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-05 - Brand system supersession implementation, Develop)
 
 Implemented the superseding Myro brand system across the core frontend surfaces.
 

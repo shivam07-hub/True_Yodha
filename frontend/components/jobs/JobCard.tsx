@@ -276,6 +276,25 @@ export function JobCard({ job, isTracked, onTrack, onSelect }: JobCardProps) {
         >
           Tailor CV
         </Link>
+        <Link
+          href={`/forge?gap=${job.job_id}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 14px",
+            borderRadius: 999,
+            border: "1px solid var(--tm-int-border-soft)",
+            background: "transparent",
+            color: "var(--tm-interactive)",
+            textDecoration: "none",
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+          }}
+        >
+          Assess readiness
+        </Link>
         {job.source_url ? (
           <a
             href={job.source_url}

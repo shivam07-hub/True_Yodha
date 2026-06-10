@@ -120,3 +120,10 @@ class ReadinessRow(BaseModel):
 class SubmitGapResponse(BaseModel):
     readiness: list[ReadinessRow]
     overall_readiness_pct: int
+
+
+# ── Practice activity (home streak) ──────────────────────────────────────────
+
+
+class ActivityDatesResponse(BaseModel):
+    dates: list[str]

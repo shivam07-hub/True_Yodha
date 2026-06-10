@@ -34,7 +34,6 @@ from app.routers.jobs.apply import get_applications
 from app.routers.jobs.match import get_job_matches
 from app.routers.scores import get_my_score
 from app.routers.users import get_me
-from app.routers.xp import forge_session_dates
 from app.schemas import (
     ApplicationResponse,
     CVEvidenceSummaryResponse,
@@ -43,7 +42,8 @@ from app.schemas import (
     MirrorScoreResponse,
     UserProfileResponse,
 )
-from app.schemas.xp import ForgeSessionDatesResponse
+from app.schemas.upskilling import ActivityDatesResponse
+from app.services import upskilling_service
 
 router = APIRouter(prefix="/home", tags=["home"])
 
@@ -61,7 +61,7 @@ class HomeBootstrapResponse(BaseModel):
     applications: list[ApplicationResponse]
     evidence: CVEvidenceSummaryResponse
     cv_versions: CVVersionListResponse
-    forge_dates: ForgeSessionDatesResponse
+    practice_activity: ActivityDatesResponse
     diary: DiaryHistoryResponse
 
 
@@ -91,6 +91,6 @@ def home_bootstrap(
         applications=get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
         evidence=get_cv_evidence(principal=principal, cv_repo=cv_repo),
         cv_versions=list_cv_versions(principal=principal, cv_repo=cv_repo),
-        forge_dates=forge_session_dates(principal=principal),
+        practice_activity=ActivityDatesResponse(dates=upskilling_service.list_activity_dates(principal.id)),
         diary=get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
     )

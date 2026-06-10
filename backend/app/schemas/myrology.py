@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -49,7 +50,17 @@ class BookingResponse(BaseModel):
     topic: str | None = None
     status: str
     created_at: datetime
+    confirmed_at: datetime | None = None
+    done_at: datetime | None = None
+    cancelled_at: datetime | None = None
 
 
 class BookingListResponse(BaseModel):
     bookings: list[BookingResponse]
+
+
+class BookingStatusUpdate(BaseModel):
+    """Internal/ops transition of a booking through its lifecycle. 'requested'
+    is the insert default and is never a valid target."""
+
+    status: Literal["confirmed", "done", "cancelled"]

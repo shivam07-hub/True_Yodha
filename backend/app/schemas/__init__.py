@@ -30,8 +30,6 @@ from app.schemas.diary import (
     SkillDeltaItem,
 )
 from app.schemas.xp import (
-    ForgeCompleteRequest,
-    ForgeSessionResponse,
     XPBalanceResponse,
     XPSpendRequest,
 )
@@ -95,10 +93,6 @@ from app.schemas.users import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
     FollowedCompany,
-    SkillAdviceRequest,
-    SkillAdviceResponse,
-    SkillLevelCorrectionRequest,
-    SkillLevelCorrectionResponse,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
@@ -121,7 +115,7 @@ __all__ = [
     "CVUploadStatusResponse", "CVEvidenceSummaryResponse",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
-    "XPBalanceResponse", "XPSpendRequest", "ForgeCompleteRequest", "ForgeSessionResponse",
+    "XPBalanceResponse", "XPSpendRequest",
     "APPLICATION_STAGES", "APPLICATION_OUTCOMES", "APPLICATION_STATUSES",
     "JobMatchResponse", "JobMatchesResponse",
     "ApplicationStatusUpdate", "ApplicationResponse", "ApplicationReviewRequest", "ApplicationReviewResponse", "CVBadge",
@@ -142,8 +136,6 @@ __all__ = [
     "SkillResponse", "SkillsListResponse",
     "UpdateProfileRequest", "UpdateProfileResponse", "UserProfileResponse",
     "UserSkillItem", "UserSkillsByDomainResponse",
-    "SkillAdviceRequest", "SkillAdviceResponse",
-    "SkillLevelCorrectionRequest", "SkillLevelCorrectionResponse",
     "FollowCompanyRequest", "FollowedCompany", "FollowedCompaniesResponse",
     "PublicProfile", "JobOverlapRow", "JobOverlapResponse",
     "UpdateNinjaNameRequest", "UpdateNinjaNameResponse", "SuggestNinjaNameResponse",

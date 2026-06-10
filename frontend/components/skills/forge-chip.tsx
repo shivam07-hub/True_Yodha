@@ -2,7 +2,7 @@
 
 import { LevelDots } from "./level-dots"
 
-export type ForgeChipState = "idle" | "cart" | "active" | "done"
+export type ForgeChipState = "idle" | "cart" | "done"
 
 interface Props {
   skillName: string
@@ -18,14 +18,12 @@ interface Props {
 const STATE_TOKENS: Record<ForgeChipState, { fg: string; border: string; bg: string }> = {
   idle:   { fg: "var(--tm-interactive)",  border: "var(--tm-int-border)",    bg: "transparent" },
   cart:   { fg: "var(--tm-interactive-fg)", border: "var(--tm-interactive)",       bg: "var(--tm-interactive)" },
-  active: { fg: "var(--tm-warning)", border: "var(--tm-warning-border)", bg: "var(--tm-warning-wash)" },
   done:   { fg: "var(--tm-success)", border: "var(--tm-success-border)", bg: "var(--tm-success-wash)" },
 }
 
 function labelFor(state: ForgeChipState, sessionsToNext: number, atMax: boolean): string {
   if (atMax) return "Maxed"
   if (state === "done") return "Dominated"
-  if (state === "active") return "Practicing…"
   if (state === "cart") return `Locked · ${sessionsToNext} ses`
   return `Lock in · ${sessionsToNext} ses`
 }
@@ -36,7 +34,6 @@ function labelFor(state: ForgeChipState, sessionsToNext: number, atMax: boolean)
  * State funnel:
  *   idle  → user has not staged this skill yet
  *   cart  → user added it to their forge cart (selection only)
- *   active → a forge session for this skill is currently ticking
  *   done  → skill is at max level
  *
  * All states render LevelDots so the user always sees position on the
@@ -89,20 +86,10 @@ export function ForgeChip({
         gap={3}
         color={tokens.fg}
       />
-      {state === "active" && (
-        <span aria-hidden style={{
-          width: 6, height: 6, borderRadius: 999, background: tokens.fg,
-          animation: "tm-forge-pulse 1.4s var(--tm-ease) infinite",
-        }} />
-      )}
       <span className="tm-forge-chip-label" style={{ display: compact ? "none" : "inline" }}>
         {label}
       </span>
       <style>{`
-        @keyframes tm-forge-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.7); }
-        }
         @media (max-width: 480px) {
           .tm-forge-chip-label { display: none !important; }
         }

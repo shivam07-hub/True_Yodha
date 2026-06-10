@@ -21,7 +21,7 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { openFeedbackHub } from "@/components/feedback"
 import { useParticleMoment } from "@/components/particle"
-import { cv, diary, jobs, scores, users, xp } from "@/lib/api"
+import { cv, diary, jobs, scores, upskilling, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
@@ -86,10 +86,10 @@ function MissionControlInner() {
     enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
-  // Practice streak — reads real forge sessions (diary streak retired with the rail).
-  const forgeSessionsQuery = useQuery({
-    queryKey: ["forge-session-dates", token],
-    queryFn: () => xp.forgeSessionDates(token!),
+  // Practice streak — graded upskilling sets (seeded by the bootstrap bundle).
+  const practiceActivityQuery = useQuery({
+    queryKey: ["practice-activity-dates", token],
+    queryFn: () => upskilling.activityDates(token!),
     enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
@@ -99,7 +99,7 @@ function MissionControlInner() {
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
-  const streak = computeStreakFromDates(forgeSessionsQuery.data?.dates ?? [])
+  const streak = computeStreakFromDates(practiceActivityQuery.data?.dates ?? [])
   const score = Math.round(scoreData?.total_score ?? 0)
   const cartSkillNames = useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
