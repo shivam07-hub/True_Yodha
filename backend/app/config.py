@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     # Razorpay checkout
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
+    # Razorpay webhook secret (set when creating the webhook in the Razorpay
+    # dashboard → Settings → Webhooks). Signs the raw request body; we verify it
+    # in payments.razorpay_webhook. Empty = the webhook endpoint returns 503 so
+    # the frontend verify-payment path stays the only fulfilment route (safe
+    # before the webhook is provisioned). This closes the "paid but the browser
+    # never called verify-payment" gap (tab closed / network drop after capture).
+    razorpay_webhook_secret: str = ""
+
+    # Myrology — token guarding the internal booking-status transition endpoint
+    # (PATCH /myrology/bookings/{id}/status). Lets the astrologer/ops advance a
+    # booking requested -> confirmed -> done. Empty = the endpoint returns 503.
+    myrology_admin_token: str = ""
 
     # Environment
     railway_environment: str = "development"

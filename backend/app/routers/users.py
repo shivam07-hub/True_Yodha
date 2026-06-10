@@ -1,32 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.deps import Principal, get_principal
-from app.repositories.diary import DiaryRepository, get_token_diary_repository
-from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
-    SkillAdviceRequest,
-    SkillAdviceResponse,
-    SkillLevelCorrectionRequest,
-    SkillLevelCorrectionResponse,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
     UserSkillsByDomainResponse,
 )
-from app.services.scoring import recompute_score
-from app.services.skill_advice import generate_skill_advice
-from app.services.skill_appeal import judge_skill_appeal
-from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.xp_policy import (
     FOLLOW_COMPANY_XP_COST,
     FOLLOW_COMPANY_XP_FLOOR,
     FOLLOWED_COMPANY_LIMIT,
-    SKILL_ADVICE_XP_COST,
 )
-from app.services.xp_service import assert_can_spend_xp, get_xp_balance, grant_linkedin_profile_xp, spend_xp, spend_xp_to_floor
+from app.services.xp_service import grant_linkedin_profile_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -79,7 +68,6 @@ def get_my_skills(
             "evidence_text": record.evidence_text,
             "forge_sessions_count": record.forge_sessions_count,
             "forged_level_up_available": record.forged_level_up_available,
-            "correction_count": record.correction_count,
         }
         l1 = (lc.l1_domain if lc else "") or "General"
         l2 = (lc.l2_cluster if lc else "") or "General"
@@ -91,118 +79,6 @@ def get_my_skills(
             group[key].sort(key=lambda x: x["level"], reverse=True)
 
     return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
-
-
-_MAX_APPEALS = 2
-
-
-@router.patch("/me/skills/{taxonomy_key}/level", response_model=SkillLevelCorrectionResponse)
-async def correct_skill_level(
-    taxonomy_key: str,
-    body: SkillLevelCorrectionRequest,
-    principal: Principal = Depends(get_principal),
-    users_repo: UsersRepository = Depends(get_token_users_repository),
-    scores_repo: ScoresRepository = Depends(get_token_scores_repository),
-    llm_provider: LLMProvider = Depends(get_llm_provider),
-) -> SkillLevelCorrectionResponse:
-    user_id = principal.id
-    skill_id = users_repo.get_skill_id_by_taxonomy_key(taxonomy_key)
-    if skill_id is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{taxonomy_key}' not found in taxonomy.")
-
-    correction_count = users_repo.get_correction_count(user_id, skill_id)
-    if correction_count >= _MAX_APPEALS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="already changed twice",
-        )
-
-    records = users_repo.list_user_skill_records(user_id)
-    display_name = next((r.display_name for r in records if r.key == taxonomy_key), taxonomy_key)
-
-    verdict_data = await judge_skill_appeal(
-        skill=display_name,
-        target_level=body.level,
-        bullet_text=body.bullet_text,
-        provider=llm_provider,
-    )
-
-    approved = verdict_data["approved"]
-    total_score = None
-    if approved:
-        users_repo.correct_skill_level(user_id, skill_id, body.level)
-        score_row = recompute_score(scores_repo, user_id)
-        total_score = score_row.get("total_score")
-
-    new_count = correction_count + (1 if approved else 0)
-    appeals_remaining = max(0, _MAX_APPEALS - new_count)
-
-    return SkillLevelCorrectionResponse(
-        taxonomy_key=taxonomy_key,
-        new_level=body.level if approved else None,
-        total_score=total_score,
-        approved=approved,
-        verdict=verdict_data["verdict"],
-        criteria=verdict_data["criteria"],
-        appeals_remaining=appeals_remaining,
-    )
-
-
-_SKILL_ADVICE_XP_COST = SKILL_ADVICE_XP_COST
-
-
-@router.post("/me/skills/level-up-advice", response_model=SkillAdviceResponse)
-async def get_skill_level_up_advice(
-    body: SkillAdviceRequest,
-    principal: Principal = Depends(get_principal),
-    users_repo: UsersRepository = Depends(get_token_users_repository),
-    diary_repo: DiaryRepository = Depends(get_token_diary_repository),
-    llm_provider: LLMProvider = Depends(get_llm_provider),
-) -> SkillAdviceResponse:
-    user_id = principal.id
-    if body.free_unlock:
-        if not users_repo.has_forged_level_up(user_id, body.taxonomy_key):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No forged level-up is available for this skill.",
-            )
-        diary_context = _recent_diary_context(diary_repo, user_id)
-        evidence_text = "\n\n".join(part for part in [body.evidence_text.strip(), diary_context] if part)
-    else:
-        evidence_text = body.evidence_text.strip()
-
-    if not evidence_text:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Skill advice needs CV evidence before tokens can be spent.",
-        )
-    if not body.free_unlock:
-        await assert_can_spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
-    advice = await generate_skill_advice(
-        skill=body.taxonomy_key,
-        current_level=body.current_level,
-        evidence_text=evidence_text,
-        provider=llm_provider,
-    )
-    if not advice:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Skill advice is unavailable right now. No tokens were spent.",
-        )
-    if body.free_unlock:
-        new_balance = await get_xp_balance(user_id)
-        return SkillAdviceResponse(advice=advice, xp_spent=0, new_xp_balance=new_balance)
-    new_balance = await spend_xp(user_id, _SKILL_ADVICE_XP_COST, "skill_advice")
-    return SkillAdviceResponse(advice=advice, xp_spent=_SKILL_ADVICE_XP_COST, new_xp_balance=new_balance)
-
-
-def _recent_diary_context(diary_repo: DiaryRepository, user_id: str) -> str:
-    rows = diary_repo.list_daily_logs(user_id, 5)
-    notes = [str(row.get("entry_text") or "").strip()[:800] for row in rows]
-    notes = [note for note in notes if note]
-    if not notes:
-        return ""
-    return "Recent diary notes:\n" + "\n".join(f"- {note}" for note in notes)
 
 
 def _linkedin_reward_is_due(before: dict | None, updates: dict) -> bool:

@@ -26,6 +26,10 @@ from app.services.xp_policy import (
     upskilling_award_for,
 )
 
+# Surface B — gap calibration sizing (PRD §5). Diagnostic, never awards tokens.
+GAP_MAX_SKILLS = 6
+GAP_QUESTIONS_PER_SKILL = 3
+
 CLEAR_ACTION = "upskilling_clear"
 # Idempotency key for the first-clear reward. Keyed by (skill, level) — NOT the
 # attempt id — so re-clearing an already-cleared level (a different attempt)
@@ -40,6 +44,25 @@ def _clear_ref_id(skill_id: int, level: int) -> str:
 
 
 # ── Ladder list ──────────────────────────────────────────────────────────────
+
+
+def list_activity_dates(user_id: str, limit: int = 180) -> list[str]:
+    """Recent practice-activity timestamps (ISO), newest-first — powers the home
+    practice streak. Reads graded upskilling sets (quiz_attempts,
+    mode='upskilling', submitted); gap calibrations are diagnostic and excluded.
+    """
+    admin = get_supabase_admin()
+    result = (
+        admin.table("quiz_attempts")
+        .select("submitted_at")
+        .eq("user_id", user_id)
+        .eq("mode", "upskilling")
+        .not_.is_("submitted_at", "null")
+        .order("submitted_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return [str(row["submitted_at"]) for row in (result.data or []) if row.get("submitted_at")]
 
 
 def list_skills(user_id: str) -> list[dict]:
@@ -371,6 +394,191 @@ def _bump_assessed_level(admin, user_id: str, skill_id: int, level: int) -> None
                 "total_forge_minutes": 0,
             }
         ).execute()
+
+
+# ── Surface B — job-anchored gap calibration (PRD §5) ────────────────────────
+
+
+def start_gap(
+    user_id: str,
+    job_id: str,
+    job_title: str,
+    company: str | None,
+    required: list[dict],
+) -> dict:
+    """Serve a short calibration across a job's gap skills.
+
+    `required` = [{skill_key, target_level, user_level, is_primary}] built by the
+    router from the existing skill-gap (reuses get_job_skills + user skill map).
+    We pick the biggest gaps that also have a question bank, cap at
+    GAP_MAX_SKILLS, draw GAP_QUESTIONS_PER_SKILL each. Served WITHOUT answer keys;
+    grading + the assessed-level write happen in submit_gap. Diagnostic only — no
+    tokens (Part A pays for *improvement*, not for taking a test).
+    """
+    admin = get_supabase_admin()
+
+    gaps = [r for r in required if int(r["user_level"]) < int(r["target_level"])]
+    # Biggest, most-required gaps first (primary, then level distance).
+    gaps.sort(key=lambda r: (0 if r["is_primary"] else 1, -(int(r["target_level"]) - int(r["user_level"]))))
+    gaps = gaps[:GAP_MAX_SKILLS]
+    keys = [r["skill_key"] for r in gaps]
+    if not keys:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No gap skills to assess — your CV already meets this job's required levels.",
+        )
+
+    bank_rows = (
+        admin.table("skill_questions")
+        .select("id, skill_id, skill_key, question_text, options")
+        .eq("status", "active")
+        .in_("skill_key", keys)
+        .execute()
+    ).data or []
+    by_key: dict[str, list[dict]] = {}
+    for q in bank_rows:
+        by_key.setdefault(q["skill_key"], []).append(q)
+
+    name_rows = (
+        admin.table("skills").select("id, taxonomy_key, name").in_("taxonomy_key", keys).execute()
+    ).data or []
+    names = {r["taxonomy_key"]: (r.get("name") or r["taxonomy_key"]) for r in name_rows}
+
+    served: list[dict] = []
+    all_qids: list[int] = []
+    for r in gaps:
+        pool = by_key.get(r["skill_key"], [])
+        if not pool:
+            continue
+        n = min(GAP_QUESTIONS_PER_SKILL, len(pool))
+        drawn = random.sample(pool, n)
+        served.append(
+            {
+                "skill_id": int(drawn[0]["skill_id"]),
+                "skill_key": r["skill_key"],
+                "display_name": names.get(r["skill_key"], r["skill_key"]),
+                "target_level": int(r["target_level"]),
+                "calibration_set": [
+                    {"id": int(q["id"]), "question_text": q["question_text"], "options": list(q["options"])}
+                    for q in drawn
+                ],
+            }
+        )
+        all_qids.extend(int(q["id"]) for q in drawn)
+
+    if not served:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Question banks for this job's gap skills are still filling — check back soon.",
+        )
+
+    attempt = (
+        admin.table("quiz_attempts")
+        .insert(
+            {
+                "user_id": user_id,
+                "mode": "gap_calibration",
+                "job_id": job_id,
+                "question_ids": all_qids,
+                "max_score": len(all_qids),
+            }
+        )
+        .execute()
+    ).data[0]
+
+    return {
+        "assessment_id": str(attempt["id"]),
+        "job_id": job_id,
+        "job_title": job_title or None,
+        "company_name": company,
+        "skills": served,
+    }
+
+
+def submit_gap(
+    user_id: str,
+    assessment_id: str,
+    answers: list[dict],
+    targets_by_key: dict[str, int],
+) -> dict:
+    """Grade a gap calibration → per-skill readiness map. Writes skill_assessed_level
+    (max-semantics, never regresses, no tokens). JD-anchored: each missed
+    calibration question drops the assessed level one below the job's target."""
+    admin = get_supabase_admin()
+
+    attempt_res = (
+        admin.table("quiz_attempts").select("*").eq("id", assessment_id).maybe_single().execute()
+    )
+    attempt = attempt_res.data if attempt_res else None
+    if not attempt or str(attempt["user_id"]) != str(user_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found.")
+    if attempt.get("mode") != "gap_calibration":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Not a gap calibration."
+        )
+
+    question_ids = [int(x) for x in (attempt.get("question_ids") or [])]
+    q_rows = (
+        admin.table("skill_questions")
+        .select("id, skill_id, skill_key, correct_index")
+        .in_("id", question_ids)
+        .execute()
+    ).data or []
+    selected = {int(a["question_id"]): int(a["selected_index"]) for a in answers}
+
+    # Group correctness by skill.
+    per_skill: dict[int, dict] = {}
+    for q in q_rows:
+        sid = int(q["skill_id"])
+        rec = per_skill.setdefault(
+            sid, {"skill_key": q["skill_key"], "correct": 0, "total": 0}
+        )
+        rec["total"] += 1
+        if selected.get(int(q["id"]), -1) == int(q["correct_index"]):
+            rec["correct"] += 1
+
+    names = {
+        int(r["id"]): (r.get("name") or r.get("taxonomy_key") or "")
+        for r in (
+            admin.table("skills").select("id, taxonomy_key, name").in_("id", list(per_skill.keys())).execute()
+        ).data or []
+    }
+
+    readiness: list[dict] = []
+    ratios: list[float] = []
+    for sid, rec in per_skill.items():
+        key = rec["skill_key"]
+        target = int(targets_by_key.get(key, 0)) or 1
+        missed = rec["total"] - rec["correct"]
+        assessed = max(0, min(5, target - missed))
+        band = "ready" if assessed >= target else "close" if assessed >= target - 1 else "gap"
+        # Diagnostic write — max-semantics, never regresses, no tokens (DEC-1a).
+        _bump_assessed_level(admin, user_id, sid, assessed)
+        ratios.append(min(1.0, assessed / target) if target > 0 else 1.0)
+        readiness.append(
+            {
+                "skill_id": sid,
+                "skill_key": key,
+                "skill": names.get(sid, key),
+                "assessed_level": assessed,
+                "target_level": target,
+                "band": band,
+                "why_it_matters": None,
+                "practice_href": f"/forge?skill={key}",
+            }
+        )
+
+    # Sort readiness worst-first (gaps the user should act on lead).
+    band_rank = {"gap": 0, "close": 1, "ready": 2}
+    readiness.sort(key=lambda r: (band_rank[r["band"]], r["assessed_level"] - r["target_level"]))
+
+    if not attempt.get("submitted_at"):
+        admin.table("quiz_attempts").update(
+            {"score": None, "max_score": len(question_ids), "passed": None, "submitted_at": "now()"}
+        ).eq("id", assessment_id).execute()
+
+    overall = round(sum(ratios) / len(ratios) * 100) if ratios else 0
+    return {"readiness": readiness, "overall_readiness_pct": overall}
 
 
 async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:

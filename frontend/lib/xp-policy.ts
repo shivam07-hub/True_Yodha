@@ -2,11 +2,6 @@ export const XP_POLICY = {
   welcomeBaseline: 3000,
   linkedInProfile: 50,
   diaryEntry: 30,
-  forgeAmbientMinutes: 25,
-  forgeAmbientRate: 2,
-  forgeFocusedMinutes: 25,
-  forgeFocusedRate: 3,
-  skillAdviceCost: 20,
   followCompanyCost: 10,
   followedCompanyLimit: 10,
   followCompanyFloor: -30,
@@ -18,10 +13,10 @@ export const XP_POLICY = {
 
 export const XP_EARN_ACTIONS = [
   {
-    title: "Practice a skill",
-    detail: "Tokens build quietly in the background during practice sessions.",
-    amount: `+${XP_POLICY.forgeFocusedMinutes * XP_POLICY.forgeFocusedRate} tokens`,
-    meta: "soft cap 25 min",
+    title: "Clear a skill level",
+    detail: "Pass an upskilling set (8/10 or better) to bank tokens and raise your level.",
+    amount: "+20 / +30 / +50 tokens",
+    meta: "first clear per level",
     status: "live",
   },
   {
@@ -71,11 +66,6 @@ export const XP_SPEND_ACTIONS = [
     title: "Follow a target company",
     detail: `Track up to ${XP_POLICY.followedCompanyLimit} companies. Following can use the ${XP_POLICY.followCompanyFloor} token floor.`,
     amount: `-${XP_POLICY.followCompanyCost} tokens`,
-  },
-  {
-    title: "Get skill advice",
-    detail: "Charged only after advice is generated from your CV evidence.",
-    amount: `-${XP_POLICY.skillAdviceCost} tokens`,
   },
   {
     title: "Refresh matches",

@@ -298,17 +298,6 @@ export interface UserSkillItem {
   evidence_text: string | null
   forge_sessions_count: number
   forged_level_up_available: boolean
-  correction_count: number
-}
-
-export interface SkillAppealResponse {
-  taxonomy_key: string
-  new_level: number | null
-  total_score: number | null
-  approved: boolean
-  verdict: string
-  criteria: string
-  appeals_remaining: number
 }
 
 export interface UserSkillsByDomain {
@@ -341,24 +330,6 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
-  correctSkillLevel: (token: string, taxonomyKey: string, level: number, bulletText: string) =>
-    request<SkillAppealResponse>(
-      `/users/me/skills/${encodeURIComponent(taxonomyKey)}/level`,
-      {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ level, bullet_text: bulletText }),
-      },
-    ),
-  skillLevelUpAdvice: (token: string, taxonomyKey: string, currentLevel: number, evidenceText: string, freeUnlock = false) =>
-    request<{ advice: string | null; xp_spent: number; new_xp_balance: number }>(
-      "/users/me/skills/level-up-advice",
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ taxonomy_key: taxonomyKey, current_level: currentLevel, evidence_text: evidenceText, free_unlock: freeUnlock }),
-      },
-    ),
   followedCompanies: (token: string) =>
     request<FollowedCompaniesResponse>("/users/me/following/companies", {
       headers: { Authorization: `Bearer ${token}` },
@@ -2306,6 +2277,9 @@ export interface MyrologyBooking {
   topic: string | null
   status: "requested" | "confirmed" | "done" | "cancelled"
   created_at: string
+  confirmed_at: string | null
+  done_at: string | null
+  cancelled_at: string | null
 }
 
 export const myrology = {
@@ -2340,23 +2314,6 @@ export interface XPBalanceResponse {
   balance: number
 }
 
-export interface ForgeSessionResult {
-  xp_earned: number
-  new_xp_balance: number
-  level_before: number
-  level_after: number
-  leveled_up: boolean
-  sessions_toward_next: number
-  sessions_needed: number | null
-}
-
-export interface ForgeCompletePayload {
-  skill_name: string
-  skill_id?: string | null
-  duration_minutes: number
-  session_type: "ambient" | "focused"
-}
-
 export const xp = {
   balance: (token: string) =>
     request<XPBalanceResponse>("/users/me/xp", {
@@ -2368,23 +2325,6 @@ export const xp = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ amount, action }),
-    }),
-
-  completeForge: (token: string, payload: ForgeCompletePayload) =>
-    request<ForgeSessionResult>("/users/me/forge/complete", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-
-  lastForgedSkill: (token: string) =>
-    request<{ skill_id: string | null; skill_name: string | null }>("/users/me/forge/last-skill", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  forgeSessionDates: (token: string) =>
-    request<{ dates: string[] }>("/users/me/forge/sessions", {
-      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 
@@ -2479,7 +2419,7 @@ export interface HomeBootstrapResponse {
   applications: ApplicationResponse[]
   evidence: CVEvidenceSummary
   cv_versions: { versions: CVVersion[] }
-  forge_dates: { dates: string[] }
+  practice_activity: { dates: string[] }
   diary: DiaryHistoryResponse
 }
 
@@ -2539,6 +2479,40 @@ export interface SubmitSetResponse {
   results: QuestionResult[]
 }
 
+// ── Surface B — job-anchored gap calibration ────────────────────────────────
+
+export interface GapSkillSet {
+  skill_id: number
+  skill_key: string
+  display_name: string
+  target_level: number
+  calibration_set: ServedQuestion[]
+}
+
+export interface StartGapResponse {
+  assessment_id: string
+  job_id: string
+  job_title: string | null
+  company_name: string | null
+  skills: GapSkillSet[]
+}
+
+export interface ReadinessRow {
+  skill_id: number
+  skill_key: string
+  skill: string
+  assessed_level: number
+  target_level: number
+  band: "ready" | "close" | "gap"
+  why_it_matters: string | null
+  practice_href: string
+}
+
+export interface SubmitGapResponse {
+  readiness: ReadinessRow[]
+  overall_readiness_pct: number
+}
+
 export const upskilling = {
   skills: (token: string) =>
     request<UpskillingSkill[]>("/upskilling/skills", {
@@ -2562,6 +2536,30 @@ export const upskilling = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ answers, idempotency_key: idempotencyKey }),
+    }),
+
+  startGap: (token: string, jobId: string) =>
+    request<StartGapResponse>(`/upskilling/gap/${encodeURIComponent(jobId)}/start`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  submitGap: (
+    token: string,
+    jobId: string,
+    assessmentId: string,
+    answers: Array<{ question_id: number; selected_index: number }>,
+  ) =>
+    request<SubmitGapResponse>(`/upskilling/gap/${encodeURIComponent(jobId)}/submit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ assessment_id: assessmentId, answers }),
+    }),
+
+  /** Recent upskilling-set submission dates — powers the home practice streak. */
+  activityDates: (token: string) =>
+    request<{ dates: string[] }>("/upskilling/activity", {
+      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 

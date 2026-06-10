@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
+import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
 import { jobs, type JobFeedItem } from "@/lib/api"
 import { LocationLine, SkillChip } from "./job-card"
@@ -20,6 +21,7 @@ export function JobDetailDrawer({
   onToggleFollow: () => void
   onSave: () => void
 }) {
+  const router = useRouter()
   const [reported, setReported] = useState(false)
   const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -67,6 +69,14 @@ export function JobDetailDrawer({
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
             </div>
           ) : null}
+          <button
+            type="button"
+            onClick={() => router.push(`/forge?gap=${encodeURIComponent(job.job_id)}`)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--tm-int-border-soft)", background: "var(--tm-int-bg-wash)", color: "var(--tm-interactive)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+          >
+            <span>◎ Assess my readiness for this job</span>
+            <span aria-hidden>→</span>
+          </button>
           <div>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Job description</div>
             <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13.5, lineHeight: 1.6, color: "var(--tm-text)" }}>{job.job_description || "No description available."}</pre>

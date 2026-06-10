@@ -44,7 +44,7 @@ export function useHomeBootstrap(token: string | null | undefined) {
       queryClient.setQueryData(dataKeys.cvEvidence(), data.evidence)
       queryClient.setQueryData(dataKeys.cvVersions(null), data.cv_versions)
       queryClient.setQueryData(dataKeys.diary(), data.diary)
-      queryClient.setQueryData(["forge-session-dates", token], data.forge_dates)
+      queryClient.setQueryData(["practice-activity-dates", token], data.practice_activity)
 
       return data
     },

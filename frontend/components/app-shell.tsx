@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation"
 
-import { ForgeClockDriver } from "@/components/forge/ForgeClockDriver"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { WebChrome } from "@/components/shell/web-chrome"
@@ -49,7 +48,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="tm-shell-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
-      <ForgeClockDriver />
       <XPGateModal />
 
       {isDesktop && (
@@ -57,7 +55,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           xpBalance={m.xpBalance}
           profile={m.profile}
           signOut={m.signOut}
-          onForgeXPEarned={m.handleAmbientXPEarned}
           onXPOpen={() => m.setXPModalOpen(true)}
         />
       )}

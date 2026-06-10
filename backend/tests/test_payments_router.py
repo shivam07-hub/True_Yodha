@@ -395,3 +395,161 @@ def test_unlock_myrology_sets_interested_flag(monkeypatch: pytest.MonkeyPatch) -
     assert captured["table"] == "user_profiles"
     assert captured["payload"] == {"myrology_unlocked": True, "myrology_interested": True}
     assert captured["eq"] == ("id", "user-42")
+
+
+# ── Razorpay webhook (G1 — server-side reconciliation) ──────────────────────
+
+import json  # noqa: E402
+
+
+def _webhook_signature(body: bytes, secret: str = "whsecret") -> str:
+    return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
+def _captured_event(order_id: str = "order_test_123", payment_id: str = "pay_test_1") -> bytes:
+    return json.dumps(
+        {
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {"id": payment_id, "order_id": order_id}}},
+        }
+    ).encode("utf-8")
+
+
+def test_webhook_503_when_secret_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "")
+    body = _captured_event()
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+    assert response.status_code == 503
+
+
+def test_webhook_rejects_bad_signature(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(
+        payments_router, "_find_payment_by_order_id", lambda _oid: pytest.fail("must not look up on bad sig")
+    )
+    body = _captured_event()
+    with TestClient(app) as client:
+        response = client.post("/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": "nope"})
+    assert response.status_code == 401
+
+
+def test_webhook_ignores_unhandled_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    body = json.dumps({"event": "payment.failed", "payload": {}}).encode("utf-8")
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+
+
+def test_webhook_reconciles_entitlement_and_unlocks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(
+        payments_router,
+        "_find_payment_by_order_id",
+        lambda _oid: {
+            "id": "row-1",
+            "user_id": "user-9",
+            "status": "created",
+            "razorpay_payment_id": None,
+            "amount_paise": 49900,
+            "currency": "INR",
+            "xp_amount": 0,
+            "product": "myro_myrology_unlock",
+        },
+    )
+    marked: dict[str, Any] = {}
+    monkeypatch.setattr(payments_router, "_mark_payment_verified", lambda **kw: marked.update(kw) or True)
+    fulfilled: dict[str, Any] = {}
+
+    async def _apply(user_id: str, product: Any, payment: dict[str, Any]) -> int:
+        fulfilled.update({"user_id": user_id, "product": product.key})
+        return 0
+
+    monkeypatch.setattr(payments_router, "_apply_fulfilment", _apply)
+
+    body = _captured_event(payment_id="pay_xyz")
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "reconciled"
+    assert marked["razorpay_payment_id"] == "pay_xyz"
+    assert fulfilled == {"user_id": "user-9", "product": "myro_myrology_unlock"}
+
+
+def test_webhook_idempotent_when_already_verified(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(
+        payments_router,
+        "_find_payment_by_order_id",
+        lambda _oid: {
+            "id": "row-1",
+            "user_id": "user-9",
+            "status": "verified",
+            "razorpay_payment_id": "pay_xyz",
+            "amount_paise": 49900,
+            "currency": "INR",
+            "xp_amount": 0,
+            "product": "myro_myrology_unlock",
+        },
+    )
+    monkeypatch.setattr(payments_router, "_mark_payment_verified", lambda **_kw: pytest.fail("must not re-mark"))
+
+    body = _captured_event()
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "already_verified"
+
+
+def test_webhook_lost_cas_does_not_double_fulfil(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(
+        payments_router,
+        "_find_payment_by_order_id",
+        lambda _oid: {
+            "id": "row-1",
+            "user_id": "user-9",
+            "status": "created",
+            "razorpay_payment_id": None,
+            "amount_paise": 49900,
+            "currency": "INR",
+            "xp_amount": 0,
+            "product": "myro_myrology_unlock",
+        },
+    )
+    # CAS loses the race (browser verify won concurrently) -> 0 rows updated.
+    monkeypatch.setattr(payments_router, "_mark_payment_verified", lambda **_kw: False)
+    monkeypatch.setattr(
+        payments_router, "_apply_fulfilment", lambda *_a, **_k: pytest.fail("must not fulfil after losing CAS")
+    )
+
+    body = _captured_event()
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "already_verified"
+
+
+def test_webhook_unknown_order_acks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(payments_router.settings, "razorpay_webhook_secret", "whsecret")
+    monkeypatch.setattr(payments_router, "_find_payment_by_order_id", lambda _oid: None)
+    body = _captured_event()
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/razorpay/webhook", content=body, headers={"X-Razorpay-Signature": _webhook_signature(body)}
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "unknown_order"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from typing import Any
 import razorpay
 import requests
 from fastapi.concurrency import run_in_threadpool
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from razorpay import errors as razorpay_errors
 
@@ -22,6 +23,10 @@ from app.services import xp_service
 
 CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
+
+# Webhook events that fulfil an order. `payment.captured` is the canonical
+# money-received signal and always carries the payment entity (order_id + id).
+_HANDLED_WEBHOOK_EVENTS = {"payment.captured"}
 
 
 @dataclass(frozen=True)
@@ -141,6 +146,20 @@ def _signature_matches(order_id: str, payment_id: str, provided_signature: str) 
     return hmac.compare_digest(expected, provided_signature)
 
 
+def _webhook_signature_matches(raw_body: bytes, provided_signature: str) -> bool:
+    """Razorpay signs the RAW webhook body with the webhook secret (distinct
+    from the API key secret). The signature must be computed over the exact
+    bytes received — never the re-serialised JSON."""
+    secret = _clean_credential(settings.razorpay_webhook_secret)
+    expected = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, provided_signature)
+
+
+def _extract_order_and_payment(event: dict[str, Any]) -> tuple[str | None, str | None]:
+    entity = (((event.get("payload") or {}).get("payment") or {}).get("entity") or {})
+    return entity.get("order_id"), entity.get("id")
+
+
 def _record_created_payment(
     *,
     user_id: str,
@@ -185,7 +204,21 @@ def _find_payment_by_order(*, user_id: str, razorpay_order_id: str) -> dict[str,
         .maybe_single()
         .execute()
     )
-    return result.data or None
+    return (result.data if result else None) or None
+
+
+def _find_payment_by_order_id(razorpay_order_id: str) -> dict[str, Any] | None:
+    """Order lookup WITHOUT a user scope — the webhook is server-to-server and
+    has no authenticated principal; it reconciles purely on the order id."""
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .select("*")
+        .eq("razorpay_order_id", razorpay_order_id)
+        .maybe_single()
+        .execute()
+    )
+    return (result.data if result else None) or None
 
 
 def _mark_payment_verified(
@@ -218,6 +251,21 @@ def _unlock_myrology(user_id: str) -> None:
     get_supabase_admin().table("user_profiles").update(
         {"myrology_unlocked": True, "myrology_interested": True}
     ).eq("id", user_id).execute()
+
+
+async def _apply_fulfilment(user_id: str, product: Product, payment: dict[str, Any]) -> int:
+    """Apply a product's effect and return the resulting XP balance.
+
+    MUST only be called by the path that won the atomic created->verified CAS
+    (``_mark_payment_verified`` returning True), or on a confirmed-idempotent
+    replay. That guard is what makes fulfilment exactly-once across the browser
+    verify path, the webhook, and webhook retries — never double-credit / double-unlock.
+    """
+    if product.kind == "entitlement":
+        await run_in_threadpool(_unlock_myrology, user_id)
+        return await xp_service.get_xp_balance(user_id)
+    xp_amount = int(payment.get("xp_amount") or product.xp_amount)
+    return await xp_service.earn_xp(user_id, xp_amount)
 
 
 @router.post("/create-order", response_model=CreateOrderResponse)
@@ -350,17 +398,14 @@ async def verify_payment(
             return await _fulfilment_snapshot(principal.id, product)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment verification is already in progress")
 
-    if product.kind == "entitlement":
-        await run_in_threadpool(_unlock_myrology, principal.id)
-        balance = await xp_service.get_xp_balance(principal.id)
-        return VerifyPaymentResponse(
-            success=True, xp_earned=0, new_xp_balance=balance, product=product.key, myrology_unlocked=True
-        )
-
-    xp_amount = int(payment.get("xp_amount") or product.xp_amount)
-    new_balance = await xp_service.earn_xp(principal.id, xp_amount)
+    balance = await _apply_fulfilment(principal.id, product, payment)
+    xp_earned = 0 if product.kind == "entitlement" else int(payment.get("xp_amount") or product.xp_amount)
     return VerifyPaymentResponse(
-        success=True, xp_earned=xp_amount, new_xp_balance=new_balance, product=product.key
+        success=True,
+        xp_earned=xp_earned,
+        new_xp_balance=balance,
+        product=product.key,
+        myrology_unlocked=product.kind == "entitlement",
     )
 
 
@@ -374,3 +419,91 @@ async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentR
         product=product.key,
         myrology_unlocked=product.kind == "entitlement",
     )
+
+
+class WebhookAck(BaseModel):
+    status: str
+
+
+@router.post("/razorpay/webhook", response_model=WebhookAck)
+async def razorpay_webhook(
+    request: Request,
+    x_razorpay_signature: str | None = Header(default=None),
+) -> WebhookAck:
+    """Server-to-server fulfilment fallback.
+
+    Razorpay POSTs here on ``payment.captured`` regardless of whether the
+    browser ever called ``/verify-payment`` (tab closed / network dropped after
+    the charge). We verify the webhook signature over the RAW body, then
+    reconcile the order through the SAME atomic created->verified CAS the
+    browser path uses — so the two races converge to exactly-once fulfilment.
+
+    Always returns 2xx for a validly-signed request (even for orders we don't
+    recognise or have already fulfilled) so Razorpay stops retrying. Only an
+    invalid/absent signature or an unconfigured secret is a non-2xx.
+    """
+    secret = _clean_credential(settings.razorpay_webhook_secret)
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Razorpay webhook is not configured",
+        )
+
+    raw_body = await request.body()
+    if not x_razorpay_signature or not _webhook_signature_matches(raw_body, x_razorpay_signature):
+        logger.warning("metric webhook.bad_signature bytes=%d", len(raw_body))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
+
+    try:
+        event = json.loads(raw_body)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Malformed webhook payload")
+
+    event_type = event.get("event") if isinstance(event, dict) else None
+    if event_type not in _HANDLED_WEBHOOK_EVENTS:
+        return WebhookAck(status="ignored")
+
+    order_id, payment_id = _extract_order_and_payment(event)
+    if not order_id or not payment_id:
+        logger.warning("metric webhook.missing_ids event=%s", event_type)
+        return WebhookAck(status="ignored")
+
+    payment = await run_in_threadpool(_find_payment_by_order_id, order_id)
+    if not payment:
+        # Order we never created (e.g. a different Razorpay account / env). Ack
+        # so Razorpay stops retrying; nothing to fulfil here.
+        logger.warning("metric webhook.unknown_order order=%s", order_id)
+        return WebhookAck(status="unknown_order")
+
+    product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
+    if product is None:
+        logger.error("metric webhook.unknown_product order=%s product=%s", order_id, payment.get("product"))
+        return WebhookAck(status="unknown_product")
+
+    payment_currency = str(payment.get("currency", "")).strip().upper()
+    if int(payment.get("amount_paise", 0)) != product.price_paise or payment_currency != CURRENCY:
+        logger.error("metric webhook.amount_mismatch order=%s", order_id)
+        return WebhookAck(status="amount_mismatch")
+
+    if payment.get("status") == "verified":
+        return WebhookAck(status="already_verified")
+
+    updated = await run_in_threadpool(
+        _mark_payment_verified,
+        payment_row_id=payment["id"],
+        razorpay_payment_id=payment_id,
+        razorpay_signature=f"webhook:{x_razorpay_signature[:80]}",
+    )
+    if not updated:
+        # Lost the CAS to the browser verify (or a concurrent webhook delivery).
+        # The winner already fulfilled — nothing to do.
+        return WebhookAck(status="already_verified")
+
+    await _apply_fulfilment(str(payment["user_id"]), product, payment)
+    logger.info(
+        "metric webhook.reconciled order=%s product=%s user=%s",
+        order_id,
+        product.key,
+        payment.get("user_id"),
+    )
+    return WebhookAck(status="reconciled")

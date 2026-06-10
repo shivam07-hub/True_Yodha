@@ -9,7 +9,6 @@ import { jobs as jobsApi, type JobMatch, type SkillGapItem } from "@/lib/api"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
-import { useForgeTimerStore } from "@/store/forgeTimerStore"
 
 export function stripTaxonomySuffix(s: string): string {
   return s.replace(/\s*\((Programming Language|Software|Framework|Library)\)\s*$/i, "")
@@ -200,10 +199,7 @@ function SkillChipRow({
   const level = Math.max(0, Math.min(MAX_LEVEL, Math.round(skill.user_level ?? 0)))
   const target = Math.min(MAX_LEVEL, toLevelTarget)
   const sessions = level >= MAX_LEVEL ? 0 : sessionsForGap(level, target)
-  const activeSkill = useForgeTimerStore((s) => s.skillName)
-  const sessionActive = useForgeTimerStore((s) => s.sessionActive)
-  const isForging = sessionActive && activeSkill?.toLowerCase() === skill.skill.toLowerCase()
-  const state: ForgeChipState = isForging ? "active" : inCart ? "cart" : "idle"
+  const state: ForgeChipState = inCart ? "cart" : "idle"
   return (
     <div className="db-skill-row">
       <span className="name">{stripTaxonomySuffix(skill.skill)}</span>

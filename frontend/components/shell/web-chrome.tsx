@@ -32,7 +32,6 @@ interface WebChromeProps {
   xpBalance: number
   profile: SidebarProfile | null
   signOut: () => void
-  onForgeXPEarned: (amount: number, newBalance: number) => void
   onXPOpen: () => void
 }
 

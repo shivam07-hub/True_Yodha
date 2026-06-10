@@ -15,7 +15,6 @@ function skill(partial: Partial<UserSkillItem> & { key: string; display_name: st
     evidence_text: null,
     forge_sessions_count: 0,
     forged_level_up_available: false,
-    correction_count: 0,
     ...partial,
   }
 }
