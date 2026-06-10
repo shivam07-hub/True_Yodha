@@ -296,7 +296,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-10 - Upskilling and Myrology completion audit, Develop)
+## LAST SESSION SUMMARY (2026-06-10 - LM Studio Phase 2 enrichment resumed)
+
+Restarted LM Studio and resumed the interrupted Phase 2 enrichment for the
+`firecrawl_Supabase` June 4 scrape.
+
+- Restarted the LM Studio desktop app and API server on port `1234`.
+- Reloaded `google/gemma-3-4b` with 4 parallel prediction slots and verified a
+  successful chat-completions request.
+- Confirmed the date-scoped local batch contains 17,964 jobs: 9,254 fully
+  enriched at restart and 8,708 remaining. This phase writes local
+  `jobs.json`/`jobs.csv` files only; Supabase upload remains Phase 3.
+- Relaunched the existing date-scoped resume runner in detached screen session
+  `myro-enrich-20260610`, protected by `caffeinate`.
+- Verified persisted progress to 9,257 fully enriched / 8,705 remaining with no
+  LM Studio connection errors.
+- Active log:
+  `firecrawl_Supabase/logs/enrich_resume_20260610_1447_screen.log`.
+- No scraper implementation files were changed; existing dirty state in both
+  repositories remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-10 - Upskilling and Myrology completion audit, Develop)
 
 Audited Claude's June 9–10 work against git, Supabase, deployed API contracts, and the full local test suite.
 
