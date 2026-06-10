@@ -19,6 +19,7 @@ from app.routers import (
     newsletter_distribution,
     payments,
     profile,
+    public,
     scores,
     skills,
     status,
@@ -67,6 +68,7 @@ app.include_router(payments.router)
 app.include_router(myrology.router)
 app.include_router(newsletter.router)
 app.include_router(newsletter_distribution.router)
+app.include_router(public.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)
 app.include_router(upskilling.router)

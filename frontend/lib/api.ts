@@ -2407,6 +2407,22 @@ export const newsletter = {
     }),
 }
 
+// ── Public stats (landing-page Engine counters) ─────────────────────────────
+// No-auth, 1h server cache. Display floors so the numbers never appear to go
+// down between visits (design handoff §PRIORITY DIRECTIVE).
+
+export interface PublicStatsResponse {
+  jobs_tracked: number
+  companies_monitored: number
+  skills_mapped: number
+  seekers: number
+  as_of: string
+}
+
+export const publicStats = {
+  get: () => request<PublicStatsResponse>("/public/stats"),
+}
+
 // ── Home bootstrap (BFF) ────────────────────────────────────────────────────
 // One round-trip that returns the whole above-the-fold dashboard bundle, so the
 // client makes a single call instead of ~9 to paint home. Each field mirrors the

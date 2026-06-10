@@ -41,7 +41,7 @@ export function PublicFooter() {
           </Link>
           <p className="pub-footer-tagline">career intelligence</p>
           <p className="pub-footer-sub">
-            Myro AI scores your CV across 10 career domains, tailors a version for every job, and scores the best one to send.
+            Myro — the Career Intelligence Platform. One engine: live job data in, scored and tailored CVs out.
           </p>
         </div>
 

@@ -461,7 +461,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-10 · Upskilling + Myrology completion audit)
+## LAST SESSION SUMMARY (2026-06-10/11 · Landing page "Myro Engine" redesign — BUILT, uncommitted)
+
+Cowork session. Spec written (`docs/DESIGN_landing_myro_engine.md`) → Shivam ran it through Claude Design → handoff confirmed (`reference/building landing page.zip`, tweaks locked: bg `#0a0a0c`, Signal teal, roadmap line KEPT, 150+ directive) → **implemented in full**.
+
+**Frontend (nested git, uncommitted):** `components/public/landing-page.tsx` rebuilt as 7-section engine page; new `components/public/landing/` (hero w/ mini-engine SVG + real-data company marquee, engine pipeline + merge + count-up counters, dark sample readout, surfaces w/ `← ENGINE:` lines + quiet Myrology card, loop ring (static 7-node trig layout, mobile chain), proof = live intel teaser + quotes + newsletter strip wired to `newsletter.subscribe(email,"landing")`, FAQ accordion + closing CTA; 4 scoped CSS files; `use-reveal.ts` IO reveal **with the fail-open failsafe**). Landing forces `data-surface="dark"` on mount (myrology pattern) + remaps `--tm-*` inside `.tm-landing` so reused PublicTopNav/PublicFooter/SignupModal go terminal-dark. Fonts: Space Grotesk + JetBrains Mono via next/font in `app/page.tsx` (vars `--font-grotesk`/`--font-jbmono`). New metadata ("Myro — The Career Intelligence Platform") + per-page `viewport.themeColor #0a0a0c` + JSON-LD (SoftwareApplication + FAQPage from shared `landing-copy.ts`). `lib/api.ts`: + `publicStats.get()`. DELETED: `sample-diagnostic.tsx`, old `landing-page.css`. Footer descriptor line updated (all public pages). Dropzones route through `useSignupGate` (`surface:"about_hero"`, `next=/cv?upload=1`). Counters/marquee/intel single-source live data: `/public/stats` → fallback `jobs.analytics()` → static floors (4,000+/150+/32,000+/950+), floored display so numbers never shrink. **tsc --noEmit exit 0 · next lint clean.**
+
+**Backend (root repo, uncommitted):** NEW `app/routers/public.py` — `GET /public/stats` (no-auth, 1h in-process cache, reuses snapshot-backed `compile_market_analytics()` + `user_profiles` exact count, static `SKILLS_MAPPED=32000`), registered in `main.py`. Tests: `tests/test_public_stats.py` (3 tests, fake repo/admin — NOT RUN here, macOS venv unusable in sandbox).
+
+**Deliberate deviations from handoff (flag to Shivam):** (a) intel teaser column says "{n} roles · live" not "· 30d" — `by_company.count` is active listings, not a 30d window; honesty > locked copy. (b) Marquee names come from live `analytics.by_company` (real corpus) instead of a hardcoded MNC list; marquee hidden until data arrives.
+
+**Shivam open items:** (1) `pytest backend/tests/test_public_stats.py` in real toolchain. (2) Eyeball landing at desktop + 375px (+ reduced-motion). (3) Commit both repos (frontend nested git!), deploy backend for `/public/stats` (landing works without it via analytics fallback). (4) Follow-ups parked: regenerate OG image to show Engine diagram; **global dark-mode token migration** to the landing palette (`#0a0a0c/#13141a/#67e8f9` etc.) across the app per Shivam's "entire website" intent — separate PR, touches `design-tokens.css` + `tests/brand-system.test.ts` + 5 hardcoded `#050505` spots, needs visual QA.
+
+---
+
+## OLDER SESSION SUMMARY (2026-06-10 · Upskilling + Myrology completion audit)
 
 Confirmed Claude's June 9–10 implementation against git, the live database, deployed APIs, and the full local checks.
 
