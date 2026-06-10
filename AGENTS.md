@@ -296,7 +296,25 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-10 - LM Studio Phase 2 enrichment resumed)
+## LAST SESSION SUMMARY (2026-06-11 - LM Studio Phase 2 enrichment paused)
+
+Paused the `firecrawl_Supabase` June 4 Phase 2 enrichment to release RAM for
+other work.
+
+- Stopped detached screen session `myro-enrich-20260610` and its `caffeinate`
+  process.
+- The last fully persisted company boundary is `Notion` (`136/206`).
+  `Novartis` was interrupted after 25 in-memory jobs and will be safely redone
+  from its local `jobs.json` state on resume.
+- Current local checkpoint: 17,964 total jobs, 12,164 fully enriched, 5,798
+  remaining.
+- Unloaded `google/gemma-3-4b`, stopped the LM Studio API on port `1234`, and
+  quit the LM Studio desktop/helper processes.
+- Resume with the existing date-scoped runner for `TARGET_DATE_DIR=2026_06_04`;
+  it skips completed local records automatically.
+- Supabase remains untouched; upload is still the separate Phase 3.
+
+## OLDER SESSION SUMMARY (2026-06-10 - LM Studio Phase 2 enrichment resumed)
 
 Restarted LM Studio and resumed the interrupted Phase 2 enrichment for the
 `firecrawl_Supabase` June 4 scrape.
