@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from app.routers import auth
 from app.services import user_provisioning
 
 
@@ -181,3 +182,15 @@ def test_empty_cookie_paths(monkeypatch: Any, cookie: Any) -> None:
 
     assert len(spy.upserts) == 1
     assert "referred_by_user_id" not in spy.upserts[0]
+
+
+def test_query_ref_is_used_when_body_and_cookie_are_absent() -> None:
+    assert auth._select_referrer(None, "query-ninja", None) == "query-ninja"
+
+
+def test_body_ref_takes_precedence_over_query_and_cookie() -> None:
+    assert auth._select_referrer(
+        "body-ninja",
+        "query-ninja",
+        "cookie-ninja",
+    ) == "body-ninja"

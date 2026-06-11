@@ -297,7 +297,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 - CV Playground, tracker, and LinkedIn contract locked)
+## LAST SESSION SUMMARY (2026-06-12 - Referral v1 backend)
+
+Implemented PR-REFERRAL-V1 backend on `Develop`.
+
+- Audited live Supabase: `user_profiles.referred_by_user_id` exists as nullable
+  UUID with `FOREIGN KEY (referred_by_user_id) REFERENCES auth.users(id)`.
+- Signup, login, and post-signin now resolve referral input in body, `?ref=`,
+  then `myro_ref` cookie order.
+- Profile provisioning credits the attributed referrer +100 Myro Coins only
+  after the referred user's welcome grant is active. Self-referrals and missing
+  referrals pay zero; sequential replay pays zero.
+- Credit uses `reward_xp` with
+  `(action='referral_credit', ref_table='referred_signup', ref_id=<new_user_id>)`.
+- Added manual-apply migration
+  `database/migrations/20260612_referral_reward_credit.sql`. Live Supabase does
+  not currently expose `reward_xp`; Shivam must apply this migration. It adds
+  transaction-key locking and a referral-scoped unique index for exact-once
+  concurrent payout. The migration was not run.
+- Verification: backend `584 passed`; `npx tsc --noEmit` clean; Next lint clean.
+- No frontend, CV, tracker, or `frontend/lib/api.ts` files were changed for this
+  task. Unrelated in-progress workspace changes were left untouched.
+
+## OLDER SESSION SUMMARY (2026-06-12 - CV Playground, tracker, and LinkedIn contract locked)
 
 Completed the point-3 `grill-me` product interview and locked the end-to-end
 CV/application workflow. No production code was changed.

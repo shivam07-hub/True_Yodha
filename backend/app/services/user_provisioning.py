@@ -28,6 +28,10 @@ from app.services import xp_service
 
 logger = logging.getLogger(__name__)
 
+REFERRAL_REWARD_XP = 100
+REFERRAL_REWARD_ACTION = "referral_credit"
+REFERRAL_REWARD_REF_TABLE = "referred_signup"
+
 
 def _row_exists(user_id: str) -> bool:
     admin = get_supabase_admin()
@@ -51,6 +55,63 @@ def _resolve_referrer(myro_ref: str, viewer_user_id: str) -> Optional[str]:
 
 def _vanity_to_url(vanity: str) -> str:
     return f"https://www.linkedin.com/in/{vanity.strip().strip('/')}"
+
+
+def credit_referrer_for_signup(new_user_id: str) -> int:
+    """Credit the attributed referrer once after the welcome grant is active.
+
+    The database RPC is the atomic authority. The ledger read avoids a needless
+    replay call and lets callers report zero honestly on sequential retries.
+    """
+    admin = get_supabase_admin()
+    try:
+        profile = (
+            admin.table("user_profiles")
+            .select("id, referred_by_user_id, welcome_xp_granted")
+            .eq("id", new_user_id)
+            .maybe_single()
+            .execute()
+        )
+        row = profile.data or {}
+        referrer_id = row.get("referred_by_user_id")
+        if (
+            not row.get("welcome_xp_granted")
+            or not referrer_id
+            or referrer_id == new_user_id
+        ):
+            return 0
+
+        prior = (
+            admin.table("xp_ledger")
+            .select("id")
+            .eq("action", REFERRAL_REWARD_ACTION)
+            .eq("ref_table", REFERRAL_REWARD_REF_TABLE)
+            .eq("ref_id", new_user_id)
+            .gt("delta", 0)
+            .limit(1)
+            .execute()
+        )
+        if prior.data:
+            return 0
+
+        admin.rpc("reward_xp", {
+            "p_user_id": referrer_id,
+            "p_amount": REFERRAL_REWARD_XP,
+            "p_action": REFERRAL_REWARD_ACTION,
+            "p_reason": "Referral signup completed",
+            "p_ref_table": REFERRAL_REWARD_REF_TABLE,
+            "p_ref_id": new_user_id,
+        }).execute()
+    except Exception as exc:
+        logger.warning(
+            "Referral reward failed for signup %s: %s: %s",
+            new_user_id,
+            type(exc).__name__,
+            exc,
+        )
+        return 0
+
+    return REFERRAL_REWARD_XP
 
 
 def ensure_user_provisioned(
@@ -78,6 +139,8 @@ def ensure_user_provisioned(
             admin.table("user_profiles").update(payload).eq("id", user_id).execute()
         except Exception as exc:  # pragma: no cover — log + continue
             logger.warning("Profile refresh failed for %s: %s: %s", user_id, type(exc).__name__, exc)
+        if myro_ref:
+            credit_referrer_for_signup(user_id)
         return False
 
     # Fresh row — generate slug + resolve referrer.
@@ -115,6 +178,9 @@ def ensure_user_provisioned(
     except Exception as exc:  # pragma: no cover
         logger.warning("Profile provisioning failed for %s: %s: %s", user_id, type(exc).__name__, exc)
         return False
+
+    if referred_by:
+        credit_referrer_for_signup(user_id)
 
     return bool(referred_by)
 
