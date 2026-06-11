@@ -1450,6 +1450,56 @@ mark.cvb-kw {
   .cvb-rw-input, .cvb-rw-panel .cvb-btn { min-height: 44px; }
 }
 
+/* ── Whole-CV "Restructure with Mentor" (Phase 4) ────────────────────────── */
+.cvb-rs-modal { max-width: 560px; }
+.cvb-rs-body {
+  padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px;
+  flex: 1; min-height: 0; overflow-y: auto;
+}
+.cvb-rs-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--tm-text-faint); margin-bottom: 6px;
+}
+.cvb-rs-change-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cvb-rs-change-list li {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 12.5px; line-height: 1.5; color: var(--tm-text);
+}
+.cvb-rs-change-list li svg { color: var(--tm-interactive); flex: none; margin-top: 2px; }
+.cvb-rs-preview {
+  max-height: 280px; overflow-y: auto;
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); padding: 12px 14px;
+}
+.cvb-rs-preview pre {
+  margin: 0; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--cvb-font-mono); font-size: 11.5px; line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+.cvb-rs-why { font-size: 12px; }
+.cvb-rs-why > summary {
+  cursor: pointer; color: var(--tm-text-muted); font-size: 11.5px;
+  list-style: revert; padding: 2px 0;
+}
+.cvb-rs-why > summary:focus-visible { outline: 2px solid var(--tm-int-border); outline-offset: 2px; }
+.cvb-rs-why-reason { margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--tm-text); }
+.cvb-rs-why-src { margin: 6px 0 0; font-size: 11px; color: var(--tm-text-muted); }
+.cvb-rs-why-src span {
+  text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.5px;
+  color: var(--tm-text-faint); margin-right: 4px;
+}
+.cvb-rs-why-honest {
+  margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--tm-text-faint);
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.cvb-rs-why-honest svg { flex: none; margin-top: 2px; }
+.cvb-rs-error { font-size: 12px; color: var(--tm-danger); margin: 0; }
+.cvb-rs-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .cvb-rs-foot .cvb-btn { min-height: 44px; }
+  .cvb-rs-preview { max-height: 220px; }
+}
+
 /* ── 10-minute first-use guide ───────────────────────────────────────────── */
 .cvb-tenmin-guide {
   display: flex;

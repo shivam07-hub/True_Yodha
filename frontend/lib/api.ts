@@ -526,6 +526,17 @@ export interface RewriteBulletResponse {
   rationale?: string | null
 }
 
+// Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1).
+export interface RestructureProposalResponse {
+  mode: "proposal" | "error"
+  proposed_text?: string | null
+  changes: string[]
+  rationale?: string | null
+  playbook?: string | null
+  uncertainty?: string | null
+  cost: number               // Myro Coins charged only when the user keeps it
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -569,6 +580,22 @@ export const cv = {
       request<CVVersion>(`/cv/versions/${versionId}/polish`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
+      }),
+    // Whole-CV Restructure: propose is FREE + stateless; keep charges 20 coins.
+    restructure: (token: string, versionId: number) =>
+      request<RestructureProposalResponse>(`/cv/versions/${versionId}/restructure`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    restructureApply: (
+      token: string,
+      versionId: number,
+      body: { proposed_text: string; proposal_id: string },
+    ) =>
+      request<CVVersion>(`/cv/versions/${versionId}/restructure/apply`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
       }),
     edit: (
       token: string,

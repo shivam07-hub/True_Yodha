@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function InstitutionsLandingPage() {
   return (
     <Suspense fallback={null}>
-      <EnterpriseSignup initialMode="institutions" />
+      <EnterpriseSignup initialMode="institutions" lockMode />
     </Suspense>
   )
 }

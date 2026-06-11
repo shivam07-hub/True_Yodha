@@ -24,6 +24,7 @@ import type {
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { PursuitStageControl } from "./pursuit-stage-control"
 import { BulletRewrite } from "./bullet-rewrite"
+import { RestructureProposal } from "./restructure-proposal"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { formatGlobalVersionLabel, formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
@@ -91,6 +92,7 @@ export function PlaygroundView({
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit")
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
+  const [restructureOpen, setRestructureOpen] = useState(false)
   const queryClient = useQueryClient()
 
   // Accept a per-bullet rewrite → writes a new Main-CV baseline (mirrors
@@ -235,7 +237,9 @@ export function PlaygroundView({
   // action group. Save while there are unsaved edits; otherwise Export. Polish /
   // Edit-text are secondary actions in the same group — never scattered, never
   // duplicated. The JD-match score lives in the meter (IntelStrip), not on a button.
-  const isPolishable = isEditableSelection && !!selectedVersion && selectedVersion.kind !== "polished"
+  // CVJT1: "Polish" retired — the whole-CV action is Restructure (reorder/merge/
+  // cut, reviewable, 20 coins on keep). Any job-scoped copy can be restructured.
+  const canRestructure = isEditableSelection && !!selectedVersion
   const canEditPolished = isEditableSelection && !!selectedVersion
   const isSavePrimary = canSave
 
@@ -248,10 +252,6 @@ export function PlaygroundView({
   const atsSc = useMemo(() => atsScore(atsChecks), [atsChecks])
 
   function handleSave() { playground.saveVersion.mutate() }
-  function handlePolish() {
-    if (!selectedVersion) return
-    playground.polishVersion.mutate(selectedVersion.id)
-  }
 
   // Soft auto-trim: hide the lowest-impact visible bullets until the estimated
   // overflow is reclaimed. Best-effort single pass — the user watches the meter
@@ -311,17 +311,15 @@ export function PlaygroundView({
                 <span className="cvb-action-badge" aria-label={`${missingTargets.length} keyword gaps`}>{missingTargets.length}</span>
               )}
             </button>
-            {(isPolishable || canEditPolished) && <span className="cvb-action-sep" aria-hidden="true" />}
-            {isPolishable && (
+            {(canRestructure || canEditPolished) && <span className="cvb-action-sep" aria-hidden="true" />}
+            {canRestructure && (
               <button
                 type="button"
                 className="cvb-btn sm"
-                onClick={handlePolish}
-                disabled={playground.polishVersion.isPending}
-                title="Rewrite this copy with AI"
+                onClick={() => setRestructureOpen(true)}
+                title="Mentor reorders, merges and trims your whole CV for this job"
               >
-                <Icon name="sparkle" size={13}/>
-                {playground.polishVersion.isPending ? "Polishing…" : "Polish"}
+                <Icon name="sparkle" size={13}/> Restructure
               </button>
             )}
             {canEditPolished && selectedVersion && (
@@ -330,7 +328,7 @@ export function PlaygroundView({
                 className="cvb-btn sm"
                 onClick={() => onEditPolished(selectedVersion.id)}
                 disabled={!selectedVersion.polished_text}
-                title={selectedVersion.polished_text ? "Edit polished text" : "Polish first to edit"}
+                title={selectedVersion.polished_text ? "Edit polished text" : "Restructure first to edit"}
               >
                 <Icon name="edit" size={13}/> Edit text
               </button>
@@ -578,6 +576,19 @@ export function PlaygroundView({
             </div>
           </div>
         </div>
+      )}
+
+      {restructureOpen && selectedVersion && (
+        <RestructureProposal
+          token={token}
+          versionId={selectedVersion.id}
+          onClose={() => setRestructureOpen(false)}
+          onKept={(v) => {
+            setRestructureOpen(false)
+            selectVersion(v.id)
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+          }}
+        />
       )}
     </div>
   )

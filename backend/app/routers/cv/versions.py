@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import Client
 
 from app.deps import Principal, get_principal, get_user_db
@@ -26,7 +26,7 @@ from app.repositories.cv import (
     CVVersionsRepository,
     get_token_cv_repository,
 )
-from app.services import cv_compose
+from app.services import cv_compose, cv_restructure, xp_policy, xp_service
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
 from app.services.llm_provider import get_llm_provider
@@ -68,6 +68,26 @@ class CVVersionResponse(BaseModel):
 
 class CVVersionListResponse(BaseModel):
     versions: list[CVVersionResponse]
+
+
+# Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1) ──
+
+
+class RestructureProposalResponse(BaseModel):
+    mode:          str               # "proposal" | "error"
+    proposed_text: str | None = None
+    changes:       list[str] = []
+    rationale:     str | None = None
+    playbook:      str | None = None
+    uncertainty:   str | None = None
+    cost:          int = xp_policy.RESTRUCTURE_CV_XP_COST  # charged only on keep
+
+
+class RestructureApplyRequest(BaseModel):
+    proposed_text: str = Field(..., min_length=1)
+    # Client-generated UUID, stable for one shown proposal — keys the keep-charge
+    # ledger row so reconciliation can tie the 20-coin spend to this exact accept.
+    proposal_id:   str = Field(..., min_length=1)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -292,3 +312,124 @@ def edit_cv_version(
         ai_polished=bool(parent.get("ai_polished")),
     )
     return _to_response(cv_repo.create(user_id, spec))
+
+
+def _require_job_parent(
+    version_id: int, user_id: str, cv_repo: CVVersionsRepository
+) -> dict[str, Any]:
+    """Load a job-scoped parent version or raise. Restructure operates on a
+    tailored copy (has job_id); baselines are never restructured in place."""
+    parent = cv_repo.find(version_id, user_id)
+    if not parent:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Parent CV version not found.")
+    if not parent.get("job_id"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Save a tailored copy for this job before restructuring.",
+        )
+    return parent
+
+
+@router.post("/{version_id}/restructure", response_model=RestructureProposalResponse)
+async def restructure_cv_version(
+    version_id: int,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+    db: Client = Depends(get_user_db),
+) -> RestructureProposalResponse:
+    """Propose a whole-CV restructure (reorder / merge / cut) for this job.
+
+    Stateless and FREE — writes nothing, charges nothing. The user reviews the
+    proposal and only pays on keep (see /restructure/apply). §6.2 / CVJT1."""
+    user_id = principal.id
+    parent = _require_job_parent(version_id, user_id, cv_repo)
+
+    job = _get_job(db, parent["job_id"])
+    targets = _fetch_targets(db, user_id, parent["job_id"])
+    missing_keywords = [t.get("skill") for t in targets if t.get("skill")]
+
+    result = await cv_restructure.suggest_restructure(
+        cv_text=parent.get("polished_text") or parent.get("body_text") or "",
+        role=job.get("job_title"),
+        company=job.get("company_name"),
+        missing_keywords=missing_keywords,
+        provider=get_llm_provider(),
+    )
+    return RestructureProposalResponse(
+        mode=result["mode"],
+        proposed_text=result.get("proposed_text"),
+        changes=result.get("changes") or [],
+        rationale=result.get("rationale"),
+        playbook=result.get("playbook"),
+        uncertainty=result.get("uncertainty"),
+    )
+
+
+@router.post(
+    "/{version_id}/restructure/apply",
+    response_model=CVVersionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def restructure_apply(
+    version_id: int,
+    body: RestructureApplyRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Keep a restructure proposal: charge 20 Myro Coins, then write a new
+    ``polished`` child. Charge fires here (on keep) only — failed/rejected/
+    discarded proposals never reach this endpoint, so they cost nothing (CVJT1).
+
+    Ordering mirrors the CV-upload charge (XP-DB4): charge BEFORE the write so no
+    unpaid version can exist; refund (idempotent on proposal_id) if the write
+    throws after the charge."""
+    user_id = principal.id
+    parent = _require_job_parent(version_id, user_id, cv_repo)
+
+    try:
+        await xp_service.charge_or_raise(
+            user_id,
+            xp_policy.RESTRUCTURE_CV_XP_COST,
+            "cv_restructure",
+            floor=xp_policy.RESTRUCTURE_CV_XP_FLOOR,
+            ref_table="cv_restructure",
+            ref_id=body.proposal_id,
+        )
+    except xp_service.InsufficientXPError as exc:
+        # XP-CTA: the service stays domain-free; the caller owns the recovery copy.
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"{exc.detail} Earn more by practising a skill or logging your diary.",
+        ) from exc
+
+    next_n = cv_repo.next_user_version_number(user_id)
+    spec = CVVersionWriteSpec(
+        kind="polished",
+        job_id=parent["job_id"],
+        parent_version_id=parent["id"],
+        body_text=parent.get("body_text") or "",
+        cv_structured=parent.get("cv_structured") or {},
+        polished_text=body.proposed_text,
+        hidden_items=parent.get("hidden_items") or [],
+        edited_items=parent.get("edited_items") or {},
+        title=_auto_title("polished", next_n),
+        snapshot_hash=cv_compose.item_id("restructure", next_n, body.proposed_text),
+        confidence_label="ai-restructured",
+        proof_count=int(parent.get("proof_count") or 0),
+        ai_polished=True,
+        ai_polish_used_at=datetime.now(timezone.utc).isoformat(),
+    )
+    try:
+        row = cv_repo.create(user_id, spec)
+    except Exception:
+        # Write failed after the charge — give the coins back (idempotent on ref).
+        await xp_service.refund(
+            user_id,
+            xp_policy.RESTRUCTURE_CV_XP_COST,
+            "cv_restructure",
+            "write_failed",
+            ref_table="cv_restructure",
+            ref_id=body.proposal_id,
+        )
+        raise
+    return _to_response(row)
