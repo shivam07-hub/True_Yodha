@@ -102,6 +102,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | OQ2 | Token-scoped for user endpoints. Service-role for admin/internal only. |
 | OQ3 | Intentional LLM separation. Scraper = local LM Studio. Myro = cloud (OpenRouter→Groq→Gemini). |
 | OQ4 | Single canonical scoring. `compute_and_persist_score()` is source of truth. |
+| CVJT1 | **CV Playground + Job Tracker + LinkedIn bridge contract is locked.** One active tailored CV per exact `job_id`; deterministic matcher before AI; honest/flexible status flow; immutable submitted-CV snapshots plus application attempts; extension saves/matches/links but editing stays in CV Playground. Canonical memory: `~/.claude/projects/-Users-incognito-True-Yodha/memory/project_cv_playground_linkedin_tracker.md`. |
 | S3 | `job_applications.status = 'pending'` means saved/targeted. Every saved job is an intended application. |
 | S4 | Intel is ephemeral. Skill targets inferred from saved jobs only. No DB writes. |
 | NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). |
@@ -296,7 +297,30 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-11 - LM Studio Phase 2 enrichment paused)
+## LAST SESSION SUMMARY (2026-06-12 - CV Playground, tracker, and LinkedIn contract locked)
+
+Completed the point-3 `grill-me` product interview and locked the end-to-end
+CV/application workflow. No production code was changed.
+
+- One active tailored CV belongs to one exact job and survives cross-device use.
+- Deterministic matching runs before AI; Rewrite is one bullet and free;
+  Restructure is whole-CV, job-specific, and costs 20 Myro Coins only when kept.
+- Comparisons stay above the CV. Mobile keeps exact A4 preview, stacked controls,
+  and one state-driven sticky action.
+- Draft/autosave/conflict rules, 14-day revision retention, Library organization,
+  archive/restore, and changed-job handling are locked.
+- Every application attempt preserves the exact submitted CV. Users can correct
+  the linked CV or upload an external submitted PDF for Myro Engine analysis
+  without replacing Main CV unless they explicitly choose to do so.
+- The existing extension is the honest LinkedIn bridge: deduplicate, save and
+  match in place, open the exact CV Playground for editing, return to LinkedIn,
+  and confirm `I submitted this application`. No private scraping or claimed
+  two-way sync without an approved official integration.
+
+Canonical memory:
+`~/.claude/projects/-Users-incognito-True-Yodha/memory/project_cv_playground_linkedin_tracker.md`.
+
+## OLDER SESSION SUMMARY (2026-06-11 - LM Studio Phase 2 enrichment paused)
 
 Paused the `firecrawl_Supabase` June 4 Phase 2 enrichment to release RAM for
 other work.
