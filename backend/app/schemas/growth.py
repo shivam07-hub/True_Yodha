@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 GrowthRole = Literal["owner", "editor", "analyst"]
-MessageReviewStatus = Literal["draft", "ready_for_review"]
+MessageReviewStatus = Literal["draft", "ready_for_review", "paused"]
 PublicationStatus = Literal["published", "failed", "deleted"]
 
 
@@ -31,6 +31,7 @@ class GrowthContentAsset(BaseModel):
     status: str = "draft"
     sensitivity: str = "low"
     evidence_fresh_until: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     owner_id: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
@@ -47,7 +48,9 @@ class GrowthCampaign(BaseModel):
     status: str = "draft"
     planned_at: str | None = None
     approved_by: str | None = None
+    approved_by_label: str | None = None
     approved_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -75,6 +78,7 @@ class GrowthMessage(BaseModel):
     approved_at: str | None = None
     planned_at: str | None = None
     failure_reason: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: str | None = None
     updated_at: str | None = None
 

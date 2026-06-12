@@ -12,6 +12,7 @@
     "newsletter:sync": "tsx ../scripts/sync-newsletter.ts",
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
     "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
+    "growth:import-tracker": "tsx ../scripts/import-growth-tracker.ts",
     "prebuild": "npm run newsletter:feed"
   },
   "dependencies": {

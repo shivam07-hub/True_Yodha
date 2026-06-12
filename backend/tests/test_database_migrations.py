@@ -49,6 +49,8 @@ def test_growth_command_migration_creates_private_generic_tables() -> None:
         "growth_messages",
         "growth_publications",
         "growth_attribution_touchpoints",
+        "growth_outreach_contacts",
+        "growth_email_queue",
     )
 
     for table in tables:
@@ -59,4 +61,5 @@ def test_growth_command_migration_creates_private_generic_tables() -> None:
     assert "unique (user_id, touch_kind)" in sql
     assert "unique (campaign_id, channel, variant)" in sql
     assert "legacy_key text unique" in sql
+    assert "metadata jsonb not null default '{}'::jsonb" in sql
     assert "notify pgrst, 'reload schema';" in sql
