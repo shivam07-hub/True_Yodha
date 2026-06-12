@@ -1,7 +1,7 @@
 # Spec - Myro Career Growth Command System
 
 **Date:** 2026-06-13
-**Status:** Design approved, awaiting written-spec review
+**Status:** Phase 1 implemented on `Develop`; deployment and tracker import pending
 **Owner:** Shivam
 **Branch policy:** Work on `Develop`. Never merge directly to `main`.
 
@@ -242,6 +242,19 @@ Social APIs are optional adapters. The system remains usable when a platform has
 - Import the tracker and retain JSON backup.
 - Ship private Content and Distribution views with manual publishing.
 
+**Implementation status (2026-06-13):** The canonical-domain repair, first/latest
+UTM persistence, generic Phase 1 schema, server-side operator allowlist,
+tracker compatibility/import path, and private `/admin/growth` cockpit are
+implemented and committed on `Develop`. The live shared Supabase project has
+the eight Phase 1 tables with RLS enabled and no browser policies; one owner
+operator is active. The tables remain empty apart from that operator until the
+`Develop` backend is deployed and the deterministic tracker import is run with
+an authenticated operator token. A dry run currently resolves 8 assets, 12
+campaigns, 22 messages, and 2 publications.
+
+`growth_metrics_daily` belongs to Phase 2. `growth_need_briefs` belongs to Phase
+3. They are intentionally absent from the Phase 1 migration.
+
 ### Phase 2 - Measurement
 - Add Publication and Performance views.
 - Import GA4 and Search Console aggregates.
@@ -258,7 +271,9 @@ Social APIs are optional adapters. The system remains usable when a platform has
 - Schedule email only after consent, suppression, and sender operations are production-ready.
 - Test selective informational-page ads only after stable organic traffic and only if activation is not materially harmed.
 
-Each phase receives its own implementation plan and test gate. Phase 1 is first after written-spec approval.
+Each phase receives its own implementation plan and test gate. Phase 1 passed
+its implementation gate on 2026-06-13; production deployment and the
+authenticated one-time tracker import are the remaining operational steps.
 
 ## Testing Strategy
 - Service tests: UTMs, idempotency, status transitions, evidence expiry, attribution, and activation definitions.

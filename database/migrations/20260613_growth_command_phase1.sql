@@ -58,7 +58,7 @@ create table if not exists public.growth_campaigns (
     status text not null default 'draft'
         check (status in (
             'draft', 'ready_for_review', 'approved', 'active',
-            'queued', 'active', 'sent', 'completed', 'failed',
+            'queued', 'sent', 'completed', 'failed',
             'paused', 'cancelled', 'archived'
         )),
     planned_at timestamptz,

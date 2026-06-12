@@ -298,7 +298,57 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Career Growth Command System design)
+## LAST SESSION SUMMARY (2026-06-13 - Career Growth Command System Phase 1)
+
+Implemented the approved human-first Growth Command System Phase 1 on
+`Develop`, in six scoped commits.
+
+- Repaired the newsletter feed to use canonical `https://www.himyro.com` URLs.
+- Added bounded first/latest UTM capture across signup and auth callbacks.
+  Referral attribution remains separate, and analytics persistence cannot
+  break authentication.
+- Added the generic FastAPI growth domain, server-side operator allowlist,
+  approval/publish transitions, immutable publication records, and
+  deterministic legacy import endpoint.
+- Migrated the newsletter distribution compatibility layer to the generic
+  growth schema without changing its public contract.
+- Added `scripts/import-growth-tracker.ts`; current dry run resolves 8 assets,
+  12 campaigns, 22 messages, and 2 publications from the standalone tracker.
+- Shipped the private `/admin/growth` cockpit with priority cards, truth
+  metrics, channel/status/format filters, draft/final review, approval,
+  composer handoff, and publication capture.
+- Applied live Supabase migration `growth_command_phase1`. All eight Phase 1
+  tables have RLS enabled with no browser policies, and one owner operator is
+  active. Content tables remain empty until the backend deploy and
+  authenticated one-time import.
+- Desktop and 375px browser QA found no page overflow. Mobile review close and
+  reopen, filtering, and draft save were exercised. Screenshot capture timed
+  out, but DOM/layout checks completed.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `607 passed, 13 warnings`
+- `cd frontend && npm run build` -> clean
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Newsletter issue/chart sync check -> 7 issues/charts in sync
+- Growth parser, attribution, API, cockpit, and migration tests -> pass
+- Full frontend test sweep -> 130 pass, 1 unrelated landing XP-copy failure
+- Contract suite -> 2 pass, 3 pre-existing failures (legacy localStorage
+  baseline, deleted auth-form reference, existing raw Forge query key)
+
+Remaining:
+
+- Deploy the `Develop` backend/frontend, then run
+  `MYRO_GROWTH_ACCESS_TOKEN=... npm run growth:import-tracker` once.
+- Phase 2 adds GA4/Search Console measurement and activation reporting. Phase 3
+  adds Need Radar and editorial triage.
+- Existing unrelated workspace changes were left untouched.
+
+Canonical spec:
+`docs/superpowers/specs/2026-06-13-myro-career-growth-command-system-design.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Career Growth Command System design)
 
 Designed and documented the approved human-first Myro Career Growth Command
 System. No production code or database state was changed.
