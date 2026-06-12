@@ -22,6 +22,7 @@ import {
 import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 import { ApiError, classifyError, readTraceId } from "./api-error"
+import type { AcquisitionAttribution } from "./attribution"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -176,6 +177,7 @@ export interface PostSigninResponse {
   user_id: string
   provider: string | null
   referral_attributed: boolean
+  attribution_recorded: boolean
   linkedin_xp_granted: boolean
   linkedin_url_set: boolean
 }
@@ -183,6 +185,8 @@ export interface PostSigninResponse {
 export interface PostSigninRequestBody {
   provider?: string | null
   myro_ref?: string | null
+  attribution?: AcquisitionAttribution | null
+  is_new_signup?: boolean
   linkedin_vanity?: string | null
   linkedin_headline?: string | null
   linkedin_verified?: boolean | null
@@ -210,10 +214,22 @@ export interface ExtensionSessionResponse {
 }
 
 export const auth = {
-  signup: (email: string, password: string, fullName?: string | null, myroRef?: string | null) =>
+  signup: (
+    email: string,
+    password: string,
+    fullName?: string | null,
+    myroRef?: string | null,
+    attribution?: AcquisitionAttribution | null,
+  ) =>
     request<AuthResponse>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ email, password, full_name: fullName, myro_ref: myroRef ?? null }),
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: fullName,
+        myro_ref: myroRef ?? null,
+        attribution: attribution ?? null,
+      }),
     }),
   login: (email: string, password: string) =>
     request<AuthResponse>("/auth/login", {

@@ -33,6 +33,7 @@ from app.schemas import (
     RefreshResponse,
     SignupRequest,
 )
+from app.services.growth_attribution import record_if_new_signup, record_signup_attribution
 from app.services.user_provisioning import ensure_user_provisioned, set_linkedin_identity
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -110,6 +111,16 @@ def signup(
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    if body.attribution:
+        try:
+            record_signup_attribution(
+                get_supabase_admin(),
+                user_id=response.user.id,
+                attribution=body.attribution,
+            )
+        except Exception as exc:
+            _log.warning("signup attribution failed for %s: %s", response.user.id, exc)
 
     return AuthResponse(
         access_token=response.session.access_token,
@@ -264,6 +275,17 @@ async def post_signin(
 
     linkedin_xp_granted = False
     linkedin_url_set = False
+    attribution_recorded = False
+    try:
+        attribution_recorded = record_if_new_signup(
+            get_supabase_admin(),
+            user_id=principal.id,
+            is_new_signup=body.is_new_signup,
+            attribution=body.attribution,
+        )
+    except Exception as exc:
+        _log.warning("post-signin attribution failed for %s: %s", principal.id, exc)
+
     is_linkedin = (body.provider or "").lower() in {"linkedin_oidc", "linkedin"}
     if is_linkedin and (body.linkedin_vanity or body.linkedin_headline):
         try:
@@ -280,6 +302,7 @@ async def post_signin(
         user_id=principal.id,
         provider=body.provider,
         referral_attributed=bool(referral_attributed),
+        attribution_recorded=attribution_recorded,
         linkedin_xp_granted=linkedin_xp_granted,
         linkedin_url_set=linkedin_url_set,
     )

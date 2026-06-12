@@ -8,6 +8,11 @@ import { setSessionTokens } from "@/lib/session"
 import { auth } from "@/lib/api"
 import { signupEvents } from "@/lib/analytics"
 import { getStoredReferral } from "@/lib/referral"
+import {
+  captureAttributionFromCallback,
+  clearStoredAttribution,
+  readStoredAttribution,
+} from "@/lib/attribution"
 
 /**
  * ADR-0006 §5 — single consumer for OAuth (`?code=`) AND magic-link
@@ -52,6 +57,7 @@ function CallbackInner() {
 
   useEffect(() => {
     const supabase = createClient()
+    if (typeof window !== "undefined") captureAttributionFromCallback(window.location.href)
     const next = safeNext(searchParams.get("next"))
     const arrivedAt = Date.now()
     const isMagicLink = typeof window !== "undefined" && window.location.hash.includes("access_token")
@@ -103,6 +109,8 @@ function CallbackInner() {
         auth.postSignin(session.access_token, {
           provider,
           myro_ref: refSlug,
+          attribution: readStoredAttribution(),
+          is_new_signup: Boolean(createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000),
           linkedin_vanity: linkedinVanity,
           linkedin_headline: linkedinHeadline,
           linkedin_verified: linkedinVerified,
@@ -114,6 +122,7 @@ function CallbackInner() {
       const method = provider === "google" ? "google" : provider?.startsWith("linkedin") ? "linkedin" : "magic_link"
       const firstSignup = createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000 ? "1" : "0"
       if (result) {
+        clearStoredAttribution()
         signupEvents.oauthCallbackReturned({ success: "1", provider: provider ?? "magic_link" })
         signupEvents.completed({
           method,
