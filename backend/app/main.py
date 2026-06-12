@@ -11,6 +11,7 @@ from app.routers import (
     cv,
     diary,
     feedback,
+    growth,
     home,
     institutions,
     jobs,
@@ -54,6 +55,7 @@ app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(users.router)
 app.include_router(feedback.router)
+app.include_router(growth.router)
 app.include_router(institutions.router)
 app.include_router(skills.router)
 app.include_router(cv.router)
