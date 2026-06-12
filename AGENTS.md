@@ -141,6 +141,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV â
 | SE15 | **Editable sections = bullets, summary, skills_line, certs.** Education routes to `/cv` (disabled fallback). |
 | SE16 | **Backend endpoint = `POST /cv/skill-edit`.** Body `{skill_key, new_text, section_hint?, item_index?, bullet_index?}`. 409 on multi-match with candidate list. |
 | SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** Frontend polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s, clears `useRecomputeStore` + invalidates `userSkills`/`scores` queries. |
+| GCS1 | **Growth Command Center = one human-first system of record.** Need signals, canonical content, review-gated distribution, publications, attribution, and product activation share one generic growth model. The standalone distribution tracker becomes an imported legacy cockpit, not the database. North star = useful product activation, not content volume or impressions. |
 
 ---
 
@@ -297,7 +298,43 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 - LM Studio Phase 2 enrichment resumed)
+## LAST SESSION SUMMARY (2026-06-13 - Career Growth Command System design)
+
+Designed and documented the approved human-first Myro Career Growth Command
+System. No production code or database state was changed.
+
+- Locked one private command center across need discovery, editorial planning,
+  newsletters/guides/tools/data pages, review-gated distribution, publication
+  records, search/campaign analytics, and product activation.
+- Confirmed that the existing `growth-agent/distribution-tracker.html` is a
+  useful cockpit prototype but not a durable source of truth because its data
+  is hardcoded and browser-local.
+- Chose a generic growth data model instead of deploying the currently
+  newsletter-specific distribution tables. The existing backend becomes a
+  compatibility path during migration.
+- Locked the humanization contract: need first, visible evidence, preserved
+  agency, channel context, and the smallest useful next action.
+- Locked phased delivery. Phase 1 covers canonical-domain truth, UTM persistence,
+  generic campaign storage, operator authorization, tracker import, and manual
+  review/publishing before broader analytics and platform automation.
+- Canonical spec:
+  `docs/superpowers/specs/2026-06-13-myro-career-growth-command-system-design.md`.
+
+Validation:
+
+- Spec self-review and documentation checks completed.
+- `.venv/bin/pytest backend/tests` -> `593 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Existing unrelated workspace changes remained untouched.
+
+Remaining:
+
+- Shivam should review the written spec before implementation planning.
+- After approval, create a Phase 1 implementation plan; do not begin broad
+  social API integrations first.
+
+## OLDER SESSION SUMMARY (2026-06-12 - LM Studio Phase 2 enrichment resumed)
 
 Resumed the `firecrawl_Supabase` June 4 Phase 2 enrichment from its local
 checkpoint.
