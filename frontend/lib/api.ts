@@ -2450,6 +2450,162 @@ export const newsletter = {
     }),
 }
 
+// ── Growth Command (private operator surface) ───────────────────────────────
+
+export interface GrowthOperator {
+  user_id: string
+  role: "owner" | "editor" | "analyst"
+  active: boolean
+  display_name: string | null
+}
+
+export interface GrowthContentAsset {
+  id: string
+  legacy_key: string | null
+  kind: string
+  title: string
+  slug: string | null
+  summary: string | null
+  canonical_url: string | null
+  audience: string | null
+  primary_action: string | null
+  status: string
+  sensitivity: string
+  evidence_fresh_until: string | null
+  metadata: Record<string, unknown>
+  owner_id: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthCampaign {
+  id: string
+  legacy_key: string | null
+  asset_id: string | null
+  slug: string | null
+  name: string
+  objective: string | null
+  audience: string | null
+  status: string
+  planned_at: string | null
+  approved_by: string | null
+  approved_by_label: string | null
+  approved_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthMessage {
+  id: string
+  legacy_key: string | null
+  campaign_id: string | null
+  asset_id: string | null
+  channel: string
+  format: string | null
+  variant: string
+  audience: string | null
+  intent: string | null
+  subject: string | null
+  draft_copy: string
+  final_copy: string | null
+  call_to_action_url: string | null
+  utm_url: string | null
+  composer_url: string | null
+  status: string
+  automation_level: string
+  sensitivity: string
+  reviewer_id: string | null
+  approved_at: string | null
+  planned_at: string | null
+  failure_reason: string | null
+  metadata: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthPublication {
+  id: string
+  legacy_key: string | null
+  message_id: string
+  status: string
+  live_url: string | null
+  external_id: string | null
+  published_at: string | null
+  outcome: Record<string, unknown>
+  failure_details: string | null
+  created_by: string | null
+  created_at: string | null
+}
+
+export interface GrowthBootstrapResponse {
+  operator: GrowthOperator
+  assets: GrowthContentAsset[]
+  campaigns: GrowthCampaign[]
+  messages: GrowthMessage[]
+  publications: GrowthPublication[]
+  summary: {
+    assets: number
+    campaigns: number
+    needs_review: number
+    published: number
+  }
+}
+
+export interface GrowthMessageUpdate {
+  subject?: string | null
+  draft_copy?: string | null
+  final_copy?: string | null
+  call_to_action_url?: string | null
+  utm_url?: string | null
+  composer_url?: string | null
+  planned_at?: string | null
+  status?: "draft" | "ready_for_review" | "paused"
+}
+
+export interface GrowthPublicationCreate {
+  status?: "published" | "failed" | "deleted"
+  live_url?: string | null
+  external_id?: string | null
+  published_at?: string | null
+  outcome?: Record<string, unknown>
+  failure_details?: string | null
+}
+
+export const growth = {
+  bootstrap: (token: string) =>
+    request<GrowthBootstrapResponse>("/growth/bootstrap", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateMessage: (token: string, messageId: string, body: GrowthMessageUpdate) =>
+    request<GrowthMessage>(`/growth/messages/${encodeURIComponent(messageId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  approveMessage: (token: string, messageId: string) =>
+    request<GrowthMessage>(
+      `/growth/messages/${encodeURIComponent(messageId)}/approve`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  publishMessage: (
+    token: string,
+    messageId: string,
+    body: GrowthPublicationCreate,
+  ) =>
+    request<GrowthPublication>(
+      `/growth/messages/${encodeURIComponent(messageId)}/publish`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      },
+    ),
+}
+
 // ── Public stats (landing-page Engine counters) ─────────────────────────────
 // No-auth, 1h server cache. Display floors so the numbers never appear to go
 // down between visits (design handoff §PRIORITY DIRECTIVE).
