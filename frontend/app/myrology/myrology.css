@@ -12,6 +12,10 @@
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
+  /* Dark base tokens come from the shared `:root, .myrology-root` block in
+     design-tokens.css; pin color-scheme so native scrollbars/controls read
+     dark even when the global surface pref (on <html>) is light. */
+  color-scheme: dark;
 
   /* Remap the accent to amethyst inside this surface only. */
   --tm-accent:       var(--my-amethyst);

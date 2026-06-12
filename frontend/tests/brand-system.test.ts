@@ -18,14 +18,20 @@ test("brand tokens implement the superseding light and dark palettes", () => {
   assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-interactive:\s*#FF4C00/)
 })
 
-test("layout defaults to light mode and uses Inter as the core font", () => {
+test("layout follows the OS surface by default and uses Space Grotesk (Inter fallback)", () => {
   const layout = read("app/layout.tsx")
 
+  // Space Grotesk is the core family site-wide; Inter stays in the fallback
+  // stack so text never disappears if Grotesk fails to load.
+  assert.match(layout, /Space_Grotesk/)
   assert.match(layout, /Inter/)
   assert.doesNotMatch(layout, /Plus_Jakarta_Sans/)
   assert.doesNotMatch(layout, /Source_Serif_4/)
+  // SSR ships data-surface="light" as the no-JS fallback, but the init script
+  // resolves a no-pref visitor to their OS theme (prefers-color-scheme), which
+  // MUST match use-surface.ts's "system" default.
   assert.match(layout, /data-surface="light"/)
-  assert.doesNotMatch(layout, /prefers-color-scheme:\s*dark/)
+  assert.match(layout, /prefers-color-scheme/)
 })
 
 test("global rhythm exposes separate desktop and phone contracts", () => {

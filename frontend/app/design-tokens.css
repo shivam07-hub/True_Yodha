@@ -11,7 +11,13 @@
      dark opt-in   → true black/teal
    ───────────────────────────────────────────────────────────── */
 
-:root {
+/* `.myrology-root` rides the dark base unconditionally — it is the lone
+   forced-dark surface (the cosmic sub-brand), independent of data-surface.
+   Joining it to the base selector (instead of copying ~40 tokens) keeps it in
+   sync forever: its own declaration here beats the light values it would
+   otherwise inherit from :root[data-surface="light"]. Flash-free, no JS. */
+:root,
+.myrology-root {
   /* ── Base surface: true-black dark mode (opt-in) ─────────── */
   --tm-bg:            #050505;
   --tm-surface:       #101010;
@@ -90,8 +96,11 @@
   --tm-tier-strong-bg:     var(--tm-success-wash);
   --tm-tier-strong-border: var(--tm-success-border);
 
-  /* ── Typography ──────────────────────────────────────────── */
-  --tm-font-sans:     var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  /* ── Typography ────────────────────────────────────────────
+     Space Grotesk is the core family site-wide; --font-sans (Inter) stays in
+     the stack as the fallback so text never disappears if Grotesk fails to
+     load. Flip this ONE line to change the whole site's family (public + app). */
+  --tm-font-sans:     var(--font-grotesk), var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
 
