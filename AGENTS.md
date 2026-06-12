@@ -102,6 +102,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | OQ2 | Token-scoped for user endpoints. Service-role for admin/internal only. |
 | OQ3 | Intentional LLM separation. Scraper = local LM Studio. Myro = cloud (OpenRouter→Groq→Gemini). |
 | OQ4 | Single canonical scoring. `compute_and_persist_score()` is source of truth. |
+| CVJT1 | **CV Playground + Job Tracker + LinkedIn bridge contract is locked.** One active tailored CV per exact `job_id`; deterministic matcher before AI; honest/flexible status flow; immutable submitted-CV snapshots plus application attempts; extension saves/matches/links but editing stays in CV Playground. Canonical memory: `~/.claude/projects/-Users-incognito-True-Yodha/memory/project_cv_playground_linkedin_tracker.md`. |
 | S3 | `job_applications.status = 'pending'` means saved/targeted. Every saved job is an intended application. |
 | S4 | Intel is ephemeral. Skill targets inferred from saved jobs only. No DB writes. |
 | NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). |
@@ -296,7 +297,107 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-10 - Home bootstrap CI collection fix, Develop)
+## LAST SESSION SUMMARY (2026-06-12 - Referral v1 backend)
+
+Implemented PR-REFERRAL-V1 backend on `Develop`.
+
+- Audited live Supabase: `user_profiles.referred_by_user_id` exists as nullable
+  UUID with `FOREIGN KEY (referred_by_user_id) REFERENCES auth.users(id)`.
+- Signup, login, and post-signin now resolve referral input in body, `?ref=`,
+  then `myro_ref` cookie order.
+- Profile provisioning credits the attributed referrer +100 Myro Coins only
+  after the referred user's welcome grant is active. Self-referrals and missing
+  referrals pay zero; sequential replay pays zero.
+- Credit uses `reward_xp` with
+  `(action='referral_credit', ref_table='referred_signup', ref_id=<new_user_id>)`.
+- Added manual-apply migration
+  `database/migrations/20260612_referral_reward_credit.sql`. Live Supabase does
+  not currently expose `reward_xp`; Shivam must apply this migration. It adds
+  transaction-key locking and a referral-scoped unique index for exact-once
+  concurrent payout. The migration was not run.
+- Verification: backend `584 passed`; `npx tsc --noEmit` clean; Next lint clean.
+- No frontend, CV, tracker, or `frontend/lib/api.ts` files were changed for this
+  task. Unrelated in-progress workspace changes were left untouched.
+
+## OLDER SESSION SUMMARY (2026-06-12 - CV Playground, tracker, and LinkedIn contract locked)
+
+Completed the point-3 `grill-me` product interview and locked the end-to-end
+CV/application workflow. No production code was changed.
+
+- One active tailored CV belongs to one exact job and survives cross-device use.
+- Deterministic matching runs before AI; Rewrite is one bullet and free;
+  Restructure is whole-CV, job-specific, and costs 20 Myro Coins only when kept.
+- Comparisons stay above the CV. Mobile keeps exact A4 preview, stacked controls,
+  and one state-driven sticky action.
+- Draft/autosave/conflict rules, 14-day revision retention, Library organization,
+  archive/restore, and changed-job handling are locked.
+- Every application attempt preserves the exact submitted CV. Users can correct
+  the linked CV or upload an external submitted PDF for Myro Engine analysis
+  without replacing Main CV unless they explicitly choose to do so.
+- The existing extension is the honest LinkedIn bridge: deduplicate, save and
+  match in place, open the exact CV Playground for editing, return to LinkedIn,
+  and confirm `I submitted this application`. No private scraping or claimed
+  two-way sync without an approved official integration.
+
+Canonical memory:
+`~/.claude/projects/-Users-incognito-True-Yodha/memory/project_cv_playground_linkedin_tracker.md`.
+
+## OLDER SESSION SUMMARY (2026-06-11 - LM Studio Phase 2 enrichment paused)
+
+Paused the `firecrawl_Supabase` June 4 Phase 2 enrichment to release RAM for
+other work.
+
+- Stopped detached screen session `myro-enrich-20260610` and its `caffeinate`
+  process.
+- The last fully persisted company boundary is `Notion` (`136/206`).
+  `Novartis` was interrupted after 25 in-memory jobs and will be safely redone
+  from its local `jobs.json` state on resume.
+- Current local checkpoint: 17,964 total jobs, 12,164 fully enriched, 5,798
+  remaining.
+- Unloaded `google/gemma-3-4b`, stopped the LM Studio API on port `1234`, and
+  quit the LM Studio desktop/helper processes.
+- Resume with the existing date-scoped runner for `TARGET_DATE_DIR=2026_06_04`;
+  it skips completed local records automatically.
+- Supabase remains untouched; upload is still the separate Phase 3.
+
+## OLDER SESSION SUMMARY (2026-06-10 - LM Studio Phase 2 enrichment resumed)
+
+Restarted LM Studio and resumed the interrupted Phase 2 enrichment for the
+`firecrawl_Supabase` June 4 scrape.
+
+- Restarted the LM Studio desktop app and API server on port `1234`.
+- Reloaded `google/gemma-3-4b` with 4 parallel prediction slots and verified a
+  successful chat-completions request.
+- Confirmed the date-scoped local batch contains 17,964 jobs: 9,254 fully
+  enriched at restart and 8,708 remaining. This phase writes local
+  `jobs.json`/`jobs.csv` files only; Supabase upload remains Phase 3.
+- Relaunched the existing date-scoped resume runner in detached screen session
+  `myro-enrich-20260610`, protected by `caffeinate`.
+- Verified persisted progress to 9,257 fully enriched / 8,705 remaining with no
+  LM Studio connection errors.
+- Active log:
+  `firecrawl_Supabase/logs/enrich_resume_20260610_1447_screen.log`.
+- No scraper implementation files were changed; existing dirty state in both
+  repositories remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-10 - Upskilling and Myrology completion audit, Develop)
+
+Audited Claude's June 9–10 work against git, Supabase, deployed API contracts, and the full local test suite.
+
+- Upskilling Slices 1–6 and the bootstrap fix are committed, merged, and deployed. Supabase has the quiz schema and correction-column cleanup; prod/dev expose the Upskilling routes.
+- Core Upskilling is closed, but the separate `firecrawl_Supabase` question publisher is not built, the live `skill_questions` table has 0 rows, and Surface B lacks direct tests. Those remain explicit follow-ups rather than being hidden under the shipped UI/API work.
+- Myrology webhook reconciliation and booking lifecycle work are committed, merged, deployed, and migrated. Prod webhook/admin configuration gates respond as configured; Resend configuration was completed on both Railway backends.
+- Provider-side Razorpay webhook registration is accepted from Shivam's completion confirmation; verify one real event on the next purchase.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `575 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Live Supabase `skill_questions` count -> `0`
+- Unrelated untracked `docs/free-llm-api-resources` remains untouched.
+
+## OLDER SESSION SUMMARY (2026-06-10 - Home bootstrap CI collection fix, Develop)
 
 Fixed the backend CI collection failure caused by a stale home-bootstrap test contract.
 

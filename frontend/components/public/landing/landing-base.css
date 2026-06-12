@@ -1,0 +1,269 @@
+/* ─────────────────────────────────────────────────────────────
+   Myro landing — "The Myro Engine" · base: tokens, shell,
+   section furniture, reveal, nav + footer dark-terminal skin.
+   Source: reference/building landing page.zip (design handoff,
+   confirmed by Shivam 2026-06-10). Token table: handoff README.
+   ───────────────────────────────────────────────────────────── */
+
+.tm-landing {
+  /* landing-scoped design tokens (handoff §Design Tokens) */
+  --lp-bg:            #0a0a0c;
+  --lp-surface:       #13141a;
+  --lp-surface-2:     #181a23;
+  --lp-border:        rgba(255, 255, 255, 0.06);
+  --lp-border-strong: rgba(255, 255, 255, 0.12);
+  --lp-text:          #e8e8ea;
+  --lp-muted:         #9aa4bf;
+  --lp-faint:         #646e8c;
+
+  --lp-accent:        #00f5d4; /* icons · buttons · flow lines ONLY */
+  --lp-accent-text:   #67e8f9; /* any colored text */
+  --lp-accent-fg:     #04211c;
+  --lp-accent-wash:   rgba(0, 245, 212, 0.07);
+  --lp-accent-ring:   rgba(0, 245, 212, 0.32);
+  --lp-accent-glow:   rgba(0, 245, 212, 0.14);
+
+  --lp-success:       #4ade80;
+  --lp-warning:       #f59e0b;
+
+  --lp-font: var(--font-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --lp-mono: var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+
+  --lp-fs-hero:    56px;
+  --lp-fs-display: 36px;
+  --lp-fs-title:   24px;
+  --lp-fs-heading: 18px;
+  --lp-fs-body:    16px;
+  --lp-fs-meta:    13px;
+
+  --lp-content-max: 1180px;
+  --lp-page-px:     32px;
+
+  --lp-ease:     cubic-bezier(0.16, 1, 0.3, 1);
+  --lp-dur:      200ms;
+  --lp-dur-slow: 380ms;
+
+  --lp-grid-line: rgba(255, 255, 255, 0.028);
+
+  /* remap app tokens so the reused PublicTopNav / PublicFooter /
+     SignupModal-adjacent chrome render in the landing palette */
+  --tm-bg:              var(--lp-bg);
+  --tm-surface:         var(--lp-surface);
+  --tm-surface-2:       var(--lp-surface-2);
+  --tm-border-soft:     var(--lp-border);
+  --tm-border:          var(--lp-border-strong);
+  --tm-text:            var(--lp-text);
+  --tm-text-muted:      var(--lp-muted);
+  --tm-text-faint:      var(--lp-faint);
+  --tm-accent:          var(--lp-accent);
+  --tm-accent-text:     var(--lp-accent-text);
+  --tm-interactive:     var(--lp-accent);
+  --tm-interactive-fg:  var(--lp-accent-fg);
+  --tm-interactive-hover: #53ffe3;
+  --tm-int-border:      var(--lp-accent-ring);
+  --tm-int-bg-wash:     var(--lp-accent-wash);
+  --tm-hover-soft:      rgba(255, 255, 255, 0.04);
+  --tm-font-display:    var(--lp-font);
+  --tm-font-mono:       var(--lp-mono);
+
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  font-family: var(--lp-font);
+  font-size: var(--lp-fs-body);
+  line-height: 1.625;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-landing ::selection { background: rgba(0, 245, 212, 0.22); color: #fff; }
+
+.tm-landing section { position: relative; }
+
+.lp-wrap {
+  width: 100%;
+  max-width: var(--lp-content-max);
+  margin: 0 auto;
+  padding-left: var(--lp-page-px);
+  padding-right: var(--lp-page-px);
+}
+
+/* ── Shared section furniture ───────────────────────────────── */
+.lp-eyebrow {
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+}
+
+.lp-section-head { max-width: 720px; margin-bottom: 56px; }
+
+.lp-section-head.center { text-align: center; margin-left: auto; margin-right: auto; }
+
+.lp-section-title {
+  margin: 14px 0 12px;
+  font-size: var(--lp-fs-display);
+  line-height: 1.18;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lp-text);
+  text-wrap: balance;
+}
+
+.lp-section-sub {
+  margin: 0;
+  font-size: var(--lp-fs-heading);
+  line-height: 1.6;
+  color: var(--lp-muted);
+  text-wrap: pretty;
+}
+
+/* reveal-on-scroll (JS adds .is-in; fails open — see useReveal) */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 600ms var(--lp-ease), transform 600ms var(--lp-ease);
+  }
+  .lp-reveal.is-in { opacity: 1; transform: none; }
+}
+
+@media print {
+  .lp-reveal { opacity: 1 !important; transform: none !important; }
+}
+
+/* faint 44px measurement grid — S1 + S2 only */
+.lp-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--lp-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--lp-grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black 0%, black 78%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 78%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ── Reused PublicTopNav → fixed-feel dark terminal bar ─────── */
+.tm-landing .tm-public-nav {
+  height: 64px;
+  min-height: 64px;
+  background: rgba(10, 10, 12, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--lp-dur) var(--lp-ease);
+}
+
+.tm-landing[data-scrolled="true"] .tm-public-nav {
+  border-bottom-color: var(--lp-border);
+}
+
+/* ── Reused PublicFooter → terminal palette accents ─────────── */
+.tm-landing .pub-footer { border-top: 1px solid var(--lp-border); }
+
+.tm-landing .pub-footer-tagline {
+  font-family: var(--lp-mono);
+  letter-spacing: 0.14em;
+  color: var(--lp-accent-text);
+}
+
+.tm-landing .pub-footer-sub { color: var(--lp-faint); }
+
+/* ── Shared dropzone CTA (kept component, dark skin) ────────── */
+.lp-dropzone {
+  width: 100%;
+  max-width: 560px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 16px 16px 14px;
+  border-radius: 12px;
+  background: var(--lp-surface);
+  border: 1.5px dashed var(--lp-accent-ring);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--lp-font);
+  color: var(--lp-text);
+  transition: border-color var(--lp-dur) var(--lp-ease), background var(--lp-dur) var(--lp-ease), box-shadow var(--lp-dur) var(--lp-ease);
+}
+
+.lp-dropzone:hover {
+  border-color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  box-shadow: 0 0 32px var(--lp-accent-glow);
+}
+
+.lp-dropzone:active { transform: scale(0.995); }
+
+.lp-dropzone:focus-visible {
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: 2px;
+}
+
+.lp-dropzone-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid var(--lp-accent-ring);
+  background: rgba(0, 245, 212, 0.05);
+  display: grid;
+  place-items: center;
+  color: var(--lp-accent);
+}
+
+.lp-dropzone-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.lp-dropzone-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lp-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-dropzone-trust {
+  display: flex;
+  gap: 8px;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  color: var(--lp-muted);
+}
+.lp-dropzone-trust .aes { color: var(--lp-faint); }
+
+.lp-dropzone-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--lp-accent);
+  color: var(--lp-accent-fg);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: filter var(--lp-dur) var(--lp-ease);
+}
+.lp-dropzone:hover .lp-dropzone-btn { filter: brightness(1.08); }
+
+.lp-dropzone-note {
+  margin: 10px 0 0;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--lp-faint);
+}
+
+@media (max-width: 640px) {
+  .tm-landing { --lp-page-px: 20px; }
+  .lp-section-title { font-size: 28px; }
+  .lp-section-sub { font-size: 16px; }
+  .lp-dropzone { grid-template-columns: auto 1fr; }
+  .lp-dropzone-btn { display: none; }
+}

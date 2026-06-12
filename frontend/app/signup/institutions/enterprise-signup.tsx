@@ -10,7 +10,10 @@ import "./enterprise-signup.css"
 
 type Mode = "operators" | "institutions"
 
-export function EnterpriseSignup({ initialMode = "operators" }: { initialMode?: Mode } = {}) {
+export function EnterpriseSignup({
+  initialMode = "operators",
+  lockMode = false,
+}: { initialMode?: Mode; lockMode?: boolean } = {}) {
   const next = useNextPath()
   const [mode, setMode] = useState<Mode>(initialMode)
   const opTabRef = useRef<HTMLButtonElement | null>(null)
@@ -68,28 +71,30 @@ export function EnterpriseSignup({ initialMode = "operators" }: { initialMode?: 
         showSignIn
       />
 
-      <div className="es-switcher-wrap">
-        <div className="es-switcher-eyebrow">Pick the right onboarding</div>
-        <div className="es-switcher" role="tablist" aria-label="Account type">
-          <span className="es-switcher-pill" ref={pillRef} aria-hidden="true" />
-          <button
-            type="button" className="es-switcher-btn" role="tab"
-            aria-selected={mode === "operators"} ref={opTabRef}
-            onClick={() => select("operators")}
-          >
-            <svg className="es-switcher-icon" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5L2 9z" /><path d="M6 11v4c0 1.5 2.7 3 6 3s6-1.5 6-3v-4" /><path d="M22 9v6" /></svg>
-            For operators
-          </button>
-          <button
-            type="button" className="es-switcher-btn" role="tab"
-            aria-selected={mode === "institutions"} ref={instTabRef}
-            onClick={() => select("institutions")}
-          >
-            <svg className="es-switcher-icon" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 12h2M13 12h2M9 16h2M13 16h2" /></svg>
-            For institutions
-          </button>
+      {!lockMode && (
+        <div className="es-switcher-wrap">
+          <div className="es-switcher-eyebrow">Pick the right onboarding</div>
+          <div className="es-switcher" role="tablist" aria-label="Account type">
+            <span className="es-switcher-pill" ref={pillRef} aria-hidden="true" />
+            <button
+              type="button" className="es-switcher-btn" role="tab"
+              aria-selected={mode === "operators"} ref={opTabRef}
+              onClick={() => select("operators")}
+            >
+              <svg className="es-switcher-icon" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5L2 9z" /><path d="M6 11v4c0 1.5 2.7 3 6 3s6-1.5 6-3v-4" /><path d="M22 9v6" /></svg>
+              For operators
+            </button>
+            <button
+              type="button" className="es-switcher-btn" role="tab"
+              aria-selected={mode === "institutions"} ref={instTabRef}
+              onClick={() => select("institutions")}
+            >
+              <svg className="es-switcher-icon" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 12h2M13 12h2M9 16h2M13 16h2" /></svg>
+              For institutions
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <main className="es-main">
         {mode === "operators"

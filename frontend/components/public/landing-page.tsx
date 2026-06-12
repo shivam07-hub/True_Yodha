@@ -1,15 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
-import { SampleDiagnostic } from "@/components/public/sample-diagnostic"
 import { PublicFooter } from "@/components/public/public-footer"
+import { LandingHero } from "@/components/public/landing/hero"
+import { LandingEngine } from "@/components/public/landing/engine"
+import { LandingReadout } from "@/components/public/landing/readout"
+import { LandingSurfaces } from "@/components/public/landing/surfaces"
+import { LandingLoop } from "@/components/public/landing/loop"
+import { LandingProof } from "@/components/public/landing/proof"
+import { LandingFaq } from "@/components/public/landing/faq"
+import { useLandingData } from "@/components/public/landing/use-landing-data"
+import { useReveal } from "@/components/public/landing/use-reveal"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
-import "./landing-page.css"
+import "@/components/public/landing/landing-base.css"
+import "@/components/public/landing/landing-hero.css"
+import "@/components/public/landing/landing-engine.css"
+import "@/components/public/landing/landing-sections.css"
 
-export function LandingPage() {
+/**
+ * Myro landing — "The Myro Engine" redesign.
+ * 7 sections organized around one named centerpiece: S1 hero → S2 engine →
+ * sample readout → S3 surfaces → S4 loop → S5 proof → S6 FAQ + closing CTA →
+ * S7 footer. Design source: reference/building landing page.zip (confirmed).
+ */
+export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
+  const rootRef = useRef<HTMLDivElement>(null)
 
   // Already-signed-in users shouldn't land on the public marketing page.
   // Tokens live in localStorage (not a cookie), so the server can't gate this —
@@ -24,125 +42,63 @@ export function LandingPage() {
     }
   }, [router])
 
-  function goSignup() {
-    router.push("/signup?next=/cv?upload=1")
-  }
+  // The landing is a dark-terminal surface; the reused chrome (nav, signup
+  // modal portal) follows the app-level surface flag — same seam as /myrology.
+  useEffect(() => {
+    const root = document.documentElement
+    const prior = root.getAttribute("data-surface")
+    root.setAttribute("data-surface", "dark")
+    return () => {
+      root.setAttribute("data-surface", prior ?? "light")
+    }
+  }, [])
+
+  // Nav hairline fades in after 8px scroll (handoff §Interactions).
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
+  useReveal(rootRef)
+
+  const data = useLandingData()
 
   if (redirecting) return null
 
   return (
-    <div className="tm-landing">
+    <div
+      ref={rootRef}
+      className={`tm-landing ${fontClassName}`.trim()}
+      data-scrolled={scrolled ? "true" : "false"}
+    >
       <PublicTopNav active="about" showSignIn />
 
-      <div className="tm-landing-scroll">
+      <main>
+        <LandingHero companiesLabel={data.companiesLabel} companyNames={data.marqueeNames} />
 
-        {/* ── HERO ────────────────────────────────────────────── */}
-        <section className="tm-landing-hero">
-          <div className="tm-landing-hero-left">
+        <LandingEngine
+          companiesLabel={data.companiesLabel}
+          jobsTracked={data.jobsTracked}
+          companiesMonitored={data.companiesMonitored}
+          skillsMapped={data.skillsMapped}
+          seekers={data.seekers}
+        />
 
-            <h1 className="tm-landing-h1">
-              Build a job-ready CV in 10 minutes.<br />
-              <span className="tm-landing-h1-sub">Manifest your company, align your role.</span>
-            </h1>
+        <LandingReadout />
 
-            <p className="tm-landing-subhead">
-              <span className="tm-landing-chip-tag">10 minutes</span>
-              <span className="tm-landing-chip-sep">·</span>
-              <span>Any Job</span>
-              <span className="tm-landing-chip-sep">·</span>
-              <span>Scored</span>
-              <span className="tm-landing-chip-sep">·</span>
-              <span className="tm-landing-chip-tag">Tailored</span>
-            </p>
+        <LandingSurfaces />
 
-            <button
-              type="button"
-              className="tm-landing-dropzone"
-              onClick={goSignup}
-              aria-label="Drop your CV to get started — sign up required"
-            >
-              <div className="tm-landing-dropzone-icon" aria-hidden>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="1.6"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 3v14M6 9l6-6 6 6M5 21h14" />
-                </svg>
-              </div>
-              <div className="tm-landing-dropzone-body">
-                <span className="tm-landing-dropzone-title">Drop your CV — PDF or DOCX</span>
-                <span className="tm-landing-dropzone-trust">
-                  <span>Private</span>
-                  <span className="tm-landing-dropzone-trust-aes">AES-256 at rest</span>
-                </span>
-              </div>
-              <span className="tm-landing-dropzone-btn" aria-hidden>
-                Choose file
-              </span>
-            </button>
+        <LandingLoop />
 
-          </div>
+        <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
 
-          {/* ── CV placeholder mock ───────────────────────────── */}
-          <div className="tm-landing-hero-right">
+        <LandingFaq />
+      </main>
 
-            {/* skill detected toast — anchored top of CV mock */}
-            <span className="tm-landing-skill-toast" role="status" aria-live="polite">
-              <span className="tm-landing-skill-plus" aria-hidden>+</span>
-              <span>skill detected:&nbsp;</span>
-              <span className="tm-landing-skill-val">Stakeholder Mgmt L4</span>
-            </span>
-
-            {/* private-by-default wax stamp — overlaid on the CV */}
-            <span className="tm-landing-private-stamp" aria-label="Private by default">
-              private<br />by default
-            </span>
-
-            <article className="tm-landing-cv-mock" aria-label="Example CV preview">
-              <h3 className="tm-landing-cv-name">Your Name</h3>
-              <p className="tm-landing-cv-contact">Title&nbsp;·&nbsp;contact</p>
-
-              <section className="tm-landing-cv-section">
-                <p className="tm-landing-cv-heading">Profile</p>
-                <span className="tm-landing-cv-line long" />
-                <span className="tm-landing-cv-line medium" />
-              </section>
-
-              <section className="tm-landing-cv-section">
-                <p className="tm-landing-cv-heading">Experience</p>
-                <span className="tm-landing-cv-line highlight" />
-                <span className="tm-landing-cv-line medium" />
-                <span className="tm-landing-cv-line long" />
-                <span className="tm-landing-cv-line short" />
-              </section>
-
-              <section className="tm-landing-cv-section">
-                <p className="tm-landing-cv-heading">Skills</p>
-                <span className="tm-landing-cv-line medium" />
-                <span className="tm-landing-cv-line short" />
-              </section>
-
-              <section className="tm-landing-cv-section">
-                <p className="tm-landing-cv-heading">Education</p>
-                <span className="tm-landing-cv-line long" />
-              </section>
-            </article>
-
-            {/* floating Myro Score badge — anchored bottom-right */}
-            <div className="tm-landing-score-badge" aria-label="Live Myro Score example">
-              <span className="tm-landing-score-lbl">Myro Score:</span>
-              <span className="tm-landing-score-num">82</span>
-              <span className="tm-landing-score-denom">/100</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ── SAMPLE DIAGNOSTIC ───────────────────────────────── */}
-        <div id="sample-diagnostic" style={{ scrollMarginTop: 72 }}>
-          <SampleDiagnostic />
-        </div>
-
-        <PublicFooter />
-      </div>
+      <PublicFooter />
     </div>
   )
 }

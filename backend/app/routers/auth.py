@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, status
 
 from app.database import get_supabase, get_supabase_admin
 from app.deps import Principal, get_principal
@@ -60,12 +60,21 @@ def _safe_user_agent(value: str | None) -> str | None:
     return value[:240]
 
 
+def _select_referrer(
+    body_ref: str | None,
+    query_ref: str | None,
+    cookie_ref: str | None,
+) -> str | None:
+    return body_ref or query_ref or cookie_ref
+
+
 # ─── legacy email/password signup + login ──────────────────────────────────
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def signup(
     body: SignupRequest,
+    ref: str | None = Query(default=None),
     myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
 ) -> AuthResponse:
     try:
@@ -91,7 +100,7 @@ def signup(
             message="Check your email for a confirmation link, then sign in.",
         )
 
-    referrer = body.myro_ref or myro_ref
+    referrer = _select_referrer(body.myro_ref, ref, myro_ref)
     try:
         ensure_user_provisioned(
             response.user.id,
@@ -113,6 +122,7 @@ def signup(
 @router.post("/login", response_model=AuthResponse)
 def login(
     body: LoginRequest,
+    ref: str | None = Query(default=None),
     myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
 ) -> AuthResponse:
     try:
@@ -133,7 +143,7 @@ def login(
         response.user.id,
         response.user.email,
         response.user.user_metadata.get("full_name") if response.user.user_metadata else None,
-        myro_ref=myro_ref,
+        myro_ref=_select_referrer(None, ref, myro_ref),
     )
     return AuthResponse(
         access_token=response.session.access_token,
@@ -221,6 +231,7 @@ def extension_session(
 async def post_signin(
     body: PostSigninRequest,
     principal: Principal = Depends(get_principal),
+    ref: str | None = Query(default=None),
     myro_ref: str | None = Cookie(default=None, alias=_REF_COOKIE),
 ) -> PostSigninResponse:
     """One-shot post-auth bootstrap.
@@ -239,7 +250,7 @@ async def post_signin(
     # via ensure_user_provisioned's own admin read; pass None and let it stay
     # whatever the row already had.
     full_name: str | None = None
-    referrer = body.myro_ref or myro_ref
+    referrer = _select_referrer(body.myro_ref, ref, myro_ref)
     try:
         referral_attributed = ensure_user_provisioned(
             principal.id,

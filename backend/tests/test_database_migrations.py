@@ -26,3 +26,15 @@ def test_job_import_contract_migration_reasserts_created_by_user_id() -> None:
     assert "references public.user_profiles(id) on delete set null" in sql
     assert "idx_jobs_created_by_user" in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_referral_reward_migration_is_atomic_and_referral_scoped() -> None:
+    sql = _migration("20260612_referral_reward_credit.sql").lower()
+
+    assert "create or replace function public.reward_xp" in sql
+    assert "pg_advisory_xact_lock" in sql
+    assert "for update" in sql
+    assert "uq_xp_ledger_referral_signup_reward" in sql
+    assert "action = 'referral_credit'" in sql
+    assert "ref_table = 'referred_signup'" in sql
+    assert "notify pgrst, 'reload schema';" in sql

@@ -19,6 +19,13 @@ SKILL_ADVICE_XP_COST = 20
 # Final pricing is DEC-H (pending Shivam); wire charge_or_raise here when set.
 REWRITE_BULLET_XP_COST = 0
 
+# Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1).
+# Proposing is FREE; the charge fires ONLY when the user KEEPS the proposal, so
+# failed / rejected / discarded proposals cost nothing. Floor 0 (premium action —
+# the user must hold the full cost; no debt).
+RESTRUCTURE_CV_XP_COST = 20
+RESTRUCTURE_CV_XP_FLOOR = 0
+
 FOLLOW_COMPANY_XP_COST = 10
 FOLLOW_COMPANY_XP_FLOOR = -30
 FOLLOWED_COMPANY_LIMIT = 10
