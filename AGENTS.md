@@ -297,7 +297,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 - Referral v1 backend)
+## LAST SESSION SUMMARY (2026-06-12 - LM Studio Phase 2 enrichment resumed)
+
+Resumed the `firecrawl_Supabase` June 4 Phase 2 enrichment from its local
+checkpoint.
+
+- LM Studio was already open; verified its API on port `1234` and a successful
+  chat-completions smoke request.
+- Confirmed `google/gemma-3-4b` is loaded with 4 parallel prediction slots.
+- Relaunched the existing date-scoped runner in detached screen session
+  `myro-enrich-20260612`, protected by `caffeinate`.
+- The runner skipped completed local records, retried earlier residuals, crossed
+  the prior `Notion` pause boundary, and began `Novartis` (`137/206`).
+- Verified fresh persisted progress: 17,964 total jobs, 12,168 fully enriched,
+  5,794 remaining. No LM Studio connection errors were logged.
+- Active log:
+  `firecrawl_Supabase/logs/enrich_resume_20260612_screen.log`.
+- Supabase remains untouched; upload is still the separate Phase 3.
+- No scraper implementation files were changed. Existing unrelated workspace
+  changes remain untouched.
+
+## OLDER SESSION SUMMARY (2026-06-12 - Referral v1 backend)
 
 Implemented PR-REFERRAL-V1 backend on `Develop`.
 
