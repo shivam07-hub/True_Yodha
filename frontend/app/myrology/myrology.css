@@ -6,6 +6,17 @@
    teal core product, and the accent vars are remapped locally.
    ───────────────────────────────────────────────────────────── */
 
+/* Myrology = ALWAYS dark (amethyst can't read on white). The page background is
+   painted by ancestors of .myrology-root (html/body) which follow the GLOBAL
+   light surface — so the dark-base token join alone left the page white with
+   near-white text on it. Pin the ancestors dark for this route via :has()
+   (flash-free, no JS, SSR-safe — the wrapper is in the initial HTML). */
+html:has(.myrology-root),
+html:has(.myrology-root) body {
+  background-color: #0a0a0c;
+  color-scheme: dark;
+}
+
 .myrology-root {
   position: relative;
   min-height: 100vh;
@@ -14,8 +25,11 @@
   grid-template-rows: auto 1fr;
   /* Dark base tokens come from the shared `:root, .myrology-root` block in
      design-tokens.css; pin color-scheme so native scrollbars/controls read
-     dark even when the global surface pref (on <html>) is light. */
+     dark even when the global surface pref (on <html>) is light. The explicit
+     background covers the (light) body for the content area; the :has() rule
+     above handles overscroll/rubber-band beyond 100vh. */
   color-scheme: dark;
+  background: var(--tm-bg);
 
   /* Remap the accent to amethyst inside this surface only. */
   --tm-accent:       var(--my-amethyst);

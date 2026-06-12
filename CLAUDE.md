@@ -192,7 +192,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ## OPEN BACKLOG
 
-28. **Global dark-mode token migration → landing palette (LOGGED 2026-06-11, not started — PICK UP NEXT SESSION).** Shivam's confirmed intent: the Myro-Engine landing theme is the canonical dark mode for the ENTIRE website. Migrate the app-wide dark tokens from the current true-black set (`--tm-bg #050505 / --tm-surface #101010 / --tm-surface-2 #171717 / --tm-accent-text #12BFA5`) to the landing palette: **bg `#0a0a0c` · surface `#13141a` · raised `#181a23` · text `#e8e8ea` / muted `#9aa4bf` / faint `#646e8c` · accent `#00f5d4` (icons/buttons/flow lines ONLY) · accent-text `#67e8f9` · on-accent `#04211c` · hairline `rgba(255,255,255,0.06)` / strong `rgba(255,255,255,0.12)`** (full table: `reference/building landing page.zip` README §Design Tokens; live reference implementation: `frontend/components/public/landing/landing-base.css`). Scope: `frontend/app/design-tokens.css` `:root` dark block + `frontend/tests/brand-system.test.ts` (asserts exact hex — update assertions) + 5 hardcoded `#050505` occurrences (grep fresh; known: `design-tokens.css` `--tm-brand-fg`, `--tm-interactive-fg`) + re-check WCAG contrast notes in the token file comments. **Deliberately split from the landing PR** (landing ships with scoped `.tm-landing` overrides, zero regression risk) — this migration is a separate PR needing visual QA across authed dark-mode pages (/myrology forces dark; any user-opted dark surfaces). Done = landing's scoped `--tm-*` remap block in `landing-base.css` becomes redundant and can be thinned.
+28. ~~**Global dark-mode token migration → landing palette**~~ — ✅ **DONE + SUPERSEDED 2026-06-12 (uncommitted, awaiting visual QA).** Completed and EXTENDED: the Myro Engine palette is now the canonical design language for the ENTIRE site, **both surfaces** — not dark-only. The original premise INVERTED during the grill: it's not "app → landing-dark-palette, dark canonical." It's **light-default / follow-OS, with the Engine dark palette + a newly-DERIVED cool light counterpart**, both consumed from one `--tm-*` source. Shipped as 5 PR-units (all `Develop`, frontend nested git): **PR-FOUC** (init script follows `prefers-color-scheme`; myrology pinned dark via `:root,.myrology-root` dark-base join + `color-scheme:dark`, no JS effect); **PR-FONT** (Space Grotesk site-wide, `--tm-font-sans`, Inter fallback — closes ND17); **PR-TOKENS** (`design-tokens.css` dark base → Engine `#0a0a0c/#13141a/#00f5d4`; light override → derived cool `#f4f6f9/#ffffff/#009e88`, accent AA-verified, orange `#FF4C00` retired from signal→Forge axis only; shadcn HSL mirror updated; `brand-system.test.ts` hexes updated); **PR-LANDING-LIGHT** (landing `--lp-*` now ALIAS `--tm-*` → themes with product; reverse remap deleted = the old #28 debt; Georgia dropped; Engine pipeline + readout re-pinned fixed dark-console bands in `landing-engine.css`; force-dark effect removed; frosted nav via `color-mix`); **PR-STRAGGLERS** (`intel-pane.css` `.tm-intel-console` → Engine-dark; `themeColor` → `prefers-color-scheme` media array, root + landing). Full derived palette + contrast math + parity decisions: memory `project_canonical_engine_palette`. tsc/lint clean; brand-system 6/6; full suite 118/119 (the 1 fail = pre-existing XP-copy guard, backlog #25, unrelated). **REMAINING (Shivam):** (a) **full-app visual QA — highest-risk item, every authed page repaints in new color + Grotesk metrics**; eyeball home/cv/skills/forge/market/intel at desktop + 375px, BOTH light & dark (toggle via ThemeControl). (b) Spot-check the landing light + dark (engine/readout = dark bands on the light page; hero box-shadows `rgba(0,0,0,.4-.5)` may read heavy on white — soften if so). (c) Commit both repos. (d) **Theme toggle placement DECIDED (not built): offer the light/dark flip at FIRST LOGIN, during the background CV analysis** — user picks surface on a toggle while the CV is analysed async behind it (productive-wait moment), NOT in the public nav. Supersedes PR-PUBLIC-THEME. Logged-out = follow-OS only (no manual flip pre-login). Build = wire `useSurface().setPref` into a first-run onboarding/CV-analysis step. (e) myrology themeColor can't be media-set (client page, no viewport export) — cosmetic chrome-tint mismatch on light-OS only.
 
 27. **Regenerate landing OG image → Engine diagram (LOGGED 2026-06-11, not started).** `app/opengraph-image.tsx` still renders the old CV-hub framing ("one hub for every CV version"). Handoff requires the OG to show the **Engine pipeline diagram + Myro Score badge** with the new claim "Myro — The Career Intelligence Platform" (metadata + JSON-LD already updated in `app/page.tsx`). Mirror the S2 pipeline visual: stage nodes + teal flow lines on `#0a0a0c`, Space Grotesk. Quick win, ship with or after the landing commit.
 
@@ -466,212 +466,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 · Restructure-with-Mentor BUILT — CLAUDE.md #26 Phase 4 closed)
+## LAST SESSION SUMMARY (2026-06-12 · Canonical "Myro Engine" palette site-wide + pre=post parity — BUILT, uncommitted)
 
-All UNCOMMITTED (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). **tsc --noEmit 0 · next lint clean · `pytest backend/tests/test_cv_restructure.py backend/tests/test_cv_rewrite.py` = 16 passed.**
+Closed backlog #28 and extended it. Cowork + `/grill-me` + `/brooks-design` session establishing ONE design language across pre-login (landing/public) and post-login (app), then building it. **All frontend, UNCOMMITTED (nested `frontend/.git`). tsc 0 · next lint clean · brand-system 6/6 · full suite 118/119 (1 pre-existing XP-copy fail = backlog #25, unrelated).**
 
-Built the whole-CV **Restructure-with-Mentor** action — closes CLAUDE.md backlog **#26 Phase 4** and the CVJT1 contract's "Restructure = whole CV / retire Polish / 20-coins-on-keep" slice. Full design-family pass (reused the canonical `cvb-modal`/`cvb-btn`/token system — no new visual language).
+**Design philosophy locked (first principles):** the marketing surface must be a *truthful preview* of the product, not a separate brand. So the Engine palette becomes canonical for the WHOLE site — but **light-default / follow-OS**, with the Engine dark palette + a **newly-derived cool light counterpart** (same hue family, flipped luminance, WCAG-AA-verified). This INVERTS the original #28 ("dark canonical, app→landing"): instead landing→app tokens, one `--tm-*` source, both surfaces. The accent symmetry is the soul: on dark, accent-text is *brighter* than the fill (`#67e8f9`>`#00f5d4`); on light it's *deeper* (`#047a6b`<`#009e88`). Same room, lights flipped.
 
-- **Backend.** `app/services/cv_restructure.py` — whole-CV reorder/merge/cut → JSON proposal `{cv, changes[], why, playbook, uncertainty}`, parsed defensively (strips ```json fence; rejects bad JSON / empty cv → error, never charges). **Hard guards:** never invent numbers/employers/titles/dates; never remove employers/roles/dates/education/contact/skills/certs/whole sections — only individual exp/proj bullets (CVJT1 §one-page + ADR-0016). `routers/cv/versions.py` — `POST /cv/versions/{id}/restructure` (propose = FREE, stateless, writes nothing) + `/restructure/apply` (keep = `charge_or_raise(RESTRUCTURE_CV_XP_COST=20, floor 0, ref=cv_restructure/{proposal_id})` then writes `kind="polished"` child; **charge BEFORE write + idempotent refund on write failure** = CVUP ordering; `InsufficientXPError` → 400 + recovery CTA per XP-CTA). Failed/discarded proposals never reach apply → cost nothing. `xp_policy.py` += `RESTRUCTURE_CV_XP_COST/FLOOR`. Tests `test_cv_restructure.py` (9 — prompt guards, JSON parse, proposal/error branches).
-- **Frontend.** `components/cv/builder/restructure-proposal.tsx` — reviewable modal (loading → proposal → applying/error): "What changed" check-icon list + scrollable proposed-CV preview + "Why this works" `<details>` (rationale + playbook source + "keep a line only if true" honesty) + Discard / Keep·20 coins; client-gen `proposal_id` (crypto.randomUUID) keys the keep-charge; Escape closes (never mid-charge). `lib/api.ts` += `cv.versions.restructure/restructureApply` + `RestructureProposalResponse`. `playground-view.tsx` — **"Polish" button → "Restructure"** (CVJT1 retires the ambiguous label; polish *endpoint* + edit-polished lineage stay intact for back-compat), modal wired (`onKept` → selectVersion + invalidate cvVersions). CSS `.cvb-rs-*` in `cv-builder.css` (mobile body-scroll + 44px targets at 375px).
-- **Deliberately NOT done (flagged in #26):** ⋯-More overflow + auto-offer on fill>100%/low-match → shipped as a labelled action button (matches existing flat action group; design §6.2 allowed either); strict server-side charge idempotency → relies on frontend pending-guard + ledger ref like other one-shot paid actions (a `charge_xp` ref-dedupe is a broader XP change).
+**Grill decisions:** Q1 full theme parity · Q2 surface+font this pass (structure convergence deferred) · Q3 Space Grotesk site-wide (reverses ND17) · Q4 mono stays split / Georgia dropped from landing · Q5 follow-OS default · Q6 ThemeControl belongs in public nav (NOT yet mounted) · Q7 landing consumes `--tm-*`, Engine+readout stay dark-console islands · myrology = lone forced-dark (always black, amethyst accent, purple never on white).
 
-**Codex handed a parallel task this session:** PR-REFERRAL-V1 backend-only (Sprint 5 P3 / SH7) — read `myro_ref`→`referred_by_user_id`, credit referrer +100 via idempotent `reward_xp` on `welcome_xp_granted`; no CV/frontend/`lib/api.ts` touch. Separate surface, no overlap.
+**Built (5 PR-units):** PR-FOUC (init script `prefers-color-scheme`; myrology CSS-pinned dark, no JS effect) · PR-FONT (Space Grotesk `--tm-font-sans`, Inter fallback) · PR-TOKENS (`design-tokens.css` dark→Engine, light→derived-cool, accent AA-safe, orange→Forge-only, shadcn HSL, test hexes) · PR-LANDING-LIGHT (`--lp-*`→alias `--tm-*`, killed reverse remap=#28 debt, Georgia→sans, console bands pinned, force-dark removed, `color-mix` nav) · PR-STRAGGLERS (`.tm-intel-console`→Engine-dark, `themeColor` media array). Derived palette + contrast math: memory `project_canonical_engine_palette`.
 
-**Shivam open items:** (1) `pytest backend/tests/test_cv_restructure.py` in real toolchain (9/9 here). (2) 375px eyeball of the Restructure modal. (3) Commit both repos (backend root + nested `frontend/.git`). (4) Rest of the CVJT1 contract (matcher, drafts/retention/conflict, Library, application-attempt snapshots, LinkedIn bridge) = separate slices off Codex's handoff plan — `memory/project_cv_playground_linkedin_tracker.md`.
+**Shivam open items:** (1) **full-app visual QA both surfaces** — highest risk (every authed page repaints color + Grotesk metrics); home/cv/skills/forge/market/intel at desktop+375px. (2) Landing light/dark spot-check (hero box-shadows may read heavy on white). (3) Build the first-login theme toggle (offered during background CV analysis — DECIDED, supersedes public-nav ThemeControl; logged-out = follow-OS only). (4) Commit both repos. Detail in backlog #28 (now marked DONE).
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 · CV Playground + tracker + LinkedIn contract locked)
-
-Completed the point-3 `/grill-me` product interview and locked the end-to-end CV/application workflow. No production code was changed.
-
-- One active tailored CV now belongs to one exact job, survives cross-device use, and keeps 14 days of autosave/conflict revisions.
-- The matcher is deterministic and free; Rewrite means one bullet; Restructure means the whole job-specific CV and costs 20 Myro Coins only when kept.
-- Comparison stays above the CV; mobile uses stacked cards, exact A4 preview, and one state-driven sticky action.
-- Library organization, grouping/sorting/search, draft visibility, archive/restore, and job-description refresh behavior are locked.
-- Application attempts preserve the exact immutable CV used. Users can correct the linked CV, upload an external submitted PDF for Myro Engine analysis, and retain every reapplication in history.
-- The existing extension is the LinkedIn bridge: deduplicate by listing, save/match without leaving LinkedIn, open the exact CV Playground for editing, return to the listing to apply, and ask `I submitted this application`. No private scraping or fictional two-way sync.
-- LinkedIn's official June 2026 tracker documentation was checked to confirm the honest automation boundary: LinkedIn-observed submissions can update automatically; external applications require a prompt or manual stage change.
-
-Durable full contract: `memory/project_cv_playground_linkedin_tracker.md`.
-
----
-
-## OLDER SESSION SUMMARY (2026-06-10/11 · Landing page "Myro Engine" redesign — BUILT, uncommitted)
-
-Cowork session. Spec written (`docs/DESIGN_landing_myro_engine.md`) → Shivam ran it through Claude Design → handoff confirmed (`reference/building landing page.zip`, tweaks locked: bg `#0a0a0c`, Signal teal, roadmap line KEPT, 150+ directive) → **implemented in full**.
-
-**Frontend (nested git, uncommitted):** `components/public/landing-page.tsx` rebuilt as 7-section engine page; new `components/public/landing/` (hero w/ mini-engine SVG + real-data company marquee, engine pipeline + merge + count-up counters, dark sample readout, surfaces w/ `← ENGINE:` lines + quiet Myrology card, loop ring (static 7-node trig layout, mobile chain), proof = live intel teaser + quotes + newsletter strip wired to `newsletter.subscribe(email,"landing")`, FAQ accordion + closing CTA; 4 scoped CSS files; `use-reveal.ts` IO reveal **with the fail-open failsafe**). Landing forces `data-surface="dark"` on mount (myrology pattern) + remaps `--tm-*` inside `.tm-landing` so reused PublicTopNav/PublicFooter/SignupModal go terminal-dark. Fonts: Space Grotesk + JetBrains Mono via next/font in `app/page.tsx` (vars `--font-grotesk`/`--font-jbmono`). New metadata ("Myro — The Career Intelligence Platform") + per-page `viewport.themeColor #0a0a0c` + JSON-LD (SoftwareApplication + FAQPage from shared `landing-copy.ts`). `lib/api.ts`: + `publicStats.get()`. DELETED: `sample-diagnostic.tsx`, old `landing-page.css`. Footer descriptor line updated (all public pages). Dropzones route through `useSignupGate` (`surface:"about_hero"`, `next=/cv?upload=1`). Counters/marquee/intel single-source live data: `/public/stats` → fallback `jobs.analytics()` → static floors (4,000+/150+/32,000+/950+), floored display so numbers never shrink. **tsc --noEmit exit 0 · next lint clean.**
-
-**Backend (root repo, uncommitted):** NEW `app/routers/public.py` — `GET /public/stats` (no-auth, 1h in-process cache, reuses snapshot-backed `compile_market_analytics()` + `user_profiles` exact count, static `SKILLS_MAPPED=32000`), registered in `main.py`. Tests: `tests/test_public_stats.py` (3 tests, fake repo/admin — NOT RUN here, macOS venv unusable in sandbox).
-
-**Deliberate deviations from handoff (flag to Shivam):** (a) intel teaser column says "{n} roles · live" not "· 30d" — `by_company.count` is active listings, not a 30d window; honesty > locked copy. (b) Marquee names come from live `analytics.by_company` (real corpus) instead of a hardcoded MNC list; marquee hidden until data arrives.
-
-**Shivam open items:** (1) `pytest backend/tests/test_public_stats.py` in real toolchain. (2) Eyeball landing at desktop + 375px (+ reduced-motion). (3) Commit both repos (frontend nested git!), deploy backend for `/public/stats` (landing works without it via analytics fallback). (4) Follow-ups parked: regenerate OG image to show Engine diagram; **global dark-mode token migration** to the landing palette (`#0a0a0c/#13141a/#67e8f9` etc.) across the app per Shivam's "entire website" intent — separate PR, touches `design-tokens.css` + `tests/brand-system.test.ts` + 5 hardcoded `#050505` spots, needs visual QA.
-
----
-
-## OLDER SESSION SUMMARY (2026-06-10 · Upskilling + Myrology completion audit)
-
-Confirmed Claude's June 9–10 implementation against git, the live database, deployed APIs, and the full local checks.
-
-**Upskilling core is shipped.**
-- Slices 1–6 landed in `d6713cf`; the home-bootstrap contract fix landed in `1811502`. Both are on `Develop` and production through PR #115 (`ab45199`).
-- The four quiz tables and `user_skills.correction_count` cleanup are live in Supabase.
-- Prod and dev OpenAPI expose the Upskilling skill, activity, and gap-assessment routes.
-- The time-based Practice earn, appeal, and separate advice paths are gone; activity now comes from submitted Upskilling attempts.
-- Full verification: `575 passed, 13 warnings`; frontend `tsc --noEmit` and `next lint` clean.
-
-**Boundary still open outside the shipped core:** the sister `firecrawl_Supabase` repo has no question-bank publisher yet, and the live `skill_questions` count is `0`. Surface B is implemented but has no direct test coverage. Until the publisher fills the bank, the UI correctly shows its empty state. Do not describe the end-to-end Upskilling content system as complete until those two items close.
-
-**Myrology payment reliability is deployed.**
-- Webhook reconciliation, shared exactly-once fulfilment, lifecycle transitions, delivery timestamps, and corrected refund copy landed in `d6713cf` and are live in prod.
-- The lifecycle columns are live in Supabase.
-- Prod webhook and admin routes are configured: unsigned calls return `401`, not the unconfigured `503`; dev intentionally leaves these prod-only secrets unset.
-- Resend sender/API configuration is present on prod and dev according to the completed Railway operations. The Razorpay dashboard registration itself is a provider-side setting and is not independently visible from this repo; treat Shivam's completion confirmation as the source for that final dashboard action.
-
-Remaining for this workstream: run one real payment/webhook delivery smoke when making the next Myrology purchase. No implementation or deployment task remains.
-
----
-
-## OLDER SESSION SUMMARY (2026-06-09 · Upskilling overhaul — Slices 1–2 + api clients BUILT, verified)
-
-All work UNCOMMITTED on `Develop` (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). This session executes the PRD from the 2026-06-08 entry below (`docs/PRD_practice_upskilling_skillgap.md`), driven by a Claude-Design handoff prototype the user supplied at `reference/Overhauling practice design-handoff.zip` (unzipped → `/tmp/overhaul_design/overhauling-practice-design/`; **re-unzip if /tmp cleared** — it is the pixel-source for the UI port). The prototype is a self-contained React/CSS mock of the redesigned `/forge` (Spirit/light theme) whose tokens already match `frontend/app/design-tokens.css` 1:1.
-
-**DEC-1…6 LOCKED by Shivam this session (all the PRD's recommended options):**
-- **DEC-1a** — Upskilling clears DRIVE the headline skill level (replacing the deprecated time-based forge counter), grandfathered `max(legacy_forge_level, assessed_level)` so nobody regresses. One number on screen.
-- **DEC-2** — RETIRE the free-text "Prove it" appeal; leveling is earned by demonstration (clearing the Lₙ set).
-- **DEC-4** — pass bar **8/10**; tiers **10→+50, 9→+30, 8→+20, ≤7→0**.
-- **DEC-6** — pilot bank = top `job_count_30d` skills.
-- **Gap entry (Surface B)** lives on BOTH the Job Tracker AND the Market drawer.
-- (DEC-3 keep the lone "Edit in CV Playground →" nav link; DEC-5 first-clear-only — both recommended defaults.)
-
-**Plan = 7 vertical slices, one PR each → `Develop`. Done this session: Slices 1, 2, and the Slice-3 API clients.**
-
-**Slice 1 — data model (DONE, NOT RUN).** `database/migrations/20260609_upskilling_quiz_bank.sql` — 4 tables: `skill_questions` (scraper-written, **service-read only — NO RLS SELECT policy so the answer key can't leak to a browser**), `quiz_attempts`, `quiz_answers`, `skill_assessed_level`. `skill_id` is **INT REFERENCES skills(id)** (PRD §6 said bigint — that was illustrative; live taxonomy is INT, matches job_skills/user_skills). Idempotent. ⚠️ **Shivam runs it manually via Supabase dashboard** (project `gipvxuugajkugntwkeiz`) per the manual-migration rule — agent did NOT execute it.
-
-**Slice 2 — backend (DONE, 5 tests pass).**
-- `backend/app/services/xp_policy.py` — added `UPSKILLING_SET_SIZE=10`, `UPSKILLING_PASS_BAR=8`, `UPSKILLING_CLEAR_TIERS`, `upskilling_award_for(score)`.
-- `backend/app/schemas/upskilling.py` — full Surface A + Surface B contracts (served-set schemas carry NO `correct_index`).
-- `backend/app/services/upskilling_service.py` — Surface A: `list_skills`, `start_set` (serves key-stripped), `submit_set` (grades server-side, idempotent replay, awards + advances).
-- `backend/app/routers/upskilling.py` — `GET /upskilling/skills`, `POST /upskilling/sets`, `POST /upskilling/sets/{id}/submit`. Registered in `backend/app/main.py`.
-- `backend/tests/test_upskilling_service.py` — **5 passing** (tier table; perfect first-clear pays +50 & unlocks; re-clear of already-paid level pays 0; below-bar pays 0 & no unlock; same-attempt re-submit replays without re-award). Uses an in-memory fake of the supabase fluent client.
-- **TWO deliberate divergences from the PRD's literal text (both correctness wins, keep them):**
-  1. **No new `award_upskilling_clear` RPC.** The existing `reward_xp` RPC (`20260528_reward_xp_rpc.sql` / `xp_service.reward`) already does atomic, idempotent, ledger-audited credit keyed by `(action, ref_table, ref_id)`. Reused it.
-  2. **First-clear idempotency key = `(skill_id, level)`, NOT `attempt_id`.** PRD said `ref_id=attempt_id`, but that only dedupes retries of ONE attempt; D5 ("first clear of each skill+level") requires the level as the key so re-clearing via a *different* attempt pays 0. Implemented as `action='upskilling_clear'`, `ref_table='skill_level_clear'`, `ref_id=f"{skill_id}:{level}"`.
-- **DEC-1a wired in `submit_set`:** a pass upserts `skill_assessed_level` and bumps `user_skills.matched_level = max(prev, level)`.
-
-**Slice 3 (API clients only, DONE).** `frontend/lib/api.ts` — added `upskilling.skills/startSet/submitSet` + types (`UpskillingSkill`, `ServedQuestion`, `StartSetResponse`, `SubmitSetResponse`, …). **`tsc --noEmit` exit 0.**
-
-**⚠️ Local-env gotcha:** `app.main` won't import in the agent venv — `playwright` missing, eagerly pulled by the unrelated `cv` export router via `app/routers/__init__.py`. Pre-existing; NOT caused by this work. New modules `py_compile` clean and the service imports fine (tests pass). Verify full `from app.main import app` in the real toolchain (where playwright is installed).
-
-**NEXT — pick up Slice 3 component port (in progress), then 4–6, plus the scraper-repo pipeline:**
-1. **Slice 3 UI port (BIGGEST remaining):** port the prototype's `primitives.jsx / home.jsx / quiz.jsx / results.jsx` → TS components under `frontend/components/skills/upskilling/`; fold the `up-*` CSS from the prototype `styles.css` into `frontend/app/(authed)/forge/practice.css` (tokens already match); replace mock `BANK`/`SKILLS`/`drawSet` with the new `api.upskilling.*` clients; swap the prototype `ParticleBurst` for the real `useParticleMoment` (reduced-motion gated); source the skill list from real `buildPracticeSkills` (`frontend/lib/practice-skills.ts`) merged over the backend `/skills` progress; gate with `RequiresCV surface="skills"`; mount into `frontend/app/(authed)/forge/page.tsx`. Honor PRD §10.7 partial-bank states (`max_bank_level`/`locked`) and §9 WCAG (the prototype already implements radiogroup/arrow-keys/role=status — preserve it).
-2. **Slice 4:** delete the time-based forge XP earn (the `useForgeTimerStore` dial / `forgeAmbientRate`·`forgeFocusedRate` in `page.tsx` + `xp.completeForge`), keep `forge_service.py` ↔ `level-thresholds.ts` in sync; DEC-1a leveling already lives in `upskilling_service`.
-3. **Slice 5 (Surface B):** build the gap endpoints in `upskilling_service`/router (schemas already exist: `StartGapResponse`/`SubmitGapResponse`/`ReadinessRow`) — reuse `GET /jobs/{job_id}/skill-gap`, rank gap skills by `gap_score × job_count_30d`, cap ~5–6, 3 Qs/skill, **diagnostic (no tokens)**, write `skill_assessed_level`. Port `gap.jsx` → readiness map; add the "Assess my readiness" entry on BOTH Tracker and Market drawer.
-4. **Slice 6 (Part C, ships alone):** strip CV-authoring out of `frontend/components/skills/skill-card-inline.tsx` (evidence/Ask-Mentor/Edit-in-CV/comment-thread) into the CV Playground reusing `POST /cv/skill-edit`; replace "Prove it" appeal per DEC-2; lean card = name + ladder + assessed badge + Start set + one nav link.
-5. **Scraper-repo pipeline (separate repo `firecrawl_Supabase`):** hybrid scrape→LLM-clean→verifier→publish into `skill_questions`. **RAG source = `reference/Interview Prep/`** (user-attached; ~461 PDFs/167 docx — Shivam's MBA/consulting/PM corpus: guesstimates, profitability cases, PM interviews, budget docs). NOTE this corpus is **consulting/product/finance**, NOT the SQL/Python/ML in the prototype mock — pilot skill domain should follow the corpus + top `job_count_30d`.
-
-**Shivam open items:** (1) run the migration on the branch DB. (2) `pytest backend/tests/test_upskilling_service.py` in real toolchain. (3) confirm full `app.main` import once playwright present. (4) commit both repos.
-
----
-
-## LAST SESSION SUMMARY (2026-06-08 · Practice/CV split — Upskilling PRD + CV Playground redesign Phases 1–3 BUILT)
-
-All work UNCOMMITTED (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). Frontend `tsc --noEmit` exit 0 + `next lint` clean on every touched file; backend `py_compile` clean (backend deps + `tsx` NOT runnable in agent env — macOS `node_modules` on Linux sandbox; pure logic validated standalone).
-
-**Two strands this session.**
-
-**(A) Practice → Upskilling split — PRD ONLY (another agent builds it).** `docs/PRD_practice_upskilling_skillgap.md`: move ALL CV-rewrite logic OUT of Practice into the CV Playground; rebuild Practice as an **Upskilling** module — MCQ (auto-graded), L1–L5 sets of 50–60 questions per skill, sourced **hybrid (scrape → LLM-clean)**, **strictly performance-based** rewards (first-clear-only, 8/10 bar, server-held keys, idempotent via `xp_ledger`), plus a job-anchored **skill-gap assessment**. Aligns to the Myro Tutor ADRs (§11 "earn on quiz cleared"). Deprecates the time-based forge earn (= the participation reward being removed). Decisions DEC-1…6 open.
-
-**(B) CV Playground redesign — DESIGN + Phases 1–3 BUILT.** `docs/DESIGN_cv_playground_redesign.md` + `docs/mockups/cv-playground-redesign.html`. The Action Law: **context left, actions right, object-actions on the object, one state-driven primary, no verb twice.**
-- **Phase 1 — toolbar re-zone** (`components/cv/builder/playground-view.tsx` + `cv-builder.css`): Save collapsed 3→1 (killed the save-bar button + the `+` version-tab dup); one state-driven primary **Save → Export PDF**; dropped duplicate "CV Library" + IntelStrip "View live job data" (removed dead `onOpenDrawer`); match-% moved off the button into the meter; lexicon tightened (Intel/Polish/Edit text/Save). New `.cvb-action-group` (44px mobile). **Editor consistency:** Edit modal in `cv/page.tsx` → "Edit CV text" / "Save". Master editor already compliant (autosave + status-only).
-- **Phase 2 — page-fill meter** (NEW `lib/cv/page-fill.ts` + `tests/page-fill.test.ts`): deterministic **line-budget** model (`IDEAL_CV_SPEC`: A4/10.5pt/0.6in/~98 cpl/50-line budget) — NOT pixel measurement. `role="meter"` pill in the IntelStrip; **soft block** on Export when it spills (confirm → **Auto-trim** lowest-impact bullets / Export anyway). ⚠️ `lineBudget=50`/`charsPerLine=98` need ONE eyeball-calibration vs a real export (soft, so can't trap).
-- **Phase 3 — per-bullet Mentor Rewrite** (NEW `backend/app/services/cv_rewrite.py`, `POST /cv/rewrite-bullet[/apply]` in `routers/cv/skill_edit.py`, NEW `components/cv/builder/bullet-rewrite.tsx`, `backend/tests/test_cv_rewrite.py`): `✦ Rewrite` on each visible bullet → before→after diff. **No-fabrication guard (ADR-0016):** bullet w/o a metric → Mentor asks for the real number (with a "reframe qualitatively" opt-out via `allow_no_metric`), never invents. Ships on `get_llm_provider()` (Phase 5 swaps to RAG, no UI change). **Accept writes a NEW Main-CV baseline** — reuses `cv_skill_edit.locate_bullet`+`apply_bullet_edit`+the SE1–SE17 write/async-retag verbatim, keyed by raw bullet text → rewrite flows to every tailored copy. Free in v1 (`REWRITE_BULLET_XP_COST=0`, DEC-H pending).
-
-**Phases 4 & 5 → Backlog #26** (Restructure-with-Mentor; RAG grounding swap) with rationale.
-
-**Shivam's open items:** (1) run `pytest backend/tests/test_cv_rewrite.py` + `npx tsx --test tests/page-fill.test.ts` in real toolchain. (2) Calibrate page-fill `lineBudget`/`charsPerLine` vs a real export. (3) Confirm DEC-G (tailor opens all-visible vs AI-proposed cut), DEC-H (rewrite price; v1 free), and the Phase-3 baseline-write behavior (rewrite edits the master → propagates; OK or scope per-copy?). (4) Commit both repos (frontend nested git + backend root).
-
----
-
-## LAST SESSION SUMMARY (2026-06-08 · CV export — server-PDF WYSIWYG + close-the-loop + Geist parity)
-
-Closed the **CV export/download** chapter (NOT the CV building page — see open items). All UNCOMMITTED. Frontend `tsc --noEmit` exit 0 + eslint 0 on every touched file; CSS + woff byte-synced. Backend not runnable in agent env (no fastapi/playwright) — syntax OK, tests written skip-safe w/o Chromium. Memory: `project_cv_export_redesign`.
-
-**The redesign:** PDF download was `window.print()` → manual "Save as PDF" (worst on mobile) and dead-ended at download. Now it's a **server render** (the Google Docs pattern — model→server→blob, which the DOCX path already did) + **download→apply→track**.
-
-- **Phase 1 — server PDF.** Frontend posts the EXACT previewed `.cvb-pdf-page` outerHTML; headless Chromium renders it with the shared sheet CSS → byte-faithful PDF, no dialog, mobile==desktop. NEW `cv-sheet.css` (canonical sheet styling extracted from cv-builder.css; `backend/app/assets/cv_sheet.css` byte-identical copy, drift-guarded). NEW `backend/app/services/cv_pdf_html.py` (`render_html_to_pdf`, sync Playwright, network-blocked, script-stripped, 512KB cap, reproduces @media print form). `POST /cv/export-pdf` → **503 on fail so client auto-falls back to `printCvPage`** (nothing regresses pre-deploy). `cvApi.exportPdf` + `CVExportView` swap (grabs sheet via `display:contents` ref — transforms must NEVER go on `.cvb-pdf-page` or they pollute the posted outerHTML).
-- **Phase 0 — image (built, Shivam deploys).** Dockerfile `playwright install --with-deps chromium` + `fonts-liberation`; requirements `playwright==1.44.0`. **Server PDF is DEAD until the image is rebuilt** — print() fallback carries it until then.
-- **Phase 3 — close-the-loop.** Tailored export records the application via existing `jobsApi.updateApplication(jobId,{status:"applied"})` (PUT upserts + stamps `applied_at`). Post-download "Mark as applied" nudge → "Applied to {company} on {date}"; export page seeds state from `jobsApi.applications()`. Tracker infra (saved→…→offer) already existed.
-- **Phase 4 — resilience + clarity.** `withRetry` (2 attempts, backoff) wraps exportPdf/exportDocx (weak IN networks); DOCX error invites retry; format guidance "PDF suits most ATS — pick DOCX only if the portal asks for Word"; killed stale "Save as PDF in the print dialog" copy.
-- **Option B — real Geist parity.** NEW `cv-fonts.css` (@font-face from vendored variable woff) + backend base64-embeds the SAME woff (`cv_pdf_html._font_face_css`, vendored `backend/app/assets/fonts/Geist*.woff`, byte-synced + test-guarded).
-- **⚠️ FONT CORRECTION:** earlier-session claim "Geist never loaded / falls back to Helvetica" was WRONG — a pre-existing Google Fonts `@import` (`cv-builder.css:6`, `family=Geist:wght@300..700`) already loaded Geist. So the preview was always Geist → Phase 0's Arial-on-server would have DRIFTED, making Option B **necessary, not optional.** Now **two frontend Geist sources** coexist: Google CDN (cv-builder.css:6, parses last → wins weights 300–700) + local woff (cv-fonts.css); server embeds the local woff. Minor frontend(Google)/server(woff) version nuance. **Recommend: pick ONE Geist source** (drop the Google `@import` and rely on local woff = server, OR drop cv-fonts.css and embed Google's exact Geist server-side) for guaranteed byte-parity.
-- **Phase 2 (mobile 375px scale-to-fit) NOT built** — needs visual iteration; current mobile still reflows (`.cvb-pdf-page{width:100%}`) which diverges from the A4 download. Explained + parked awaiting go-ahead.
-
-**Still OPEN on the CV *building* page (not this session):** fresher "build from scratch", CV-upload reliability (P0 regression), mobile editor (drag/large fields), version mgmt + side-by-side compare, auto-save/draft recovery, state-blind "Upload CV" CTA after success, pricing clarity before download.
-
-**Shivam's open items:** (1) Rebuild/deploy backend image w/ Chromium → test the real PDF round-trip (the one thing unverifiable in-agent). (2) Decide the single Geist source. (3) Eyeball CV export at 375px → greenlight Phase 2 mobile. (4) Commit both repos (backend root + nested `frontend/.git`).
-
----
-
-## LAST SESSION SUMMARY (2026-06-07 · Sprint 5 P0 bug sweep + auth ES256/JWKS fix)
-
-All work UNCOMMITTED (Shivam commits — backend=root repo, frontend=nested `frontend/.git`). `tsc --noEmit` exit 0, `next lint` clean, backend `569 passed`.
-
-**P0 bugs closed (code, grounded via graphify-out frontend graph):**
-- **BUG-9** (PLANNED share row) — render `status:"live"` earn actions only (planned share kept in `lib/xp-policy.ts` so PR-REFERRAL flips it on); deleted dead PLANNED badge/`muted`; fixed icon map (Track-a-job→Briefcase); tokens page header stopped promising the unshipped share reward.
-- **BUG-8** ("India, India") — graph confirmed 3 dup location-joins, no shared formatter → new canonical `lib/format-location.ts` (case-insensitive de-dupe) + 7 tests; JobCard/market/companies all consume it.
-- **BUG-3** (tier label no tooltip) — `skillTierHint()` in canonical `lib/skill-tier.ts` (code-true bands gap L0–L1/building L2–L3/strong L4–L5 — fixed CLAUDE.md's wrong "L1–L2"), `title`+`aria-label` on pill.
-- **BUG-12** (Lightcast jargon) — cv upload copy → "32,000+ recognized skill types used by real hiring managers".
-- **BUG-13** (no extraction tips) — teal tips callout gated on `skills_detected===0` (error-gated per Shivam).
-- **BUG-11** (forge can't-end) — root cause: `components/forge/ForgeModal.tsx` was DEAD (mounted nowhere; its `complete` screen + circular "Log in diary→" CTA orphaned). DELETED it + also-dead `components/home/ForgeStrip.tsx`. Built the real stop/abandon on the live page `app/(authed)/forge/page.tsx`: "End session" ghost button (when `sessionActive`) → forfeit confirm only when `readyXP>0` ("End session — forfeit tokens?" / Keep going primary + End session ghost) → `resetSession()` (no claim/XP). CSS in `practice.css`.
-- **BUG-10** (feedback select "broken on mobile") — NO code defect found (full chain traced clean; FAB `hidden` on mobile so its pointer-events lead is moot; `hover-lift` is a no-op class). May-24 reports predate the refactored hub. Needs a real PHONE repro (ND7) — Shivam's end.
-- **PR-F** (375px) — code-verified: zero `position:sticky` in skills (overlap impossible), SE14 label-hide present. Pixel eyeball owed (authed session).
-
-**Auth ES256/JWKS (#24b) — BUILT.** Screenshot proved Supabase signs **ES256 (ECC P-256)** now → **CLAUDE.md backlog #24 is VOID/dangerous** (setting HS256 `SUPABASE_JWT_SECRET` on the old code = total auth outage). Replaced with alg-aware local verify in `backend/app/deps.py`: ES256/RS256 → JWKS public key (`PyJWKClient`, cached); HS256 → existing secret; any local-verify gap → `_LocalVerifyUnavailable` → remote fallback (zero-outage); real sig/exp/aud fail → 401. `config.jwks_url` derived from `supabase_url` (zero-config). `requirements.txt` pinned `PyJWT[crypto]`. `test_local_jwt_auth.py` +7 ES256 tests. Memory: `project_auth_jwks_local_verify`.
-
-**VERIFIED prod env (Railway MCP, `mirror-backend-prod`):** `SUPABASE_JWT_SECRET` is NOT set → no outage risk, nothing to unset. Since the secret is absent everywhere, OLD code is already safe (no secret → remote path) AND **#24b deploys safely anytime — no ordering constraint.** (Note: `SUPABASE_ANON_KEY`/`SERVICE_KEY` are HS256-format but those are long-lived project API keys, NOT user session tokens — user tokens are ES256, so JWKS fix is correct.)
-
-**Migration `20260602_multiloc_target_locations.sql` APPLIED 2026-06-07 (Shivam, Supabase).** Multi-loc pre-deploy gate cleared.
-
-**Shivam's open items:** (1) Strike backlog #24, replace w/ #24b note. (2) BUG-10 phone repro. (3) Deploy #24b → verify authed route sub-second + no `AuthApiError`. (4) Commit both repos (frontend nested git + backend root). Memory: `project_sprint5_p0_bugs`, `project_auth_jwks_local_verify`.
-
----
-
-## LAST SESSION SUMMARY (2026-06-05 · Backlog audit + close-out — onboarding wiring, dashboard manual-add, stale-listing badge)
-
-User asked to verify (in code) whether the beta-2 backlog items were actually fixed, then close the open ones. **Key finding: the backlog was STALE — most "open" items were already built.** Corrected wrong "NOT built" calls after locating real post-reshuffle file paths. All changes **uncommitted** (user commits): backend → main repo; frontend → nested `frontend/.git`.
-
-- **PR-ONBOARD ✅ FIXED** — root cause: `auth/callback/page.tsx` intentionally routed first-run→`/welcome`, but `/welcome` was reduced to `redirect("/")` when welcome merged into landing → orphaned the complete `/onboarding` 6-step stepper. Flipped the one seam (callback:134 first-run → `/onboarding`). The `/onboarding` flow (cv→role→lens→companies→ninja→score) was fully built, just unreachable.
-- **E1 manual-add (per Shivam directive) ✅** — "+ Add a job" now on the **dashboard** header (Myro/Liked feed), opens existing `ManualAddModal`, invalidates apps, auto-switches to Liked. Self-sourced `manual_web` apps already flow into the feed (`applied` ∈ LIKED_STATUSES). Files: `components/dashboard/dashboard.tsx`+`.css`, `app/(authed)/home/page.tsx`.
-- **BUG-4 stale-listing ✅ BUILT (21d threshold)** — scoped to the market-feed path where the Apply-404 lives. Backend: `STALE_AFTER_DAYS=21` + `_is_marker_stale` + `last_seen` in `_FEED_COLUMNS` + `_feed_shape_row` exposes `last_seen_at`/`is_stale`; `JobFeedItem` schema. Frontend: type + drawer warning above Apply ("Last seen N days ago — may be filled; apply link could be outdated"). **Reverted** an over-scoped JobMatch (dashboard) path — no external Apply there = dead data. Backend `89 passed`, tsc/lint clean.
-- **Verified already-built (my earlier "NOT built" was wrong):** E2 heatmap empty (`market/page.tsx`), E3 jobs-feed empty (`jobs-tab.tsx`), BUG-2 upload retry (api.ts — 3 attempts/90s/backoff/idempotent), BUG-1 filename, BUG-5 session, BUG-6 copy. #18 PR1 (nav.loading gate kills lying pill).
-- **#14 match-refresh ✅ confirmed deployed** (tiered floor in code).
-- **BUG-2 residual:** Android interrupt needs `_emitCVUploadTelemetry` reasonCode from prod — live data, not code (bumping retries = symptom patch).
-- **⚠️ Git topology gotcha:** `frontend/.git` is a nested repo mid progressive-nav reshuffle (renaming `app/home`→`app/(authed)/home`). Main repo's `git status` shows SOME frontend files modified, others clean despite on-disk edits — check BOTH `git status` and `cd frontend && git status` when committing. Memory: `reference_frontend_nested_git`.
-
----
-
-> **2026-06-04 PM session (refresh reliability — 3 root-cause fixes) shipped & committed to Develop** (`f334340` safe_read fan-out, `619c876` RQ binary-conn worker crash-loop, `6ab34e3` comments 500). Detail in git log. Backlog #21 (read-path latency) added there.
-
----
-
-## LAST SESSION SUMMARY (2026-06-04 · Claude PR lane CLOSED + memory pruned for beta-2)
-
-Codex/Claude PR split executed. **Codex done — do not redo PR-4/PR-5-slice/PR-6/PR-8** (commits `9e65611`/`3daff43`/`4b28856`/`c92cc2d`). Claude lane closed:
-
-- **PR-3 living-master CV autosave — BUILT, migration APPLIED 2026-06-04.** Main CV edits MUTATE `latest_baseline` in place + snapshot prior content to new `cv_master_revisions` (additive — deliberately DECOUPLED from the locked big-bang collapse, which stays a separate Shivam-supervised hygiene migration). `PUT /cv/master` = cheap mutate (no XP, no LLM, save≠score); reuses skill_edit `render_baseline_text` + `skill_retag` bulk-lane re-score (SE17 `recompute_finished_at`). Frontend: `lib/cv-autosave.ts` (pure, 7 tests) + `lib/hooks/use-master-autosave.ts` (1.2s debounce · saving/saved/error · localStorage refresh-recovery · beforeunload persist · re-score shimmer) + `components/cv/builder/master-editor.tsx`(+css) mounted as inline **Edit** toggle in `library-master.tsx` MasterCVPanel. `cv.saveMaster` client + `MasterSaveResponse`. Backend (cv.py/structured.py/test, 3 tests) committed root `e59a84d`; frontend lives in nested `frontend/.git` (progressive-nav reshuffle in flight — Shivam owns those commits). tsc/lint clean. Memory: `project_living_master_autosave`.
-- **PR-2** = 1 line: `forge` → `RequiresCV surface="skills"` (the hub absorbed Skills). Boundary itself already built prior sessions.
-- **PR-1** (first-CV SLO) + **PR-9** (StuckBanner "They went silent" vs "I have an update" branch) found **ALREADY SHIPPED** — verified only (47 tests green, no regressions). PR-9 premium Practice-routing (No-Response-Recovery / Interview-Prep / Referral-Intelligence 500XP) = deferred epic; routes to Practice surfaces that don't exist yet, needs a grill.
-- **PR-7** legal = coordinate-only, nothing built (counsel-gated, Backlog #17).
-
-**Memory pruned 73→41 files for beta-2 launch:** removed shipped session-build notes (detail in git log + this file), kept durable working rules + governing decisions + active references + unbuilt/parked work. Index regrouped under headings.
-
-⚠️ **Other open pre-deploy migration gate:** multi-location `20260602` NOT applied (`project_location_prefs_multiloc`).
-
-> **Older session summaries pruned for a lean cockpit (2026-05-30).** Sessions ≤ 2026-05-28 were committed/shipped — full detail in `git log` and `docs/session-history/2026-05.md`. Live cross-session context lives in memory (`~/.claude/projects/-Users-incognito-True-Yodha/memory/MEMORY.md`). Only the latest sessions with **uncommitted or unbuilt** carry-over are kept above.
+> **RECENT SESSIONS PRUNED TO POINTERS (2026-06-12).** Sessions below were built/shipped; full detail in `git log` + the named memory files. Only live carry-over kept. The current session (canonical Engine palette) stays full above.
+
+- **2026-06-12 · Restructure-with-Mentor** — whole-CV reorder/merge/cut proposal (FREE propose, 20-coin-on-keep), closes backlog #26 Phase 4 + CVJT1 Restructure slice. `cv_restructure.py`, `restructure-proposal.tsx`, Polish→Restructure label. Carry: commit; rest of CVJT1 contract slices (`memory/project_cv_playground_linkedin_tracker.md`).
+- **2026-06-12 · CV/tracker/LinkedIn contract LOCKED** (grill, no code) — `memory/project_cv_playground_linkedin_tracker.md`.
+- **2026-06-10/11 · Landing "Myro Engine" redesign BUILT** — 7-section engine landing + `GET /public/stats`. **NOTE: surface/palette/font now SUPERSEDED by the 2026-06-12 canonical-palette session above** (was force-dark; now themes). Carry: commit; deploy backend for `/public/stats` (landing works without via analytics fallback); backlog #27 OG-image→Engine still open.
+- **2026-06-10 · Upskilling + Myrology audit** — Upskilling slices 1–6 SHIPPED (`d6713cf`, PR #115); Myrology payment reliability DEPLOYED. Open: sister `firecrawl_Supabase` has no question-bank publisher → live `skill_questions`=0 (UI shows empty state correctly); smoke one real Myrology webhook on next purchase. `memory/project_upskilling_overhaul`, `project_myrology_payment_reliability`.
+- **2026-06-09 · Upskilling overhaul slices 1–2 + api clients** — folded into the shipped core above.
+- **2026-06-08 · Practice→Upskilling PRD + CV Playground redesign Phases 1–3** — `docs/PRD_practice_upskilling_skillgap.md`, `docs/DESIGN_cv_playground_redesign.md`; toolbar re-zone, page-fill meter, per-bullet Mentor Rewrite. Carry: calibrate `lineBudget/charsPerLine` vs a real export.
+- **2026-06-08 · CV export server-PDF WYSIWYG** — `memory/project_cv_export_redesign`. Carry: rebuild backend image w/ Chromium + test real PDF round-trip; pick ONE Geist source; Phase-2 mobile 375px scale-to-fit NOT built.
+- **2026-06-07 · Sprint 5 P0 sweep + auth ES256/JWKS (#24b BUILT)** — `memory/project_sprint5_p0_bugs`, `project_auth_jwks_local_verify`. Carry: BUG-10 feedback-form PHONE repro; deploy #24b + verify authed route sub-second.
+- **2026-06-05 · Backlog audit close-out** — PR-ONBOARD fixed, dashboard manual-add, BUG-4 stale-listing badge (21d). Carry: BUG-2 residual Android upload interrupt = needs prod telemetry reasonCode (live data, not code).
+- **2026-06-04 · refresh reliability** — shipped+committed `f334340`/`619c876`/`6ab34e3`. Backlog #21 (read-path latency) raised there.
+- **2026-06-04 · Claude PR lane CLOSED** — PR-3 living-master CV autosave BUILT, migration APPLIED (`memory/project_living_master_autosave`). Codex PR-4/5-slice/6/8 done (`9e65611`/`3daff43`/`4b28856`/`c92cc2d`).
+
+> **Older session summaries pruned for a lean cockpit (2026-05-30).** Sessions ≤ 2026-05-28 were committed/shipped — full detail in `git log` and `docs/session-history/2026-05.md`. Live cross-session context lives in memory (`~/.claude/projects/-Users-incognito-True-Yodha/memory/MEMORY.md`).
 
 ---
 

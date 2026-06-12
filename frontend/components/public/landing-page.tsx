@@ -42,16 +42,10 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
     }
   }, [router])
 
-  // The landing is a dark-terminal surface; the reused chrome (nav, signup
-  // modal portal) follows the app-level surface flag — same seam as /myrology.
-  useEffect(() => {
-    const root = document.documentElement
-    const prior = root.getAttribute("data-surface")
-    root.setAttribute("data-surface", "dark")
-    return () => {
-      root.setAttribute("data-surface", prior ?? "light")
-    }
-  }, [])
+  // The landing now follows the canonical surface (it consumes --tm-* like the
+  // rest of the product — pre = post). No force-dark: a light-pref/OS visitor
+  // sees the light Engine; a dark one sees the dark Engine. The Engine pipeline
+  // + readout stay dark consoles regardless (pinned in landing-engine.css).
 
   // Nav hairline fades in after 8px scroll (handoff §Interactions).
   const [scrolled, setScrolled] = useState(false)

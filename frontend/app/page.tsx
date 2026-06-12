@@ -39,7 +39,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   minimumScale: 1,
-  themeColor: "#0a0a0c",
+  // Landing follows the canonical surface now — chrome tint matches per OS.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f6f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+  ],
   viewportFit: "cover",
 }
 

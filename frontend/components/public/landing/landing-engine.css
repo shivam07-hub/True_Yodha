@@ -3,6 +3,35 @@
    · roadmap) + sample readout insert.
    ───────────────────────────────────────────────────────────── */
 
+/* ── Dark-console islands ───────────────────────────────────────
+   The Engine pipeline + sample readout are machine output. They stay dark
+   on the light page (like an embedded terminal), re-pinning fixed Engine-dark
+   --lp-* values independent of the page surface. On dark pages they blend with
+   the page; on light pages they read as a full-bleed dark console band. */
+.lp-engine,
+.lp-readout {
+  --lp-bg:            #0a0a0c;
+  --lp-surface:       #13141a;
+  --lp-surface-2:     #181a23;
+  --lp-border:        rgba(255, 255, 255, 0.06);
+  --lp-border-strong: rgba(255, 255, 255, 0.12);
+  --lp-text:          #e8e8ea;
+  --lp-muted:         #9aa4bf;
+  --lp-faint:         #646e8c;
+  --lp-accent:        #00f5d4;
+  --lp-accent-text:   #67e8f9;
+  --lp-accent-fg:     #04211c;
+  --lp-accent-wash:   rgba(0, 245, 212, 0.07);
+  --lp-accent-ring:   rgba(0, 245, 212, 0.32);
+  --lp-accent-glow:   rgba(0, 245, 212, 0.14);
+  --lp-grid-line:     rgba(255, 255, 255, 0.028);
+  --lp-success:       #4ade80;
+  --lp-warning:       #f59e0b;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  color-scheme: dark;
+}
+
 .lp-engine {
   padding: 110px 0 96px;
   overflow: hidden;

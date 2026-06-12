@@ -91,7 +91,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 .lp-surface-card.myrology:hover { border-color: var(--lp-border-strong); box-shadow: none; transform: translateY(-2px); }
 
 .lp-surface-card.myrology .lp-surface-title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--lp-font);
   font-weight: 500;
   font-style: italic;
   font-size: 22px;
@@ -108,7 +108,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 
 .lp-myrology-link {
   margin: 20px 0 0;
-  font-family: Georgia, serif;
+  font-family: var(--lp-font);
   font-style: italic;
   font-size: 14px;
   color: var(--lp-muted);
@@ -298,7 +298,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 }
 
 .lp-quote-mark {
-  font-family: Georgia, serif;
+  font-family: var(--lp-font);
   font-size: 34px;
   line-height: 0.6;
   color: var(--lp-accent-text);
