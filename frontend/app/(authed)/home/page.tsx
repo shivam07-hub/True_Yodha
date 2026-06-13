@@ -9,6 +9,7 @@ import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
+import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
 import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
@@ -231,12 +232,14 @@ function MissionControlInner() {
   const hasApplied = apps.some((a) => a.status !== "saved")
   const hasForged = entries.length > 0
 
-  const checkpoints = [
-    { label: "Find Job", done: topJobs.length > 0 },
-    { label: "Practice", done: hasForged },
-    { label: "Log", done: loggedToday },
-    { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0 },
-    { label: "Apply", done: hasApplied },
+  // Daily loop — the five ritual steps the LoopRing closes. `href` is where
+  // "close this step" routes; on-page steps (Log → diary panel below) omit it.
+  const steps: LoopStep[] = [
+    { label: "Find Job", done: topJobs.length > 0, icon: "target", href: "/market" },
+    { label: "Practice", done: hasForged, icon: "forge", href: "/forge" },
+    { label: "Log", done: loggedToday, icon: "diary" },
+    { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
+    { label: "Apply", done: hasApplied, icon: "arrowRight", href: "/market" },
   ]
 
   const scoreDelta = evidenceData?.score_delta ?? 0
@@ -348,7 +351,7 @@ function MissionControlInner() {
                 name={firstName}
                 dateLine={dateLine}
                 activeTargets={activeTargets}
-                checkpoints={checkpoints}
+                steps={steps}
                 score={score}
                 streak={streak}
                 scoreDelta={scoreDelta}

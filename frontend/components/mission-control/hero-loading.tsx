@@ -15,20 +15,18 @@ export function HeroLoading() {
       <div>
         {bar(320, 34, 10)}
         <div style={{ marginTop: 12 }}>{bar(200, 14, 4)}</div>
-        <div className="mc-checkpoints" style={{ marginTop: 18 }}>
-          {[64, 78, 52, 84, 60].map((w, i) => (
-            <Skeleton key={i} style={{ width: w, height: 24, borderRadius: 999 }} />
-          ))}
-        </div>
       </div>
 
-      <div className="mc-score-panel">
-        {bar(150, 11, 4)}
-        <div style={{ marginTop: 14 }}>{bar(108, 40, 10)}</div>
-        <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-          {bar("50%", 52, 10)}
-          {bar("50%", 52, 10)}
+      {/* loop-ring shape: circle + legend + nudge + footnote */}
+      <div className="mc-loopring">
+        <Skeleton style={{ width: 168, height: 168, borderRadius: 999 }} />
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", justifyContent: "center" }}>
+          {[58, 64, 44, 70, 52].map((w, i) => (
+            <Skeleton key={i} style={{ width: w, height: 22, borderRadius: 999 }} />
+          ))}
         </div>
+        <div style={{ marginTop: 14 }}>{bar(180, 16, 6)}</div>
+        <div style={{ marginTop: 12 }}>{bar(120, 12, 4)}</div>
       </div>
     </div>
   )

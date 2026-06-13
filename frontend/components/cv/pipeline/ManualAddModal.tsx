@@ -4,7 +4,6 @@ import { useRef, useState } from "react"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { useXPStore } from "@/store/xpStore"
-import { XP_POLICY } from "@/lib/xp-policy"
 import { STAGE_LABEL } from "./useTrackerBoard"
 import type { StageKey } from "./useTrackerBoard"
 
@@ -23,31 +22,49 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
   const [location, setLocation] = useState("")
   const [url, setUrl] = useState("")
   const [jd, setJd] = useState("")
-  const [status, setStatus] = useState<ApplicationStatus>("applied")
+  const [status, setStatus] = useState<ApplicationStatus>("saved")
   const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [primarySel, setPrimarySel] = useState<Set<string>>(new Set())
   const [secondarySel, setSecondarySel] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [parsing, setParsing] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const [parsedFrom, setParsedFrom] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const setBalance = useXPStore((s) => s.setBalance)
 
+  // Fill from a parse, but never clobber something the user already typed.
+  function applyParsed(res: { company?: string; role?: string; location?: string; job_description?: string }) {
+    if (res.company && !company.trim()) setCompany(res.company)
+    if (res.role && !role.trim()) setRole(res.role)
+    if (res.location && !location.trim()) setLocation(res.location)
+    if (res.job_description) setJd((prev) => (prev.trim() ? prev : res.job_description!))
+  }
+
   async function handleFile(file: File) {
     setParsing(true); setError(null); setParsedFrom(null)
     try {
-      const res = await jobs.extractFile(token, file)
-      // Fill from the parse, but never clobber something the user already typed.
-      if (res.company && !company.trim()) setCompany(res.company)
-      if (res.role && !role.trim()) setRole(res.role)
-      if (res.location && !location.trim()) setLocation(res.location)
-      if (res.job_description) setJd((prev) => (prev.trim() ? prev : res.job_description))
+      applyParsed(await jobs.extractFile(token, file))
       setParsedFrom(file.name)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't read that file")
     } finally {
       setParsing(false)
+    }
+  }
+
+  async function handleFetchUrl() {
+    const target = url.trim()
+    if (!target) { setError("Paste a job posting link first"); return }
+    setFetching(true); setError(null); setParsedFrom(null)
+    try {
+      applyParsed(await jobs.extractUrl(token, target))
+      setParsedFrom(target.replace(/^https?:\/\//, "").split("/")[0])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't read that link")
+    } finally {
+      setFetching(false)
     }
   }
 
@@ -135,27 +152,32 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
 
         {step === 1 && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <Field label="Company *">
-                <Input value={company} onChange={setCompany} placeholder="Stripe" />
-              </Field>
-              <Field label="Role *">
-                <Input value={role} onChange={setRole} placeholder="Senior Product Designer" />
-              </Field>
-              <Field label="Location">
-                <Input value={location} onChange={setLocation} placeholder="Remote / Bengaluru" />
-              </Field>
-              <Field label="Posting URL">
-                <Input value={url} onChange={setUrl} placeholder="https://…" />
-              </Field>
-            </div>
-            <Field label="Job description (paste, or upload the posting)">
+            {/* Smart import first — paste a link or drop the posting and we fill the rest. */}
+            <Field label="Paste a link or upload the posting — we'll fill the rest">
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Input value={url} onChange={setUrl} placeholder="https://… job posting link" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleFetchUrl}
+                  disabled={fetching || parsing || !url.trim()}
+                  style={{
+                    ...buttonOutlineStyle,
+                    flexShrink: 0,
+                    opacity: fetching || !url.trim() ? 0.6 : 1,
+                    cursor: fetching ? "wait" : !url.trim() ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {fetching ? "Reading…" : "Fetch"}
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                disabled={parsing}
+                disabled={parsing || fetching}
                 style={{
-                  width: "100%", boxSizing: "border-box", marginBottom: 8,
+                  width: "100%", boxSizing: "border-box", marginTop: 8,
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "10px 12px", borderRadius: 8, cursor: parsing ? "wait" : "pointer",
                   background: "var(--tm-int-bg-wash, rgba(0,245,212,0.03))",
@@ -171,7 +193,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                     {parsing ? "Reading the posting…" : parsedFrom ? `Loaded from ${parsedFrom}` : "Upload PDF, Word, or a screenshot"}
                   </span>
                   <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 2 }}>
-                    {parsing ? "Extracting company, role & description" : `Myro fills the fields below · +${XP_POLICY.addJobReward} tokens when you save`}
+                    {parsing ? "Reading company, role & description" : "We read the company, role & skills for you"}
                   </span>
                 </span>
               </button>
@@ -182,11 +204,25 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = "" }}
                 style={{ display: "none" }}
               />
+            </Field>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Field label="Company *">
+                <Input value={company} onChange={setCompany} placeholder="Stripe" />
+              </Field>
+              <Field label="Role *">
+                <Input value={role} onChange={setRole} placeholder="Senior Product Designer" />
+              </Field>
+            </div>
+            <Field label="Location">
+              <Input value={location} onChange={setLocation} placeholder="Remote / Bengaluru" />
+            </Field>
+            <Field label="Job description">
               <textarea
                 value={jd}
                 onChange={e => setJd(e.target.value)}
                 rows={6}
-                placeholder="Paste the JD here — or upload the posting above. Myro will extract skills from it."
+                placeholder="Paste the JD here, or use a link / upload above. We'll extract skills from it."
                 style={textareaStyle}
               />
             </Field>
@@ -210,20 +246,19 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
             </Field>
             {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-              <button onClick={onClose} style={buttonGhostStyle}>Cancel</button>
               <button
                 onClick={() => handleSave({ skipSkills: true })}
                 disabled={busy}
                 style={buttonOutlineStyle}
               >
-                Skip skills &amp; save
+                {busy ? "…" : "Save"}
               </button>
               <button
                 onClick={handleExtract}
                 disabled={busy}
                 style={buttonPrimaryStyle}
               >
-                {busy ? "…" : "Next: extract →"}
+                {busy ? "…" : "Extract skills →"}
               </button>
             </div>
           </>

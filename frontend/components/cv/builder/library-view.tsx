@@ -131,9 +131,9 @@ export function LibraryView({
   const legacyClosed = searchParams.get("filter") === "closed"
   const viewParam = searchParams.get("view")
   const view: View =
-    viewParam === "active" || legacyClosed ? "active"
-    : viewParam === "cv" || legacyMaster ? "cv"
-    : "cv"
+    viewParam === "cv" || legacyMaster ? "cv"
+    : viewParam === "active" || legacyClosed ? "active"
+    : "active"
 
   function setView(next: View) {
     const params = new URLSearchParams(searchParams.toString())
@@ -157,7 +157,6 @@ export function LibraryView({
         <div className="tm-lib-main">
           <div className="tm-lib-page-head">
             <div className="tm-lib-page-head-main">
-              <h1 className="tm-lib-page-title">Your CV workspace</h1>
               <ViewSwitch view={view} onChange={setView} />
             </div>
           </div>
@@ -240,8 +239,8 @@ export function LibraryView({
 // toggle. Click swaps the whole panel below; no stacking.
 function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
   const TABS: { key: View; label: string }[] = [
-    { key: "cv", label: "CV" },
     { key: "active", label: "Active" },
+    { key: "cv", label: "CV" },
   ]
   return (
     <div className="tm-lib-viewseg" role="tablist" aria-label="CV workspace view">

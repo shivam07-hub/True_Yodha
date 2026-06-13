@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-type IconName =
+export type IconName =
   | "refresh" | "target" | "cart" | "star" | "check" | "chev" | "chevDown"
   | "arrowLeft" | "arrowRight" | "plus" | "x" | "ext" | "forge" | "cv" | "diary"
 

@@ -1,9 +1,12 @@
-"""Unit tests for the Add-a-job file parser (detection + JSON lift)."""
+"""Unit tests for the Add-a-job file parser (detection + JSON lift + URL fetch)."""
 
 import pytest
 
 from app.services.job_file_parser import (
     JobFileParseError,
+    JobUrlFetchError,
+    _assert_public_http_url,
+    _html_to_text,
     _parse_fields_json,
     detect_file_kind,
 )
@@ -52,3 +55,60 @@ def test_parse_fields_missing_keys_default_empty():
 def test_parse_fields_raises_on_non_json():
     with pytest.raises(JobFileParseError):
         _parse_fields_json("the model refused to answer")
+
+
+# --- URL fetch: SSRF guard ---
+
+def test_url_guard_rejects_non_http_scheme():
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("file:///etc/passwd")
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("ftp://example.com/jd")
+
+
+def test_url_guard_rejects_loopback():
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("http://127.0.0.1/admin")
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("http://localhost:8000/internal")
+
+
+def test_url_guard_rejects_private_and_metadata_ranges():
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("http://10.0.0.5/")
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("http://192.168.1.1/")
+    # AWS/GCP metadata endpoint — link-local, must be blocked
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("http://169.254.169.254/latest/meta-data/")
+
+
+def test_url_guard_rejects_missing_host():
+    with pytest.raises(JobUrlFetchError):
+        _assert_public_http_url("https://")
+
+
+def test_url_guard_allows_public_host():
+    # Resolves to a public IP; should not raise.
+    _assert_public_http_url("https://boards.greenhouse.io/acme/jobs/123")
+
+
+# --- URL fetch: HTML → text ---
+
+def test_html_to_text_drops_script_and_style():
+    html = (
+        "<html><head><style>.x{color:red}</style></head>"
+        "<body><script>steal()</script>"
+        "<h1>Senior PM</h1><p>Build &amp; ship products.</p></body></html>"
+    )
+    text = _html_to_text(html)
+    assert "steal()" not in text
+    assert "color:red" not in text
+    assert "Senior PM" in text
+    assert "Build & ship products." in text
+
+
+def test_html_to_text_preserves_block_breaks():
+    text = _html_to_text("<li>One</li><li>Two</li>")
+    assert "One" in text and "Two" in text
+    assert "OneTwo" not in text
