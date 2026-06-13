@@ -14,6 +14,7 @@ import { LandingFaq } from "@/components/public/landing/faq"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { useReveal } from "@/components/public/landing/use-reveal"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
+import type { AnonScoreResponse } from "@/lib/api"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
 import "@/components/public/landing/landing-engine.css"
@@ -60,6 +61,24 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
   const data = useLandingData()
 
+  // Live CV-score preview (grill). State lives here so the hero dropzone (input)
+  // and the Readout (output) — two different sections — share one result. On a
+  // score, reveal the live Readout and scroll to it so the user sees the payoff.
+  const [anonResult, setAnonResult] = useState<AnonScoreResponse | null>(null)
+  const [scoring, setScoring] = useState(false)
+  const [scoreError, setScoreError] = useState<string | null>(null)
+
+  function handleResult(result: AnonScoreResponse) {
+    setAnonResult(result)
+    setScoring(false)
+    requestAnimationFrame(() => {
+      const target = document.getElementById("cv-hub")
+      if (!target) return
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" })
+    })
+  }
+
   if (redirecting) return null
 
   return (
@@ -71,7 +90,21 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
       <PublicTopNav active="about" showSignIn />
 
       <main>
-        <LandingHero companiesLabel={data.companiesLabel} companyNames={data.marqueeNames} />
+        <LandingHero
+          companiesLabel={data.companiesLabel}
+          companyNames={data.marqueeNames}
+          scoring={scoring}
+          scoreError={scoreError}
+          onScoring={() => {
+            setScoring(true)
+            setScoreError(null)
+          }}
+          onResult={handleResult}
+          onError={(message) => {
+            setScoreError(message)
+            setScoring(false)
+          }}
+        />
 
         <LandingEngine
           companiesLabel={data.companiesLabel}
@@ -81,7 +114,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           seekers={data.seekers}
         />
 
-        <LandingReadout />
+        <LandingReadout result={anonResult} />
 
         <LandingSurfaces />
 
@@ -89,7 +122,19 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
         <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
 
-        <LandingFaq />
+        <LandingFaq
+          scoring={scoring}
+          scoreError={scoreError}
+          onScoring={() => {
+            setScoring(true)
+            setScoreError(null)
+          }}
+          onResult={handleResult}
+          onError={(message) => {
+            setScoreError(message)
+            setScoring(false)
+          }}
+        />
       </main>
 
       <PublicFooter />

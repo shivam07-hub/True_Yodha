@@ -2628,6 +2628,38 @@ export const publicStats = {
   get: () => request<PublicStatsResponse>("/public/stats"),
 }
 
+// ── Public CV-score preview (no auth) ───────────────────────────────────────
+// The pre-login "drop your CV → real Myro Score" demo. Multipart, no token —
+// bypasses `request`'s JSON handling. Backend runs the real engine compute-only
+// and persists nothing (PV1). Everything actionable stays gated behind signup.
+
+export interface AnonDomainScore {
+  name: string
+  score: number
+}
+
+export interface AnonScoreResponse {
+  score: number
+  verdict: string
+  domains: AnonDomainScore[]
+  gaps: AnonDomainScore[]
+  strengths: AnonDomainScore[]
+  skills_detected: number
+}
+
+export const publicCv = {
+  scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
+    if (!BASE) throw new Error("API base URL is not configured.")
+    const form = new FormData()
+    form.append("file", file)
+    if (turnstileToken) form.append("cf_turnstile_token", turnstileToken)
+    const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(extractError(body, res.status))
+    return body as AnonScoreResponse
+  },
+}
+
 // ── Home bootstrap (BFF) ────────────────────────────────────────────────────
 // One round-trip that returns the whole above-the-fold dashboard bundle, so the
 // client makes a single call instead of ~9 to paint home. Each field mirrors the

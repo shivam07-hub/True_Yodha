@@ -23,6 +23,7 @@ import { openFeedbackHub } from "@/components/feedback"
 import { useParticleMoment } from "@/components/particle"
 import { cv, diary, jobs, scores, upskilling, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
+import { useApplicationStatus } from "@/lib/hooks/use-application-status"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreakFromDates } from "@/lib/forge-helpers"
@@ -143,22 +144,19 @@ function MissionControlInner() {
   const urlJobId = searchParams.get("jobId")
 
   // ── Mutations
-  const updateStatus = useMutation({
-    mutationFn: ({ jobId, status }: { jobId: string; status: ApplicationStatus }) =>
-      jobs.updateApplication(token!, jobId, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
-    },
-  })
+  //
+  // Application stage (Like = save / stage change) is the one optimistic
+  // contract owned by useApplicationStatus — instant tap, rollback on failure,
+  // shared with the tracker + pursuit-stage picker so no surface taps-then-waits
+  // (design law: the UI state is the feedback). Skip (✕ / unlike) is a separate
+  // act (dismiss the card) and stays here, also optimistic.
+  const appStatus = useApplicationStatus(token)
 
   const removeCard = useMutation({
     mutationFn: (jobId: string) => jobs.dismissMatchCard(token!, jobId),
-    onSuccess: (_data, jobId) => {
-      if (token) {
-        clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
-        clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
-      }
+    onMutate: async (jobId: string) => {
+      await queryClient.cancelQueries({ queryKey: dataKeys.jobs() })
+      const prevJobs = queryClient.getQueryData<JobMatchesResponse>(dataKeys.jobs())
       queryClient.setQueryData<JobMatchesResponse | undefined>(dataKeys.jobs(), (old) => {
         if (!old) return old
         const hadJob = old.jobs.some((job) => job.job_id === jobId)
@@ -166,9 +164,23 @@ function MissionControlInner() {
           ...old,
           jobs: old.jobs.filter((job) => job.job_id !== jobId),
           total: Math.max(0, old.total - (hadJob ? 1 : 0)),
+          // Dismissing a liked self-added job (not in `jobs`) still hides it —
+          // buildFeed filters both jobs AND apps by dismissed_job_ids.
           dismissed_job_ids: Array.from(new Set([...(old.dismissed_job_ids ?? []), jobId])),
         }
       })
+      return { prevJobs }
+    },
+    onError: (_e, _jobId, ctx) => {
+      if (ctx?.prevJobs) queryClient.setQueryData(dataKeys.jobs(), ctx.prevJobs)
+    },
+    onSuccess: () => {
+      if (token) {
+        clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
+        clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
   })
@@ -380,7 +392,7 @@ function MissionControlInner() {
                   feedUpdatedAt={jobsData?.feed_updated_at ?? null}
                   matchesComputedAt={jobsData?.matches_computed_at ?? null}
                   initialJobId={urlJobId}
-                  onStatus={(jobId, status) => updateStatus.mutate({ jobId, status })}
+                  onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}
                   onRemove={(jobId) => removeCard.mutate(jobId)}
                   onSkillToggle={handleSkillToggle}
                   onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}

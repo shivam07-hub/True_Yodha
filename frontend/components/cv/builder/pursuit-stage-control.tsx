@@ -10,10 +10,9 @@
 "use client"
 
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, APPLICATION_OUTCOMES } from "@/lib/api"
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { APPLICATION_OUTCOMES } from "@/lib/api"
+import type { ApplicationResponse } from "@/lib/api"
+import { useApplicationStatus } from "@/lib/hooks/use-application-status"
 import { StatusPicker } from "../pipeline/StatusPicker"
 import { STAGE_LABEL, OUTCOME_LABEL } from "../pipeline/useTrackerBoard"
 import type { StageKey, OutcomeKey } from "../pipeline/useTrackerBoard"
@@ -22,17 +21,9 @@ export function PursuitStageControl({ token, application }: {
   token: string
   application: ApplicationResponse
 }) {
-  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-
-  const updateStatus = useMutation({
-    mutationFn: (status: ApplicationStatus) =>
-      jobsApi.updateApplication(token, application.job_id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
-    },
-  })
+  // Shared optimistic stage write — the picker reflects the new stage instantly.
+  const { setStatus } = useApplicationStatus(token)
 
   const isOutcome = (APPLICATION_OUTCOMES as readonly string[]).includes(application.status)
   const label = isOutcome
@@ -54,7 +45,7 @@ export function PursuitStageControl({ token, application }: {
       {open && (
         <StatusPicker
           current={application.status}
-          onPick={(s) => { setOpen(false); updateStatus.mutate(s) }}
+          onPick={(s) => { setOpen(false); setStatus(application.job_id, s) }}
           onClose={() => setOpen(false)}
         />
       )}

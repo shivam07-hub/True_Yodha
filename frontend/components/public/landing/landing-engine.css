@@ -320,6 +320,46 @@
 
 .lp-readout-note { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--lp-muted); text-wrap: pretty; }
 
+.lp-readout-bar span { transition: width 700ms var(--lp-ease); }
+
+/* Gated-actions band — only on the live readout. Sits on the dark console. */
+.lp-readout-unlock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-accent-wash);
+}
+.lp-readout-unlock-copy {
+  margin: 0;
+  flex: 1 1 320px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--lp-text);
+  text-wrap: pretty;
+}
+.lp-readout-unlock-cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--lp-accent);
+  color: var(--lp-accent-fg);
+  font-family: var(--lp-font);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--lp-dur) var(--lp-ease);
+}
+.lp-readout-unlock-cta:hover { filter: brightness(1.08); }
+.lp-readout-unlock-cta:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1060px) {
   .lp-pipeline { grid-template-columns: repeat(2, 1fr); gap: 24px; }

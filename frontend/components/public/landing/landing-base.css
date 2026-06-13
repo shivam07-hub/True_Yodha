@@ -129,6 +129,15 @@
   .lp-reveal { opacity: 1 !important; transform: none !important; }
 }
 
+/* Light grid faintness — its own value, NOT the border token. --tm-border-faint
+   (8% ink) is tuned for a 1px hairline border; tiled full-bleed across the hero
+   it reads as a loud blueprint, not a whisper. Drop to ~3.5% so it matches the
+   dark engine grid's perceived faintness (which already pins its own 2.8% white).
+   Dark keeps the .tm-landing default → engine override; only light is corrected. */
+:root[data-surface="light"] .tm-landing {
+  --lp-grid-line: rgba(38, 38, 38, 0.035);
+}
+
 /* faint 44px measurement grid — S1 + S2 only */
 .lp-grid-bg {
   position: absolute;
@@ -247,12 +256,32 @@
 }
 .lp-dropzone:hover .lp-dropzone-btn { filter: brightness(1.08); }
 
+.lp-dropzone.is-dragging {
+  border-color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  box-shadow: 0 0 32px var(--lp-accent-glow);
+}
+
+.lp-dropzone:disabled,
+.lp-dropzone[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.78;
+}
+
 .lp-dropzone-note {
   margin: 10px 0 0;
   font-family: var(--lp-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--lp-faint);
+}
+
+.lp-dropzone-error {
+  margin: 10px 0 0;
+  max-width: 560px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lp-warning);
 }
 
 @media (max-width: 640px) {

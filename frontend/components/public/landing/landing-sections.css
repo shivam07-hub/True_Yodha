@@ -366,7 +366,108 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 /* ── S6 — FAQ + closing CTA ─────────────────────────────────── */
 .lp-faq { padding: 96px 0 110px; border-top: 1px solid var(--lp-border); }
 
-.lp-faq .lp-section-head { margin-bottom: 48px; }
+.lp-faq .lp-section-head { margin-bottom: 40px; }
+
+/* free vs Myro Coins split — plain two columns, no fake tiers */
+.lp-pricing {
+  max-width: 760px;
+  margin: 0 auto 56px;
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  background: var(--lp-surface);
+  padding: 32px 36px 28px;
+}
+
+.lp-pricing-lead {
+  margin: 0 0 26px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--lp-border);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--lp-text);
+  text-wrap: pretty;
+  max-width: 60ch;
+}
+
+.lp-pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+
+.lp-pricing-col + .lp-pricing-col {
+  border-left: 1px solid var(--lp-border);
+  padding-left: 36px;
+}
+
+.lp-pricing-head {
+  display: block;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+  margin-bottom: 16px;
+}
+.lp-pricing-head.paid { color: var(--lp-faint); }
+
+.lp-pricing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.lp-pricing-list li {
+  font-family: var(--lp-font);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--lp-text);
+}
+.lp-pricing-col + .lp-pricing-col .lp-pricing-list li { color: var(--lp-muted); }
+
+.lp-pricing-foot {
+  margin: 26px 0 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--lp-border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+.lp-pricing-foot-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--lp-muted);
+  text-wrap: pretty;
+  flex: 1 1 320px;
+}
+.lp-pricing-link {
+  flex-shrink: 0;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity var(--lp-dur) var(--lp-ease);
+}
+.lp-pricing-link:hover { opacity: 0.72; }
+.lp-pricing-link span { transition: transform var(--lp-dur) var(--lp-ease); display: inline-block; }
+.lp-pricing-link:hover span { transform: translateX(3px); }
+.lp-pricing-link:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 3px; border-radius: 2px; }
+
+@media (max-width: 560px) {
+  .lp-pricing { padding: 26px 22px 22px; }
+  .lp-pricing-grid { grid-template-columns: 1fr; gap: 26px; }
+  .lp-pricing-col + .lp-pricing-col { border-left: none; padding-left: 0; border-top: 1px solid var(--lp-border); padding-top: 26px; }
+}
 
 .lp-faq-list { max-width: 760px; margin: 0 auto; }
 

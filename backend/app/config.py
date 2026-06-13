@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     # for a non-standard auth host. See deps._asymmetric_signing_key.
     supabase_jwks_url: str = ""
 
+    # Cloudflare Turnstile secret for the public, no-auth CV-score preview
+    # endpoint (POST /public/score-cv). When set, the endpoint verifies the
+    # client's Turnstile token server-side before spending any LLM budget.
+    # Empty = verification SKIPPED (graceful: dev + pre-provision still work,
+    # protected only by the per-IP rate limit). Set in prod to harden the
+    # endpoint against bots farming the scoring chain. Cloudflare dashboard →
+    # Turnstile → site → Secret Key.
+    turnstile_secret: str = ""
+
     # Local LLM via LM Studio (priority 0 — no rate limits)
     lm_studio_tagger_model: str    = ""
     lm_studio_ranker_model: str    = ""
