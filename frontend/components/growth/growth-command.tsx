@@ -1,19 +1,27 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpRight, BarChart3, FileText, Radio, Search, Send } from "lucide-react"
 import {
   growth,
   type GrowthMessageUpdate,
+  type GrowthMetricUpdate,
   type GrowthPublicationCreate,
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { getAccessToken } from "@/lib/session"
+import { GrowthCharts } from "./growth-charts"
 import { GrowthFilters, type GrowthFilterState } from "./growth-filters"
-import { GrowthReviewDrawer } from "./growth-review-drawer"
+import { GrowthIssues } from "./growth-issues"
+import {
+  downloadGrowthSnapshot,
+  parseGrowthSnapshot,
+} from "./growth-snapshot"
+import { GrowthSweeps } from "./growth-sweeps"
 import { GrowthTable } from "./growth-table"
+
+type GrowthTab = "pipeline" | "issues" | "sweeps"
 
 const INITIAL_FILTERS: GrowthFilterState = {
   channel: "all",
@@ -21,14 +29,19 @@ const INITIAL_FILTERS: GrowthFilterState = {
   format: "all",
 }
 
+function displayStatus(status: string): "draft" | "posted" | "paused" {
+  if (status === "published" || status === "posted") return "posted"
+  if (status === "paused") return "paused"
+  return "draft"
+}
+
 export function GrowthCommand() {
   const queryClient = useQueryClient()
   const [token, setToken] = useState<string | null | undefined>(undefined)
+  const [tab, setTab] = useState<GrowthTab>("pipeline")
   const [filters, setFilters] = useState(INITIAL_FILTERS)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<string | null>(null)
-  const [pendingAction, setPendingAction] = useState<string | null>(null)
-  const didAutoSelect = useRef(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [importFeedback, setImportFeedback] = useState("")
 
   useEffect(() => setToken(getAccessToken()), [])
 
@@ -39,19 +52,29 @@ export function GrowthCommand() {
   })
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: dataKeys.growthCommand() })
-
   const saveMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: GrowthMessageUpdate }) =>
       growth.updateMessage(token!, id, body),
     onSuccess: refresh,
   })
-  const approveMutation = useMutation({
-    mutationFn: (id: string) => growth.approveMessage(token!, id),
-    onSuccess: refresh,
-  })
   const publishMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: GrowthPublicationCreate }) =>
       growth.publishMessage(token!, id, body),
+    onSuccess: refresh,
+  })
+  const metricsMutation = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string
+      body: GrowthMetricUpdate
+    }) => growth.updatePublicationMetrics(token!, id, body),
+    onSuccess: refresh,
+  })
+  const importMutation = useMutation({
+    mutationFn: (body: Parameters<typeof growth.importLegacy>[1]) =>
+      growth.importLegacy(token!, body),
     onSuccess: refresh,
   })
 
@@ -67,39 +90,37 @@ export function GrowthCommand() {
       ),
     [data?.campaigns],
   )
-  const messages = useMemo(() => data?.messages ?? [], [data?.messages])
-  const filtered = messages.filter((message) =>
-    (filters.channel === "all" || message.channel === filters.channel) &&
-    (filters.status === "all" || message.status === filters.status) &&
-    (filters.format === "all" || message.format === filters.format),
+  const publications = useMemo(
+    () =>
+      Object.fromEntries(
+        (data?.publications ?? []).map((publication) => [
+          publication.message_id,
+          publication,
+        ]),
+      ),
+    [data?.publications],
   )
-  const selected =
-    messages.find((message) => message.id === selectedId) ?? null
+  const messages = useMemo(() => data?.messages ?? [], [data?.messages])
+  const filtered = messages.filter(
+    (message) =>
+      (filters.channel === "all" || message.channel === filters.channel) &&
+      (filters.status === "all" ||
+        displayStatus(message.status) === filters.status) &&
+      (filters.format === "all" || message.format === filters.format),
+  )
 
-  useEffect(() => {
-    if (!didAutoSelect.current && !selectedId && messages.length > 0) {
-      didAutoSelect.current = true
-      setSelectedId(
-        messages.find((message) => message.status === "ready_for_review")?.id ??
-          messages[0].id,
-      )
-    }
-  }, [messages, selectedId])
-
-  async function runAction(
-    name: string,
-    success: string,
-    action: () => Promise<unknown>,
-  ) {
-    setPendingAction(name)
-    setFeedback(null)
+  async function importSnapshot(file: File): Promise<void> {
+    setImportFeedback("")
     try {
-      await action()
-      setFeedback(success)
+      const payload = parseGrowthSnapshot(await file.text(), data)
+      const result = await importMutation.mutateAsync(payload)
+      setImportFeedback(
+        `Loaded ${result.messages} messages and ${result.sweeps} sweeps.`,
+      )
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Action failed.")
-    } finally {
-      setPendingAction(null)
+      setImportFeedback(
+        error instanceof Error ? error.message : "Snapshot import failed.",
+      )
     }
   }
 
@@ -107,7 +128,7 @@ export function GrowthCommand() {
   if (!token) {
     return (
       <CommandGate
-        title="Sign in to Growth Command"
+        title="Sign in to Distribution Tracker"
         detail="This surface is available only to approved Myro operators."
       />
     )
@@ -116,158 +137,163 @@ export function GrowthCommand() {
   if (commandQuery.isError || !data) {
     return (
       <CommandGate
-        title="Growth Command is restricted"
-        detail={commandQuery.error instanceof Error
-          ? commandQuery.error.message
-          : "Your account is not on the active operator list."}
+        title="Distribution Tracker is restricted"
+        detail={
+          commandQuery.error instanceof Error
+            ? commandQuery.error.message
+            : "Your account is not on the active operator list."
+        }
       />
     )
   }
 
-  const reviewCount = messages.filter(
-    (message) => message.status === "ready_for_review",
+  const draftCount = filtered.filter(
+    (message) => displayStatus(message.status) === "draft",
   ).length
-  const approvedCount = messages.filter(
-    (message) => message.status === "approved",
+  const postedCount = filtered.filter(
+    (message) => displayStatus(message.status) === "posted",
   ).length
-  const channelCount = new Set(messages.map((message) => message.channel)).size
+  const pausedCount = filtered.filter(
+    (message) => displayStatus(message.status) === "paused",
+  ).length
+  const clicks = filtered.reduce((total, message) => {
+    const value = publications[message.id]?.outcome.clicks
+    return total + (typeof value === "number" ? value : 0)
+  }, 0)
 
   return (
-    <div className="gc-shell">
-      <aside className="gc-rail">
-        <Link href="/admin/growth" className="gc-brand">
-          <span>M</span><strong>Myro Growth</strong>
-        </Link>
-        <nav aria-label="Growth Command sections">
-          <a href="#today" data-active="true"><Radio size={17} /><span>Today</span></a>
-          <a href="#content"><FileText size={17} /><span>Content</span></a>
-          <a href="#distribution"><Send size={17} /><span>Distribution</span></a>
-          <a href="#performance"><BarChart3 size={17} /><span>Performance</span><small>Soon</small></a>
-          <a href="#signals"><Search size={17} /><span>Signals</span><small>Soon</small></a>
-        </nav>
-        <div className="gc-operator">
-          <span>{data.operator.display_name?.slice(0, 1) || "S"}</span>
-          <div><strong>{data.operator.display_name || "Operator"}</strong><small>{data.operator.role}</small></div>
+    <main className="gc-shell">
+      <header className="gc-header">
+        <div>
+          <h1>Myro Distribution Tracker</h1>
+          <p>
+            Live · edit drafts, log what went out, and preserve your writing
+            decisions across devices
+          </p>
         </div>
-      </aside>
+        <div className="gc-header-meta">
+          <span>{messages.length} items</span>
+          <small>{data.operator.display_name || "Operator"} · {data.operator.role}</small>
+        </div>
+      </header>
 
-      <main className="gc-main">
-        <header className="gc-page-header">
-          <div>
-            <span className="gc-eyebrow">Friday · Career intelligence operations</span>
-            <h1>Growth Command</h1>
-            <p>Move one useful answer from evidence to the person who needs it.</p>
+      <nav className="gc-tabs" aria-label="Distribution Tracker workspaces">
+        <Tab active={tab === "pipeline"} onClick={() => setTab("pipeline")}>
+          Postings pipeline
+        </Tab>
+        <Tab active={tab === "issues"} onClick={() => setTab("issues")}>
+          Newsletter issues
+        </Tab>
+        <Tab active={tab === "sweeps"} onClick={() => setTab("sweeps")}>
+          Seeding sweeps
+        </Tab>
+      </nav>
+
+      {tab === "pipeline" ? (
+        <section className="gc-wrap">
+          <div className="gc-hint">
+            Open a row, copy the prepared insight, tweak it in context, publish
+            manually, then paste the exact final version back here. That
+            draft-to-final pair becomes the durable record of your voice.
           </div>
-          <a href="https://www.himyro.com/newsletter/" target="_blank" rel="noreferrer">
-            View public library <ArrowUpRight size={15} />
-          </a>
-        </header>
-
-        <section id="today" className="gc-priority-grid" aria-label="Today's priorities">
-          <PriorityCard
-            tone="amber"
-            label="Needs judgement"
-            value={reviewCount}
-            detail="Channel drafts waiting for review"
-            action="Open queue"
-            onClick={() => setFilters({ ...INITIAL_FILTERS, status: "ready_for_review" })}
+          <GrowthFilters
+            value={filters}
+            messages={messages}
+            onChange={setFilters}
+            onExport={() => downloadGrowthSnapshot(data)}
+            onImport={(file) => void importSnapshot(file)}
+            importing={importMutation.isPending}
           />
-          <PriorityCard
-            tone="blue"
-            label="Ready to publish"
-            value={approvedCount}
-            detail="Approved messages missing live evidence"
-            action="Publish next"
-            onClick={() => setFilters({ ...INITIAL_FILTERS, status: "approved" })}
-          />
-          <PriorityCard
-            tone="green"
-            label="Live evidence"
-            value={data.publications.length}
-            detail="Publication records captured"
-            action="Inspect"
-            onClick={() => setFilters({ ...INITIAL_FILTERS, status: "published" })}
-          />
-        </section>
-
-        <section className="gc-truth-strip" aria-label="Command metrics">
-          <Metric value={data.assets.length} label="Canonical assets" />
-          <Metric value={data.campaigns.length} label="Campaigns" />
-          <Metric value={messages.length} label="Messages" />
-          <Metric value={channelCount} label="Active channels" />
-        </section>
-
-        <div className="gc-command-grid">
-          <section id="distribution" className="gc-distribution">
-            <div className="gc-section-heading">
-              <div>
-                <span className="gc-eyebrow">Distribution studio</span>
-                <h2>Every message, one source of truth</h2>
-              </div>
-              <span>{filtered.length} shown</span>
-            </div>
-            <GrowthFilters value={filters} messages={messages} onChange={setFilters} />
-            <GrowthTable
-              messages={filtered}
-              assets={assets}
-              campaigns={campaigns}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
-          </section>
-
-          <GrowthReviewDrawer
-            message={selected}
-            asset={selected?.asset_id ? assets[selected.asset_id] ?? null : null}
-            campaign={selected?.campaign_id ? campaigns[selected.campaign_id] ?? null : null}
-            pendingAction={pendingAction}
-            feedback={feedback}
-            onClose={() => setSelectedId(null)}
-            onSave={(id, body) =>
-              runAction("save", "Draft saved.", () =>
-                saveMutation.mutateAsync({ id, body }))}
-            onApprove={(id) =>
-              runAction("approve", "Message approved.", () =>
-                approveMutation.mutateAsync(id))}
+          <p className="gc-import-feedback" aria-live="polite">
+            {importFeedback}
+          </p>
+          <div className="gc-kpis">
+            <Kpi label="Total" value={filtered.length} detail="posts + responses" />
+            <Kpi label="Draft" value={draftCount} detail="not yet out" tone="gray" />
+            <Kpi label="Posted" value={postedCount} detail="live" tone="green" />
+            <Kpi label="Paused" value={pausedCount} detail="held" tone="red" />
+            <Kpi label="Clicks logged" value={clicks} detail="sum of CTA clicks" tone="purple" />
+          </div>
+          <GrowthCharts messages={filtered} />
+          <GrowthTable
+            messages={filtered}
+            assets={assets}
+            campaigns={campaigns}
+            publications={publications}
+            expandedId={expandedId}
+            onToggle={(id) => setExpandedId(expandedId === id ? null : id)}
+            onSave={(id, body) => saveMutation.mutateAsync({ id, body }).then(() => undefined)}
             onPublish={(id, body) =>
-              runAction("publish", "Publication recorded.", () =>
-                publishMutation.mutateAsync({ id, body }))}
+              publishMutation.mutateAsync({ id, body }).then(() => undefined)}
+            onMetrics={(id, body) =>
+              metricsMutation.mutateAsync({ id, body }).then(() => undefined)}
           />
-        </div>
-      </main>
-    </div>
+        </section>
+      ) : null}
+      {tab === "issues" ? (
+        <div className="gc-wrap"><GrowthIssues assets={data.assets} /></div>
+      ) : null}
+      {tab === "sweeps" ? (
+        <div className="gc-wrap"><GrowthSweeps sweeps={data.sweeps} /></div>
+      ) : null}
+    </main>
   )
 }
 
-function PriorityCard({
-  tone, label, value, detail, action, onClick,
+function Tab({
+  active,
+  onClick,
+  children,
 }: {
-  tone: string
-  label: string
-  value: number
-  detail: string
-  action: string
+  active: boolean
   onClick: () => void
+  children: React.ReactNode
 }) {
   return (
-    <button type="button" className={`gc-priority gc-priority--${tone}`} onClick={onClick}>
-      <span>{label}</span><strong>{value}</strong><p>{detail}</p><small>{action} →</small>
+    <button type="button" data-active={active} onClick={onClick}>
+      {children}
     </button>
   )
 }
 
-function Metric({ value, label }: { value: number; label: string }) {
-  return <div><strong>{value}</strong><span>{label}</span></div>
+function Kpi({
+  label,
+  value,
+  detail,
+  tone = "blue",
+}: {
+  label: string
+  value: number
+  detail: string
+  tone?: string
+}) {
+  return (
+    <article className={`gc-kpi gc-kpi--${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </article>
+  )
 }
 
 function CommandLoading() {
-  return <div className="gc-gate"><div className="gc-loader" /><p>Loading Growth Command</p></div>
+  return (
+    <div className="gc-gate">
+      <div className="gc-loader" />
+      <p>Loading Distribution Tracker</p>
+    </div>
+  )
 }
 
 function CommandGate({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="gc-gate">
-      <div className="gc-gate-card"><span>M</span><h1>{title}</h1><p>{detail}</p><Link href="/login">Sign in</Link></div>
+      <div className="gc-gate-card">
+        <span>M</span>
+        <h1>{title}</h1>
+        <p>{detail}</p>
+        <Link href="/login">Sign in</Link>
+      </div>
     </div>
   )
 }

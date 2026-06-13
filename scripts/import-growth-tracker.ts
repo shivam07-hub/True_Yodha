@@ -135,6 +135,12 @@ function normalizedStatus(value: unknown): string {
   return "draft"
 }
 
+function manualMetric(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : undefined
+}
+
 export function buildLegacyImport(
   source: string,
   overrides: Overrides = {},
@@ -232,6 +238,11 @@ export function buildLegacyImport(
     if (effectiveStatus === "published") {
       const publicationKey = `tracker:publication:${postingId}`
       const finalCopySnapshot = finalCopy || draft
+      const outcome: Record<string, number> = {}
+      const impressions = manualMetric(override.impressions)
+      const clicks = manualMetric(override.clicks)
+      if (impressions !== undefined) outcome.impressions = impressions
+      if (clicks !== undefined) outcome.clicks = clicks
       publications.push({
         id: stableUuid(publicationKey),
         legacy_key: publicationKey,
@@ -240,10 +251,7 @@ export function buildLegacyImport(
         live_url: override.liveUrl || override.postedUrl || null,
         final_copy_snapshot: finalCopySnapshot,
         published_at: `${posting.date}T12:00:00Z`,
-        outcome: {
-          impressions: Number(override.impressions || 0),
-          clicks: Number(override.clicks || 0),
-        },
+        outcome,
         failure_details: override.liveUrl
           ? null
           : "Legacy tracker marked this published without a captured live URL.",

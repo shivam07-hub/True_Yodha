@@ -22,6 +22,11 @@ const POSTINGS = [
     title:"Interview answer", himyro:"https://www.reddit.com/r/jobs/1",
     channel:"https://www.reddit.com/r/jobs/1",
     campaign:"interview-help", status:"posted", copy:"Original response"
+  },
+  {
+    id:"p3", date:"2026-06-12", platform:"WhatsApp", type:"Share",
+    title:"Warm group share", himyro:"https://www.himyro.com/newsletter/2026-06-cv-proof",
+    campaign:"cv-proof", status:"posted", copy:"Published, metrics not captured"
   }
 ];
 const ISSUES = [
@@ -55,7 +60,7 @@ test("legacy import preserves overrides, URLs, status, and manual metrics", () =
 
   const payload = buildLegacyImport(FIXTURE, overrides)
 
-  assert.equal(payload.messages.length, 2)
+  assert.equal(payload.messages.length, 3)
   assert.equal(payload.sweeps.length, 1)
   assert.equal(payload.sweeps[0].body, "# Sweep\n\nFull opportunity context.")
   assert.equal(
@@ -75,6 +80,7 @@ test("legacy import preserves overrides, URLs, status, and manual metrics", () =
     payload.publications[0].live_url,
     "https://www.reddit.com/r/jobs/comments/1/reply/2",
   )
+  assert.deepEqual(payload.publications[1].outcome, {})
 })
 
 test("legacy identifiers are deterministic across repeated dry runs", () => {

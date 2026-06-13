@@ -2537,11 +2537,24 @@ export interface GrowthPublication {
   status: string
   live_url: string | null
   external_id: string | null
+  final_copy_snapshot: string
   published_at: string | null
   outcome: Record<string, unknown>
   failure_details: string | null
   created_by: string | null
   created_at: string | null
+}
+
+export interface GrowthSeedingSweep {
+  id: string
+  legacy_key: string | null
+  sweep_date: string
+  title: string
+  summary: string | null
+  body: string
+  metadata: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
 }
 
 export interface GrowthBootstrapResponse {
@@ -2550,6 +2563,7 @@ export interface GrowthBootstrapResponse {
   campaigns: GrowthCampaign[]
   messages: GrowthMessage[]
   publications: GrowthPublication[]
+  sweeps: GrowthSeedingSweep[]
   summary: {
     assets: number
     campaigns: number
@@ -2573,9 +2587,23 @@ export interface GrowthPublicationCreate {
   status?: "published" | "failed" | "deleted"
   live_url?: string | null
   external_id?: string | null
+  final_copy_snapshot: string
   published_at?: string | null
   outcome?: Record<string, unknown>
   failure_details?: string | null
+}
+
+export interface GrowthMetricUpdate {
+  impressions?: number | null
+  clicks?: number | null
+}
+
+export interface LegacyGrowthPayload {
+  assets: Array<Record<string, unknown>>
+  campaigns: Array<Record<string, unknown>>
+  messages: Array<Record<string, unknown>>
+  publications: Array<Record<string, unknown>>
+  sweeps: Array<Record<string, unknown>>
 }
 
 export const growth = {
@@ -2610,6 +2638,32 @@ export const growth = {
         body: JSON.stringify(body),
       },
     ),
+  updatePublicationMetrics: (
+    token: string,
+    publicationId: string,
+    body: GrowthMetricUpdate,
+  ) =>
+    request<GrowthPublication>(
+      `/growth/publications/${encodeURIComponent(publicationId)}/metrics`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      },
+    ),
+  importLegacy: (token: string, body: LegacyGrowthPayload) =>
+    request<{
+      ok: boolean
+      assets: number
+      campaigns: number
+      messages: number
+      publications: number
+      sweeps: number
+    }>("/growth/import/legacy", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
 }
 
 // ── Public stats (landing-page Engine counters) ─────────────────────────────

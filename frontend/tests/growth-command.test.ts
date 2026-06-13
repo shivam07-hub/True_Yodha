@@ -26,29 +26,55 @@ test("command center uses TanStack Query and the bearer-session growth API", () 
   assert.doesNotMatch(source + api, /NEXT_PUBLIC_.*ADMIN/i)
 })
 
-test("distribution table and review drawer retain tracker working controls", () => {
+test("hosted tracker preserves the original three workspaces", () => {
+  const command = read("components/growth/growth-command.tsx")
+
+  assert.match(command, /Postings pipeline/)
+  assert.match(command, /Newsletter issues/)
+  assert.match(command, /Seeding sweeps/)
+  assert.doesNotMatch(command, /GrowthReviewDrawer/)
+})
+
+test("pipeline retains the complete human publishing loop", () => {
   const table = read("components/growth/growth-table.tsx")
-  const drawer = read("components/growth/growth-review-drawer.tsx")
+  const workbench = read("components/growth/growth-workbench.tsx")
   const filters = read("components/growth/growth-filters.tsx")
+  const pipeline = table + workbench
 
   assert.match(table, /<table/)
   assert.match(table, /aria-label="Distribution messages"/)
+  assert.match(pipeline, /Copy draft/)
+  assert.match(pipeline, /Open composer/)
+  assert.match(pipeline, /Prepared baseline/)
+  assert.match(pipeline, /What actually went out/)
+  assert.match(table, /Impressions/)
+  assert.match(table, /Clicks/)
+  assert.match(pipeline, /Mark posted/)
+  assert.match(table, /key={`\$\{message\.id\}:\$\{publication\?\.id/)
   assert.match(filters, /Platform/)
   assert.match(filters, /Status/)
-  assert.match(filters, /Format/)
-  assert.match(drawer, /<textarea/)
-  assert.match(drawer, /Save draft/)
-  assert.match(drawer, /Approve/)
-  assert.match(drawer, /Open composer/)
-  assert.match(drawer, /Mark published/)
-  assert.match(drawer, /aria-live="polite"/)
+  assert.match(filters, /Type/)
+  assert.match(filters, /Save snapshot/)
+  assert.match(filters, /Load snapshot/)
+  assert.match(filters, /\["draft", "posted", "paused"\]/)
 })
 
-test("growth command has a drawer-first 375px layout", () => {
+test("tracker includes operational charts, issue cards, and sweep reader", () => {
+  const charts = read("components/growth/growth-charts.tsx")
+  const issues = read("components/growth/growth-issues.tsx")
+  const sweeps = read("components/growth/growth-sweeps.tsx")
+
+  assert.match(charts, /BarChart/)
+  assert.match(charts, /PieChart/)
+  assert.match(issues, /Open issue/)
+  assert.match(sweeps, /Seeding sweep/)
+})
+
+test("growth command keeps inline work rows on mobile", () => {
   const css = read("app/admin/growth/growth-command.css")
 
   assert.match(css, /@media \(max-width: 700px\)/)
-  assert.match(css, /\.gc-review-panel/)
-  assert.match(css, /position: fixed/)
-  assert.match(css, /width: 100%/)
+  assert.match(css, /\.gc-workbench/)
+  assert.match(css, /overflow-x: auto/)
+  assert.doesNotMatch(css, /\.gc-review-panel[\s\S]*position: fixed/)
 })

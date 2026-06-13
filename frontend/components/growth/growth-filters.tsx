@@ -12,15 +12,30 @@ interface Props {
   value: GrowthFilterState
   messages: GrowthMessage[]
   onChange: (value: GrowthFilterState) => void
+  onExport: () => void
+  onImport: (file: File) => void
+  importing: boolean
 }
 
 function options(messages: GrowthMessage[], key: "channel" | "status" | "format") {
+  if (key === "status") return ["draft", "posted", "paused"]
   return Array.from(
-    new Set(messages.map((message) => message[key]).filter(Boolean) as string[]),
+    new Set(
+      messages
+        .map((message) => message[key])
+        .filter(Boolean) as string[],
+    ),
   ).sort()
 }
 
-export function GrowthFilters({ value, messages, onChange }: Props) {
+export function GrowthFilters({
+  value,
+  messages,
+  onChange,
+  onExport,
+  onImport,
+  importing,
+}: Props) {
   const fields: Array<{
     key: keyof GrowthFilterState
     label: string
@@ -28,7 +43,7 @@ export function GrowthFilters({ value, messages, onChange }: Props) {
   }> = [
     { key: "channel", label: "Platform", values: options(messages, "channel") },
     { key: "status", label: "Status", values: options(messages, "status") },
-    { key: "format", label: "Format", values: options(messages, "format") },
+    { key: "format", label: "Type", values: options(messages, "format") },
   ]
 
   return (
@@ -51,6 +66,23 @@ export function GrowthFilters({ value, messages, onChange }: Props) {
           </select>
         </label>
       ))}
+      <span className="gc-filter-spacer" />
+      <button type="button" className="gc-tool-button" onClick={onExport}>
+        ↓ Save snapshot
+      </button>
+      <label className="gc-tool-button">
+        {importing ? "Loading..." : "↑ Load snapshot"}
+        <input
+          type="file"
+          accept="application/json"
+          disabled={importing}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) onImport(file)
+            event.target.value = ""
+          }}
+        />
+      </label>
     </div>
   )
 }
