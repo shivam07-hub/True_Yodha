@@ -298,7 +298,61 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - June 4 enrichment completion audit)
+## LAST SESSION SUMMARY (2026-06-13 - June 4 Phase 3 upload complete)
+
+Completed and verified the June 4 Phase 3 Supabase load from
+`firecrawl_Supabase`.
+
+- Uploaded all 206 June 4 files without deactivation. The 17,964 source entries
+  resolve to 17,956 unique global `job_id` values, and every unique ID is
+  present and active in Supabase with `batch_date = 20260604`.
+- Verified all 128,387 expected current `job_skills` associations are present.
+  Live totals are now 42,787 jobs and 355,264 `job_skills` rows.
+- Canonical unique-row quality is 17,922 fully enriched of 17,955 jobs with a
+  JD. The 33 residual rows overlap across 31 missing role domains, 5 missing
+  skill sets, and 4 missing summaries.
+- Location quality passed: 10 unknown rows out of 17,956 (0.056%). Consolidated
+  audit run `19ca2369-d6a1-43ed-b106-b9dfbf669895` records the full resumed
+  upload.
+- The first upload response timed out after Cognition, but the Cohesity write
+  had completed server-side. The idempotent resume from Cohesity through Zuora
+  completed successfully and refreshed the production analytics snapshot.
+- Fixed the importer crash on Visa's empty `jobs.json` by returning complete
+  zero-result metadata. Scraper commit: `bfe62af78`.
+- LM Studio is fully stopped: model unloaded, server off, and desktop/helper
+  processes closed.
+- Deactivation was intentionally not run. The dry run found 13,356 historical
+  active rows missing from this batch and blocked 55 companies at the 75%
+  safety threshold.
+
+Validation:
+
+- Focused importer/writer suite: `5 passed`
+- `.venv/bin/pytest backend/tests -q`: `607 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npx next lint`: clean
+- June 4 batch IDs missing from Supabase: `0`
+- Expected current skill associations missing: `0`
+- Production analytics refresh endpoint: HTTP 200
+
+Deferred data-integrity work:
+
+- Eight duplicate source IDs collapse to eight fewer global rows. Three IDs
+  collide across distinct companies, so `job_id` needs a durable source/company
+  namespace before the next full run.
+- The importer upserts current skill associations but does not atomically
+  replace prior sets. June 4 jobs retain 23,106 older associations beyond the
+  128,387 current expected pairs. Do not bulk-delete these without a
+  transactional synchronization design.
+- Historical lifecycle cleanup still needs a separately approved policy; do
+  not use `--allow-large-deactivation` as a shortcut.
+
+Logs:
+
+- `/tmp/myro_phase3_upload_20260613.log`
+- `/tmp/myro_phase3_resume_upload_20260613.log`
+
+## OLDER SESSION SUMMARY (2026-06-13 - June 4 enrichment completion audit)
 
 Audited the completed `firecrawl_Supabase` June 4 Phase 2 run and the Phase 3
 upload path. No production or scraper implementation code was changed.
