@@ -12,8 +12,15 @@ Extraction is FREE (no XP charge). The reward is granted on save, not here.
 """
 
 import base64
+import html as html_lib
+import ipaddress
 import json
 import logging
+import re
+import socket
+from urllib.parse import urlparse
+
+import httpx
 
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
@@ -26,6 +33,14 @@ _IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif
 
 MAX_FILE_BYTES = 8 * 1024 * 1024  # 8 MB — generous for a JD page or a phone screenshot
 MIN_TEXT_CHARS = 40               # below this a PDF/DOCX is almost certainly scanned/empty
+
+# URL fetch limits
+_URL_FETCH_TIMEOUT = 12.0         # seconds — a posting page should answer fast
+_URL_MAX_BYTES = 5 * 1024 * 1024  # cap the download so a giant page can't OOM us
+_URL_MAX_REDIRECTS = 4
+_URL_USER_AGENT = (
+    "Mozilla/5.0 (compatible; MyroJobImport/1.0; +https://himyro.com)"
+)
 
 _SYSTEM = (
     "You extract structured fields from a single job posting. "
@@ -106,6 +121,105 @@ async def extract_job_from_text(raw_text: str, provider: LLMProvider) -> dict:
     except LLMProviderError as exc:
         raise JobFileParseError("The parser is busy right now — paste the text instead.") from exc
     return _parse_fields_json(out)
+
+
+class JobUrlFetchError(JobFileParseError):
+    """Raised when a posting URL can't be safely fetched or read."""
+
+
+def _assert_public_http_url(url: str) -> None:
+    """Reject anything that isn't a public http(s) URL (SSRF guard).
+
+    Resolves the host and refuses private, loopback, link-local, reserved,
+    multicast, or unspecified addresses so a posting link can never be used to
+    probe internal infrastructure. Called on every redirect hop, not just once.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise JobUrlFetchError("Enter a job posting link starting with http:// or https://.")
+    host = parsed.hostname
+    if not host:
+        raise JobUrlFetchError("That doesn't look like a valid link.")
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as exc:
+        raise JobUrlFetchError("Couldn't reach that link — check the address and try again.") from exc
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise JobUrlFetchError("That link can't be fetched.")
+
+
+_BLOCK_TAGS = re.compile(r"(?is)<(script|style|noscript|svg|head|template|iframe)[^>]*>.*?</\1>")
+_BR = re.compile(r"(?is)<br\s*/?>")
+_BLOCK_CLOSE = re.compile(r"(?is)</(p|div|li|h[1-6]|tr|section|article)>")
+_TAGS = re.compile(r"(?s)<[^>]+>")
+_INLINE_WS = re.compile(r"[ \t\r\f]+")
+_BLANK_LINES = re.compile(r"\n\s*\n+")
+
+
+def _html_to_text(raw_html: str) -> str:
+    """Strip a posting page down to readable plain text for the field extractor."""
+    text = _BLOCK_TAGS.sub(" ", raw_html)
+    text = _BR.sub("\n", text)
+    text = _BLOCK_CLOSE.sub("\n", text)
+    text = _TAGS.sub(" ", text)
+    text = html_lib.unescape(text)
+    text = _INLINE_WS.sub(" ", text)
+    text = _BLANK_LINES.sub("\n\n", text)
+    return text.strip()
+
+
+async def _fetch_posting_html(url: str) -> str:
+    """Fetch a posting page, re-validating against SSRF on each redirect hop."""
+    headers = {
+        "User-Agent": _URL_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en",
+    }
+    current = url
+    async with httpx.AsyncClient(
+        follow_redirects=False, timeout=_URL_FETCH_TIMEOUT
+    ) as client:
+        for _ in range(_URL_MAX_REDIRECTS + 1):
+            _assert_public_http_url(current)
+            try:
+                resp = await client.get(current, headers=headers)
+            except httpx.HTTPError as exc:
+                raise JobUrlFetchError(
+                    "Couldn't open that link — paste the description instead."
+                ) from exc
+            if resp.is_redirect and resp.next_request is not None:
+                current = str(resp.next_request.url)
+                continue
+            if resp.status_code >= 400:
+                raise JobUrlFetchError(
+                    "That link returned an error — paste the description instead."
+                )
+            declared = resp.headers.get("content-length")
+            if declared and declared.isdigit() and int(declared) > _URL_MAX_BYTES:
+                raise JobUrlFetchError("That page is too large to read automatically.")
+            return resp.text[: _URL_MAX_BYTES]
+    raise JobUrlFetchError("That link redirected too many times.")
+
+
+async def extract_job_from_url(url: str, provider: LLMProvider) -> dict:
+    """Fetch a public posting URL and lift the four tracker fields from it."""
+    raw_html = await _fetch_posting_html(url.strip())
+    text = _html_to_text(raw_html)
+    if len(text) < MIN_TEXT_CHARS:
+        raise JobUrlFetchError(
+            "Couldn't read a job posting at that link — paste the text instead."
+        )
+    return await extract_job_from_text(text, provider)
 
 
 async def extract_job_from_image(data: bytes, mime: str, provider: LLMProvider) -> dict:

@@ -335,8 +335,13 @@ class JobImportRequest(BaseModel):
     status: str = "saved"  # one of APPLICATION_STATUSES; manual web add sends "applied", extension defaults to saved
 
 
+class JobUrlExtractRequest(BaseModel):
+    """A public posting URL to fetch and parse into tracker fields."""
+    url: str
+
+
 class JobFileExtractResponse(BaseModel):
-    """Fields lifted from an uploaded job posting (PDF / DOCX / image)."""
+    """Fields lifted from an uploaded job posting (PDF / DOCX / image / URL)."""
     company: str = ""
     role: str = ""
     location: str = ""

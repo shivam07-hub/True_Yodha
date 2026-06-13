@@ -35,9 +35,11 @@ def _reset_rate_limit_and_turnstile(monkeypatch: pytest.MonkeyPatch):
     public_router._anon_score_hits.clear()
 
 
-def _wire_engine(monkeypatch: pytest.MonkeyPatch, *, raw_text: str, skills: list[dict]) -> None:
+def _wire_engine(
+    monkeypatch: pytest.MonkeyPatch, *, raw_text: str, skills: list[dict], structured: dict | None = None
+) -> None:
     async def _fake_parse(_text: str, provider=None) -> dict:
-        return {"skills_detected": skills, "cv_structured": None, "raw_text": _text, "provider_failed": False}
+        return {"skills_detected": skills, "cv_structured": structured, "raw_text": _text, "provider_failed": False}
 
     monkeypatch.setattr(public_router.cv_parser, "extract_raw_text", lambda data, ftype: raw_text)
     monkeypatch.setattr(public_router.cv_parser, "parse_cv_text", _fake_parse)
@@ -73,6 +75,39 @@ def test_score_cv_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert [s["name"] for s in body["strengths"]] == ["Technology", "Data"]
     assert [g["name"] for g in body["gaps"]] == ["Finance", "Leadership"]
     assert body["verdict"]
+
+
+def test_score_cv_returns_myro_standard_cv(monkeypatch: pytest.MonkeyPatch) -> None:
+    # When the parser yields a structured payload, the response carries the CV
+    # reformatted to the Myro standard (PdfPage shape) + a contact block.
+    structured = {
+        "contact": {"name": "Ada Lovelace", "email": "ada@x.io", "title": "Engineer",
+                    "phone": "", "location": "London", "linkedin": ""},
+        "summary": "Builder.",
+        "education": [{"institution": "Cambridge", "degree": "BSc", "dates": "1850", "grade": "", "location": ""}],
+        "experience": [{"company": "Analytical", "role": "Lead", "dates": "1843", "location": "", "bullets": ["Wrote the first program."]}],
+        "projects": [],
+        "skills_line": "Mathematics, Computing",
+        "certs": [],
+    }
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}], structured=structured)
+
+    res = TestClient(app).post("/public/score-cv", files=_pdf_upload())
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["contact"]["name"] == "Ada Lovelace"
+    assert body["contact"]["location"] == "London"
+    # body mirrors CVStructured — contact is split out, not duplicated inside cv
+    assert "contact" not in body["cv"]
+    assert body["cv"]["experience"][0]["role"] == "Lead"
+    assert body["cv"]["skills_line"] == "Mathematics, Computing"
+
+
+def test_score_cv_null_cv_when_unstructured(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}], structured=None)
+    body = TestClient(app).post("/public/score-cv", files=_pdf_upload()).json()
+    assert body["cv"] is None
+    assert body["contact"] is None
 
 
 def test_score_cv_rejects_wrong_type(monkeypatch: pytest.MonkeyPatch) -> None:

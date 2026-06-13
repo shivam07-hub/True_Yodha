@@ -14,6 +14,7 @@ from app.schemas import (
     JobImportPreviewRequest,
     JobImportPreviewResponse,
     JobImportRequest,
+    JobUrlExtractRequest,
 )
 from app.services import jobs_workflow, xp_service
 from app.services.cv_parser import extract_raw_text
@@ -24,6 +25,7 @@ from app.services.job_file_parser import (
     detect_file_kind,
     extract_job_from_image,
     extract_job_from_text,
+    extract_job_from_url,
 )
 from app.services.llm_provider import get_llm_provider, get_vision_provider
 from app.services.xp_policy import ADD_JOB_REWARD_XP
@@ -103,6 +105,26 @@ async def extract_job_file(
     except JobFileParseError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    return JobFileExtractResponse(**parsed)
+
+
+@router.post("/import/extract-url", response_model=JobFileExtractResponse)
+async def extract_job_url(
+    body: JobUrlExtractRequest,
+    principal: Principal = Depends(get_principal),
+) -> JobFileExtractResponse:
+    """Fetch a public job-posting URL and parse it into tracker fields.
+
+    Free — no XP charge, same as extract-file. SSRF-guarded: only public http(s)
+    hosts are fetched, re-validated on every redirect hop. The reward is granted
+    later, on POST /import (the save).
+    """
+    if not body.url.strip():
+        raise HTTPException(status_code=422, detail="Paste a job posting link first.")
+    try:
+        parsed = await extract_job_from_url(body.url, get_llm_provider())
+    except JobFileParseError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return JobFileExtractResponse(**parsed)
 
 

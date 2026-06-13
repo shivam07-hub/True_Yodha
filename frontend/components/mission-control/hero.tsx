@@ -1,18 +1,13 @@
 "use client"
 
-import { Icon, Sparkline } from "./icons"
+import { LoopRing, type LoopStep } from "./loop-ring"
 import { adaptiveGreeting } from "@/lib/mission-control/greeting"
-
-interface CheckpointSpec {
-  label: string
-  done: boolean
-}
 
 interface HeroProps {
   name: string
   dateLine: string
   activeTargets: number
-  checkpoints: CheckpointSpec[]
+  steps: LoopStep[]
   score: number
   streak: number
   scoreDelta: number
@@ -26,13 +21,12 @@ export function Hero({
   name,
   dateLine,
   activeTargets,
-  checkpoints,
+  steps,
   score,
   streak,
   scoreDelta,
   loggedToday,
   sessions,
-  sparkline,
 }: HeroProps) {
   const greeting = adaptiveGreeting({ streak, scoreDelta, loggedToday })
   return (
@@ -45,45 +39,12 @@ export function Hero({
         <div className="mc-hero-sub">
           {dateLine} <span className="sep">·</span> {activeTargets} active target{activeTargets === 1 ? "" : "s"}
         </div>
-
-        <div className="mc-checkpoints">
-          {checkpoints.map((c) => (
-            <div key={c.label} className={`mc-checkpoint ${c.done ? "done" : "todo"}`}>
-              <span className="ring">{c.done ? <Icon name="check" size={11} stroke={2.4} /> : null}</span>
-              <span className="label">{c.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Boxless stat strip — hairline-divided columns (Firecrawl/Engine
-          dashboard handoff). Score column carries the accent sparkline. */}
-      <div className="mc-statstrip">
-        <div className="mc-stat">
-          <span className="mc-stat-label">Score · {sessions} ses</span>
-          <span className="mc-stat-v">
-            {score}
-            <small>/100</small>
-          </span>
-          <div className="mc-stat-spark">
-            <Sparkline data={sparkline} />
-          </div>
-        </div>
-        <div className="mc-stat">
-          <span className="mc-stat-label">Streak</span>
-          <span className="mc-stat-v">
-            {streak}
-            <small>d</small>
-          </span>
-        </div>
-        <div className="mc-stat">
-          <span className="mc-stat-label">Sessions</span>
-          <span className="mc-stat-v">
-            {sessions}
-            <small>total</small>
-          </span>
-        </div>
-      </div>
+      {/* Daily-loop completion ring — Apple-Activity metaphor. Replaces the old
+          checkpoint pill row + boxless stat strip with one focal tracker that
+          nudges the user to close the loop. */}
+      <LoopRing score={score} scoreDelta={scoreDelta} streak={streak} sessions={sessions} steps={steps} />
     </div>
   )
 }

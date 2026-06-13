@@ -2236,6 +2236,14 @@ export const jobs = {
     if (!res.ok) throw new Error(extractError(body, res.status))
     return body as JobFileExtract
   },
+  // Fetch a public posting URL server-side and parse it into tracker fields.
+  // SSRF-guarded on the backend. Free — no XP.
+  extractUrl: (token: string, url: string): Promise<JobFileExtract> =>
+    request<JobFileExtract>("/jobs/import/extract-url", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ url }),
+    }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },
