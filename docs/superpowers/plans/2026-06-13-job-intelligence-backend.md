@@ -13,6 +13,10 @@ interfaces for both web and mobile clients.
 **Tech Stack:** FastAPI, Pydantic, Supabase/PostgREST, PostgreSQL triggers,
 pytest.
 
+**Implementation status:** Complete on `Develop` in commits `54d158c` through
+`4d6b7ca`. The live Supabase migration remains gated on connector
+reauthentication.
+
 ---
 
 ## File Map
@@ -22,7 +26,9 @@ pytest.
 - Create `backend/app/routers/jobs/intelligence.py`: HTTP adapter.
 - Create `database/migrations/20260613_job_intelligence.sql`: canonical events,
   snapshots, indexes, RLS, triggers, and backfill.
-- Modify `backend/app/schemas/jobs.py`: request and response contracts.
+- Create `backend/app/schemas/job_intelligence.py`: request and response
+  contracts.
+- Modify `backend/app/schemas/jobs.py`: dashboard lifecycle fields.
 - Modify `backend/app/routers/jobs/__init__.py`: register the router.
 - Modify `backend/app/repositories/jobs.py`: carry match lifecycle fields.
 - Modify `backend/app/routers/jobs/_shared.py`: map lifecycle fields.

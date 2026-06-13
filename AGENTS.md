@@ -298,7 +298,50 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Live jobs visibility and last-seen audit)
+## LAST SESSION SUMMARY (2026-06-13 - Job Intelligence backend)
+
+Specified and implemented the scalable Job Intelligence backend on `Develop`.
+Frontend work was deliberately left for Claude.
+
+- Added a deep `JobIntelligence` module with three stable entry points: Feed
+  State, structured Job Feedback, and privacy-safe batched Job Pulse.
+- Added conditional `GET /jobs/feed-state` with ETag/304 behavior and a
+  60-second process cache. Successful feed publication now comes from
+  `job_feed_run_audits.created_at`, not scraper `jobs.last_seen`.
+- Preserved `first_seen`, `last_seen_at`, `is_stale`, and `is_active` through
+  dashboard match reads.
+- Added append-only, idempotent personal-versus-quality feedback with RLS,
+  explicit Supabase grants, a three-per-day quality cap, and no raw-report XP.
+- Added backend-only `job_intelligence_snapshots`, one-job trigger refreshes,
+  privacy suppression below five contributors, and deterministic listing
+  confidence.
+- Converted the old inactive-report route into a deploy-window compatibility
+  adapter. A single user report can no longer deactivate a listing.
+- Kept base job reads separate from batches of up to 100 pulses so web and
+  future native clients can render cards before community context.
+- Wrote the Claude frontend handoff at
+  `docs/handoffs/2026-06-13-job-intelligence-frontend-handoff.md`.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `644 passed, 16 warnings`
+- PostgreSQL 17 migration syntax and application passed.
+- Authenticated RLS insert, identity sequence access, service-role grant,
+  snapshot insert/update/delete triggers, and cross-job refresh passed.
+- All new implementation files are at or below 300 lines.
+
+Deployment gate:
+
+- Live Supabase migration `20260613_job_intelligence.sql` was not applied
+  because the Supabase MCP token expired. Reauthenticate, apply it to
+  `gipvxuugajkugntwkeiz`, run advisors, then deploy backend before frontend.
+- Existing unrelated Claude, demand-RPC, dashboard, market, and docs-submodule
+  workspace changes were left untouched.
+
+Canonical spec:
+`docs/superpowers/specs/2026-06-13-job-intelligence-and-feed-freshness-design.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Live jobs visibility and last-seen audit)
 
 Verified the completed June 4 Supabase load and traced scraper freshness metadata
 through the production job surfaces. No production implementation code changed.
