@@ -298,7 +298,58 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - June 4 Phase 3 upload complete)
+## LAST SESSION SUMMARY (2026-06-13 - Live jobs visibility and last-seen audit)
+
+Verified the completed June 4 Supabase load and traced scraper freshness metadata
+through the production job surfaces. No production implementation code changed.
+
+- Production Supabase contains 42,787 jobs: 34,959 active and 7,828 inactive.
+  All 17,956 unique June 4 jobs are active.
+- Associated data is present: 355,264 `job_skills`, 35,108 taxonomy skills,
+  1,366 scrape diagnostics, and 6 run audits.
+- `https://api.himyro.com/health` returns 200. Public production analytics
+  returns 42,787 jobs, 263 companies, and `latest_batch = 20260604`, confirming
+  the backend reads the loaded corpus.
+- `/market` is the live browse surface. It queries active `jobs` directly and
+  already transports `first_seen`, `last_seen_at`, `is_stale`, and `is_active`.
+- `/home` is not a direct jobs-table feed. It reads durable personalized
+  `user_job_matches`; loading new jobs does not recompute every user's matches.
+  There are currently 224 match snapshots across 44 users, most recently
+  computed on June 9, 2026. Users receive the new corpus through match refresh.
+- The exact dashboard freshness drop is in
+  `JobsRepository.get_user_match_stack()`: its nested `jobs(...)` selection
+  omits `first_seen`, `last_seen`, and `is_active`. `JobMatchResponse`,
+  `to_job_match()`, and the frontend `JobMatch` type also omit those fields, so
+  dashboard cards cannot render scraper verification dates.
+- The market card receives `last_seen_at` but displays `first_seen` as its age
+  badge. `last_seen_at` is only shown when the posting crosses the 21-day stale
+  threshold in the detail drawer. Fresh jobs therefore hide the useful
+  "last verified by scraper" fact even on `/market`.
+- The dashboard's corpus-change banner incorrectly uses `MAX(jobs.last_seen)`
+  as the feed publication time. This June 4 scrape was uploaded on June 13,
+  after the latest user matches were computed on June 9, but the comparison
+  reads June 4 < June 9 and does not prompt a refresh. Scraper verification time
+  and database publication/import completion time need separate markers.
+- The scraper itself is not dropping lifecycle data. `csv_importer.py` derives
+  `last_seen` from the output batch date and writes it to Supabase; June 4 rows
+  correctly contain `last_seen = 20260604`.
+
+Recommended implementation after approval:
+
+- Extend the dashboard match query, backend schema/mapper, and frontend
+  `JobMatch` contract with `first_seen`, `last_seen_at`, `is_stale`, and
+  `is_active`.
+- Add a compact shared "Last verified ..." formatter and render it on desktop
+  and mobile dashboard cards, using `last_seen_at`, not `first_seen`.
+- Reuse the same presentation on `/market`; keep `first_seen` only for
+  "newly discovered" sorting/filtering semantics.
+- Drive `feed_updated_at` from the successful import audit timestamp (or a
+  dedicated publication timestamp), never from `last_seen`.
+- Add backend contract tests plus frontend formatter/card coverage.
+- Decide separately whether existing users should receive an automatic
+  post-import match recompute or continue using the explicit XP-gated refresh.
+
+## OLDER SESSION SUMMARY (2026-06-13 - June 4 Phase 3 upload complete)
 
 Completed and verified the June 4 Phase 3 Supabase load from
 `firecrawl_Supabase`.
