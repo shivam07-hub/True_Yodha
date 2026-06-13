@@ -294,6 +294,71 @@ Mirrors the `useForgeSession` pattern. Two surfaces today consume the hook: `Mis
 
 ---
 
+## Feed Publication
+
+A completed, queryable release of crawler data into Myro's shared jobs database.
+The latest successful `job_feed_run_audits` row is the publication clock: its
+`run_id` is the Feed Version and its `created_at` is `published_at`.
+
+**Invariants**
+
+- `jobs.last_seen` answers when the scraper observed a listing. It does not
+  answer when Myro finished loading that observation.
+- Only a successful audit (`status = 'ok'`) advances the Feed Version.
+- Feed State reads are cheap, cacheable, and conditional through an ETag.
+- Detecting a newer Feed Publication is free. Recomputing personalized Job
+  Matches remains a separate Job Refresh and keeps its XP contract.
+
+## Job Feedback
+
+An append-only user signal about either personal fit or shared listing quality.
+Stored in `job_feedback_events` with a client-generated idempotency key.
+
+**Kinds**
+
+- `personal` — why this user does not want the role. Tunes personalization and
+  never changes the listing's shared freshness state.
+- `quality` — evidence about the listing itself, such as a closed apply link,
+  an apparently old posting, a duplicate, or incorrect details.
+
+The card dismissal remains in `user_dismissed_job_cards`; Job Feedback explains
+the dismissal but does not replace it. Raw feedback earns no immediate XP.
+
+## Job Pulse
+
+The privacy-safe read model describing what Myro currently knows about one job:
+scraper verification, listing confidence, tracking volume, and application
+outcomes. Served from `job_intelligence_snapshots` plus the canonical `jobs`
+row.
+
+**Invariants**
+
+- Listing Confidence is one of `active | uncertain | likely_closed | closed`.
+- One user action cannot close a listing.
+- Personal Job Feedback never contributes to Listing Confidence.
+- Exact community counts are suppressed below the cohort threshold.
+- `ghosted` is an explicit application outcome, never inferred from a skip.
+- The snapshot is eventually consistent and optimized for reads by web and
+  future native clients. Canonical applications and feedback events remain the
+  source of truth.
+
+## Job Intelligence
+
+The deep backend module that owns Feed State, Job Feedback, and Job Pulse.
+Its interface has three entry points:
+
+```py
+feed_state(if_none_match: str | None) -> FeedStateRead
+record_feedback(user_id: str, command: FeedbackCommand) -> FeedbackReceipt
+pulses(job_ids: list[str]) -> list[JobPulse]
+```
+
+The module hides publication clocks, idempotency, confidence policy, privacy
+thresholds, snapshot storage, and Supabase query details. HTTP routers and
+platform clients do not reproduce those rules.
+
+---
+
 ## CV Version Writer Seam
 
 `CVVersionsRepository.create(spec: CVVersionWriteSpec)` is the single seam through which CV Versions enter the database. Every endpoint that produces a version — upload, save playground, polish, edit — reduces to building a spec and calling this method. The repository owns:
