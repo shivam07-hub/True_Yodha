@@ -58,6 +58,7 @@ class _FakeRepository:
         )
 
 
+
 def test_feed_state_uses_successful_audit_as_publication_clock() -> None:
     repo = _FakeRepository(
         {

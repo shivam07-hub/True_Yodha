@@ -13,6 +13,7 @@ from app.services.job_intelligence import (
     FeedbackReceipt,
     FeedState,
     FeedStateRead,
+    JobPulse,
 )
 
 
@@ -31,6 +32,7 @@ class _FakeIntelligence:
             created=True,
         )
         self.raise_rate_limit = False
+        self.pulse_requests: list[list[str]] = []
 
     def feed_state(self, if_none_match: str | None = None) -> FeedStateRead:
         self.if_none_match = if_none_match
@@ -52,6 +54,24 @@ class _FakeIntelligence:
         if self.raise_rate_limit:
             raise FeedbackRateLimitError
         return self.feedback_receipt
+
+    def pulses(self, job_ids: list[str]) -> list[JobPulse]:
+        self.pulse_requests.append(job_ids)
+        return [
+            JobPulse(
+                job_id=job_id,
+                first_seen_at="2026-06-01",
+                last_verified_at="2026-06-12",
+                is_stale=False,
+                listing_confidence="active",
+                tracking_count=8,
+                outcomes_shared=5,
+                ghosted_count=2,
+                response_signal="high",
+                quality_report_count=None,
+            )
+            for job_id in job_ids
+        ]
 
 
 def test_feed_state_requires_authentication() -> None:
@@ -172,6 +192,83 @@ def test_record_feedback_returns_429_for_quality_daily_cap() -> None:
                     "surface": "market",
                 },
             )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 429
+
+
+def test_job_pulses_batches_cards_in_requested_order() -> None:
+    intelligence = _FakeIntelligence()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/pulses",
+                json={"job_ids": ["job-b", "job-a"]},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert intelligence.pulse_requests == [["job-b", "job-a"]]
+    assert [row["job_id"] for row in response.json()["pulses"]] == [
+        "job-b",
+        "job-a",
+    ]
+
+
+def test_job_pulses_rejects_more_than_100_ids() -> None:
+    intelligence = _FakeIntelligence()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/pulses",
+                json={"job_ids": [f"job-{index}" for index in range(101)]},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert intelligence.pulse_requests == []
+
+
+def test_legacy_inactive_report_uses_quality_feedback_without_xp() -> None:
+    intelligence = _FakeIntelligence()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/job-1/report")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "report_count": 0,
+        "already_reported": False,
+        "xp_earned": 0,
+    }
+    _, command = intelligence.feedback_commands[0]
+    assert command.feedback_kind == "quality"
+    assert command.reason_code == "posting_inactive"
+
+
+def test_legacy_inactive_report_preserves_quality_daily_cap() -> None:
+    intelligence = _FakeIntelligence()
+    intelligence.raise_rate_limit = True
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/job-1/report")
     finally:
         app.dependency_overrides.clear()
 

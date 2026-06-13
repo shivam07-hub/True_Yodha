@@ -14,11 +14,15 @@ from app.schemas.jobs import (
     FeedStateResponse,
     JobFeedbackRequest,
     JobFeedbackResponse,
+    JobPulseResponse,
+    JobPulsesRequest,
+    JobPulsesResponse,
 )
 from app.services.job_intelligence import (
     FeedbackCommand,
     FeedbackRateLimitError,
     InvalidJobFeedbackError,
+    InvalidJobPulseRequest,
     JobIntelligence,
 )
 
@@ -98,4 +102,22 @@ def record_job_feedback(
             else status.HTTP_200_OK
         ),
         content=response.model_dump(mode="json"),
+    )
+
+
+@router.post("/pulses", response_model=JobPulsesResponse)
+def get_job_pulses(
+    body: JobPulsesRequest,
+    _principal: Principal = Depends(get_principal),
+    intelligence: JobIntelligence = Depends(get_job_intelligence),
+) -> JobPulsesResponse:
+    try:
+        pulses = intelligence.pulses(body.job_ids)
+    except InvalidJobPulseRequest as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return JobPulsesResponse(
+        pulses=[JobPulseResponse(**pulse.__dict__) for pulse in pulses]
     )

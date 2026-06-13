@@ -107,6 +107,38 @@ class JobIntelligenceRepository:
             raise RuntimeError("Feedback insert returned no row")
         return rows[0], True
 
+    def pulse_rows(self, job_ids: list[str]) -> list[dict[str, Any]]:
+        if not job_ids:
+            return []
+        jobs = (
+            self.admin_db.table("jobs")
+            .select("job_id, first_seen, last_seen, is_active")
+            .in_("job_id", job_ids)
+            .execute()
+        ).data or []
+        snapshots = (
+            self.admin_db.table("job_intelligence_snapshots")
+            .select(
+                "job_id, tracking_count, applied_count, outcome_count, "
+                "responded_count, ghosted_count, interviewed_count, offer_count, "
+                "quality_report_count, looks_old_count, apply_link_closed_count, "
+                "posting_inactive_count"
+            )
+            .in_("job_id", job_ids)
+            .execute()
+        ).data or []
+        snapshots_by_id = {
+            str(row["job_id"]): row for row in snapshots if row.get("job_id")
+        }
+        return [
+            {
+                **job,
+                **snapshots_by_id.get(str(job["job_id"]), {}),
+            }
+            for job in jobs
+            if job.get("job_id")
+        ]
+
 
 def get_job_intelligence_repository(
     admin_db: Client = Depends(get_supabase_admin),

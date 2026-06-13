@@ -3,11 +3,21 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, time as datetime_time, timezone
+from datetime import datetime, time as datetime_time, timezone
 from typing import Callable
 from uuid import UUID
 
 from app.repositories.job_intelligence import JobIntelligenceRepository
+from app.services.job_intelligence_policy import (
+    PERSONAL_FEEDBACK_REASONS,
+    QUALITY_FEEDBACK_REASONS,
+    listing_confidence,
+    marker_to_iso_date,
+    parse_datetime,
+    response_signal,
+    validate_feedback,
+    visible_count,
+)
 
 
 @dataclass(frozen=True)
@@ -46,6 +56,20 @@ class FeedbackReceipt:
     created: bool
 
 
+@dataclass(frozen=True)
+class JobPulse:
+    job_id: str
+    first_seen_at: str | None
+    last_verified_at: str | None
+    is_stale: bool
+    listing_confidence: str
+    tracking_count: int | None
+    outcomes_shared: int | None
+    ghosted_count: int | None
+    response_signal: str | None
+    quality_report_count: int | None
+
+
 class InvalidJobFeedbackError(ValueError):
     pass
 
@@ -54,27 +78,10 @@ class FeedbackRateLimitError(RuntimeError):
     pass
 
 
-PERSONAL_FEEDBACK_REASONS = frozenset(
-    {
-        "not_my_role",
-        "location",
-        "seniority",
-        "compensation",
-        "company",
-        "skills_gap",
-        "already_applied",
-    }
-)
-QUALITY_FEEDBACK_REASONS = frozenset(
-    {
-        "looks_old",
-        "apply_link_closed",
-        "duplicate",
-        "details_wrong",
-        "posting_inactive",
-    }
-)
-FEEDBACK_SURFACES = frozenset({"dashboard", "market", "job_detail", "other"})
+class InvalidJobPulseRequest(ValueError):
+    pass
+
+
 MAX_DAILY_QUALITY_FEEDBACK = 3
 
 
@@ -122,9 +129,11 @@ class JobIntelligence:
         repository: JobIntelligenceRepository,
         *,
         feed_cache: FeedStateCache = _feed_state_cache,
+        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
         self.repository = repository
         self.feed_cache = feed_cache
+        self.now = now
 
     def feed_state(self, if_none_match: str | None = None) -> FeedStateRead:
         state = self.feed_cache.get_or_load(self._load_feed_state)
@@ -147,7 +156,7 @@ class JobIntelligence:
             return _feedback_receipt(existing, created=False)
 
         if command.feedback_kind == "quality":
-            today = datetime.now(timezone.utc).date()
+            today = self.now().date()
             since = datetime.combine(
                 today,
                 datetime_time.min,
@@ -169,6 +178,18 @@ class JobIntelligence:
         )
         return _feedback_receipt(row, created=created)
 
+    def pulses(self, job_ids: list[str]) -> list[JobPulse]:
+        unique_ids = list(dict.fromkeys(job_id for job_id in job_ids if job_id))
+        if not unique_ids or len(unique_ids) > 100:
+            raise InvalidJobPulseRequest("job_ids must contain 1-100 unique IDs")
+        rows = self.repository.pulse_rows(unique_ids)
+        by_id = {str(row["job_id"]): row for row in rows}
+        return [
+            _to_job_pulse(by_id[job_id], now=self.now())
+            for job_id in unique_ids
+            if job_id in by_id
+        ]
+
     def _load_feed_state(self) -> FeedState:
         publication = self.repository.latest_feed_publication()
         if not publication:
@@ -180,9 +201,9 @@ class JobIntelligence:
             )
         return FeedState(
             feed_version=str(publication["run_id"]),
-            published_at=_parse_datetime(publication.get("created_at")),
+            published_at=parse_datetime(publication.get("created_at")),
             imported_job_count=int(publication.get("total_rows") or 0),
-            latest_batch_date=_marker_to_iso_date(
+            latest_batch_date=marker_to_iso_date(
                 self.repository.latest_job_batch_marker()
             ),
         )
@@ -192,32 +213,15 @@ def _feed_etag(feed_version: str | None) -> str:
     return f'"feed-{feed_version or "empty"}"'
 
 
-def _parse_datetime(value: object) -> datetime | None:
-    if isinstance(value, datetime):
-        parsed = value
-    elif value:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    else:
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed
-
-
 def _validate_feedback(command: FeedbackCommand) -> None:
-    reasons = (
-        PERSONAL_FEEDBACK_REASONS
-        if command.feedback_kind == "personal"
-        else QUALITY_FEEDBACK_REASONS
-        if command.feedback_kind == "quality"
-        else frozenset()
-    )
-    if command.reason_code not in reasons:
+    if not validate_feedback(
+        feedback_kind=command.feedback_kind,
+        reason_code=command.reason_code,
+        surface=command.surface,
+    ):
         raise InvalidJobFeedbackError(
             f"{command.reason_code!r} is not valid for {command.feedback_kind!r}"
         )
-    if command.surface not in FEEDBACK_SURFACES:
-        raise InvalidJobFeedbackError(f"Unknown feedback surface: {command.surface}")
 
 
 def _feedback_receipt(
@@ -225,7 +229,7 @@ def _feedback_receipt(
     *,
     created: bool,
 ) -> FeedbackReceipt:
-    created_at = _parse_datetime(row.get("created_at"))
+    created_at = parse_datetime(row.get("created_at"))
     if created_at is None:
         raise RuntimeError("Feedback row has no created_at")
     return FeedbackReceipt(
@@ -240,15 +244,31 @@ def _feedback_receipt(
     )
 
 
-def _marker_to_iso_date(value: object) -> str | None:
-    if isinstance(value, datetime):
-        return value.date().isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    text = str(value or "").strip()
-    if len(text) == 8 and text.isdigit():
-        return datetime.strptime(text, "%Y%m%d").date().isoformat()
-    try:
-        return date.fromisoformat(text[:10]).isoformat()
-    except ValueError:
-        return None
+def _to_job_pulse(row: dict, *, now: datetime) -> JobPulse:
+    confidence, is_stale = listing_confidence(row, now=now)
+    outcome_count = row.get("outcome_count")
+    quality_count = row.get("quality_report_count")
+    return JobPulse(
+        job_id=str(row["job_id"]),
+        first_seen_at=marker_to_iso_date(row.get("first_seen")),
+        last_verified_at=marker_to_iso_date(row.get("last_seen")),
+        is_stale=is_stale,
+        listing_confidence=confidence,
+        tracking_count=visible_count(
+            row.get("tracking_count"),
+            cohort=row.get("tracking_count"),
+        ),
+        outcomes_shared=visible_count(outcome_count, cohort=outcome_count),
+        ghosted_count=visible_count(
+            row.get("ghosted_count"),
+            cohort=outcome_count,
+        ),
+        response_signal=response_signal(
+            applied_count=row.get("applied_count"),
+            responded_count=row.get("responded_count"),
+        ),
+        quality_report_count=visible_count(
+            quality_count,
+            cohort=quality_count,
+        ),
+    )
