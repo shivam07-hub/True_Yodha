@@ -13,7 +13,7 @@ import path from "path"
 const REPO_ROOT = path.resolve(__dirname, "..")
 const ISSUES_DIR = path.resolve(REPO_ROOT, "frontend", "content", "newsletter", "issues")
 const OUT_DIR = path.resolve(REPO_ROOT, "frontend", "public", "newsletter")
-const BASE = "https://truemirror.vercel.app"
+const BASE = "https://www.himyro.com"
 const FEED_TITLE = "Myro Weekly"
 const FEED_DESCRIPTION = "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings."
 const AUTHOR = "Shivam Pathak"

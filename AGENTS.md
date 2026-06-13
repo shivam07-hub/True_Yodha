@@ -141,6 +141,7 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV â
 | SE15 | **Editable sections = bullets, summary, skills_line, certs.** Education routes to `/cv` (disabled fallback). |
 | SE16 | **Backend endpoint = `POST /cv/skill-edit`.** Body `{skill_key, new_text, section_hint?, item_index?, bullet_index?}`. 409 on multi-match with candidate list. |
 | SE17 | **Async completion signal = `cv_versions.recompute_finished_at`.** Frontend polls `GET /cv/skill-edit/recompute-status/{baseline_id}` every 3s, cap 30s, clears `useRecomputeStore` + invalidates `userSkills`/`scores` queries. |
+| GCS1 | **Growth Command Center = one human-first system of record.** Need signals, canonical content, review-gated distribution, publications, attribution, and product activation share one generic growth model. The standalone distribution tracker becomes an imported legacy cockpit, not the database. North star = useful product activation, not content volume or impressions. |
 
 ---
 
@@ -297,7 +298,287 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12 - Referral v1 backend)
+## LAST SESSION SUMMARY (2026-06-13 - Job Intelligence backend)
+
+Specified and implemented the scalable Job Intelligence backend on `Develop`.
+Frontend work was deliberately left for Claude.
+
+- Added a deep `JobIntelligence` module with three stable entry points: Feed
+  State, structured Job Feedback, and privacy-safe batched Job Pulse.
+- Added conditional `GET /jobs/feed-state` with ETag/304 behavior and a
+  60-second process cache. Successful feed publication now comes from
+  `job_feed_run_audits.created_at`, not scraper `jobs.last_seen`.
+- Preserved `first_seen`, `last_seen_at`, `is_stale`, and `is_active` through
+  dashboard match reads.
+- Added append-only, idempotent personal-versus-quality feedback with RLS,
+  explicit Supabase grants, a three-per-day quality cap, and no raw-report XP.
+- Added backend-only `job_intelligence_snapshots`, one-job trigger refreshes,
+  privacy suppression below five contributors, and deterministic listing
+  confidence.
+- Converted the old inactive-report route into a deploy-window compatibility
+  adapter. A single user report can no longer deactivate a listing.
+- Kept base job reads separate from batches of up to 100 pulses so web and
+  future native clients can render cards before community context.
+- Wrote the Claude frontend handoff at
+  `docs/handoffs/2026-06-13-job-intelligence-frontend-handoff.md`.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `644 passed, 16 warnings`
+- PostgreSQL 17 migration syntax and application passed.
+- Authenticated RLS insert, identity sequence access, service-role grant,
+  snapshot insert/update/delete triggers, and cross-job refresh passed.
+- All new implementation files are at or below 300 lines.
+
+Deployment gate:
+
+- Live Supabase migration `20260613_job_intelligence.sql` was not applied
+  because the Supabase MCP token expired. Reauthenticate, apply it to
+  `gipvxuugajkugntwkeiz`, run advisors, then deploy backend before frontend.
+- Existing unrelated Claude, demand-RPC, dashboard, market, and docs-submodule
+  workspace changes were left untouched.
+
+Canonical spec:
+`docs/superpowers/specs/2026-06-13-job-intelligence-and-feed-freshness-design.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Live jobs visibility and last-seen audit)
+
+Verified the completed June 4 Supabase load and traced scraper freshness metadata
+through the production job surfaces. No production implementation code changed.
+
+- Production Supabase contains 42,787 jobs: 34,959 active and 7,828 inactive.
+  All 17,956 unique June 4 jobs are active.
+- Associated data is present: 355,264 `job_skills`, 35,108 taxonomy skills,
+  1,366 scrape diagnostics, and 6 run audits.
+- `https://api.himyro.com/health` returns 200. Public production analytics
+  returns 42,787 jobs, 263 companies, and `latest_batch = 20260604`, confirming
+  the backend reads the loaded corpus.
+- `/market` is the live browse surface. It queries active `jobs` directly and
+  already transports `first_seen`, `last_seen_at`, `is_stale`, and `is_active`.
+- `/home` is not a direct jobs-table feed. It reads durable personalized
+  `user_job_matches`; loading new jobs does not recompute every user's matches.
+  There are currently 224 match snapshots across 44 users, most recently
+  computed on June 9, 2026. Users receive the new corpus through match refresh.
+- The exact dashboard freshness drop is in
+  `JobsRepository.get_user_match_stack()`: its nested `jobs(...)` selection
+  omits `first_seen`, `last_seen`, and `is_active`. `JobMatchResponse`,
+  `to_job_match()`, and the frontend `JobMatch` type also omit those fields, so
+  dashboard cards cannot render scraper verification dates.
+- The market card receives `last_seen_at` but displays `first_seen` as its age
+  badge. `last_seen_at` is only shown when the posting crosses the 21-day stale
+  threshold in the detail drawer. Fresh jobs therefore hide the useful
+  "last verified by scraper" fact even on `/market`.
+- The dashboard's corpus-change banner incorrectly uses `MAX(jobs.last_seen)`
+  as the feed publication time. This June 4 scrape was uploaded on June 13,
+  after the latest user matches were computed on June 9, but the comparison
+  reads June 4 < June 9 and does not prompt a refresh. Scraper verification time
+  and database publication/import completion time need separate markers.
+- The scraper itself is not dropping lifecycle data. `csv_importer.py` derives
+  `last_seen` from the output batch date and writes it to Supabase; June 4 rows
+  correctly contain `last_seen = 20260604`.
+
+Recommended implementation after approval:
+
+- Extend the dashboard match query, backend schema/mapper, and frontend
+  `JobMatch` contract with `first_seen`, `last_seen_at`, `is_stale`, and
+  `is_active`.
+- Add a compact shared "Last verified ..." formatter and render it on desktop
+  and mobile dashboard cards, using `last_seen_at`, not `first_seen`.
+- Reuse the same presentation on `/market`; keep `first_seen` only for
+  "newly discovered" sorting/filtering semantics.
+- Drive `feed_updated_at` from the successful import audit timestamp (or a
+  dedicated publication timestamp), never from `last_seen`.
+- Add backend contract tests plus frontend formatter/card coverage.
+- Decide separately whether existing users should receive an automatic
+  post-import match recompute or continue using the explicit XP-gated refresh.
+
+## OLDER SESSION SUMMARY (2026-06-13 - June 4 Phase 3 upload complete)
+
+Completed and verified the June 4 Phase 3 Supabase load from
+`firecrawl_Supabase`.
+
+- Uploaded all 206 June 4 files without deactivation. The 17,964 source entries
+  resolve to 17,956 unique global `job_id` values, and every unique ID is
+  present and active in Supabase with `batch_date = 20260604`.
+- Verified all 128,387 expected current `job_skills` associations are present.
+  Live totals are now 42,787 jobs and 355,264 `job_skills` rows.
+- Canonical unique-row quality is 17,922 fully enriched of 17,955 jobs with a
+  JD. The 33 residual rows overlap across 31 missing role domains, 5 missing
+  skill sets, and 4 missing summaries.
+- Location quality passed: 10 unknown rows out of 17,956 (0.056%). Consolidated
+  audit run `19ca2369-d6a1-43ed-b106-b9dfbf669895` records the full resumed
+  upload.
+- The first upload response timed out after Cognition, but the Cohesity write
+  had completed server-side. The idempotent resume from Cohesity through Zuora
+  completed successfully and refreshed the production analytics snapshot.
+- Fixed the importer crash on Visa's empty `jobs.json` by returning complete
+  zero-result metadata. Scraper commit: `bfe62af78`.
+- LM Studio is fully stopped: model unloaded, server off, and desktop/helper
+  processes closed.
+- Deactivation was intentionally not run. The dry run found 13,356 historical
+  active rows missing from this batch and blocked 55 companies at the 75%
+  safety threshold.
+
+Validation:
+
+- Focused importer/writer suite: `5 passed`
+- `.venv/bin/pytest backend/tests -q`: `607 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npx next lint`: clean
+- June 4 batch IDs missing from Supabase: `0`
+- Expected current skill associations missing: `0`
+- Production analytics refresh endpoint: HTTP 200
+
+Deferred data-integrity work:
+
+- Eight duplicate source IDs collapse to eight fewer global rows. Three IDs
+  collide across distinct companies, so `job_id` needs a durable source/company
+  namespace before the next full run.
+- The importer upserts current skill associations but does not atomically
+  replace prior sets. June 4 jobs retain 23,106 older associations beyond the
+  128,387 current expected pairs. Do not bulk-delete these without a
+  transactional synchronization design.
+- Historical lifecycle cleanup still needs a separately approved policy; do
+  not use `--allow-large-deactivation` as a shortcut.
+
+Logs:
+
+- `/tmp/myro_phase3_upload_20260613.log`
+- `/tmp/myro_phase3_resume_upload_20260613.log`
+
+## OLDER SESSION SUMMARY (2026-06-13 - June 4 enrichment completion audit)
+
+Audited the completed `firecrawl_Supabase` June 4 Phase 2 run and the Phase 3
+upload path. No production or scraper implementation code was changed.
+
+- The date-scoped runner completed all 206 files / 17,964 local jobs.
+- Of 17,962 jobs with JDs, 17,929 are fully enriched and 33 residual rows remain
+  across 20 companies: 31 missing a controlled `role_domain`, 5 missing skills,
+  and 4 missing summaries.
+- Live Supabase currently has 28,047 jobs and 238,481 `job_skills` rows, but
+  zero jobs with `batch_date = 20260604`.
+- The exact-date dry run selected 206/274 files, loaded all 35,108 taxonomy
+  skills, and passed the audit, `required_level`, `locations[]`, and job-card
+  schema gates. It made no writes.
+- Phase 3 is blocked by one importer bug: Visa's June 4 `jobs.json` is the only
+  empty file, and `import_file()` returns no `company` key for empty lists;
+  `main()` then raises `KeyError: 'company'` while logging the result.
+- After a tested empty-file fix, rerun:
+  `/opt/anaconda3/bin/python3.13 csv_importer.py --dry-run
+  --deactivate-missing --run-date 20260604`.
+- Review location quality, taxonomy drift, and simulated deactivation counts,
+  then run the real date-scoped import. A clean real load automatically
+  refreshes the Myro analytics snapshot.
+- LM Studio remains idle with `google/gemma-3-4b` loaded; stop it after deciding
+  whether to retry the 33 residual rows with a quality model.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Career Growth Command System Phase 1)
+
+Implemented the approved human-first Growth Command System Phase 1 on
+`Develop`, in six scoped commits.
+
+- Repaired the newsletter feed to use canonical `https://www.himyro.com` URLs.
+- Added bounded first/latest UTM capture across signup and auth callbacks.
+  Referral attribution remains separate, and analytics persistence cannot
+  break authentication.
+- Added the generic FastAPI growth domain, server-side operator allowlist,
+  approval/publish transitions, immutable publication records, and
+  deterministic legacy import endpoint.
+- Migrated the newsletter distribution compatibility layer to the generic
+  growth schema without changing its public contract.
+- Added `scripts/import-growth-tracker.ts`; current dry run resolves 8 assets,
+  12 campaigns, 22 messages, and 2 publications from the standalone tracker.
+- Shipped the private `/admin/growth` cockpit with priority cards, truth
+  metrics, channel/status/format filters, draft/final review, approval,
+  composer handoff, and publication capture.
+- Applied live Supabase migration `growth_command_phase1`. All eight Phase 1
+  tables have RLS enabled with no browser policies, and one owner operator is
+  active. Content tables remain empty until the backend deploy and
+  authenticated one-time import.
+- Desktop and 375px browser QA found no page overflow. Mobile review close and
+  reopen, filtering, and draft save were exercised. Screenshot capture timed
+  out, but DOM/layout checks completed.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `607 passed, 13 warnings`
+- `cd frontend && npm run build` -> clean
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Newsletter issue/chart sync check -> 7 issues/charts in sync
+- Growth parser, attribution, API, cockpit, and migration tests -> pass
+- Full frontend test sweep -> 130 pass, 1 unrelated landing XP-copy failure
+- Contract suite -> 2 pass, 3 pre-existing failures (legacy localStorage
+  baseline, deleted auth-form reference, existing raw Forge query key)
+
+Remaining:
+
+- Deploy the `Develop` backend/frontend, then run
+  `MYRO_GROWTH_ACCESS_TOKEN=... npm run growth:import-tracker` once.
+- Phase 2 adds GA4/Search Console measurement and activation reporting. Phase 3
+  adds Need Radar and editorial triage.
+- Existing unrelated workspace changes were left untouched.
+
+Canonical spec:
+`docs/superpowers/specs/2026-06-13-myro-career-growth-command-system-design.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Career Growth Command System design)
+
+Designed and documented the approved human-first Myro Career Growth Command
+System. No production code or database state was changed.
+
+- Locked one private command center across need discovery, editorial planning,
+  newsletters/guides/tools/data pages, review-gated distribution, publication
+  records, search/campaign analytics, and product activation.
+- Confirmed that the existing `growth-agent/distribution-tracker.html` is a
+  useful cockpit prototype but not a durable source of truth because its data
+  is hardcoded and browser-local.
+- Chose a generic growth data model instead of deploying the currently
+  newsletter-specific distribution tables. The existing backend becomes a
+  compatibility path during migration.
+- Locked the humanization contract: need first, visible evidence, preserved
+  agency, channel context, and the smallest useful next action.
+- Locked phased delivery. Phase 1 covers canonical-domain truth, UTM persistence,
+  generic campaign storage, operator authorization, tracker import, and manual
+  review/publishing before broader analytics and platform automation.
+- Canonical spec:
+  `docs/superpowers/specs/2026-06-13-myro-career-growth-command-system-design.md`.
+
+Validation:
+
+- Spec self-review and documentation checks completed.
+- `.venv/bin/pytest backend/tests` -> `593 passed, 13 warnings`
+- `cd frontend && npx tsc --noEmit` -> clean
+- `cd frontend && npx next lint` -> clean
+- Existing unrelated workspace changes remained untouched.
+
+Remaining:
+
+- Shivam should review the written spec before implementation planning.
+- After approval, create a Phase 1 implementation plan; do not begin broad
+  social API integrations first.
+
+## OLDER SESSION SUMMARY (2026-06-12 - LM Studio Phase 2 enrichment resumed)
+
+Resumed the `firecrawl_Supabase` June 4 Phase 2 enrichment from its local
+checkpoint.
+
+- LM Studio was already open; verified its API on port `1234` and a successful
+  chat-completions smoke request.
+- Confirmed `google/gemma-3-4b` is loaded with 4 parallel prediction slots.
+- Relaunched the existing date-scoped runner in detached screen session
+  `myro-enrich-20260612`, protected by `caffeinate`.
+- The runner skipped completed local records, retried earlier residuals, crossed
+  the prior `Notion` pause boundary, and began `Novartis` (`137/206`).
+- Verified fresh persisted progress: 17,964 total jobs, 12,168 fully enriched,
+  5,794 remaining. No LM Studio connection errors were logged.
+- Active log:
+  `firecrawl_Supabase/logs/enrich_resume_20260612_screen.log`.
+- Supabase remains untouched; upload is still the separate Phase 3.
+- No scraper implementation files were changed. Existing unrelated workspace
+  changes remain untouched.
+
+## OLDER SESSION SUMMARY (2026-06-12 - Referral v1 backend)
 
 Implemented PR-REFERRAL-V1 backend on `Develop`.
 

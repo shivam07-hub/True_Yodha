@@ -7,16 +7,28 @@ per pageview. The frontend floors the values for display ("4,300+")
 so public numbers only ever grow.
 """
 
+import logging
 import time
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter
+import httpx
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel
 
+from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
+from app.repositories.scores import ScoresRepository
+from app.services import cv_parser
+from app.services.llm_provider import get_cv_upload_provider
+from app.services.scoring.formulas import build_skill_level_map
+from app.services.scoring.orchestrator import project_score
 
 router = APIRouter(prefix="/public", tags=["public"])
+
+_log = logging.getLogger("app.public")
 
 # Taxonomy size is effectively static (Lightcast-scale skill graph); not worth
 # a per-hour count query. Update alongside taxonomy upgrades.
@@ -60,3 +72,181 @@ def get_public_stats() -> dict[str, Any]:
     _cache_data = data
     _cache_ts = now
     return data
+
+
+# ─── Public CV-score preview (no auth) ───────────────────────────────────────
+#
+# The pre-login "drop your CV, see your real Myro Score" demo. Runs the REAL
+# scoring engine compute-only: parse → build_skill_level_map → project_score
+# (no user, no persist — ScoresRepository over the admin client only touches
+# global taxonomy reference data because include_market_signals=False). The
+# CV bytes are read, parsed, and discarded in-request — nothing is stored
+# (PV1). Everything actionable (jobs, practice, save, tailor, full skill list)
+# stays gated behind signup; this endpoint returns the score + domain split
+# only — the hook, not the product.
+
+_MAX_CV_BYTES = 5 * 1024 * 1024  # 5MB — same ceiling as the authed upload path
+_MIN_TEXT_CHARS = 80  # CVUP4 scanned-PDF guard: reject before any LLM spend
+_ALLOWED_CONTENT_TYPES = {
+    "application/pdf": "pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+}
+
+# Soft per-IP sliding-window limit. In-process (per worker) — a soft cost guard,
+# NOT the primary bot defence (that's Turnstile). Good enough at current scale;
+# promote to a Redis window if multi-instance precision is ever needed.
+_ANON_RATE_MAX = 5
+_ANON_RATE_WINDOW_SECONDS = 3600.0
+_anon_score_hits: dict[str, deque[float]] = {}
+
+_TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+
+
+class AnonDomainScore(BaseModel):
+    name: str
+    score: int
+
+
+class AnonScoreResponse(BaseModel):
+    """Compute-only preview — the score + domain split the landing Readout
+    renders. No skill names, no jobs, no persistence: signup unlocks those."""
+
+    score: int
+    verdict: str
+    domains: list[AnonDomainScore]
+    gaps: list[AnonDomainScore]       # weakest domains → "improve before applying"
+    strengths: list[AnonDomainScore]  # strongest domains → "already strong"
+    skills_detected: int
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_anon_rate(ip: str) -> None:
+    now = time.monotonic()
+    hits = _anon_score_hits.setdefault(ip, deque())
+    while hits and now - hits[0] > _ANON_RATE_WINDOW_SECONDS:
+        hits.popleft()
+    if len(hits) >= _ANON_RATE_MAX:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="You've previewed a few CVs already. Sign up free to keep scoring.",
+        )
+    hits.append(now)
+
+
+async def _verify_turnstile(token: str | None, ip: str) -> None:
+    """Verify the Turnstile token when a secret is configured. When it isn't
+    (dev / pre-provision), skip — the per-IP limit still applies. Fail-closed
+    only once a secret exists: then a missing/invalid token is a hard 403."""
+    secret = settings.turnstile_secret
+    if not secret:
+        return
+    if not token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification required.")
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.post(
+                _TURNSTILE_VERIFY_URL,
+                data={"secret": secret, "response": token, "remoteip": ip},
+            )
+        ok = bool(resp.json().get("success"))
+    except Exception:
+        _log.warning("Turnstile verify call failed; rejecting to stay fail-closed")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification failed.")
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification failed.")
+
+
+def _verdict_for(score: int) -> str:
+    if score >= 75:
+        return "Strong profile — ready to apply to most matched roles."
+    if score >= 55:
+        return "Strong enough to apply, with a few high-value gaps still holding the profile back."
+    if score >= 35:
+        return "A solid base. Closing a few in-demand gaps will move this fast."
+    return "Early-stage profile — the biggest gains are the gaps below."
+
+
+@router.post("/score-cv", response_model=AnonScoreResponse)
+async def score_cv_preview(
+    request: Request,
+    file: UploadFile = File(...),
+    cf_turnstile_token: str | None = Form(default=None),
+) -> AnonScoreResponse:
+    ip = _client_ip(request)
+    _enforce_anon_rate(ip)
+    await _verify_turnstile(cf_turnstile_token, ip)
+
+    content_type = (file.content_type or "").split(";")[0].strip()
+    file_type = _ALLOWED_CONTENT_TYPES.get(content_type)
+    if not file_type:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Upload a PDF or DOCX CV.",
+        )
+
+    # Read with a hard ceiling — one extra byte tells us it's over the cap.
+    data = await file.read(_MAX_CV_BYTES + 1)
+    if len(data) > _MAX_CV_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="That file is over 5MB. Try a smaller PDF or DOCX.",
+        )
+
+    try:
+        raw_text = cv_parser.extract_raw_text(data, file_type)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="We couldn't read that file. Try a different PDF or DOCX export.",
+        )
+
+    # CVUP4 — reject scanned/empty PDFs before spending any LLM budget.
+    if len(raw_text.strip()) < _MIN_TEXT_CHARS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="This looks like a scanned image with no selectable text. Upload a text-based PDF or DOCX.",
+        )
+
+    parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
+    if parsed.get("provider_failed"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Our CV analysis service is busy right now. Try again in a moment.",
+        )
+
+    skills_detected = parsed.get("skills_detected", [])
+    if not skills_detected:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="We couldn't pull skills from this CV. Add named tools, technologies, and bullet achievements, then try again.",
+        )
+
+    # Real engine, compute-only. include_market_signals=False mirrors the authed
+    # CV-ingest path (record_cv_score) and keeps this off the demand tables.
+    level_map = build_skill_level_map(skills_detected)
+    repo = ScoresRepository(get_supabase_admin())
+    projection = project_score(repo, level_map, include_market_signals=False)
+
+    score = int(round(projection.total_score))
+    domains = sorted(
+        (AnonDomainScore(name=name, score=int(round(value))) for name, value in projection.domain_scores.items()),
+        key=lambda d: d.score,
+        reverse=True,
+    )
+    strengths = [d for d in domains if d.score >= 50][:3]
+    gaps = [d for d in reversed(domains) if d.score < 50][:3]
+
+    return AnonScoreResponse(
+        score=score,
+        verdict=_verdict_for(score),
+        domains=domains,
+        gaps=gaps,
+        strengths=strengths,
+        skills_detected=len(skills_detected),
+    )

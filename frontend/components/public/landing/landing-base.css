@@ -6,27 +6,34 @@
    ───────────────────────────────────────────────────────────── */
 
 .tm-landing {
-  /* landing-scoped design tokens (handoff §Design Tokens) */
-  --lp-bg:            #0a0a0c;
-  --lp-surface:       #13141a;
-  --lp-surface-2:     #181a23;
-  --lp-border:        rgba(255, 255, 255, 0.06);
-  --lp-border-strong: rgba(255, 255, 255, 0.12);
-  --lp-text:          #e8e8ea;
-  --lp-muted:         #9aa4bf;
-  --lp-faint:         #646e8c;
+  /* The landing no longer owns a palette — its --lp-* tokens now ALIAS the
+     canonical --tm-* system, so the whole marketing surface themes light/dark
+     with the product (one brand, pre = post). The dark-console islands
+     (.lp-engine / .lp-readout) re-pin fixed Engine-dark in landing-engine.css.
+     Accent follows the product: teal #00f5d4 (dark) / Firecrawl orange #FF4C00 (light), via the
+     token layer. */
+  --lp-bg:            var(--tm-bg);
+  --lp-surface:       var(--tm-surface);
+  --lp-surface-2:     var(--tm-surface-2);
+  --lp-border:        var(--tm-border-soft);
+  --lp-border-strong: var(--tm-border);
+  --lp-text:          var(--tm-text);
+  --lp-muted:         var(--tm-text-muted);
+  --lp-faint:         var(--tm-text-faint);
 
-  --lp-accent:        #00f5d4; /* icons · buttons · flow lines ONLY */
-  --lp-accent-text:   #67e8f9; /* any colored text */
-  --lp-accent-fg:     #04211c;
-  --lp-accent-wash:   rgba(0, 245, 212, 0.07);
-  --lp-accent-ring:   rgba(0, 245, 212, 0.32);
-  --lp-accent-glow:   rgba(0, 245, 212, 0.14);
+  --lp-accent:        var(--tm-accent);          /* icons · buttons · flow lines */
+  --lp-accent-text:   var(--tm-accent-text);     /* any colored text */
+  --lp-accent-fg:     var(--tm-interactive-fg);
+  --lp-accent-wash:   var(--tm-interactive-wash);
+  --lp-accent-ring:   var(--tm-interactive-ring);
+  --lp-accent-glow:   var(--tm-interactive-glow);
 
-  --lp-success:       #4ade80;
-  --lp-warning:       #f59e0b;
+  --lp-success:       var(--tm-success);
+  --lp-warning:       var(--tm-warning);
 
-  --lp-font: var(--font-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  /* Space Grotesk is global (--tm-font-sans); mono stays JetBrains on the
+     landing (loaded in app/page.tsx, the deliberate mono split). */
+  --lp-font: var(--tm-font-sans);
   --lp-mono: var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
 
   --lp-fs-hero:    56px;
@@ -43,28 +50,14 @@
   --lp-dur:      200ms;
   --lp-dur-slow: 380ms;
 
-  --lp-grid-line: rgba(255, 255, 255, 0.028);
+  /* Faint measurement grid — theme-aware (faint white on dark, faint ink on
+     light). The console islands re-pin this to fixed white-alpha. */
+  --lp-grid-line: var(--tm-border-faint);
 
-  /* remap app tokens so the reused PublicTopNav / PublicFooter /
-     SignupModal-adjacent chrome render in the landing palette */
-  --tm-bg:              var(--lp-bg);
-  --tm-surface:         var(--lp-surface);
-  --tm-surface-2:       var(--lp-surface-2);
-  --tm-border-soft:     var(--lp-border);
-  --tm-border:          var(--lp-border-strong);
-  --tm-text:            var(--lp-text);
-  --tm-text-muted:      var(--lp-muted);
-  --tm-text-faint:      var(--lp-faint);
-  --tm-accent:          var(--lp-accent);
-  --tm-accent-text:     var(--lp-accent-text);
-  --tm-interactive:     var(--lp-accent);
-  --tm-interactive-fg:  var(--lp-accent-fg);
-  --tm-interactive-hover: #53ffe3;
-  --tm-int-border:      var(--lp-accent-ring);
-  --tm-int-bg-wash:     var(--lp-accent-wash);
-  --tm-hover-soft:      rgba(255, 255, 255, 0.04);
-  --tm-font-display:    var(--lp-font);
-  --tm-font-mono:       var(--lp-mono);
+  /* NOTE: the old reverse remap (--tm-*: var(--lp-*)) is deliberately gone.
+     It forced the reused chrome dark AND is now circular (since --lp-* alias
+     --tm-*). The nav/footer/signup chrome follow the canonical surface
+     directly, which is the whole point of pre = post parity. */
 
   background: var(--lp-bg);
   color: var(--lp-text);
@@ -78,7 +71,7 @@
   flex-direction: column;
 }
 
-.tm-landing ::selection { background: rgba(0, 245, 212, 0.22); color: #fff; }
+.tm-landing ::selection { background: rgba(0, 245, 212, 0.22); color: var(--lp-text); }
 
 .tm-landing section { position: relative; }
 
@@ -136,6 +129,15 @@
   .lp-reveal { opacity: 1 !important; transform: none !important; }
 }
 
+/* Light grid faintness — its own value, NOT the border token. --tm-border-faint
+   (8% ink) is tuned for a 1px hairline border; tiled full-bleed across the hero
+   it reads as a loud blueprint, not a whisper. Drop to ~3.5% so it matches the
+   dark engine grid's perceived faintness (which already pins its own 2.8% white).
+   Dark keeps the .tm-landing default → engine override; only light is corrected. */
+:root[data-surface="light"] .tm-landing {
+  --lp-grid-line: rgba(38, 38, 38, 0.035);
+}
+
 /* faint 44px measurement grid — S1 + S2 only */
 .lp-grid-bg {
   position: absolute;
@@ -153,7 +155,9 @@
 .tm-landing .tm-public-nav {
   height: 64px;
   min-height: 64px;
-  background: rgba(10, 10, 12, 0.78);
+  /* Frosted page-bg in BOTH surfaces (color-mix keeps the translucency while
+     following the theme) — dark near-black on dark, cool near-white on light. */
+  background: color-mix(in srgb, var(--tm-bg) 78%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid transparent;
@@ -252,12 +256,32 @@
 }
 .lp-dropzone:hover .lp-dropzone-btn { filter: brightness(1.08); }
 
+.lp-dropzone.is-dragging {
+  border-color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  box-shadow: 0 0 32px var(--lp-accent-glow);
+}
+
+.lp-dropzone:disabled,
+.lp-dropzone[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.78;
+}
+
 .lp-dropzone-note {
   margin: 10px 0 0;
   font-family: var(--lp-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--lp-faint);
+}
+
+.lp-dropzone-error {
+  margin: 10px 0 0;
+  max-width: 560px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--lp-warning);
 }
 
 @media (max-width: 640px) {

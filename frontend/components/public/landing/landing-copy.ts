@@ -8,11 +8,35 @@ export interface FaqItem {
   a: string
 }
 
+/* What's free vs what spends Myro Coins. Plain, honest split — no fake tiers.
+   The product is one coin wallet (3,000 to start, earns back through use),
+   not a SaaS Free/Pro/Enterprise grid. Keep both columns concrete. */
+export const PRICING_FREE: string[] = [
+  "Your Myro Score",
+  "Full 10-domain analysis",
+  "Live job matches",
+  "Forge skill practice",
+  "Diary & CV versions",
+]
+
+export const PRICING_PAID: string[] = [
+  "Deep per-job fit analysis",
+  "Company intel & follows",
+  "AI CV rewrite & restructure",
+  "Refresh your matches",
+]
+
+/* The give-and-take thesis: coins meter a shared engine. Contributing signal
+   (practice, tracking, diary) earns them; drawing intelligence spends them —
+   and because the engine is shared, every contribution sharpens the matches
+   everyone gets. This is the collective job-hunt loop in one line. */
+export const PRICING_LEAD =
+  "Myro Coins meter a shared engine: contribute signal to earn them, draw intelligence to spend. Every contribution sharpens the matches everyone gets."
+
+export const PRICING_FOOTNOTE =
+  "Start with 3,000 Myro Coins — about 2 months of normal use. Earn more as you practice; top up anytime."
+
 export const FAQ_ITEMS: FaqItem[] = [
-  {
-    q: "Is Myro free?",
-    a: "Yes, free to start. XP lets you unlock skill advice and company intel. No credit card.",
-  },
   {
     q: "How is this different from LinkedIn or Naukri?",
     a: "They show you jobs. The Myro Engine scores your CV against live hiring demand and shows you exactly what's stopping you from getting them — then helps you fix it.",

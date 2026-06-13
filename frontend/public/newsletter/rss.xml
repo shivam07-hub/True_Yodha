@@ -2,16 +2,16 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Myro Weekly</title>
-    <link>https://truemirror.vercel.app/newsletter</link>
+    <link>https://www.himyro.com/newsletter</link>
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
-    <atom:link href="https://truemirror.vercel.app/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
     <lastBuildDate>Sun, 31 May 2026 07:00:00 +0000</lastBuildDate>
 
     <item>
       <title>NCR Job Search 2026: The 20-company Watchlist</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-20-company-watchlist</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-ncr-20-company-watchlist</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-ncr-20-company-watchlist</guid>
       <description>The free NCR job-search watchlist expands from 13 loaded companies to 20 targets across consulting, fintech, data and product.</description>
       <pubDate>Sun, 31 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -19,8 +19,8 @@
 
     <item>
       <title>Consulting and Data Roles Lead the NCR Fit Map</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-consulting-data-fit-map</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-ncr-consulting-data-fit-map</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-ncr-consulting-data-fit-map</guid>
       <description>The free NCR fit map ranked 75 job leads. Strategy &amp; Consulting and Data &amp; Analytics take 58 of them.</description>
       <pubDate>Thu, 28 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -28,8 +28,8 @@
 
     <item>
       <title>NCR Job Hunt 2026: 245 Roles Across 13 Companies</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-ncr-job-hunt-245-roles</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-ncr-job-hunt-245-roles</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-ncr-job-hunt-245-roles</guid>
       <description>A private target-company search became a free NCR hiring map: 245 roles, 124 strong-fit leads, and 13 companies to work first.</description>
       <pubDate>Mon, 25 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -37,8 +37,8 @@
 
     <item>
       <title>Semiconductor Hiring India 2026: 1,016 Roles</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-semiconductor-hiring-india</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-semiconductor-hiring-india</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-semiconductor-hiring-india</guid>
       <description>A May 2026 snapshot of 1,016 semiconductor jobs across AMD, Qualcomm, NXP, Texas Instruments, Intel and ST. Free skill-gap analysis inside.</description>
       <pubDate>Wed, 20 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -46,8 +46,8 @@
 
     <item>
       <title>Razorpay, PhonePe, Paytm, CRED and Intuit show where fintech hiring is focused</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-fintech-hiring-india</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-fintech-hiring-india</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-fintech-hiring-india</guid>
       <description>A fresh look at 257 fintech jobs across Razorpay, PhonePe, Paytm, CRED and Intuit. Free skill-gap analysis inside.</description>
       <pubDate>Sun, 17 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -55,8 +55,8 @@
 
     <item>
       <title>Hiring Map May 2026: 5 Surprises in 30,000+ India Jobs</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-05-hiring-map-5-surprises</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-05-hiring-map-5-surprises</guid>
+      <link>https://www.himyro.com/newsletter/2026-05-hiring-map-5-surprises</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-05-hiring-map-5-surprises</guid>
       <description>After tracking more than 30,000 jobs from MNC career pages, the data tells a different story. Pune outranks Hyderabad. Two pharma companies post 1,000 roles. &apos;Collaboration&apos; is listed 229 times and required 3. Free skill-gap analysis inside.</description>
       <pubDate>Fri, 08 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>
@@ -64,8 +64,8 @@
 
     <item>
       <title>AI Hiring April 2026: Banks Beat Big Tech</title>
-      <link>https://truemirror.vercel.app/newsletter/2026-04-ai-hiring-heatmap</link>
-      <guid isPermaLink="true">https://truemirror.vercel.app/newsletter/2026-04-ai-hiring-heatmap</guid>
+      <link>https://www.himyro.com/newsletter/2026-04-ai-hiring-heatmap</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-04-ai-hiring-heatmap</guid>
       <description>Real April 2026 hiring data: banks are out-hiring Big Tech for AI roles, &apos;Prompt Engineer&apos; postings hit zero, and the work is in India. Free skill-gap analysis inside.</description>
       <pubDate>Sun, 03 May 2026 07:00:00 +0000</pubDate>
       <author>Shivam Pathak</author>

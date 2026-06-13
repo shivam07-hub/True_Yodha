@@ -46,6 +46,36 @@ class _FakeDB:
         return _FakeQuery(self.tape, list(self._tables.get(name, [])))
 
 
+class _SelectHistoryQuery(_FakeQuery):
+    def __init__(
+        self,
+        tape: dict[str, Any],
+        rows: list[dict[str, Any]],
+        selects: list[str],
+    ) -> None:
+        super().__init__(tape, rows)
+        self._selects = selects
+
+    def select(self, value: str) -> "_SelectHistoryQuery":
+        self._selects.append(value)
+        super().select(value)
+        return self
+
+
+class _SelectHistoryDB(_FakeDB):
+    def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
+        super().__init__(tables=tables)
+        self.selects: list[str] = []
+
+    def table(self, name: str) -> _SelectHistoryQuery:
+        self.tape["table"] = name
+        return _SelectHistoryQuery(
+            self.tape,
+            list(self._tables.get(name, [])),
+            self.selects,
+        )
+
+
 def test_upsert_job_match_uses_weekly_conflict_key() -> None:
     user_db = _FakeDB()
     admin_db = _FakeDB()
@@ -111,6 +141,23 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
 
     assert [row["job_id"] for row in stack] == ["fresh-job", "repeat-job", "old-job"]
     assert [row["batch_week"] for row in stack] == ["2026-06-01", "2026-06-01", "2026-05-25"]
+
+
+def test_get_user_match_stack_selects_job_lifecycle_fields() -> None:
+    user_db = _SelectHistoryDB(
+        {
+            "user_job_matches": [],
+            "user_dismissed_job_cards": [],
+        }
+    )
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    repo.get_user_match_stack("user-1")
+
+    match_select = next(value for value in user_db.selects if "jobs(" in value)
+    assert "first_seen" in match_select
+    assert "last_seen" in match_select
+    assert "is_active" in match_select
 
 
 def test_get_user_match_stack_excludes_user_dismissed_cards() -> None:

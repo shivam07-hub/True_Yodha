@@ -61,6 +61,10 @@ class JobMatchResponse(BaseModel):
     source_url: str | None
     matched_skills: list[str] = []
     job_description: str | None = None
+    first_seen: str | None = None
+    last_seen_at: str | None = None
+    is_stale: bool = False
+    is_active: bool = True
     # Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
     overall_score: float | None = None  # 0.0–5.0
     grade: str | None = None            # A+|A|A-|B+|B|B-|C+|C|C-|D|F

@@ -3,6 +3,35 @@
    · roadmap) + sample readout insert.
    ───────────────────────────────────────────────────────────── */
 
+/* ── Dark-console islands ───────────────────────────────────────
+   The Engine pipeline + sample readout are machine output. They stay dark
+   on the light page (like an embedded terminal), re-pinning fixed Engine-dark
+   --lp-* values independent of the page surface. On dark pages they blend with
+   the page; on light pages they read as a full-bleed dark console band. */
+.lp-engine,
+.lp-readout {
+  --lp-bg:            #0a0a0c;
+  --lp-surface:       #13141a;
+  --lp-surface-2:     #181a23;
+  --lp-border:        rgba(255, 255, 255, 0.06);
+  --lp-border-strong: rgba(255, 255, 255, 0.12);
+  --lp-text:          #e8e8ea;
+  --lp-muted:         #9aa4bf;
+  --lp-faint:         #646e8c;
+  --lp-accent:        #00f5d4;
+  --lp-accent-text:   #67e8f9;
+  --lp-accent-fg:     #04211c;
+  --lp-accent-wash:   rgba(0, 245, 212, 0.07);
+  --lp-accent-ring:   rgba(0, 245, 212, 0.32);
+  --lp-accent-glow:   rgba(0, 245, 212, 0.14);
+  --lp-grid-line:     rgba(255, 255, 255, 0.028);
+  --lp-success:       #4ade80;
+  --lp-warning:       #f59e0b;
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  color-scheme: dark;
+}
+
 .lp-engine {
   padding: 110px 0 96px;
   overflow: hidden;
@@ -290,6 +319,46 @@
 .lp-readout-note-sm { font-size: 12.5px; color: var(--lp-faint); }
 
 .lp-readout-note { margin: 4px 0 0; font-size: 13px; line-height: 1.55; color: var(--lp-muted); text-wrap: pretty; }
+
+.lp-readout-bar span { transition: width 700ms var(--lp-ease); }
+
+/* Gated-actions band — only on the live readout. Sits on the dark console. */
+.lp-readout-unlock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-accent-wash);
+}
+.lp-readout-unlock-copy {
+  margin: 0;
+  flex: 1 1 320px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--lp-text);
+  text-wrap: pretty;
+}
+.lp-readout-unlock-cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--lp-accent);
+  color: var(--lp-accent-fg);
+  font-family: var(--lp-font);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--lp-dur) var(--lp-ease);
+}
+.lp-readout-unlock-cta:hover { filter: brightness(1.08); }
+.lp-readout-unlock-cta:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1060px) {

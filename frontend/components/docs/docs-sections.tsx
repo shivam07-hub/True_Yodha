@@ -106,8 +106,8 @@ export function SkillLevelsSection() {
         ))}
       </div>
       <P>
-        Levels never expire. A partial session still accumulates — every minute counts toward
-        your next threshold. You earn +50 tokens for every completed session.
+        Levels never expire. Coins come from clearing upskilling sets for a skill — +20 to +50
+        Myro Coins on your first clear of each level.
       </P>
     </Section>
   )
@@ -154,17 +154,17 @@ export function MatchingSection() {
   )
 }
 
-// ── Section 5: tokens ────────────────────────────────────────────────────────────
+// ── Section 5: Myro Coins ─────────────────────────────────────────────────────────
 
-const EARN_ROWS = [["Welcome bonus", "+3,000 tokens"], ["Practice session completed", "+50 tokens"], ["Daily diary entry", "+30 tokens"]]
-const SPEND_ROWS = [["Refresh your job matches", "50 tokens"], ["Follow a company on the heatmap", "10 tokens"]]
+const EARN_ROWS = [["Welcome bonus", "+3,000 Myro Coins"], ["Clear an upskilling set", "+20–50 Myro Coins"], ["Daily diary entry", "+30 Myro Coins"]]
+const SPEND_ROWS = [["Refresh your job matches", "150 Myro Coins"], ["Follow a company on the heatmap", "10 Myro Coins"]]
 
 export function XPSection() {
   return (
-    <Section id="tokens" title="Tokens & rewards">
+    <Section id="tokens" title="Myro Coins & rewards">
       <P>
-        Tokens are Myro&apos;s activity currency. They are a permanent record of your
-        engagement — tokens never expire or reset.
+        Myro Coins are your activity currency. They are a permanent record of your
+        engagement — Myro Coins never expire or reset.
       </P>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0" }}>
         {[{ heading: "You earn", rows: EARN_ROWS }, { heading: "You spend", rows: SPEND_ROWS }].map(col => (
@@ -180,8 +180,8 @@ export function XPSection() {
         ))}
       </div>
       <P>
-        Tokens are not pay-to-win. Every core feature — CV upload, skill scoring, viewing job
-        matches — is free. Token gates only optional actions like triggering a fresh batch of job
+        Myro Coins are not pay-to-win. Every core feature — CV upload, skill scoring, viewing job
+        matches — is free. Coins gate only optional actions like triggering a fresh batch of job
         matches or building a personalised company watchlist.
       </P>
     </Section>

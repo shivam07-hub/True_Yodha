@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from fastapi import Depends
 from supabase import Client
 
 from app.database import get_supabase_admin
+from app.repositories.newsletter_distribution_campaigns import (
+    CampaignNotFoundError,
+    CreatedCampaign,
+    NewsletterCampaignStore,
+)
 from app.schemas.newsletter_distribution import (
     CampaignMessageDraft,
     ContactImportItemResult,
@@ -21,20 +25,10 @@ class CampaignNotApprovedError(ValueError):
     pass
 
 
-class CampaignNotFoundError(ValueError):
-    pass
-
-
-@dataclass(frozen=True)
-class CreatedCampaign:
-    id: str
-    status: str
-    messages: list[CampaignMessageDraft]
-
-
 class NewsletterDistributionRepository:
     def __init__(self, db: Client) -> None:
         self.db = db
+        self.campaigns = NewsletterCampaignStore(db)
 
     def import_contacts(
         self, contacts: list[NewsletterOutreachContactInput]
@@ -46,7 +40,7 @@ class NewsletterDistributionRepository:
             payload = _contact_payload(contact)
             try:
                 result = (
-                    self.db.table("newsletter_outreach_contacts")
+                    self.db.table("growth_outreach_contacts")
                     .insert(payload)
                     .execute()
                 )
@@ -56,7 +50,7 @@ class NewsletterDistributionRepository:
                 update_payload = {k: v for k, v in payload.items() if k != "email"}
                 if contact.status == "active":
                     update_payload.pop("status", None)
-                self.db.table("newsletter_outreach_contacts").update(
+                self.db.table("growth_outreach_contacts").update(
                     update_payload
                 ).eq("email", payload["email"]).execute()
                 updated += 1
@@ -80,74 +74,13 @@ class NewsletterDistributionRepository:
         issue: NewsletterIssueInput,
         messages: list[CampaignMessageDraft],
     ) -> CreatedCampaign:
-        campaign_row = {
-            "issue_slug": issue.slug,
-            "issue_title": issue.title,
-            "summary": issue.summary,
-            "canonical_url": issue.canonical_url,
-            "cta_role": issue.cta_role,
-            "issue_number": issue.issue_number,
-            "status": "ready_for_review",
-        }
-        result = (
-            self.db.table("newsletter_distribution_campaigns")
-            .insert(campaign_row)
-            .execute()
-        )
-        rows = _rows(result)
-        if not rows:
-            raise RuntimeError("Failed to create newsletter distribution campaign")
-        campaign_id = str(rows[0]["id"])
-        message_rows = [
-            {
-                "campaign_id": campaign_id,
-                "channel": message.channel,
-                "variant": message.variant,
-                "subject": message.subject,
-                "body": message.body,
-                "call_to_action_url": message.call_to_action_url,
-                "status": message.status,
-            }
-            for message in messages
-        ]
-        if message_rows:
-            self.db.table("newsletter_distribution_messages").insert(message_rows).execute()
-        return CreatedCampaign(id=campaign_id, status="ready_for_review", messages=messages)
+        return self.campaigns.create(issue, messages)
 
     def approve_campaign(self, campaign_id: str, approved_by: str) -> None:
-        result = (
-            self.db.table("newsletter_distribution_campaigns")
-            .update({"status": "approved", "approved_by": approved_by})
-            .eq("id", campaign_id)
-            .execute()
-        )
-        if not _rows(result):
-            raise CampaignNotFoundError(campaign_id)
-        self.db.table("newsletter_distribution_messages").update(
-            {"status": "approved"}
-        ).eq("campaign_id", campaign_id).eq("status", "ready_for_review").execute()
+        self.campaigns.approve(campaign_id, approved_by)
 
     def get_campaign(self, campaign_id: str) -> dict[str, Any]:
-        result = (
-            self.db.table("newsletter_distribution_campaigns")
-            .select(
-                "id,issue_slug,issue_title,summary,canonical_url,cta_role,"
-                "issue_number,status,approved_by,approved_at"
-            )
-            .eq("id", campaign_id)
-            .limit(1)
-            .execute()
-        )
-        rows = _rows(result)
-        if not rows:
-            raise CampaignNotFoundError(campaign_id)
-        messages = (
-            self.db.table("newsletter_distribution_messages")
-            .select("id,channel,variant,subject,body,call_to_action_url,status")
-            .eq("campaign_id", campaign_id)
-            .execute()
-        )
-        return {**rows[0], "messages": _rows(messages)}
+        return self.campaigns.get(campaign_id)
 
     def queue_email_outreach(self, campaign_id: str, limit: int) -> QueueEmailResponse:
         campaign = self._campaign(campaign_id)
@@ -174,11 +107,11 @@ class NewsletterDistributionRepository:
                 }
             )
         if payloads:
-            self.db.table("newsletter_email_outreach_queue").insert(payloads).execute()
-            self.db.table("newsletter_distribution_campaigns").update(
+            self.db.table("growth_email_queue").insert(payloads).execute()
+            self.db.table("growth_campaigns").update(
                 {"status": "queued"}
             ).eq("id", campaign_id).execute()
-            self.db.table("newsletter_distribution_messages").update(
+            self.db.table("growth_messages").update(
                 {"status": "queued"}
             ).eq("id", message["id"]).execute()
         return QueueEmailResponse(
@@ -192,7 +125,7 @@ class NewsletterDistributionRepository:
 
     def _campaign(self, campaign_id: str) -> dict[str, Any]:
         result = (
-            self.db.table("newsletter_distribution_campaigns")
+            self.db.table("growth_campaigns")
             .select("id,status")
             .eq("id", campaign_id)
             .limit(1)
@@ -205,7 +138,7 @@ class NewsletterDistributionRepository:
 
     def _email_message(self, campaign_id: str) -> dict[str, Any]:
         result = (
-            self.db.table("newsletter_distribution_messages")
+            self.db.table("growth_messages")
             .select("id")
             .eq("campaign_id", campaign_id)
             .eq("channel", "email")
@@ -220,7 +153,7 @@ class NewsletterDistributionRepository:
 
     def _existing_queue_contact_ids(self, campaign_id: str) -> set[str]:
         result = (
-            self.db.table("newsletter_email_outreach_queue")
+            self.db.table("growth_email_queue")
             .select("contact_id")
             .eq("campaign_id", campaign_id)
             .execute()
@@ -229,7 +162,7 @@ class NewsletterDistributionRepository:
 
     def _active_contacts(self, limit: int) -> list[dict[str, Any]]:
         result = (
-            self.db.table("newsletter_outreach_contacts")
+            self.db.table("growth_outreach_contacts")
             .select("id,email,status")
             .eq("status", "active")
             .limit(limit)

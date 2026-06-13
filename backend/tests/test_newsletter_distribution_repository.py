@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.repositories.newsletter_distribution import NewsletterDistributionRepository
-from app.schemas.newsletter_distribution import ContactStatus, NewsletterOutreachContactInput
+from app.schemas.newsletter_distribution import (
+    CampaignMessageDraft,
+    ContactStatus,
+    NewsletterIssueInput,
+    NewsletterOutreachContactInput,
+)
 
 
 class _DuplicateContactDB:
@@ -50,6 +55,12 @@ class _RecordingDB:
         self.current["payload"] = payload
         return self
 
+    def upsert(self, payload: Any, **kwargs: Any) -> "_RecordingDB":
+        self.current["op"] = "upsert"
+        self.current["payload"] = payload
+        self.current["kwargs"] = kwargs
+        return self
+
     def insert(self, payload: list[dict[str, Any]] | dict[str, Any]) -> "_RecordingDB":
         self.current["op"] = "insert"
         self.current["payload"] = payload
@@ -68,15 +79,21 @@ class _RecordingDB:
         self.calls.append(call)
         table = call["table"]
         op = call.get("op")
-        if table == "newsletter_distribution_campaigns" and op == "select":
-            return _Result([{"id": "campaign-id", "status": "approved"}])
-        if table == "newsletter_distribution_campaigns" and op == "update":
+        if table == "growth_content_assets" and op == "upsert":
+            return _Result([{"id": "asset-id"}])
+        if table == "growth_campaigns" and op == "upsert":
+            return _Result([{"id": "campaign-id", "status": "ready_for_review"}])
+        if table == "growth_campaigns" and op == "select":
+            return _Result(
+                [{"id": "campaign-id", "asset_id": "asset-id", "status": "approved"}]
+            )
+        if table == "growth_campaigns" and op == "update":
             return _Result([{"id": "campaign-id"}])
-        if table == "newsletter_distribution_messages" and op == "select":
+        if table == "growth_messages" and op == "select":
             return _Result([{"id": "message-id"}])
-        if table == "newsletter_email_outreach_queue" and op == "select":
+        if table == "growth_email_queue" and op == "select":
             return _Result([])
-        if table == "newsletter_outreach_contacts" and op == "select":
+        if table == "growth_outreach_contacts" and op == "select":
             return _Result([{"id": "contact-id", "email": "desk@campus.example"}])
         return _Result([{"id": "ok"}])
 
@@ -121,7 +138,7 @@ def test_approve_campaign_marks_messages_approved() -> None:
     NewsletterDistributionRepository(db).approve_campaign("campaign-id", "Shivam")
 
     assert {
-        "table": "newsletter_distribution_messages",
+        "table": "growth_messages",
         "op": "update",
         "payload": {"status": "approved"},
         "filters": [("campaign_id", "campaign-id"), ("status", "ready_for_review")],
@@ -135,14 +152,42 @@ def test_queue_email_marks_campaign_and_message_queued() -> None:
 
     assert result.queued == 1
     assert {
-        "table": "newsletter_distribution_campaigns",
+        "table": "growth_campaigns",
         "op": "update",
         "payload": {"status": "queued"},
         "filters": [("id", "campaign-id")],
     } in db.calls
     assert {
-        "table": "newsletter_distribution_messages",
+        "table": "growth_messages",
         "op": "update",
         "payload": {"status": "queued"},
         "filters": [("id", "message-id")],
     } in db.calls
+
+
+def test_create_campaign_uses_generic_asset_campaign_and_message_tables() -> None:
+    db = _RecordingDB()
+    issue = NewsletterIssueInput(
+        slug="2026-06-cv-proof",
+        title="How to prove CV impact without inventing metrics",
+        summary="A practical guide to writing credible evidence-led CV bullets.",
+        canonical_url="https://www.himyro.com/newsletter/2026-06-cv-proof",
+        issue_number=8,
+    )
+    message = CampaignMessageDraft(
+        channel="linkedin",
+        variant="primary",
+        body="Lead with the evidence a hiring manager can verify.",
+        call_to_action_url=issue.canonical_url,
+    )
+
+    created = NewsletterDistributionRepository(db).create_campaign(issue, [message])
+
+    assert created.id == "campaign-id"
+    assert [call["table"] for call in db.calls[:3]] == [
+        "growth_content_assets",
+        "growth_campaigns",
+        "growth_messages",
+    ]
+    assert db.calls[0]["kwargs"]["on_conflict"] == "legacy_key"
+    assert db.calls[2]["payload"][0]["asset_id"] == "asset-id"

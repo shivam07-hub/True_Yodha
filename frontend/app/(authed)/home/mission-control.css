@@ -138,143 +138,88 @@
   color: var(--tm-interactive);
 }
 .mc-hero-sub {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--tm-text-muted);
+  margin-top: 10px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
   font-weight: 500;
 }
 .mc-hero-sub .sep { color: var(--tm-text-faint); margin: 0 4px; }
 
 .mc-checkpoints {
   display: flex;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 14px;
+  margin-top: 18px;
   flex-wrap: wrap;
 }
 .mc-checkpoint {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  font-weight: 600;
-  color: var(--tm-text);
+  font-weight: 500;
+  color: var(--tm-text-faint);
 }
 .mc-checkpoint .ring {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border-radius: 99px;
-  border: 1.5px solid var(--tm-text-faint);
+  border: 1.5px solid var(--tm-border);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
+.mc-checkpoint.done { color: var(--tm-text-muted); }
 .mc-checkpoint.done .ring {
-  background: var(--tm-success);
+  background: rgba(19, 138, 69, 0.10);
   border-color: var(--tm-success);
-  color: var(--tm-interactive-fg);
+  color: var(--tm-success);
 }
-.mc-checkpoint.done .label { text-decoration: line-through; color: var(--tm-text-muted); }
-.mc-checkpoint.todo { color: var(--tm-text-muted); }
+.mc-checkpoint.done .label { text-decoration: line-through; text-decoration-color: var(--tm-text-faint); }
+.mc-checkpoint.todo { color: var(--tm-text-faint); }
 
-/* ─── Score panel ─── */
-.mc-score-panel {
-  text-align: right;
-  min-width: 280px;
-}
-.mc-score-eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tm-text-muted);
-  font-weight: 600;
+/* ─── Stat strip (boxless · hairline-divided columns) ─── */
+.mc-statstrip {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: stretch;
 }
-.mc-score-eyebrow .glyph { color: var(--tm-interactive); display: inline-flex; }
-.mc-score-big {
-  display: flex;
-  justify-content: flex-end;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: 4px;
-}
-.mc-score-big .num {
-  font-family: var(--tm-font-mono);
-  font-size: 56px;
-  font-weight: 600;
-  color: var(--tm-interactive);
-  letter-spacing: 0;
-  line-height: 1;
-}
-.mc-score-big .denom {
-  font-family: var(--tm-font-mono);
-  color: var(--tm-text-faint);
-  font-size: 18px;
-  letter-spacing: 0;
-}
-.mc-score-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 16px;
-}
-.mc-score-stat {
-  border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-sm);
-  padding: 10px 14px;
+.mc-stat {
+  padding: 2px 22px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  background: var(--tm-surface);
+  gap: 6px;
+  border-left: 1px solid var(--tm-border-soft);
 }
-.mc-score-stat .lbl {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tm-text-muted);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.mc-score-stat .lbl .glyph { color: var(--tm-interactive); }
-.mc-score-stat .val {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-}
-.mc-score-stat .v {
+.mc-stat:first-child { border-left: none; padding-left: 0; }
+.mc-stat-label {
   font-family: var(--tm-font-mono);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mc-stat-v {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
   color: var(--tm-text);
+  font-variant-numeric: tabular-nums;
 }
-.mc-score-stat .u {
-  font-family: var(--tm-font-mono);
+.mc-stat-v small {
   font-size: 12px;
-  color: var(--tm-text-muted);
+  font-weight: 500;
+  color: var(--tm-text-faint);
+  margin-left: 3px;
 }
-.mc-diary-line {
-  text-align: right;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tm-text-muted);
-  font-weight: 600;
-  margin-top: 14px;
-}
-.mc-sparkline {
-  margin-top: 12px;
-  height: 56px;
-  width: 100%;
-}
-.mc-sparkline svg { width: 100%; height: 100%; display: block; }
+.mc-stat-spark { margin-top: 2px; }
+.mc-stat-spark svg { display: block; }
 
 /* ─── Matches rows ─── */
 .mc-match-section {
@@ -971,8 +916,7 @@
 }
 @media (max-width: 900px) {
   .mc-hero { grid-template-columns: 1fr; }
-  .mc-score-panel { text-align: left; min-width: 0; }
-  .mc-score-big, .mc-diary-line, .mc-score-eyebrow { justify-content: flex-start; text-align: left; }
+  .mc-statstrip { width: 100%; }
 }
 @media (max-width: 840px) {
   .mc-page { padding: var(--tm-page-py) var(--tm-page-px) 90px; }
@@ -981,15 +925,12 @@
   .mc-btn .mc-badge { display: none; }
   .mc-greeting { font-size: var(--tm-fs-title); line-height: var(--tm-lh-title); }
   .mc-hero-sub { font-size: 12px; margin-top: 4px; }
-  .mc-checkpoints { gap: 8px; margin-top: 12px; }
+  .mc-checkpoints { gap: 10px; margin-top: 12px; }
   .mc-checkpoint { font-size: 10px; }
-  .mc-checkpoint .ring { width: 16px; height: 16px; }
-  .mc-score-panel { min-width: 0; width: 100%; }
-  .mc-score-big .num { font-size: 44px; }
-  .mc-score-stats { grid-template-columns: 1fr 1fr; }
-  .mc-score-stat { padding: 10px 12px; }
-  .mc-score-stat .v { font-size: 20px; }
-  .mc-sparkline { height: 40px; }
+  .mc-checkpoint .ring { width: 15px; height: 15px; }
+  .mc-statstrip { width: 100%; }
+  .mc-stat { padding: 2px 14px; }
+  .mc-stat-v { font-size: 22px; }
   .mc-match-row { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
   .mc-match-row .label { padding-top: 0; }
   .mc-chips { gap: 6px; }
@@ -1033,7 +974,6 @@
   .mc-checkpoints {
     display: none;
   }
-  .mc-score-big .num { font-size: 36px; }
   .mc-focus-title { font-size: 20px; }
   .mc-focus-fit .num { font-size: 26px; }
   .mc-focus-card { padding: 18px 14px 20px; }

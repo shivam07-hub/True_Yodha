@@ -22,6 +22,7 @@ import {
 import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 import { ApiError, classifyError, readTraceId } from "./api-error"
+import type { AcquisitionAttribution } from "./attribution"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -176,6 +177,7 @@ export interface PostSigninResponse {
   user_id: string
   provider: string | null
   referral_attributed: boolean
+  attribution_recorded: boolean
   linkedin_xp_granted: boolean
   linkedin_url_set: boolean
 }
@@ -183,6 +185,8 @@ export interface PostSigninResponse {
 export interface PostSigninRequestBody {
   provider?: string | null
   myro_ref?: string | null
+  attribution?: AcquisitionAttribution | null
+  is_new_signup?: boolean
   linkedin_vanity?: string | null
   linkedin_headline?: string | null
   linkedin_verified?: boolean | null
@@ -210,10 +214,22 @@ export interface ExtensionSessionResponse {
 }
 
 export const auth = {
-  signup: (email: string, password: string, fullName?: string | null, myroRef?: string | null) =>
+  signup: (
+    email: string,
+    password: string,
+    fullName?: string | null,
+    myroRef?: string | null,
+    attribution?: AcquisitionAttribution | null,
+  ) =>
     request<AuthResponse>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ email, password, full_name: fullName, myro_ref: myroRef ?? null }),
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: fullName,
+        myro_ref: myroRef ?? null,
+        attribution: attribution ?? null,
+      }),
     }),
   login: (email: string, password: string) =>
     request<AuthResponse>("/auth/login", {
@@ -226,6 +242,12 @@ export const auth = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+      // keepalive: the auth callback fires this AFTER it has already redirected
+      // to /home, so the page is navigating away. Without keepalive the browser
+      // cancels the in-flight request on navigation and referral attribution
+      // (SH7) + LinkedIn XP grant are silently lost. Body is tiny — well under
+      // the 64KB keepalive ceiling.
+      keepalive: true,
     }),
   magicLinkRequest: (email: string, redirectTo?: string | null) =>
     request<MagicLinkResponse>("/auth/magic-link-request", {
@@ -2434,6 +2456,162 @@ export const newsletter = {
     }),
 }
 
+// ── Growth Command (private operator surface) ───────────────────────────────
+
+export interface GrowthOperator {
+  user_id: string
+  role: "owner" | "editor" | "analyst"
+  active: boolean
+  display_name: string | null
+}
+
+export interface GrowthContentAsset {
+  id: string
+  legacy_key: string | null
+  kind: string
+  title: string
+  slug: string | null
+  summary: string | null
+  canonical_url: string | null
+  audience: string | null
+  primary_action: string | null
+  status: string
+  sensitivity: string
+  evidence_fresh_until: string | null
+  metadata: Record<string, unknown>
+  owner_id: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthCampaign {
+  id: string
+  legacy_key: string | null
+  asset_id: string | null
+  slug: string | null
+  name: string
+  objective: string | null
+  audience: string | null
+  status: string
+  planned_at: string | null
+  approved_by: string | null
+  approved_by_label: string | null
+  approved_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthMessage {
+  id: string
+  legacy_key: string | null
+  campaign_id: string | null
+  asset_id: string | null
+  channel: string
+  format: string | null
+  variant: string
+  audience: string | null
+  intent: string | null
+  subject: string | null
+  draft_copy: string
+  final_copy: string | null
+  call_to_action_url: string | null
+  utm_url: string | null
+  composer_url: string | null
+  status: string
+  automation_level: string
+  sensitivity: string
+  reviewer_id: string | null
+  approved_at: string | null
+  planned_at: string | null
+  failure_reason: string | null
+  metadata: Record<string, unknown>
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface GrowthPublication {
+  id: string
+  legacy_key: string | null
+  message_id: string
+  status: string
+  live_url: string | null
+  external_id: string | null
+  published_at: string | null
+  outcome: Record<string, unknown>
+  failure_details: string | null
+  created_by: string | null
+  created_at: string | null
+}
+
+export interface GrowthBootstrapResponse {
+  operator: GrowthOperator
+  assets: GrowthContentAsset[]
+  campaigns: GrowthCampaign[]
+  messages: GrowthMessage[]
+  publications: GrowthPublication[]
+  summary: {
+    assets: number
+    campaigns: number
+    needs_review: number
+    published: number
+  }
+}
+
+export interface GrowthMessageUpdate {
+  subject?: string | null
+  draft_copy?: string | null
+  final_copy?: string | null
+  call_to_action_url?: string | null
+  utm_url?: string | null
+  composer_url?: string | null
+  planned_at?: string | null
+  status?: "draft" | "ready_for_review" | "paused"
+}
+
+export interface GrowthPublicationCreate {
+  status?: "published" | "failed" | "deleted"
+  live_url?: string | null
+  external_id?: string | null
+  published_at?: string | null
+  outcome?: Record<string, unknown>
+  failure_details?: string | null
+}
+
+export const growth = {
+  bootstrap: (token: string) =>
+    request<GrowthBootstrapResponse>("/growth/bootstrap", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  updateMessage: (token: string, messageId: string, body: GrowthMessageUpdate) =>
+    request<GrowthMessage>(`/growth/messages/${encodeURIComponent(messageId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  approveMessage: (token: string, messageId: string) =>
+    request<GrowthMessage>(
+      `/growth/messages/${encodeURIComponent(messageId)}/approve`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
+  publishMessage: (
+    token: string,
+    messageId: string,
+    body: GrowthPublicationCreate,
+  ) =>
+    request<GrowthPublication>(
+      `/growth/messages/${encodeURIComponent(messageId)}/publish`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      },
+    ),
+}
+
 // ── Public stats (landing-page Engine counters) ─────────────────────────────
 // No-auth, 1h server cache. Display floors so the numbers never appear to go
 // down between visits (design handoff §PRIORITY DIRECTIVE).
@@ -2448,6 +2626,38 @@ export interface PublicStatsResponse {
 
 export const publicStats = {
   get: () => request<PublicStatsResponse>("/public/stats"),
+}
+
+// ── Public CV-score preview (no auth) ───────────────────────────────────────
+// The pre-login "drop your CV → real Myro Score" demo. Multipart, no token —
+// bypasses `request`'s JSON handling. Backend runs the real engine compute-only
+// and persists nothing (PV1). Everything actionable stays gated behind signup.
+
+export interface AnonDomainScore {
+  name: string
+  score: number
+}
+
+export interface AnonScoreResponse {
+  score: number
+  verdict: string
+  domains: AnonDomainScore[]
+  gaps: AnonDomainScore[]
+  strengths: AnonDomainScore[]
+  skills_detected: number
+}
+
+export const publicCv = {
+  scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
+    if (!BASE) throw new Error("API base URL is not configured.")
+    const form = new FormData()
+    form.append("file", file)
+    if (turnstileToken) form.append("cf_turnstile_token", turnstileToken)
+    const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(extractError(body, res.status))
+    return body as AnonScoreResponse
+  },
 }
 
 // ── Home bootstrap (BFF) ────────────────────────────────────────────────────

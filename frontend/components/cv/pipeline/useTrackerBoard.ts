@@ -63,7 +63,22 @@ export function useTrackerBoard() {
   const updateStatus = useMutation({
     mutationFn: ({ jobId, status }: UpdateStatusInput) =>
       jobs.updateApplication(token!, jobId, { status }),
-    onSuccess: () => {
+    // Optimistic: the card lands in its new column on drop, not after the
+    // round-trip (mirror of useApplicationStatus — the board keeps the
+    // mutation-object interface its drag handler passes per-call callbacks to;
+    // per-call onSuccess/onError still fire alongside these).
+    onMutate: async ({ jobId, status }: UpdateStatusInput) => {
+      await queryClient.cancelQueries({ queryKey: dataKeys.applications() })
+      const prev = queryClient.getQueryData<ApplicationResponse[]>(dataKeys.applications())
+      queryClient.setQueryData<ApplicationResponse[] | undefined>(dataKeys.applications(), (old) =>
+        (old ?? []).map((a) => (a.job_id === jobId ? { ...a, status } : a)),
+      )
+      return { prev }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(dataKeys.applications(), ctx.prev)
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
       queryClient.invalidateQueries({ queryKey: dataKeys.staleApplications() })
     },

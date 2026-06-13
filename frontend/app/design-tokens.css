@@ -11,12 +11,20 @@
      dark opt-in   → true black/teal
    ───────────────────────────────────────────────────────────── */
 
-:root {
-  /* ── Base surface: true-black dark mode (opt-in) ─────────── */
-  --tm-bg:            #050505;
-  --tm-surface:       #101010;
-  --tm-surface-2:     #171717;
-  --tm-surface-3:     #1F1F1F;
+/* `.myrology-root` rides the dark base unconditionally — it is the lone
+   forced-dark surface (the cosmic sub-brand), independent of data-surface.
+   Joining it to the base selector (instead of copying ~40 tokens) keeps it in
+   sync forever: its own declaration here beats the light values it would
+   otherwise inherit from :root[data-surface="light"]. Flash-free, no JS. */
+:root,
+.myrology-root {
+  /* ── Base surface: Myro Engine dark (canonical · cool near-black) ──
+     Source of truth = the landing "Engine" palette, now site-wide. The
+     light override below is its lightness-inverse (same cool hue). */
+  --tm-bg:            #0a0a0c;
+  --tm-surface:       #13141a;
+  --tm-surface-2:     #181a23;
+  --tm-surface-3:     #20232e;
   --tm-border:        #242424;
   --tm-border-soft:   rgba(255, 255, 255, 0.10);
   --tm-border-faint:  rgba(255, 255, 255, 0.06);
@@ -31,20 +39,20 @@
      a near-invisible blob communicates "empty", not "loading".
      `sheen` is the directional teal shimmer band that sweeps across. */
   --tm-skeleton:       #1A1A1A;
-  --tm-skeleton-sheen: rgba(18, 191, 165, 0.16);
+  --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
-     WCAG AA targets on #050505 page:
+     WCAG AA targets on #0a0a0c page:
        primary  ≥ 7:1 (AAA)
        muted    ≥ 4.5:1 (AA body)
        faint    ≥ 4.5:1 (AA body) — never used for primary content
        disabled ≥ 3:1 (AA Large or decorative only — does NOT convey meaning)
      Numbers measured; see docs/DESIGN_SYSTEM.md §Color. */
-  --tm-text:          #F7F7F7;
-  --tm-text-muted:    #B9B9B9;
-  --tm-text-faint:    #8F8F8F;
+  --tm-text:          #e8e8ea;
+  --tm-text-muted:    #9aa4bf;
+  --tm-text-faint:    #646e8c;
   --tm-text-disabled: #555555;
-  --tm-accent-text:   #12BFA5;
+  --tm-accent-text:   #00f5d4;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -90,8 +98,11 @@
   --tm-tier-strong-bg:     var(--tm-success-wash);
   --tm-tier-strong-border: var(--tm-success-border);
 
-  /* ── Typography ──────────────────────────────────────────── */
-  --tm-font-sans:     var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  /* ── Typography ────────────────────────────────────────────
+     Space Grotesk is the core family site-wide; --font-sans (Inter) stays in
+     the stack as the fallback so text never disappears if Grotesk fails to
+     load. Flip this ONE line to change the whole site's family (public + app). */
+  --tm-font-sans:     var(--font-grotesk), var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
 
@@ -171,9 +182,9 @@
      Brand is reserved for rare moments (completion/logo).
      Interactive owns CTAs/links/focus by default.
      Keep --tm-accent* as a legacy alias bridge for zero-delta rollout. */
-  --tm-brand:              #12BFA5;
-  --tm-brand-glow:         rgba(18, 191, 165, 0.24);
-  --tm-brand-fg:           #050505;
+  --tm-brand:              #00f5d4;
+  --tm-brand-glow:         rgba(0, 245, 212, 0.24);
+  --tm-brand-fg:           #04211c;
 
   /* Interactive solid ramp — used for borders / text / fills.
      Surface TINTS (subtle/wash/hover) intentionally do NOT come from this
@@ -191,30 +202,30 @@
 
   /* Surface wash tokens — alpha teal/orange so each theme's surface shows through.
      Dark default = teal. Light override below swaps to orange. */
-  --tm-int-bg-subtle:      rgba(18, 191, 165, 0.05);
-  --tm-int-bg-wash:        rgba(18, 191, 165, 0.12);
-  --tm-int-bg-hover:       rgba(18, 191, 165, 0.18);
-  --tm-int-border-soft:    rgba(18, 191, 165, 0.28);
-  --tm-int-border:         rgba(18, 191, 165, 0.44);
-  --tm-int-solid:          #12BFA5;
-  --tm-int-solid-hover:    #18D6BA;
-  --tm-int-text:           #18D6BA;
-  --tm-int-text-strong:    #6EF5DF;
+  --tm-int-bg-subtle:      rgba(0, 245, 212, 0.05);
+  --tm-int-bg-wash:        rgba(0, 245, 212, 0.10);
+  --tm-int-bg-hover:       rgba(0, 245, 212, 0.16);
+  --tm-int-border-soft:    rgba(0, 245, 212, 0.26);
+  --tm-int-border:         rgba(0, 245, 212, 0.42);
+  --tm-int-solid:          #00f5d4;
+  --tm-int-solid-hover:    #53ffe3;
+  --tm-int-text:           #67e8f9;
+  --tm-int-text-strong:    #9bf3ff;
 
-  --tm-interactive:        #12BFA5;
-  --tm-interactive-hover:  #18D6BA;
-  --tm-interactive-press:  #0F9E89;
-  --tm-interactive-glow:   rgba(18, 191, 165, 0.24);
+  --tm-interactive:        #00f5d4;
+  --tm-interactive-hover:  #53ffe3;
+  --tm-interactive-press:  #00c9ae;
+  --tm-interactive-glow:   rgba(0, 245, 212, 0.20);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   rgba(18, 191, 165, 0.05);
-  --tm-interactive-fg:     #050505;
+  --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
+  --tm-interactive-fg:     #04211c;
 
   /* ── Interactive REST color (non-accent clickable controls) ──────────
      The resting text/icon color for clickable controls that are NOT primary
      CTAs or accent links — ghost buttons, menu rows, inactive nav/tabs,
      filter chips, icon buttons. Rule: a clickable control is never dull at
-     rest. References --tm-text so it auto-flips per surface — dark #F7F7F7
+     rest. References --tm-text so it auto-flips per surface — dark #e8e8ea
      (near-white), light #262626 (near-black) — i.e. "maximally-contrasting
      resting color", which on dark = as white as possible. Static (non-
      clickable) labels keep --tm-text-muted / --tm-text-faint. Disabled
@@ -238,7 +249,7 @@
   --tm-accent-grid:        var(--tm-interactive-grid);
   --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
-  --tm-bg-inset:        #080808;
+  --tm-bg-inset:        #0d0e12;
   --tm-bg-surface-hover: var(--tm-surface-2);
   --tm-border-subtle:   var(--tm-border-soft);
   --tm-text-primary:    var(--tm-text);
@@ -272,34 +283,37 @@
    Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
    tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
 :root[data-surface="light"] {
+  /* Myro LIGHT = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
+     dashboard handoff, Jun 2026). Light is its OWN brand, not a teal inverse:
+     dark = quiet Engine teal, light = warm Firecrawl orange. */
   --tm-bg:            #F9F9F9;
   --tm-surface:       #FFFFFF;
-  --tm-surface-2:     #EFEFEF;
-  --tm-surface-3:     #E7E7E7;
-  --tm-bg-inset:      #F3F3F3;
-  --tm-border:        #D8D8D8;
-  --tm-border-soft:   #E4E4E4;
-  --tm-border-faint:  rgba(38, 38, 38, 0.10);
+  --tm-surface-2:     #F3F3F1;
+  --tm-surface-3:     #EAEAE8;
+  --tm-bg-inset:      #F3F3F1;
+  --tm-border:        #E9E9E7;
+  --tm-border-soft:   #F0F0EE;
+  --tm-border-faint:  rgba(38, 38, 38, 0.08);
   --tm-scrim:         rgba(38, 38, 38, 0.22);
   --tm-overlay-soft:  rgba(38, 38, 38, 0.12);
   --tm-hover-soft:    rgba(38, 38, 38, 0.035);
   --tm-hover:         rgba(38, 38, 38, 0.065);
   --tm-icon-muted:    rgba(38, 38, 38, 0.48);
 
-  /* Skeleton on the cool off-white page — visible block + white sweep */
-  --tm-skeleton:       #E7E7E7;
+  /* Skeleton on the warm paper page — visible block + white sweep */
+  --tm-skeleton:       #E7E7E5;
   --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
-  /* Light theme text — measured on #F9F9F9 page bg
+  /* Firecrawl paper text — warm greys on #F9F9F9
        primary  #262626 → AAA
-       muted    #5F5F5F → AA body
-       faint    #7A7A7A → AA large/supporting
+       muted    #6E6E6E → AA body
+       faint    #9D9D9D → micro-labels / icons at rest
        disabled #B4B4B4 → decorative only — never load-bearing text */
   --tm-text:          #262626;
-  --tm-text-muted:    #5F5F5F;
-  --tm-text-faint:    #7A7A7A;
+  --tm-text-muted:    #6E6E6E;
+  --tm-text-faint:    #9D9D9D;
   --tm-text-disabled: #B4B4B4;
-  --tm-accent-text:   #FF4C00;
+  --tm-accent-text:   #DE4200;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
@@ -319,29 +333,31 @@
   /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
+  /* Firecrawl orange — primary CTA fill, fit-ring arc, active nav. White ink
+     on the fill; #DE4200 when accent is used AS text (AA on white). */
   --tm-brand:         #FF4C00;
   --tm-brand-glow:    rgba(255, 76, 0, 0.18);
   --tm-brand-fg:      #FFFFFF;
 
   --tm-interactive:        #FF4C00;
-  --tm-interactive-hover:  #E64500;
+  --tm-interactive-hover:  #E84500;
   --tm-interactive-press:  #C93B00;
   --tm-interactive-glow:   rgba(255, 76, 0, 0.18);
-  --tm-interactive-wash:   rgba(255, 76, 0, 0.08);
-  --tm-interactive-ring:   rgba(255, 76, 0, 0.38);
+  --tm-interactive-wash:   rgba(255, 76, 0, 0.06);
+  --tm-interactive-ring:   rgba(255, 76, 0, 0.32);
   --tm-interactive-grid:   transparent;
   --tm-interactive-fg:     #FFFFFF;
 
   /* Surface wash tokens — orange alpha so white cards get a clear
      hover/active state without turning into pastel blocks. */
   --tm-int-bg-subtle:      rgba(255, 76, 0, 0.04);
-  --tm-int-bg-wash:        rgba(255, 76, 0, 0.08);
-  --tm-int-bg-hover:       rgba(255, 76, 0, 0.14);
+  --tm-int-bg-wash:        rgba(255, 76, 0, 0.06);
+  --tm-int-bg-hover:       rgba(255, 76, 0, 0.11);
   --tm-int-border-soft:    rgba(255, 76, 0, 0.24);
-  --tm-int-border:         rgba(255, 76, 0, 0.38);
+  --tm-int-border:         rgba(255, 76, 0, 0.32);
   --tm-int-solid:          #FF4C00;
-  --tm-int-solid-hover:    #E64500;
-  --tm-int-text:           #E64500;
+  --tm-int-solid-hover:    #E84500;
+  --tm-int-text:           #DE4200;
   --tm-int-text-strong:    #C93B00;
 }
 
@@ -350,25 +366,25 @@
    Mirror our tokens into that shape so existing components just work.
    ───────────────────────────────────────────────────────────── */
 :root {
-  --background:          0 0% 2%;
-  --foreground:          0 0% 97%;
-  --card:                0 0% 6%;
-  --card-foreground:     0 0% 97%;
-  --popover:             0 0% 6%;
-  --popover-foreground:  0 0% 97%;
-  --primary:             171 83% 41%;
-  --primary-foreground:  0 0% 2%;
-  --secondary:           0 0% 12%;
-  --secondary-foreground: 0 0% 97%;
-  --muted:               0 0% 9%;
-  --muted-foreground:    0 0% 73%;
-  --accent:              171 83% 41%;
-  --accent-foreground:   0 0% 2%;
+  --background:          240 9% 4%;
+  --foreground:          240 5% 91%;
+  --card:                231 16% 9%;
+  --card-foreground:     240 5% 91%;
+  --popover:             231 16% 9%;
+  --popover-foreground:  240 5% 91%;
+  --primary:             172 100% 48%;
+  --primary-foreground:  170 78% 7%;
+  --secondary:           229 19% 12%;
+  --secondary-foreground: 240 5% 91%;
+  --muted:               231 16% 9%;
+  --muted-foreground:    224 22% 68%;
+  --accent:              172 100% 48%;
+  --accent-foreground:   170 78% 7%;
   --destructive:         0 84% 60%;
   --destructive-foreground: 0 0% 97%;
-  --border:              0 0% 14%;
-  --input:               0 0% 14%;
-  --ring:                171 83% 41%;
+  --border:              228 12% 16%;
+  --input:               228 12% 16%;
+  --ring:                172 100% 48%;
   --radius:              6px;
 }
 :root[data-surface="light"] {
@@ -385,10 +401,10 @@
   --secondary:           0 0% 94%;
   --secondary-foreground: 0 0% 15%;
   --muted:               0 0% 94%;
-  --muted-foreground:    0 0% 37%;
+  --muted-foreground:    0 0% 43%;
   --destructive-foreground: 0 0% 100%;
-  --border:              0 0% 85%;
-  --input:               0 0% 85%;
+  --border:              0 0% 91%;
+  --input:               0 0% 91%;
   --ring:                18 100% 50%;
 }
 :root[data-accent="forge"] {

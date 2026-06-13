@@ -86,14 +86,11 @@ export const AUTHED_NAV: NavItem[] = [
     surfaces: ["desktop", "mobile"],
     mobileIcon: "mission",
   },
-  {
-    id: "forge",
-    href: "/forge",
-    label: "Practice",
-    desc: "Close the gap — timer + diary",
-    stage: "base",
-    surfaces: ["desktop"],
-  },
+  // Practice (forge) is hidden from the nav while the page is under
+  // development — the surface isn't ready to work yet. The /forge route still
+  // exists (next.config keeps it routable) and the "forge" id stays in the
+  // NavItem union so restoring is a one-object add, not a contract change.
+  // Re-add the item here when Practice is shippable.
   {
     // Tracker merged into CV (tracker→CV merge grill 2026-06-02): /cv is now the
     // Career Workspace — Master CV + the full application pipeline (kanban,

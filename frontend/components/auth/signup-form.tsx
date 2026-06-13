@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
 import { capturePendingReferral } from "@/lib/referral"
+import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribution"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
@@ -35,6 +36,7 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
 
   useEffect(() => {
     capturePendingReferral()
+    capturePendingAttribution()
     const det = detectInAppBrowser()
     if (det.inApp) setAgent(det.agent)
   }, [])
@@ -42,7 +44,7 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return null
     const base = `${window.location.origin}/auth/callback`
-    return next ? `${base}?next=${encodeURIComponent(next)}` : base
+    return appendAttributionToUrl(next ? `${base}?next=${encodeURIComponent(next)}` : base)
   }, [next])
 
   function openOAuth(provider: "google" | "linkedin_oidc") {

@@ -6,10 +6,12 @@ import { queryClient } from "@/lib/query-client"
 import { makePersistOptions } from "@/lib/query-persist"
 import { ViewportProvider } from "@/mobile"
 import { SignupModal } from "@/components/auth/signup-modal"
+import { AttributionCapture } from "@/components/attribution-capture"
 
 function Inner({ children }: { children: React.ReactNode }) {
   return (
     <ViewportProvider>
+      <AttributionCapture />
       {children}
       {/* ADR-0006 §15 — global mount so any public or app surface can
           fire useSignupGate().open() without re-mounting infrastructure. */}

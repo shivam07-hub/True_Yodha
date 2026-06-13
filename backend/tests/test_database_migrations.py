@@ -38,3 +38,28 @@ def test_referral_reward_migration_is_atomic_and_referral_scoped() -> None:
     assert "action = 'referral_credit'" in sql
     assert "ref_table = 'referred_signup'" in sql
     assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_growth_command_migration_creates_private_generic_tables() -> None:
+    sql = _migration("20260613_growth_command_phase1.sql").lower()
+    tables = (
+        "growth_operators",
+        "growth_content_assets",
+        "growth_campaigns",
+        "growth_messages",
+        "growth_publications",
+        "growth_attribution_touchpoints",
+        "growth_outreach_contacts",
+        "growth_email_queue",
+    )
+
+    for table in tables:
+        assert f"create table if not exists public.{table}" in sql
+        assert f"alter table public.{table} enable row level security;" in sql
+
+    assert "create policy" not in sql
+    assert "unique (user_id, touch_kind)" in sql
+    assert "unique (campaign_id, channel, variant)" in sql
+    assert "legacy_key text unique" in sql
+    assert "metadata jsonb not null default '{}'::jsonb" in sql
+    assert "notify pgrst, 'reload schema';" in sql

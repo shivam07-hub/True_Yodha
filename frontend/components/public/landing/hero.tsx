@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import { LandingDropzone } from "./dropzone"
+import type { AnonScoreResponse } from "@/lib/api"
 
 const FLOW_PATHS = [
   "M63,93 C160,93 170,250 232,250",
@@ -26,6 +27,12 @@ interface LandingHeroProps {
   companiesLabel: string
   /** Real company names from the Engine corpus for the monogram chips. */
   companyNames: string[]
+  /** Live CV-score preview plumbing (owned by LandingPage, rendered in the Readout). */
+  scoring?: boolean
+  scoreError?: string | null
+  onScoring?: () => void
+  onResult?: (result: AnonScoreResponse, file: File) => void
+  onError?: (message: string) => void
 }
 
 function smoothScrollToEngine(e: React.MouseEvent) {
@@ -36,7 +43,15 @@ function smoothScrollToEngine(e: React.MouseEvent) {
   target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" })
 }
 
-export function LandingHero({ companiesLabel, companyNames }: LandingHeroProps) {
+export function LandingHero({
+  companiesLabel,
+  companyNames,
+  scoring,
+  scoreError,
+  onScoring,
+  onResult,
+  onError,
+}: LandingHeroProps) {
   const chipInitials = (
     companyNames.length >= 4 ? companyNames.slice(0, 4) : ["Google", "Microsoft", "Amazon", "Netflix"]
   ).map((n) => n.charAt(0).toUpperCase())
@@ -70,7 +85,18 @@ export function LandingHero({ companiesLabel, companyNames }: LandingHeroProps) 
             <span className="lp-hero-chip accent">10 minutes</span>
           </div>
 
-          <LandingDropzone source="landing_dropzone_hero" />
+          <LandingDropzone
+            source="landing_dropzone_hero"
+            busy={scoring}
+            onScoring={onScoring}
+            onResult={onResult}
+            onError={onError}
+          />
+          {scoreError && (
+            <p className="lp-dropzone-error" role="alert">
+              {scoreError}
+            </p>
+          )}
 
           <a className="lp-hero-secondary" href="#engine" onClick={smoothScrollToEngine}>
             See the Engine <span aria-hidden>↓</span>
@@ -149,8 +175,7 @@ export function LandingHero({ companiesLabel, companyNames }: LandingHeroProps) 
       {/* company marquee — the corpus, made visible (handoff priority directive) */}
       <div className="lp-marquee" aria-label={`Read live from ${companiesLabel} company career pages`}>
         <p className="lp-marquee-label">
-          Read live from <strong>{companiesLabel} company career pages</strong> — no job boards,
-          no scraping middlemen
+          Read live from <strong>{companiesLabel} company career pages</strong>
         </p>
         {companyNames.length > 0 && (
           <div className="lp-marquee-viewport">

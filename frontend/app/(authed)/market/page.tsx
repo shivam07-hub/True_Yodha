@@ -581,25 +581,34 @@ function IntelPageInner() {
     return map
   }, [skillDemandData])
 
-  // Per-company heatmap row queries — include location filters in cache key so they refetch on filter change
-  const heatmapRowQueries = useQueries({
-    queries: followedCompanies.map(co => ({
-      queryKey: ["heatmapRow", co.company_name, heatmapSkills.join(","), locationCity, locationCountry, locationMode],
-      queryFn: () => jobs.skillHeatmapRow(co.company_name, heatmapSkills, locFilters),
-      enabled: heatmapSkills.length > 0,
-      staleTime: 30 * 60 * 1000,
-    })),
+  // ONE batched heatmap request (#21 issue 2). This replaced IH3's per-company
+  // fan-out — a thundering herd of 10–15 parallel requests that pressured the DB
+  // pool and was the broken-pipe-500 trigger. The batched endpoint already
+  // existed; location filters are unused on this surface (locationCity/Country/
+  // Mode are fixed empty above), so it is behaviour-equivalent to the old rows.
+  // Trade-off vs IH3: adding a company now refetches the matrix rather than
+  // appending a single row — acceptable given followed companies cap at 10 and
+  // the result is 30-min cached.
+  const heatmapCompanyNames = useMemo(
+    () => followedCompanies.map(co => co.company_name),
+    [followedCompanies],
+  )
+  const heatmapQuery = useQuery({
+    queryKey: ["heatmap", heatmapCompanyNames.join(","), heatmapSkills.join(",")],
+    queryFn: () => jobs.skillHeatmap(heatmapCompanyNames, heatmapSkills),
+    enabled: heatmapSkills.length > 0 && heatmapCompanyNames.length > 0,
+    staleTime: 30 * 60 * 1000,
   })
 
   // company_name → skill→count (null while loading)
   const rowDataMap = useMemo(() => {
     const map: Record<string, Record<string, number> | null> = {}
-    followedCompanies.forEach((co, i) => {
-      const q = heatmapRowQueries[i]
-      map[co.company_name] = q?.data?.matrix?.[co.company_name] ?? null
+    const matrix = heatmapQuery.data?.matrix
+    followedCompanies.forEach(co => {
+      map[co.company_name] = matrix?.[co.company_name] ?? null
     })
     return map
-  }, [followedCompanies, heatmapRowQueries])
+  }, [followedCompanies, heatmapQuery.data])
 
   // Resolved cell for drill-down
   const resolvedCell = useMemo(() => {

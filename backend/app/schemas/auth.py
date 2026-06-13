@@ -1,4 +1,21 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field
+
+
+class AcquisitionTouchRequest(BaseModel):
+    source: str = Field(min_length=1, max_length=80)
+    medium: str | None = Field(default=None, max_length=80)
+    campaign: str | None = Field(default=None, max_length=160)
+    content: str | None = Field(default=None, max_length=160)
+    term: str | None = Field(default=None, max_length=160)
+    landing_path: str = Field(min_length=1, max_length=500)
+    captured_at: datetime
+
+
+class AcquisitionAttributionRequest(BaseModel):
+    first: AcquisitionTouchRequest
+    latest: AcquisitionTouchRequest
 
 
 class SignupRequest(BaseModel):
@@ -8,6 +25,7 @@ class SignupRequest(BaseModel):
     # Optional referrer slug. Cross-origin CORS prevents cookies from
     # auto-attaching, so the frontend echoes the captured ?ref= here.
     myro_ref: str | None = None
+    attribution: AcquisitionAttributionRequest | None = None
 
 
 class LoginRequest(BaseModel):
@@ -72,6 +90,8 @@ class PostSigninRequest(BaseModel):
     """
     provider: str | None = None
     myro_ref: str | None = None
+    attribution: AcquisitionAttributionRequest | None = None
+    is_new_signup: bool = False
     # LinkedIn-only claim echoes (frontend mirrors them out of the OIDC ID
     # token because Supabase's JWT only ships standard OIDC fields; the
     # raw provider token is what carries `vanityName` / `headline`).
@@ -84,6 +104,7 @@ class PostSigninResponse(BaseModel):
     user_id: str
     provider: str | None = None
     referral_attributed: bool = False
+    attribution_recorded: bool = False
     linkedin_xp_granted: bool = False
     linkedin_url_set: bool = False
 

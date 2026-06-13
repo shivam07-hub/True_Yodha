@@ -6,6 +6,15 @@ dashboard. It composes the existing route handlers — now plain sync functions
 after the threadpool flip — so there is zero logic duplication: each section's
 behaviour is exactly its standalone endpoint's.
 
+The fan-out is CONCURRENT (backlog #21): the 8 sections are independent reads,
+so they run in a ThreadPoolExecutor instead of one-after-another. Wall time
+collapses from sum(sections) (~5–6s, the prod `route.slow` we saw) to
+max(section) (~1–2s). Safe because all sections share the single per-request
+RLS client (get_user_db is Depends-cached) whose auth header is set once at
+construction and whose underlying httpx.Client is threadsafe — no section
+mutates shared query state. Each section is still bounded by the 8s PostgREST
+timeout, so the slowest one caps the tail.
+
 Above-the-fold superset (grill Q2 + viewport split): bundles what the first
 viewport paints on either shell. The client seeds its TanStack cache from this
 bundle and the viewport picks its own above-the-fold slice (desktop = score +
@@ -17,6 +26,8 @@ client construction) is a deliberate later follow-up, gated on a per-repo
 user_id-filter audit — bypassing RLS here without that audit risks cross-user
 leakage.
 """
+
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -74,23 +85,33 @@ def home_bootstrap(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> HomeBootstrapResponse:
-    try:
-        score: MirrorScoreResponse | None = get_my_score(
-            principal=principal, scores_repo=scores_repo
-        )
-    except HTTPException as exc:
-        if exc.status_code == status.HTTP_404_NOT_FOUND:
-            score = None
-        else:
+    def _score() -> MirrorScoreResponse | None:
+        # A user with no CV yet has no score — the standalone endpoint 404s,
+        # which the bundle degrades to null rather than failing the whole load.
+        try:
+            return get_my_score(principal=principal, scores_repo=scores_repo)
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_404_NOT_FOUND:
+                return None
             raise
 
-    return HomeBootstrapResponse(
-        profile=get_me(principal=principal, users_repo=users_repo),
-        score=score,
-        matches=get_job_matches(principal=principal, repo=jobs_repo),
-        applications=get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
-        evidence=get_cv_evidence(principal=principal, cv_repo=cv_repo),
-        cv_versions=list_cv_versions(principal=principal, cv_repo=cv_repo),
-        practice_activity=ActivityDatesResponse(dates=upskilling_service.list_activity_dates(principal.id)),
-        diary=get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
-    )
+    # Independent reads → fan out concurrently. A section that raises a real
+    # error (not score's 404) re-raises on .result() and surfaces as the
+    # endpoint's error, exactly as the old sequential version did.
+    sections = {
+        "profile": lambda: get_me(principal=principal, users_repo=users_repo),
+        "score": _score,
+        "matches": lambda: get_job_matches(principal=principal, repo=jobs_repo),
+        "applications": lambda: get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
+        "evidence": lambda: get_cv_evidence(principal=principal, cv_repo=cv_repo),
+        "cv_versions": lambda: list_cv_versions(principal=principal, cv_repo=cv_repo),
+        "practice_activity": lambda: ActivityDatesResponse(
+            dates=upskilling_service.list_activity_dates(principal.id)
+        ),
+        "diary": lambda: get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
+    }
+    with ThreadPoolExecutor(max_workers=len(sections)) as pool:
+        futures = {key: pool.submit(fn) for key, fn in sections.items()}
+        results = {key: future.result() for key, future in futures.items()}
+
+    return HomeBootstrapResponse(**results)

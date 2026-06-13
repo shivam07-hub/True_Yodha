@@ -14,7 +14,7 @@ interface Surface {
 const SURFACES: Surface[] = [
   {
     title: "CV Hub",
-    href: "/about",
+    href: "/#cv-hub",
     body: "Every version of your CV in one place — master, tailored, scored. No more Drive folders and Canva exports.",
     engineLine: "each version scored against the live role it targets",
     Icon: Layers,
@@ -41,7 +41,7 @@ export function LandingSurfaces() {
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
           <span className="lp-eyebrow">The Surfaces</span>
-          <h2 className="lp-section-title">Four ways into the Engine.</h2>
+          <h2 className="lp-section-title">Three ways into the Engine.</h2>
         </div>
 
         <div className="lp-surface-grid">

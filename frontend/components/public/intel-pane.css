@@ -323,12 +323,19 @@
    var(--tm-text / border) resolves to a light-on-dark value here, not the
    page light-theme tokens. ──────────────────────────────────────────── */
 .tm-intel-console {
-  --tm-text:         #F7F7F7;
-  --tm-text-muted:   #B9B9B9;
-  --tm-text-faint:   #8F8F8F;
-  --tm-border:       #242424;
-  --tm-border-soft:  rgba(255, 255, 255, 0.10);
-  background: #101010;
+  /* Pinned Engine-dark (canonical console palette) so it stays a terminal even
+     on the light page — accent re-pinned bright so teal doesn't drop to the
+     deep light-mode teal inside this dark island. */
+  --tm-text:         #e8e8ea;
+  --tm-text-muted:   #9aa4bf;
+  --tm-text-faint:   #646e8c;
+  --tm-border:       rgba(255, 255, 255, 0.12);
+  --tm-border-soft:  rgba(255, 255, 255, 0.06);
+  --tm-accent:       #00f5d4;
+  --tm-accent-text:  #67e8f9;
+  --tm-interactive:  #00f5d4;
+  color-scheme: dark;
+  background: #13141a;
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-panel-radius-lg);
   display: flex;
@@ -474,7 +481,7 @@
 
 .tm-intel-kpi {
   padding: 11px 14px;
-  background: #050505;
+  background: #0a0a0c;
   display: flex;
   flex-direction: column;
   gap: 3px;

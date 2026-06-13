@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
+import { takeStashedFile } from "@/lib/anon-cv-stash"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -253,7 +254,16 @@ function CVPage() {
     // during fetch would otherwise false-fire the picker for an existing user.
     if (playground.versionsLoading) return
     autoUploadFiredRef.current = true
-    if (!hasBaseline) openFilePicker()
+    if (!hasBaseline) {
+      // Claim-on-signup (grill Q8): a logged-out visitor who scored their CV on
+      // the landing arrives here with the File still stashed in memory. Replay it
+      // straight into the real upload — no re-pick. A full-page OAuth redirect
+      // drops the in-memory File → takeStashedFile() returns null → fall back to
+      // the picker, the original first-upload flow.
+      const stashed = takeStashedFile()
+      if (stashed) void handleUpload(stashed)
+      else openFilePicker()
+    }
     router.replace("/cv", { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token, searchParams, playground.versionsLoading, hasBaseline])

@@ -32,7 +32,6 @@ export function Hero({
   scoreDelta,
   loggedToday,
   sessions,
-  diaryEntries,
   sparkline,
 }: HeroProps) {
   const greeting = adaptiveGreeting({ streak, scoreDelta, loggedToday })
@@ -57,43 +56,33 @@ export function Hero({
         </div>
       </div>
 
-      <div className="mc-score-panel">
-        <div className="mc-score-eyebrow">
-          <span className="glyph">
-            <Icon name="star" size={11} />
+      {/* Boxless stat strip — hairline-divided columns (Firecrawl/Engine
+          dashboard handoff). Score column carries the accent sparkline. */}
+      <div className="mc-statstrip">
+        <div className="mc-stat">
+          <span className="mc-stat-label">Score · {sessions} ses</span>
+          <span className="mc-stat-v">
+            {score}
+            <small>/100</small>
           </span>
-          Score · Last {sessions} session{sessions === 1 ? "" : "s"}
-        </div>
-        <div className="mc-score-big">
-          <span className="num">{score}</span>
-          <span className="denom">/100</span>
-        </div>
-
-        <div className="mc-score-stats">
-          <div className="mc-score-stat">
-            <div className="lbl">
-              <span className="glyph">🔥</span> Streak
-            </div>
-            <div className="val">
-              <span className="v">{streak}</span>
-              <span className="u">d</span>
-            </div>
-          </div>
-          <div className="mc-score-stat">
-            <div className="lbl">
-              <span className="glyph">●</span> Sessions
-            </div>
-            <div className="val">
-              <span className="v">{sessions}</span>
-              <span className="u">total</span>
-            </div>
+          <div className="mc-stat-spark">
+            <Sparkline data={sparkline} />
           </div>
         </div>
-
-        <div className="mc-diary-line">
-          {diaryEntries} Diary entr{diaryEntries === 1 ? "y" : "ies"} logged
+        <div className="mc-stat">
+          <span className="mc-stat-label">Streak</span>
+          <span className="mc-stat-v">
+            {streak}
+            <small>d</small>
+          </span>
         </div>
-        <Sparkline data={sparkline} />
+        <div className="mc-stat">
+          <span className="mc-stat-label">Sessions</span>
+          <span className="mc-stat-v">
+            {sessions}
+            <small>total</small>
+          </span>
+        </div>
       </div>
     </div>
   )

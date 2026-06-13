@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState, type ReactNode } from "react"
-import { FileText, Mail, GraduationCap } from "lucide-react"
+import { Mail, GraduationCap } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
@@ -22,14 +22,16 @@ interface PublicTopNavProps {
   authSlot?: ReactNode
 }
 
+// The Myro logo is the sole home affordance (LinkedIn/X pattern). The old
+// "CV Hub" pill pointed at the landing too — a redundant second home link that
+// also mislabelled the whole-platform landing as a single surface. Dropped.
 const STATIC_NAV_ITEMS: {
   label: string
   href: string
   id: PublicNavPage
   accent?: boolean
-  Icon: typeof FileText
+  Icon: typeof Mail
 }[] = [
-  { label: "CV Hub",       href: "/about",        id: "about",        Icon: FileText      },
   { label: "Newsletter",   href: "/newsletter",   id: "newsletter",   Icon: Mail          },
   { label: "For Colleges", href: "/institutions", id: "institutions", Icon: GraduationCap },
 ]

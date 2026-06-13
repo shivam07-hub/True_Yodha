@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import "./myrology.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { PublicTopNav } from "@/components/public/top-nav"
@@ -87,15 +86,11 @@ const FAQS: [string, string][] = [
 ]
 
 export default function MyrologyPage() {
-  // Myrology is the one dark-surface island in an otherwise light app —
-  // the cosmic sub-brand reads as night sky. Pin the root surface to dark
-  // on mount, restore light on unmount.
-  useEffect(() => {
-    const root = document.documentElement
-    root.setAttribute("data-surface", "dark")
-    return () => root.setAttribute("data-surface", "light")
-  }, [])
-
+  // Myrology is the one dark-surface island in an otherwise light app — the
+  // cosmic sub-brand reads as night sky. The dark surface is pinned by CSS
+  // (`.myrology-root` joins the dark base in design-tokens.css), so it renders
+  // dark on first paint regardless of the global surface pref — no post-mount
+  // data-surface flip, no flash, no leaking dark onto the page you navigate to.
   return (
     <div className="myrology-root">
       <div className="m-bg">
