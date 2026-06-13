@@ -105,6 +105,44 @@ export function filterSegment(items: FeedItem[], segment: Segment): FeedItem[] {
   return items
 }
 
+/** Sort axis — orthogonal to the source Segment. "Best fit" preserves the
+ *  canonical incoming order (LLM/overlap rank from the API), so it is the
+ *  zero-cost default that matches today's behaviour. */
+export type SortKey = "fit" | "recent" | "company"
+
+export const SORTS: ReadonlyArray<{ key: SortKey; label: string }> = [
+  { key: "fit", label: "Best fit" },
+  { key: "recent", label: "Most recent" },
+  { key: "company", label: "Company A–Z" },
+]
+
+export function sortItems(items: FeedItem[], sort: SortKey): FeedItem[] {
+  // Best fit = the order buildFeed produced (matches in API rank, then liked).
+  if (sort === "fit") return items
+  const arr = [...items]
+  if (sort === "company") {
+    return arr.sort((a, b) =>
+      (a.company ?? "￿").localeCompare(b.company ?? "￿", undefined, { sensitivity: "base" }),
+    )
+  }
+  // recent = first_seen (discovery age) desc; rows without a timestamp sink last.
+  return arr.sort((a, b) => {
+    const ta = a.job.first_seen ? new Date(a.job.first_seen).getTime() : 0
+    const tb = b.job.first_seen ? new Date(b.job.first_seen).getTime() : 0
+    return tb - ta
+  })
+}
+
+/** Fit tiers drive colour — a low fit must NOT read as a branded badge of
+ *  honour (D9). strong = accent, mid = neutral ink, low = muted. */
+export type FitTier = "strong" | "mid" | "low"
+
+export function fitTier(fit: number): FitTier {
+  if (fit >= 65) return "strong"
+  if (fit >= 40) return "mid"
+  return "low"
+}
+
 /** Slide / lens identity, shared by mobile (horizontal slides) + desktop (tabs). */
 export type LensKey = "overview" | "why" | "skills" | "company" | "notes"
 

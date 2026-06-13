@@ -83,13 +83,13 @@ export function FitBar({ fit }: { fit: number }) {
 }
 
 // ── StatTile ──────────────────────────────────────────────────────
-export function StatTile({ eyebrow, value, sub, accent = false }: {
-  eyebrow: string; value: string | number; sub: string; accent?: boolean
+export function StatTile({ eyebrow, value, sub }: {
+  eyebrow: string; value: string | number; sub: string
 }) {
   return (
     <div className="tm-lib-stat-tile">
       <div className="tm-lib-eyebrow">{eyebrow}</div>
-      <div className={`tm-lib-stat-num tm-lib-mono${accent ? " accent" : ""}`}>{value}</div>
+      <div className="tm-lib-stat-num tm-lib-mono">{value}</div>
       <div className="tm-lib-stat-sub">{sub}</div>
     </div>
   )

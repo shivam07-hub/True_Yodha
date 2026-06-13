@@ -203,7 +203,6 @@ export function LibraryView({
                     eyebrow={stat.eyebrow}
                     value={stat.value}
                     sub={stat.sub}
-                    accent={stat.accent}
                   />
                 ))}
               </div>

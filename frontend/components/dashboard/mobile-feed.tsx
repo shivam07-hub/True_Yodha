@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { ChevronLeft, Heart, X } from "lucide-react"
-import { DetailBody, jdSnippet } from "./detail-body"
+import { DetailBody } from "./detail-body"
 import { Monogram, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
-import { LocationLine } from "./lenses"
+import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
 import type { OtherRole } from "./lens-company"
 import { usePulses } from "@/lib/hooks/use-pulses"
-import type { FeedItem } from "@/lib/dashboard/feed-model"
+import { fitTier, type FeedItem } from "@/lib/dashboard/feed-model"
 import type { ApplicationStatus, JobPulse, SkillGapItem } from "@/lib/api"
 
 export interface MobileFeedProps {
@@ -56,7 +57,7 @@ function MobileCard({
   onLike: () => void
   onSkip: () => void
 }) {
-  const snippet = jdSnippet(it.job.job_description)
+  const snippet = cardSummary(it.job)
   const [leaving, setLeaving] = React.useState(false)
   const leaveThen = (fn: () => void) => {
     setLeaving(true)
@@ -80,15 +81,17 @@ function MobileCard({
         <div className="db-mcard-top">
           <span className="co">{it.company ?? "—"}</span>
           {applied ? <span className="db-statuschip">Applied</span> : null}
-          {it.fit != null ? <span className="mfit">{it.fit}% fit</span> : null}
+          {it.fit != null ? <span className={`mfit fit-${fitTier(it.fit)}`}>{it.fit}% fit</span> : null}
         </div>
         <h3 className="db-mrole">{it.role}</h3>
         <LocationLine job={it.job} />
+        <JobMetaChips job={it.job} />
         {snippet ? <p className="db-msnip">{snippet}</p> : null}
         <ChipRow chips={cardChips(it.job)} className="db-mchips" />
         <PulseRow pulse={pulse} mobile />
         <CardActions
           jobId={it.jobId}
+          company={it.company}
           liked={liked}
           onLike={liked ? () => leaveThen(onLike) : onLike}
           onSkip={() => leaveThen(onSkip)}
@@ -123,7 +126,15 @@ function MobileDetail({
   onSkillToggle: (s: SkillGapItem) => void
   onJump: (jobId: string) => void
 }) {
-  return (
+  // Portal to <body>: the authed shell's .tm-page-enter scroll container has a
+  // transform, which makes it the containing block for position:fixed. Without
+  // portaling, .db-mdetail's inset:0 anchors to that scroll box (not the
+  // viewport), so its top bar + action bar scroll off-screen and it sits under
+  // the z-30 nav. Escaping to <body> makes it truly full-screen above the nav.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return null
+  return createPortal(
     <div className="db-mdetail" role="dialog" aria-label={`${it.role} details`}>
       <div className="db-mdetail-top">
         <button type="button" className="db-icon-btn" aria-label="Back" onClick={onBack}>
@@ -167,7 +178,8 @@ function MobileDetail({
           Tailor CV
         </a>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

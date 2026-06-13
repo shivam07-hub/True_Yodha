@@ -9,6 +9,7 @@ import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { Hero } from "@/components/mission-control/hero"
+import { MobilePeekStrip } from "@/components/mission-control/peek-panel"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
@@ -335,82 +336,103 @@ function MissionControlInner() {
             <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
           )}
 
-          {/* Hero section — paints on score+profile; Q6: mobile collapses to a
-              thin banner so the card feed owns the viewport. */}
-          <SectionGate
-            loading={coreLoading}
-            fallback={
-              <TealField mode="masked" interactive={false}>
-                {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
-              </TealField>
-            }
-            slowText="Still loading your dashboard…"
-          >
-            {isDesktop ? (
-              <Hero
-                name={firstName}
-                dateLine={dateLine}
-                activeTargets={activeTargets}
-                steps={steps}
-                score={score}
-                streak={streak}
-                scoreDelta={scoreDelta}
-                loggedToday={loggedToday}
-                sessions={entries.length}
-                diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
-              />
-            ) : (
-              <MobileBanner
-                name={firstName}
-                score={score}
-                streak={streak}
-                scoreDelta={scoreDelta}
-                loggedToday={loggedToday}
-              />
-            )}
-          </SectionGate>
+          {/* Hero section — paints on score+profile. Desktop = the pinned rail
+              of the workspace; mobile collapses to a thin banner so the card
+              feed owns the viewport (Q6). */}
+          {(() => {
+            const heroGate = (
+              <SectionGate
+                loading={coreLoading}
+                fallback={
+                  <TealField mode="masked" interactive={false}>
+                    {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+                  </TealField>
+                }
+                slowText="Still loading your dashboard…"
+              >
+                {isDesktop ? (
+                  <Hero
+                    variant="rail"
+                    name={firstName}
+                    dateLine={dateLine}
+                    activeTargets={activeTargets}
+                    steps={steps}
+                    score={score}
+                    streak={streak}
+                    scoreDelta={scoreDelta}
+                    loggedToday={loggedToday}
+                    sessions={entries.length}
+                    diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
+                  />
+                ) : (
+                  <MobileBanner
+                    name={firstName}
+                    score={score}
+                    streak={streak}
+                    scoreDelta={scoreDelta}
+                    loggedToday={loggedToday}
+                  />
+                )}
+              </SectionGate>
+            )
 
-          {/* Jobs feed — streams independently of the hero. */}
-          <div style={{ marginTop: isDesktop ? 36 : 16 }}>
-            <SectionGate
-              // Hold the jobs skeleton until the hero has also resolved, so a
-              // fast-but-empty jobs result never sits beside a still-loading
-              // hero (the half-skeleton / half-"No matches" jolt). The above-
-              // the-fold then fills as one coherent block, ADR-0011 intent
-              // preserved (sections still stream; we only gate the *empty* race).
-              loading={coreLoading || (!!token && jobsLoading)}
-              error={token && jobsIsError ? jobsErr : null}
-              onRetry={() => void refetchJobs()}
-              errorLabel="job matches"
-              fallback={
-                <TealField mode="masked" interactive={false}>
-                  <DashboardSkeleton />
-                </TealField>
-              }
-              slowText="Still loading your matches…"
-            >
-              {token ? (
-                <Dashboard
-                  jobs={allMatchedJobs}
-                  apps={apps}
-                  appsByJobId={appsByJobId}
-                  token={token}
-                  cartSkillNames={cartSkillNames}
-                  refresh={refreshVm}
-                  dismissedJobIds={dismissedJobIds}
-                  total={jobsData?.total ?? allMatchedJobs.length}
-                  feedUpdatedAt={jobsData?.feed_updated_at ?? null}
-                  matchesComputedAt={jobsData?.matches_computed_at ?? null}
-                  feedAhead={feedAhead}
-                  initialJobId={urlJobId}
-                  onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}
-                  onRemove={(jobId) => removeCard.mutate(jobId)}
-                  onSkillToggle={handleSkillToggle}
-                  onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}
-                />
-              ) : null}
-            </SectionGate>
-          </div>
+            const feedGate = (
+              <SectionGate
+                // Hold the jobs skeleton until the hero has also resolved, so a
+                // fast-but-empty jobs result never sits beside a still-loading
+                // hero (the half-skeleton / half-"No matches" jolt). The above-
+                // the-fold then fills as one coherent block, ADR-0011 intent
+                // preserved (sections still stream; we only gate the *empty* race).
+                loading={coreLoading || (!!token && jobsLoading)}
+                error={token && jobsIsError ? jobsErr : null}
+                onRetry={() => void refetchJobs()}
+                errorLabel="job matches"
+                fallback={
+                  <TealField mode="masked" interactive={false}>
+                    <DashboardSkeleton />
+                  </TealField>
+                }
+                slowText="Still loading your matches…"
+              >
+                {token ? (
+                  <Dashboard
+                    jobs={allMatchedJobs}
+                    apps={apps}
+                    appsByJobId={appsByJobId}
+                    token={token}
+                    cartSkillNames={cartSkillNames}
+                    refresh={refreshVm}
+                    dismissedJobIds={dismissedJobIds}
+                    total={jobsData?.total ?? allMatchedJobs.length}
+                    feedUpdatedAt={jobsData?.feed_updated_at ?? null}
+                    matchesComputedAt={jobsData?.matches_computed_at ?? null}
+                    feedAhead={feedAhead}
+                    initialJobId={urlJobId}
+                    steps={steps}
+                    onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}
+                    onRemove={(jobId) => removeCard.mutate(jobId)}
+                    onSkillToggle={handleSkillToggle}
+                    onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}
+                  />
+                ) : null}
+              </SectionGate>
+            )
+
+            // Desktop = 3-zone workspace (pinned rail · centre feed · peek
+            // panel). Mobile = the legacy vertical stack (banner + feed).
+            return isDesktop ? (
+              <div className="mc-workspace">
+                <aside className="mc-ws-rail">{heroGate}</aside>
+                <div className="mc-ws-main">{feedGate}</div>
+              </div>
+            ) : (
+              <>
+                {heroGate}
+                {token ? <MobilePeekStrip token={token} steps={steps} /> : null}
+                <div style={{ marginTop: 16 }}>{feedGate}</div>
+              </>
+            )
+          })()}
         </PageShell>
       </RequiresCV>
 

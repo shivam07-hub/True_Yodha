@@ -148,6 +148,133 @@
 }
 .mc-hero-sub .sep { color: var(--tm-text-faint); margin: 0 4px; }
 
+/* ─── Workspace (3-zone desktop: pinned rail · centre feed · peek panel) ───
+   LinkedIn-style spatial model. The rail + panel are sticky so the score ring
+   and the context surfaces stay on screen while the feed scrolls. Feed claims
+   the centre and starts at the top — the old dead band is gone. */
+.mc-workspace {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.mc-ws-rail { position: sticky; top: 84px; align-self: start; min-width: 0; }
+.mc-ws-main { min-width: 0; }
+.mc-ws-main .db-head { margin-top: 0; }
+.mc-ws-main .db-feed { max-width: none; }
+
+/* The centre column splits into feed + peek panel only on a wide workspace
+   (≥1180px, where Dashboard renders `db-workspace`). The peek carries the open
+   job's detail (D5). */
+.db-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 312px;
+  gap: 24px;
+  align-items: start;
+}
+.db-workspace-feed { min-width: 0; }
+
+/* Collapse the rail above the feed on narrow desktop. */
+@media (max-width: 980px) {
+  .mc-workspace { grid-template-columns: 1fr; gap: 18px; }
+  .mc-ws-rail { position: static; }
+}
+
+/* Rail meta — the greeting collapsed to one quiet line (D4). */
+.mc-rail { display: flex; flex-direction: column; gap: 16px; }
+.mc-rail-meta { display: flex; flex-direction: column; gap: 4px; }
+.mc-rail-hi { font-size: 15px; color: var(--tm-text); }
+.mc-rail-hi strong { font-weight: 700; }
+.mc-rail-sub {
+  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--tm-text-faint); font-weight: 500;
+}
+.mc-rail-sub .sep { margin: 0 3px; }
+
+/* ─── Peek panel (right zone) ─── */
+.mc-peek {
+  position: sticky; top: 84px; align-self: start;
+  display: flex; flex-direction: column; gap: 14px;
+  max-height: calc(100vh - 104px); overflow-y: auto;
+  scrollbar-width: thin;
+}
+.mc-peek-card {
+  border: 1px solid var(--tm-border); border-radius: 14px; padding: 14px 15px;
+  background: var(--tm-surface); display: flex; flex-direction: column; gap: 11px;
+}
+.mc-peek-head { display: flex; align-items: center; gap: 8px; }
+.mc-peek-ico {
+  display: inline-flex; width: 26px; height: 26px; border-radius: 8px;
+  align-items: center; justify-content: center;
+  background: var(--tm-interactive-wash); color: var(--tm-accent-text); flex-shrink: 0;
+}
+.mc-peek-title { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--tm-text); }
+.mc-peek-body { display: flex; flex-direction: column; gap: 9px; }
+.mc-peek-link {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  font-size: 12px; font-weight: 600; color: var(--tm-accent-text); text-decoration: none;
+}
+.mc-peek-link:hover { text-decoration: underline; }
+.mc-peek-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
+.mc-peek-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mc-peek-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font-size: 13px; color: var(--tm-text); text-decoration: none;
+}
+.mc-peek-row .dot { width: 6px; height: 6px; border-radius: 99px; border: 1.5px solid var(--tm-text-faint); flex-shrink: 0; }
+.mc-peek-row.is-done { color: var(--tm-text-faint); }
+.mc-peek-row.is-done svg { color: var(--tm-success); flex-shrink: 0; }
+.mc-peek-row.is-open .go { margin-left: auto; color: var(--tm-text-faint); opacity: 0; transition: opacity 120ms ease; }
+.mc-peek-row.is-open:hover .go { opacity: 1; }
+.mc-peek-row.is-open:hover { color: var(--tm-accent-text); }
+.mc-peek-progress { display: flex; align-items: center; gap: 8px; }
+.mc-peek-prog-num { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-muted); white-space: nowrap; }
+.mc-peek-prog-track { flex: 1; height: 5px; border-radius: 99px; background: var(--tm-border); overflow: hidden; }
+.mc-peek-prog-track .fill { display: block; height: 100%; background: var(--tm-interactive); border-radius: 99px; transition: width 300ms ease; }
+.mc-peek-gap { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.mc-peek-gap .lab { color: var(--tm-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-peek-lvl { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-accent-text); flex-shrink: 0; }
+.mc-peek-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.mc-peek-chip { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--tm-border); color: var(--tm-text-muted); }
+.mc-peek-intel { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
+.mc-peek-intel strong { color: var(--tm-text); font-weight: 650; }
+.mc-peek-intel-meta { color: var(--tm-text-faint); }
+
+/* Peek panel → job-detail swap (D5) */
+.mc-peek-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.mc-peek-detail-top { display: flex; align-items: center; gap: 10px; }
+.mc-peek-back {
+  display: inline-flex; align-items: center; gap: 3px; padding: 5px 9px; border-radius: 8px;
+  border: 1px solid var(--tm-border); background: transparent; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--tm-text-muted); font-family: inherit;
+}
+.mc-peek-back:hover { color: var(--tm-text); border-color: var(--tm-text-faint); }
+.mc-peek-detail-ttl { font-size: 13px; font-weight: 650; color: var(--tm-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-peek-detail-scroll {
+  border: 1px solid var(--tm-border); border-radius: 14px; padding: 14px;
+  background: var(--tm-surface);
+}
+
+/* Mobile peek strip (D6) — the four surfaces as a swipeable horizontal row
+   above the feed. Same cards as the desktop panel, different geometry. */
+.mc-peek-strip {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0 4px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mc-peek-strip::-webkit-scrollbar { display: none; }
+.mc-peek-strip > .mc-peek-card {
+  width: 78vw;
+  max-width: 270px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
 /* ─── Daily-loop completion ring (Apple-Activity metaphor) ───
    Five segments close as the daily ritual steps are done; the open arc is the
    nudge. Replaces the old checkpoint pill row + boxless stat strip. */

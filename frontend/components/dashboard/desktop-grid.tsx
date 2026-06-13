@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { DetailBody, jdSnippet } from "./detail-body"
+import { DetailBody } from "./detail-body"
 import { Monogram, FitRing, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
-import { LocationLine } from "./lenses"
+import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
 import type { OtherRole } from "./lens-company"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
@@ -15,7 +15,13 @@ export interface DesktopGridProps {
   appsByJobId: Record<string, ApplicationStatus>
   token: string
   cartSkillNames: Set<string>
-  initialJobId?: string | null
+  /** Controlled open card (lifted to Dashboard so the peek panel can show the
+   *  detail in the wide workspace). null = none open. */
+  openId: string | null
+  onOpenJob: (jobId: string | null) => void
+  /** false = the detail is lifted to the peek panel; the card stays collapsed
+   *  (wide workspace, D5). true = legacy inline expansion. */
+  inlineDetail?: boolean
   onStatus: (jobId: string, s: ApplicationStatus) => void
   onRemove: (jobId: string) => void
   onSkillToggle: (s: SkillGapItem) => void
@@ -28,7 +34,7 @@ const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStat
   "final_round",
 ])
 
-function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
+export function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
   if (!it.company) return []
   return allItems
     .filter((o) => o.jobId !== it.jobId && o.company === it.company)
@@ -58,7 +64,7 @@ function JobCard({
   detail: React.ReactNode
 }) {
   const fit = it.fit
-  const snippet = jdSnippet(it.job.job_description)
+  const snippet = cardSummary(it.job)
   // Skip / unlike animate the card out, THEN remove it — so the feed doesn't
   // jump (the removal is optimistic + instant, so we delay it one beat).
   const [leaving, setLeaving] = React.useState(false)
@@ -90,6 +96,7 @@ function JobCard({
           </div>
           <h3 className="db-card-role">{it.role}</h3>
           <LocationLine job={it.job} />
+          <JobMetaChips job={it.job} />
           {snippet ? <p className="db-snippet">{snippet}</p> : null}
           <ChipRow chips={cardChips(it.job)} className="db-card-chips" />
         </div>
@@ -113,20 +120,15 @@ function JobCard({
 }
 
 export function DesktopGrid(p: DesktopGridProps) {
-  const [openId, setOpenId] = React.useState<string | null>(p.initialJobId ?? null)
+  const inline = p.inlineDetail ?? true
 
   // One batched pulse request for the whole visible set (not one-per-card).
   const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
 
-  // Close if the open job left the visible set (segment change / skip).
-  React.useEffect(() => {
-    if (openId && !p.items.some((it) => it.jobId === openId)) setOpenId(null)
-  }, [p.items, openId])
-
   return (
     <div className="db-feed">
       {p.items.map((it) => {
-        const open = openId === it.jobId
+        const open = p.openId === it.jobId
         const applied = APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")
         return (
           <JobCard
@@ -136,20 +138,22 @@ export function DesktopGrid(p: DesktopGridProps) {
             liked={it.isLiked}
             applied={applied}
             pulse={pulses.get(it.jobId)}
-            onOpen={() => setOpenId(open ? null : it.jobId)}
+            onOpen={() => p.onOpenJob(open ? null : it.jobId)}
             onLike={() => (it.isLiked ? p.onRemove(it.jobId) : p.onStatus(it.jobId, "saved"))}
             onSkip={() => p.onRemove(it.jobId)}
             detail={
-              <DetailBody
-                job={it.job}
-                token={p.token}
-                active={open}
-                cartSkillNames={p.cartSkillNames}
-                otherRoles={otherRolesFor(p.allItems, it)}
-                onSkillToggle={p.onSkillToggle}
-                onJump={(jobId) => setOpenId(jobId)}
-                showHead={false}
-              />
+              inline ? (
+                <DetailBody
+                  job={it.job}
+                  token={p.token}
+                  active={open}
+                  cartSkillNames={p.cartSkillNames}
+                  otherRoles={otherRolesFor(p.allItems, it)}
+                  onSkillToggle={p.onSkillToggle}
+                  onJump={(jobId) => p.onOpenJob(jobId)}
+                  showHead={false}
+                />
+              ) : null
             }
           />
         )

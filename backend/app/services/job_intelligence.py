@@ -9,8 +9,6 @@ from uuid import UUID
 
 from app.repositories.job_intelligence import JobIntelligenceRepository
 from app.services.job_intelligence_policy import (
-    PERSONAL_FEEDBACK_REASONS,
-    QUALITY_FEEDBACK_REASONS,
     listing_confidence,
     marker_to_iso_date,
     parse_datetime,

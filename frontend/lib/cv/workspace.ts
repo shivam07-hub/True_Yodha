@@ -1,13 +1,16 @@
+import { APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, CVVersion } from "@/lib/api"
 
 const ACTIVE_APPLICATION_STATUSES = new Set(["applied", "screening", "interviewing", "final_round"])
+// Same predicate the company folders group on, so the COMPANIES stat and the
+// folder count are the same number by construction (no "6 vs 13" contradiction).
+const TRACKED_STATUSES = new Set<string>(APPLICATION_STAGES)
 
 export interface CVWorkspaceStat {
-  key: "tailored" | "companies" | "pipeline" | "downloads"
+  key: "tailored" | "companies" | "pipeline"
   eyebrow: string
   value: number | string
   sub: string
-  accent?: boolean
   interactive: false
 }
 
@@ -27,20 +30,19 @@ export function buildCVWorkspaceStats(
   applications: ApplicationResponse[],
 ): CVWorkspaceStat[] {
   const tailoredCount = versions.filter((version) => version.kind !== "baseline_upload").length
-  const companiesWithCv = new Set(
-    versions
-      .filter((version) => version.kind !== "baseline_upload" && version.company_name)
-      .map((version) => version.company_name),
+  const trackedCompanies = new Set(
+    applications
+      .filter((application) => TRACKED_STATUSES.has(application.status))
+      .map((application) => application.company ?? "Unknown"),
   ).size
   const pipelineCount = applications.filter((application) =>
     ACTIVE_APPLICATION_STATUSES.has(application.status),
   ).length
 
   return [
-    { key: "tailored", eyebrow: "TAILORED", value: tailoredCount, sub: "saved copies", accent: true, interactive: false },
-    { key: "companies", eyebrow: "COMPANIES", value: companiesWithCv, sub: "with CVs", interactive: false },
+    { key: "tailored", eyebrow: "TAILORED", value: tailoredCount, sub: "saved copies", interactive: false },
+    { key: "companies", eyebrow: "COMPANIES", value: trackedCompanies, sub: "tracked", interactive: false },
     { key: "pipeline", eyebrow: "PIPELINE", value: pipelineCount, sub: "active apps", interactive: false },
-    { key: "downloads", eyebrow: "DOWNLOADS", value: "—", sub: "tracking pending", interactive: false },
   ]
 }
 

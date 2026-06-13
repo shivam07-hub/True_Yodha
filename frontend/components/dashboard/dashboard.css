@@ -121,6 +121,11 @@
 .db-fitring .arc { stroke: var(--db-accent); transition: stroke-dashoffset 400ms ease; }
 .db-fitnum { font-size: 13px; font-weight: 700; fill: var(--db-ink); font-variant-numeric: tabular-nums; }
 .db-fitcap { font-family: var(--tm-font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--db-faint); }
+/* Fit tiers (D9): only a strong fit earns the accent. Mid reads neutral, low
+   reads muted — a 17% fit must not look like a badge of honour. */
+.db-fitring.fit-mid .arc { stroke: var(--db-mut); }
+.db-fitring.fit-low .arc { stroke: var(--db-faint); }
+.db-fitring.fit-low .db-fitnum { fill: var(--db-mut); }
 
 /* ── Feed controls (db-head) ─────────────────────────────────── */
 .db-head {
@@ -140,7 +145,48 @@
 .db-seg.active .db-seg-count { color: var(--db-accent-ink); opacity: 0.7; }
 .db-seg:disabled { opacity: 0.45; cursor: not-allowed; }
 .db-seg-count { font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-faint); }
-.db-head-actions { display: flex; gap: 8px; }
+.db-head-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ── Sort control (order within pile — distinct from segment) ──── */
+.db-sort { position: relative; display: inline-flex; }
+.db-sort-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 99px; border: 1px solid var(--db-line);
+  background: transparent; color: var(--db-mut); font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: color 120ms ease, border-color 120ms ease;
+}
+.db-sort-trigger:hover { color: var(--db-ink); border-color: var(--db-wash-border); }
+.db-sort-lead { color: var(--db-faint); }
+.db-sort-val { color: var(--db-ink); font-weight: 600; }
+.db-sort-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  min-width: 168px; padding: 6px; border-radius: 12px;
+  background: var(--tm-surface); border: 1px solid var(--db-line);
+  box-shadow: var(--db-card-shadow-up);
+  display: flex; flex-direction: column; gap: 2px;
+  animation: db-sort-pop 120ms var(--db-ease);
+}
+@keyframes db-sort-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.db-sort-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 11px; border-radius: 8px; border: 0; background: transparent;
+  color: var(--db-mut); font-size: 13px; font-family: inherit; cursor: pointer; text-align: left;
+}
+.db-sort-opt:hover { background: var(--db-wash); color: var(--db-ink); }
+.db-sort-opt.active { color: var(--db-accent-text); font-weight: 600; }
+.db-sort-sheet-title {
+  font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--db-faint); padding: 6px 11px 8px;
+}
+.db-sort-scrim { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.28); }
+/* Mobile: the menu becomes a bottom sheet. */
+.db-sort-menu.sheet {
+  position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 51;
+  min-width: 0; border-radius: 18px 18px 0 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  animation: db-sort-sheet 200ms var(--db-ease);
+}
+.db-sort-menu.sheet .db-sort-opt { padding: 14px 14px; font-size: 15px; }
+@keyframes db-sort-sheet { from { transform: translateY(100%); } to { transform: none; } }
 
 /* ── Stale banner (kept) ─────────────────────────────────────── */
 .db-stale {
@@ -277,6 +323,8 @@
 .db-mcard-top .co { font-size: 13px; font-weight: 600; color: var(--db-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .db-mcard-top .when { font-family: var(--tm-font-mono); font-size: 10.5px; color: var(--db-faint); flex-shrink: 0; white-space: nowrap; }
 .db-mcard-top .mfit { margin-left: auto; flex-shrink: 0; font-family: var(--tm-font-mono); font-size: 11px; font-weight: 700; color: var(--db-accent-text); white-space: nowrap; }
+.db-mcard-top .mfit.fit-mid { color: var(--db-mut); }
+.db-mcard-top .mfit.fit-low { color: var(--db-faint); }
 .db-mcard-top .db-statuschip { flex-shrink: 0; }
 .db-mrole { font-size: 16px; font-weight: 650; line-height: 1.3; margin: 3px 0 2px; letter-spacing: -0.01em; color: var(--db-ink); }
 .db-mloc { font-size: 12px; color: var(--db-faint); display: flex; gap: 6px; align-items: center; }
@@ -334,6 +382,13 @@
   padding: 2px 7px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint); white-space: nowrap;
 }
 .db-loc-mode.remote { color: var(--db-ok); border-color: var(--db-ok-border); }
+
+/* Structured fact chips (date · seniority · experience) — backlog #22 */
+.db-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.db-metachip {
+  font-family: var(--tm-font-mono); font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint); white-space: nowrap;
+}
 
 /* ── Tap micro-interactions (Twitter/LinkedIn feel) ─────────────────── */
 /* Heart pops on like (plays once when the .liked class lands). The fill itself

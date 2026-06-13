@@ -24,7 +24,7 @@ function StaleBadge() {
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         minWidth: 14, height: 14, borderRadius: 99, padding: "0 4px",
-        background: "var(--tm-danger)", color: "white",
+        background: "var(--tm-text-muted)", color: "var(--tm-surface)",
         fontSize: 9, fontFamily: "var(--tm-font-mono)", marginLeft: 4,
       }}
     >

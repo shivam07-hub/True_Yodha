@@ -9,6 +9,16 @@ import type { StageKey } from "./useTrackerBoard"
 
 type PreviewResult = Awaited<ReturnType<typeof jobs.importPreview>>
 
+/**
+ * Canonical name for the add-a-job affordance. Every trigger button (via
+ * `useManualAdd`) AND this modal's own header render THIS string, so the action
+ * keeps one name end to end — button → eyebrow → flow.
+ *
+ * "Add a job" is accurate across both method (link / upload / manual) and stage
+ * (saved / applied), unlike the older "Upload a job" / "Add manually".
+ */
+export const ADD_JOB_LABEL = "Add a job"
+
 interface Props {
   token: string
   onClose: () => void
@@ -141,7 +151,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)" }}>
-              {step === 1 ? "Add application" : "Confirm skills"}
+              {step === 1 ? ADD_JOB_LABEL : "Confirm skills"}
             </div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", marginTop: 4 }}>
               {step === 1 ? "Track a job from anywhere" : `${company || "Company"} — ${role}`}

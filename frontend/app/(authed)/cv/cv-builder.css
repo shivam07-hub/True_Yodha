@@ -3,10 +3,9 @@
    Imported only by /cv routes. Tokens come from app/design-tokens.css.
    ───────────────────────────────────────────────────────────────── */
 
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap");
 
 .cvb-scope {
-  --cvb-font-sans: "Geist", var(--tm-font-sans);
+  --cvb-font-sans: var(--tm-font-sans);
   --cvb-font-mono: var(--tm-font-mono);
 
   font-family: var(--cvb-font-sans);

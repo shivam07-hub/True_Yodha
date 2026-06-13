@@ -3,11 +3,10 @@
    Page-scoped. All classes .tm-lib-*. Tokens from design-tokens.css.
    ───────────────────────────────────────────────────────────────── */
 
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap");
 
 /* ── Scope ──────────────────────────────────────────────────────── */
 .tm-lib-scope {
-  font-family: "Geist", var(--tm-font-sans);
+  font-family: var(--tm-font-sans);
   font-feature-settings: "ss01", "cv11";
   color: var(--tm-text);
   font-size: 13px;
@@ -15,7 +14,7 @@
   -webkit-font-smoothing: antialiased;
 }
 .tm-lib-scope * { box-sizing: border-box; }
-.tm-lib-mono { font-family: "Geist Mono", var(--tm-font-mono); font-variant-numeric: tabular-nums; }
+.tm-lib-mono { font-family: var(--tm-font-mono); font-variant-numeric: tabular-nums; }
 .tm-lib-eyebrow {
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -76,7 +75,7 @@
   gap: 7px;
   padding: 8px 14px;
   border-radius: 6px;
-  font-family: "Geist", var(--tm-font-sans);
+  font-family: var(--tm-font-sans);
   font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--tm-border-soft);
@@ -178,7 +177,7 @@
   margin-bottom: 2px;
 }
 .tm-lib-intro-step-num {
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 11px;
   color: var(--tm-interactive);
   font-weight: 600;
@@ -231,7 +230,7 @@
 }
 .tm-lib-master-preview-name {
   font-size: 8.5px;
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-interactive);
@@ -278,7 +277,7 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   border: 1px solid var(--tm-accent-ring);
   color: var(--tm-interactive);
   background: var(--tm-accent-wash);
@@ -347,7 +346,7 @@
   margin: 0;
   white-space: pre-wrap;
   color: var(--tm-text);
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -355,9 +354,9 @@
 /* Stat strip */
 .tm-lib-header-stat-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(112px, 1fr));
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
   gap: 8px;
-  max-width: 680px;
+  max-width: 520px;
   margin-top: 12px;
 }
 .tm-lib-stat-tile {
@@ -372,14 +371,13 @@
   justify-content: center;
 }
 .tm-lib-stat-num {
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.05;
   color: var(--tm-text);
 }
-.tm-lib-stat-num.accent { color: var(--tm-interactive); }
 .tm-lib-stat-sub {
   font-size: 11.5px;
   color: var(--tm-text-muted);
@@ -405,7 +403,7 @@
 }
 .tm-lib-folders-head-count {
   font-size: 11px;
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   color: var(--tm-text-faint);
 }
 .tm-lib-folders-head-divider {
@@ -464,7 +462,6 @@
   font-size: 11.5px;
   color: var(--tm-text-muted);
   margin-top: 3px;
-  font-family: "Geist Mono", var(--tm-font-mono);
 }
 .tm-lib-folder-actions { display: flex; gap: 6px; }
 
@@ -480,7 +477,7 @@
   border: 1px solid var(--tm-border-soft);
   color: var(--tm-text-muted);
   background: var(--tm-surface);
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   white-space: nowrap;
 }
 .tm-lib-pill.accent {
@@ -495,7 +492,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-weight: 600;
   letter-spacing: 0;
   flex-shrink: 0;
@@ -610,7 +607,7 @@
   border-radius: 4px;
 }
 .tm-lib-fit-num {
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 11px;
   font-weight: 600;
 }
@@ -633,7 +630,7 @@
   border: 1px dashed var(--tm-border-soft);
   background: transparent;
   color: var(--tm-text-muted);
-  font-family: "Geist", var(--tm-font-sans);
+  font-family: var(--tm-font-sans);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -725,7 +722,7 @@
   white-space: nowrap;
 }
 .tm-lib-rail-count {
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 11px;
   color: var(--tm-interactive);
   font-weight: 600;
@@ -747,7 +744,7 @@
   text-transform: uppercase;
 }
 .tm-lib-stage-group-count {
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
   font-size: 11px;
   color: var(--tm-text-faint);
 }
@@ -769,7 +766,7 @@
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
-  font-family: "Geist", var(--tm-font-sans);
+  font-family: var(--tm-font-sans);
   color: var(--tm-text);
   width: 100%;
   margin-bottom: 6px;
@@ -793,7 +790,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: "Geist Mono", var(--tm-font-mono);
+  font-family: var(--tm-font-mono);
 }
 .tm-lib-rail-job-meta-sep { color: var(--tm-border-soft); }
 
@@ -819,12 +816,15 @@
 }
 @media (max-width: 900px) {
   .tm-lib-hero-strip { grid-template-columns: 1fr; }
-  .tm-lib-header-stat-strip { grid-template-columns: repeat(4, 1fr); }
+  .tm-lib-header-stat-strip { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 600px) {
-  .tm-lib-main { padding: 16px 16px 32px; }
-  .tm-lib-header-stat-strip { grid-template-columns: 1fr 1fr; }
-  .tm-lib-page-head { flex-direction: column; }
+  /* Top padding is redundant — the cvb-page wrapper already pads above this.
+     Dropping it lifts the view toggle out of the dead space at the top. */
+  .tm-lib-main { padding: 0 16px 32px; }
+  .tm-lib-header-stat-strip { grid-template-columns: repeat(3, 1fr); }
+  .tm-lib-viewseg { margin-top: 4px; }
+  .tm-lib-page-head { flex-direction: column; margin-bottom: 8px; }
   .tm-lib-master-preview { display: none; }
   .tm-lib-master-name { font-size: 18px; }
   .tm-lib-master-panel-head { align-items: flex-start; flex-direction: column; }
