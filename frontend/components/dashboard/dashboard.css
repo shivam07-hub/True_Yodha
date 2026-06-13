@@ -318,3 +318,17 @@
   padding: 2px 7px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint); white-space: nowrap;
 }
 .db-loc-mode.remote { color: var(--db-ok); border-color: var(--db-ok-border); }
+
+/* ── Tap micro-interactions (Twitter/LinkedIn feel) ─────────────────── */
+/* Heart pops on like (plays once when the .liked class lands). The fill itself
+   is already instant via optimistic state — this is the delight layer. */
+@media (prefers-reduced-motion: no-preference) {
+  .db-icon-btn.liked svg { animation: db-heart-pop 280ms var(--db-ease); }
+  @keyframes db-heart-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
+}
+/* Tactile press on icon actions (♥ ✕ share) */
+.db-icon-btn:active { transform: scale(0.92); }

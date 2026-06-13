@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -254,22 +255,38 @@ def job_feed(
     user has already saved or skipped (draining-queue model) so they only ever see
     roles they have not yet decided on.
     """
-    resolved_domain = role_domain
-    if not resolved_domain and cluster:
-        resolved_domain = repo.resolve_role_domain_for_clusters([cluster])
-    skill_keys = repo.user_skill_keys(principal.id)
-    target_roles = repo.get_user_target_roles(principal.id)
+    # The feed prelude is ~6 independent reads (skill keys, target roles, the two
+    # exclusion sets, location prefs, optionally followed companies + role-domain
+    # resolution). Run them concurrently instead of serially — wall time collapses
+    # from sum() (the prod `route.slow` on /jobs/feed) to max(). Same per-request
+    # RLS client (Depends-cached, httpx threadsafe) as the parallel home bootstrap.
+    uid = principal.id
+    prelude = {
+        "skill_keys": lambda: repo.user_skill_keys(uid),
+        "target_roles": lambda: repo.get_user_target_roles(uid),
+        "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
+        "saved": lambda: repo.get_saved_job_ids(uid),
+        "location_prefs": lambda: repo.user_target_locations(uid),
+    }
+    if following_only:
+        prelude["followed"] = lambda: repo.get_followed_company_names(uid)
+    if not role_domain and cluster:
+        prelude["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
+    with ThreadPoolExecutor(max_workers=len(prelude)) as pool:
+        futures = {key: pool.submit(fn) for key, fn in prelude.items()}
+        got = {key: future.result() for key, future in futures.items()}
+
+    resolved_domain = role_domain or got.get("resolved_domain")
+    skill_keys = got["skill_keys"]
+    target_roles = got["target_roles"]
     # Draining queue: hide what the user has decided on. Skipped = the canonical
     # rejection table (shared with the dashboard); saved = any application row.
-    exclude_ids = set(repo.get_dismissed_job_card_ids(principal.id))
-    exclude_ids.update(repo.get_saved_job_ids(principal.id))
-    followed: set[str] | None = None
-    if following_only:
-        followed = repo.get_followed_company_names(principal.id)
+    exclude_ids = set(got["dismissed"]) | set(got["saved"])
     # Geo is fixed from settings: scope the feed to the user's saved location
     # preferences instead of re-asking. The legacy city/country/mode query params
     # stay for back-compat but the market UI no longer sends them.
-    location_prefs = repo.user_target_locations(principal.id)
+    location_prefs = got["location_prefs"]
+    followed: set[str] | None = got.get("followed") if following_only else None
     page_result = repo.feed_jobs(
         role_domain=resolved_domain,
         q=q,
