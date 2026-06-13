@@ -24,5 +24,8 @@ jobs:
       - name: Lint
         run: cd frontend && npm run lint
 
+      - name: Upskilling contract
+        run: cd frontend && npm run test:upskilling
+
       - name: Build
         run: cd frontend && npm run build

@@ -298,7 +298,38 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Hosted Distribution Tracker parity)
+## LAST SESSION SUMMARY (2026-06-13 - Upskilling production hardening)
+
+Hardened the live `/forge` upskilling path after production question banks were
+loaded but the frontend still showed the empty-bank state.
+
+- Root cause: `upskilling_service.py` queried nonexistent `skills.name`; the
+  checked-in and live schema use `skills.display_name`.
+- Updated ladder and gap-calibration taxonomy reads to use one shared
+  `SKILL_DISPLAY_COLUMNS` contract.
+- Separated CV inference from demonstrated progress: `user_skills` now marks
+  `on_cv`, while `skill_assessed_level` alone drives cleared ladder levels.
+- Scoped first-clear detection and the `reward_xp` RPC to each user. Referral
+  signup credit intentionally remains globally single-pay.
+- Applied and verified live Supabase migrations `referral_reward_credit` and
+  `reward_xp_user_scope` on project `gipvxuugajkugntwkeiz`; both reward indexes
+  and the RPC are present.
+- Added an explicit retryable frontend error state, focused backend/frontend
+  regressions, and an authenticated post-deploy production smoke workflow.
+
+Validation:
+
+- Focused backend tests: `18 passed`
+- Ruff: clean
+- Frontend upskilling contract + targeted lint: clean
+- Frontend production build: passed
+- Full backend suite: `656 passed, 1 skipped`; one pre-existing untouched
+  failure remains in CV stylesheet parity (`test_cv_sheet_css_in_sync`).
+
+Deployment carry-over: configure GitHub Actions secrets `MYRO_SMOKE_EMAIL` and
+`MYRO_SMOKE_PASSWORD` for the dedicated smoke account.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Hosted Distribution Tracker parity)
 
 Rebuilt `/admin/growth` as the backend-persisted version of the proven local
 Distribution Tracker on `Develop`.

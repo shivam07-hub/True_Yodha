@@ -13,6 +13,7 @@ shapes in upskilling_service are exercised end-to-end without a DB.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -149,7 +150,7 @@ class _FakeAdmin:
         return _Query(self._store, name)
 
 
-def _seed_store(*, answer_all_correct=True, prior_clear=False):
+def _seed_store(*, answer_all_correct=True, prior_clear=False, prior_clear_user="u1"):
     """A started 10-question attempt for (SKILL_ID, LEVEL). correct_index=1 for all."""
     questions = [
         {
@@ -190,6 +191,7 @@ def _seed_store(*, answer_all_correct=True, prior_clear=False):
         store["xp_ledger"].append(
             {
                 "id": "led-1",
+                "user_id": prior_clear_user,
                 "action": upskilling_service.CLEAR_ACTION,
                 "ref_table": upskilling_service.CLEAR_REF_TABLE,
                 "ref_id": upskilling_service._clear_ref_id(SKILL_ID, LEVEL),
@@ -244,6 +246,16 @@ async def test_reclear_already_paid_level_awards_zero():
 
 
 @pytest.mark.asyncio
+async def test_other_users_clear_does_not_suppress_reward():
+    store = _seed_store(prior_clear=True, prior_clear_user="u2")
+    result, reward = await _run(store, _answers(10))
+    assert result["passed"] is True
+    assert result["first_clear"] is True
+    assert result["tokens_awarded"] == 50
+    reward.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_below_bar_awards_zero_and_does_not_unlock():
     store = _seed_store()
     result, reward = await _run(store, _answers(7))  # 7/10 — under the 8 bar
@@ -268,3 +280,65 @@ async def test_resubmit_same_attempt_replays_without_reawarding():
     assert replay["score"] == 10
     assert replay["passed"] is True
     reward2.assert_not_awaited()
+
+
+def test_ladder_uses_taxonomy_display_name_and_demonstrated_progress_only():
+    bank = [
+        {
+            "id": level * 100 + offset,
+            "skill_id": SKILL_ID,
+            "skill_key": "machine-learning",
+            "level": level,
+            "status": "active",
+        }
+        for level in range(1, 6)
+        for offset in range(10)
+    ]
+    store = {
+        "skill_questions": bank,
+        "skills": [
+            {
+                "id": SKILL_ID,
+                "taxonomy_key": "machine-learning",
+                "display_name": "Machine Learning",
+            }
+        ],
+        "skill_assessed_level": [
+            {"user_id": "u1", "skill_id": SKILL_ID, "assessed_level": 1}
+        ],
+        "user_skills": [
+            {"user_id": "u1", "skill_id": SKILL_ID, "matched_level": 4}
+        ],
+    }
+
+    with patch(
+        "app.services.upskilling_service.get_supabase_admin",
+        return_value=_FakeAdmin(store),
+    ):
+        ladder = upskilling_service.list_skills("u1")
+
+    assert ladder == [
+        {
+            "skill_id": SKILL_ID,
+            "skill_key": "machine-learning",
+            "display_name": "Machine Learning",
+            "cleared_level": 1,
+            "next_level": 2,
+            "assessed_level": 1,
+            "on_cv": True,
+            "demand": "none",
+            "job_count": 0,
+            "max_bank_level": 5,
+            "locked": False,
+        }
+    ]
+
+
+def test_skill_display_columns_match_checked_in_schema():
+    schema = (
+        Path(__file__).resolve().parents[2] / "database" / "schema.sql"
+    ).read_text()
+    columns = getattr(upskilling_service, "SKILL_DISPLAY_COLUMNS", "")
+
+    assert columns == "id, taxonomy_key, display_name"
+    assert "display_name VARCHAR(200) NOT NULL" in schema
