@@ -10,7 +10,7 @@ from app.repositories.job_intelligence import (
     JobIntelligenceRepository,
     get_job_intelligence_repository,
 )
-from app.schemas.jobs import (
+from app.schemas.job_intelligence import (
     FeedStateResponse,
     JobFeedbackRequest,
     JobFeedbackResponse,

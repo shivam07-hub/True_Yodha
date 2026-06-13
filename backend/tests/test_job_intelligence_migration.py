@@ -20,7 +20,14 @@ def test_job_feedback_migration_is_append_only_and_idempotent() -> None:
     assert "FOR SELECT" in sql
     assert "FOR UPDATE" not in sql
     assert "FOR DELETE" not in sql
-    assert "GRANT SELECT, INSERT ON public.job_feedback_events TO authenticated" in sql
+    assert (
+        "GRANT SELECT, INSERT ON public.job_feedback_events TO authenticated, service_role"
+        in sql
+    )
+    assert (
+        "GRANT USAGE, SELECT ON SEQUENCE public.job_feedback_events_id_seq TO authenticated, service_role"
+        in sql
+    )
 
 
 def test_job_feedback_migration_indexes_shared_quality_reads() -> None:
@@ -37,6 +44,10 @@ def test_job_pulse_snapshot_is_backend_only_and_read_optimized() -> None:
     assert "PRIMARY KEY REFERENCES public.jobs(job_id)" in sql
     assert "ALTER TABLE public.job_intelligence_snapshots ENABLE ROW LEVEL SECURITY" in sql
     assert "REVOKE ALL ON public.job_intelligence_snapshots FROM anon, authenticated" in sql
+    assert (
+        "GRANT SELECT ON public.job_intelligence_snapshots TO service_role"
+        in sql
+    )
     assert "idx_job_applications_job_status" in sql
 
 
