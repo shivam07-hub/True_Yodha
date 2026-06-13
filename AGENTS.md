@@ -298,7 +298,33 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Career Growth Command System Phase 1)
+## LAST SESSION SUMMARY (2026-06-13 - June 4 enrichment completion audit)
+
+Audited the completed `firecrawl_Supabase` June 4 Phase 2 run and the Phase 3
+upload path. No production or scraper implementation code was changed.
+
+- The date-scoped runner completed all 206 files / 17,964 local jobs.
+- Of 17,962 jobs with JDs, 17,929 are fully enriched and 33 residual rows remain
+  across 20 companies: 31 missing a controlled `role_domain`, 5 missing skills,
+  and 4 missing summaries.
+- Live Supabase currently has 28,047 jobs and 238,481 `job_skills` rows, but
+  zero jobs with `batch_date = 20260604`.
+- The exact-date dry run selected 206/274 files, loaded all 35,108 taxonomy
+  skills, and passed the audit, `required_level`, `locations[]`, and job-card
+  schema gates. It made no writes.
+- Phase 3 is blocked by one importer bug: Visa's June 4 `jobs.json` is the only
+  empty file, and `import_file()` returns no `company` key for empty lists;
+  `main()` then raises `KeyError: 'company'` while logging the result.
+- After a tested empty-file fix, rerun:
+  `/opt/anaconda3/bin/python3.13 csv_importer.py --dry-run
+  --deactivate-missing --run-date 20260604`.
+- Review location quality, taxonomy drift, and simulated deactivation counts,
+  then run the real date-scoped import. A clean real load automatically
+  refreshes the Myro analytics snapshot.
+- LM Studio remains idle with `google/gemma-3-4b` loaded; stop it after deciding
+  whether to retry the 33 residual rows with a quality model.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Career Growth Command System Phase 1)
 
 Implemented the approved human-first Growth Command System Phase 1 on
 `Develop`, in six scoped commits.
