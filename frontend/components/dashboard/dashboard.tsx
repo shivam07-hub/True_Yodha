@@ -3,17 +3,22 @@
 import * as React from "react"
 import "./dashboard.css"
 import { useViewport } from "@/mobile"
-import { RefreshMatchesButton } from "@/components/jobs/RefreshMatchesButton"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { Button } from "@/components/ui/button"
 import { MobileFeed } from "./mobile-feed"
-import { DesktopGrid } from "./desktop-grid"
-import { ManualAddModal } from "@/components/cv/pipeline/ManualAddModal"
+import { DesktopGrid, otherRolesFor } from "./desktop-grid"
+import { DetailBody } from "./detail-body"
+import { SortMenu } from "./sort-menu"
+import { PeekPanel } from "@/components/mission-control/peek-panel"
+import type { LoopStep } from "@/components/mission-control/loop-ring"
+import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import {
   buildFeed,
   filterSegment,
   segmentCounts,
+  sortItems,
   type Segment,
+  type SortKey,
 } from "@/lib/dashboard/feed-model"
 import type {
   ApplicationResponse,
@@ -37,11 +42,27 @@ export interface DashboardProps {
   /** True when the Feed State publication clock is ahead of these matches. */
   feedAhead?: boolean
   initialJobId?: string | null
+  /** Daily-loop steps — feed the peek panel's "Today's missions" surface. */
+  steps?: LoopStep[]
   onStatus: (jobId: string, status: ApplicationStatus) => void
   onRemove: (jobId: string) => void
   onSkillToggle: (skill: SkillGapItem) => void
   /** Refetch applications after a self-sourced job is added so it joins the feed. */
   onManualAdded?: () => void
+}
+
+/** Wide enough for the 3rd (peek) column to carry the job detail (D5). Below
+ *  this the detail falls back to inline card expansion. */
+function useWideWorkspace(): boolean {
+  const [wide, setWide] = React.useState(false)
+  React.useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1180px)")
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener("change", on)
+    return () => mq.removeEventListener("change", on)
+  }, [])
+  return wide
 }
 
 const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
@@ -52,15 +73,34 @@ const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
 
 export function Dashboard(props: DashboardProps) {
   const { isDesktop } = useViewport()
+  const isWide = useWideWorkspace()
   const [segment, setSegment] = React.useState<Segment>("myro")
-  const [manualOpen, setManualOpen] = React.useState(false)
+  const [sort, setSort] = React.useState<SortKey>("fit")
+  const [openId, setOpenId] = React.useState<string | null>(props.initialJobId ?? null)
+  const addJob = useManualAdd({
+    token: props.token,
+    onSaved: () => {
+      props.onManualAdded?.()
+      // Surface the just-added job — self-sourced jobs land in Liked.
+      setSegment("liked")
+    },
+  })
 
   const { items } = React.useMemo(
     () => buildFeed(props.jobs, props.apps, props.dismissedJobIds),
     [props.jobs, props.apps, props.dismissedJobIds],
   )
   const counts = React.useMemo(() => segmentCounts(items), [items])
-  const visible = React.useMemo(() => filterSegment(items, segment), [items, segment])
+  const visible = React.useMemo(
+    () => sortItems(filterSegment(items, segment), sort),
+    [items, segment, sort],
+  )
+
+  // Close the open card if it left the visible set (segment change / skip).
+  React.useEffect(() => {
+    if (openId && !visible.some((it) => it.jobId === openId)) setOpenId(null)
+  }, [visible, openId])
+  const openItem = visible.find((it) => it.jobId === openId) ?? null
 
   // Empty copy is scoped to *why* the view is empty, never a blanket
   // "No matches yet" when the feed actually holds jobs the user just isn't
@@ -108,14 +148,14 @@ export function Dashboard(props: DashboardProps) {
           ))}
         </div>
         <div className="db-head-actions">
+          <SortMenu sort={sort} onChange={setSort} mobile={!isDesktop} />
           <button
             type="button"
             className="db-btn db-btn-secondary tm-control-focus"
-            onClick={() => setManualOpen(true)}
+            onClick={addJob.open}
           >
-            + Upload a job
+            + {ADD_JOB_LABEL}
           </button>
-          <RefreshMatchesButton vm={props.refresh} disabled={!props.token} />
         </div>
       </div>
 
@@ -136,17 +176,51 @@ export function Dashboard(props: DashboardProps) {
       {visible.length === 0 ? (
         <div className="db-empty">{emptyMessage}</div>
       ) : isDesktop ? (
-        <DesktopGrid
-          items={visible}
-          allItems={items}
-          appsByJobId={props.appsByJobId}
-          token={props.token}
-          cartSkillNames={props.cartSkillNames}
-          initialJobId={props.initialJobId}
-          onStatus={props.onStatus}
-          onRemove={props.onRemove}
-          onSkillToggle={props.onSkillToggle}
-        />
+        (() => {
+          const grid = (
+            <DesktopGrid
+              items={visible}
+              allItems={items}
+              appsByJobId={props.appsByJobId}
+              token={props.token}
+              cartSkillNames={props.cartSkillNames}
+              openId={openId}
+              onOpenJob={setOpenId}
+              inlineDetail={!isWide}
+              onStatus={props.onStatus}
+              onRemove={props.onRemove}
+              onSkillToggle={props.onSkillToggle}
+            />
+          )
+          // Wide workspace (D5): the centre keeps the card list; the open card's
+          // detail lifts into the peek panel so the feed never loses its place.
+          if (!isWide) return grid
+          return (
+            <div className="db-workspace">
+              <div className="db-workspace-feed">{grid}</div>
+              <PeekPanel
+                token={props.token}
+                steps={props.steps ?? []}
+                detail={
+                  openItem ? (
+                    <DetailBody
+                      job={openItem.job}
+                      token={props.token}
+                      active
+                      cartSkillNames={props.cartSkillNames}
+                      otherRoles={otherRolesFor(items, openItem)}
+                      onSkillToggle={props.onSkillToggle}
+                      onJump={(jobId) => setOpenId(jobId)}
+                      showHead
+                    />
+                  ) : null
+                }
+                detailTitle={openItem ? (openItem.company ?? openItem.role) : null}
+                onCloseDetail={() => setOpenId(null)}
+              />
+            </div>
+          )
+        })()
       ) : (
         <MobileFeed
           items={visible}
@@ -163,18 +237,7 @@ export function Dashboard(props: DashboardProps) {
         />
       )}
 
-      {manualOpen && (
-        <ManualAddModal
-          token={props.token}
-          onClose={() => setManualOpen(false)}
-          onSaved={() => {
-            setManualOpen(false)
-            props.onManualAdded?.()
-            // Surface the just-added job — self-sourced jobs land in Liked.
-            setSegment("liked")
-          }}
-        />
-      )}
+      {addJob.modal}
     </div>
   )
 }

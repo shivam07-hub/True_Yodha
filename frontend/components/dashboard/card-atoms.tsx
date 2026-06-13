@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Heart, X, Share, Home, FileText, User, Radar } from "lucide-react"
+import { Heart, X, Share, Check, Home, FileText, User, Radar, AlertTriangle } from "lucide-react"
+import { fitTier } from "@/lib/dashboard/feed-model"
 import type { JobMatch, JobPulse, ResponseSignal } from "@/lib/api"
+import { shareJob } from "@/lib/job-share"
 
 /* ── Monogram (company letter square) ───────────────────────────── */
 export function Monogram({ company, size }: { company: string | null; size?: number }) {
@@ -15,14 +17,14 @@ export function Monogram({ company, size }: { company: string | null; size?: num
   )
 }
 
-/* ── Fit ring (donut, accent arc = fit%) ────────────────────────── */
+/* ── Fit ring (donut, arc colour scales with the fit tier — D9) ──── */
 export function FitRing({ fit, size = 54 }: { fit: number; size?: number }) {
   const r = (size - 8) / 2
   const c = 2 * Math.PI * r
   const off = c * (1 - Math.max(0, Math.min(100, fit)) / 100)
   return (
     <svg
-      className="db-fitring"
+      className={`db-fitring fit-${fitTier(fit)}`}
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
@@ -99,18 +101,21 @@ function Check8() {
 /* ── Card action row (♥ like · ✕ skip · [share] · Tailor CV) ────── */
 export function CardActions({
   jobId,
+  company,
   liked,
   onLike,
   onSkip,
   mobile,
 }: {
   jobId: string
+  company?: string | null
   liked: boolean
   onLike: () => void
   onSkip: () => void
   mobile?: boolean
 }) {
   const [pop, setPop] = React.useState(false)
+  const [shared, setShared] = React.useState(false)
   return (
     <div className={mobile ? "db-mactions" : "db-card-actions"}>
       <button
@@ -140,8 +145,21 @@ export function CardActions({
         <X size={17} aria-hidden />
       </button>
       {mobile ? (
-        <button type="button" className="db-icon-btn" aria-label="Share" title="Share" onClick={(e) => e.stopPropagation()}>
-          <Share size={16} aria-hidden />
+        <button
+          type="button"
+          className="db-icon-btn"
+          aria-label={shared ? "Link copied" : "Share this job"}
+          title={shared ? "Link copied" : "Share"}
+          onClick={async (e) => {
+            e.stopPropagation()
+            const r = await shareJob(company)
+            if (r === "copied") {
+              setShared(true)
+              window.setTimeout(() => setShared(false), 1600)
+            }
+          }}
+        >
+          {shared ? <Check size={16} aria-hidden /> : <Share size={16} aria-hidden />}
         </button>
       ) : null}
       <span className="db-spacer" />
@@ -210,7 +228,10 @@ export function PulseRow({ pulse, mobile, bare }: { pulse?: JobPulse; mobile?: b
   return (
     <div className={`tm-pulse${mobile ? " mobile" : ""}${edge}`}>
       {closed ? (
-        <span className="tm-pulse-item tm-pulse-warn">apply link may be closed</span>
+        <span className="tm-pulse-item tm-pulse-warn">
+          <AlertTriangle size={11} aria-hidden style={{ marginRight: 3 }} />
+          apply link may be closed
+        </span>
       ) : null}
       {verified ? <span className="tm-pulse-item">Verified {verified}</span> : null}
       {tracking != null ? <span className="tm-pulse-item">{tracking} tracking</span> : null}

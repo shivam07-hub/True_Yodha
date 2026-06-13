@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import type { ApplicationResponse, JobMatch } from "../lib/api"
-import { buildFeed } from "../lib/dashboard/feed-model"
+import { buildFeed, sortItems, fitTier, type FeedItem } from "../lib/dashboard/feed-model"
 
 function match(partial: Partial<JobMatch>): JobMatch {
   return {
@@ -57,4 +57,49 @@ test("dashboard feed hides dismissed match cards from all segments", () => {
   )
 
   assert.deepEqual(feed.items.map((item) => item.jobId), ["keep-job"])
+})
+
+function feedItem(partial: Partial<FeedItem>): FeedItem {
+  return {
+    jobId: "j",
+    company: "Acme",
+    role: "Analyst",
+    fit: 50,
+    isMatch: true,
+    isLiked: false,
+    job: match({}),
+    ...partial,
+  }
+}
+
+test("sortItems: Best fit preserves the incoming (canonical rank) order", () => {
+  const items = [feedItem({ jobId: "a", fit: 20 }), feedItem({ jobId: "b", fit: 90 })]
+  assert.deepEqual(sortItems(items, "fit").map((i) => i.jobId), ["a", "b"])
+})
+
+test("sortItems: Company sorts A–Z, case-insensitive, nulls last", () => {
+  const items = [
+    feedItem({ jobId: "z", company: "Zeta" }),
+    feedItem({ jobId: "n", company: null }),
+    feedItem({ jobId: "a", company: "acme" }),
+  ]
+  assert.deepEqual(sortItems(items, "company").map((i) => i.jobId), ["a", "z", "n"])
+})
+
+test("sortItems: Most recent sorts by first_seen desc, undated last", () => {
+  const items = [
+    feedItem({ jobId: "old", job: match({ first_seen: "2026-06-01T00:00:00Z" }) }),
+    feedItem({ jobId: "new", job: match({ first_seen: "2026-06-10T00:00:00Z" }) }),
+    feedItem({ jobId: "undated", job: match({ first_seen: null }) }),
+  ]
+  assert.deepEqual(sortItems(items, "recent").map((i) => i.jobId), ["new", "old", "undated"])
+})
+
+test("fitTier: low fit never reads as strong", () => {
+  assert.equal(fitTier(17), "low")
+  assert.equal(fitTier(39), "low")
+  assert.equal(fitTier(40), "mid")
+  assert.equal(fitTier(64), "mid")
+  assert.equal(fitTier(65), "strong")
+  assert.equal(fitTier(92), "strong")
 })

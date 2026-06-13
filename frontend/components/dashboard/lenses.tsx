@@ -33,9 +33,39 @@ function isMultiLocation(loc: string): boolean {
 /** Honest location line (Q5). Real cities as chips when known (scalar or the
  *  locations[] array); otherwise the count phrase as a link to the source
  *  posting, plus a mode chip when it adds new info. */
+/** Experience-range chip label from the scraper's min/max years (backlog #22). */
+function experienceLabel(min?: number | null, max?: number | null): string | null {
+  if (min != null && max != null) return min === max ? `${min} yrs` : `${min}–${max} yrs`
+  if (min != null) return `${min}+ yrs`
+  if (max != null) return `≤${max} yrs`
+  return null
+}
+
+/**
+ * Structured fact chips beneath the location line — each scraper column renders
+ * as its own chip, never concatenated into the description (backlog #22).
+ * Renders nothing when a row carries no structured facts (legacy / sparse).
+ */
+export function JobMetaChips({ job }: { job: JobMatch }) {
+  const posted = job.date_posted?.trim() || null
+  const seniority = job.seniority_level?.trim() || null
+  const exp = experienceLabel(job.min_years_experience, job.max_years_experience)
+  if (!posted && !seniority && !exp) return null
+  return (
+    <div className="db-meta">
+      {posted ? <span className="db-metachip">Posted {posted}</span> : null}
+      {seniority ? <span className="db-metachip">{seniority}</span> : null}
+      {exp ? <span className="db-metachip">{exp}</span> : null}
+    </div>
+  )
+}
+
 export function LocationLine({ job }: { job: JobMatch }) {
   const loc = job.location?.trim() || null
-  const rawMode = job.location_mode && job.location_mode !== "unknown" ? job.location_mode : null
+  const scalarMode = job.location_mode && job.location_mode !== "unknown" ? job.location_mode : null
+  // Fall back to the scraper's work_mode signal when the geocoded mode is unknown.
+  const workMode = job.work_mode && job.work_mode.trim().toLowerCase() !== "unknown" ? job.work_mode.trim().toLowerCase() : null
+  const rawMode = scalarMode ?? workMode
   const showMode = rawMode && (!loc || !loc.toLowerCase().includes(rawMode))
   const cities = (job.locations ?? []).filter((c) => c && c.trim())
   if (!loc && cities.length === 0 && !showMode) return null
@@ -70,6 +100,15 @@ export function jdSnippet(text: string | null | undefined, max = 160): string {
   if (!text) return ""
   const flat = text.replace(/\s+/g, " ").trim()
   return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat
+}
+
+/**
+ * Card body preview — prefers the LLM-enriched `job_summary` (clean ≤100-word
+ * prose, no scrape junk) and falls back to a truncated `job_description` only on
+ * legacy rows that predate enrichment. See HANDOFF_job_card_columns_20260604.
+ */
+export function cardSummary(job: { job_summary?: string | null; job_description?: string | null }): string {
+  return jdSnippet(job.job_summary?.trim() || job.job_description)
 }
 
 interface LensProps {

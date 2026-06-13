@@ -815,7 +815,9 @@
   animation: tm-pulse-in 240ms ease both;
 }
 .tm-pulse-item { display: inline-flex; align-items: center; white-space: nowrap; }
-.tm-pulse-warn { color: var(--tm-warning); }
+/* Stale-listing caveat reads as a quiet caution (D11) — muted + icon, never a
+   brand-accent string that looks tappable. */
+.tm-pulse-warn { color: var(--tm-text-muted); }
 .tm-pulse-signal.high { color: var(--tm-success); }
 .tm-pulse-signal.mixed { color: var(--tm-warning); }
 .tm-pulse-signal.low { color: var(--tm-text-muted); }

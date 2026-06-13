@@ -28,7 +28,7 @@ import { I, LIcon } from "@/components/cv/builder/library-icons"
 import { useTrackerBoard, partitionVerdicts } from "./useTrackerBoard"
 import { VerdictsTab } from "./VerdictsTab"
 import { ReviewModal } from "./ReviewModal"
-import { ManualAddModal } from "./ManualAddModal"
+import { useManualAdd, ADD_JOB_LABEL } from "./useManualAdd"
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog"
 
 export type PipelineFilter = "active" | "closed"
@@ -45,7 +45,13 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
 
-  const [manualOpen, setManualOpen] = useState(false)
+  const addJob = useManualAdd({
+    token: token!,
+    onSaved: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+      showToast("Added to pipeline")
+    },
+  })
   const [reviewJobId, setReviewJobId] = useState<string | null>(null)
   const [reviewDefaultStage, setReviewDefaultStage] = useState<string>("applied")
   const [deleteTarget, setDeleteTarget] = useState<ApplicationResponse | null>(null)
@@ -163,8 +169,8 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
         </div>
         <span className="tm-lib-folders-head-count">{companies.length}</span>
         <span className="tm-lib-folders-head-divider"/>
-        <button type="button" className="tm-lib-btn sm" onClick={() => setManualOpen(true)}>
-          <LIcon d={I.plus} size={12}/> Add manually
+        <button type="button" className="tm-lib-btn sm" onClick={addJob.open}>
+          <LIcon d={I.plus} size={12}/> {ADD_JOB_LABEL}
         </button>
       </div>
 
@@ -173,7 +179,7 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
           <LIcon d={I.folder} size={28}/>
           <div className="tm-lib-empty-title">Nothing in your pipeline yet</div>
           <div className="tm-lib-empty-sub">
-            Save jobs from Live Job Data, or add one manually — every job you tailor a CV for is tracked here.
+            Save jobs from Live Job Data, or add one yourself — every job you tailor a CV for is tracked here.
           </div>
           <Link href="/home#browse" className="tm-lib-empty-link">
             Browse jobs <LIcon d={I.chevR} size={12}/>
@@ -195,17 +201,7 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
         </div>
       )}
 
-      {manualOpen && (
-        <ManualAddModal
-          token={token!}
-          onClose={() => setManualOpen(false)}
-          onSaved={() => {
-            setManualOpen(false)
-            queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
-            showToast("Added to pipeline")
-          }}
-        />
-      )}
+      {addJob.modal}
 
       {reviewJobId && reviewApp && (
         <ReviewModal

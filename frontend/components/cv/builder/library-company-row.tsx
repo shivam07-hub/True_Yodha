@@ -25,8 +25,8 @@ function CVJobCard({ app, cv, onOpen, onStageChange }: {
     <div className="tm-lib-job-card" onClick={onOpen} role="button" tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}>
       <div className="tm-lib-job-card-top">
-        <CompanyAvatar name={app.company ?? "?"} size={22}/>
-        <span className="tm-lib-eyebrow" style={{ fontSize: 10 }}>{app.company}</span>
+        {/* Company monogram + name omitted — the folder header already names the
+            company; repeating it per card was a redundant second mark. */}
         {onStageChange && app.job_id ? (
           <div className="tm-lib-job-stage-control" style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
             <button
@@ -122,7 +122,7 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
           <div className="tm-lib-folder-name">
             <span className="tm-lib-folder-name-text">{companyName}</span>
             {activeCount > 0 && (
-              <Pill accent>
+              <Pill>
                 <span className="tm-lib-stage-dot" style={{ background: "var(--tm-interactive)", boxShadow: "0 0 4px var(--tm-accent-glow)" }}/>
                 {activeCount} active
               </Pill>

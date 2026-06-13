@@ -1447,7 +1447,14 @@ export interface JobMatch {
   batch_week: string
   source_url: string | null
   matched_skills: string[]
+  job_summary?: string | null // LLM-enriched ≤100-word clean prose — card body, preferred over job_description
   job_description?: string | null
+  // Scraper structured chip columns (backlog #22) — null when a provider omits them
+  date_posted?: string | null
+  seniority_level?: string | null
+  work_mode?: string | null
+  min_years_experience?: number | null
+  max_years_experience?: number | null
   // Matching Brain (Career Ops 5-axis eval) — null until the LLM stage runs
   overall_score?: number | null // 0.0–5.0
   grade?: string | null // A+|A|A-|B+|B|B-|C+|C|C-|D|F

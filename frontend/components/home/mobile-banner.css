@@ -1,5 +1,6 @@
-/* Q6 mobile greeting banner. Page-scoped per ADR-0003. Sticky, non-snapping.
-   Desktop never renders this (home branches on useViewport). */
+/* Mobile top strip (D1). Greeting dropped — only the actionable score dial +
+   streak remain. Page-scoped per ADR-0003. Sticky, non-snapping. Desktop never
+   renders this (home branches on useViewport). */
 
 .mb {
   position: sticky;
@@ -7,51 +8,47 @@
   z-index: 40;
   scroll-snap-align: none;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 0 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 12px;
   margin-bottom: 4px;
   background: var(--tm-bg);
   border-bottom: 1px solid var(--tm-border-soft, var(--tm-border));
 }
 
-.mb-top {
-  display: flex;
+/* Actionable score dial → taps through to /skills. */
+.mb-score {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.mb-hi {
-  font-size: 15px;
-  color: var(--tm-text-muted);
+  gap: 10px;
+  text-decoration: none;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.mb-hi strong {
-  color: var(--tm-text);
-  font-weight: 650;
+.mb-dial { display: block; flex-shrink: 0; }
+.mb-dial .track { stroke: var(--tm-border); }
+.mb-dial .arc { stroke: var(--tm-interactive); transition: stroke-dashoffset 500ms ease; }
+.mb-dial .num {
+  font-size: 14px; font-weight: 700; fill: var(--tm-text);
+  font-variant-numeric: tabular-nums; font-family: var(--tm-font-mono);
 }
+.mb-score-meta { display: flex; flex-direction: column; min-width: 0; }
+.mb-score-lab { font-size: 13.5px; font-weight: 650; color: var(--tm-text); }
+.mb-score-sub {
+  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.04em;
+  color: var(--tm-text-faint);
+}
+.mb-up { color: var(--tm-success); }
 
-.mb-stats {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
 .mb-chip {
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 700;
   font-family: var(--tm-font-mono);
-  color: var(--tm-interactive, var(--tm-accent));
-  background: var(--tm-int-bg-wash);
-  border: 1px solid var(--tm-int-border);
-  border-radius: 99px;
-  padding: 3px 10px;
-}
-.mb-chip--streak {
   color: var(--tm-text-muted);
   background: transparent;
-  border-color: var(--tm-border);
+  border: 1px solid var(--tm-border);
+  border-radius: 99px;
+  padding: 4px 11px;
 }
+.mb-chip--streak { color: var(--tm-text-muted); }

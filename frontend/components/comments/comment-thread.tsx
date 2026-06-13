@@ -104,9 +104,7 @@ export function CommentThread({ token, entityType, entityId, placeholder }: Comm
 
       {isLoading ? (
         <div className="tm-cmt-empty">Loading notes…</div>
-      ) : notes.length === 0 ? (
-        <div className="tm-cmt-empty">No notes yet — jot what you tried, learned, or want to remember.</div>
-      ) : (
+      ) : notes.length === 0 ? null : (
         <ul className="tm-cmt-list">
           {notes.map((note: Comment) => (
             <li key={note.id} className="tm-cmt-item">

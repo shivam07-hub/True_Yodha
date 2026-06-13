@@ -2,17 +2,7 @@
 
 import * as React from "react"
 import { Icon } from "./icons"
-
-/** Locked share copy — sent with the job's careers link via the Web Share sheet. */
-const JOB_SHARE_TEXT =
-  "Hey, found this job on Himyro career portal, where all the company career pages are tracked and shared according to your resume"
-
-/** Careers link mirrors the ApplyRow heuristic — Google search "{company} careers". */
-function careersUrl(company: string | null | undefined): string | null {
-  return company
-    ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`
-    : null
-}
+import { careersUrl, shareJob } from "@/lib/job-share"
 
 /**
  * Share affordance on the corner of an opened job card. Web Share API on
@@ -21,25 +11,12 @@ function careersUrl(company: string | null | undefined): string | null {
  */
 export function JobShareButton({ company }: { company: string | null | undefined }) {
   const [copied, setCopied] = React.useState(false)
-  const url = careersUrl(company)
-  if (!url) return null
+  if (!careersUrl(company)) return null
 
   const onClick = async () => {
-    const title = company ? `${company} role on Myro` : "A role on Myro"
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title, text: JOB_SHARE_TEXT, url })
-        return
-      } catch {
-        // cancelled / unsupported — fall through to clipboard
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(`${JOB_SHARE_TEXT}\n${url}`)
+    if ((await shareJob(company)) === "copied") {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      window.prompt("Copy this link:", url)
     }
   }
 

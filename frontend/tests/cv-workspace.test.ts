@@ -56,7 +56,7 @@ function application(partial: Partial<ApplicationResponse>): ApplicationResponse
   }
 }
 
-test("CV workspace stats are non-interactive and honest about download tracking", () => {
+test("CV workspace stats are non-interactive; COMPANIES counts tracked companies (matches the folder list)", () => {
   const stats = buildCVWorkspaceStats(
     [
       cvVersion({ id: 1 }),
@@ -64,19 +64,20 @@ test("CV workspace stats are non-interactive and honest about download tracking"
       cvVersion({ id: 3, kind: "polished", job_id: "job-2", company_name: "3M" }),
     ],
     [
-      application({ id: 1, job_id: "job-1", status: "saved" }),
-      application({ id: 2, job_id: "job-2", status: "applied" }),
-      application({ id: 3, job_id: "job-3", status: "screening" }),
+      application({ id: 1, job_id: "job-1", status: "saved", company: "3M" }),
+      application({ id: 2, job_id: "job-2", status: "applied", company: "3M" }),
+      application({ id: 3, job_id: "job-3", status: "screening", company: "Acme" }),
     ],
   )
 
-  assert.deepEqual(stats.map((stat) => stat.key), ["tailored", "companies", "pipeline", "downloads"])
-  assert.deepEqual(stats.map((stat) => stat.interactive), [false, false, false, false])
+  assert.deepEqual(stats.map((stat) => stat.key), ["tailored", "companies", "pipeline"])
+  assert.deepEqual(stats.map((stat) => stat.interactive), [false, false, false])
   assert.equal(stats[0].value, 2)
-  assert.equal(stats[1].value, 1)
+  // Tracked companies = unique companies across saved/applied/screening/... apps → 3M + Acme = 2.
+  assert.equal(stats[1].value, 2)
+  assert.equal(stats[1].sub, "tracked")
+  // Pipeline = applied + screening (saved excluded) = 2.
   assert.equal(stats[2].value, 2)
-  assert.equal(stats[3].value, "—")
-  assert.equal(stats[3].sub, "tracking pending")
 })
 
 test("CV workspace job action labels match the real destination", () => {
