@@ -163,8 +163,15 @@
   overflow: hidden;
 }
 :root[data-surface="dark"] .db-card { border-color: var(--db-line-soft); }
-.db-card:hover { box-shadow: var(--db-card-shadow-up); border-color: var(--db-wash-border); }
-:root[data-surface="dark"] .db-card:hover { background: rgba(255, 255, 255, 0.022); }
+/* Hover lift only on real pointers (no sticky touch-hover), and NO accent
+   border on hover — that border lit up card-after-card under a stationary
+   cursor while scrolling, which read as unpleasant flashing. Shadow lift is
+   the calm hover; the bold accent stays on deliberate states (active segment,
+   matched chips, name), not on scroll-transient hover. */
+@media (hover: hover) {
+  .db-card:hover { box-shadow: var(--db-card-shadow-up); }
+  :root[data-surface="dark"] .db-card:hover { background: rgba(255, 255, 255, 0.022); }
+}
 .db-card.open { box-shadow: var(--db-card-shadow-up); }
 
 .db-card-main { display: flex; gap: 14px; padding: var(--db-pad); cursor: pointer; text-align: left; width: 100%; background: none; border: none; font: inherit; color: inherit; }
@@ -323,7 +330,9 @@
 /* Heart pops on like (plays once when the .liked class lands). The fill itself
    is already instant via optimistic state — this is the delight layer. */
 @media (prefers-reduced-motion: no-preference) {
-  .db-icon-btn.liked svg { animation: db-heart-pop 280ms var(--db-ease); }
+  /* One-shot: fires only on the like TAP (transient .db-just-liked class), so
+     it never replays on re-render/scroll. */
+  .db-icon-btn.db-just-liked svg { animation: db-heart-pop 280ms var(--db-ease); }
   @keyframes db-heart-pop {
     0%   { transform: scale(1); }
     40%  { transform: scale(1.28); }
@@ -332,3 +341,22 @@
 }
 /* Tactile press on icon actions (♥ ✕ share) */
 .db-icon-btn:active { transform: scale(0.92); }
+
+/* ── Card exit on Skip / Unlike (slide + fade + collapse) ───────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .db-card.is-leaving,
+  .db-mcard.is-leaving {
+    animation: db-card-leave 230ms var(--db-ease) forwards;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  @keyframes db-card-leave {
+    0%   { opacity: 1; transform: translateX(0); max-height: 420px; }
+    55%  { opacity: 0; transform: translateX(-28px); }
+    100% { opacity: 0; transform: translateX(-28px); max-height: 0;
+           margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-card.is-leaving, .db-mcard.is-leaving { opacity: 0; }
+}

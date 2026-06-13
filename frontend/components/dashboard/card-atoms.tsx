@@ -110,17 +110,20 @@ export function CardActions({
   onSkip: () => void
   mobile?: boolean
 }) {
+  const [pop, setPop] = React.useState(false)
   return (
     <div className={mobile ? "db-mactions" : "db-card-actions"}>
       <button
         type="button"
-        className={`db-icon-btn${liked ? " liked" : ""}`}
+        className={`db-icon-btn${liked ? " liked" : ""}${pop ? " db-just-liked" : ""}`}
         aria-label={liked ? "Unlike" : "Like"}
         title={liked ? "Unlike" : "Like"}
         onClick={(e) => {
           e.stopPropagation()
+          if (!liked) setPop(true) // one-shot pop on the like tap only
           onLike()
         }}
+        onAnimationEnd={() => setPop(false)}
       >
         <Heart size={17} fill={liked ? "currentColor" : "none"} aria-hidden />
       </button>

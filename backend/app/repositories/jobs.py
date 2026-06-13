@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import time
 from collections import Counter
@@ -16,6 +17,26 @@ from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
+
+_log = logging.getLogger("app.repositories.jobs")
+
+# The demand RPC fallback is the slow path #21(1b) retires — log the FIRST miss
+# loudly (the migration isn't applied yet) without spamming every request.
+_demand_rpc_fallback_warned = False
+
+
+def _warn_demand_rpc_fallback(exc: APIError) -> None:
+    global _demand_rpc_fallback_warned
+    if _demand_rpc_fallback_warned:
+        return
+    _demand_rpc_fallback_warned = True
+    _log.warning(
+        "metric demand.rpc_fallback count_job_demand_for_skills unavailable (%s) — "
+        "serving demand via the slow row-scan path; apply migration "
+        "20260613_job_demand_counts_rpc + NOTIFY pgrst",
+        exc,
+    )
+
 
 SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 # A posting the scraper hasn't re-confirmed live in this many days is flagged
@@ -1441,25 +1462,7 @@ class JobsRepository:
             return []
 
         skill_ids = list(user_skills_by_id.keys())
-        demand_rows = fetch_all_rows(
-            self._db,
-            table="job_skills",
-            columns="skill_id, is_primary",
-            query_builder=lambda q, _skill_ids=skill_ids: q.in_("skill_id", _skill_ids),
-        )
-
-        weighted_demand: dict[int, int] = {skill_id: 0 for skill_id in skill_ids}
-        job_count: dict[int, int] = {skill_id: 0 for skill_id in skill_ids}
-        for row in demand_rows:
-            raw_skill_id = row.get("skill_id")
-            try:
-                skill_id = int(raw_skill_id)
-            except (TypeError, ValueError):
-                continue
-            if skill_id not in user_skills_by_id:
-                continue
-            weighted_demand[skill_id] = weighted_demand.get(skill_id, 0) + (2 if row.get("is_primary") else 1)
-            job_count[skill_id] = job_count.get(skill_id, 0) + 1
+        job_count, weighted_demand = self._job_demand_counts(skill_ids)
 
         return [
             {
@@ -1469,6 +1472,48 @@ class JobsRepository:
             }
             for skill_id, skill_meta in user_skills_by_id.items()
         ]
+
+    def _job_demand_counts(self, skill_ids: list[int]) -> tuple[dict[int, int], dict[int, int]]:
+        """(job_count, weighted_demand) per skill_id.
+
+        Primary path = the count_job_demand_for_skills GROUP BY RPC (one indexed
+        scan + group; migration 20260613_job_demand_counts_rpc). Fallback = the
+        old fetch-all-rows-then-count-in-Python path, kept so the backend is
+        correct before the migration is applied. The fallback is the documented
+        degradation: it is the slow path issue #21(1b) exists to retire, so a
+        miss is logged once per process, not silently.
+        """
+        if not skill_ids:
+            return {}, {}
+        try:
+            result = self._db.rpc(
+                "count_job_demand_for_skills", {"p_skill_ids": skill_ids}
+            ).execute()
+            rows = result.data or []
+            job_count = {int(r["skill_id"]): int(r["job_count"]) for r in rows}
+            weighted = {int(r["skill_id"]): int(r["weighted_demand"]) for r in rows}
+            return job_count, weighted
+        except APIError as exc:
+            _warn_demand_rpc_fallback(exc)
+
+        demand_rows = fetch_all_rows(
+            self._db,
+            table="job_skills",
+            columns="skill_id, is_primary",
+            query_builder=lambda q, _skill_ids=skill_ids: q.in_("skill_id", _skill_ids),
+        )
+        job_count = {skill_id: 0 for skill_id in skill_ids}
+        weighted_demand = {skill_id: 0 for skill_id in skill_ids}
+        for row in demand_rows:
+            try:
+                skill_id = int(row.get("skill_id"))
+            except (TypeError, ValueError):
+                continue
+            if skill_id not in job_count:
+                continue
+            weighted_demand[skill_id] += 2 if row.get("is_primary") else 1
+            job_count[skill_id] += 1
+        return job_count, weighted_demand
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""

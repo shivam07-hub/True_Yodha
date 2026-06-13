@@ -54,9 +54,14 @@ function MobileCard({
   onSkip: () => void
 }) {
   const snippet = jdSnippet(it.job.job_description)
+  const [leaving, setLeaving] = React.useState(false)
+  const leaveThen = (fn: () => void) => {
+    setLeaving(true)
+    window.setTimeout(fn, 230)
+  }
   return (
     <div
-      className="db-mcard"
+      className={`db-mcard${leaving ? " is-leaving" : ""}`}
       role="button"
       tabIndex={0}
       onClick={onOpen}
@@ -78,7 +83,13 @@ function MobileCard({
         <LocationLine job={it.job} />
         {snippet ? <p className="db-msnip">{snippet}</p> : null}
         <ChipRow chips={cardChips(it.job)} className="db-mchips" />
-        <CardActions jobId={it.jobId} liked={liked} onLike={onLike} onSkip={onSkip} mobile />
+        <CardActions
+          jobId={it.jobId}
+          liked={liked}
+          onLike={liked ? () => leaveThen(onLike) : onLike}
+          onSkip={() => leaveThen(onSkip)}
+          mobile
+        />
       </div>
     </div>
   )

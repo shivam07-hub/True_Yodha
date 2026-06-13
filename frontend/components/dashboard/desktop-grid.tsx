@@ -56,8 +56,15 @@ function JobCard({
 }) {
   const fit = it.fit
   const snippet = jdSnippet(it.job.job_description)
+  // Skip / unlike animate the card out, THEN remove it — so the feed doesn't
+  // jump (the removal is optimistic + instant, so we delay it one beat).
+  const [leaving, setLeaving] = React.useState(false)
+  const leaveThen = (fn: () => void) => {
+    setLeaving(true)
+    window.setTimeout(fn, 230)
+  }
   return (
-    <article className={`db-card${open ? " open" : ""}`}>
+    <article className={`db-card${open ? " open" : ""}${leaving ? " is-leaving" : ""}`}>
       <div
         className="db-card-main"
         role="button"
@@ -91,7 +98,12 @@ function JobCard({
         ) : null}
       </div>
       {open ? detail : null}
-      <CardActions jobId={it.jobId} liked={liked} onLike={onLike} onSkip={onSkip} />
+      <CardActions
+        jobId={it.jobId}
+        liked={liked}
+        onLike={liked ? () => leaveThen(onLike) : onLike}
+        onSkip={() => leaveThen(onSkip)}
+      />
     </article>
   )
 }

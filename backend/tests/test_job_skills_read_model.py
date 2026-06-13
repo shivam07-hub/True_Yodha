@@ -65,6 +65,14 @@ class _FakeQuery:
         return _Result(rows)
 
 
+class _FakeRpcCall:
+    def __init__(self, data: list[dict[str, Any]]) -> None:
+        self._data = data
+
+    def execute(self) -> _Result:
+        return _Result(self._data)
+
+
 class _FakeDB:
     def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
         self._tables = tables
@@ -72,6 +80,27 @@ class _FakeDB:
 
     def table(self, name: str) -> _FakeQuery:
         return _FakeQuery(self._tables.get(name, []), table=name, db=self)
+
+    def rpc(self, name: str, params: dict[str, Any]) -> _FakeRpcCall:
+        # Model the count_job_demand_for_skills GROUP BY aggregate over the fake's
+        # job_skills table — the primary path of get_user_skill_demand_snapshot.
+        if name == "count_job_demand_for_skills":
+            wanted = set(params["p_skill_ids"])
+            job_count: dict[int, int] = {}
+            weighted: dict[int, int] = {}
+            for row in self._tables.get("job_skills", []):
+                sid = row.get("skill_id")
+                if sid not in wanted:
+                    continue
+                job_count[sid] = job_count.get(sid, 0) + 1
+                weighted[sid] = weighted.get(sid, 0) + (2 if row.get("is_primary") else 1)
+            return _FakeRpcCall(
+                [
+                    {"skill_id": sid, "job_count": job_count[sid], "weighted_demand": weighted[sid]}
+                    for sid in job_count
+                ]
+            )
+        raise NotImplementedError(name)
 
 
 def test_fetch_all_rows_paginates_until_short_page() -> None:
@@ -300,6 +329,44 @@ def test_get_user_skill_demand_snapshot_scopes_to_current_user_skills() -> None:
     by_skill = {row["skill"]: row for row in result}
 
     assert set(by_skill) == {"Python", "SQL"}
+    assert by_skill["Python"]["job_count_30d"] == 2
+    assert by_skill["Python"]["weighted_demand"] == 3
+    assert by_skill["SQL"]["job_count_30d"] == 1
+    assert by_skill["SQL"]["weighted_demand"] == 1
+
+
+def test_get_user_skill_demand_snapshot_falls_back_when_rpc_unavailable() -> None:
+    # Before the migration is applied the RPC 404s — the row-scan fallback must
+    # produce identical counts so the backend is correct either way.
+    from postgrest.exceptions import APIError
+
+    class _NoRpcDB(_FakeDB):
+        def rpc(self, name: str, params: dict[str, Any]) -> _FakeRpcCall:
+            raise APIError({"message": "function count_job_demand_for_skills does not exist"})
+
+    db = _NoRpcDB({
+        "user_skills": [
+            {
+                "user_id": "u1",
+                "matched_level": 2,
+                "proficiency_title": "Trailblazer",
+                "skills": {"id": 1, "taxonomy_key": "Python", "display_name": "Python"},
+            },
+            {
+                "user_id": "u1",
+                "matched_level": 1,
+                "proficiency_title": "Scout",
+                "skills": {"id": 2, "taxonomy_key": "SQL", "display_name": "SQL"},
+            },
+        ],
+        "job_skills": [
+            {"skill_id": 1, "is_primary": True},
+            {"skill_id": 1, "is_primary": False},
+            {"skill_id": 2, "is_primary": False},
+        ],
+    })
+
+    by_skill = {row["skill"]: row for row in JobsRepository(db).get_user_skill_demand_snapshot("u1")}
     assert by_skill["Python"]["job_count_30d"] == 2
     assert by_skill["Python"]["weighted_demand"] == 3
     assert by_skill["SQL"]["job_count_30d"] == 1
