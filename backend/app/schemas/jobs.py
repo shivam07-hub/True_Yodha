@@ -62,6 +62,12 @@ class JobMatchResponse(BaseModel):
     matched_skills: list[str] = []
     job_summary: str | None = None    # LLM-enriched ≤100-word clean prose (card body)
     job_description: str | None = None
+    # Scraper structured chip columns (backlog #22) — NULL when a provider omits them
+    date_posted: str | None = None
+    seniority_level: str | None = None
+    work_mode: str | None = None
+    min_years_experience: int | None = None
+    max_years_experience: int | None = None
     first_seen: str | None = None
     last_seen_at: str | None = None
     is_stale: bool = False

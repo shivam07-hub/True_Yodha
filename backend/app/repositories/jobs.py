@@ -1744,6 +1744,7 @@ class JobsRepository:
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
+                "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
                 "first_seen, last_seen, is_active)"
             )
             .eq("user_id", user_id)
