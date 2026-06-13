@@ -41,6 +41,13 @@ class UserSkillDemandResponse(BaseModel):
     total: int
 
 
+class FeedStateResponse(BaseModel):
+    feed_version: str | None
+    published_at: datetime | None
+    imported_job_count: int
+    latest_batch_date: str | None
+
+
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
     job_id: str
