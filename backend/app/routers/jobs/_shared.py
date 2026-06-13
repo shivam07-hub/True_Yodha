@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from typing import Any
 
+from app.repositories.jobs import _is_marker_stale, _job_feed_marker_to_iso
 from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse
 
 
@@ -41,6 +42,10 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
         job_description=job.get("job_description"),
+        first_seen=_job_feed_marker_to_iso(job.get("first_seen")),
+        last_seen_at=_job_feed_marker_to_iso(job.get("last_seen")),
+        is_stale=_is_marker_stale(job.get("last_seen")),
+        is_active=bool(job.get("is_active", True)),
         overall_score=row.get("overall_score"),
         grade=row.get("grade"),
         recommendation=row.get("recommendation"),
