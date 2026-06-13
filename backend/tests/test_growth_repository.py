@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from app.repositories.growth import GrowthRepository
-from app.schemas.growth import GrowthMessageUpdate, PublicationCreate
+from app.schemas.growth import (
+    GrowthMessageUpdate,
+    GrowthMetricUpdate,
+    PublicationCreate,
+)
 
 
 class _Result:
@@ -59,12 +63,33 @@ class _RecordingDB:
                 "growth_campaigns": [{"id": "campaign-1", "status": "active"}],
                 "growth_messages": [{"id": "message-1", "status": "ready_for_review"}],
                 "growth_publications": [{"id": "publication-1", "status": "published"}],
+                "growth_seeding_sweeps": [
+                    {
+                        "id": "sweep-1",
+                        "legacy_key": "tracker:sweep:2026-06-10",
+                        "sweep_date": "2026-06-10",
+                        "title": "Myro Seeding Sweep",
+                        "body": "# Sweep",
+                    }
+                ],
             }
             return _Result(rows.get(table, []))
         if table == "growth_messages" and op == "update":
             return _Result([{"id": "message-1", **call["payload"]}])
         if table == "growth_publications" and op == "insert":
             return _Result([{"id": "publication-1", **call["payload"]}])
+        if table == "growth_publications" and op == "update":
+            return _Result(
+                [
+                    {
+                        "id": "publication-1",
+                        "message_id": "message-1",
+                        "status": "published",
+                        "final_copy_snapshot": "Exact live copy",
+                        **call["payload"],
+                    }
+                ]
+            )
         if op == "upsert":
             payload = call["payload"]
             row = payload[0] if isinstance(payload, list) else payload
@@ -82,6 +107,7 @@ def test_command_center_lists_each_growth_record_type() -> None:
         "published": 1,
     }
     assert result["messages"][0]["id"] == "message-1"
+    assert result["sweeps"][0]["legacy_key"] == "tracker:sweep:2026-06-10"
 
 
 def test_message_edit_only_writes_supplied_fields() -> None:
@@ -119,6 +145,7 @@ def test_mark_published_creates_immutable_record_then_updates_message() -> None:
         PublicationCreate(
             live_url="https://www.linkedin.com/feed/update/urn:li:activity:1",
             external_id="urn:li:activity:1",
+            final_copy_snapshot="The exact published words.",
         ),
         operator_id="operator-1",
     )
@@ -128,8 +155,30 @@ def test_mark_published_creates_immutable_record_then_updates_message() -> None:
         "growth_messages",
     ]
     assert db.calls[0]["payload"]["message_id"] == "message-1"
+    assert db.calls[0]["payload"]["final_copy_snapshot"] == "The exact published words."
     assert db.calls[1]["payload"]["status"] == "published"
     assert result["live_url"].startswith("https://www.linkedin.com/")
+
+
+def test_metric_update_merges_manual_outcome_fields() -> None:
+    db = _RecordingDB()
+
+    result = GrowthRepository(db).update_publication_metrics(
+        "publication-1",
+        GrowthMetricUpdate(impressions=420, clicks=17),
+    )
+
+    update_call = next(
+        call
+        for call in db.calls
+        if call["table"] == "growth_publications" and call.get("op") == "update"
+    )
+    assert update_call["filters"] == [("id", "publication-1")]
+    assert update_call["payload"]["outcome"] == {
+        "impressions": 420,
+        "clicks": 17,
+    }
+    assert result["outcome"]["clicks"] == 17
 
 
 def test_asset_and_campaign_upserts_use_stable_legacy_keys() -> None:

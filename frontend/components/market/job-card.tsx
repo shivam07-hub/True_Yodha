@@ -1,6 +1,7 @@
 "use client"
 
-import type { JobFeedItem } from "@/lib/api"
+import type { JobFeedItem, JobPulse } from "@/lib/api"
+import { PulseRow, cardConfidenceClass } from "@/components/dashboard/card-atoms"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
 
@@ -109,9 +110,10 @@ export function TriageButtons({ onSave, onSkip }: { onSave: () => void; onSkip: 
 // ── the card (web list) ──────────────────────────────────────────────────────
 
 export function JobCard({
-  job, hasCv, onOpen, onSave, onSkip,
+  job, pulse, hasCv, onOpen, onSave, onSkip,
 }: {
   job: JobFeedItem
+  pulse?: JobPulse
   hasCv: boolean
   onOpen: () => void
   onSave: () => void
@@ -120,7 +122,7 @@ export function JobCard({
   const age = ageLabel(job.first_seen)
   const snippet = jdSnippet(job.job_description)
   return (
-    <article onClick={onOpen} className="tm-job-card" style={{ cursor: "pointer", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <article onClick={onOpen} className={`tm-job-card${cardConfidenceClass(pulse)}`} style={{ cursor: "pointer", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.job_title}</h3>
@@ -134,6 +136,8 @@ export function JobCard({
       {job.skills.length > 0 ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
       ) : null}
+
+      <PulseRow pulse={pulse} bare />
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 2 }}>
         <FitSignal job={job} hasCv={hasCv} />

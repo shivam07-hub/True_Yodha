@@ -34,6 +34,8 @@ export interface DashboardProps {
   total: number
   feedUpdatedAt: string | null
   matchesComputedAt: string | null
+  /** True when the Feed State publication clock is ahead of these matches. */
+  feedAhead?: boolean
   initialJobId?: string | null
   onStatus: (jobId: string, status: ApplicationStatus) => void
   onRemove: (jobId: string) => void
@@ -73,11 +75,18 @@ export function Dashboard(props: DashboardProps) {
           : "Nothing in this view."
 
   const isRefreshing = props.refresh.state === "charging" || props.refresh.state === "computing"
+  // The Feed State publication clock (props.feedAhead) is the canonical signal;
+  // feed_updated_at is the legacy fallback for when feed-state hasn't hydrated.
   const isFeedStale =
-    !!props.feedUpdatedAt &&
-    !!props.matchesComputedAt &&
     !!props.total &&
-    new Date(props.feedUpdatedAt) > new Date(props.matchesComputedAt)
+    (
+      !!props.feedAhead ||
+      (
+        !!props.feedUpdatedAt &&
+        !!props.matchesComputedAt &&
+        new Date(props.feedUpdatedAt) > new Date(props.matchesComputedAt)
+      )
+    )
 
   return (
     <div className="db" id="browse">

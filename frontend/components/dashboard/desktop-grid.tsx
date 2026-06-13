@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import { DetailBody, jdSnippet } from "./detail-body"
-import { Monogram, FitRing, ChipRow, CardActions, cardChips } from "./card-atoms"
+import { Monogram, FitRing, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
 import { LocationLine } from "./lenses"
 import type { OtherRole } from "./lens-company"
+import { usePulses } from "@/lib/hooks/use-pulses"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
-import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
+import type { ApplicationStatus, JobPulse, SkillGapItem } from "@/lib/api"
 
 export interface DesktopGridProps {
   items: FeedItem[]
@@ -40,6 +41,7 @@ function JobCard({
   open,
   liked,
   applied,
+  pulse,
   onOpen,
   onLike,
   onSkip,
@@ -49,6 +51,7 @@ function JobCard({
   open: boolean
   liked: boolean
   applied: boolean
+  pulse?: JobPulse
   onOpen: () => void
   onLike: () => void
   onSkip: () => void
@@ -64,7 +67,7 @@ function JobCard({
     window.setTimeout(fn, 230)
   }
   return (
-    <article className={`db-card${open ? " open" : ""}${leaving ? " is-leaving" : ""}`}>
+    <article className={`db-card${open ? " open" : ""}${leaving ? " is-leaving" : ""}${cardConfidenceClass(pulse)}`}>
       <div
         className="db-card-main"
         role="button"
@@ -98,6 +101,7 @@ function JobCard({
         ) : null}
       </div>
       {open ? detail : null}
+      <PulseRow pulse={pulse} />
       <CardActions
         jobId={it.jobId}
         liked={liked}
@@ -110,6 +114,9 @@ function JobCard({
 
 export function DesktopGrid(p: DesktopGridProps) {
   const [openId, setOpenId] = React.useState<string | null>(p.initialJobId ?? null)
+
+  // One batched pulse request for the whole visible set (not one-per-card).
+  const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
 
   // Close if the open job left the visible set (segment change / skip).
   React.useEffect(() => {
@@ -128,6 +135,7 @@ export function DesktopGrid(p: DesktopGridProps) {
             open={open}
             liked={it.isLiked}
             applied={applied}
+            pulse={pulses.get(it.jobId)}
             onOpen={() => setOpenId(open ? null : it.jobId)}
             onLike={() => (it.isLiked ? p.onRemove(it.jobId) : p.onStatus(it.jobId, "saved"))}
             onSkip={() => p.onRemove(it.jobId)}

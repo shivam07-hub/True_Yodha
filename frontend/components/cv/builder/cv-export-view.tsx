@@ -264,11 +264,14 @@ export function CVExportView({
             </button>
           </div>
         </div>
-        <div className="cvb-export-track-nudge" style={{ marginTop: 6 }}>
+        {docxError && <div className="cvb-export-err">{docxError}</div>}
+        {/* CV preview leads — it's what the user came for. The DOCX-vs-PDF
+            disclosure is a download-time decision, so it sits with the audit
+            below the sheet, not between the toolbar and the preview. */}
+        <div className="cvb-export-inline-stage">{page}</div>
+        <div className="cvb-export-track-nudge">
           PDF suits most ATS — pick DOCX only if the portal asks for a Word file.
         </div>
-        {docxError && <div className="cvb-export-err">{docxError}</div>}
-        <div className="cvb-export-inline-stage">{page}</div>
         {atsCard}
       </div>
     )

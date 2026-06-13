@@ -24,6 +24,7 @@ import { useParticleMoment } from "@/components/particle"
 import { cv, diary, jobs, scores, upskilling, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { useApplicationStatus } from "@/lib/hooks/use-application-status"
+import { useFeedState, isFeedAheadOfMatches } from "@/lib/hooks/use-feed-state"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { computeStreakFromDates } from "@/lib/forge-helpers"
@@ -97,6 +98,12 @@ function MissionControlInner() {
 
   const allMatchedJobs: JobMatch[] = useMemo(() => jobsData?.jobs ?? [], [jobsData])
   const dismissedJobIds = useMemo(() => new Set(jobsData?.dismissed_job_ids ?? []), [jobsData])
+
+  // Feed publication sensing — drives the market auto-refresh + tells the
+  // dashboard whether new jobs have been published since these matches ran
+  // (offer a refresh; never auto-charge).
+  const feedState = useFeedState()
+  const feedAhead = isFeedAheadOfMatches(feedState.data, jobsData?.matches_computed_at)
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
@@ -391,6 +398,7 @@ function MissionControlInner() {
                   total={jobsData?.total ?? allMatchedJobs.length}
                   feedUpdatedAt={jobsData?.feed_updated_at ?? null}
                   matchesComputedAt={jobsData?.matches_computed_at ?? null}
+                  feedAhead={feedAhead}
                   initialJobId={urlJobId}
                   onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}
                   onRemove={(jobId) => removeCard.mutate(jobId)}

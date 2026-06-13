@@ -34,6 +34,7 @@ export function IntelPane() {
   const [activeChips, setActiveChips] = useState<string[]>([])
   const [tab, setTab] = useState<ResultsTab>("companies")
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
+  const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(0)
   const [uptime, setUptime] = useState("syncing now")
   const { sort, setSort } = useResultsSort("intel", "velocity")
@@ -106,12 +107,21 @@ export function IntelPane() {
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
+  // Real scraper start = earliest first_seen across the indexed corpus. Falls
+  // back to the formatUptime default anchor until analytics loads.
+  const scraperStartedMs = useMemo(() => {
+    const iso = analytics?.scraper_started
+    if (!iso) return undefined
+    const t = Date.parse(iso)
+    return Number.isFinite(t) ? t : undefined
+  }, [analytics?.scraper_started])
+
   useEffect(() => {
-    const tick = () => setUptime(formatUptime(Date.now()))
+    const tick = () => setUptime(formatUptime(Date.now(), scraperStartedMs))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [scraperStartedMs])
 
   const filteredCompanies: ResultCompany[] = useMemo(() => {
     // Global ⌘K search active: surface every company that has at least one hit.
@@ -142,7 +152,6 @@ export function IntelPane() {
     return analytics.by_industry.map((it) => ({
       name: it.name,
       count: it.count,
-      sparks: sparkFor(it.name, it.count),
       kind: "industry" as const,
     }))
   }, [analytics])
@@ -154,10 +163,41 @@ export function IntelPane() {
       .map((it) => ({
         name: it.name,
         count: it.count,
-        sparks: sparkFor(it.name, it.count),
         kind: "city" as const,
       }))
   }, [analytics])
+
+  // Industries/Cities drill-down → top companies hiring in the selected group.
+  const groupKind: "industry" | "city" | null =
+    tab === "industries" ? "industry" : tab === "cities" ? "city" : null
+
+  // Default active group to the first row on a group tab; clear on leaving so the
+  // right panel never shows a stale company list.
+  useEffect(() => {
+    if (!groupKind) { setActiveGroup(null); return }
+    const list = groupKind === "industry" ? industriesView : citiesView
+    if (!list.length) return
+    if (!activeGroup || !list.find((g) => g.name === activeGroup)) {
+      setActiveGroup(list[0].name)
+    }
+  }, [groupKind, industriesView, citiesView, activeGroup])
+
+  const { data: groupCompaniesData, isLoading: groupCompaniesLoading } = useQuery({
+    queryKey: dataKeys.topCompaniesAt(groupKind, activeGroup),
+    queryFn: () => jobs.topCompaniesAt(
+      { kind: groupKind as "industry" | "city", name: activeGroup as string }, 8,
+    ),
+    enabled: !!groupKind && !!activeGroup,
+    staleTime: OPEN_ROLES_STALE_MS,
+  })
+  const groupCompanies = groupCompaniesData?.companies ?? []
+
+  // Company row in the group panel → jump to its open-roles drill-down (Q2=A).
+  function jumpToCompany(company: string) {
+    setActiveCoId(company)
+    setActiveGroup(null)
+    setTab("companies")
+  }
 
   const counts = {
     companies: filteredCompanies.length,
@@ -237,6 +277,11 @@ export function IntelPane() {
         cities={citiesView}
         activeCo={activeCoId}
         onActiveCo={setActiveCoId}
+        activeGroup={activeGroup}
+        onActiveGroup={setActiveGroup}
+        groupCompanies={groupCompanies}
+        isGroupCompaniesLoading={groupCompaniesLoading}
+        onCompanyJump={jumpToCompany}
         jobsForActive={openRoleJobs}
         jobsForActiveTotal={openRoleJobs.length}
         activeCompanyName={activeCompanyName}
@@ -260,18 +305,8 @@ export function IntelPane() {
       />
 
       <IntelCommons />
-
-      <footer className="tm-intel-footer">
-        <span>© 2026 Myro</span>
-        <span>·</span>
-        <span className="tm-intel-footer-tag">aligning careers with the stars</span>
-        <span className="tm-intel-spacer" />
-        <a href="https://github.com/shivam07-hub/True_Yodha" target="_blank" rel="noreferrer">GitHub</a>
-        <span>·</span>
-        <a href="/about">About</a>
-        <span>·</span>
-        <a href="https://x.com/himyro" target="_blank" rel="noreferrer">@himyro</a>
-      </footer>
+      {/* Footer is the canonical <PublicFooter>, mounted by app/intel/page.tsx —
+          the old per-pane footer (stale Myrology tagline + source-repo link) was removed. */}
     </div>
   )
 }

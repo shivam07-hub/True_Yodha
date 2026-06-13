@@ -6,7 +6,13 @@ from fastapi import HTTPException
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import CompanySearchUnavailable, JobsRepository, MarketAnalyticsCompiler
-from app.routers.jobs.list import get_market_analytics, search_companies, search_jobs
+from app.routers.jobs.list import (
+    get_market_analytics,
+    list_top_companies_at,
+    search_companies,
+    search_jobs,
+)
+import pytest
 
 
 class _Result:
@@ -441,3 +447,69 @@ def test_compile_market_analytics_applies_location_filters() -> None:
     result = JobsRepository(db).compile_market_analytics(location_country="India")
     assert result["total_jobs"] == 1
     assert result["by_location_city"][0][0] == "Bengaluru"
+
+
+def test_list_top_companies_at_repo_groups_by_company() -> None:
+    # Two industries; Acme dominates Technology with the most-recent last_seen.
+    jobs = [
+        {"job_id": "j0", "company_name": "Acme", "industry_group": "Technology",
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601},
+        {"job_id": "j1", "company_name": "Acme", "industry_group": "Technology",
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260610},
+        {"job_id": "j2", "company_name": "Globex", "industry_group": "Technology",
+         "location_country": "US", "first_seen": 20260503, "last_seen": 20260503},
+        {"job_id": "j3", "company_name": "BankCo", "industry_group": "Finance",
+         "location_country": "IN", "first_seen": 20260504, "last_seen": 20260504},
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+    rows = JobsRepository(db).list_top_companies_at(industry="Technology", limit=8)
+
+    assert [r["company_name"] for r in rows] == ["Acme", "Globex"]  # BankCo excluded
+    acme = rows[0]
+    assert acme["open_count"] == 2
+    assert acme["location_country"] == "IN"
+    assert acme["last_seen_at"].startswith("2026-06-10")  # max last_seen, not first
+
+
+def test_list_top_companies_at_repo_filters_by_city() -> None:
+    jobs = [
+        {"job_id": "j0", "company_name": "Acme", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501},
+        {"job_id": "j1", "company_name": "Globex", "location_city": "Mumbai",
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502},
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+    rows = JobsRepository(db).list_top_companies_at(city="Pune", limit=8)
+
+    assert [r["company_name"] for r in rows] == ["Acme"]
+
+
+class _GroupCompaniesRepo:
+    def __init__(self) -> None:
+        self.call: dict[str, Any] | None = None
+
+    def list_top_companies_at(self, *, industry=None, city=None, limit=8):
+        self.call = {"industry": industry, "city": city, "limit": limit}
+        return [{"company_name": "Acme", "open_count": 5,
+                 "location_country": "IN", "last_seen_at": "2026-06-10"}]
+
+
+def test_list_top_companies_at_router_industry() -> None:
+    repo = _GroupCompaniesRepo()
+    result = list_top_companies_at(industry="Technology", city=None, repo=repo)
+    assert result.kind == "industry"
+    assert result.value == "Technology"
+    assert result.companies[0].company_name == "Acme"
+    assert repo.call == {"industry": "Technology", "city": None, "limit": 8}
+
+
+def test_list_top_companies_at_router_rejects_both_or_neither() -> None:
+    repo = _GroupCompaniesRepo()
+    with pytest.raises(HTTPException) as both:
+        list_top_companies_at(industry="Technology", city="Pune", repo=repo)
+    assert both.value.status_code == 400
+    with pytest.raises(HTTPException) as neither:
+        list_top_companies_at(industry=None, city=None, repo=repo)
+    assert neither.value.status_code == 400

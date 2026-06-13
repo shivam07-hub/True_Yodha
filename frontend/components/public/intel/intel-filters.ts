@@ -1,8 +1,10 @@
-// Public mirror "uptime" anchor — feels live without a server round-trip.
+// Public mirror "uptime" anchor. Fallback used only until the real earliest
+// scrape timestamp (analytics.scraper_started) loads; live data overrides it.
 const UPTIME_ANCHOR = new Date("2026-04-11T00:00:00Z").getTime()
 
-export function formatUptime(now: number): string {
-  const ms = Math.max(0, now - UPTIME_ANCHOR)
+export function formatUptime(now: number, anchorMs: number = UPTIME_ANCHOR): string {
+  const anchor = Number.isFinite(anchorMs) ? anchorMs : UPTIME_ANCHOR
+  const ms = Math.max(0, now - anchor)
   const totalSec = Math.floor(ms / 1000)
   const d = Math.floor(totalSec / 86400)
   const h = Math.floor((totalSec % 86400) / 3600)

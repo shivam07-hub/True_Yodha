@@ -12,13 +12,19 @@ export interface LegacyGrowthPayload {
   campaigns: LegacyRow[]
   messages: LegacyRow[]
   publications: LegacyRow[]
+  sweeps: LegacyRow[]
 }
 
-export function extractArrayLiteral(source: string, name: string): string {
+function extractLiteral(
+  source: string,
+  name: string,
+  opening: "[" | "{",
+  closing: "]" | "}",
+): string {
   const marker = new RegExp(`\\bconst\\s+${name}\\s*=`, "m").exec(source)
   if (!marker) throw new Error(`Could not find ${name}`)
-  const start = source.indexOf("[", marker.index + marker[0].length)
-  if (start < 0) throw new Error(`Could not find ${name} array`)
+  const start = source.indexOf(opening, marker.index + marker[0].length)
+  if (start < 0) throw new Error(`Could not find ${name} literal`)
 
   let depth = 0
   let quote: "'" | '"' | "`" | null = null
@@ -39,13 +45,21 @@ export function extractArrayLiteral(source: string, name: string): string {
       quote = char
       continue
     }
-    if (char === "[") depth += 1
-    if (char === "]") {
+    if (char === opening) depth += 1
+    if (char === closing) {
       depth -= 1
       if (depth === 0) return source.slice(start, index + 1)
     }
   }
   throw new Error(`Unbalanced ${name} array`)
+}
+
+export function extractArrayLiteral(source: string, name: string): string {
+  return extractLiteral(source, name, "[", "]")
+}
+
+export function extractObjectLiteral(source: string, name: string): string {
+  return extractLiteral(source, name, "{", "}")
 }
 
 function evaluateRows(source: string, name: string): LegacyRow[] {
@@ -59,6 +73,18 @@ function evaluateRows(source: string, name: string): LegacyRow[] {
   )
   if (!Array.isArray(result)) throw new Error(`${name} did not evaluate to an array`)
   return result as LegacyRow[]
+}
+
+function evaluateObject(source: string, name: string): Record<string, unknown> {
+  const result = vm.runInNewContext(
+    `(${extractObjectLiteral(source, name)})`,
+    {},
+    { timeout: 1000 },
+  )
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error(`${name} did not evaluate to an object`)
+  }
+  return result as Record<string, unknown>
 }
 
 function stableUuid(key: string): string {
@@ -109,12 +135,20 @@ function normalizedStatus(value: unknown): string {
   return "draft"
 }
 
+function manualMetric(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : undefined
+}
+
 export function buildLegacyImport(
   source: string,
   overrides: Overrides = {},
 ): LegacyGrowthPayload {
   const issues = evaluateRows(source, "ISSUES")
   const postings = evaluateRows(source, "POSTINGS")
+  const sweepRows = evaluateRows(source, "SWEEPS")
+  const sweepContent = evaluateObject(source, "SWEEP_CONTENT")
   const assets: LegacyRow[] = issues.map((issue) => {
     const key = `tracker:issue:${issue.slug}`
     return {
@@ -159,6 +193,7 @@ export function buildLegacyImport(
     const draft = String(
       override.draftEdit || posting.copy || posting.tweet1 || "",
     )
+    const preparedDraft = String(posting.copy || posting.tweet1 || "")
     const finalCopy = String(override.posted ?? posting.posted ?? "") || null
     const messageKey = `tracker:posting:${postingId}`
     const messageId = stableUuid(messageKey)
@@ -194,28 +229,55 @@ export function buildLegacyImport(
       automation_level: "manual",
       sensitivity: posting.type === "Response" ? "medium" : "low",
       planned_at: `${posting.date}T09:00:00Z`,
-      metadata: { tracker_title: posting.title, tracker_id: postingId },
+      metadata: {
+        tracker_title: posting.title,
+        tracker_id: postingId,
+        prepared_draft: preparedDraft,
+      },
     })
     if (effectiveStatus === "published") {
       const publicationKey = `tracker:publication:${postingId}`
+      const finalCopySnapshot = finalCopy || draft
+      const outcome: Record<string, number> = {}
+      const impressions = manualMetric(override.impressions)
+      const clicks = manualMetric(override.clicks)
+      if (impressions !== undefined) outcome.impressions = impressions
+      if (clicks !== undefined) outcome.clicks = clicks
       publications.push({
         id: stableUuid(publicationKey),
         legacy_key: publicationKey,
         message_id: messageId,
         status: "published",
         live_url: override.liveUrl || override.postedUrl || null,
+        final_copy_snapshot: finalCopySnapshot,
         published_at: `${posting.date}T12:00:00Z`,
-        outcome: {
-          impressions: Number(override.impressions || 0),
-          clicks: Number(override.clicks || 0),
-        },
+        outcome,
         failure_details: override.liveUrl
           ? null
           : "Legacy tracker marked this published without a captured live URL.",
       })
     }
   }
-  return { assets, campaigns: Array.from(campaigns.values()), messages, publications }
+  const sweeps = sweepRows.map((sweep) => {
+    const key = String(sweep.key)
+    const legacyKey = `tracker:sweep:${key}`
+    return {
+      id: stableUuid(legacyKey),
+      legacy_key: legacyKey,
+      sweep_date: sweep.date,
+      title: `Myro Seeding Sweep - ${sweep.date}`,
+      summary: sweep.pts || null,
+      body: String(sweepContent[key] || ""),
+      metadata: { tracker_key: key },
+    }
+  })
+  return {
+    assets,
+    campaigns: Array.from(campaigns.values()),
+    messages,
+    publications,
+    sweeps,
+  }
 }
 
 async function main(): Promise<void> {

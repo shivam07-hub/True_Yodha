@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { Heart, X, Share, Home, FileText, User, Radar } from "lucide-react"
-import type { JobMatch } from "@/lib/api"
+import type { JobMatch, JobPulse, ResponseSignal } from "@/lib/api"
 
 /* ── Monogram (company letter square) ───────────────────────────── */
 export function Monogram({ company, size }: { company: string | null; size?: number }) {
@@ -159,6 +159,66 @@ export function CardActions({
 /* ── Card chips derived from a JobMatch (matched skills) ────────── */
 export function cardChips(job: JobMatch, max = 4): CardChip[] {
   return (job.matched_skills ?? []).slice(0, max).map((name) => ({ name, matched: true }))
+}
+
+/* ── Job Pulse: community trust row + listing-confidence visual state ─── */
+
+/** Card-level confidence class — drives the muted/dimmed visual state (D1).
+ *  Surface-neutral (`tm-conf-*`); each surface styles its own dim target. */
+export function cardConfidenceClass(pulse?: JobPulse): string {
+  switch (pulse?.listing_confidence) {
+    case "uncertain":     return " tm-conf-uncertain"
+    case "likely_closed":
+    case "closed":        return " tm-conf-closed"
+    default:              return ""
+  }
+}
+
+const SIGNAL_LABEL: Record<ResponseSignal, string> = {
+  low: "Replies low",
+  mixed: "Replies mixed",
+  high: "Replies high",
+}
+
+function relTime(iso: string | null): string | null {
+  if (!iso) return null
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return null
+  const days = Math.floor((Date.now() - then) / 86_400_000)
+  if (days <= 0) return "today"
+  if (days === 1) return "1d ago"
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  return months <= 1 ? "1mo ago" : `${months}mo ago`
+}
+
+/**
+ * The compact trust row, directly above the action bar. Reserves its height
+ * even before the pulse hydrates so the card never jumps; fades in once data
+ * arrives. Renders only the values that exist — null community counts mean a
+ * privacy cohort under five, never zero, so they're simply omitted.
+ */
+export function PulseRow({ pulse, mobile, bare }: { pulse?: JobPulse; mobile?: boolean; bare?: boolean }) {
+  const edge = bare ? " bare" : ""
+  if (!pulse) return <div className={`tm-pulse tm-pulse-reserve${edge}`} aria-hidden />
+
+  const verified = relTime(pulse.last_verified_at)
+  const tracking = pulse.tracking_count
+  const signal = pulse.response_signal
+  const closed = pulse.listing_confidence === "likely_closed" || pulse.listing_confidence === "closed"
+
+  return (
+    <div className={`tm-pulse${mobile ? " mobile" : ""}${edge}`}>
+      {closed ? (
+        <span className="tm-pulse-item tm-pulse-warn">apply link may be closed</span>
+      ) : null}
+      {verified ? <span className="tm-pulse-item">Verified {verified}</span> : null}
+      {tracking != null ? <span className="tm-pulse-item">{tracking} tracking</span> : null}
+      {signal ? (
+        <span className={`tm-pulse-item tm-pulse-signal ${signal}`}>{SIGNAL_LABEL[signal]}</span>
+      ) : null}
+    </div>
+  )
 }
 
 /* Re-export icons used by other dashboard surfaces (mobile tab bar etc). */

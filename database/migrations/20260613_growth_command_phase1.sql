@@ -123,12 +123,25 @@ create table if not exists public.growth_publications (
         check (status in ('published', 'failed', 'deleted')),
     live_url text,
     external_id text,
+    final_copy_snapshot text not null,
     published_at timestamptz not null default now(),
     outcome jsonb not null default '{}'::jsonb,
     failure_details text,
     created_by uuid references auth.users(id) on delete set null,
     created_at timestamptz not null default now(),
     unique (message_id, external_id)
+);
+
+create table if not exists public.growth_seeding_sweeps (
+    id uuid primary key default gen_random_uuid(),
+    legacy_key text unique,
+    sweep_date date not null,
+    title text not null,
+    summary text,
+    body text not null,
+    metadata jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 create table if not exists public.growth_attribution_touchpoints (
@@ -195,6 +208,8 @@ create index if not exists idx_growth_messages_channel
     on public.growth_messages(channel, status);
 create index if not exists idx_growth_publications_message_time
     on public.growth_publications(message_id, published_at desc);
+create index if not exists idx_growth_seeding_sweeps_date
+    on public.growth_seeding_sweeps(sweep_date desc);
 create index if not exists idx_growth_attribution_campaign
     on public.growth_attribution_touchpoints(campaign, source, captured_at desc);
 create index if not exists idx_growth_outreach_contacts_status
@@ -207,6 +222,7 @@ alter table public.growth_content_assets enable row level security;
 alter table public.growth_campaigns enable row level security;
 alter table public.growth_messages enable row level security;
 alter table public.growth_publications enable row level security;
+alter table public.growth_seeding_sweeps enable row level security;
 alter table public.growth_attribution_touchpoints enable row level security;
 alter table public.growth_outreach_contacts enable row level security;
 alter table public.growth_email_queue enable row level security;
@@ -217,6 +233,8 @@ comment on table public.growth_content_assets is
     'Canonical useful answers from which channel derivatives are created.';
 comment on table public.growth_publications is
     'Append-only evidence of actual publication attempts and outcomes.';
+comment on table public.growth_seeding_sweeps is
+    'Full opportunity sweeps that feed human-reviewed channel responses.';
 comment on table public.growth_attribution_touchpoints is
     'Bounded first/latest campaign attribution; never stores CV or application data.';
 comment on table public.growth_outreach_contacts is

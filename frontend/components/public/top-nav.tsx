@@ -8,7 +8,7 @@ import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
 
-export type PublicNavPage = "intel" | "newsletter" | "about" | "privacy" | "signup" | "login" | "docs" | "institutions"
+export type PublicNavPage = "intel" | "newsletter" | "home" | "privacy" | "signup" | "login" | "docs" | "institutions"
 
 interface PublicTopNavProps {
   active?: PublicNavPage
@@ -55,7 +55,7 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
 
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
-      <Link href="/about" aria-label="Myro home" className="tm-public-nav-brand">
+      <Link href="/" aria-label="Myro home" className="tm-public-nav-brand">
         <MyroLogo size={34} />
         <span className="tm-public-nav-wordmark">Myro</span>
       </Link>

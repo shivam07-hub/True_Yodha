@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import type { JobFeedItem } from "@/lib/api"
+import type { JobFeedItem, PersonalReasonCode } from "@/lib/api"
+import { PERSONAL_REASONS, sendPersonalFeedback } from "@/lib/jobs/feedback"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
 import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
+import { usePulses } from "@/lib/hooks/use-pulses"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
 import "./market.css"
 
@@ -68,6 +70,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const { feed, allJobs, total, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q })
 
+  // One batched pulse request for the visible feed (not one-per-card).
+  const pulses = usePulses(token, allJobs.map(j => j.job_id))
+
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const el = sentinelRef.current
@@ -123,11 +128,11 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             {isDesktop ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {allJobs.map(job => (
-                  <JobCard key={job.job_id} job={job} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
+                  <JobCard key={job.job_id} job={job} pulse={pulses.get(job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
                 ))}
               </div>
             ) : (
-              <MobileFeed jobs={allJobs} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} />
+              <MobileFeed jobs={allJobs} pulses={pulses} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} />
             )}
             <div ref={sentinelRef} style={{ height: 1 }} />
             {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
@@ -139,6 +144,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
       {openJob ? (
         <JobDetailDrawer
           job={openJob}
+          pulse={pulses.get(openJob.job_id)}
           token={token}
           onClose={() => setOpenJob(null)}
           followed={openJob.company_name ? followedNames.includes(openJob.company_name) : false}
@@ -158,7 +164,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         />
       ) : null}
 
-      {pending ? <UndoToast kind={pending.kind} onUndo={undo} /> : null}
+      {pending ? <UndoToast kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
     </div>
   )
 }
@@ -208,11 +214,41 @@ function EmptyHandoff({ savedCount, onBuild, onClear }: { savedCount: number; on
   )
 }
 
-function UndoToast({ kind, onUndo }: { kind: "saved" | "skipped"; onUndo: () => void }) {
+function UndoToast({
+  kind, jobId, token, onUndo,
+}: {
+  kind: "saved" | "skipped"
+  jobId: string
+  token: string
+  onUndo: () => void
+}) {
+  const [reason, setReason] = useState<PersonalReasonCode | null>(null)
   return (
     <div className="tm-feed-toast" role="status">
-      <span>{kind === "saved" ? "★ Saved" : "Skipped"}</span>
-      <button type="button" onClick={onUndo}>Undo</button>
+      <div className="tm-feed-toast-head">
+        <span>{kind === "saved" ? "★ Saved" : "Skipped"}</span>
+        <button type="button" onClick={onUndo}>Undo</button>
+      </div>
+      {/* Optional personal "why" — trains only this user's ranking, never the
+          global listing trust. Skipping it keeps the loop fast. */}
+      {kind === "skipped" ? (
+        reason ? (
+          <span className="tm-feed-toast-noted">Noted ✓</span>
+        ) : (
+          <div className="tm-feed-toast-reasons">
+            {PERSONAL_REASONS.map(r => (
+              <button
+                key={r.code}
+                type="button"
+                className="tm-reason-chip"
+                onClick={() => { sendPersonalFeedback(token, jobId, r.code, "market"); setReason(r.code) }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )
+      ) : null}
     </div>
   )
 }

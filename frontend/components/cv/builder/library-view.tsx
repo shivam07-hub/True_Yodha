@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
@@ -121,7 +121,6 @@ export function LibraryView({
 }: LibraryViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const masterPanelRef = useRef<HTMLDivElement>(null)
 
   // Top-level view (market Jobs/Heatmap pill). CV leads by default — the master
   // CV is the source of truth, so it gets its own full-width page. Legacy deep
@@ -144,18 +143,10 @@ export function LibraryView({
     router.replace(`/cv?${params.toString()}`, { scroll: false })
   }
 
-  // On the CV view the master panel is the whole point, so it opens by default;
-  // the hero button still collapses it. `?master=1` forces it open on arrival.
+  // On the CV view the Main CV is the whole point, so it opens by default; the
+  // panel's own Close button collapses it to the hero strip. `?master=1` forces
+  // it open on arrival.
   const [masterOpen, setMasterOpen] = useState(() => true)
-
-  // Bring the panel into view when it opens — the hero button changing state
-  // alone wasn't enough signal that the CV had opened (reported confusion).
-  useEffect(() => {
-    if (!masterOpen || view !== "cv") return
-    requestAnimationFrame(() =>
-      masterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-    )
-  }, [masterOpen, view])
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
@@ -171,27 +162,31 @@ export function LibraryView({
             </div>
           </div>
 
-          {/* ── CV view: master CV on its own, full width ───────────── */}
+          {/* ── CV view: the Main CV is the whole point, full width ──────
+              Open (default) → the panel alone is the surface; its own head
+              carries name / version / Edit / Replace / Close. Collapsed → the
+              compact hero strip is the resting state with the re-open button.
+              Never both: stacking them duplicated name + version + replace and
+              buried the preview a screen down (the old scrollIntoView hack). */}
           {view === "cv" && (
             <>
               {isNewUser && <WorkspaceIntroCard />}
-              <div className="tm-lib-hero-strip">
-                <MasterCVHero
+              {masterOpen ? (
+                <MasterCVPanel
+                  token={token}
                   baseline={currentBaseline}
+                  cv={cv}
                   profile={profile}
-                  open={masterOpen}
-                  onOpen={() => setMasterOpen(v => !v)}
+                  onClose={() => setMasterOpen(false)}
                   onReplace={onReplaceCV}
                 />
-              </div>
-              {masterOpen && (
-                <div ref={masterPanelRef}>
-                  <MasterCVPanel
-                    token={token}
+              ) : (
+                <div className="tm-lib-hero-strip">
+                  <MasterCVHero
                     baseline={currentBaseline}
-                    cv={cv}
                     profile={profile}
-                    onClose={() => setMasterOpen(false)}
+                    open={false}
+                    onOpen={() => setMasterOpen(true)}
                     onReplace={onReplaceCV}
                   />
                 </div>

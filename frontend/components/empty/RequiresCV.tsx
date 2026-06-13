@@ -62,7 +62,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
         ctaLabel: "Retry CV upload",
         ctaHref: "/cv?upload=1",
         secondaryLabel: "See how scoring works",
-        secondaryHref: "/about",
+        secondaryHref: "/",
         statusLabel: "Last analysis failed",
       }
     }
@@ -72,7 +72,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
       ctaLabel: "Upload CV to unlock Skills",
       ctaHref: "/cv?upload=1",
       secondaryLabel: "See the product flow",
-      secondaryHref: "/about",
+      secondaryHref: "/",
       statusLabel: "CV required",
     }
   }

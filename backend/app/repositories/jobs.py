@@ -459,6 +459,7 @@ class MarketAnalyticsCompiler:
         seven_d_floor = now_utc - timedelta(days=7)
         total_jobs_today = 0
         jobs_added_1h = 0
+        earliest_first_seen: datetime | None = None
 
         for row in rows:
             company = (row.get("company_name") or "").strip()
@@ -503,6 +504,8 @@ class MarketAnalyticsCompiler:
                     total_jobs_today += 1
                 if created_at_dt >= one_hr_floor:
                     jobs_added_1h += 1
+                if earliest_first_seen is None or created_at_dt < earliest_first_seen:
+                    earliest_first_seen = created_at_dt
             if industry:
                 industry_counts[industry] += 1
                 industry_skill_counters.setdefault(industry, Counter()).update(skills)
@@ -553,6 +556,7 @@ class MarketAnalyticsCompiler:
             "total_companies": len(company_counts),
             "total_industries": len(industry_counts),
             "latest_batch": str(max(batch_dates)) if batch_dates else None,
+            "scraper_started": earliest_first_seen.isoformat() if earliest_first_seen else None,
             "total_jobs_today": total_jobs_today,
             "jobs_added_1h": jobs_added_1h,
             "companies_added_7d": companies_added_7d,
@@ -926,6 +930,70 @@ class JobsRepository:
         rows = result.data or []
         for row in rows:
             _hydrate_location_fields(row)
+        _search_cache[cache_key] = (now, {"rows": rows})
+        return rows
+
+    def list_top_companies_at(
+        self,
+        *,
+        industry: str | None = None,
+        city: str | None = None,
+        limit: int = 8,
+    ) -> list[dict[str, Any]]:
+        """Top companies hiring within an industry group or a city.
+
+        Powers the /intel Industries/Cities right panel (Q1=B). Filters jobs by
+        industry_group OR location_city, groups by company, returns the top-N by
+        open count with the dominant country + most-recent last_seen per company.
+        24h in-process cache keyed on (kind, value, limit). Mirrors the
+        list_jobs_at_company read pattern (admin_db, APIError → cached/[]).
+        """
+        kind, value = ("industry", _norm_filter(industry)) if industry else ("city", _norm_filter(city))
+        if not value:
+            return []
+        scoped_limit = max(1, min(20, int(limit)))
+        cache_key = (f"__companies_at_{kind}__", value, None, None, None, None, 1, scoped_limit)
+        now = time.monotonic()
+        cached = _search_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _SEARCH_TTL:
+            return list(cached[1]["rows"])
+        try:
+            query = (
+                self._admin_db
+                .table("jobs")
+                .select("company_name, location_country, first_seen, last_seen")
+            )
+            query = query.eq("industry_group", value) if kind == "industry" else query.eq("location_city", value)
+            result = query.execute()
+        except APIError:
+            return list(cached[1]["rows"]) if cached else []
+
+        counts: Counter[str] = Counter()
+        country_counters: dict[str, Counter[str]] = {}
+        last_seen: dict[str, datetime] = {}
+        for r in result.data or []:
+            company = (r.get("company_name") or "").strip()
+            if not company:
+                continue
+            counts[company] += 1
+            country = (r.get("location_country") or "").strip()
+            if country:
+                country_counters.setdefault(company, Counter())[country] += 1
+            seen_dt = _marker_to_dt(r.get("last_seen")) or _marker_to_dt(r.get("first_seen"))
+            if seen_dt is not None:
+                prev = last_seen.get(company)
+                if prev is None or seen_dt > prev:
+                    last_seen[company] = seen_dt
+
+        rows = [
+            {
+                "company_name": company,
+                "open_count": count,
+                "location_country": _dominant(country_counters.get(company)),
+                "last_seen_at": last_seen[company].isoformat() if company in last_seen else None,
+            }
+            for company, count in counts.most_common(scoped_limit)
+        ]
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 

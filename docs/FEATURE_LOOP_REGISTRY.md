@@ -6,6 +6,35 @@ Generated from graphify run (3315 nodes / 6795 edges) + CLAUDE.md audit.
 
 ---
 
+## INVESTOR FRAMING — "Built as a loop, not a one-shot"
+
+> Marketing narrative retired from the public landing page 2026-06-13 (read as architecture, not
+> story). Preserved here as the investor/explainer artifact. **Thesis:** "A CV maker you use once.
+> An engine you come back to." The retention moat is the loop, not any single feature.
+
+7-node product loop, centered on **the Engine** (`The Engine keeps reading`):
+
+```
+Upload   — drop your CV, the Engine reads it
+   ↓
+Score    — 0–100 across 10 career domains
+   ↓
+Match    — best-fit roles from live openings
+   ↓
+Tailor   — one CV version per target job
+   ↓
+Apply    — send the version that fits
+   ↓
+Upskill  — practice the exact skills your matches demand   ← the accent node (where time is spent)
+   ↺
+repeat   — your score rises, your matches improve
+```
+
+This is the marketing-surface restatement of THE MASTER CYCLE below (the same loop, expressed in
+engineering terms). Keep both in sync if either changes.
+
+---
+
 ## THE MASTER CYCLE
 
 ```

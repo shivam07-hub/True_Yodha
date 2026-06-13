@@ -16,6 +16,11 @@
 .tm-job-card { transition: border-color 120ms ease, transform 120ms ease; }
 .tm-job-card:hover { border-color: var(--tm-border) !important; }
 
+/* Listing-confidence dim (D1) — the warn label keeps its own colour. */
+.tm-job-card.tm-conf-uncertain { opacity: 0.88; }
+.tm-job-card.tm-conf-closed { opacity: 0.66; }
+.tm-job-card .tm-pulse { border-top: 1px solid var(--tm-border-soft); }
+
 /* ── triage buttons (Save / Skip) ────────────────────────────────────────── */
 .tm-triage-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -120,13 +125,25 @@
 .tm-feed-toast {
   position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
   transform: translateX(-50%); z-index: 80;
-  display: inline-flex; align-items: center; gap: 16px;
-  padding: 12px 18px; border-radius: 999px;
+  display: flex; flex-direction: column; gap: 9px;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 12px 18px; border-radius: 18px;
   background: var(--tm-text); color: var(--tm-bg, #fff);
   box-shadow: 0 8px 24px rgba(0,0,0,0.28); font-size: 13px; font-weight: 600;
   animation: tmToastUp 220ms ease both;
 }
+.tm-feed-toast-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .tm-feed-toast button { background: none; border: none; color: var(--tm-interactive); font-weight: 700; cursor: pointer; font-size: 13px; }
+.tm-feed-toast-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.tm-reason-chip {
+  padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  background: color-mix(in srgb, var(--tm-bg, #fff) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tm-bg, #fff) 24%, transparent) !important;
+  color: var(--tm-bg, #fff) !important; font-size: 11.5px; font-weight: 500 !important;
+  white-space: nowrap; transition: background 120ms ease;
+}
+.tm-reason-chip:hover { background: color-mix(in srgb, var(--tm-bg, #fff) 24%, transparent); }
+.tm-feed-toast-noted { font-size: 12px; font-weight: 500; opacity: 0.8; }
 
 /* ── mobile Inshorts feed ────────────────────────────────────────────────── */
 .tm-mfeed { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
