@@ -106,6 +106,7 @@ Return JSON only — no prose, no markdown fences. Top-level shape:
 {
   "skills":     [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}],
   "structured": {
+    "contact":     {"name":"...","title":"...","email":"...","phone":"...","location":"...","linkedin":"..."},
     "summary":     "string | null",
     "education":   [{"institution":"...","degree":"...","dates":"...","grade":"...","location":"..."}],
     "experience":  [{"company":"...","role":"...","dates":"...","location":"...","bullets":["...", "..."]}],
@@ -132,6 +133,7 @@ Skill rules:
   - Use proper Lightcast capitalisation (e.g. "Apache Spark", "Amazon Web Services (AWS)")
 
 Structured-section rules:
+  - "contact": the candidate's header block. "name" = full name as printed; "title" = the headline/current role under the name if present; "email"/"phone"/"location"/"linkedin" verbatim from the CV. Use empty string "" for any field not present — never invent a name, email, or phone.
   - "summary": the opening paragraph / objective if present, else null
   - "education": every degree row. Use empty string for missing fields, not omission. dates as printed (e.g. "March 2024", "Jun 2020")
   - "experience": every role. Preserve role order top→bottom of CV. "bullets" = each "•" / "-" / numbered line under that role, verbatim, ≤300 chars each. No bullet-merging. If a role has no bullets, return [].
@@ -267,6 +269,16 @@ def _validate_structured(raw: dict) -> dict | None:
             "bullets": [b[:300] for b in bullets],
         })
 
+    contact_raw = raw.get("contact") if isinstance(raw.get("contact"), dict) else {}
+    contact = {
+        "name":     str(contact_raw.get("name") or "").strip(),
+        "title":    str(contact_raw.get("title") or "").strip(),
+        "email":    str(contact_raw.get("email") or "").strip(),
+        "phone":    str(contact_raw.get("phone") or "").strip(),
+        "location": str(contact_raw.get("location") or "").strip(),
+        "linkedin": str(contact_raw.get("linkedin") or "").strip(),
+    }
+
     summary = raw.get("summary")
     summary = str(summary).strip() if isinstance(summary, str) and summary.strip() else None
 
@@ -274,6 +286,7 @@ def _validate_structured(raw: dict) -> dict | None:
     skills_line = str(skills_line).strip() if isinstance(skills_line, str) and skills_line.strip() else None
 
     return {
+        "contact":     contact,
         "summary":     summary,
         "education":   education,
         "experience":  experience,

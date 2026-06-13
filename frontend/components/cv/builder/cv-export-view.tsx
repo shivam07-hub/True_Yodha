@@ -44,6 +44,10 @@ interface CVExportViewProps {
   context: ExportContext
   /** Initial print-CSS variant. The picker persists the user's choice. */
   template?: CVTemplate
+  /** CV Version this surface renders. Enables the Myro-mark toggle (authed). */
+  versionId?: number | null
+  /** Initial footer-mark state for `versionId`. */
+  footerMarkHidden?: boolean
   /** Job context — drives the tailored foot, JD-match pill, and ApplyRow. */
   company?: string
   jobTitle?: string
@@ -99,7 +103,8 @@ function triggerBlobDownload(blob: Blob, filename: string, mime: string) {
 
 export function CVExportView({
   token, cv, hidden, contact, profile, context,
-  template, company, jobTitle, jobId, matchScore = 0, appliedAt = null,
+  template, versionId = null, footerMarkHidden = false,
+  company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back",
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
@@ -157,6 +162,28 @@ export function CVExportView({
   // tracker ("applied to {company} on {date}").
   const [downloaded, setDownloaded] = useState(false)
   const queryClient = useQueryClient()
+
+  // Myro footer mark (per-version certified state). Optimistic toggle; the
+  // backend is the source of truth, so we revert on failure.
+  const [markHidden, setMarkHidden] = useState(footerMarkHidden)
+  const [markBusy, setMarkBusy] = useState(false)
+  useEffect(() => { setMarkHidden(footerMarkHidden) }, [footerMarkHidden])
+
+  async function toggleMark() {
+    if (!versionId || markBusy) return
+    const next = !markHidden
+    setMarkHidden(next)
+    setMarkBusy(true)
+    try {
+      await cvApi.versions.setFooterMark(token, versionId, next)
+      queryClient.invalidateQueries({ queryKey: ["cv-versions"] })
+    } catch {
+      setMarkHidden(!next) // revert — backend rejected
+    } finally {
+      setMarkBusy(false)
+    }
+  }
+
   const [appliedDate, setAppliedDate] = useState<string | null>(appliedAt)
   const [trackBusy, setTrackBusy] = useState(false)
   const [trackError, setTrackError] = useState<string | null>(null)
@@ -231,11 +258,36 @@ export function CVExportView({
         contact={contact}
         company={isTailored ? company : undefined}
         template={activeTemplate}
+        footerMarkHidden={markHidden}
       />
     </div>
   )
 
   const templatePicker = <TemplatePicker value={activeTemplate} onChange={pickTemplate} />
+
+  // The certified mark earns a real product benefit (more push + recommendations),
+  // so the control names the trade-off rather than presenting a neutral on/off.
+  const markToggle = versionId ? (
+    <div className="cvb-mark-toggle">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!markHidden}
+        className={`cvb-mark-switch${markHidden ? "" : " is-on"}`}
+        onClick={toggleMark}
+        disabled={markBusy}
+        title={markHidden ? "Add the Myro mark to certify this CV" : "Remove the Myro mark"}
+      >
+        <Icon name={markHidden ? "x" : "check"} size={11} />
+        {markHidden ? "Add Myro mark" : "Myro Certified"}
+      </button>
+      <span className="cvb-mark-note">
+        {markHidden
+          ? "Certified CVs get more push & recommendations."
+          : "Shown in your CV footer — gets more push & recommendations."}
+      </span>
+    </div>
+  ) : null
 
   const docxButton = (
     <button type="button" className="cvb-btn ghost" onClick={handleDownloadDocx} disabled={docxBusy}>
@@ -265,6 +317,7 @@ export function CVExportView({
           </div>
         </div>
         {docxError && <div className="cvb-export-err">{docxError}</div>}
+        {markToggle}
         {/* CV preview leads — it's what the user came for. The DOCX-vs-PDF
             disclosure is a download-time decision, so it sits with the audit
             below the sheet, not between the toolbar and the preview. */}
@@ -316,6 +369,8 @@ export function CVExportView({
             <Icon name="check" size={11} /> ATS-friendly · single column
           </span>
         </div>
+
+        {markToggle}
 
         {page}
 

@@ -29,9 +29,26 @@ interface PdfPageProps {
   company?: string
   /** Print-CSS variant; written to `data-cv-template`. Defaults to "classic". */
   template?: CVTemplate
+  /** Hide the Myro mark in the footer (un-certify). Default false = mark shown. */
+  footerMarkHidden?: boolean
 }
 
-export function PdfPage({ cv, hidden, contact, company, template = "classic" }: PdfPageProps) {
+/** Monochrome Myro footer mark — self-contained inline SVG so it survives the
+ *  server PDF render (which grabs `.cvb-pdf-page` outerHTML, no asset loading). */
+function FooterMark() {
+  return (
+    <span className="pdf-foot-mark" aria-label="Myro Certified" title="Myro Certified">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="4" />
+        <path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94" />
+      </svg>
+      <span>Myro</span>
+    </span>
+  )
+}
+
+export function PdfPage({ cv, hidden, contact, company, template = "classic", footerMarkHidden = false }: PdfPageProps) {
   const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
     bullets.filter((b, bi) => !hidden.has(itemId(section, ei * 100 + bi, b)))
 
@@ -136,7 +153,7 @@ export function PdfPage({ cv, hidden, contact, company, template = "classic" }: 
 
       <div className="pdf-foot">
         <span>{company ? `${contact.name} — tailored for ${company}` : contact.name}</span>
-        <span>Generated via Myro · myro.app</span>
+        {!footerMarkHidden && <FooterMark />}
       </div>
     </div>
   )

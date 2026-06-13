@@ -22,6 +22,7 @@ function ver(kind: CVVersionKind, company: string | null = null): CVVersion {
     created_at: "2026-01-01T00:00:00Z",
     job_title: null,
     company_name: company,
+    footer_mark_hidden: false,
   }
 }
 

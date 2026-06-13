@@ -392,6 +392,67 @@
 .lp-readout-unlock-cta:hover { filter: brightness(1.08); }
 .lp-readout-unlock-cta:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
 
+/* ── Score / Myro-standard-CV tabs ──────────────────────────── */
+.lp-readout-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin: 26px auto 0;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-surface);
+}
+.lp-readout-tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: var(--lp-font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-muted);
+  cursor: pointer;
+  transition: color var(--lp-dur) var(--lp-ease), background var(--lp-dur) var(--lp-ease);
+}
+.lp-readout-tab.is-active {
+  background: var(--lp-accent);
+  color: var(--lp-accent-fg);
+}
+.lp-readout-tab:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
+.lp-readout-tabs + .lp-readout-card { margin-top: 16px; }
+
+/* ── Myro-standard CV preview (real document, download gated) ── */
+.lp-cv-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--lp-border);
+}
+.lp-cv-sub {
+  margin: 8px 0 0;
+  max-width: 520px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--lp-muted);
+}
+.lp-cv-frame {
+  position: relative;
+  overflow: hidden;
+  background: var(--lp-bg);
+  padding: 24px;
+}
+.lp-cv-scale {
+  width: 816px;
+  transform-origin: top left;
+}
+/* The sheet ships its own dark drop-shadow for the dark app; soften it here so
+   it reads as a clean document on the landing surface. */
+.lp-cv-frame .cvb-pdf-page {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  margin: 0 auto;
+}
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1060px) {
   .lp-pipeline { grid-template-columns: repeat(2, 1fr); gap: 24px; }

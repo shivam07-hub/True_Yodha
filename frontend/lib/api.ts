@@ -527,6 +527,7 @@ export interface CVVersion {
   created_at: string
   job_title: string | null
   company_name: string | null
+  footer_mark_hidden: boolean
 }
 
 export interface SkillEditRequest {
@@ -669,6 +670,13 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ edited_items: editedItems, title }),
+      }),
+    // Toggle the Myro footer mark on a CV Version (certified ⇄ un-certified).
+    setFooterMark: (token: string, versionId: number, hidden: boolean) =>
+      request<CVVersion>(`/cv/versions/${versionId}/footer-mark`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden }),
       }),
   },
   skillEdit: async (
@@ -2847,6 +2855,15 @@ export interface AnonDomainScore {
   score: number
 }
 
+export interface AnonContact {
+  name: string
+  title: string
+  email: string
+  phone: string
+  location: string
+  linkedin: string
+}
+
 export interface AnonScoreResponse {
   score: number
   verdict: string
@@ -2854,6 +2871,10 @@ export interface AnonScoreResponse {
   gaps: AnonDomainScore[]
   strengths: AnonDomainScore[]
   skills_detected: number
+  // The parsed CV reformatted to the Myro standard (PdfPage shape). Null when
+  // extraction was degraded — the readout then shows the score only.
+  cv: CVStructured | null
+  contact: AnonContact | null
 }
 
 export const publicCv = {

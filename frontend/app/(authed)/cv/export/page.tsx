@@ -86,6 +86,8 @@ function CVExportPage() {
             contact={contact}
             profile={profile}
             context="tailored"
+            versionId={playground.selectedVersion?.id ?? null}
+            footerMarkHidden={playground.selectedVersion?.footer_mark_hidden ?? false}
             company={company}
             jobTitle={jobTitle}
             jobId={jobId}

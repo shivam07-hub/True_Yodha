@@ -121,6 +121,36 @@
   color: var(--tm-text-muted);
   white-space: nowrap;
 }
+/* Myro footer-mark (certified) toggle — sits above the CV preview. */
+.cvb-mark-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 2px 0 4px;
+}
+.cvb-mark-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--tm-radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
+  background: transparent;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.cvb-mark-switch.is-on {
+  color: var(--tm-interactive);
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+}
+.cvb-mark-switch:disabled { opacity: 0.55; cursor: default; }
+.cvb-mark-note { font-size: 11px; color: var(--tm-text-faint); }
+
 .cvb-pill.accent { color: var(--tm-interactive); border-color: var(--tm-int-border); background: var(--tm-int-bg-wash); }
 .cvb-pill.success { color: var(--tm-success); border-color: rgba(74,222,128,0.3); background: var(--tm-success-wash); }
 .cvb-pill.warning { color: var(--tm-warning); border-color: rgba(245,158,11,0.3); background: var(--tm-warning-wash); }
