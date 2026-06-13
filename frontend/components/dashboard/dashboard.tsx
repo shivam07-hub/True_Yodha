@@ -113,7 +113,7 @@ export function Dashboard(props: DashboardProps) {
             className="db-btn db-btn-secondary tm-control-focus"
             onClick={() => setManualOpen(true)}
           >
-            + Add a job
+            + Upload a job
           </button>
           <RefreshMatchesButton vm={props.refresh} disabled={!props.token} />
         </div>

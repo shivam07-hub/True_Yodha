@@ -85,6 +85,15 @@
   font-size: 8pt;
   color: #888;
 }
+.cvb-pdf-page .pdf-foot-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1A1A1A;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.cvb-pdf-page .pdf-foot-mark svg { display: block; }
 
 /* ── Template variants (same DOM, same selectable text) ──────────────────────
    `data-cv-template` lives on `.cvb-pdf-page` itself, so these apply on screen,

@@ -290,6 +290,28 @@ class CVVersionsRepository:
             return 1
         return int(result.data[0].get("user_version_number") or 0) + 1
 
+    def set_footer_mark(
+        self, version_id: int, user_id: str, hidden: bool
+    ) -> dict[str, Any]:
+        """Toggle the Myro footer mark on a single CV Version (certified ⇄ not).
+
+        user_id filter is defensive — RLS also scopes. Raises 404 if the version
+        is not the caller's.
+        """
+        result = (
+            self._db.table("cv_versions")
+            .update({"footer_mark_hidden": hidden})
+            .eq("id", version_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="CV version not found.",
+            )
+        return result.data[0]
+
     def update_structured(self, version_id: int, cv_structured: dict[str, Any]) -> None:
         """Lazy backfill — fills cv_structured on a baseline row that was migrated
         from legacy data without one. Repository-level setter, not a general update.

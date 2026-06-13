@@ -107,9 +107,20 @@ class AnonDomainScore(BaseModel):
     score: int
 
 
+class AnonContact(BaseModel):
+    name: str = ""
+    title: str = ""
+    email: str = ""
+    phone: str = ""
+    location: str = ""
+    linkedin: str = ""
+
+
 class AnonScoreResponse(BaseModel):
     """Compute-only preview — the score + domain split the landing Readout
-    renders. No skill names, no jobs, no persistence: signup unlocks those."""
+    renders, plus the parsed CV reformatted to the Myro standard so a
+    logged-out user can see (but not download) their own CV the Myro way.
+    Nothing is persisted (PV1); skill names, jobs, and download stay gated."""
 
     score: int
     verdict: str
@@ -117,6 +128,10 @@ class AnonScoreResponse(BaseModel):
     gaps: list[AnonDomainScore]       # weakest domains → "improve before applying"
     strengths: list[AnonDomainScore]  # strongest domains → "already strong"
     skills_detected: int
+    # The CV reformatted to the Myro standard (PdfPage shape). None when the
+    # provider returned skills but no structured payload (degraded but scorable).
+    cv: dict[str, Any] | None = None
+    contact: AnonContact | None = None
 
 
 def _client_ip(request: Request) -> str:
@@ -242,6 +257,23 @@ async def score_cv_preview(
     strengths = [d for d in domains if d.score >= 50][:3]
     gaps = [d for d in reversed(domains) if d.score < 50][:3]
 
+    # Split the parsed structured CV into the PdfPage body shape + a contact
+    # block. The body keys mirror the frontend CVStructured type; contact is
+    # rendered into the CV header. Both are None when extraction was degraded.
+    structured = parsed.get("cv_structured") or None
+    cv_body: dict[str, Any] | None = None
+    contact: AnonContact | None = None
+    if structured:
+        contact = AnonContact(**(structured.get("contact") or {}))
+        cv_body = {
+            "summary":     structured.get("summary"),
+            "education":   structured.get("education") or [],
+            "experience":  structured.get("experience") or [],
+            "projects":    structured.get("projects") or [],
+            "skills_line": structured.get("skills_line"),
+            "certs":       structured.get("certs") or [],
+        }
+
     return AnonScoreResponse(
         score=score,
         verdict=_verdict_for(score),
@@ -249,4 +281,6 @@ async def score_cv_preview(
         gaps=gaps,
         strengths=strengths,
         skills_detected=len(skills_detected),
+        cv=cv_body,
+        contact=contact,
     )

@@ -25,6 +25,7 @@ function cvVersion(partial: Partial<CVVersion>): CVVersion {
     created_at: "2026-05-31T08:00:00Z",
     job_title: null,
     company_name: null,
+    footer_mark_hidden: false,
     ...partial,
   }
 }

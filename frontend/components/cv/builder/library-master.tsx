@@ -170,6 +170,8 @@ export function MasterCVPanel({
             contact={masterContact(cv, profile)}
             profile={profile}
             context="master"
+            versionId={baseline?.id ?? null}
+            footerMarkHidden={baseline?.footer_mark_hidden ?? false}
           />
         ) : (
           <pre className="tm-lib-master-panel-text">

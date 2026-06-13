@@ -48,6 +48,10 @@ class CVVersionEditRequest(BaseModel):
     title:        str | None = None
 
 
+class FooterMarkRequest(BaseModel):
+    hidden: bool
+
+
 class CVVersionResponse(BaseModel):
     id:                   int
     user_version_number:  int
@@ -64,6 +68,7 @@ class CVVersionResponse(BaseModel):
     created_at:           datetime
     job_title:            str | None = None
     company_name:         str | None = None
+    footer_mark_hidden:   bool = False
 
 
 class CVVersionListResponse(BaseModel):
@@ -111,6 +116,7 @@ def _to_response(row: dict[str, Any]) -> CVVersionResponse:
         created_at=row["created_at"],
         job_title=row.get("job_title") or job.get("job_title"),
         company_name=row.get("company_name") or job.get("company_name"),
+        footer_mark_hidden=bool(row.get("footer_mark_hidden")),
     )
 
 
@@ -185,6 +191,18 @@ def create_cv_version(
         confidence_label="user-curated",
     )
     return _to_response(cv_repo.create(user_id, spec))
+
+
+@router.patch("/{version_id}/footer-mark", response_model=CVVersionResponse)
+def set_footer_mark(
+    version_id: int,
+    body: FooterMarkRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Toggle the Myro footer mark on a CV Version (certified ⇄ un-certified)."""
+    row = cv_repo.set_footer_mark(version_id, principal.id, body.hidden)
+    return _to_response(row)
 
 
 @router.post(
