@@ -298,7 +298,56 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Job Intelligence backend)
+## LAST SESSION SUMMARY (2026-06-13 - Hosted Distribution Tracker parity)
+
+Rebuilt `/admin/growth` as the backend-persisted version of the proven local
+Distribution Tracker on `Develop`.
+
+- Preserved the three original workspaces: Postings pipeline, Newsletter
+  issues, and Seeding sweeps.
+- Restored the dense inline publishing loop: open composer/source, copy the
+  prepared insight, edit the working draft, paste the exact published copy,
+  capture the live URL, lock the publication snapshot, and update impressions
+  and clicks.
+- Kept the immutable prepared baseline in message metadata, the latest human
+  edit in `draft_copy`, and the exact published words in
+  `growth_publications.final_copy_snapshot`.
+- Added durable sweep storage, backend metric updates, complete snapshot
+  import/export, and compatibility with the original tracker's localStorage
+  override JSON.
+- Imported all four legacy datasets deterministically in dry-run validation:
+  8 assets, 12 campaigns, 22 messages, 2 publications, and 4 sweeps.
+- Browser QA passed the complete draft-to-final loop on desktop and at 375px.
+  The page has no body-level horizontal overflow; the dense table scrolls
+  internally.
+- Commits: `85baf01` backend parity, `5c6c2a0` complete legacy importer,
+  `6ee7fbb` hosted tracker interface.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests` -> `646 passed, 16 warnings`
+- Focused frontend tracker tests -> `10 passed`
+- Focused Next lint -> no warnings or errors
+- `git diff --check` -> clean
+- Full `tsc --noEmit` remains blocked only by unrelated concurrent edits in
+  `frontend/components/public/intel-pane.tsx` missing five `ResultsProps`.
+
+Deployment gate:
+
+- Live Supabase migration `20260613_growth_tracker_parity.sql` was not applied.
+  The Supabase MCP timed out during startup twice, and the Supabase CLI also
+  hung before returning project access.
+- Reauthenticate Supabase, apply the migration to `gipvxuugajkugntwkeiz`,
+  deploy the `Develop` backend/frontend, then run the authenticated tracker
+  importer. Do not import directly with SQL; the API preserves stable legacy
+  IDs and publication snapshots.
+- Existing unrelated Job Intelligence, dashboard, Intel, landing-page,
+  institution, and docs changes were left untouched.
+
+Canonical spec:
+`docs/superpowers/specs/2026-06-13-hosted-distribution-tracker-parity-design.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Job Intelligence backend)
 
 Specified and implemented the scalable Job Intelligence backend on `Develop`.
 Frontend work was deliberately left for Claude.

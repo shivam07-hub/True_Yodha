@@ -1,7 +1,7 @@
 # Hosted Distribution Tracker Parity Design
 
 **Date:** 2026-06-13
-**Status:** Approved direction; written parity contract
+**Status:** Implemented on `Develop`; live migration and import pending
 **Owner:** Shivam
 **Reference:** `Myro Newsletter/growth-agent/distribution-tracker.html`
 **Route:** `/admin/growth`
@@ -210,3 +210,27 @@ source evidence or sweep
    persistence and recovery, not a replacement workflow.
 10. The captured corpus is suitable for a later, separately approved
     channel-specific voice-learning system.
+
+## Implementation Record
+
+Implemented on June 13, 2026:
+
+- `85baf01` adds the private backend parity contract and additive migration.
+- `5c6c2a0` imports all legacy tracker datasets with deterministic identifiers.
+- `6ee7fbb` restores the hosted tabbed tracker and complete inline workflow.
+
+Verification:
+
+- 646 backend tests passed.
+- 10 focused tracker tests passed.
+- Focused Next lint passed.
+- Desktop and 375px browser QA passed the edit, save, publish, lock, metrics,
+  issue-library, and sweep-reader flows.
+- Full TypeScript checking is currently blocked by unrelated concurrent changes
+  in `frontend/components/public/intel-pane.tsx`.
+
+Production remains gated on applying
+`database/migrations/20260613_growth_tracker_parity.sql`, deploying the
+`Develop` backend/frontend, and running the authenticated one-time importer.
+The Supabase MCP and CLI were unavailable during implementation, so no live
+schema or content mutation was claimed.
