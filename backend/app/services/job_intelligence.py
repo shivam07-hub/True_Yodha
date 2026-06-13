@@ -3,8 +3,9 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time as datetime_time, timezone
 from typing import Callable
+from uuid import UUID
 
 from app.repositories.job_intelligence import JobIntelligenceRepository
 
@@ -22,6 +23,59 @@ class FeedStateRead:
     state: FeedState
     etag: str
     not_modified: bool
+
+
+@dataclass(frozen=True)
+class FeedbackCommand:
+    client_event_id: UUID
+    job_id: str
+    feedback_kind: str
+    reason_code: str
+    surface: str
+
+
+@dataclass(frozen=True)
+class FeedbackReceipt:
+    event_id: int
+    client_event_id: UUID
+    job_id: str
+    feedback_kind: str
+    reason_code: str
+    surface: str
+    created_at: datetime
+    created: bool
+
+
+class InvalidJobFeedbackError(ValueError):
+    pass
+
+
+class FeedbackRateLimitError(RuntimeError):
+    pass
+
+
+PERSONAL_FEEDBACK_REASONS = frozenset(
+    {
+        "not_my_role",
+        "location",
+        "seniority",
+        "compensation",
+        "company",
+        "skills_gap",
+        "already_applied",
+    }
+)
+QUALITY_FEEDBACK_REASONS = frozenset(
+    {
+        "looks_old",
+        "apply_link_closed",
+        "duplicate",
+        "details_wrong",
+        "posting_inactive",
+    }
+)
+FEEDBACK_SURFACES = frozenset({"dashboard", "market", "job_detail", "other"})
+MAX_DAILY_QUALITY_FEEDBACK = 3
 
 
 class FeedStateCache:
@@ -81,6 +135,40 @@ class JobIntelligence:
             not_modified=if_none_match == etag,
         )
 
+    def record_feedback(
+        self,
+        user_id: str,
+        command: FeedbackCommand,
+    ) -> FeedbackReceipt:
+        _validate_feedback(command)
+        event_id = str(command.client_event_id)
+        existing = self.repository.find_feedback(user_id, event_id)
+        if existing is not None:
+            return _feedback_receipt(existing, created=False)
+
+        if command.feedback_kind == "quality":
+            today = datetime.now(timezone.utc).date()
+            since = datetime.combine(
+                today,
+                datetime_time.min,
+                tzinfo=timezone.utc,
+            )
+            count = self.repository.count_quality_feedback_since(user_id, since)
+            if count >= MAX_DAILY_QUALITY_FEEDBACK:
+                raise FeedbackRateLimitError
+
+        row, created = self.repository.insert_feedback(
+            {
+                "client_event_id": event_id,
+                "job_id": command.job_id,
+                "user_id": user_id,
+                "feedback_kind": command.feedback_kind,
+                "reason_code": command.reason_code,
+                "surface": command.surface,
+            }
+        )
+        return _feedback_receipt(row, created=created)
+
     def _load_feed_state(self) -> FeedState:
         publication = self.repository.latest_feed_publication()
         if not publication:
@@ -114,6 +202,42 @@ def _parse_datetime(value: object) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed
+
+
+def _validate_feedback(command: FeedbackCommand) -> None:
+    reasons = (
+        PERSONAL_FEEDBACK_REASONS
+        if command.feedback_kind == "personal"
+        else QUALITY_FEEDBACK_REASONS
+        if command.feedback_kind == "quality"
+        else frozenset()
+    )
+    if command.reason_code not in reasons:
+        raise InvalidJobFeedbackError(
+            f"{command.reason_code!r} is not valid for {command.feedback_kind!r}"
+        )
+    if command.surface not in FEEDBACK_SURFACES:
+        raise InvalidJobFeedbackError(f"Unknown feedback surface: {command.surface}")
+
+
+def _feedback_receipt(
+    row: dict,
+    *,
+    created: bool,
+) -> FeedbackReceipt:
+    created_at = _parse_datetime(row.get("created_at"))
+    if created_at is None:
+        raise RuntimeError("Feedback row has no created_at")
+    return FeedbackReceipt(
+        event_id=int(row["id"]),
+        client_event_id=UUID(str(row["client_event_id"])),
+        job_id=str(row["job_id"]),
+        feedback_kind=str(row["feedback_kind"]),
+        reason_code=str(row["reason_code"]),
+        surface=str(row["surface"]),
+        created_at=created_at,
+        created=created,
+    )
 
 
 def _marker_to_iso_date(value: object) -> str | None:

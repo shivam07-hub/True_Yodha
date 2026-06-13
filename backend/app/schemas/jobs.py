@@ -1,7 +1,8 @@
 from datetime import date, datetime
 from typing import Any, Literal
+from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class SkillGapItem(BaseModel):
@@ -46,6 +47,43 @@ class FeedStateResponse(BaseModel):
     published_at: datetime | None
     imported_job_count: int
     latest_batch_date: str | None
+
+
+class JobFeedbackRequest(BaseModel):
+    client_event_id: UUID
+    job_id: str = Field(min_length=1, max_length=200)
+    feedback_kind: Literal["personal", "quality"]
+    reason_code: str
+    surface: Literal["dashboard", "market", "job_detail", "other"]
+
+    @model_validator(mode="after")
+    def validate_reason_taxonomy(self) -> "JobFeedbackRequest":
+        from app.services.job_intelligence import (
+            PERSONAL_FEEDBACK_REASONS,
+            QUALITY_FEEDBACK_REASONS,
+        )
+
+        reasons = (
+            PERSONAL_FEEDBACK_REASONS
+            if self.feedback_kind == "personal"
+            else QUALITY_FEEDBACK_REASONS
+        )
+        if self.reason_code not in reasons:
+            raise ValueError(
+                f"{self.reason_code!r} is not valid for {self.feedback_kind!r}"
+            )
+        return self
+
+
+class JobFeedbackResponse(BaseModel):
+    event_id: int
+    client_event_id: UUID
+    job_id: str
+    feedback_kind: Literal["personal", "quality"]
+    reason_code: str
+    surface: str
+    created_at: datetime
+    created: bool
 
 
 class JobMatchResponse(BaseModel):

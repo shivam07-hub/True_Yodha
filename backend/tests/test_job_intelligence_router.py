@@ -1,18 +1,36 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
 from app.routers.jobs.intelligence import get_job_intelligence
-from app.services.job_intelligence import FeedState, FeedStateRead
+from app.services.job_intelligence import (
+    FeedbackRateLimitError,
+    FeedbackReceipt,
+    FeedState,
+    FeedStateRead,
+)
 
 
 class _FakeIntelligence:
     def __init__(self) -> None:
         self.if_none_match: str | None = None
+        self.feedback_commands: list[tuple[str, object]] = []
+        self.feedback_receipt = FeedbackReceipt(
+            event_id=7,
+            client_event_id=UUID("b31e9d60-0dc0-46e1-bc8f-60e852861bd0"),
+            job_id="job-1",
+            feedback_kind="personal",
+            reason_code="not_my_role",
+            surface="dashboard",
+            created_at=datetime(2026, 6, 13, 9, 0, tzinfo=timezone.utc),
+            created=True,
+        )
+        self.raise_rate_limit = False
 
     def feed_state(self, if_none_match: str | None = None) -> FeedStateRead:
         self.if_none_match = if_none_match
@@ -28,6 +46,12 @@ class _FakeIntelligence:
             etag=etag,
             not_modified=if_none_match == etag,
         )
+
+    def record_feedback(self, user_id: str, command: object) -> FeedbackReceipt:
+        self.feedback_commands.append((user_id, command))
+        if self.raise_rate_limit:
+            raise FeedbackRateLimitError
+        return self.feedback_receipt
 
 
 def test_feed_state_requires_authentication() -> None:
@@ -77,3 +101,78 @@ def test_feed_state_returns_304_when_etag_matches() -> None:
     assert response.content == b""
     assert response.headers["etag"] == '"feed-run-1"'
     assert intelligence.if_none_match == '"feed-run-1"'
+
+
+def test_record_feedback_maps_authenticated_command() -> None:
+    intelligence = _FakeIntelligence()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/feedback",
+                json={
+                    "client_event_id": "b31e9d60-0dc0-46e1-bc8f-60e852861bd0",
+                    "job_id": "job-1",
+                    "feedback_kind": "personal",
+                    "reason_code": "not_my_role",
+                    "surface": "dashboard",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert response.json()["created"] is True
+    user_id, command = intelligence.feedback_commands[0]
+    assert user_id == "user-1"
+    assert command.reason_code == "not_my_role"
+
+
+def test_record_feedback_rejects_cross_taxonomy_reason() -> None:
+    intelligence = _FakeIntelligence()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/feedback",
+                json={
+                    "client_event_id": "b31e9d60-0dc0-46e1-bc8f-60e852861bd0",
+                    "job_id": "job-1",
+                    "feedback_kind": "personal",
+                    "reason_code": "apply_link_closed",
+                    "surface": "dashboard",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert intelligence.feedback_commands == []
+
+
+def test_record_feedback_returns_429_for_quality_daily_cap() -> None:
+    intelligence = _FakeIntelligence()
+    intelligence.raise_rate_limit = True
+    app.dependency_overrides[get_principal] = lambda: Principal(id="user-1")
+    app.dependency_overrides[get_job_intelligence] = lambda: intelligence
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/feedback",
+                json={
+                    "client_event_id": "b31e9d60-0dc0-46e1-bc8f-60e852861bd0",
+                    "job_id": "job-1",
+                    "feedback_kind": "quality",
+                    "reason_code": "looks_old",
+                    "surface": "market",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 429
