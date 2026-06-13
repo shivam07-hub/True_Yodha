@@ -40,6 +40,19 @@ def test_referral_reward_migration_is_atomic_and_referral_scoped() -> None:
     assert "notify pgrst, 'reload schema';" in sql
 
 
+def test_reward_scope_migration_is_user_scoped_and_keeps_referrals_global() -> None:
+    sql = _migration("20260613_reward_xp_user_scope.sql").lower()
+
+    assert "uq_xp_ledger_user_reward_ref" in sql
+    assert "on public.xp_ledger (user_id, action, ref_table, ref_id)" in sql
+    assert "v_global_referral" in sql
+    assert "p_user_id::text" in sql
+    assert "v_global_referral or user_id = p_user_id" in sql
+    assert "action = 'referral_credit'" in sql
+    assert "ref_table = 'referred_signup'" in sql
+    assert "notify pgrst, 'reload schema';" in sql
+
+
 def test_growth_command_migration_creates_private_generic_tables() -> None:
     sql = _migration("20260613_growth_command_phase1.sql").lower()
     tables = (

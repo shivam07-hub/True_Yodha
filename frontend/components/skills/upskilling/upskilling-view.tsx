@@ -131,7 +131,13 @@ export function UpskillingView({
     window.setTimeout(() => setToast((cur) => (cur === msg ? null : cur)), 2600)
   }, [onToast])
 
-  const { data: backendSkills, isLoading } = useQuery({
+  const {
+    data: backendSkills,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: UPSKILLING_SKILLS_KEY(token),
     queryFn: () => upskilling.skills(token),
     staleTime: 60 * 1000,
@@ -307,6 +313,25 @@ export function UpskillingView({
 
   if (isLoading) {
     return <div className="up-root"><div className="up-empty">Loading your upskilling ladder…</div></div>
+  }
+
+  if (isError) {
+    return (
+      <div className="up-root">
+        <div className="up-card up-empty-card" role="alert">
+          <h3>Couldn’t load your upskilling ladder</h3>
+          <p>We couldn’t reach your question bank. Your progress is safe.</p>
+          <button
+            type="button"
+            className="up-btn up-btn-primary"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

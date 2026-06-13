@@ -486,7 +486,33 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-12/13 · Two-brand token system — LIGHT Firecrawl orange / DARK quiet Engine — BUILT, uncommitted)
+## LAST SESSION SUMMARY (2026-06-13 · Upskilling production hardening)
+
+Fixed the production `/forge` ladder path after the question bank was loaded:
+
+- Backend now queries `skills.display_name` everywhere instead of nonexistent
+  `skills.name`.
+- CV-inferred `user_skills.matched_level` no longer counts as a cleared quiz
+  level; `skill_assessed_level` is the demonstrated-progress source of truth.
+- First-clear rewards are idempotent per user and skill level. Referral signup
+  credit remains globally single-pay.
+- Live Supabase project `gipvxuugajkugntwkeiz` now has `reward_xp`, the global
+  referral index, and the general user-scoped reward index.
+- Frontend API failures render a retryable error state instead of the
+  misleading empty-bank state.
+- Added focused tests and an authenticated production smoke workflow that waits
+  for the deployed Railway commit, loads the ladder, starts a 10-question set,
+  and rejects any answer-key leak.
+
+Validation: focused backend `18 passed`; Ruff clean; frontend contract and
+targeted lint clean; production build passed. Full backend suite reached
+`656 passed, 1 skipped` with one pre-existing untouched CV stylesheet parity
+failure.
+
+Carry-over: configure GitHub secrets `MYRO_SMOKE_EMAIL` and
+`MYRO_SMOKE_PASSWORD` for the dedicated smoke account.
+
+## OLDER SESSION SUMMARY (2026-06-12/13 · Two-brand token system — LIGHT Firecrawl orange / DARK quiet Engine — BUILT, uncommitted)
 
 Closed backlog #28, extended it, then CORRECTED the light palette to the confirmed Firecrawl direction. Cowork + `/grill-me` + `/brooks-design`. **All frontend, UNCOMMITTED (nested `frontend/.git`). tsc 0 · brand-system 6/6 · full suite 118/119 (1 pre-existing XP-copy fail = #25).**
 

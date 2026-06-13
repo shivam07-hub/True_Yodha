@@ -31,12 +31,12 @@ GAP_MAX_SKILLS = 6
 GAP_QUESTIONS_PER_SKILL = 3
 
 CLEAR_ACTION = "upskilling_clear"
-# Idempotency key for the first-clear reward. Keyed by (skill, level) — NOT the
-# attempt id — so re-clearing an already-cleared level (a different attempt)
-# finds the prior ledger row and pays 0, matching D5 "first clear of each
-# (skill, level)". (The PRD's ref_id=attempt_id text predates this refinement;
-# attempt_id would only dedupe retries of one attempt, not the level itself.)
+# Idempotency key for the first-clear reward. Keyed per user by (skill, level),
+# not by attempt id, so re-clearing an already-cleared level pays 0 while a
+# different user can earn their own first clear. The PRD's ref_id=attempt_id
+# text predates this refinement; attempt ids only dedupe one attempt's retries.
 CLEAR_REF_TABLE = "skill_level_clear"
+SKILL_DISPLAY_COLUMNS = "id, taxonomy_key, display_name"
 
 
 def _clear_ref_id(skill_id: int, level: int) -> str:
@@ -69,10 +69,11 @@ def list_skills(user_id: str) -> list[dict]:
     """Practiceable skills + per-level progress.
 
     cleared_level/assessed_level come from skill_assessed_level (the DEC-1a
-    source of truth), grandfathered against user_skills.matched_level so legacy
-    forge levels never regress. demand/job_count are left at defaults here — the
-    frontend merges its existing demand signal (buildPracticeSkills) over the
-    top; this endpoint owns progress + bank readiness, not market demand.
+    source of truth). user_skills only marks whether the skill was found on the
+    CV; inferred CV levels do not count as cleared practice. demand/job_count are
+    left at defaults here — the frontend merges its existing demand signal
+    (buildPracticeSkills) over the top; this endpoint owns progress + bank
+    readiness, not market demand.
     """
     admin = get_supabase_admin()
 
@@ -99,9 +100,12 @@ def list_skills(user_id: str) -> list[dict]:
 
     # Display names from the taxonomy.
     name_rows = (
-        admin.table("skills").select("id, taxonomy_key, name").in_("id", skill_ids).execute()
+        admin.table("skills").select(SKILL_DISPLAY_COLUMNS).in_("id", skill_ids).execute()
     ).data or []
-    names = {int(r["id"]): (r.get("name") or r.get("taxonomy_key") or "") for r in name_rows}
+    names = {
+        int(r["id"]): (r.get("display_name") or r.get("taxonomy_key") or "")
+        for r in name_rows
+    }
 
     # Per-user assessed + legacy levels.
     assessed_rows = (
@@ -120,7 +124,6 @@ def list_skills(user_id: str) -> list[dict]:
         .in_("skill_id", skill_ids)
         .execute()
     ).data or []
-    legacy = {int(r["skill_id"]): int(r["matched_level"] or 0) for r in legacy_rows}
     on_cv_ids = {int(r["skill_id"]) for r in legacy_rows}
 
     out: list[dict] = []
@@ -128,8 +131,7 @@ def list_skills(user_id: str) -> list[dict]:
         levels_with_bank = [lvl for lvl, n in bank[sid].items() if n >= UPSKILLING_SET_SIZE]
         max_bank_level = max(levels_with_bank, default=0)
         a_lvl = assessed.get(sid, 0)
-        cleared = max(a_lvl, legacy.get(sid, 0))
-        cleared = min(cleared, 5)
+        cleared = min(a_lvl, 5)
         out.append(
             {
                 "skill_id": sid,
@@ -270,7 +272,7 @@ async def submit_set(
 
     # First-clear detection BEFORE awarding (the reward RPC is the safety net).
     earned_if_first = upskilling_award_for(score)
-    first_clear = passed and not _level_already_paid(admin, skill_id, level)
+    first_clear = passed and not _level_already_paid(admin, user_id, skill_id, level)
     tokens_awarded = earned_if_first if first_clear else 0
 
     # Persist the graded attempt + append answers.
@@ -330,14 +332,15 @@ async def submit_set(
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 
-def _level_already_paid(admin, skill_id: int, level: int) -> bool:
-    """True if a first-clear reward for this (skill, level) was already banked.
+def _level_already_paid(admin, user_id: str, skill_id: int, level: int) -> bool:
+    """True if this user already banked the first-clear reward for the level.
 
     Mirrors the reward_xp idempotency check, so we report tokens honestly even
     before the RPC short-circuits."""
     prior = (
         admin.table("xp_ledger")
         .select("id")
+        .eq("user_id", user_id)
         .eq("action", CLEAR_ACTION)
         .eq("ref_table", CLEAR_REF_TABLE)
         .eq("ref_id", _clear_ref_id(skill_id, level))
@@ -440,9 +443,15 @@ def start_gap(
         by_key.setdefault(q["skill_key"], []).append(q)
 
     name_rows = (
-        admin.table("skills").select("id, taxonomy_key, name").in_("taxonomy_key", keys).execute()
+        admin.table("skills")
+        .select(SKILL_DISPLAY_COLUMNS)
+        .in_("taxonomy_key", keys)
+        .execute()
     ).data or []
-    names = {r["taxonomy_key"]: (r.get("name") or r["taxonomy_key"]) for r in name_rows}
+    names = {
+        r["taxonomy_key"]: (r.get("display_name") or r["taxonomy_key"])
+        for r in name_rows
+    }
 
     served: list[dict] = []
     all_qids: list[int] = []
@@ -538,9 +547,12 @@ def submit_gap(
             rec["correct"] += 1
 
     names = {
-        int(r["id"]): (r.get("name") or r.get("taxonomy_key") or "")
+        int(r["id"]): (r.get("display_name") or r.get("taxonomy_key") or "")
         for r in (
-            admin.table("skills").select("id, taxonomy_key, name").in_("id", list(per_skill.keys())).execute()
+            admin.table("skills")
+            .select(SKILL_DISPLAY_COLUMNS)
+            .in_("id", list(per_skill.keys()))
+            .execute()
         ).data or []
     }
 
