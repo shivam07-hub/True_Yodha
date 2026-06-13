@@ -1742,7 +1742,8 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, locations, apply_url, job_description, "
+                "location_country, location_mode, location_quality, locations, apply_url, "
+                "job_summary, job_description, "
                 "first_seen, last_seen, is_active)"
             )
             .eq("user_id", user_id)

@@ -41,6 +41,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         batch_week=_row_batch_week(row, batch_week),
         source_url=job.get("apply_url"),
         matched_skills=row.get("matched_skills") or [],
+        job_summary=job.get("job_summary"),
         job_description=job.get("job_description"),
         first_seen=_job_feed_marker_to_iso(job.get("first_seen")),
         last_seen_at=_job_feed_marker_to_iso(job.get("last_seen")),

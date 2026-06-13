@@ -60,6 +60,7 @@ class JobMatchResponse(BaseModel):
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
+    job_summary: str | None = None    # LLM-enriched ≤100-word clean prose (card body)
     job_description: str | None = None
     first_seen: str | None = None
     last_seen_at: str | None = None
