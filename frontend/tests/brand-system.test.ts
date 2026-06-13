@@ -9,17 +9,16 @@ const read = (path: string) => readFileSync(join(frontendRoot, path), "utf8")
 test("brand tokens implement the canonical Myro Engine light + dark palettes", () => {
   const tokens = read("app/design-tokens.css")
 
-  // Dark = the Engine palette, now canonical site-wide.
+  // Dark = quiet Myro Engine (teal #00f5d4 on #0a0a0c).
   assert.match(tokens, /--tm-bg:\s*#0a0a0c/)
   assert.match(tokens, /--tm-surface:\s*#13141a/)
   assert.match(tokens, /--tm-text:\s*#e8e8ea/)
   assert.match(tokens, /--tm-interactive:\s*#00f5d4/)
-  // Light = the cool lightness-inverse; accent is the AA-safe deep teal,
-  // NOT the retired orange #FF4C00 (that stays on the Forge axis only).
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-bg:\s*#f4f6f9/)
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-text:\s*#14161c/)
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-interactive:\s*#009e88/)
-  assert.doesNotMatch(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-interactive:\s*#FF4C00/)
+  // Light = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
+  // dashboard handoff). Light is its OWN brand, not a teal inverse.
+  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-bg:\s*#F9F9F9/)
+  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-text:\s*#262626/)
+  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-interactive:\s*#FF4C00/)
 })
 
 test("layout follows the OS surface by default and uses Space Grotesk (Inter fallback)", () => {

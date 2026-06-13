@@ -101,7 +101,7 @@ export function Dashboard(props: DashboardProps) {
         <div className="db-head-actions">
           <button
             type="button"
-            className="db-add tm-control-focus"
+            className="db-btn db-btn-secondary tm-control-focus"
             onClick={() => setManualOpen(true)}
           >
             + Add a job

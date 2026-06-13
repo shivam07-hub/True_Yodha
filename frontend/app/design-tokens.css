@@ -52,7 +52,7 @@
   --tm-text-muted:    #9aa4bf;
   --tm-text-faint:    #646e8c;
   --tm-text-disabled: #555555;
-  --tm-accent-text:   #67e8f9;
+  --tm-accent-text:   #00f5d4;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -226,7 +226,7 @@
      CTAs or accent links — ghost buttons, menu rows, inactive nav/tabs,
      filter chips, icon buttons. Rule: a clickable control is never dull at
      rest. References --tm-text so it auto-flips per surface — dark #e8e8ea
-     (near-white), light #14161c (near-black) — i.e. "maximally-contrasting
+     (near-white), light #262626 (near-black) — i.e. "maximally-contrasting
      resting color", which on dark = as white as possible. Static (non-
      clickable) labels keep --tm-text-muted / --tm-text-faint. Disabled
      controls drop to faint — bright ⇔ clickable, dull ⇔ not.
@@ -283,36 +283,37 @@
    Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
    tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
 :root[data-surface="light"] {
-  /* Myro Engine LIGHT — cool lightness-inverse of the dark base (same hue
-     family), so dark↔light reads as one brand with the lights flipped. */
-  --tm-bg:            #f4f6f9;
-  --tm-surface:       #ffffff;
-  --tm-surface-2:     #eceff4;
-  --tm-surface-3:     #e3e7ee;
-  --tm-bg-inset:      #eef1f6;
-  --tm-border:        #d4d8e0;
-  --tm-border-soft:   #e2e6ee;
-  --tm-border-faint:  rgba(15, 18, 28, 0.08);
+  /* Myro LIGHT = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
+     dashboard handoff, Jun 2026). Light is its OWN brand, not a teal inverse:
+     dark = quiet Engine teal, light = warm Firecrawl orange. */
+  --tm-bg:            #F9F9F9;
+  --tm-surface:       #FFFFFF;
+  --tm-surface-2:     #F3F3F1;
+  --tm-surface-3:     #EAEAE8;
+  --tm-bg-inset:      #F3F3F1;
+  --tm-border:        #E9E9E7;
+  --tm-border-soft:   #F0F0EE;
+  --tm-border-faint:  rgba(38, 38, 38, 0.08);
   --tm-scrim:         rgba(38, 38, 38, 0.22);
   --tm-overlay-soft:  rgba(38, 38, 38, 0.12);
   --tm-hover-soft:    rgba(38, 38, 38, 0.035);
   --tm-hover:         rgba(38, 38, 38, 0.065);
   --tm-icon-muted:    rgba(38, 38, 38, 0.48);
 
-  /* Skeleton on the cool off-white page — visible block + white sweep */
-  --tm-skeleton:       #e3e7ee;
+  /* Skeleton on the warm paper page — visible block + white sweep */
+  --tm-skeleton:       #E7E7E5;
   --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
-  /* Light theme text — measured on #f4f6f9 page bg
-       primary  #14161c → AAA
-       muted    #566076 → AA body (6.3:1)
-       faint    #79839b → AA large/supporting
+  /* Firecrawl paper text — warm greys on #F9F9F9
+       primary  #262626 → AAA
+       muted    #6E6E6E → AA body
+       faint    #9D9D9D → micro-labels / icons at rest
        disabled #B4B4B4 → decorative only — never load-bearing text */
-  --tm-text:          #14161c;
-  --tm-text-muted:    #566076;
-  --tm-text-faint:    #79839b;
-  --tm-text-disabled: #aab2c4;
-  --tm-accent-text:   #047a6b;
+  --tm-text:          #262626;
+  --tm-text-muted:    #6E6E6E;
+  --tm-text-faint:    #9D9D9D;
+  --tm-text-disabled: #B4B4B4;
+  --tm-accent-text:   #DE4200;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
@@ -332,33 +333,32 @@
   /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
-  /* Engine teal, deepened for AA on white (the #00f5d4 dark accent is too
-     light here). Fill #009e88 clears 3:1 UI-contrast on the light page; text
-     uses the deeper #047a6b (≥4.5:1). Labels on the teal fill stay dark. */
-  --tm-brand:         #009e88;
-  --tm-brand-glow:    rgba(0, 158, 136, 0.18);
-  --tm-brand-fg:      #04211c;
+  /* Firecrawl orange — primary CTA fill, fit-ring arc, active nav. White ink
+     on the fill; #DE4200 when accent is used AS text (AA on white). */
+  --tm-brand:         #FF4C00;
+  --tm-brand-glow:    rgba(255, 76, 0, 0.18);
+  --tm-brand-fg:      #FFFFFF;
 
-  --tm-interactive:        #009e88;
-  --tm-interactive-hover:  #008b79;
-  --tm-interactive-press:  #007a6b;
-  --tm-interactive-glow:   rgba(0, 158, 136, 0.18);
-  --tm-interactive-wash:   rgba(0, 158, 136, 0.08);
-  --tm-interactive-ring:   rgba(0, 158, 136, 0.40);
+  --tm-interactive:        #FF4C00;
+  --tm-interactive-hover:  #E84500;
+  --tm-interactive-press:  #C93B00;
+  --tm-interactive-glow:   rgba(255, 76, 0, 0.18);
+  --tm-interactive-wash:   rgba(255, 76, 0, 0.06);
+  --tm-interactive-ring:   rgba(255, 76, 0, 0.32);
   --tm-interactive-grid:   transparent;
-  --tm-interactive-fg:     #04211c;
+  --tm-interactive-fg:     #FFFFFF;
 
-  /* Surface wash tokens — teal alpha so white cards get a clear
+  /* Surface wash tokens — orange alpha so white cards get a clear
      hover/active state without turning into pastel blocks. */
-  --tm-int-bg-subtle:      rgba(0, 158, 136, 0.04);
-  --tm-int-bg-wash:        rgba(0, 158, 136, 0.08);
-  --tm-int-bg-hover:       rgba(0, 158, 136, 0.14);
-  --tm-int-border-soft:    rgba(0, 158, 136, 0.24);
-  --tm-int-border:         rgba(0, 158, 136, 0.40);
-  --tm-int-solid:          #009e88;
-  --tm-int-solid-hover:    #008b79;
-  --tm-int-text:           #047a6b;
-  --tm-int-text-strong:    #006a5d;
+  --tm-int-bg-subtle:      rgba(255, 76, 0, 0.04);
+  --tm-int-bg-wash:        rgba(255, 76, 0, 0.06);
+  --tm-int-bg-hover:       rgba(255, 76, 0, 0.11);
+  --tm-int-border-soft:    rgba(255, 76, 0, 0.24);
+  --tm-int-border:         rgba(255, 76, 0, 0.32);
+  --tm-int-solid:          #FF4C00;
+  --tm-int-solid-hover:    #E84500;
+  --tm-int-text:           #DE4200;
+  --tm-int-text-strong:    #C93B00;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────
@@ -388,24 +388,24 @@
   --radius:              6px;
 }
 :root[data-surface="light"] {
-  --background:          216 24% 97%;
-  --foreground:          225 17% 9%;
+  --background:          0 0% 98%;
+  --foreground:          0 0% 15%;
   --card:                0 0% 100%;
-  --card-foreground:     225 17% 9%;
+  --card-foreground:     0 0% 15%;
   --popover:             0 0% 100%;
-  --popover-foreground:  225 17% 9%;
-  --primary:             172 100% 31%;
-  --primary-foreground:  170 78% 7%;
-  --accent:              172 100% 31%;
-  --accent-foreground:   170 78% 7%;
-  --secondary:           220 16% 94%;
-  --secondary-foreground: 225 17% 9%;
-  --muted:               220 16% 94%;
-  --muted-foreground:    221 16% 40%;
+  --popover-foreground:  0 0% 15%;
+  --primary:             18 100% 50%;
+  --primary-foreground:  0 0% 100%;
+  --accent:              18 100% 50%;
+  --accent-foreground:   0 0% 100%;
+  --secondary:           0 0% 94%;
+  --secondary-foreground: 0 0% 15%;
+  --muted:               0 0% 94%;
+  --muted-foreground:    0 0% 43%;
   --destructive-foreground: 0 0% 100%;
-  --border:              222 14% 86%;
-  --input:               222 14% 86%;
-  --ring:                172 100% 31%;
+  --border:              0 0% 91%;
+  --input:               0 0% 91%;
+  --ring:                18 100% 50%;
 }
 :root[data-accent="forge"] {
   --primary:             171 83% 41%;

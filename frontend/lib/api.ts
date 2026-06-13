@@ -242,6 +242,12 @@ export const auth = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+      // keepalive: the auth callback fires this AFTER it has already redirected
+      // to /home, so the page is navigating away. Without keepalive the browser
+      // cancels the in-flight request on navigation and referral attribution
+      // (SH7) + LinkedIn XP grant are silently lost. Body is tiny — well under
+      // the 64KB keepalive ceiling.
+      keepalive: true,
     }),
   magicLinkRequest: (email: string, redirectTo?: string | null) =>
     request<MagicLinkResponse>("/auth/magic-link-request", {

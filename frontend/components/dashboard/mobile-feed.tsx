@@ -1,7 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { MobileJobCard } from "./job-card"
+import { ChevronLeft, Heart, X } from "lucide-react"
+import { DetailBody, jdSnippet } from "./detail-body"
+import { Monogram, ChipRow, CardActions, cardChips } from "./card-atoms"
+import { LocationLine } from "./lenses"
 import type { OtherRole } from "./lens-company"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
 import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
@@ -20,6 +23,13 @@ export interface MobileFeedProps {
   onRefresh: () => void
 }
 
+const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>([
+  "applied",
+  "screening",
+  "interviewing",
+  "final_round",
+])
+
 function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
   if (!it.company) return []
   return allItems
@@ -27,52 +37,179 @@ function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
     .map((o) => ({ jobId: o.jobId, role: o.role, fit: o.fit }))
 }
 
-/** Perplexity-style flowing card list. No scroll-snap, no horizontal swipe —
- *  cards flow in a normal scroll and expand in place. Accordion: one card open
- *  at a time (Q7), so at most one card's 10-XP analysis is ever live. */
+/* ── Edge-to-edge feed card ─────────────────────────────────────── */
+function MobileCard({
+  it,
+  liked,
+  applied,
+  onOpen,
+  onLike,
+  onSkip,
+}: {
+  it: FeedItem
+  liked: boolean
+  applied: boolean
+  onOpen: () => void
+  onLike: () => void
+  onSkip: () => void
+}) {
+  const snippet = jdSnippet(it.job.job_description)
+  return (
+    <div
+      className="db-mcard"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+    >
+      <Monogram company={it.company} size={40} />
+      <div className="db-mcard-body">
+        <div className="db-mcard-top">
+          <span className="co">{it.company ?? "—"}</span>
+          {applied ? <span className="db-statuschip">Applied</span> : null}
+          {it.fit != null ? <span className="mfit">{it.fit}% fit</span> : null}
+        </div>
+        <h3 className="db-mrole">{it.role}</h3>
+        <LocationLine job={it.job} />
+        {snippet ? <p className="db-msnip">{snippet}</p> : null}
+        <ChipRow chips={cardChips(it.job)} className="db-mchips" />
+        <CardActions jobId={it.jobId} liked={liked} onLike={onLike} onSkip={onSkip} mobile />
+      </div>
+    </div>
+  )
+}
+
+/* ── Full-screen detail push ────────────────────────────────────── */
+function MobileDetail({
+  it,
+  liked,
+  allItems,
+  token,
+  cartSkillNames,
+  onBack,
+  onLike,
+  onSkip,
+  onSkillToggle,
+  onJump,
+}: {
+  it: FeedItem
+  liked: boolean
+  allItems: FeedItem[]
+  token: string
+  cartSkillNames: Set<string>
+  onBack: () => void
+  onLike: () => void
+  onSkip: () => void
+  onSkillToggle: (s: SkillGapItem) => void
+  onJump: (jobId: string) => void
+}) {
+  return (
+    <div className="db-mdetail" role="dialog" aria-label={`${it.role} details`}>
+      <div className="db-mdetail-top">
+        <button type="button" className="db-icon-btn" aria-label="Back" onClick={onBack}>
+          <ChevronLeft size={16} aria-hidden />
+        </button>
+        <span className="ttl">{it.company ?? it.role}</span>
+      </div>
+      <div className="db-mdetail-scroll">
+        <DetailBody
+          job={it.job}
+          token={token}
+          active
+          cartSkillNames={cartSkillNames}
+          otherRoles={otherRolesFor(allItems, it)}
+          onSkillToggle={onSkillToggle}
+          onJump={onJump}
+          showHead
+        />
+      </div>
+      <div className="db-mdetail-bar">
+        <button
+          type="button"
+          className={`db-icon-btn${liked ? " liked" : ""}`}
+          aria-label={liked ? "Unlike" : "Like"}
+          onClick={onLike}
+        >
+          <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="db-icon-btn"
+          aria-label="Skip"
+          onClick={() => {
+            onSkip()
+            onBack()
+          }}
+        >
+          <X size={18} aria-hidden />
+        </button>
+        <a className="db-btn db-btn-primary" href={`/cv?jobId=${it.jobId}`}>
+          Tailor CV
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export function MobileFeed(p: MobileFeedProps) {
-  const [expandedId, setExpandedId] = React.useState<string | null>(p.initialJobId ?? null)
+  const [detailId, setDetailId] = React.useState<string | null>(p.initialJobId ?? null)
+  const detailItem = p.items.find((it) => it.jobId === detailId) ?? null
 
-  const toggle = React.useCallback((jobId: string) => {
-    setExpandedId((cur) => (cur === jobId ? null : jobId))
-  }, [])
-
-  // Deep-link: open the requested card once on mount (replaces the dropped
-  // index sheet as the only "jump to a specific job" path).
+  // Close the push if the open job left the visible set.
   React.useEffect(() => {
-    if (p.initialJobId) setExpandedId(p.initialJobId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (detailId && !p.items.some((it) => it.jobId === detailId)) setDetailId(null)
+  }, [p.items, detailId])
+
+  const onLike = (it: FeedItem) => (it.isLiked ? p.onRemove(it.jobId) : p.onStatus(it.jobId, "saved"))
 
   return (
-    <div className="db-feed">
+    <div className="db-mfeed">
+      <div className="db-mpull">
+        <span className="db-label">↓ pull to refresh · next batch tonight</span>
+      </div>
+
       {p.items.map((it) => (
-        <MobileJobCard
+        <MobileCard
           key={it.jobId}
-          job={it.job}
-          status={p.appsByJobId[it.jobId] ?? "saved"}
-          token={p.token}
-          active={expandedId === it.jobId}
-          expanded={expandedId === it.jobId}
-          cartSkillNames={p.cartSkillNames}
-          otherRoles={otherRolesFor(p.allItems, it)}
-          onStatus={(s) => p.onStatus(it.jobId, s)}
-          onRemove={() => p.onRemove(it.jobId)}
-          onSkillToggle={p.onSkillToggle}
-          onJump={(jobId) => setExpandedId(jobId)}
-          onToggle={() => toggle(it.jobId)}
+          it={it}
+          liked={it.isLiked}
+          applied={APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")}
+          onOpen={() => setDetailId(it.jobId)}
+          onLike={() => onLike(it)}
+          onSkip={() => p.onRemove(it.jobId)}
         />
       ))}
 
-      <div className="db-feed-end">
-        <div className="db-end-inner">
-          <div className="db-end-title">That&rsquo;s all {p.items.length}.</div>
-          <p className="db-end-sub">Refresh after the next market batch for fresh matches.</p>
-          <button type="button" className="db-act-btn accent" onClick={p.onRefresh}>
-            Refresh matches →
-          </button>
-        </div>
+      <div className="db-mfeed-end">
+        That&rsquo;s all {p.items.length} ·{" "}
+        <button
+          type="button"
+          onClick={p.onRefresh}
+          style={{ background: "none", border: "none", color: "var(--db-accent-text)", cursor: "pointer", font: "inherit" }}
+        >
+          refresh after the next batch
+        </button>
       </div>
+
+      {detailItem ? (
+        <MobileDetail
+          it={detailItem}
+          liked={detailItem.isLiked}
+          allItems={p.allItems}
+          token={p.token}
+          cartSkillNames={p.cartSkillNames}
+          onBack={() => setDetailId(null)}
+          onLike={() => onLike(detailItem)}
+          onSkip={() => p.onRemove(detailItem.jobId)}
+          onSkillToggle={p.onSkillToggle}
+          onJump={(jobId) => setDetailId(jobId)}
+        />
+      ) : null}
     </div>
   )
 }

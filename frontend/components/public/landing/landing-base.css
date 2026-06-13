@@ -10,7 +10,7 @@
      canonical --tm-* system, so the whole marketing surface themes light/dark
      with the product (one brand, pre = post). The dark-console islands
      (.lp-engine / .lp-readout) re-pin fixed Engine-dark in landing-engine.css.
-     Accent = the product teal: #00f5d4 dark / #009e88 light, AA-handled by the
+     Accent follows the product: teal #00f5d4 (dark) / Firecrawl orange #FF4C00 (light), via the
      token layer. */
   --lp-bg:            var(--tm-bg);
   --lp-surface:       var(--tm-surface);
