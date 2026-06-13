@@ -46,6 +46,7 @@ class _FakeRepo:
             "campaigns": [],
             "messages": [],
             "publications": [],
+            "sweeps": [],
             "summary": {
                 "assets": 0,
                 "campaigns": 0,
@@ -69,6 +70,17 @@ class _FakeRepo:
             "status": "published",
             "live_url": str(body.live_url),
             "created_by": operator_id,
+        }
+
+    def update_publication_metrics(
+        self, publication_id: str, body: Any
+    ) -> dict[str, Any]:
+        return {
+            "id": publication_id,
+            "message_id": "message-1",
+            "status": "published",
+            "final_copy_snapshot": "Exact live copy",
+            "outcome": body.model_dump(exclude_none=True),
         }
 
 
@@ -115,8 +127,14 @@ def test_active_operator_can_read_and_mutate() -> None:
     with TestClient(app) as client:
         bootstrap = client.get("/growth/bootstrap")
         approved = client.post("/growth/messages/message-1/approve")
+        metrics = client.patch(
+            "/growth/publications/publication-1/metrics",
+            json={"impressions": 420, "clicks": 17},
+        )
 
     assert bootstrap.status_code == 200, bootstrap.text
     assert bootstrap.json()["operator"]["user_id"] == "operator-1"
     assert approved.status_code == 200, approved.text
     assert approved.json()["status"] == "approved"
+    assert metrics.status_code == 200, metrics.text
+    assert metrics.json()["outcome"] == {"impressions": 420, "clicks": 17}

@@ -16,6 +16,7 @@ from app.schemas.growth import (
     GrowthBootstrapResponse,
     GrowthMessage,
     GrowthMessageUpdate,
+    GrowthMetricUpdate,
     GrowthOperator,
     GrowthPublication,
     LegacyGrowthImport,
@@ -92,6 +93,22 @@ def mark_published(
 ) -> dict[str, Any]:
     try:
         return repo.mark_published(message_id, body, operator.user_id)
+    except GrowthRecordNotFoundError as exc:
+        raise _not_found() from exc
+
+
+@router.patch(
+    "/publications/{publication_id}/metrics",
+    response_model=GrowthPublication,
+)
+def update_publication_metrics(
+    publication_id: str,
+    body: GrowthMetricUpdate,
+    _operator: GrowthOperator = Depends(get_growth_operator),
+    repo: GrowthRepository = Depends(get_growth_repository),
+) -> dict[str, Any]:
+    try:
+        return repo.update_publication_metrics(publication_id, body)
     except GrowthRecordNotFoundError as exc:
         raise _not_found() from exc
 

@@ -9,6 +9,7 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.schemas.growth import (
     GrowthMessageUpdate,
+    GrowthMetricUpdate,
     LegacyGrowthImport,
     LegacyGrowthImportResult,
     PublicationCreate,
@@ -28,11 +29,13 @@ class GrowthRepository:
         campaigns = self._recent("growth_campaigns")
         messages = self._recent("growth_messages")
         publications = self._recent("growth_publications", order_by="published_at")
+        sweeps = self._recent("growth_seeding_sweeps", order_by="sweep_date")
         return {
             "assets": assets,
             "campaigns": campaigns,
             "messages": messages,
             "publications": publications,
+            "sweeps": sweeps,
             "summary": {
                 "assets": len(assets),
                 "campaigns": len(campaigns),
@@ -103,11 +106,39 @@ class GrowthRepository:
         self.db.table("growth_messages").update(
             {
                 "status": message_status,
+                "final_copy": body.final_copy_snapshot,
                 "failure_reason": body.failure_details,
                 "updated_at": _now(),
             }
         ).eq("id", message_id).execute()
         return publication
+
+    def update_publication_metrics(
+        self,
+        publication_id: str,
+        body: GrowthMetricUpdate,
+    ) -> dict[str, Any]:
+        existing = _require_row(
+            _rows(
+                self.db.table("growth_publications")
+                .select("*")
+                .eq("id", publication_id)
+                .limit(1)
+                .execute()
+            ),
+            publication_id,
+        )
+        outcome = dict(existing.get("outcome") or {})
+        outcome.update(body.model_dump(exclude_none=True))
+        return _require_row(
+            _rows(
+                self.db.table("growth_publications")
+                .update({"outcome": outcome})
+                .eq("id", publication_id)
+                .execute()
+            ),
+            publication_id,
+        )
 
     def upsert_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._upsert_legacy("growth_content_assets", payload)
@@ -123,6 +154,7 @@ class GrowthRepository:
             ("growth_campaigns", body.campaigns),
             ("growth_messages", body.messages),
             ("growth_publications", body.publications),
+            ("growth_seeding_sweeps", body.sweeps),
         )
         for table, rows in batches:
             if rows:
@@ -136,6 +168,7 @@ class GrowthRepository:
             campaigns=len(body.campaigns),
             messages=len(body.messages),
             publications=len(body.publications),
+            sweeps=len(body.sweeps),
         )
 
     def _recent(

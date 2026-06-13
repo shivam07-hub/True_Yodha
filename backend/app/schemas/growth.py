@@ -90,11 +90,24 @@ class GrowthPublication(BaseModel):
     status: str = "published"
     live_url: str | None = None
     external_id: str | None = None
+    final_copy_snapshot: str
     published_at: str | None = None
     outcome: dict[str, Any] = Field(default_factory=dict)
     failure_details: str | None = None
     created_by: str | None = None
     created_at: str | None = None
+
+
+class GrowthSeedingSweep(BaseModel):
+    id: str
+    legacy_key: str | None = None
+    sweep_date: str
+    title: str
+    summary: str | None = None
+    body: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class GrowthCommandSummary(BaseModel):
@@ -110,6 +123,7 @@ class GrowthBootstrapResponse(BaseModel):
     campaigns: list[GrowthCampaign]
     messages: list[GrowthMessage]
     publications: list[GrowthPublication]
+    sweeps: list[GrowthSeedingSweep]
     summary: GrowthCommandSummary
 
 
@@ -134,6 +148,7 @@ class PublicationCreate(BaseModel):
     status: PublicationStatus = "published"
     live_url: str | None = Field(default=None, pattern=r"^https://", max_length=1200)
     external_id: str | None = Field(default=None, max_length=500)
+    final_copy_snapshot: str = Field(min_length=1, max_length=12000)
     published_at: datetime | None = None
     outcome: dict[str, Any] = Field(default_factory=dict)
     failure_details: str | None = Field(default=None, max_length=2000)
@@ -147,11 +162,23 @@ class PublicationCreate(BaseModel):
         return self
 
 
+class GrowthMetricUpdate(BaseModel):
+    impressions: int | None = Field(default=None, ge=0)
+    clicks: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _require_metric(self) -> "GrowthMetricUpdate":
+        if not self.model_fields_set:
+            raise ValueError("Provide impressions or clicks.")
+        return self
+
+
 class LegacyGrowthImport(BaseModel):
     assets: list[dict[str, Any]] = Field(default_factory=list, max_length=5000)
     campaigns: list[dict[str, Any]] = Field(default_factory=list, max_length=5000)
     messages: list[dict[str, Any]] = Field(default_factory=list, max_length=20000)
     publications: list[dict[str, Any]] = Field(default_factory=list, max_length=20000)
+    sweeps: list[dict[str, Any]] = Field(default_factory=list, max_length=5000)
 
     @model_validator(mode="after")
     def _require_stable_keys(self) -> "LegacyGrowthImport":
@@ -160,6 +187,7 @@ class LegacyGrowthImport(BaseModel):
             self.campaigns,
             self.messages,
             self.publications,
+            self.sweeps,
         ):
             if any(not item.get("legacy_key") for item in collection):
                 raise ValueError("Every legacy import record requires legacy_key.")
@@ -172,3 +200,4 @@ class LegacyGrowthImportResult(BaseModel):
     campaigns: int
     messages: int
     publications: int
+    sweeps: int

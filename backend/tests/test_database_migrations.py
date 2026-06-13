@@ -51,6 +51,7 @@ def test_growth_command_migration_creates_private_generic_tables() -> None:
         "growth_attribution_touchpoints",
         "growth_outreach_contacts",
         "growth_email_queue",
+        "growth_seeding_sweeps",
     )
 
     for table in tables:
@@ -62,4 +63,17 @@ def test_growth_command_migration_creates_private_generic_tables() -> None:
     assert "unique (campaign_id, channel, variant)" in sql
     assert "legacy_key text unique" in sql
     assert "metadata jsonb not null default '{}'::jsonb" in sql
+    assert "final_copy_snapshot text not null" in sql
+    assert "notify pgrst, 'reload schema';" in sql
+
+
+def test_growth_tracker_parity_migration_is_additive_and_private() -> None:
+    sql = _migration("20260613_growth_tracker_parity.sql").lower()
+
+    assert "create table if not exists public.growth_seeding_sweeps" in sql
+    assert "alter table public.growth_seeding_sweeps enable row level security;" in sql
+    assert "add column if not exists final_copy_snapshot text" in sql
+    assert "update public.growth_publications gp" in sql
+    assert "alter column final_copy_snapshot set not null" in sql
+    assert "create policy" not in sql
     assert "notify pgrst, 'reload schema';" in sql
