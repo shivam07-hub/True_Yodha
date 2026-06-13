@@ -1,9 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import Link from "next/link"
 import { useNextPath } from "@/components/auth/auth-page-shell"
 import { PublicTopNav } from "@/components/public/top-nav"
+import { PublicFooter } from "@/components/public/public-footer"
 import { OperatorPane } from "./operator-pane"
 import { InstitutionPane } from "./institution-pane"
 import "./enterprise-signup.css"
@@ -102,20 +102,7 @@ export function EnterpriseSignup({
           : <InstitutionPane />}
       </main>
 
-      <footer className="es-footer">
-        <div className="es-foot-inner">
-          <div className="es-foot-left">
-            <span>© Myro 2026</span>
-            <span className="es-foot-status"><span className="es-live-dot" aria-hidden="true" /> All systems operational</span>
-          </div>
-          <div className="es-foot-right">
-            <Link className="es-foot-link" href="/newsletter">Newsletter</Link>
-            <Link className="es-foot-link" href="/signup/institutions">For institutions</Link>
-            <Link className="es-foot-link" href="/privacy">Privacy</Link>
-            <Link className="es-foot-link" href="/terms">Terms</Link>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

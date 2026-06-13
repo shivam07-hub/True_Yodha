@@ -116,85 +116,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 }
 .lp-surface-card.myrology:hover .lp-myrology-link { color: var(--lp-text); }
 
-/* ── S4 — THE LOOP ──────────────────────────────────────────── */
-.lp-loop { padding: 96px 0 120px; border-top: 1px solid var(--lp-border); }
-
-.lp-loop .lp-section-head { margin-bottom: 48px; }
-
-.lp-loop-stage {
-  position: relative;
-  width: min(680px, 100%);
-  aspect-ratio: 1;
-  margin: 0 auto;
-}
-
-.lp-loop-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-
-.lp-loop-ring-circle {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
-  stroke-width: 1.25;
-  stroke-dasharray: 5 7;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .lp-loop-ring-rotor { animation: lp-ring-rotate 90s linear infinite; transform-origin: 50% 50%; }
-  @keyframes lp-ring-rotate { to { transform: rotate(360deg); } }
-}
-
-.lp-loop-node {
-  position: absolute;
-  width: 168px;
-  margin-left: -84px;
-  margin-top: -34px;
-  text-align: center;
-  padding: 12px 10px;
-  border-radius: 10px;
-  background: var(--lp-surface);
-  border: 1px solid var(--lp-border-strong);
-}
-
-.lp-loop-node-word { font-size: 16px; font-weight: 700; color: var(--lp-text); }
-
-.lp-loop-node-cap { margin-top: 3px; font-size: 11.5px; line-height: 1.45; color: var(--lp-faint); }
-
-.lp-loop-node.accent {
-  border-color: var(--lp-accent-ring);
-  background: linear-gradient(180deg, var(--lp-surface), rgba(0, 245, 212, 0.05));
-  box-shadow: 0 0 28px var(--lp-accent-glow);
-}
-.lp-loop-node.accent .lp-loop-node-word { color: var(--lp-accent-text); }
-.lp-loop-node.accent .lp-loop-node-cap { color: var(--lp-muted); }
-
-.lp-loop-node.ghost { background: transparent; border-style: dashed; }
-.lp-loop-node.ghost .lp-loop-node-word {
-  font-family: var(--lp-mono);
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--lp-muted);
-}
-
-.lp-loop-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  width: 250px;
-}
-
-.lp-loop-center img { width: 44px; height: 44px; border-radius: 24%; margin: 0 auto 10px; display: block; opacity: 0.9; }
-
-.lp-loop-center-line {
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--lp-faint);
-  line-height: 1.8;
-}
-
-/* ── S5 — PROOF ─────────────────────────────────────────────── */
+/* ── PROOF ──────────────────────────────────────────────────── */
 .lp-proof { padding: 96px 0 100px; border-top: 1px solid var(--lp-border); }
 
 .lp-intel-card {
@@ -539,15 +461,10 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
   .lp-surface-grid { grid-template-columns: 1fr; }
   .lp-quotes { grid-template-columns: 1fr; }
   .lp-news-strip { flex-direction: column; align-items: flex-start; }
-
-  /* loop ring → vertical chain */
-  .lp-loop-stage { aspect-ratio: auto; width: 100%; max-width: 420px; }
-  .lp-loop-ring-svg, .lp-loop-center { display: none; }
-  .lp-loop-node { position: static !important; width: 100%; margin: 0 0 14px; left: auto; top: auto; }
 }
 
 @media (max-width: 640px) {
-  .lp-surfaces, .lp-loop, .lp-proof, .lp-faq { padding-top: 72px; padding-bottom: 72px; }
+  .lp-surfaces, .lp-proof, .lp-faq { padding-top: 72px; padding-bottom: 72px; }
   .lp-surface-title { white-space: normal; }
   .lp-intel-row { grid-template-columns: 1.2fr 0.8fr; }
   .lp-intel-row .lp-intel-skill { display: none; }

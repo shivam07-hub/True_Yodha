@@ -15,6 +15,8 @@ from app.schemas import (
     AnalyticsSnapshotRefreshResponse,
     CompanyOpenRoleItem,
     CompanyOpenRolesResponse,
+    CompanyHiringItem,
+    TopCompaniesAtResponse,
     EntitySkillsResponse,
     GlobalJobHit,
     GlobalJobSearchResponse,
@@ -73,6 +75,7 @@ def get_my_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
+        scraper_started=analytics.get("scraper_started"),
         total_jobs_today=analytics.get("total_jobs_today", 0),
         jobs_added_1h=analytics.get("jobs_added_1h", 0),
         companies_added_7d=analytics.get("companies_added_7d", 0),
@@ -160,6 +163,7 @@ def get_market_analytics(
         total_companies=analytics["total_companies"],
         total_industries=analytics["total_industries"],
         latest_batch=analytics["latest_batch"],
+        scraper_started=analytics.get("scraper_started"),
         total_jobs_today=analytics.get("total_jobs_today", 0),
         jobs_added_1h=analytics.get("jobs_added_1h", 0),
         companies_added_7d=analytics.get("companies_added_7d", 0),
@@ -357,7 +361,44 @@ def list_company_open_roles(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                created_at=_job_feed_marker_to_iso(r.get("first_seen")),
+                # first_seen can be NULL on legacy rows → fall back to last_seen so
+                # the panel doesn't read a misleading "0m ago" for every role.
+                created_at=_job_feed_marker_to_iso(r.get("first_seen") or r.get("last_seen")),
+            )
+            for r in rows
+        ],
+    )
+
+
+@router.get("/companies-at", response_model=TopCompaniesAtResponse)
+def list_top_companies_at(
+    industry: str | None = None,
+    city: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=20)] = 8,
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> TopCompaniesAtResponse:
+    """Public — top companies hiring in an industry group or city.
+
+    Powers the /intel Industries/Cities right panel. Exactly one of
+    industry/city must be provided.
+    """
+    industry = (industry or "").strip() or None
+    city = (city or "").strip() or None
+    if bool(industry) == bool(city):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide exactly one of industry or city.",
+        )
+    rows = repo.list_top_companies_at(industry=industry, city=city, limit=limit)
+    return TopCompaniesAtResponse(
+        kind="industry" if industry else "city",
+        value=industry or city or "",
+        companies=[
+            CompanyHiringItem(
+                company_name=r["company_name"],
+                open_count=r["open_count"],
+                location_country=r.get("location_country"),
+                last_seen_at=r.get("last_seen_at"),
             )
             for r in rows
         ],

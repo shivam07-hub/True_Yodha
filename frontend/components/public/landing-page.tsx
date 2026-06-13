@@ -8,7 +8,6 @@ import { LandingHero } from "@/components/public/landing/hero"
 import { LandingEngine } from "@/components/public/landing/engine"
 import { LandingReadout } from "@/components/public/landing/readout"
 import { LandingSurfaces } from "@/components/public/landing/surfaces"
-import { LandingLoop } from "@/components/public/landing/loop"
 import { LandingProof } from "@/components/public/landing/proof"
 import { LandingFaq } from "@/components/public/landing/faq"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
@@ -22,9 +21,11 @@ import "@/components/public/landing/landing-sections.css"
 
 /**
  * Myro landing — "The Myro Engine" redesign.
- * 7 sections organized around one named centerpiece: S1 hero → S2 engine →
- * sample readout → S3 surfaces → S4 loop → S5 proof → S6 FAQ + closing CTA →
- * S7 footer. Design source: reference/building landing page.zip (confirmed).
+ * Sections organized around one named centerpiece: S1 hero → S2 engine →
+ * sample readout → S3 surfaces → proof → FAQ + closing CTA → footer.
+ * Design source: reference/building landing page.zip (confirmed).
+ * (The retention-loop diagram was removed from the marketing page — it reads as
+ * architecture, not story. Concept preserved in docs/FEATURE_LOOP_REGISTRY.md.)
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
@@ -87,7 +88,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
       className={`tm-landing ${fontClassName}`.trim()}
       data-scrolled={scrolled ? "true" : "false"}
     >
-      <PublicTopNav active="about" showSignIn />
+      <PublicTopNav active="home" showSignIn />
 
       <main>
         <LandingHero
@@ -117,8 +118,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingReadout result={anonResult} />
 
         <LandingSurfaces />
-
-        <LandingLoop />
 
         <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
 

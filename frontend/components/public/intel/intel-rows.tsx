@@ -89,28 +89,56 @@ export function CompanyRow({
   )
 }
 
-export function GroupRow({ g }: { g: ResultGroup }) {
+export function GroupRow({
+  g, isActive, onClick,
+}: { g: ResultGroup; isActive: boolean; onClick: () => void }) {
   return (
-    <div className="tm-intel-co-row is-static">
+    <button
+      type="button"
+      className={"tm-intel-co-row" + (isActive ? " is-active" : "")}
+      onClick={onClick}
+      aria-pressed={isActive}
+    >
       <div className="tm-intel-co-logo tm-intel-co-logo-accent">
         {g.kind === "industry" ? "§" : "◎"}
       </div>
       <div className="tm-intel-co-body">
         <div className="tm-intel-co-name"><span>{g.name}</span></div>
         <div className="tm-intel-co-meta">
-          <span className="tm-intel-co-updated">indexing</span>
-          <span className="tm-intel-co-sep">·</span>
           <span>{g.kind === "industry" ? "category" : "metro"}</span>
         </div>
       </div>
-      <div className="tm-intel-co-spark">
-        <Spark data={g.sparks} />
-        <div className="tm-intel-co-velocity is-up">live</div>
+      <div className="tm-intel-co-roles">
+        {g.count.toLocaleString()}<span className="tm-intel-co-roles-lab">jobs</span>
+      </div>
+    </button>
+  )
+}
+
+export function CompanyHiringRow({
+  co, onClick,
+}: {
+  co: { company_name: string; open_count: number; location_country?: string | null; last_seen_at?: string | null }
+  onClick: () => void
+}) {
+  return (
+    <button type="button" className="tm-intel-co-row" onClick={onClick}>
+      <Logo name={co.company_name} />
+      <div className="tm-intel-co-body">
+        <div className="tm-intel-co-name"><span>{co.company_name}</span></div>
+        <div className="tm-intel-co-meta">
+          <span className="tm-intel-co-updated">
+            {co.last_seen_at ? `scraped ${fmtBatch(co.last_seen_at)}` : "scrape date n/a"}
+          </span>
+          <span className="tm-intel-co-sep">·</span>
+          <span>{COUNTRY_NAMES[co.location_country || ""] || co.location_country || "—"}</span>
+        </div>
       </div>
       <div className="tm-intel-co-roles">
-        {g.count}<span className="tm-intel-co-roles-lab">jobs</span>
+        {co.open_count}<span className="tm-intel-co-roles-lab">open</span>
       </div>
-    </div>
+      <span className="tm-intel-co-go" aria-hidden="true">→</span>
+    </button>
   )
 }
 

@@ -3,11 +3,12 @@
 import * as React from "react"
 import { ChevronLeft, Heart, X } from "lucide-react"
 import { DetailBody, jdSnippet } from "./detail-body"
-import { Monogram, ChipRow, CardActions, cardChips } from "./card-atoms"
+import { Monogram, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
 import { LocationLine } from "./lenses"
 import type { OtherRole } from "./lens-company"
+import { usePulses } from "@/lib/hooks/use-pulses"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
-import type { ApplicationStatus, SkillGapItem } from "@/lib/api"
+import type { ApplicationStatus, JobPulse, SkillGapItem } from "@/lib/api"
 
 export interface MobileFeedProps {
   items: FeedItem[]
@@ -42,6 +43,7 @@ function MobileCard({
   it,
   liked,
   applied,
+  pulse,
   onOpen,
   onLike,
   onSkip,
@@ -49,6 +51,7 @@ function MobileCard({
   it: FeedItem
   liked: boolean
   applied: boolean
+  pulse?: JobPulse
   onOpen: () => void
   onLike: () => void
   onSkip: () => void
@@ -61,7 +64,7 @@ function MobileCard({
   }
   return (
     <div
-      className={`db-mcard${leaving ? " is-leaving" : ""}`}
+      className={`db-mcard${leaving ? " is-leaving" : ""}${cardConfidenceClass(pulse)}`}
       role="button"
       tabIndex={0}
       onClick={onOpen}
@@ -83,6 +86,7 @@ function MobileCard({
         <LocationLine job={it.job} />
         {snippet ? <p className="db-msnip">{snippet}</p> : null}
         <ChipRow chips={cardChips(it.job)} className="db-mchips" />
+        <PulseRow pulse={pulse} mobile />
         <CardActions
           jobId={it.jobId}
           liked={liked}
@@ -171,6 +175,9 @@ export function MobileFeed(p: MobileFeedProps) {
   const [detailId, setDetailId] = React.useState<string | null>(p.initialJobId ?? null)
   const detailItem = p.items.find((it) => it.jobId === detailId) ?? null
 
+  // One batched pulse request for the whole visible set (not one-per-card).
+  const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
+
   // Close the push if the open job left the visible set.
   React.useEffect(() => {
     if (detailId && !p.items.some((it) => it.jobId === detailId)) setDetailId(null)
@@ -190,6 +197,7 @@ export function MobileFeed(p: MobileFeedProps) {
           it={it}
           liked={it.isLiked}
           applied={APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")}
+          pulse={pulses.get(it.jobId)}
           onOpen={() => setDetailId(it.jobId)}
           onLike={() => onLike(it)}
           onSkip={() => p.onRemove(it.jobId)}

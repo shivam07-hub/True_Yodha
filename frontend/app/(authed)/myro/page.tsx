@@ -10,7 +10,7 @@ const RESOURCES = [
     detail: "Weekly hiring live job data, market maps, and skill-demand shifts.",
   },
   {
-    href: "/about",
+    href: "/",
     label: "About us",
     kicker: "What Myro tracks",
     detail: "How the product reads live demand and turns it into career signals.",

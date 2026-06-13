@@ -32,6 +32,38 @@
   color-scheme: dark;
 }
 
+/* ── Light page: white band, dark cards ─────────────────────────
+   On the light (Firecrawl-paper) surface the full-bleed dark band reads as a
+   jarring shift. Drop the SECTION to the page surface (paper bg + warm text +
+   light grid) so the page stays uniform — but keep the small cards as dark
+   teal consoles so the Engine's brand colours survive. Accent + status colours
+   are left at the base (teal / green / amber); only the section chrome flips. */
+:root[data-surface="light"] .lp-engine,
+:root[data-surface="light"] .lp-readout {
+  --lp-bg:            var(--tm-bg);
+  --lp-text:          var(--tm-text);
+  --lp-muted:         var(--tm-text-muted);
+  --lp-faint:         var(--tm-text-faint);
+  --lp-border:        var(--tm-border);
+  --lp-border-strong: var(--tm-border-soft);
+  --lp-grid-line:     rgba(38, 38, 38, 0.035);
+  color-scheme: light;
+}
+
+/* Cards stay dark consoles: re-pin the Engine-dark scope on the card roots so
+   their descendants (titles, meta, icons, readout internals) read dark + teal,
+   independent of the now-light section around them. */
+:root[data-surface="light"] .lp-engine .lp-stage,
+:root[data-surface="light"] .lp-readout .lp-readout-card {
+  --lp-surface:       #13141a;
+  --lp-text:          #e8e8ea;
+  --lp-muted:         #9aa4bf;
+  --lp-faint:         #646e8c;
+  --lp-border:        rgba(255, 255, 255, 0.06);
+  --lp-border-strong: rgba(255, 255, 255, 0.12);
+  color-scheme: dark;
+}
+
 .lp-engine {
   padding: 110px 0 96px;
   overflow: hidden;

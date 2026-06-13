@@ -799,3 +799,25 @@
 @media (prefers-reduced-motion: reduce) {
   .tm-shell-enter, .tm-shell-skeleton { animation: none; }
 }
+
+/* ── Job Pulse trust row (Job Intelligence) ───────────────────────
+   Shared across dashboard + market cards so the community signal reads
+   identically everywhere. Reserves height before hydration so the card
+   never jumps, then fades in once the batched pulse arrives. */
+.tm-pulse,
+.tm-pulse-reserve {
+  min-height: 31px; padding: 7px 0;
+}
+.tm-pulse {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px 13px;
+  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.01em;
+  color: var(--tm-text-faint);
+  animation: tm-pulse-in 240ms ease both;
+}
+.tm-pulse-item { display: inline-flex; align-items: center; white-space: nowrap; }
+.tm-pulse-warn { color: var(--tm-warning); }
+.tm-pulse-signal.high { color: var(--tm-success); }
+.tm-pulse-signal.mixed { color: var(--tm-warning); }
+.tm-pulse-signal.low { color: var(--tm-text-muted); }
+@keyframes tm-pulse-in { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .tm-pulse { animation: none } }

@@ -97,7 +97,7 @@ export function MasterCVHero({ baseline, profile, open, onOpen, onReplace }: Mas
             disabled={!baseline}
             aria-pressed={open}
           >
-            <LIcon d={open ? I.close : I.file} size={13}/> {open ? "Close Master CV" : "Open Master CV"}
+            <LIcon d={open ? I.close : I.file} size={13}/> {open ? "Close Main CV" : "Open Main CV"}
           </button>
           <button type="button" className="tm-lib-btn ghost sm" onClick={onReplace}>
             <LIcon d={I.upload} size={13}/> Replace upload
@@ -116,10 +116,10 @@ export function MasterCVPanel({
   const canEdit = !!baseline && !!cv
 
   return (
-    <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Master CV preview">
+    <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Main CV preview">
       <div className="tm-lib-master-panel-head">
         <div style={{ minWidth: 0 }}>
-          <div className="tm-lib-eyebrow">{editing ? "EDITING MASTER CV" : "MASTER CV"}</div>
+          <div className="tm-lib-eyebrow">{editing ? "EDITING MAIN CV" : "MAIN CV"}</div>
           <div className="tm-lib-master-panel-title">
             {masterDisplayName(profile)}
             {baseline && <span className="tm-lib-master-version">v{baseline.user_version_number}</span>}
@@ -145,7 +145,7 @@ export function MasterCVPanel({
                   cv={cv}
                   fullName={profile?.full_name}
                   className="tm-lib-btn primary sm"
-                  label="Download Master"
+                  label="Download Main CV"
                 />
               )}
               <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
@@ -153,7 +153,7 @@ export function MasterCVPanel({
               </button>
             </>
           )}
-          <CloseButton onClick={onClose} ariaLabel="Close master CV preview" size={15}/>
+          <CloseButton onClick={onClose} ariaLabel="Close Main CV preview" size={15}/>
         </div>
       </div>
 

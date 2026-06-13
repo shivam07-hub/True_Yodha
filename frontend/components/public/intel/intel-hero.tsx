@@ -26,11 +26,8 @@ export function IntelHero(props: HeroProps) {
           <span className="tm-intel-live-dot" />
           <span className="tm-intel-eyebrow-accent">LIVE · PUBLIC MIRROR</span>
         </div>
-        <h1 className="tm-intel-display">
-          Every careers page,{" "}
-          <em>on one platform.</em>
-        </h1>
-        <p className="tm-intel-lede">
+        <h1 className="sr-only">Live public job-market mirror</h1>
+        <p className="tm-intel-lede tm-intel-lede-lead">
           A self-hosted, open-source model has been fetching job listings for{" "}
           <span className="tm-intel-ink">{props.uptime}</span>.
         </p>

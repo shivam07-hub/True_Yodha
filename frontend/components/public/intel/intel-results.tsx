@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { RESULTS_SORT, RESULTS_SORT_OPTIONS, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
-import { CompanyRow, Empty, GroupRow, JobRow } from "./intel-rows"
+import { CompanyHiringRow, CompanyRow, Empty, GroupRow, JobRow } from "./intel-rows"
 import { IntelRowSkeletonList } from "./intel-row-skeleton"
 import { fmtBatch } from "./intel-data"
 
@@ -30,8 +30,14 @@ export interface ResultCompany {
 export interface ResultGroup {
   name: string
   count: number
-  sparks: number[]
   kind: "industry" | "city"
+}
+
+export interface GroupCompanyLite {
+  company_name: string
+  open_count: number
+  location_country?: string | null
+  last_seen_at?: string | null
 }
 
 export interface ResultJob {
@@ -62,6 +68,11 @@ interface ResultsProps {
   cities: ResultGroup[]
   activeCo: string | null
   onActiveCo: (id: string) => void
+  activeGroup: string | null
+  onActiveGroup: (name: string) => void
+  groupCompanies: GroupCompanyLite[]
+  isGroupCompaniesLoading: boolean
+  onCompanyJump: (company: string) => void
   jobsForActive: ResultJob[]
   jobsForActiveTotal: number
   activeCompanyName: string | null
@@ -172,9 +183,12 @@ function Tabs({
 
 function Split(props: ResultsProps) {
   const { tab, companies, industries, cities, activeCo, onActiveCo,
+    activeGroup, onActiveGroup, groupCompanies, isGroupCompaniesLoading, onCompanyJump,
     jobsForActive, jobsForActiveTotal, activeCompanyName,
     isAnalyticsLoading, isFiltering, isOpenRolesLoading, globalSearch } = props
   const showLeftSkeleton = (isAnalyticsLoading || isFiltering) && !companies.length
+  // Industries/Cities tabs drill into "top companies hiring here" (Q1=B).
+  const groupMode = !globalSearch.isActive && tab !== "companies"
   return (
     <div className="tm-intel-split">
       <div className="tm-intel-panel">
@@ -214,11 +228,17 @@ function Split(props: ResultsProps) {
           ) : <Empty />
         ) : tab === "industries" ? (
           industries.length
-            ? industries.slice(0, GROUP_RENDER_CAP).map((g) => <GroupRow key={g.name} g={g} />)
+            ? industries.slice(0, GROUP_RENDER_CAP).map((g) => (
+                <GroupRow key={g.name} g={g} isActive={g.name === activeGroup}
+                  onClick={() => onActiveGroup(g.name)} />
+              ))
             : <Empty />
         ) : (
           cities.length
-            ? cities.slice(0, GROUP_RENDER_CAP).map((g) => <GroupRow key={g.name} g={g} />)
+            ? cities.slice(0, GROUP_RENDER_CAP).map((g) => (
+                <GroupRow key={g.name} g={g} isActive={g.name === activeGroup}
+                  onClick={() => onActiveGroup(g.name)} />
+              ))
             : <Empty />
         )}
       </div>
@@ -228,6 +248,8 @@ function Split(props: ResultsProps) {
           <span className="tm-intel-panel-e">
             {globalSearch.isActive
               ? <>Search hits <b>· {globalSearch.hits.length}</b></>
+              : groupMode
+                ? (activeGroup ? <>Companies hiring · <b>{activeGroup}</b></> : <>Companies hiring</>)
               : activeCompanyName
                 ? <>Open roles · <b>{activeCompanyName}</b></>
                 : <>Open roles</>}
@@ -236,11 +258,25 @@ function Split(props: ResultsProps) {
           <span className="tm-intel-panel-meta">
             {globalSearch.isActive
               ? (globalSearch.isLoading ? "searching…" : `${globalSearch.hits.length} hits`)
+              : groupMode
+                ? (isGroupCompaniesLoading ? "loading…" : `${groupCompanies.length} hiring`)
               : `${jobsForActive.length} of ${jobsForActiveTotal}`}
           </span>
         </div>
 
-        {globalSearch.isActive ? (
+        {groupMode ? (
+          isGroupCompaniesLoading && !groupCompanies.length
+            ? <IntelRowSkeletonList count={6} variant="company" />
+            : groupCompanies.length
+              ? groupCompanies.map((co) => (
+                  <CompanyHiringRow
+                    key={co.company_name}
+                    co={co}
+                    onClick={() => onCompanyJump(co.company_name)}
+                  />
+                ))
+              : <Empty />
+        ) : globalSearch.isActive ? (
           globalSearch.isLoading && !globalSearch.hits.length
             ? <IntelRowSkeletonList count={6} variant="job" />
             : globalSearch.hits.length

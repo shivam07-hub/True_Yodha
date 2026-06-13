@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { JobFeedItem } from "@/lib/api"
+import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { ageLabel, jdSnippet, LocationLine, SkillChip, FitSignal } from "./job-card"
+import { PulseRow, cardConfidenceClass } from "@/components/dashboard/card-atoms"
 
 const SWIPE_COMMIT = 96   // px past which a release triggers triage
 const PEEK_KEY = "myro_feed_swipe_hinted_v1"
@@ -11,9 +12,10 @@ const PEEK_KEY = "myro_feed_swipe_hinted_v1"
  *  buttons mirror it, tap body opens detail. Vertical scroll is left to the
  *  browser (one axis per intent). */
 function MobileJobCard({
-  job, hasCv, hint, onOpen, onSave, onSkip,
+  job, pulse, hasCv, hint, onOpen, onSave, onSkip,
 }: {
   job: JobFeedItem
+  pulse?: JobPulse
   hasCv: boolean
   hint: boolean
   onOpen: () => void
@@ -67,7 +69,7 @@ function MobileJobCard({
       <div className={`tm-mfeed-rail tm-mfeed-rail-skip ${intent === "skip" ? "is-armed" : ""}`} aria-hidden>✕ Skip</div>
       <div className={`tm-mfeed-rail tm-mfeed-rail-save ${intent === "save" ? "is-armed" : ""}`} aria-hidden>Save ★</div>
       <article
-        className={`tm-mfeed-card ${hint ? "tm-mfeed-hint" : ""} ${leaving ? "tm-mfeed-leaving" : ""}`}
+        className={`tm-mfeed-card ${hint ? "tm-mfeed-hint" : ""} ${leaving ? "tm-mfeed-leaving" : ""}${cardConfidenceClass(pulse)}`}
         style={{ transform: `translateX(${translate}px) rotate(${translate * 0.02}deg)`, touchAction: "pan-y" }}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -86,6 +88,7 @@ function MobileJobCard({
         <FitSignal job={job} hasCv={hasCv} />
         {snippet ? <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: "var(--tm-text-muted)", flex: 1 }}>{snippet}</p> : null}
         {job.skills.length > 0 ? <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.slice(0, 4).map(s => <SkillChip key={s} label={s} />)}</div> : null}
+        <PulseRow pulse={pulse} bare />
         <div className="tm-mfeed-actions">
           <button type="button" aria-label="Skip" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Skip</button>
           <button type="button" aria-label="Save" className="tm-triage-btn tm-triage-save" onClick={e => { e.stopPropagation(); commit("right") }}><span aria-hidden>★</span> Save</button>
@@ -96,9 +99,10 @@ function MobileJobCard({
 }
 
 export function MobileFeed({
-  jobs: items, hasCv, onOpen, onSave, onSkip,
+  jobs: items, pulses, hasCv, onOpen, onSave, onSkip,
 }: {
   jobs: JobFeedItem[]
+  pulses: Map<string, JobPulse>
   hasCv: boolean
   onOpen: (j: JobFeedItem) => void
   onSave: (j: JobFeedItem) => void
@@ -120,6 +124,7 @@ export function MobileFeed({
         <MobileJobCard
           key={job.job_id}
           job={job}
+          pulse={pulses.get(job.job_id)}
           hasCv={hasCv}
           hint={showHint && i === 0}
           onOpen={() => onOpen(job)}

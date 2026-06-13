@@ -427,6 +427,19 @@ class CompanyOpenRolesResponse(BaseModel):
     jobs: list[CompanyOpenRoleItem]
 
 
+class CompanyHiringItem(BaseModel):
+    company_name: str
+    open_count: int
+    location_country: str | None = None
+    last_seen_at: str | None = None
+
+
+class TopCompaniesAtResponse(BaseModel):
+    kind: str  # "industry" | "city"
+    value: str
+    companies: list[CompanyHiringItem]
+
+
 class GlobalJobHit(BaseModel):
     job_id: str
     job_title: str
@@ -453,6 +466,7 @@ class MarketAnalyticsResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
+    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0
@@ -474,6 +488,7 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     total_companies: int
     total_industries: int
     latest_batch: str | None
+    scraper_started: str | None = None
     total_jobs_today: int = 0
     jobs_added_1h: int = 0
     companies_added_7d: int = 0

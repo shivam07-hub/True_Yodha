@@ -205,6 +205,15 @@
 }
 .db-card-actions .db-spacer { flex: 1; }
 
+/* ── Listing-confidence visual state (D1: no helper copy, dim the card) ─── */
+/* The .tm-pulse trust row itself is styled globally (globals.css) so it is
+   identical on dashboard + market. Only the card-dim target is surface-local. */
+.db-card .tm-pulse { padding-left: var(--db-pad); padding-right: var(--db-pad); border-top: 1px solid var(--db-line-soft); }
+.db-card.tm-conf-uncertain .db-card-main { opacity: 0.85; }
+.db-card.tm-conf-closed .db-card-main { opacity: 0.62; }
+.db-mcard.tm-conf-uncertain :is(.db-mrole, .db-msnip, .db-mcard-top) { opacity: 0.85; }
+.db-mcard.tm-conf-closed :is(.db-mrole, .db-msnip, .db-mcard-top) { opacity: 0.62; }
+
 /* ── Inline detail ───────────────────────────────────────────── */
 .db-detail { display: flex; flex-direction: column; }
 .db-card .db-detail { padding: 0 var(--db-pad) var(--db-pad); }

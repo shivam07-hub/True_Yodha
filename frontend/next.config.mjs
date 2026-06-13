@@ -20,6 +20,15 @@ const nextConfig = {
         destination: "/cv",
         permanent: false,
       },
+      {
+        // /about was a redirect-only alias used as the "home" target + indexed in
+        // the sitemap at priority 1. The alias is gone (logo/links now point at /
+        // directly); this 301 preserves inbound/bookmarked /about links and passes
+        // equity to the real homepage. permanent:true — the URL is retired for good.
+        source: "/about",
+        destination: "/",
+        permanent: true,
+      },
     ];
   },
 };

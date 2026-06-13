@@ -88,7 +88,7 @@ export function AppRouteError({ surface, title, reset }: AppRouteErrorProps) {
       <div style={{ minHeight: "100dvh", width: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
         <PublicTopNav active="intel" showSignIn />
         <main style={{ flex: 1, display: "grid", placeItems: "center", padding: "var(--tm-page-py) var(--tm-page-px)", position: "relative", zIndex: 2 }}>
-          <ErrorPanel title={title} reset={reset} homeHref="/about" />
+          <ErrorPanel title={title} reset={reset} homeHref="/" />
         </main>
         <PublicFooter />
       </div>

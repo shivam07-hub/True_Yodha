@@ -9,6 +9,7 @@ import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, JobLocationFi
 import { formatJobLocation } from "@/lib/format-location"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useXPStore } from "@/store/xpStore"
 import { XP_POLICY } from "@/lib/xp-policy"
@@ -158,7 +159,7 @@ function CVPrerequisiteCard({
           {readiness === "processing" ? "View upload status →" : readiness === "failed" ? "Retry CV upload →" : "Upload CV →"}
         </Link>
         <Link
-          href="/about"
+          href="/"
           style={{
             padding: "8px 14px",
             borderRadius: "var(--tm-radius-sm)",
@@ -445,6 +446,9 @@ function SkillHeatmap({
 
 function IntelPageInner() {
   const { token } = useAuth()
+  // Feed publication sensing — auto-invalidates the free market feed when a new
+  // batch publishes (handoff client-refresh contract).
+  useFeedState()
   const queryClient = useQueryClient()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
   const searchParams = useSearchParams()

@@ -7,6 +7,8 @@ export const dataKeys = {
   scores: () => ["scores"] as const,
   userSkills: () => ["user-skills"] as const,
   jobs: () => ["jobs"] as const,
+  feedState: () => ["jobs", "feed-state"] as const,
+  jobPulses: (jobIds: string[]) => ["jobs", "pulses", jobIds] as const,
   applications: () => ["applications"] as const,
   staleApplications: () => ["stale-applications"] as const,
   userSkillDemand: () => ["user-skill-demand"] as const,
@@ -39,6 +41,8 @@ export const dataKeys = {
   ) => ["jobs-analytics-me", cluster ?? "", locationCity ?? "", locationCountry ?? "", locationMode ?? ""] as const,
   jobsAtCompany: (company: string | null | undefined, limit: number) =>
     ["jobs-at-company", company ?? "", limit] as const,
+  topCompaniesAt: (kind: string | null | undefined, name: string | null | undefined) =>
+    ["top-companies-at", kind ?? "", name ?? ""] as const,
   globalJobSearch: (q: string | null | undefined, limit: number) =>
     ["global-job-search", (q ?? "").toLowerCase().trim(), limit] as const,
   entitySkills: (

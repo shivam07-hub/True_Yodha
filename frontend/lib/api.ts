@@ -161,6 +161,46 @@ async function request<T>(path: string, init?: RequestInit, _isRetry = false): P
   return res.json() as Promise<T>
 }
 
+/**
+ * Conditional GET for the Feed State ETag flow. The generic request<T>() above
+ * assumes a JSON body on every success, so it cannot represent a 304 (no body).
+ * This helper preserves the ETag round-trip: send If-None-Match, surface 304 as
+ * a distinct outcome, and read the ETag header back on a 200.
+ */
+async function requestConditional(
+  path: string,
+  token: string,
+  etag: string | null,
+): Promise<{ status: number; etag: string | null; json: unknown }> {
+  const { signal, done } = withTimeout(null)
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(etag ? { "If-None-Match": etag } : {}),
+      },
+      signal,
+    })
+  } catch (e) {
+    throw classifyError(e)
+  } finally {
+    done()
+  }
+  if (res.status === 304) {
+    return { status: 304, etag: res.headers.get("ETag") ?? etag, json: null }
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new ApiError(extractError(body, res.status), {
+      status: res.status,
+      kind: "http",
+      traceId: readTraceId(res, body),
+    })
+  }
+  return { status: res.status, etag: res.headers.get("ETag"), json: await res.json() }
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export interface AuthResponse {
@@ -1413,6 +1453,13 @@ export interface JobMatch {
   risk_score?: number | null // HIGHER = riskier
   strengths?: string[]
   concerns?: string[]
+  // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
+  // `last_seen_at` = scraper observation time, powers "Last verified".
+  // `first_seen` = discovery age / sort only. Never the publication clock.
+  first_seen?: string | null
+  last_seen_at?: string | null
+  is_stale?: boolean
+  is_active?: boolean
 }
 
 export interface JobMatchesResponse {
@@ -1422,6 +1469,75 @@ export interface JobMatchesResponse {
   feed_updated_at: string | null
   matches_computed_at: string | null
   dismissed_job_ids: string[]
+}
+
+/* ─── Job Intelligence (Feed State · Feedback · Pulse) ───────────────────── */
+
+export interface FeedState {
+  feed_version: string | null
+  published_at: string | null
+  imported_job_count: number
+  latest_batch_date: string | null
+}
+
+/** Result of a conditional Feed State read — unchanged (304) vs fresh (200). */
+export type FeedStateResult =
+  | { status: "unchanged"; etag: string | null }
+  | { status: "fresh"; etag: string | null; data: FeedState }
+
+export type PersonalReasonCode =
+  | "not_my_role"
+  | "location"
+  | "seniority"
+  | "compensation"
+  | "company"
+  | "skills_gap"
+  | "already_applied"
+
+export type QualityReasonCode =
+  | "looks_old"
+  | "apply_link_closed"
+  | "duplicate"
+  | "details_wrong"
+  | "posting_inactive"
+
+export type FeedbackSurface = "dashboard" | "market" | "job_detail" | "other"
+
+export interface JobFeedbackInput {
+  client_event_id: string
+  job_id: string
+  feedback_kind: "personal" | "quality"
+  reason_code: PersonalReasonCode | QualityReasonCode
+  surface: FeedbackSurface
+}
+
+export interface JobFeedbackReceipt {
+  event_id: number
+  client_event_id: string
+  job_id: string
+  feedback_kind: "personal" | "quality"
+  reason_code: string
+  surface: string
+  created_at: string
+  /** false = idempotent replay of an event with the same client_event_id. */
+  created: boolean
+}
+
+export type ListingConfidence = "active" | "uncertain" | "likely_closed" | "closed"
+export type ResponseSignal = "low" | "mixed" | "high"
+
+export interface JobPulse {
+  job_id: string
+  first_seen_at: string | null
+  last_verified_at: string | null
+  is_stale: boolean
+  listing_confidence: ListingConfidence
+  /** null community counts = privacy cohort < 5 contributors. NEVER render as 0. */
+  tracking_count: number | null
+  outcomes_shared: number | null
+  ghosted_count: number | null
+  response_signal: ResponseSignal | null
+  quality_report_count: number | null
 }
 
 export type RefreshLifecycle = "queued" | "computing" | "done" | "failed"
@@ -1698,6 +1814,7 @@ export interface MarketAnalytics {
   total_companies: number
   total_industries: number
   latest_batch?: string | null
+  scraper_started?: string | null
   total_jobs_today?: number
   jobs_added_1h?: number
   companies_added_7d?: number
@@ -1781,6 +1898,18 @@ export interface CompanyOpenRolesResponse {
   jobs: CompanyOpenRoleItem[]
 }
 
+export interface CompanyHiringItem {
+  company_name: string
+  open_count: number
+  location_country?: string | null
+  last_seen_at?: string | null
+}
+export interface TopCompaniesAtResponse {
+  kind: "industry" | "city"
+  value: string
+  companies: CompanyHiringItem[]
+}
+
 export interface GlobalJobHit {
   job_id: string
   job_title: string
@@ -1807,6 +1936,12 @@ export const jobs = {
     return request<CompanyOpenRolesResponse>(
       `/jobs/at/${encodeURIComponent(company)}?${params.toString()}`,
     )
+  },
+
+  topCompaniesAt: (group: { kind: "industry" | "city"; name: string }, limit = 8) => {
+    const params = new URLSearchParams({ limit: String(limit) })
+    params.set(group.kind, group.name)
+    return request<TopCompaniesAtResponse>(`/jobs/companies-at?${params.toString()}`)
   },
 
   globalSearch: (q: string, limit = 12) =>
@@ -1963,6 +2098,26 @@ export const jobs = {
     request<void>(`/jobs/matches/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Conditional Feed State read. Pass the last ETag; a match returns "unchanged". */
+  feedState: async (token: string, etag: string | null): Promise<FeedStateResult> => {
+    const r = await requestConditional("/jobs/feed-state", token, etag)
+    if (r.status === 304) return { status: "unchanged", etag: r.etag }
+    return { status: "fresh", etag: r.etag, data: r.json as FeedState }
+  },
+  /** Structured feedback. Idempotent on client_event_id; can throw 429 on the quality cap. */
+  submitFeedback: (token: string, input: JobFeedbackInput) =>
+    request<JobFeedbackReceipt>("/jobs/feedback", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    }),
+  /** Batched Job Pulse. Caller must pass 1-100 unique, nonblank IDs; order is preserved. */
+  pulses: (token: string, jobIds: string[]) =>
+    request<{ pulses: JobPulse[] }>("/jobs/pulses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ job_ids: jobIds }),
     }),
   refresh: (token: string) =>
     request<RefreshTicketResponse>("/jobs/refresh", {
