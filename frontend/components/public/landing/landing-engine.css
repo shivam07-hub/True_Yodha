@@ -54,6 +54,7 @@
    their descendants (titles, meta, icons, readout internals) read dark + teal,
    independent of the now-light section around them. */
 :root[data-surface="light"] .lp-engine .lp-stage,
+:root[data-surface="light"] .lp-engine .lp-stage-cv-live,
 :root[data-surface="light"] .lp-readout .lp-readout-card {
   --lp-surface:       #13141a;
   --lp-text:          #e8e8ea;
@@ -177,6 +178,15 @@
   border-color: var(--lp-accent-ring);
   background: linear-gradient(180deg, var(--lp-surface) 0%, rgba(0, 245, 212, 0.04) 100%);
 }
+
+/* stage 4 is now the LIVE dropzone node: the diagram completes itself when the
+   user drops a CV. Widen to two columns so the horizontal dropzone breathes. */
+.lp-stage-cv-live {
+  grid-column: 3 / 5;
+}
+.lp-stage-cv-live .lp-stage-title { margin-bottom: 16px; }
+.lp-stage-cv-live .lp-dropzone { max-width: 100%; }
+.lp-stage-cv-live .lp-dropzone-note { margin-top: 12px; }
 
 .lp-flow-v {
   position: absolute;
@@ -458,7 +468,8 @@
   .lp-pipeline { grid-template-columns: repeat(2, 1fr); gap: 24px; }
   .lp-flow-h { display: none; }
   .lp-pipeline-merge { grid-template-columns: 1fr; gap: 24px; margin-top: 24px; }
-  .lp-stage-cv { grid-column: 1 / -1; }
+  .lp-stage-cv,
+  .lp-stage-cv-live { grid-column: 1 / -1; }
   .lp-flow-v { display: none; }
   .lp-merge-note { grid-column: 1 / -1; justify-self: start; text-align: left; max-width: 100%; }
   .lp-counters { grid-template-columns: repeat(2, 1fr); gap: 40px 24px; }

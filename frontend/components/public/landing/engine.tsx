@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { Globe, Sparkles, Network, Target, FileText, type LucideIcon } from "lucide-react"
+import { LandingDropzone } from "@/components/public/landing/dropzone"
+import type { AnonScoreResponse } from "@/lib/api"
 
 interface Stage {
   num: string
@@ -85,6 +87,11 @@ interface LandingEngineProps {
   companiesMonitored: number
   skillsMapped: number
   seekers: number
+  scoring: boolean
+  scoreError: string | null
+  onScoring: () => void
+  onResult: (result: AnonScoreResponse, file: File) => void
+  onError: (message: string) => void
 }
 
 export function LandingEngine({
@@ -93,6 +100,11 @@ export function LandingEngine({
   companiesMonitored,
   skillsMapped,
   seekers,
+  scoring,
+  scoreError,
+  onScoring,
+  onResult,
+  onError,
 }: LandingEngineProps) {
   const stages: Stage[] = [
     {
@@ -155,17 +167,26 @@ export function LandingEngine({
           <div className="lp-flow-v" aria-hidden />
           <p className="lp-merge-note">
             <strong>Your CV joins the stream.</strong> The Engine isn&rsquo;t just market data —
-            it&rsquo;s market data meeting your CV.
+            it&rsquo;s market data meeting your CV. Drop it to see your score against everything
+            above.
           </p>
-          <StageCard
-            className="lp-stage-cv"
-            stage={{
-              num: "04",
-              title: "Your CV",
-              meta: "Skills extracted · scored across 10 career domains",
-              Icon: FileText,
-            }}
-          />
+          <div className="lp-stage lp-stage-cv lp-stage-cv-live">
+            <div className="lp-stage-top">
+              <span className="lp-stage-icon" aria-hidden>
+                <FileText size={20} strokeWidth={1.5} />
+              </span>
+              <span className="lp-stage-num">STAGE 04</span>
+            </div>
+            <div className="lp-stage-title">Your CV</div>
+            <LandingDropzone
+              source="engine-stage04"
+              busy={scoring}
+              onScoring={onScoring}
+              onResult={onResult}
+              onError={onError}
+            />
+            {scoreError ? <p className="lp-dropzone-error">{scoreError}</p> : null}
+          </div>
         </div>
 
         <div className="lp-counters lp-reveal" aria-label="Live Engine counters">
