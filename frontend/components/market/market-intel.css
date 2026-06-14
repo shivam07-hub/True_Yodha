@@ -1,0 +1,131 @@
+/* market-intel.css — the reading-feed additions: interleaved story cards, the
+   right market rail, the mobile chip strip, the cold-start nudge, and the
+   two-column layout that wraps the feed + rail. Global --tm-* tokens only. */
+
+/* ── two-zone layout (center reading column + right rail) ─────────────────── */
+/* Overrides .tm-jobs-col's centred 680px when a rail is present: the pair is
+   centred together, rail absorbs the width that read as dead space before. */
+.tm-market-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 640px) 320px;
+  gap: 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+  align-items: start;
+}
+.tm-market-main { min-width: 0; }
+@media (max-width: 1080px) {
+  .tm-market-layout { grid-template-columns: minmax(0, 680px); max-width: 680px; }
+  .mi-rail { display: none; }
+}
+
+/* ── interleaved story card ───────────────────────────────────────────────── */
+.mi-story {
+  position: relative; overflow: hidden;
+  padding: 18px 20px 18px 22px;
+  border-radius: var(--tm-radius-lg, 16px);
+  background: linear-gradient(180deg, var(--tm-int-bg-wash), var(--tm-surface) 60%);
+  border: 1px solid var(--tm-int-border, var(--tm-interactive));
+  box-shadow: var(--tm-shadow-1);
+}
+.mi-story::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--tm-interactive);
+}
+.mi-story-kicker {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tm-interactive);
+}
+.mi-story-h { margin: 9px 0 5px; font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--tm-text); }
+.mi-accent { color: var(--tm-interactive); }
+.mi-story-p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--tm-text-muted); }
+.mi-story-cta { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.mi-go {
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 9px 16px; border-radius: 11px; border: none;
+  background: var(--tm-interactive); color: var(--tm-on-interactive, #fff);
+}
+.mi-go:hover { filter: brightness(1.05); }
+.mi-quiet {
+  font: inherit; font-size: 13.5px; cursor: pointer; background: none; border: none;
+  color: var(--tm-text-muted); border-bottom: 1px solid transparent; padding: 0 0 1px;
+}
+.mi-quiet:hover { color: var(--tm-text); border-color: var(--tm-border); }
+
+/* ── cold-start nudge (only when CV state resolved + absent) ───────────────── */
+.mi-nudge {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 18px; margin-bottom: 14px;
+  border-radius: var(--tm-radius-lg, 16px);
+  background: var(--tm-surface-2, var(--tm-surface));
+  border: 1px dashed var(--tm-int-border, var(--tm-interactive));
+}
+.mi-nudge-t { flex: 1; min-width: 0; }
+.mi-nudge-t b { font-size: 15px; font-weight: 600; color: var(--tm-text); }
+.mi-nudge-t span { display: block; font-size: 13.5px; color: var(--tm-text-muted); margin-top: 2px; }
+.mi-nudge-go {
+  flex: 0 0 auto; text-decoration: none; white-space: nowrap;
+  font-size: 13.5px; font-weight: 600; padding: 9px 15px; border-radius: 11px;
+  background: var(--tm-interactive); color: var(--tm-on-interactive, #fff);
+}
+
+/* ── right rail widgets ───────────────────────────────────────────────────── */
+.mi-rail { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+.mi-widget {
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg, 16px); padding: 16px; box-shadow: var(--tm-shadow-1);
+}
+.mi-h4 { margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--tm-text-faint); }
+.mi-sub { margin: -6px 0 12px; font-size: 12.5px; color: var(--tm-text-muted); line-height: 1.5; }
+.mi-warn { color: var(--tm-warning-text, var(--tm-warning)); }
+
+.mi-strip { display: flex; align-items: baseline; gap: 9px; padding: 13px 16px; }
+.mi-strip-num { font-size: 22px; font-weight: 700; color: var(--tm-interactive); letter-spacing: -0.01em; }
+.mi-strip-sub { font-size: 13px; color: var(--tm-text-muted); }
+
+.mi-hero { border-color: var(--tm-int-border, var(--tm-border)); }
+
+.mi-mover, .mi-tco, .mi-vrow {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  background: none; border: none; border-bottom: 1px solid var(--tm-border-soft);
+  padding: 9px 0; cursor: pointer; text-align: left; font: inherit; color: var(--tm-text);
+}
+.mi-mover:last-child, .mi-tco:last-child, .mi-vrow:last-child { border-bottom: none; }
+.mi-mover:hover .mi-mover-n, .mi-tco:hover .mi-tco-nm, .mi-vrow:hover .mi-vrow-nm { color: var(--tm-interactive); }
+.mi-mover-n { flex: 1; font-size: 14px; font-weight: 600; }
+.mi-mover-up { font-size: 13px; font-weight: 700; color: var(--tm-success-text, var(--tm-success)); }
+
+.mi-tco-lg, .mi-vlg {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700; text-transform: uppercase;
+}
+.mi-vlg { width: 26px; height: 26px; border-radius: 7px; font-size: 12px; }
+.mi-tco-nm { flex: 1; font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-tco-ct { font-size: 12.5px; color: var(--tm-text-muted); white-space: nowrap; }
+
+.mi-verify { border-color: var(--tm-warning-border, var(--tm-border-soft)); }
+.mi-vrow-nm { flex: 1; font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-vchip {
+  flex: 0 0 auto; font-size: 11px; font-weight: 600; white-space: nowrap;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning));
+}
+.mi-foot { margin: 11px 0 0; font-size: 12px; color: var(--tm-text-faint); line-height: 1.5; }
+
+/* ── mobile chip strip (the collapsed rail) ───────────────────────────────── */
+.mi-chipstrip {
+  display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px; margin: 4px 0 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.mi-chipstrip::-webkit-scrollbar { display: none; }
+.mi-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface); color: var(--tm-text);
+}
+.mi-chip-lead { background: var(--tm-int-bg-wash); color: var(--tm-interactive); border-color: transparent; }
+.mi-chip-up { color: var(--tm-success-text, var(--tm-success)); font-weight: 700; }
+.mi-chip-warn { background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning)); border-color: transparent; }
+
+@media (min-width: 1081px) { .mi-chipstrip { display: none; } }

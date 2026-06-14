@@ -12,12 +12,20 @@ import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { FeedControls, FilterChips, FiltersSheet, RoleSwitcher } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
+import { useMarketIntel } from "@/lib/hooks/use-market-intel"
+import { MarketRail, MarketChipStrip } from "./market-rail"
+import { StoryCard, type FeedStory } from "./story-card"
+import { interleaveStories } from "./feed-rows"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
 import "./market.css"
+import "./market-intel.css"
 
 export interface MarketJobsTabProps {
   token: string
   hasCv: boolean
+  /** True once the profile query has resolved — gates the cold-start nudge so
+   *  it never flashes while CV state is still `undefined` (the #18 bug-class). */
+  cvResolved?: boolean
   targetRoles: string[]
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
@@ -31,7 +39,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     targetLocations, followedNames, onToggleFollow,
   } = props
   const router = useRouter()
@@ -85,72 +93,130 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return () => obs.disconnect()
   }, [feed])
 
+  // Market-intel signals → the rail + the two interleaved story cards.
+  const intel = useMarketIntel(token, targetLocations)
+  const stories = useMemo<FeedStory[]>(() => {
+    const out: FeedStory[] = []
+    const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
+    if (hasCv && topSkill) {
+      out.push({ kind: "skill", skill: topSkill.skill, display: topSkill.display, jobCount: topSkill.jobCount, level: topSkill.level, needsUpgrade: topSkill.needsUpgrade })
+    }
+    const topCo = intel.trending[0]
+    if (topCo) {
+      out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followedNames.includes(topCo.name) })
+    }
+    return out
+  }, [intel.movers, intel.trending, hasCv, followedNames, targetLocations])
+
+  const rows = useMemo(() => interleaveStories(allJobs, stories), [allJobs, stories])
+
+  const onSeeRoles = useCallback((query: string) => { setSearchInput(query); setQ(query) }, [])
+  const onStoryPrimary = useCallback((s: FeedStory) => {
+    if (s.kind === "skill") router.push(`/forge?skill=${encodeURIComponent(s.skill)}`)
+    else onSeeRoles(s.company)
+  }, [router, onSeeRoles])
+  const onStorySecondary = useCallback((s: FeedStory) => {
+    if (s.kind === "skill") onSeeRoles(s.display)
+    else if (s.company) onToggleFollow(s.company)
+  }, [onSeeRoles, onToggleFollow])
+
+  const showCvNudge = cvResolved && !hasCv
+
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
+  const railProps = {
+    token, targetLocations, total, feed: allJobs, pulses,
+    onSeeRoles, onOpenJob: setOpenJob,
+  }
+
   return (
-    <div className="tm-jobs-col">
-      {/* Search leads; everything else is one control row. */}
-      <div className="tm-feed-searchrow" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          placeholder="Search roles, companies, skills…"
-          aria-label="Search jobs"
-          style={{ flex: "1 1 260px", minWidth: 0, minHeight: 44, padding: "0 16px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)", color: "var(--tm-text)", fontSize: 16, outline: "none" }}
-        />
-      </div>
+    <div className="tm-market-layout">
+      <main className="tm-market-main">
+        {/* Search leads; everything else is one control row. */}
+        <div className="tm-feed-searchrow" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search roles, companies, skills…"
+            aria-label="Search jobs"
+            style={{ flex: "1 1 260px", minWidth: 0, minHeight: 44, padding: "0 16px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)", color: "var(--tm-text)", fontSize: 16, outline: "none" }}
+          />
+        </div>
 
-      <div style={{ marginTop: 12 }}>
-        <FeedControls
-          filters={filters}
-          onChange={onChangeFilters}
-          hasCv={hasCv}
-          hasTargetRoles={hasTargetRoles}
-          savedCount={savedCount}
-          onOpenSaved={() => router.push("/home")}
-          onOpenFilters={() => setFiltersOpen(true)}
-        />
-      </div>
+        {/* mobile-only: the rail collapses to a sticky chip strip */}
+        <MarketChipStrip {...railProps} />
 
-      <div style={{ marginTop: 8 }}>
-        {feed.isLoading ? (
-          <FeedSkeleton />
-        ) : allJobs.length === 0 ? (
-          <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
-        ) : (
-          <>
-            <div className="tm-feed-summary">
-              <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
-              <LocationScopePill locations={targetLocations} />
-              <RoleSwitcher
-                targetRoles={targetRoles}
-                chipCountMap={chipCountMap}
-                selected={filters.roleDomain}
-                onSelect={role => onChangeFilters({ ...filters, roleDomain: role })}
-              />
-              <FilterChips filters={filters} onChange={onChangeFilters} />
-              <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
+        <div style={{ marginTop: 12 }}>
+          <FeedControls
+            filters={filters}
+            onChange={onChangeFilters}
+            hasCv={hasCv}
+            hasTargetRoles={hasTargetRoles}
+            savedCount={savedCount}
+            onOpenSaved={() => router.push("/home")}
+            onOpenFilters={() => setFiltersOpen(true)}
+          />
+        </div>
+
+        {/* cold-start: only once CV state is RESOLVED absent — never on load */}
+        {showCvNudge ? (
+          <div className="mi-nudge" style={{ marginTop: 14 }}>
+            <span aria-hidden style={{ fontSize: 20 }}>↑</span>
+            <div className="mi-nudge-t">
+              <b>Upload your CV to personalize</b>
+              <span>See your fit, matched skills, and the roles that want you.</span>
             </div>
-            {isDesktop ? (
-              <VirtualFeed
-                items={allJobs}
-                getKey={job => job.job_id}
-                estimateSize={180}
-                gap={14}
-                renderItem={job => (
-                  <JobCard job={job} pulse={pulses.get(job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
-                )}
-              />
-            ) : (
-              <MobileFeed jobs={allJobs} pulses={pulses} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} />
-            )}
-            <div ref={sentinelRef} style={{ height: 1 }} />
-            {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
-            {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>— end of feed —</div> : null}
-          </>
-        )}
-      </div>
+            <a href="/cv" className="mi-nudge-go">Upload CV →</a>
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 8 }}>
+          {feed.isLoading ? (
+            <FeedSkeleton />
+          ) : allJobs.length === 0 ? (
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
+          ) : (
+            <>
+              <div className="tm-feed-summary">
+                <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
+                <LocationScopePill locations={targetLocations} />
+                <RoleSwitcher
+                  targetRoles={targetRoles}
+                  chipCountMap={chipCountMap}
+                  selected={filters.roleDomain}
+                  onSelect={role => onChangeFilters({ ...filters, roleDomain: role })}
+                />
+                <FilterChips filters={filters} onChange={onChangeFilters} />
+                <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
+              </div>
+              {isDesktop ? (
+                <VirtualFeed
+                  items={rows}
+                  getKey={row => (row.t === "job" ? row.job.job_id : row.id)}
+                  estimateSize={180}
+                  gap={14}
+                  renderItem={row =>
+                    row.t === "story" ? (
+                      <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
+                    ) : (
+                      <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} />
+                    )
+                  }
+                />
+              ) : (
+                <MobileFeed rows={rows} pulses={pulses} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} onStoryPrimary={onStoryPrimary} onStorySecondary={onStorySecondary} />
+              )}
+              <div ref={sentinelRef} style={{ height: 1 }} />
+              {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
+              {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>— end of feed —</div> : null}
+            </>
+          )}
+        </div>
+      </main>
+
+      {/* desktop-only: the market intel rail */}
+      <MarketRail {...railProps} />
 
       {openJob ? (
         <JobDetailDrawer

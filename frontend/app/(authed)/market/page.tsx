@@ -755,6 +755,7 @@ function IntelPageInner() {
           <MarketJobsTab
             token={token ?? ""}
             hasCv={!!profileData?.has_cv}
+            cvResolved={profileData !== undefined}
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}

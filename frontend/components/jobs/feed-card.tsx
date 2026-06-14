@@ -8,6 +8,16 @@ import "./feed-card.css"
 
 const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
 
+/** Deterministic per-company logo-tile colour. Replaces the letter-on-black
+ *  monogram (the strongest "terminal" tell) with a warm coloured chip while we
+ *  don't fetch real favicons. Same company → same hue every render. */
+function logoStyle(company: string | null): React.CSSProperties {
+  if (!company) return {}
+  let h = 0
+  for (let i = 0; i < company.length; i++) h = (h * 31 + company.charCodeAt(i)) % 360
+  return { "--fc-logo-bg": `hsl(${h} 52% 42%)`, "--fc-logo-ink": "#fff" } as React.CSSProperties
+}
+
 /* ── Fit indicators (the top-right slot — shared by every surface) ─────────── */
 
 /** Donut fit ring (0–100). Arc colour scales with the fit tier (D9). */
@@ -101,7 +111,7 @@ export function FeedCard({
       {...articleProps}
     >
       <div className="fc-row">
-        <span className="fc-mono" aria-hidden>{(data.company ?? "—").slice(0, 1)}</span>
+        <span className="fc-mono" style={logoStyle(data.company)} aria-hidden>{(data.company ?? "—").slice(0, 1)}</span>
         <div className="fc-body">
           <div className="fc-top">
             <span className="fc-co">{data.company ?? "—"}</span>
