@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Issue } from "@/lib/newsletter"
@@ -30,18 +29,6 @@ export function IssueCard({ issue, featured = false }: IssueCardProps) {
 
   return (
     <Link href={href} prefetch className={featured ? styles.featuredCard : styles.card}>
-      {featured && issue.ogImage ? (
-        <Image
-          className={styles.media}
-          src={issue.ogImage}
-          alt={issue.ogImageAlt ?? ""}
-          width={1200}
-          height={630}
-          sizes="(min-width: 900px) 420px, 100vw"
-          priority
-        />
-      ) : null}
-
       <div className={styles.body}>
         <div className={styles.meta}>
           {issue.theme} · {date}

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { getAllIssues, type Issue, type IssueTheme } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
+import { JourneyLoop } from "@/components/newsletter/journey-loop"
 import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
 import styles from "./newsletter-index.module.css"
 
@@ -33,14 +34,6 @@ const THEME_LABELS: Record<IssueTheme, string> = {
   "future-of-work": "Future of work",
 }
 
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
-
 function topicClusters(issues: Issue[]) {
   const clusters = new Map<IssueTheme, { count: number; latest: Issue }>()
   for (const issue of issues) {
@@ -64,7 +57,6 @@ export default async function NewsletterIndexPage() {
   const publishedIssues = issues.filter((i) => i.slug !== "_placeholder")
   const [featuredIssue, ...archiveIssues] = publishedIssues
   const clusters = topicClusters(publishedIssues)
-  const latestDate = featuredIssue ? formatDate(featuredIssue.publishedAt) : "Soon"
 
   return (
     <div className={styles.shell}>
@@ -86,21 +78,9 @@ export default async function NewsletterIndexPage() {
             </div>
           ) : null}
         </div>
-        <div className={styles.stats} aria-label="Newsletter signals">
-          <div>
-            <strong>{publishedIssues.length}</strong>
-            <span>issues</span>
-          </div>
-          <div>
-            <strong>{latestDate}</strong>
-            <span>latest</span>
-          </div>
-          <div>
-            <strong>Weekly</strong>
-            <span>cadence</span>
-          </div>
-        </div>
       </header>
+
+      <JourneyLoop />
 
       {!featuredIssue ? (
         <section className={styles.empty}>
@@ -153,10 +133,6 @@ export default async function NewsletterIndexPage() {
                 </div>
               </section>
             )}
-
-            <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
-              Get your Myro Score
-            </Link>
           </aside>
         </div>
       )}

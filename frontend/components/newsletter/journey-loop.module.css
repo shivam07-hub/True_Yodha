@@ -1,0 +1,117 @@
+/* The weekly career loop — the newsletter's core value, drawn as a connected
+   4-step machine instead of buried in prose. Themed (light/dark). One entry
+   CTA keeps the accent budget. Design carries the intuition; words are minimal. */
+
+.band {
+  --arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M13 6l6 6-6 6'/></svg>");
+  margin: 32px 0 8px;
+  padding: 28px clamp(20px, 4vw, 40px) 30px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-1);
+}
+
+.kicker {
+  margin: 0 0 20px;
+  color: var(--tm-accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: start;
+  gap: 0;
+}
+
+.node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 0 8px;
+  position: relative;
+}
+
+/* Arrow drawn after each node except the last, centered on the gap. */
+.node:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
+  background: var(--tm-accent-text);
+  opacity: 0.5;
+  -webkit-mask: var(--arrow) center / contain no-repeat;
+  mask: var(--arrow) center / contain no-repeat;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--tm-accent-text);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-int-border);
+}
+
+.noun {
+  font-family: var(--tm-font-reading);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+
+.sub {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+  max-width: 12ch;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 26px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: var(--tm-radius);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--tm-dur) var(--tm-ease),
+    box-shadow var(--tm-dur) var(--tm-ease);
+}
+
+.cta:hover {
+  background: var(--tm-interactive-hover);
+  box-shadow: var(--tm-shadow-glow);
+}
+
+/* Mobile: 2×2 grid, arrows drop (the row flow no longer applies). */
+@media (max-width: 560px) {
+  .flow {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px 0;
+  }
+  .node:not(:last-child)::after {
+    display: none;
+  }
+  .sub {
+    max-width: 16ch;
+  }
+}
