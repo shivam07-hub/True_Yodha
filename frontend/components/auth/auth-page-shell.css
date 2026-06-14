@@ -1,0 +1,22 @@
+/* Two-pane auth layout: the form (action) beside a value panel (proof).
+   Desktop = side by side, action-pane first. Narrow = stack, action first so
+   the primary CTA stays above the fold; the proof reads below. */
+.auth-shell-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  gap: 48px;
+  align-items: center;
+  width: 100%;
+  max-width: 1060px;
+}
+
+.auth-shell-form { width: 100%; }
+.auth-shell-aside { width: 100%; min-width: 0; }
+
+@media (max-width: 960px) {
+  .auth-shell-grid {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    max-width: 480px;
+  }
+}

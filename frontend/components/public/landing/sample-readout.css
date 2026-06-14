@@ -1,0 +1,63 @@
+/* Standalone scope for the sample readout card when it's rendered OFF the
+   landing page (auth pages). On landing the card inherits --lp-* from the
+   .lp-readout section; here we re-pin the Engine-dark console tokens directly
+   so the card reads identically — a dark teal console — on any page, in any
+   theme (light or dark). The card visual rules themselves live in
+   landing-engine.css (.lp-readout-card + children); this only supplies tokens
+   + the local heading, so there is no style duplication. */
+.lp-readout-standalone {
+  --lp-surface:       #13141a;
+  --lp-surface-2:     #181a23;
+  --lp-border:        rgba(255, 255, 255, 0.06);
+  --lp-border-strong: rgba(255, 255, 255, 0.12);
+  --lp-text:          #e8e8ea;
+  --lp-muted:         #9aa4bf;
+  --lp-faint:         #646e8c;
+  --lp-accent:        #00f5d4;
+  --lp-accent-text:   #67e8f9;
+  --lp-success:       #4ade80;
+  --lp-warning:       #f59e0b;
+  --lp-mono:          var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --lp-ease:          cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+}
+
+/* Full-bleed in the auth pane (landing caps the card at 880px + centers it). */
+.lp-readout-standalone .lp-readout-card {
+  max-width: 100%;
+  margin: 18px 0 0;
+}
+
+.sr-head { max-width: 100%; }
+
+.sr-eyebrow {
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+}
+
+.sr-title {
+  margin: 12px 0 0;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+
+/* Sample readout has a fixed 62% baseline (the live readout sets width inline). */
+.lp-readout-standalone .lp-readout-bar span { width: 62%; }
+
+@media (max-width: 560px) {
+  .lp-readout-standalone .lp-readout-cols { grid-template-columns: 1fr; }
+  .lp-readout-standalone .lp-readout-col + .lp-readout-col {
+    border-left: none;
+    border-top: 1px solid var(--lp-border);
+  }
+  .lp-readout-standalone .lp-readout-head { flex-direction: column; align-items: flex-start; }
+  .lp-readout-standalone .lp-readout-verdict { text-align: left; max-width: 100%; }
+}

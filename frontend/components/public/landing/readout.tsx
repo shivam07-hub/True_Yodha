@@ -11,21 +11,10 @@ import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import type { AnonScoreResponse } from "@/lib/api"
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
+import { SampleReadoutCard } from "./sample-readout"
 
 import "@/app/(authed)/cv/cv-fonts.css"
 import "@/app/(authed)/cv/cv-sheet.css"
-
-const SAMPLE_GAPS = [
-  { skill: "Product Strategy", tag: "Very high demand", hot: true, note: "· Not on CV" },
-  { skill: "Go-to-Market Strategy", tag: "High demand", hot: false, note: "· Early stage" },
-  { skill: "User Research & Discovery", tag: "Very high demand", hot: true, note: "· Early stage" },
-]
-
-const SAMPLE_STRENGTHS = [
-  { skill: "Data & Business Analysis", note: "PM teams rely on this daily to validate decisions." },
-  { skill: "Stakeholder Management", note: "Non-negotiable for shipping product cross-functionally." },
-  { skill: "Agile Project Management", note: "Translates vision into sprints engineering can execute." },
-]
 
 const NO_HIDDEN: Set<string> = new Set()
 
@@ -105,12 +94,14 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
           </div>
         )}
 
-        {tab === "score" || !hasCv ? (
+        {!live ? (
+          <SampleReadoutCard className="lp-reveal" />
+        ) : tab === "score" || !hasCv ? (
           <div className="lp-readout-card lp-reveal">
             <div className="lp-readout-head">
               <div>
                 <div className="lp-readout-version">
-                  {live ? `Your CV · ${result!.skills_detected} skills read` : "Content intern version"}
+                  Your CV · {result!.skills_detected} skills read
                 </div>
                 <div className="lp-readout-score">
                   <span className="lp-readout-score-num">{score}</span>
@@ -121,51 +112,34 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
             </div>
 
             <div className="lp-readout-bar">
-              <span style={live ? { width: `${score}%` } : undefined} />
+              <span style={{ width: `${score}%` }} />
             </div>
 
             <div className="lp-readout-cols">
               <div className="lp-readout-col">
                 <div className="lp-readout-col-title warn">Improve before applying</div>
                 <div className="lp-readout-items">
-                  {live
-                    ? result!.gaps.map((g) => (
-                        <div key={g.name}>
-                          <div className="lp-readout-skill">{g.name}</div>
-                          <div className="lp-readout-tags">
-                            <span className="lp-readout-tag hot">{g.score}/100</span>
-                            <span className="lp-readout-note-sm">· biggest lift</span>
-                          </div>
-                        </div>
-                      ))
-                    : SAMPLE_GAPS.map((g) => (
-                        <div key={g.skill}>
-                          <div className="lp-readout-skill">{g.skill}</div>
-                          <div className="lp-readout-tags">
-                            <span className={`lp-readout-tag${g.hot ? " hot" : ""}`}>{g.tag}</span>
-                            <span className="lp-readout-note-sm">{g.note}</span>
-                          </div>
-                        </div>
-                      ))}
+                  {result!.gaps.map((g) => (
+                    <div key={g.name}>
+                      <div className="lp-readout-skill">{g.name}</div>
+                      <div className="lp-readout-tags">
+                        <span className="lp-readout-tag hot">{g.score}/100</span>
+                        <span className="lp-readout-note-sm">· biggest lift</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div className="lp-readout-col">
                 <div className="lp-readout-col-title ok">Already strong</div>
                 <div className="lp-readout-items">
-                  {live
-                    ? result!.strengths.map((s) => (
-                        <div key={s.name}>
-                          <div className="lp-readout-skill">{s.name}</div>
-                          <p className="lp-readout-note">Scoring {s.score}/100 against live demand.</p>
-                        </div>
-                      ))
-                    : SAMPLE_STRENGTHS.map((s) => (
-                        <div key={s.skill}>
-                          <div className="lp-readout-skill">{s.skill}</div>
-                          <p className="lp-readout-note">{s.note}</p>
-                        </div>
-                      ))}
+                  {result!.strengths.map((s) => (
+                    <div key={s.name}>
+                      <div className="lp-readout-skill">{s.name}</div>
+                      <p className="lp-readout-note">Scoring {s.score}/100 against live demand.</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

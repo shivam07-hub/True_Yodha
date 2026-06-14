@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { AuthPageShell, useNextPath } from "@/components/auth/auth-page-shell"
 import { LoginForm } from "@/components/auth/login-form"
+import { SampleReadout } from "@/components/public/landing/sample-readout"
 
 function LoginRoute() {
   const next = useNextPath()
@@ -11,6 +12,7 @@ function LoginRoute() {
     <AuthPageShell
       title="Welcome back"
       subtitle="Sign in with the method you used to start your CV hub."
+      aside={<SampleReadout eyebrow="What you'll see inside" />}
       footerCopy={
         <>
           New here?{" "}
