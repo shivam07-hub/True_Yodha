@@ -21,6 +21,7 @@ export const dataKeys = {
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
   deepenings: (jobId: JobId) => ["deepenings", jobId] as const,
   growthCommand: () => ["growth-command"] as const,
+  betaAssignment: () => ["feedback", "beta-assignment"] as const,
   jobsAnalytics: (
     roleDomain?: string | null,
     locationCity?: string | null,
