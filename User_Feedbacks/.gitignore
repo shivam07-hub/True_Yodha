@@ -1,0 +1,16 @@
+# This directory is for sanitized research artifacts, never candidate source data.
+raw/
+private/
+candidate-uploads/
+
+# CV and office-document formats may contain personal information.
+*.doc
+*.docx
+*.odt
+*.pages
+*.pdf
+
+# Local exports from form and spreadsheet tools.
+*.csv
+*.xlsx
+*.numbers
