@@ -1,6 +1,6 @@
 # Myro Internship Assignment - Candidate Message
 
-Replace `[DEADLINE]` and `[SUBMISSION LINK]` before sending.
+Replace `[DEADLINE]` before sending.
 
 ---
 
@@ -23,7 +23,8 @@ job-application device.
    blocker.
 3. Review the CV analysis plus one other area: Skills, Jobs, Intel, Tracker, or
    CV tailoring.
-4. Submit your response here: **[SUBMISSION LINK]**
+4. Submit your response here:
+   **[https://www.himyro.com/beta-feedback](https://www.himyro.com/beta-feedback)**
 
 ## Submit
 

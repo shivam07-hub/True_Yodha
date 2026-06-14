@@ -298,7 +298,44 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-14 - Intern beta assignment and feedback system)
+## LAST SESSION SUMMARY (2026-06-14 - Final intern beta feedback submission)
+
+Built the authenticated `/beta-feedback` assignment submission flow for the
+prospective-intern beta drive.
+
+- Added a readable three-step form for session context, structured assessment,
+  ratings, full review, and explicit final-submission confirmation.
+- Preserved drafts locally per authenticated user and clears them only after a
+  successful final submission.
+- Added authenticated status and submit endpoints with strict validation,
+  duplicate protection, and a durable receipt.
+- Stored every response in the existing `user_feedback` table under
+  `payload.program = intern_beta_assignment_v1`; no new table was created.
+- Reserved the program identifier so generic feedback clients cannot bypass
+  the validated final-submission endpoint.
+- Applied and verified live Supabase migration
+  `intern_beta_feedback_submission` on project `gipvxuugajkugntwkeiz`.
+- Updated the candidate message to use
+  `https://www.himyro.com/beta-feedback`.
+
+Validation:
+
+- Full backend suite: `686 passed`
+- Full frontend lint: clean
+- TypeScript: clean
+- Production build: passed; `/beta-feedback` generated successfully
+- Focused frontend contracts: `8 passed`
+- Browser-based component QA was blocked by the in-app browser's localhost URL
+  policy. The previously approved 375px design mockup remains the visual
+  reference; production-component browser QA is still required after deploy.
+
+Commits: `6529af6` backend/API, `dff1b81` frontend form.
+
+Launch gate: promote `Develop` to `main`, verify the authenticated production
+flow at desktop and 375px, then replace `[DEADLINE]` and send the candidate
+message. A `Develop` push alone does not update `himyro.com`.
+
+## OLDER SESSION SUMMARY (2026-06-14 - Intern beta assignment and feedback system)
 
 Prepared `User_Feedbacks/` for a prospective-intern beta cohort of up to 2,000
 participants.
@@ -329,9 +366,7 @@ Validation:
 - `https://www.himyro.com/`, `/privacy`, and `/terms` all returned HTTP 200.
 - Raw CVs or candidate responses were not added to the repository.
 
-Launch carry-over: replace `[DEADLINE]` and `[SUBMISSION LINK]` in
-`User_Feedbacks/01-candidate-assignment-message.md`, then build the form from
-`User_Feedbacks/02-feedback-intake-and-scoring.md`.
+Launch carry-over was completed by the session above.
 
 ## OLDER SESSION SUMMARY (2026-06-13 - Upskilling production hardening)
 
