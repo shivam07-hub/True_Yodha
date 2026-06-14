@@ -309,25 +309,107 @@
   .mdx-prose h2 { font-size: var(--tm-fs-heading); }
 }
 
-/* ── Newsletter article prose overrides ───────────────────────── */
-.newsletter-prose {
-  font-size: 1.0625rem;
-  line-height: 1.72;
+/* ── Newsletter article: editorial reading system ─────────────────
+   Serif body + headline turn the article from a terminal into a
+   publication. Mono is demoted to DATA only (code/numbers/tables via
+   .mdx-prose code) — never prose or meta. Reading primitives
+   (--tm-font-reading, --tm-reading-*) are reusable for the planned
+   site-wide readability pass. */
+
+/* The reading sheet: lifts the column off the pure-black void (dark) /
+   sits as a white sheet on warm paper (light). Caps the measure so lines
+   never run too wide to track. */
+.nl-article {
+  background: var(--tm-reading-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  padding: clamp(24px, 4vw, 56px);
+  box-shadow: var(--tm-shadow-1);
 }
-.newsletter-prose h2 {
-  font-size: 1.25rem;
+.nl-article > *:not(.nl-fullbleed) {
+  max-width: var(--tm-reading-measure);
+}
+
+/* Headline + standfirst in serif = the publication voice. */
+.nl-headline {
+  font-family: var(--tm-font-reading);
+  font-size: clamp(2rem, 4.5vw, 2.85rem);
+  line-height: 1.12;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: -0.015em;
   color: var(--tm-text);
-  margin: 48px 0 16px;
-  padding-top: 8px;
-  border-top: 1px solid var(--tm-border-soft);
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+.nl-standfirst {
+  font-family: var(--tm-font-reading);
+  font-size: clamp(1.15rem, 2.2vw, 1.3rem);
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--tm-text-muted);
+  margin: 0 0 32px;
+  text-wrap: pretty;
+}
+
+.newsletter-prose {
+  font-family: var(--tm-font-reading);
+  font-size: 1.18rem;
+  line-height: 1.78;
+  color: var(--tm-reading-ink);
 }
 .newsletter-prose p {
-  color: var(--tm-text);
+  margin-bottom: 1.45rem;
+  color: var(--tm-reading-ink);
 }
 .newsletter-prose p strong {
   color: var(--tm-text);
+  font-weight: 600;
+}
+.newsletter-prose li {
+  color: var(--tm-reading-ink);
+  line-height: 1.7;
+}
+/* Drop cap on the opening paragraph — editorial signal (Atlantic/NYT). */
+.newsletter-prose > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--tm-font-reading);
+  font-weight: 600;
+  font-size: 3.4em;
+  line-height: 0.82;
+  padding: 0.04em 0.09em 0 0;
+  color: var(--tm-accent-text);
+}
+/* Section subheads — serif, sized between body and headline. The hairline
+   above each gives the long read a rhythm of clear sections. */
+.newsletter-prose h2 {
+  font-family: var(--tm-font-reading);
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--tm-text);
+  margin: 52px 0 16px;
+  padding-top: 26px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.newsletter-prose h3 {
+  font-family: var(--tm-font-reading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--tm-text);
+  margin: 32px 0 12px;
+}
+/* Data keeps mono + earns its place (numbers, tables, code). */
+.newsletter-prose code { font-family: var(--tm-font-mono); }
+.newsletter-prose blockquote {
+  font-family: var(--tm-font-reading);
+  font-size: 1.22rem;
+  font-style: italic;
+  border-left-width: 3px;
+}
+@media (max-width: 480px) {
+  .newsletter-prose { font-size: 1.08rem; }
+  .newsletter-prose > p:first-of-type::first-letter { font-size: 3em; }
 }
 
 /* ── Methodology block inner elements ────────────────────────── */

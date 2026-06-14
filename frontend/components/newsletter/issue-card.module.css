@@ -68,8 +68,11 @@
 
 .featuredCard .title {
   max-width: 720px;
-  font-size: 30px;
-  line-height: 1.08;
+  font-family: var(--tm-font-reading);
+  font-weight: 600;
+  font-size: 31px;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
 }
 
 .summary {

@@ -77,11 +77,11 @@ export default async function NewsletterIndexPage() {
           </p>
           {featuredIssue ? (
             <div className={styles.actions}>
-              <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
-                Sign up
-              </Link>
-              <Link href={`/newsletter/${featuredIssue.slug}`} className={styles.secondaryLink}>
+              <Link href={`/newsletter/${featuredIssue.slug}`} className={styles.primaryLink}>
                 Read latest
+              </Link>
+              <Link href="/signup?utm_source=newsletter_index" className={styles.secondaryLink}>
+                Sign up
               </Link>
             </div>
           ) : null}
@@ -96,8 +96,8 @@ export default async function NewsletterIndexPage() {
             <span>latest</span>
           </div>
           <div>
-            <strong>{clusters.length || 1}</strong>
-            <span>topics</span>
+            <strong>Weekly</strong>
+            <span>cadence</span>
           </div>
         </div>
       </header>
@@ -138,17 +138,21 @@ export default async function NewsletterIndexPage() {
               <EmailSubscribe compact />
             </section>
 
-            <section className={styles.panel}>
-              <p className={styles.panelKicker}>Topic clusters</p>
-              <div className={styles.clusters}>
-                {clusters.map((cluster) => (
-                  <Link key={cluster.theme} href={`/newsletter/${cluster.latest.slug}`} className={styles.cluster}>
-                    <span>{cluster.label}</span>
-                    <strong>{cluster.count}</strong>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            {/* Topic clusters earn a panel only once the taxonomy is real
+                (≥2 themes). One theme = a dead single-row list → hidden. */}
+            {clusters.length > 1 && (
+              <section className={styles.panel}>
+                <p className={styles.panelKicker}>Topic clusters</p>
+                <div className={styles.clusters}>
+                  {clusters.map((cluster) => (
+                    <Link key={cluster.theme} href={`/newsletter/${cluster.latest.slug}`} className={styles.cluster}>
+                      <span>{cluster.label}</span>
+                      <strong>{cluster.count}</strong>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
               Get your Myro Score
