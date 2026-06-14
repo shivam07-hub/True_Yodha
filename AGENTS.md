@@ -298,7 +298,39 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-13 - Upskilling production hardening)
+## LAST SESSION SUMMARY (2026-06-14 - Intern beta assignment and feedback system)
+
+Prepared `User_Feedbacks/` for a prospective-intern beta cohort of up to 2,000
+participants.
+
+- Added a ready-to-send 30-minute product assignment that evaluates observation,
+  user understanding, prioritization, and clarity.
+- Made the selection boundary explicit: CV quality, Myro Score, positive
+  feedback, visual polish, and agreement with the team are not hiring signals.
+- Added a form-ready intake schema with clean export columns, five experience
+  ratings, device/network context, optional redacted evidence, and consent.
+- Added a calibrated 100-point hiring rubric with double-scoring guidance and
+  identity-hidden review where operationally possible.
+- Added repository privacy rules and Git ignores so CVs, raw form exports,
+  emails, office documents, and other candidate source data remain outside Git.
+- Added a product-research playbook covering de-identification, eligibility,
+  coding taxonomy, severity, evidence quality, segment analysis, prioritization,
+  and a reusable cohort report.
+- Commits: `2ea2a0b` candidate brief, `202c502` intake and scoring,
+  `8a26f80` analysis playbook.
+
+Validation:
+
+- `git show --check` passed for all three commits.
+- Every new Markdown file is below the 300-line limit.
+- `https://www.himyro.com/`, `/privacy`, and `/terms` all returned HTTP 200.
+- Raw CVs or candidate responses were not added to the repository.
+
+Launch carry-over: replace `[DEADLINE]` and `[SUBMISSION LINK]` in
+`User_Feedbacks/01-candidate-assignment-message.md`, then build the form from
+`User_Feedbacks/02-feedback-intake-and-scoring.md`.
+
+## OLDER SESSION SUMMARY (2026-06-13 - Upskilling production hardening)
 
 Hardened the live `/forge` upskilling path after production question banks were
 loaded but the frontend still showed the empty-bank state.

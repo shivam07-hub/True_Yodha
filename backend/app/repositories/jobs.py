@@ -668,16 +668,82 @@ class JobsRepository:
         payload = rows[0].get("payload")
         return payload if isinstance(payload, dict) else None
 
-    def persist_analytics_snapshot(self, *, refreshed_by: str = "system") -> dict[str, Any]:
+    def _jobs_source_marker(self) -> dict[str, Any]:
+        """Cheap change-detection signal for the jobs table: row count + newest
+        last_seen. Two index-backed queries (no full scan, no compile) — the
+        dirty-guard the daily cron runs before deciding whether to recompile.
+        """
+        count_result = (
+            self._admin_db.table("jobs").select("job_id", count="exact").limit(1).execute()
+        )
+        last_seen_result = (
+            self._admin_db.table("jobs")
+            .select("last_seen")
+            .order("last_seen", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = last_seen_result.data or []
+        last_seen = rows[0].get("last_seen") if rows else None
+        return {"job_count": int(count_result.count or 0), "last_seen": last_seen}
+
+    def _read_snapshot_marker(self) -> dict[str, Any] | None:
+        try:
+            result = (
+                self._admin_db.table("market_analytics_snapshot")
+                .select("source_job_count, source_last_seen")
+                .eq("id", 1)
+                .limit(1)
+                .execute()
+            )
+        except APIError:
+            return None
+        rows = result.data or []
+        if not rows:
+            return None
+        return {"job_count": rows[0].get("source_job_count"), "last_seen": rows[0].get("source_last_seen")}
+
+    def refresh_analytics_snapshot_if_stale(self, *, refreshed_by: str = "cron") -> dict[str, Any]:
+        """Recompile the snapshot ONLY when the jobs table changed since the last
+        refresh. The daily cron calls this; the expensive compile (full jobs scan)
+        runs at most once per scraper batch (~weekly), idle days cost two cheap
+        marker queries. Returns refreshed=False with the existing totals on a skip.
+        """
+        current = self._jobs_source_marker()
+        stored = self._read_snapshot_marker()
+        if stored is not None and stored == current:
+            existing = self._read_snapshot_payload() or {}
+            return {
+                "refreshed": False,
+                "total_jobs": int(existing.get("total_jobs") or 0),
+                "total_companies": int(existing.get("total_companies") or 0),
+            }
+        result = self.persist_analytics_snapshot(refreshed_by=refreshed_by, marker=current)
+        return {"refreshed": True, **result}
+
+    def persist_analytics_snapshot(
+        self, *, refreshed_by: str = "system", marker: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Recompile the unfiltered analytics payload and write it to the snapshot table.
 
-        Called by the admin refresh endpoint after a weekly batch finalises.
-        Bypasses the in-process cache so the snapshot always reflects current DB state.
+        Called by the admin refresh endpoint after a weekly batch finalises, and by
+        the dirty-guarded daily refresh. Bypasses the in-process cache so the snapshot
+        always reflects current DB state. ``marker`` (count + last_seen) is persisted
+        alongside so the next dirty-guard can detect a no-op.
         """
         rows = self.fetch_analytics_rows()
         payload = self._analytics_compiler.compile(rows)
+        if marker is None:
+            marker = self._jobs_source_marker()
         self._admin_db.table("market_analytics_snapshot").upsert(
-            {"id": 1, "payload": payload, "refreshed_at": datetime.now(timezone.utc).isoformat(), "refreshed_by": refreshed_by},
+            {
+                "id": 1,
+                "payload": payload,
+                "refreshed_at": datetime.now(timezone.utc).isoformat(),
+                "refreshed_by": refreshed_by,
+                "source_job_count": marker.get("job_count"),
+                "source_last_seen": marker.get("last_seen"),
+            },
             on_conflict="id",
         ).execute()
         # Invalidate in-process cache across all filter combos so next read hits snapshot

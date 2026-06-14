@@ -22,7 +22,8 @@ import "@/components/public/landing/landing-sections.css"
 /**
  * Myro landing — "The Myro Engine" redesign.
  * Sections organized around one named centerpiece: S1 hero → S2 engine →
- * sample readout → S3 surfaces → proof → FAQ + closing CTA → footer.
+ * S3 surfaces → proof → sample readout (the personalized payoff, kept adjacent
+ * to the closing CTA) → FAQ + closing CTA → footer.
  * Design source: reference/building landing page.zip (confirmed).
  * (The retention-loop diagram was removed from the marketing page — it reads as
  * architecture, not story. Concept preserved in docs/FEATURE_LOOP_REGISTRY.md.)
@@ -115,11 +116,11 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           seekers={data.seekers}
         />
 
-        <LandingReadout result={anonResult} />
-
         <LandingSurfaces />
 
         <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
+
+        <LandingReadout result={anonResult} />
 
         <LandingFaq
           scoring={scoring}
