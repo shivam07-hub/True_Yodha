@@ -58,8 +58,43 @@ export default async function NewsletterIndexPage() {
   const [featuredIssue, ...archiveIssues] = publishedIssues
   const clusters = topicClusters(publishedIssues)
 
+  // CollectionPage + ItemList + publisher entity: lets search + AI engines read
+  // /newsletter as a recurring hiring-data publication (AEO — citable source),
+  // not an untyped page. Mirrors the per-article Article/Breadcrumb schema.
+  const indexJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Myro Weekly",
+    description:
+      "Free weekly hiring intelligence: company demand, skill gaps, and where hiring is moving — from live career-page data.",
+    url: `${BASE}/newsletter`,
+    isPartOf: { "@type": "WebSite", name: "Myro", url: BASE },
+    publisher: {
+      "@type": "Organization",
+      name: "Myro",
+      url: BASE,
+      sameAs: [
+        "https://x.com/himyro",
+        "https://www.linkedin.com/company/himyro-career-intelligence",
+      ],
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: publishedIssues.map((issue, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${BASE}/newsletter/${issue.slug}`,
+        name: issue.title,
+      })),
+    },
+  }
+
   return (
     <div className={styles.shell}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(indexJsonLd) }}
+      />
       <header className={styles.masthead}>
         <div className={styles.copy}>
           <p className={styles.kicker}>Free weekly hiring intel</p>

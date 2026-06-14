@@ -114,7 +114,15 @@ export default async function IssuePage({ params }: Props) {
       datePublished: isoDate,
       description: issue.summary,
       author: { "@type": "Person", name: authorName },
-      publisher: { "@type": "Organization", name: "Myro", url: BASE },
+      publisher: {
+        "@type": "Organization",
+        name: "Myro",
+        url: BASE,
+        sameAs: [
+          "https://x.com/himyro",
+          "https://www.linkedin.com/company/himyro-career-intelligence",
+        ],
+      },
       ...(absoluteOgImage && { image: absoluteOgImage }),
     },
     {
