@@ -8,6 +8,7 @@ import { PERSONAL_REASONS, sendPersonalFeedback } from "@/lib/jobs/feedback"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
+import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { FeedControls, FilterChips, FiltersSheet, RoleSwitcher } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -88,7 +89,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   return (
-    <div>
+    <div className="tm-jobs-col">
       {/* Search leads; everything else is one control row. */}
       <div className="tm-feed-searchrow" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input
@@ -132,11 +133,15 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
               <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
             </div>
             {isDesktop ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {allJobs.map(job => (
-                  <JobCard key={job.job_id} job={job} pulse={pulses.get(job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
-                ))}
-              </div>
+              <VirtualFeed
+                items={allJobs}
+                getKey={job => job.job_id}
+                estimateSize={180}
+                gap={14}
+                renderItem={job => (
+                  <JobCard job={job} pulse={pulses.get(job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(job)} onSave={() => onSave(job)} onSkip={() => onSkip(job)} />
+                )}
+              />
             ) : (
               <MobileFeed jobs={allJobs} pulses={pulses} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} />
             )}

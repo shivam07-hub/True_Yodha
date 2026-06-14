@@ -1,0 +1,158 @@
+"use client"
+
+import * as React from "react"
+import type { JobPulse } from "@/lib/api"
+import { fitTier } from "@/lib/dashboard/feed-model"
+import { ageLabel, experienceLabel, type FeedCardData } from "@/lib/jobs/card-view"
+import "./feed-card.css"
+
+const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
+
+/* ── Fit indicators (the top-right slot — shared by every surface) ─────────── */
+
+/** Donut fit ring (0–100). Arc colour scales with the fit tier (D9). */
+export function FeedFitRing({ fit, size = 52 }: { fit: number; size?: number }) {
+  const r = (size - 8) / 2
+  const c = 2 * Math.PI * r
+  const off = c * (1 - Math.max(0, Math.min(100, fit)) / 100)
+  return (
+    <svg className={`fc-ring fit-${fitTier(fit)}`} width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${fit} percent fit`}>
+      <circle className="fc-ring-track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" />
+      <circle className="fc-ring-arc" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      <text className="fc-ring-num" x="50%" y="50%" dominantBaseline="central" textAnchor="middle">{fit}</text>
+    </svg>
+  )
+}
+
+/** Skill-overlap pill (market has no 0–100 fit — it leads with skill match). */
+export function FeedFitPill({ matchedCount, roleMatch, hasCv }: { matchedCount: number; roleMatch: number; hasCv: boolean }) {
+  if (!hasCv) {
+    return (
+      <a href="/cv" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
+        Upload CV →
+      </a>
+    )
+  }
+  if (matchedCount > 0) {
+    return <span className="fc-fitpill fc-fitpill-on">◉ {matchedCount} skill{matchedCount === 1 ? "" : "s"}</span>
+  }
+  if (roleMatch > 0) return <span className="fc-fitpill fc-fitpill-on">◉ your role</span>
+  return <span className="fc-fitpill">no overlap yet</span>
+}
+
+/* ── Listing-confidence dim (D1) — surface-neutral, styled by feed-card.css ── */
+export function feedCardConfidenceClass(pulse?: JobPulse): string {
+  switch (pulse?.listing_confidence) {
+    case "uncertain":
+      return " fc-conf-uncertain"
+    case "likely_closed":
+    case "closed":
+      return " fc-conf-closed"
+    default:
+      return ""
+  }
+}
+
+/* ── The one card ─────────────────────────────────────────────────────────── */
+
+export interface FeedCardProps {
+  data: FeedCardData
+  /** Top-right slot: <FeedFitRing> (dashboard) or <FeedFitPill> (market). */
+  fit?: React.ReactNode
+  /** Status chips beside the company (Applied / You added). */
+  badges?: React.ReactNode
+  /** Trust row above the actions — pass the live <PulseRow>. */
+  pulse?: React.ReactNode
+  /** Bottom action row — triage (market) or like/skip/tailor (dashboard). */
+  actions?: React.ReactNode
+  /** "row" = compact list card; "immersive" = tall single-screen card (mobile). */
+  variant?: "row" | "immersive"
+  open?: boolean
+  leaving?: boolean
+  /** Extra class — listing-confidence dim, hint shake, etc. */
+  extraClass?: string
+  onOpen?: () => void
+  /** Spread onto the <article> — swipe transform + pointer handlers (immersive). */
+  articleProps?: React.HTMLAttributes<HTMLElement>
+}
+
+export function FeedCard({
+  data, fit, badges, pulse, actions, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+}: FeedCardProps) {
+  const age = ageLabel(data.ageIso)
+  const exp = experienceLabel(data.minYears, data.maxYears)
+  const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
+  const hasLoc = data.locations.length > 0 || data.location || showMode
+  const hasMeta = data.datePosted || data.seniority || exp
+
+  return (
+    <article
+      className={`fc-card fc-${variant}${open ? " is-open" : ""}${leaving ? " is-leaving" : ""}${extraClass}`}
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && onOpen) {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      {...articleProps}
+    >
+      <div className="fc-row">
+        <span className="fc-mono" aria-hidden>{(data.company ?? "—").slice(0, 1)}</span>
+        <div className="fc-body">
+          <div className="fc-top">
+            <span className="fc-co">{data.company ?? "—"}</span>
+            {badges}
+            {age ? <span className="fc-age">{age}</span> : null}
+          </div>
+          <h3 className="fc-role">{data.role}</h3>
+
+          {hasLoc ? (
+            <div className="fc-loc">
+              {data.locations.length > 0
+                ? data.locations.map((c) => <span key={c}>{c}</span>)
+                : data.location ? <span>{data.location}</span> : null}
+              {showMode ? <span className="fc-loc-mode">{MODE_LABEL[data.locationMode!] ?? data.locationMode}</span> : null}
+            </div>
+          ) : null}
+
+          {hasMeta ? (
+            <div className="fc-meta">
+              {data.datePosted ? <span className="fc-metachip">Posted {data.datePosted}</span> : null}
+              {data.seniority ? <span className="fc-metachip">{data.seniority}</span> : null}
+              {exp ? <span className="fc-metachip">{exp}</span> : null}
+            </div>
+          ) : null}
+
+          {data.snippet ? <p className="fc-snip">{data.snippet}</p> : null}
+
+          {data.chips.length > 0 ? (
+            <div className="fc-chips">
+              {data.chips.map((c) => (
+                <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
+                  {c.matched ? <Check8 /> : null}
+                  {c.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {fit ? <div className="fc-fit">{fit}</div> : null}
+      </div>
+
+      {pulse}
+      {actions ? <div className="fc-actions">{actions}</div> : null}
+    </article>
+  )
+}
+
+function Check8() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12.5l5 5L20 7" />
+    </svg>
+  )
+}

@@ -1,7 +1,9 @@
 "use client"
 
 import type { JobFeedItem, JobPulse } from "@/lib/api"
-import { PulseRow, cardConfidenceClass } from "@/components/dashboard/card-atoms"
+import { PulseRow } from "@/components/dashboard/card-atoms"
+import { FeedCard, FeedFitPill, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
 
@@ -119,30 +121,15 @@ export function JobCard({
   onSave: () => void
   onSkip: () => void
 }) {
-  const age = ageLabel(job.first_seen)
-  const snippet = jdSnippet(job.job_description)
   return (
-    <article onClick={onOpen} className={`tm-job-card${cardConfidenceClass(pulse)}`} style={{ cursor: "pointer", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius-lg)", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start" }}>
-        <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.25 }}>{job.job_title}</h3>
-          {job.company_name ? <div style={{ fontSize: 14, color: "var(--tm-interactive)", marginTop: 3 }}>{job.company_name}</div> : null}
-        </div>
-        {age ? <span style={{ flexShrink: 0, fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.04em", color: "var(--tm-text-faint)" }}>{age}</span> : null}
-      </div>
-
-      <LocationLine job={job} />
-      {snippet ? <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>{snippet}</p> : null}
-      {job.skills.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
-      ) : null}
-
-      <PulseRow pulse={pulse} bare />
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 2 }}>
-        <FitSignal job={job} hasCv={hasCv} />
-        <TriageButtons onSave={onSave} onSkip={onSkip} />
-      </div>
-    </article>
+    <FeedCard
+      data={feedDataFromFeedItem(job)}
+      variant="row"
+      extraClass={feedCardConfidenceClass(pulse)}
+      onOpen={onOpen}
+      fit={<FeedFitPill matchedCount={job.matched_skill_count} roleMatch={job.target_role_match} hasCv={hasCv} />}
+      pulse={<PulseRow pulse={pulse} bare />}
+      actions={<TriageButtons onSave={onSave} onSkip={onSkip} />}
+    />
   )
 }
