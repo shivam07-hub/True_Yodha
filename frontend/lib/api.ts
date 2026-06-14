@@ -23,6 +23,11 @@ import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 import { ApiError, classifyError, readTraceId } from "./api-error"
 import type { AcquisitionAttribution } from "./attribution"
+import type {
+  BetaAssignmentReceipt,
+  BetaAssignmentStatus,
+  BetaFeedbackDraft,
+} from "./beta-feedback"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -2597,6 +2602,18 @@ export const feedback = {
   listMine: (token: string, limit = 50) =>
     request<FeedbackReport[]>(`/feedback/my?limit=${limit}`, {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  betaAssignmentStatus: (token: string) =>
+    request<BetaAssignmentStatus>("/feedback/beta-assignment", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  submitBetaAssignment: (token: string, body: BetaFeedbackDraft) =>
+    request<BetaAssignmentReceipt>("/feedback/beta-assignment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     }),
 }
 

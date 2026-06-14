@@ -1,0 +1,121 @@
+/* feed-card.css — the ONE job-card visual language (market + dashboard, both
+   viewports). Self-contained: only --tm-* global tokens, no surface scope. */
+
+.fc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg, 16px);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 180ms ease, opacity 180ms ease;
+}
+.fc-card:hover { border-color: var(--tm-border); }
+.fc-card:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 2px; }
+.fc-card.is-open { border-color: var(--tm-interactive); }
+
+/* skip / unlike → animate out before the row is removed */
+.fc-card.is-leaving { opacity: 0; transform: scale(0.97); pointer-events: none; }
+
+/* listing-confidence dim (D1) — the pulse warn label keeps its own colour */
+.fc-card.fc-conf-uncertain { opacity: 0.88; }
+.fc-card.fc-conf-closed { opacity: 0.66; }
+
+/* ── main row: monogram · body · fit ──────────────────────────────────────── */
+.fc-row { display: flex; gap: 14px; align-items: flex-start; }
+
+.fc-mono {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 11px;
+  background: var(--tm-int-bg-wash, var(--tm-surface-2, var(--tm-surface)));
+  border: 1px solid var(--tm-border-soft);
+  font-family: var(--tm-font-mono); font-size: 17px; font-weight: 600;
+  color: var(--tm-interactive); text-transform: uppercase;
+}
+
+.fc-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.fc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fc-co { font-size: 14px; font-weight: 500; color: var(--tm-interactive); min-width: 0; }
+.fc-age {
+  margin-left: auto; flex-shrink: 0;
+  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.04em;
+  color: var(--tm-text-faint);
+}
+
+.fc-role {
+  margin: 0; font-weight: 600; color: var(--tm-text);
+  font-size: 17px; line-height: 1.3; letter-spacing: -0.01em;
+}
+
+.fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--tm-text-muted); }
+.fc-loc-mode {
+  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--tm-border-soft); color: var(--tm-text-faint);
+}
+
+.fc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-metachip {
+  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.03em;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--tm-border-soft); color: var(--tm-text-faint);
+}
+
+/* the reading line — clamped on row cards, free on immersive */
+.fc-snip {
+  margin: 2px 0 0; font-size: 14px; line-height: 1.62; color: var(--tm-text-muted);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+
+.fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px; font-size: 11px; white-space: nowrap;
+  background: var(--tm-surface-2, var(--tm-surface)); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
+}
+.fc-chip.is-match { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border, var(--tm-interactive)); color: var(--tm-interactive); }
+
+/* ── fit slot (top-right) ─────────────────────────────────────────────────── */
+.fc-fit { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+
+.fc-ring .fc-ring-track { stroke: var(--tm-border-soft); }
+.fc-ring .fc-ring-arc { stroke: var(--tm-text-faint); }
+.fc-ring.fit-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
+.fc-ring.fit-mid .fc-ring-arc { stroke: var(--tm-text-muted); }
+.fc-ring-num { font-family: var(--tm-font-mono); font-size: 15px; font-weight: 600; fill: var(--tm-text); }
+
+.fc-fitpill {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-faint);
+}
+.fc-fitpill-on { color: var(--tm-success, var(--tm-interactive)); }
+.fc-fitpill-nudge { color: var(--tm-interactive-rest, var(--tm-interactive)); text-decoration: none; }
+
+/* ── action row ───────────────────────────────────────────────────────────── */
+/* The slotted action component owns its own internal layout (dashboard's
+   like/skip/tailor row, market's triage pair). Each direct child fills the row;
+   on immersive that gives the two triage buttons a clean 50/50 split. */
+.fc-actions { display: flex; align-items: center; gap: 10px; }
+.fc-actions > * { flex: 1 1 auto; }
+.fc-immersive .fc-actions .tm-triage-btn { justify-content: center; min-height: 48px; }
+
+/* ── immersive (tall single-screen mobile card — Inshorts read) ───────────── */
+.fc-immersive {
+  min-height: 72vh; padding: 22px 20px; border-radius: 18px;
+  will-change: transform; user-select: none;
+}
+.fc-immersive .fc-role { font-size: 21px; line-height: 1.25; }
+.fc-immersive .fc-co { font-size: 15px; }
+.fc-immersive .fc-snip { -webkit-line-clamp: unset; font-size: 15px; line-height: 1.65; flex: 1 1 auto; }
+.fc-immersive .fc-body { gap: 8px; }
+.fc-immersive .fc-actions { margin-top: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-card { transition: opacity 120ms ease; }
+  .fc-card.is-leaving { transform: none; }
+}

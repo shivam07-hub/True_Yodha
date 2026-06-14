@@ -1,0 +1,136 @@
+.bf-ratings,
+.bf-confirmations {
+  display: grid;
+  gap: 14px;
+}
+
+.bf-rating {
+  padding: 16px;
+  background: #f7f8f4;
+  border: 1px solid #c9ccc4;
+  border-radius: 12px;
+}
+
+.bf-rating legend {
+  padding: 0;
+  color: #20231e;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.bf-rating-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.bf-rating-options label {
+  min-width: 0;
+}
+
+.bf-rating-options input {
+  position: absolute;
+  opacity: 0;
+}
+
+.bf-rating-options span {
+  display: grid;
+  min-height: 50px;
+  place-items: center;
+  color: #252923;
+  background: #fff;
+  border: 2px solid #737a6f;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bf-rating-options input:checked + span {
+  color: #fff;
+  background: #171914;
+  border-color: #171914;
+}
+
+.bf-rating-options input:focus-visible + span {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.bf-review {
+  padding: 20px;
+  background: #f3f4ef;
+  border: 1px solid #c9ccc4;
+  border-radius: 12px;
+}
+
+.bf-review h3 {
+  margin: 0 0 14px;
+  color: #171914;
+  font-size: 19px;
+}
+
+.bf-review dl,
+.bf-review dd {
+  margin: 0;
+}
+
+.bf-review dl {
+  display: grid;
+  gap: 14px;
+}
+
+.bf-review dt {
+  color: #555c51;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bf-review dd {
+  margin-top: 3px;
+  color: #20231e;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.bf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.bf-button,
+.bf-button-secondary {
+  min-height: 50px !important;
+  min-width: 150px;
+  font-size: 16px !important;
+}
+
+.bf-button {
+  color: #fff !important;
+  background: #171914 !important;
+  border-color: #171914 !important;
+}
+
+.bf-button-secondary {
+  color: #171914 !important;
+  background: #fff !important;
+  border-color: #737a6f !important;
+}
+
+.bf-state {
+  padding: 30px;
+}
+
+.bf-state .bf-button {
+  margin-top: 22px;
+}
+
+.bf-receipt-note {
+  color: #3d423a !important;
+  font-weight: 700;
+}

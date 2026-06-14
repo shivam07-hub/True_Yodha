@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Monogram, FitRing, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
-import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
+import { CardActions, PulseRow } from "./card-atoms"
+import { FeedCard, FeedFitRing, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { VirtualFeed } from "@/components/jobs/virtual-feed"
+import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import type { OtherRole } from "./lens-company"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
@@ -38,7 +40,7 @@ export function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
     .map((o) => ({ jobId: o.jobId, role: o.role, fit: o.fit }))
 }
 
-/** One collapsed card (+ inline detail when open). */
+/** One collapsed card. Detail opens in the peek panel / drawer, not inline. */
 function JobCard({
   it,
   open,
@@ -58,8 +60,6 @@ function JobCard({
   onLike: () => void
   onSkip: () => void
 }) {
-  const fit = it.fit
-  const snippet = cardSummary(it.job)
   // Skip / unlike animate the card out, THEN remove it — so the feed doesn't
   // jump (the removal is optimistic + instant, so we delay it one beat).
   const [leaving, setLeaving] = React.useState(false)
@@ -68,48 +68,30 @@ function JobCard({
     window.setTimeout(fn, 230)
   }
   return (
-    <article className={`db-card${open ? " open" : ""}${leaving ? " is-leaving" : ""}${cardConfidenceClass(pulse)}`}>
-      <div
-        className="db-card-main"
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onClick={onOpen}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            onOpen()
-          }
-        }}
-      >
-        <Monogram company={it.company} />
-        <div className="db-card-body">
-          <div className="db-card-toprow">
-            <span className="db-card-co">{it.company ?? "—"}</span>
-            {applied ? <span className="db-statuschip">Applied</span> : null}
-            {!it.isMatch ? <span className="db-sourcechip">You added</span> : null}
-          </div>
-          <h3 className="db-card-role">{it.role}</h3>
-          <LocationLine job={it.job} />
-          <JobMetaChips job={it.job} />
-          {snippet ? <p className="db-snippet">{snippet}</p> : null}
-          <ChipRow chips={cardChips(it.job)} className="db-card-chips" />
-        </div>
-        {fit != null ? (
-          <div className="db-card-fit">
-            <FitRing fit={fit} />
-            <span className="db-fitcap">fit</span>
-          </div>
-        ) : null}
-      </div>
-      <PulseRow pulse={pulse} />
-      <CardActions
-        jobId={it.jobId}
-        liked={liked}
-        onLike={liked ? () => leaveThen(onLike) : onLike}
-        onSkip={() => leaveThen(onSkip)}
-      />
-    </article>
+    <FeedCard
+      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job })}
+      variant="row"
+      open={open}
+      leaving={leaving}
+      extraClass={feedCardConfidenceClass(pulse)}
+      onOpen={onOpen}
+      badges={
+        <>
+          {applied ? <span className="db-statuschip">Applied</span> : null}
+          {!it.isMatch ? <span className="db-sourcechip">You added</span> : null}
+        </>
+      }
+      fit={it.fit != null ? <FeedFitRing fit={it.fit} /> : undefined}
+      pulse={<PulseRow pulse={pulse} />}
+      actions={
+        <CardActions
+          jobId={it.jobId}
+          liked={liked}
+          onLike={liked ? () => leaveThen(onLike) : onLike}
+          onSkip={() => leaveThen(onSkip)}
+        />
+      }
+    />
   )
 }
 
@@ -118,13 +100,17 @@ export function DesktopGrid(p: DesktopGridProps) {
   const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
 
   return (
-    <div className="db-feed">
-      {p.items.map((it) => {
+    <VirtualFeed
+      items={p.items}
+      getKey={(it) => it.jobId}
+      estimateSize={190}
+      gap={14}
+      className="db-feed"
+      renderItem={(it) => {
         const open = p.openId === it.jobId
         const applied = APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")
         return (
           <JobCard
-            key={it.jobId}
             it={it}
             open={open}
             liked={it.isLiked}
@@ -135,7 +121,7 @@ export function DesktopGrid(p: DesktopGridProps) {
             onSkip={() => p.onRemove(it.jobId)}
           />
         )
-      })}
-    </div>
+      }}
+    />
   )
 }

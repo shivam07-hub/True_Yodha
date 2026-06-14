@@ -1,6 +1,11 @@
 /* Market triage feed — Inshorts cards × LinkedIn chrome.
    Scopes: card hover, triage buttons, control row, filters sheet, mobile swipe. */
 
+/* PR-4 — the reading column. The feed (search · controls · cards) sits in one
+   centred ~680px measure on desktop (X/LinkedIn), full-bleed on mobile. The
+   heatmap tab keeps the page's full 1480px width (it's a separate tab). */
+.tm-jobs-col { max-width: 680px; margin: 0 auto; }
+
 /* ── keyframes (idempotent — drawer/sheet reuse these) ───────────────────── */
 @keyframes tmScrimIn { from { opacity: 0 } to { opacity: 1 } }
 @keyframes tmDrawerIn { from { transform: translateX(24px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
@@ -154,31 +159,22 @@
 .tm-reason-chip:hover { background: color-mix(in srgb, var(--tm-bg, #fff) 24%, transparent); }
 .tm-feed-toast-noted { font-size: 12px; font-weight: 500; opacity: 0.8; }
 
-/* ── mobile Inshorts feed ────────────────────────────────────────────────── */
-.tm-mfeed { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+/* ── mobile scroll feed (PR-3: row cards in one vertical feed + swipe) ─────── */
+.tm-mfeed { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
 .tm-mfeed-slot { position: relative; }
-.tm-mfeed-card {
-  position: relative; z-index: 1;
-  min-height: 72vh; padding: 22px 20px; border-radius: 18px;
-  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
-  display: flex; flex-direction: column; gap: 12px; cursor: pointer;
-  will-change: transform; user-select: none;
-}
-.tm-mfeed-card.tm-mfeed-leaving { transition: transform 200ms cubic-bezier(0.4,0,1,1); }
 .tm-mfeed-hint { animation: tmFeedHint 1500ms ease both; }
-.tm-mfeed-actions { margin-top: auto; display: flex; gap: 10px; }
-.tm-mfeed-actions .tm-triage-btn { flex: 1; justify-content: center; min-height: 48px; }
 
+/* triage rails revealed beneath a card as it swipes left (Skip) / right (Save) */
 .tm-mfeed-rail {
-  position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
-  padding: 0 26px; font-weight: 700; font-size: 15px; opacity: 0.35;
-  transition: opacity 100ms ease; border-radius: 18px;
+  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center;
+  padding: 0 24px; font-weight: 700; font-size: 14px; opacity: 0.32;
+  transition: opacity 100ms ease; border-radius: var(--tm-radius-lg, 16px);
 }
 .tm-mfeed-rail.is-armed { opacity: 1; }
-.tm-mfeed-rail-skip { left: 0; right: 0; justify-content: flex-start; color: var(--tm-danger); }
-.tm-mfeed-rail-save { left: 0; right: 0; justify-content: flex-end; color: var(--tm-interactive); }
+.tm-mfeed-rail-skip { justify-content: flex-start; color: var(--tm-danger); }
+.tm-mfeed-rail-save { justify-content: flex-end; color: var(--tm-interactive); }
 
 @media (prefers-reduced-motion: reduce) {
   .tm-mfeed-hint { animation: none; }
-  .tm-mfeed-card.tm-mfeed-leaving { transition: none; }
 }

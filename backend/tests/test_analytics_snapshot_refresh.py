@@ -23,7 +23,7 @@ class _FakeAdmin:
     """Routes the handful of query chains the refresh path issues, keyed by
     table + whether an exact count was requested. Captures upserts."""
 
-    def __init__(self, *, job_count: int, last_seen: str, snapshot_row: dict[str, Any] | None) -> None:
+    def __init__(self, *, job_count: int, last_seen: int, snapshot_row: dict[str, Any] | None) -> None:
         self.job_count = job_count
         self.last_seen = last_seen
         self.snapshot_row = snapshot_row
@@ -44,6 +44,13 @@ class _FakeAdmin:
         return self
 
     def order(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
+        return self
+
+    @property
+    def not_(self) -> "_FakeAdmin":
+        return self
+
+    def is_(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
         return self
 
     def eq(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
@@ -80,10 +87,10 @@ def _repo(admin: _FakeAdmin) -> JobsRepository:
 def test_skips_compile_when_marker_unchanged() -> None:
     admin = _FakeAdmin(
         job_count=100,
-        last_seen="2026-06-10T00:00:00+00:00",
+        last_seen=20260610,
         snapshot_row={
             "source_job_count": 100,
-            "source_last_seen": "2026-06-10T00:00:00+00:00",
+            "source_last_seen": 20260610,
             "payload": {"total_jobs": 5000, "total_companies": 30},
         },
     )
@@ -97,10 +104,10 @@ def test_skips_compile_when_marker_unchanged() -> None:
 def test_recompiles_when_job_count_changes() -> None:
     admin = _FakeAdmin(
         job_count=150,  # grew since last refresh
-        last_seen="2026-06-10T00:00:00+00:00",
+        last_seen=20260610,
         snapshot_row={
             "source_job_count": 100,
-            "source_last_seen": "2026-06-10T00:00:00+00:00",
+            "source_last_seen": 20260610,
             "payload": {"total_jobs": 5000, "total_companies": 30},
         },
     )
@@ -110,11 +117,11 @@ def test_recompiles_when_job_count_changes() -> None:
     assert len(admin.upserts) == 1
     written = admin.upserts[0]
     assert written["source_job_count"] == 150
-    assert written["source_last_seen"] == "2026-06-10T00:00:00+00:00"
+    assert written["source_last_seen"] == 20260610
 
 
 def test_recompiles_on_first_run_without_stored_marker() -> None:
-    admin = _FakeAdmin(job_count=100, last_seen="2026-06-10T00:00:00+00:00", snapshot_row=None)
+    admin = _FakeAdmin(job_count=100, last_seen=20260610, snapshot_row=None)
     out = _repo(admin).refresh_analytics_snapshot_if_stale()
     assert out["refreshed"] is True
     assert len(admin.upserts) == 1

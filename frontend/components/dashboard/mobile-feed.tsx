@@ -1,10 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Monogram, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
-import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
+import { CardActions, PulseRow } from "./card-atoms"
+import { FeedCard, FeedFitRing, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { VirtualFeed } from "@/components/jobs/virtual-feed"
+import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { usePulses } from "@/lib/hooks/use-pulses"
-import { fitTier, type FeedItem } from "@/lib/dashboard/feed-model"
+import { type FeedItem } from "@/lib/dashboard/feed-model"
 import type { ApplicationStatus, JobPulse } from "@/lib/api"
 
 export interface MobileFeedProps {
@@ -27,7 +29,7 @@ const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStat
   "final_round",
 ])
 
-/* ── Edge-to-edge feed card ─────────────────────────────────────── */
+/* ── Row card (shared <FeedCard>) ───────────────────────────────── */
 function MobileCard({
   it,
   liked,
@@ -45,38 +47,27 @@ function MobileCard({
   onLike: () => void
   onSkip: () => void
 }) {
-  const snippet = cardSummary(it.job)
   const [leaving, setLeaving] = React.useState(false)
   const leaveThen = (fn: () => void) => {
     setLeaving(true)
     window.setTimeout(fn, 230)
   }
   return (
-    <div
-      className={`db-mcard${leaving ? " is-leaving" : ""}${cardConfidenceClass(pulse)}`}
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          onOpen()
-        }
-      }}
-    >
-      <Monogram company={it.company} size={40} />
-      <div className="db-mcard-body">
-        <div className="db-mcard-top">
-          <span className="co">{it.company ?? "—"}</span>
+    <FeedCard
+      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job })}
+      variant="row"
+      leaving={leaving}
+      extraClass={feedCardConfidenceClass(pulse)}
+      onOpen={onOpen}
+      badges={
+        <>
           {applied ? <span className="db-statuschip">Applied</span> : null}
-          {it.fit != null ? <span className={`mfit fit-${fitTier(it.fit)}`}>{it.fit}% fit</span> : null}
-        </div>
-        <h3 className="db-mrole">{it.role}</h3>
-        <LocationLine job={it.job} />
-        <JobMetaChips job={it.job} />
-        {snippet ? <p className="db-msnip">{snippet}</p> : null}
-        <ChipRow chips={cardChips(it.job)} className="db-mchips" />
-        <PulseRow pulse={pulse} mobile />
+          {!it.isMatch ? <span className="db-sourcechip">You added</span> : null}
+        </>
+      }
+      fit={it.fit != null ? <FeedFitRing fit={it.fit} size={44} /> : undefined}
+      pulse={<PulseRow pulse={pulse} mobile />}
+      actions={
         <CardActions
           jobId={it.jobId}
           company={it.company}
@@ -85,8 +76,8 @@ function MobileCard({
           onSkip={() => leaveThen(onSkip)}
           mobile
         />
-      </div>
-    </div>
+      }
+    />
   )
 }
 
@@ -102,18 +93,23 @@ export function MobileFeed(p: MobileFeedProps) {
         <span className="db-label">↓ pull to refresh · next batch tonight</span>
       </div>
 
-      {p.items.map((it) => (
-        <MobileCard
-          key={it.jobId}
-          it={it}
-          liked={it.isLiked}
-          applied={APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")}
-          pulse={pulses.get(it.jobId)}
-          onOpen={() => p.onOpenJob(it.jobId)}
-          onLike={() => onLike(it)}
-          onSkip={() => p.onRemove(it.jobId)}
-        />
-      ))}
+      <VirtualFeed
+        items={p.items}
+        getKey={(it) => it.jobId}
+        estimateSize={190}
+        gap={14}
+        renderItem={(it) => (
+          <MobileCard
+            it={it}
+            liked={it.isLiked}
+            applied={APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")}
+            pulse={pulses.get(it.jobId)}
+            onOpen={() => p.onOpenJob(it.jobId)}
+            onLike={() => onLike(it)}
+            onSkip={() => p.onRemove(it.jobId)}
+          />
+        )}
+      />
 
       <div className="db-mfeed-end">
         That&rsquo;s all {p.items.length} ·{" "}
