@@ -275,7 +275,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
     },
     onSuccess: (data) => {
       if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "profile_update" })
-      if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} tokens earned`)
+      if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} Myro Coins earned`)
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -450,7 +450,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
         amount: order.amount,
         currency: order.currency,
         name: "Myro",
-        description: `${XP_PACK_AMOUNT} tokens launch pack`,
+        description: `${XP_PACK_AMOUNT} Myro Coins launch pack`,
         order_id: order.order_id,
         prefill: {
           name: name || undefined,
@@ -476,7 +476,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
             const verified = await billing.verifyPayment(token, response)
             applyXpChange({ newBalance: verified.new_xp_balance, action: "xp_purchase" })
             setBillingStatus("success")
-            setBillingMessage(`+${verified.xp_earned} tokens added. New balance: ${verified.new_xp_balance} tokens.`)
+            setBillingMessage(`+${verified.xp_earned} Myro Coins added. New balance: ${verified.new_xp_balance} Myro Coins.`)
           } catch (error) {
             setBillingStatus("error")
             setBillingMessage(messageFromError(error, "Payment verification failed."))
@@ -654,7 +654,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 <div className="tm-settings-linkedin-row" style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <div style={ROW_LABEL}>LinkedIn</div>
-                    <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} tokens</div>
+                    <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} Myro Coins</div>
                   </div>
                   <div className="tm-settings-linkedin-field" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
@@ -857,7 +857,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     <div>
                       <div style={ROW_LABEL}>Target Companies</div>
                       <div style={ROW_DESC}>
-                        Companies whose jobs you track in Market · -{XP_POLICY.followCompanyCost} tokens each
+                        Companies whose jobs you track in Market · -{XP_POLICY.followCompanyCost} Myro Coins each
                       </div>
                     </div>
                     {followedCompanies.length > 0 && (
@@ -909,7 +909,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>
                             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-interactive)", whiteSpace: "nowrap" }}>
-                              -{XP_POLICY.followCompanyCost} tokens
+                              -{XP_POLICY.followCompanyCost} coins
                             </span>
                           </button>
                         ))}
@@ -937,7 +937,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                      No companies followed yet. Following costs {XP_POLICY.followCompanyCost} tokens.
+                      No companies followed yet. Following costs {XP_POLICY.followCompanyCost} Myro Coins.
                     </div>
                   </div>
                 ) : (
@@ -967,6 +967,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 status={billingStatus}
                 message={billingMessage}
                 onBuy={handleBuyXP}
+                onClose={flushAndClose}
               />
             )}
 
@@ -988,10 +989,12 @@ function BillingTabContent({
   status,
   message,
   onBuy,
+  onClose,
 }: {
   status: BillingStatus
   message: string | null
   onBuy: () => void
+  onClose: () => void
 }) {
   const busy = status === "creating" || status === "verifying"
   // Truth comes from the key Razorpay itself issues: rzp_test_* vs rzp_live_*.
@@ -1011,10 +1014,11 @@ function BillingTabContent({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
-      <div style={SECTION_HEADER}>Token packs</div>
+      <div style={SECTION_HEADER}>Myro Coin packs</div>
 
       <Link
         href="/tokens"
+        onClick={onClose}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -1030,7 +1034,7 @@ function BillingTabContent({
           textDecoration: "none",
         }}
       >
-        <span>New to tokens? See how they work first.</span>
+        <span>New to Myro Coins? See how they work first.</span>
         <span aria-hidden>→</span>
       </Link>
 
@@ -1051,10 +1055,10 @@ function BillingTabContent({
               Launch price
             </div>
             <div style={{ marginTop: 12, fontSize: 24, fontWeight: 750, color: "var(--tm-text)", lineHeight: 1 }}>
-              {XP_PACK_AMOUNT.toLocaleString()} tokens
+              {XP_PACK_AMOUNT.toLocaleString()} Myro Coins
             </div>
             <div style={{ marginTop: 8, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.5, maxWidth: 360 }}>
-              Use tokens for company follows, match refreshes, and focused practice sessions.
+              Use Myro Coins for company follows, match refreshes, and focused practice sessions.
             </div>
           </div>
 
@@ -1097,7 +1101,7 @@ function BillingTabContent({
           <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Terms</a>
           {" "}and{" "}
           <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>Privacy Policy</a>.
-          Tokens are in-platform credits that fund Myro&rsquo;s operation — they are not payment for any job or hiring outcome.
+          Myro Coins are in-platform credits that fund Myro&rsquo;s operation — they are not payment for any job or hiring outcome.
         </p>
       </div>
 

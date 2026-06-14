@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button"
 import { MobileFeed } from "./mobile-feed"
 import { DesktopGrid, otherRolesFor } from "./desktop-grid"
 import { DetailBody } from "./detail-body"
+import { DashboardJobDrawer } from "./job-drawer"
+import { LocationLine } from "./lenses"
 import { SortMenu } from "./sort-menu"
+import { DetailHeader } from "@/components/jobs/detail-header"
 import { PeekPanel } from "@/components/mission-control/peek-panel"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
@@ -186,13 +189,13 @@ export function Dashboard(props: DashboardProps) {
               cartSkillNames={props.cartSkillNames}
               openId={openId}
               onOpenJob={setOpenId}
-              inlineDetail={!isWide}
               onStatus={props.onStatus}
               onRemove={props.onRemove}
               onSkillToggle={props.onSkillToggle}
             />
           )
-          // Wide workspace (D5): the centre keeps the card list; the open card's
+          // Narrow desktop: the open card lifts into the shared drawer (rendered
+          // below). Wide workspace (D5): the centre keeps the card list; the
           // detail lifts into the peek panel so the feed never loses its place.
           if (!isWide) return grid
           return (
@@ -201,6 +204,16 @@ export function Dashboard(props: DashboardProps) {
               <PeekPanel
                 token={props.token}
                 steps={props.steps ?? []}
+                header={
+                  openItem ? (
+                    <DetailHeader
+                      title={openItem.job.title}
+                      company={openItem.job.company}
+                      location={<LocationLine job={openItem.job} />}
+                      onClose={() => setOpenId(null)}
+                    />
+                  ) : null
+                }
                 detail={
                   openItem ? (
                     <DetailBody
@@ -211,12 +224,9 @@ export function Dashboard(props: DashboardProps) {
                       otherRoles={otherRolesFor(items, openItem)}
                       onSkillToggle={props.onSkillToggle}
                       onJump={(jobId) => setOpenId(jobId)}
-                      showHead
                     />
                   ) : null
                 }
-                detailTitle={openItem ? (openItem.company ?? openItem.role) : null}
-                onCloseDetail={() => setOpenId(null)}
               />
             </div>
           )
@@ -224,18 +234,32 @@ export function Dashboard(props: DashboardProps) {
       ) : (
         <MobileFeed
           items={visible}
-          allItems={items}
           appsByJobId={props.appsByJobId}
           token={props.token}
-          cartSkillNames={props.cartSkillNames}
-          initialJobId={props.initialJobId}
           hasMore={visible.some((r) => r.isMatch)}
+          onOpenJob={setOpenId}
           onStatus={props.onStatus}
           onRemove={props.onRemove}
-          onSkillToggle={props.onSkillToggle}
           onRefresh={openRefreshGate}
         />
       )}
+
+      {/* Shared job-detail drawer — narrow desktop + mobile. Wide uses the peek
+          panel; the drawer only mounts below the wide breakpoint. */}
+      {!isWide && openItem ? (
+        <DashboardJobDrawer
+          item={openItem}
+          allItems={items}
+          token={props.token}
+          cartSkillNames={props.cartSkillNames}
+          liked={openItem.isLiked}
+          onClose={() => setOpenId(null)}
+          onLike={() => (openItem.isLiked ? props.onRemove(openItem.jobId) : props.onStatus(openItem.jobId, "saved"))}
+          onSkip={() => props.onRemove(openItem.jobId)}
+          onSkillToggle={props.onSkillToggle}
+          onJump={(jobId) => setOpenId(jobId)}
+        />
+      ) : null}
 
       {addJob.modal}
     </div>

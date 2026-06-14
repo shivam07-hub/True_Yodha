@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Target, TrendingUp, Building2, Radar, ArrowRight, Check } from "lucide-react"
 import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { DomainRadar } from "@/components/skills/domain-radar"
 import type { LoopStep } from "./loop-ring"
 
 /**
@@ -88,28 +89,35 @@ function MissionsCard({ steps }: { steps: LoopStep[] }) {
   )
 }
 
-/* ── 2 · Skill gaps (live market demand for your skills) ────────── */
+/* ── 2 · Skill map (live domain radar — the /skills artifact, inline) ─── */
 function SkillGapsCard({ token }: { token: string }) {
-  const { data } = useQuery({
+  const { data: demand } = useQuery({
     queryKey: dataKeys.userSkillDemand(),
     queryFn: () => jobsApi.mySkillDemand(token),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   })
-  const gaps = (data?.skills ?? []).filter((s) => s.needs_upgrade).slice(0, 3)
+  const { data: skills } = useQuery({
+    queryKey: dataKeys.userSkills(),
+    queryFn: () => usersApi.mySkills(token),
+    enabled: !!token,
+    staleTime: 10 * 60 * 1000,
+  })
+  const hasRadar = !!skills && Object.keys(skills.by_domain).length > 0
+  const topGap = (demand?.skills ?? []).find((s) => s.needs_upgrade)
   return (
-    <PeekCard icon={<TrendingUp size={15} />} title="Skill gaps" href="/skills" hrefLabel="See your skill map">
-      {gaps.length === 0 ? (
-        <p className="mc-peek-empty">No pressing gaps — your skills track the market. Keep practising to climb.</p>
+    <PeekCard icon={<TrendingUp size={15} />} title="Skill map" href="/forge?view=audit" hrefLabel="Open skill audit">
+      {hasRadar ? (
+        <Link href="/forge?view=audit" className="mc-peek-radar tm-control-focus" aria-label="Open your skill audit">
+          <DomainRadar userSkills={skills} />
+          <span className="mc-peek-radar-cap">
+            {topGap
+              ? <>Biggest gap: <strong>{topGap.display_name}</strong> · L{topGap.current_level}{topGap.target_level != null ? `→${topGap.target_level}` : ""}</>
+              : "Your skills track the market — keep practising to climb."}
+          </span>
+        </Link>
       ) : (
-        <ul className="mc-peek-list">
-          {gaps.map((g) => (
-            <li key={g.skill} className="mc-peek-gap">
-              <span className="lab">{g.display_name}</span>
-              <span className="mc-peek-lvl">L{g.current_level}{g.target_level != null ? `→${g.target_level}` : ""}</span>
-            </li>
-          ))}
-        </ul>
+        <p className="mc-peek-empty">Upload a CV to map your skills across the 12 career domains.</p>
       )}
     </PeekCard>
   )

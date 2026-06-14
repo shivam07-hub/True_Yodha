@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { DetailBody } from "./detail-body"
 import { Monogram, FitRing, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
 import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
 import type { OtherRole } from "./lens-company"
@@ -15,13 +14,11 @@ export interface DesktopGridProps {
   appsByJobId: Record<string, ApplicationStatus>
   token: string
   cartSkillNames: Set<string>
-  /** Controlled open card (lifted to Dashboard so the peek panel can show the
-   *  detail in the wide workspace). null = none open. */
+  /** Controlled open card (lifted to Dashboard). The detail renders in the peek
+   *  panel (wide) or the shared drawer (narrow) — the card never expands inline.
+   *  null = none open. */
   openId: string | null
   onOpenJob: (jobId: string | null) => void
-  /** false = the detail is lifted to the peek panel; the card stays collapsed
-   *  (wide workspace, D5). true = legacy inline expansion. */
-  inlineDetail?: boolean
   onStatus: (jobId: string, s: ApplicationStatus) => void
   onRemove: (jobId: string) => void
   onSkillToggle: (s: SkillGapItem) => void
@@ -51,7 +48,6 @@ function JobCard({
   onOpen,
   onLike,
   onSkip,
-  detail,
 }: {
   it: FeedItem
   open: boolean
@@ -61,7 +57,6 @@ function JobCard({
   onOpen: () => void
   onLike: () => void
   onSkip: () => void
-  detail: React.ReactNode
 }) {
   const fit = it.fit
   const snippet = cardSummary(it.job)
@@ -107,7 +102,6 @@ function JobCard({
           </div>
         ) : null}
       </div>
-      {open ? detail : null}
       <PulseRow pulse={pulse} />
       <CardActions
         jobId={it.jobId}
@@ -120,8 +114,6 @@ function JobCard({
 }
 
 export function DesktopGrid(p: DesktopGridProps) {
-  const inline = p.inlineDetail ?? true
-
   // One batched pulse request for the whole visible set (not one-per-card).
   const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
 
@@ -141,20 +133,6 @@ export function DesktopGrid(p: DesktopGridProps) {
             onOpen={() => p.onOpenJob(open ? null : it.jobId)}
             onLike={() => (it.isLiked ? p.onRemove(it.jobId) : p.onStatus(it.jobId, "saved"))}
             onSkip={() => p.onRemove(it.jobId)}
-            detail={
-              inline ? (
-                <DetailBody
-                  job={it.job}
-                  token={p.token}
-                  active={open}
-                  cartSkillNames={p.cartSkillNames}
-                  otherRoles={otherRolesFor(p.allItems, it)}
-                  onSkillToggle={p.onSkillToggle}
-                  onJump={(jobId) => p.onOpenJob(jobId)}
-                  showHead={false}
-                />
-              ) : null
-            }
           />
         )
       })}

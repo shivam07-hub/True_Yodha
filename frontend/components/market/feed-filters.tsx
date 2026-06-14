@@ -67,8 +67,9 @@ function SortToggle({
 // ── removable hard-filter chips (live in the summary line) ────────────────────
 
 export function FilterChips({ filters, onChange }: { filters: FeedFilters; onChange: (f: FeedFilters) => void }) {
+  // Role lives in <RoleSwitcher> (the always-visible target-role row); this only
+  // carries the remaining removable hard filters.
   const chips: { key: string; label: string; clear: () => void }[] = []
-  if (filters.roleDomain) chips.push({ key: "role", label: filters.roleDomain, clear: () => onChange({ ...filters, roleDomain: null }) })
   if (filters.minSkillMatches > 0) chips.push({ key: "skill", label: `≥ ${filters.minSkillMatches} skills`, clear: () => onChange({ ...filters, minSkillMatches: 0 }) })
   if (filters.followingOnly) chips.push({ key: "follow", label: "Following", clear: () => onChange({ ...filters, followingOnly: false }) })
   if (chips.length === 0) return null
@@ -79,6 +80,43 @@ export function FilterChips({ filters, onChange }: { filters: FeedFilters; onCha
           {c.label} <span aria-hidden>✕</span>
         </button>
       ))}
+    </>
+  )
+}
+
+/**
+ * Target-role switcher (summary line). Every role the user saved in Settings
+ * renders as a chip: the active one is accent-filled with a clear ✕; the rest
+ * are one tap away from loading that role's feed. Hidden when no roles are set.
+ */
+export function RoleSwitcher({
+  targetRoles, chipCountMap, selected, onSelect,
+}: {
+  targetRoles: string[]
+  chipCountMap: Record<string, number>
+  selected: string | null
+  onSelect: (role: string | null) => void
+}) {
+  if (targetRoles.length === 0) return null
+  return (
+    <>
+      {targetRoles.map(role => {
+        const active = selected === role
+        const count = chipCountMap[role]
+        const suffix = count != null ? ` · ${count}` : ""
+        return (
+          <button
+            key={role}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onSelect(active ? null : role)}
+            className={active ? "tm-feed-activechip" : "tm-feed-rolechip"}
+            aria-label={active ? `Showing ${role} — tap to show all roles` : `Show ${role} roles`}
+          >
+            {role}{suffix}{active ? <span aria-hidden>✕</span> : null}
+          </button>
+        )
+      })}
     </>
   )
 }

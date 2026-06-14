@@ -3,18 +3,18 @@ import Link from "next/link"
 import { XpFairnessNote, XpGuideLists } from "@/components/xp/xp-guide-content"
 
 export const metadata: Metadata = {
-  title: "How Tokens Work | Myro",
-  description: "Learn how Myro tokens are earned, where they are spent, and the fairness rules behind token-gated work.",
+  title: "How Myro Coins Work | Myro",
+  description: "Learn how Myro Coins are earned, where they are spent, and the fairness rules behind coin-gated work.",
 }
 
 const quickActions = [
-  { href: "/forge", label: "Practice a skill", detail: "Tokens accrue quietly while Practice runs in the background." },
+  { href: "/forge", label: "Practice a skill", detail: "Myro Coins accrue quietly while Practice runs in the background." },
   { href: "/cv", label: "Build your CV", detail: "Keep your baseline evidence current." },
-  { href: "/market", label: "Use Live Job Data", detail: "Spend tokens only when heavier analysis completes." },
+  { href: "/market", label: "Use Live Job Data", detail: "Spend Myro Coins only when heavier analysis completes." },
 ]
 
 const principles = [
-  "Tokens should support useful career work, not empty clicks.",
+  "Myro Coins should support useful career work, not empty clicks.",
   "One-time profile rewards are paid once so the system stays fair.",
   "Spending should happen after Myro produces value, not before.",
 ]
@@ -34,7 +34,7 @@ export default function TokensPage() {
               marginBottom: 6,
             }}
           >
-            TOKEN GUIDE
+MYRO COIN GUIDE
           </div>
           <h1
             style={{
@@ -46,10 +46,10 @@ export default function TokensPage() {
               lineHeight: 1.15,
             }}
           >
-            How tokens work
+            How Myro Coins work
           </h1>
           <p style={{ margin: "10px 0 0", maxWidth: 650, fontSize: 15, lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
-            Tokens keep expensive career intelligence fair. Earn them by improving your profile, practicing skills,
+            Myro Coins keep expensive career intelligence fair. Earn them by improving your profile, practicing skills,
             and writing diary evidence.
           </p>
         </header>
@@ -61,7 +61,7 @@ export default function TokensPage() {
             gap: 12,
             marginBottom: 24,
           }}
-          aria-label="Token principles"
+          aria-label="Myro Coin principles"
         >
           {principles.map((principle, index) => (
             <div
@@ -104,7 +104,7 @@ export default function TokensPage() {
             borderRadius: "var(--tm-radius-lg)",
             padding: "18px 20px",
           }}
-          aria-label="Start earning tokens"
+          aria-label="Start earning Myro Coins"
         >
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--tm-text)" }}>Start from here</h2>

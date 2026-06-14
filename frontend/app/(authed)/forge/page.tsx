@@ -10,7 +10,6 @@ import { ForgeSkeleton } from "@/components/loading/page-skeletons"
 import { ViewTriadToggle } from "@/components/ui/view-triad-toggle"
 import type { TriadView } from "@/lib/views/triad"
 import { SkillIntelHeader } from "@/components/skills/skill-intel-header"
-import { SkillMapTab } from "@/components/skills/skill-map-tab"
 import { SkillAuditView } from "@/components/skills/skill-audit-view"
 import { UpskillingView } from "@/components/skills/upskilling/upskilling-view"
 import { jobs, scores, users } from "@/lib/api"
@@ -29,17 +28,16 @@ function ForgePageInner() {
   const searchParams = useSearchParams()
 
   const skillParam = searchParams.get("skill")
-  const domainParam = searchParams.get("domain")
   const viewParam = searchParams.get("view")
   const gapParam = searchParams.get("gap")
 
   // Intel (the Upskilling ladder) leads — the page's primary job. URL is the
-  // source of truth: ?view / ?domain / ?skill / ?gap override. No localStorage sticky.
+  // source of truth: ?view / ?skill / ?gap override. No localStorage sticky.
+  // The Map (domain radar) moved to the home rail — only Skills + Audit remain.
   const view: TriadView =
     skillParam || gapParam ? "intel"
-      : domainParam ? "map"
-        : viewParam === "map" || viewParam === "audit" ? viewParam
-          : "intel"
+      : viewParam === "audit" ? "audit"
+        : "intel"
 
   const setView = useCallback((next: TriadView) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -107,14 +105,11 @@ function ForgePageInner() {
   const allSkills = useMemo(() => Object.values(skills.by_domain).flat(), [skills])
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
 
-  // Map/Audit "Practice this" routes to the Upskilling ladder (Intel view).
-  const goToLadder = useCallback(() => { if (view !== "intel") setView("intel") }, [view, setView])
-
   if (!ready || scoreLoading) return <ForgeSkeleton />
 
   return (
     <>
-      {/* Practice absorbed Skills (Map/Audit tabs) — gate with the skills
+      {/* Practice absorbed Skills (Audit tab; the Map radar lives in the home rail) — gate with the skills
           surface so no-CV users get the domain teaser, not the generic invite. */}
       <RequiresCV surface="skills">
         <div className="tm-page-enter tm-pr-page">
@@ -128,6 +123,7 @@ function ForgePageInner() {
             page="skills"
             value={view}
             onChange={setView}
+            views={["intel", "audit"]}
             ariaLabel="Skill view"
           />
 
@@ -139,10 +135,6 @@ function ForgePageInner() {
               gapJobId={gapParam}
               onClearGap={clearGap}
             />
-          )}
-
-          {view === "map" && (
-            <SkillMapTab userSkills={skills} initialDomain={domainParam} onPractice={goToLadder} />
           )}
 
           {view === "audit" && (
