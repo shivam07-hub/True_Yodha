@@ -114,7 +114,7 @@ export function XpGuideLists({ compact = false }: { compact?: boolean }) {
             marginBottom: 6,
           }}
         >
-          Earn tokens
+          Earn Myro Coins
         </div>
         {liveEarnActions.map((item, index) => (
           <XpActionRow
@@ -136,7 +136,7 @@ export function XpGuideLists({ compact = false }: { compact?: boolean }) {
             marginBottom: 6,
           }}
         >
-          Spend tokens
+          Spend Myro Coins
         </div>
         {XP_SPEND_ACTIONS.map((item, index) => (
           <XpActionRow key={item.title} item={item} icon={spendIcons[index] ?? Target} compact={compact} />
@@ -159,8 +159,8 @@ export function XpFairnessNote({ compact = false }: { compact?: boolean }) {
         lineHeight: 1.5,
       }}
     >
-      Fairness rule: Myro should only spend tokens when the action completes. Skill advice is charged after advice exists,
-      and match refresh spends {XP_POLICY.matchRefreshCost} tokens only when it writes new matches.
+      Fairness rule: Myro should only spend Myro Coins when the action completes. Skill advice is charged after advice exists,
+      and match refresh spends {XP_POLICY.matchRefreshCost} Myro Coins only when it writes new matches.
     </div>
   )
 }

@@ -58,10 +58,10 @@ export function XpExplainerModal({
           </div>
           <div className="tm-xp-explainer-header-title" style={{ minWidth: 0, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--tm-text)" }}>
-              How Tokens Work
+              How Myro Coins Work
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--tm-text-faint)", lineHeight: 1.45 }}>
-              Earn tokens by doing career work. Spend them on heavier analysis.
+              Earn Myro Coins by doing career work. Spend them on heavier analysis.
             </p>
           </div>
           <div className="tm-xp-explainer-header-balance" style={{
@@ -75,12 +75,12 @@ export function XpExplainerModal({
             color: "var(--tm-text)",
             whiteSpace: "nowrap",
           }}>
-            {balance} tokens
+            {balance} Myro Coins
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close tokens guide"
+            aria-label="Close Myro Coins guide"
             style={{
               width: 32,
               height: 32,

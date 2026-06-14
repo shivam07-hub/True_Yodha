@@ -83,6 +83,15 @@
 }
 .tm-feed-activechip:hover { filter: brightness(1.08); }
 
+/* Inactive target-role chip — one tap loads that role's feed (active one uses
+   .tm-feed-activechip = accent: orange in light, teal in dark). */
+.tm-feed-rolechip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: var(--tm-text-muted);
+  background: transparent; border: 1px solid var(--tm-border-soft); font-family: inherit; transition: all 120ms ease;
+}
+.tm-feed-rolechip:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
+
 /* ── filters sheet ───────────────────────────────────────────────────────── */
 .tm-filters-sheet {
   position: fixed; z-index: 71; background: var(--tm-bg, var(--tm-surface));

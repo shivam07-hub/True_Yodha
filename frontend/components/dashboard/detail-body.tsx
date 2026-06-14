@@ -10,10 +10,9 @@ import {
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
-import { LensWhy, LocationLine, jdSnippet, stripTaxonomySuffix } from "./lenses"
+import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
-import { FitRing, ChipRow, cardChips } from "./card-atoms"
 import type { OtherRole } from "./lens-company"
 
 /** Skills + "Why you fit" fetch only when the detail is open (expand-gated XP). */
@@ -71,8 +70,6 @@ export interface DetailBodyProps {
   otherRoles: OtherRole[]
   onSkillToggle: (s: SkillGapItem) => void
   onJump?: (jobId: string) => void
-  /** Head (fit ring + role + meta) — shown on mobile/standalone, hidden inline. */
-  showHead?: boolean
 }
 
 export function DetailBody(p: DetailBodyProps) {
@@ -81,30 +78,10 @@ export function DetailBody(p: DetailBodyProps) {
 
   const matched = skills.filter((s) => (s.user_level ?? 0) > 0).slice(0, 6)
   const build = skills.filter((s) => (s.user_level ?? 0) === 0).slice(0, 6)
-  const fit = Math.max(0, Math.min(100, Math.round(p.job.overlap_score)))
   const company = p.job.company
 
   return (
     <div className="db-detail">
-      {p.showHead ? (
-        <div className="db-dsec db-dsec--head">
-          <div className="db-detail-head">
-            <div className="db-detail-fit">
-              <FitRing fit={fit} size={64} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <h2 className="db-detail-role">{p.job.title}</h2>
-              <div className="db-detail-sub">
-                <strong>{company ?? "—"}</strong>
-                <span className="db-card-dot">·</span>
-                <LocationLine job={p.job} />
-              </div>
-            </div>
-          </div>
-          <ChipRow chips={cardChips(p.job)} className="db-card-chips" />
-        </div>
-      ) : null}
-
       {/* WHY YOU FIT — keeps the existing XP-gated streaming model. */}
       <div className="db-dsec">
         <LensWhy

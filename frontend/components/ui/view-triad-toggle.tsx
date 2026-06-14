@@ -21,6 +21,10 @@ interface ToggleProps {
   ariaLabel?: string
   /** Pulse a live dot on this view's segment (e.g. a running Practice session). */
   live?: TriadView
+  /** Subset + order of views to render. Defaults to the full canonical triad.
+   *  A page passes a subset when one view lives elsewhere (e.g. Skills moved its
+   *  Map radar to the home rail → renders only Skills + Audit). */
+  views?: TriadView[]
 }
 
 /**
@@ -28,7 +32,7 @@ interface ToggleProps {
  * per-page via triadLabel() (ADR-0019) — same semantic, surface-true wording.
  * Re-used wherever a page exposes the triad.
  */
-export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLabel, live }: ToggleProps) {
+export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLabel, live, views = TRIAD_ORDER }: ToggleProps) {
   return (
     <div
       role="group"
@@ -43,7 +47,7 @@ export function ViewTriadToggle({ page, value, onChange, compact = false, ariaLa
         gap: 2,
       }}
     >
-      {TRIAD_ORDER.map((v) => {
+      {views.map((v) => {
         const semantics = TRIAD[v]
         const label = triadLabel(page, v)
         const active = value === v

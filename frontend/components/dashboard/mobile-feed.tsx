@@ -1,27 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { createPortal } from "react-dom"
-import { ChevronLeft, Heart, X } from "lucide-react"
-import { DetailBody } from "./detail-body"
 import { Monogram, ChipRow, CardActions, cardChips, PulseRow, cardConfidenceClass } from "./card-atoms"
 import { LocationLine, JobMetaChips, cardSummary } from "./lenses"
-import type { OtherRole } from "./lens-company"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { fitTier, type FeedItem } from "@/lib/dashboard/feed-model"
-import type { ApplicationStatus, JobPulse, SkillGapItem } from "@/lib/api"
+import type { ApplicationStatus, JobPulse } from "@/lib/api"
 
 export interface MobileFeedProps {
   items: FeedItem[]
-  allItems: FeedItem[]
   appsByJobId: Record<string, ApplicationStatus>
   token: string
-  cartSkillNames: Set<string>
-  initialJobId?: string | null
   hasMore: boolean
+  /** The open job is lifted to Dashboard so narrow-desktop + mobile share one
+   *  drawer (the card list never owns the detail). */
+  onOpenJob: (jobId: string) => void
   onStatus: (jobId: string, s: ApplicationStatus) => void
   onRemove: (jobId: string) => void
-  onSkillToggle: (s: SkillGapItem) => void
   onRefresh: () => void
 }
 
@@ -31,13 +26,6 @@ const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStat
   "interviewing",
   "final_round",
 ])
-
-function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
-  if (!it.company) return []
-  return allItems
-    .filter((o) => o.jobId !== it.jobId && o.company === it.company)
-    .map((o) => ({ jobId: o.jobId, role: o.role, fit: o.fit }))
-}
 
 /* ── Edge-to-edge feed card ─────────────────────────────────────── */
 function MobileCard({
@@ -102,98 +90,9 @@ function MobileCard({
   )
 }
 
-/* ── Full-screen detail push ────────────────────────────────────── */
-function MobileDetail({
-  it,
-  liked,
-  allItems,
-  token,
-  cartSkillNames,
-  onBack,
-  onLike,
-  onSkip,
-  onSkillToggle,
-  onJump,
-}: {
-  it: FeedItem
-  liked: boolean
-  allItems: FeedItem[]
-  token: string
-  cartSkillNames: Set<string>
-  onBack: () => void
-  onLike: () => void
-  onSkip: () => void
-  onSkillToggle: (s: SkillGapItem) => void
-  onJump: (jobId: string) => void
-}) {
-  // Portal to <body>: the authed shell's .tm-page-enter scroll container has a
-  // transform, which makes it the containing block for position:fixed. Without
-  // portaling, .db-mdetail's inset:0 anchors to that scroll box (not the
-  // viewport), so its top bar + action bar scroll off-screen and it sits under
-  // the z-30 nav. Escaping to <body> makes it truly full-screen above the nav.
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => { setMounted(true) }, [])
-  if (!mounted) return null
-  return createPortal(
-    <div className="db-mdetail" role="dialog" aria-label={`${it.role} details`}>
-      <div className="db-mdetail-top">
-        <button type="button" className="db-icon-btn" aria-label="Back" onClick={onBack}>
-          <ChevronLeft size={16} aria-hidden />
-        </button>
-        <span className="ttl">{it.company ?? it.role}</span>
-      </div>
-      <div className="db-mdetail-scroll">
-        <DetailBody
-          job={it.job}
-          token={token}
-          active
-          cartSkillNames={cartSkillNames}
-          otherRoles={otherRolesFor(allItems, it)}
-          onSkillToggle={onSkillToggle}
-          onJump={onJump}
-          showHead
-        />
-      </div>
-      <div className="db-mdetail-bar">
-        <button
-          type="button"
-          className={`db-icon-btn${liked ? " liked" : ""}`}
-          aria-label={liked ? "Unlike" : "Like"}
-          onClick={onLike}
-        >
-          <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className="db-icon-btn"
-          aria-label="Skip"
-          onClick={() => {
-            onSkip()
-            onBack()
-          }}
-        >
-          <X size={18} aria-hidden />
-        </button>
-        <a className="db-btn db-btn-primary" href={`/cv?jobId=${it.jobId}`}>
-          Tailor CV
-        </a>
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
 export function MobileFeed(p: MobileFeedProps) {
-  const [detailId, setDetailId] = React.useState<string | null>(p.initialJobId ?? null)
-  const detailItem = p.items.find((it) => it.jobId === detailId) ?? null
-
   // One batched pulse request for the whole visible set (not one-per-card).
   const pulses = usePulses(p.token, p.items.map((it) => it.jobId))
-
-  // Close the push if the open job left the visible set.
-  React.useEffect(() => {
-    if (detailId && !p.items.some((it) => it.jobId === detailId)) setDetailId(null)
-  }, [p.items, detailId])
 
   const onLike = (it: FeedItem) => (it.isLiked ? p.onRemove(it.jobId) : p.onStatus(it.jobId, "saved"))
 
@@ -210,7 +109,7 @@ export function MobileFeed(p: MobileFeedProps) {
           liked={it.isLiked}
           applied={APPLIED_STATUSES.has(p.appsByJobId[it.jobId] ?? "saved")}
           pulse={pulses.get(it.jobId)}
-          onOpen={() => setDetailId(it.jobId)}
+          onOpen={() => p.onOpenJob(it.jobId)}
           onLike={() => onLike(it)}
           onSkip={() => p.onRemove(it.jobId)}
         />
@@ -226,21 +125,6 @@ export function MobileFeed(p: MobileFeedProps) {
           refresh after the next batch
         </button>
       </div>
-
-      {detailItem ? (
-        <MobileDetail
-          it={detailItem}
-          liked={detailItem.isLiked}
-          allItems={p.allItems}
-          token={p.token}
-          cartSkillNames={p.cartSkillNames}
-          onBack={() => setDetailId(null)}
-          onLike={() => onLike(detailItem)}
-          onSkip={() => p.onRemove(detailItem.jobId)}
-          onSkillToggle={p.onSkillToggle}
-          onJump={(jobId) => setDetailId(jobId)}
-        />
-      ) : null}
     </div>
   )
 }

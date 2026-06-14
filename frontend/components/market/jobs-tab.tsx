@@ -8,7 +8,7 @@ import { PERSONAL_REASONS, sendPersonalFeedback } from "@/lib/jobs/feedback"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
-import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
+import { FeedControls, FilterChips, FiltersSheet, RoleSwitcher } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
@@ -122,6 +122,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             <div className="tm-feed-summary">
               <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
               <LocationScopePill locations={targetLocations} />
+              <RoleSwitcher
+                targetRoles={targetRoles}
+                chipCountMap={chipCountMap}
+                selected={filters.roleDomain}
+                onSelect={role => onChangeFilters({ ...filters, roleDomain: role })}
+              />
               <FilterChips filters={filters} onChange={onChangeFilters} />
               <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
             </div>

@@ -486,6 +486,16 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-14 · Job-detail unification — live + dashboard, one product)
+
+`/grill-me` (5 decisions) → built same session. Fixed the **broken dashboard mobile job-detail** (screenshots: transparent overlap + double title) and unified it with the clean live drawer. **All frontend, UNCOMMITTED** (nested `frontend/.git`). tsc 0 · lint clean · `npm run build` ✓.
+
+**Root bug:** mobile detail portals to `document.body`, but every `--db-*` token is scoped to `.db` → outside `.db` the bg paints transparent + the title rendered twice (shell `ttl` + DetailBody `showHead`). Live drawer worked because it uses global `--tm-*`.
+
+**Locked + built:** (1) **Shared shell, different body** — new `<DetailDrawer>` ([components/jobs/detail-drawer.tsx](frontend/components/jobs/detail-drawer.tsx)) used by live + dashboard (narrow/mobile); bodies stay distinct (live=Apply/discover, dashboard=Tailor-CV/build). (2) **Wide desktop ≥1180px keeps the inline peek-panel** (D5); drawer = narrow desktop + mobile + all of live. (3) **One canonical `<DetailHeader>`** (title→company→location→×) shared by drawer + peek → kills the double-title structurally (deleted `DetailBody.showHead`). (4) **Stage-specific + cross-links** — live gains "Save & tailor later →", dashboard gains "Apply ↗" (`source_url`). (5) **Shared dead-link prompt** hook ([use-dead-link-prompt.tsx](frontend/components/jobs/use-dead-link-prompt.tsx)) fires on both Apply paths; confidence band + Report-a-problem stay live-only. Token-scope fix: `scopeClassName="db"` on the portal root. Bridge confirmed real (live Save → `saveJob` → dashboard Liked → Tailor CV; no data change). New: `detail-header.tsx`, `dashboard/job-drawer.tsx`. Edited: live drawer, detail-body, desktop-grid (removed dead inline expansion), mobile-feed (openId lifted to Dashboard), dashboard.tsx, peek-panel, dashboard.css.
+
+**Owed (Shivam):** visual QA both surfaces light+dark, desktop+375px (slide, header parity, cross-links, dead-link round-trip); commit frontend. Extends backlog #29. Memory: `project_job_detail_unification`.
+
 ## LAST SESSION SUMMARY (2026-06-13 · Upskilling production hardening)
 
 Fixed the production `/forge` ladder path after the question bank was loaded:

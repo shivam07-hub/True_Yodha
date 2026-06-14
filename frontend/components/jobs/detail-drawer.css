@@ -1,0 +1,47 @@
+/* ─────────────────────────────────────────────────────────────
+   Shared job-detail drawer (live + dashboard). Right slide-in over
+   a scrim; full-bleed below 520px. Chrome uses canonical `--tm-*`
+   so it paints correctly through the <body> portal, outside scope.
+   ───────────────────────────────────────────────────────────── */
+
+.jdrawer-root { position: fixed; inset: 0; z-index: 70; }
+
+.jdrawer-scrim {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  animation: tmScrimIn 200ms ease both;
+}
+
+.jdrawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(520px, 100vw);
+  display: flex; flex-direction: column;
+  background: var(--tm-bg, var(--tm-surface));
+  border-left: 1px solid var(--tm-border-soft);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+  animation: tmDrawerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.jdrawer-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: calc(20px + env(safe-area-inset-top)) 24px 18px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.jdrawer-head-main { min-width: 0; }
+.jdrawer-title { margin: 0; font-size: 19px; font-weight: 600; line-height: 1.25; color: var(--tm-text); }
+.jdrawer-company { margin-top: 4px; font-size: 14px; color: var(--tm-interactive); }
+.jdrawer-loc { margin-top: 8px; }
+.jdrawer-close {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--tm-border-soft); background: transparent;
+  color: var(--tm-text-muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.jdrawer-close:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+
+.jdrawer-scroll { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.jdrawer-footer { border-top: 1px solid var(--tm-border-soft); background: var(--tm-bg, var(--tm-surface)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jdrawer, .jdrawer-scrim { animation: none; }
+}

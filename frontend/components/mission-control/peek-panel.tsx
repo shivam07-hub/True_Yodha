@@ -1,7 +1,6 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { ChevronLeft } from "lucide-react"
 import { PeekSurfaces } from "./peek-surfaces"
 import type { LoopStep } from "./loop-ring"
 
@@ -16,25 +15,20 @@ export function PeekPanel({
   token,
   steps,
   detail,
-  detailTitle,
-  onCloseDetail,
+  header,
 }: {
   token: string
   steps: LoopStep[]
   detail?: ReactNode | null
-  detailTitle?: string | null
-  onCloseDetail?: () => void
+  /** The canonical DetailHeader (title → company → location → close), shared
+   *  with the drawer so the open job reads identically on every surface. */
+  header?: ReactNode | null
 }) {
   return (
     <aside className="mc-peek" aria-label="Context panel">
       {detail ? (
         <div className="mc-peek-detail">
-          <div className="mc-peek-detail-top">
-            <button type="button" className="mc-peek-back tm-control-focus" onClick={onCloseDetail} aria-label="Close detail">
-              <ChevronLeft size={15} aria-hidden /> Back
-            </button>
-            {detailTitle ? <span className="mc-peek-detail-ttl">{detailTitle}</span> : null}
-          </div>
+          {header}
           <div className="mc-peek-detail-scroll">{detail}</div>
         </div>
       ) : (

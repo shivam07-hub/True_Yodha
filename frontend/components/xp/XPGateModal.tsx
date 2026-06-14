@@ -56,13 +56,13 @@ export function XPGateModal() {
       aria-labelledby="xp-gate-title"
     >
       <div className="tm-xp-gate-modal" onClick={(e) => e.stopPropagation()}>
-        <h2 id="xp-gate-title" className="tm-xp-gate-title">Not enough tokens.</h2>
+        <h2 id="xp-gate-title" className="tm-xp-gate-title">Not enough Myro Coins.</h2>
         <p className="tm-xp-gate-body">
           You need {cost}. You have {balance}.
         </p>
         <div className="tm-xp-gate-actions">
           <Link href="/tokens" className="tm-xp-gate-primary" onClick={handleGuide}>
-            See how tokens work →
+            See how Myro Coins work →
           </Link>
           <button type="button" className="tm-xp-gate-secondary" onClick={handleDismiss}>
             Cancel
