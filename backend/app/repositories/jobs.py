@@ -670,8 +670,11 @@ class JobsRepository:
 
     def _jobs_source_marker(self) -> dict[str, Any]:
         """Cheap change-detection signal for the jobs table: row count + newest
-        last_seen. Two index-backed queries (no full scan, no compile) — the
-        dirty-guard the daily cron runs before deciding whether to recompile.
+        last_seen batch marker. Two index-backed queries (no full scan, no
+        compile) — the dirty-guard the daily cron runs before deciding whether
+        to recompile. ``last_seen`` is an integer YYYYMMDD batch marker; the
+        not-null filter is required because ``ORDER BY ... DESC`` is NULLS FIRST
+        in Postgres, which would otherwise surface a null row over the real max.
         """
         count_result = (
             self._admin_db.table("jobs").select("job_id", count="exact").limit(1).execute()
@@ -679,6 +682,7 @@ class JobsRepository:
         last_seen_result = (
             self._admin_db.table("jobs")
             .select("last_seen")
+            .not_.is_("last_seen", "null")
             .order("last_seen", desc=True)
             .limit(1)
             .execute()
