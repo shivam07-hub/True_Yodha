@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { Globe, Sparkles, Network, Target, FileText, type LucideIcon } from "lucide-react"
 
 interface Stage {
@@ -126,7 +127,14 @@ export function LandingEngine({
 
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <span className="lp-eyebrow">The Engine</span>
+          <Image
+            src="/brand/myro-mark.png"
+            alt="Myro"
+            width={40}
+            height={40}
+            className="lp-eyebrow-logo"
+            priority
+          />
           <h2 className="lp-section-title">One pipeline runs everything on Myro.</h2>
           <p className="lp-section-sub">
             The Myro Engine reads the market continuously. Every product on this page is a

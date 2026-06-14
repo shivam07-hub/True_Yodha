@@ -9,6 +9,14 @@ export default function robots(): MetadataRoute.Robots {
           "/",
           "/intel",
           "/newsletter",
+          "/institutions",
+          "/docs",
+          // Public marketing surface. `/myrology` MUST be listed explicitly:
+          // the `Disallow: /myro` rule below is a prefix match that would
+          // otherwise also block `/myrology`. A longer, more-specific Allow
+          // wins under Google's longest-match precedence, so this frees the
+          // public page while the authed `/myro` welcome route stays blocked.
+          "/myrology",
           "/privacy",
           "/terms",
           "/newsletter/rss.xml",

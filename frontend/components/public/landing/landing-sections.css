@@ -4,11 +4,11 @@
    ───────────────────────────────────────────────────────────── */
 
 /* ── S3 — SURFACES ──────────────────────────────────────────── */
-.lp-surfaces { padding: 96px 0 110px; border-top: 1px solid var(--lp-border); }
+.lp-surfaces { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
 
 .lp-surface-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
 
@@ -83,12 +83,23 @@ a.lp-surface-card:focus-visible {
 a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transform: translateX(3px); }
 
 /* Myrology — quieter sub-brand card */
+/* Quiet sub-brand strip: spans the full row beneath the three primary
+   surfaces and lays out horizontally so it reads as a calm footer line, not a
+   tall half-empty 4th tile. */
 .lp-surface-card.myrology {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
   background: transparent;
   border: 1px solid var(--lp-border);
-  padding: 26px 30px 22px;
+  padding: 20px 30px;
 }
-.lp-surface-card.myrology:hover { border-color: var(--lp-border-strong); box-shadow: none; transform: translateY(-2px); }
+.lp-surface-card.myrology:hover { border-color: var(--lp-border-strong); box-shadow: none; transform: none; }
+.lp-surface-card.myrology .lp-surface-top { margin-bottom: 0; flex-shrink: 0; }
+.lp-surface-card.myrology .lp-surface-body { flex: 1 1 360px; margin: 0; }
+.lp-surface-card.myrology .lp-myrology-link { flex-shrink: 0; margin: 0; }
 
 .lp-surface-card.myrology .lp-surface-title {
   font-family: var(--lp-font);
@@ -117,7 +128,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 .lp-surface-card.myrology:hover .lp-myrology-link { color: var(--lp-text); }
 
 /* ── PROOF ──────────────────────────────────────────────────── */
-.lp-proof { padding: 96px 0 100px; border-top: 1px solid var(--lp-border); }
+.lp-proof { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); background: var(--lp-proof-panel); }
 
 .lp-intel-card {
   border-radius: 12px;
@@ -286,7 +297,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 .lp-news-err { font-family: var(--lp-mono); font-size: 12px; color: var(--lp-warning); }
 
 /* ── S6 — FAQ + closing CTA ─────────────────────────────────── */
-.lp-faq { padding: 96px 0 110px; border-top: 1px solid var(--lp-border); }
+.lp-faq { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
 
 .lp-faq .lp-section-head { margin-bottom: 40px; }
 
@@ -464,7 +475,6 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 }
 
 @media (max-width: 640px) {
-  .lp-surfaces, .lp-proof, .lp-faq { padding-top: 72px; padding-bottom: 72px; }
   .lp-surface-title { white-space: normal; }
   .lp-intel-row { grid-template-columns: 1.2fr 0.8fr; }
   .lp-intel-row .lp-intel-skill { display: none; }

@@ -433,24 +433,34 @@ def global_search_jobs(
 @router.post("/analytics/refresh-snapshot", response_model=AnalyticsSnapshotRefreshResponse)
 def refresh_analytics_snapshot(
     x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
+    force: bool = False,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> AnalyticsSnapshotRefreshResponse:
-    """Recompile + persist the unfiltered analytics payload.
+    """Refresh the landing-page analytics snapshot.
 
-    Called by the scraper finalisation hook (sister repo) post-batch.
+    Two callers, two cadences:
+      • Daily pg_cron (default, ``force=false``) — runs the cheap dirty-guard
+        first and only recompiles when the jobs table changed since last refresh,
+        so idle days cost two index-backed marker queries, not a full scan.
+      • Scraper finalisation hook (``force=true``) — unconditional recompile
+        right after a batch lands, for immediate freshness.
+
     Auth: shared secret via the X-Myro-Refresh-Secret header
     (env: MYRO_ANALYTICS_REFRESH_SECRET). Header, not query param, so the
     secret does not leak into HTTP access / reverse-proxy logs.
-    Returns the new totals so the caller can log success.
+    Returns the totals; ``refreshed=false`` means the guard skipped the compile.
     """
     import os
     import secrets as _secrets
     expected = os.environ.get("MYRO_ANALYTICS_REFRESH_SECRET", "").strip()
     if not expected or not _secrets.compare_digest(x_myro_refresh_secret, expected):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid refresh secret")
-    summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
+    if force:
+        summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
+        return AnalyticsSnapshotRefreshResponse(refreshed=True, **summary)
+    summary = repo.refresh_analytics_snapshot_if_stale(refreshed_by="cron")
     return AnalyticsSnapshotRefreshResponse(
-        refreshed=True,
+        refreshed=summary["refreshed"],
         total_jobs=summary["total_jobs"],
         total_companies=summary["total_companies"],
     )

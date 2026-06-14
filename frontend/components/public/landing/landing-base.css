@@ -43,8 +43,18 @@
   --lp-fs-body:    16px;
   --lp-fs-meta:    13px;
 
-  --lp-content-max: 1180px;
+  --lp-content-max: 1240px;
   --lp-page-px:     32px;
+  /* One vertical rhythm token for every section band (density pass). Prose
+     blocks stay capped by .lp-section-head (720px) so widening the wrap fills
+     cards/grids without over-stretching paragraphs. */
+  --lp-section-py:  clamp(56px, 7vw, 88px);
+  /* B5 — Proof reads as an inset panel so its air becomes structure, not page.
+     Direction differs per theme by design: DARK = subtle raise between page
+     (#0a0a0c) and card (#13141a) so the intel card / news strip still lift;
+     LIGHT overrides to recessed surface-2 (#F3F3F1) so the white cards pop.
+     Both keep cards = --lp-surface lifting above the panel. */
+  --lp-proof-panel: #0e0f14;
 
   --lp-ease:     cubic-bezier(0.16, 1, 0.3, 1);
   --lp-dur:      200ms;
@@ -93,6 +103,8 @@
   color: var(--lp-accent-text);
 }
 
+.lp-eyebrow-logo { margin-bottom: 4px; }
+
 .lp-section-head { max-width: 720px; margin-bottom: 56px; }
 
 .lp-section-head.center { text-align: center; margin-left: auto; margin-right: auto; }
@@ -136,6 +148,8 @@
    Dark keeps the .tm-landing default → engine override; only light is corrected. */
 :root[data-surface="light"] .tm-landing {
   --lp-grid-line: rgba(38, 38, 38, 0.035);
+  /* recessed warm panel — white cards (#FFFFFF) lift above it */
+  --lp-proof-panel: var(--lp-surface-2);
 }
 
 /* faint 44px measurement grid — S1 + S2 only */
