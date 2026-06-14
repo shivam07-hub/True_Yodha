@@ -72,6 +72,7 @@ frontend/.claude/
 .agents/
 .continue/
 .superpowers/
+.worktrees/
 skills-lock.json
 
 # Reference / design assets — not source code
