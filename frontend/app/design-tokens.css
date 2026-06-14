@@ -53,6 +53,13 @@
   --tm-text-faint:    #646e8c;
   --tm-text-disabled: #555555;
   --tm-accent-text:   #00f5d4;
+
+  /* ── Reading surface (long-form prose) ──────────────────────
+     Dark: lift the read onto a warm sheet so it stops being a pure-black
+     void (halation). Ink is a hair softer than --tm-text to calm shimmer
+     of serif body on the dark sheet. Light override mirrors below. */
+  --tm-reading-surface: #101117;
+  --tm-reading-ink:     #e3e5ec;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -105,6 +112,11 @@
   --tm-font-sans:     var(--font-grotesk), var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+  /* Editorial serif — long-form READING only (newsletter prose/headline). The
+     reading primitives below are deliberately reusable so the planned
+     site-wide readability pass can adopt them without redefining. */
+  --tm-font-reading:  var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --tm-reading-measure: 68ch;       /* optimal line length for body prose */
 
   --tm-fs-hero:       3.5rem;     /* 56px */
   --tm-fs-display:    2.5rem;     /* 40px */
@@ -314,6 +326,10 @@
   --tm-text-faint:    #9D9D9D;
   --tm-text-disabled: #B4B4B4;
   --tm-accent-text:   #DE4200;
+
+  /* Reading: white sheet on warm paper (Substack/Medium read), warm ink. */
+  --tm-reading-surface: #FFFFFF;
+  --tm-reading-ink:     #1F1F1F;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;

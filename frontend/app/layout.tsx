@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, Space_Grotesk } from "next/font/google"
+import { Inter, Space_Grotesk, Newsreader } from "next/font/google"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
@@ -19,6 +19,18 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   weight: ["400", "500", "600", "700", "800"],
+})
+
+// Editorial serif reserved for long-form READING surfaces only (newsletter
+// article prose + headline). Exposed as --font-newsreader → --tm-font-reading.
+// Grotesk stays the UI family; this never touches app chrome. Optical size +
+// italic give the article a publication voice instead of a terminal feel.
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-newsreader",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -85,7 +97,7 @@ const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface')
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${grotesk.variable} ${inter.variable}`} data-accent="signal" data-surface="light">
+    <html lang="en" className={`${grotesk.variable} ${inter.variable} ${newsreader.variable}`} data-accent="signal" data-surface="light">
       <body className="font-sans antialiased">
         <Script id="myro-surface-init" strategy="beforeInteractive">
           {SURFACE_INIT}

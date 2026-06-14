@@ -10,6 +10,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { AccountLegalLinks } from "@/components/shell/account-legal-links"
 import { openFeedbackHub } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
 import { jobs as jobsApi } from "@/lib/api"
@@ -370,6 +371,10 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
           <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>→</span>
           <span style={{ fontSize: 15, fontWeight: 500 }}>Sign out</span>
         </button>
+
+        <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid var(--tm-border-soft)" }}>
+          <AccountLegalLinks />
+        </div>
 
       </div>
 

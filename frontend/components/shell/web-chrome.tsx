@@ -11,6 +11,7 @@ import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { AccountLegalLinks } from "@/components/shell/account-legal-links"
 import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
 
@@ -142,6 +143,8 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
                       <span style={{ fontSize: 13, color: a.color }}>{a.label}</span>
                     </button>
                   ))}
+                  <div className="tm-topbar-menu-divider" />
+                  <AccountLegalLinks />
                 </div>
               </>
             )}

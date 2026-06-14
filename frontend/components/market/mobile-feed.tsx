@@ -6,6 +6,8 @@ import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, FeedFitPill, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { StoryCard, type FeedStory } from "./story-card"
+import type { FeedRow } from "./feed-rows"
 
 const SWIPE_COMMIT = 96   // px past which a release triggers triage
 const PEEK_KEY = "myro_feed_swipe_hinted_v1"
@@ -95,14 +97,16 @@ function MobileJobCard({
 }
 
 export function MobileFeed({
-  jobs: items, pulses, hasCv, onOpen, onSave, onSkip,
+  rows, pulses, hasCv, onOpen, onSave, onSkip, onStoryPrimary, onStorySecondary,
 }: {
-  jobs: JobFeedItem[]
+  rows: FeedRow[]
   pulses: Map<string, JobPulse>
   hasCv: boolean
   onOpen: (j: JobFeedItem) => void
   onSave: (j: JobFeedItem) => void
   onSkip: (j: JobFeedItem) => void
+  onStoryPrimary: (s: FeedStory) => void
+  onStorySecondary: (s: FeedStory) => void
 }) {
   const [showHint, setShowHint] = useState(false)
   useEffect(() => {
@@ -116,22 +120,26 @@ export function MobileFeed({
   }, [])
   return (
     <VirtualFeed
-      items={items}
-      getKey={job => job.job_id}
+      items={rows}
+      getKey={(row) => (row.t === "job" ? row.job.job_id : row.id)}
       estimateSize={190}
       gap={14}
       className="tm-mfeed"
-      renderItem={(job, i) => (
-        <MobileJobCard
-          job={job}
-          pulse={pulses.get(job.job_id)}
-          hasCv={hasCv}
-          hint={showHint && i === 0}
-          onOpen={() => onOpen(job)}
-          onSave={() => onSave(job)}
-          onSkip={() => onSkip(job)}
-        />
-      )}
+      renderItem={(row, i) =>
+        row.t === "story" ? (
+          <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
+        ) : (
+          <MobileJobCard
+            job={row.job}
+            pulse={pulses.get(row.job.job_id)}
+            hasCv={hasCv}
+            hint={showHint && i === 0}
+            onOpen={() => onOpen(row.job)}
+            onSave={() => onSave(row.job)}
+            onSkip={() => onSkip(row.job)}
+          />
+        )
+      }
     />
   )
 }

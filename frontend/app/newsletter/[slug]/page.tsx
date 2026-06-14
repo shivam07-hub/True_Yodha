@@ -114,7 +114,15 @@ export default async function IssuePage({ params }: Props) {
       datePublished: isoDate,
       description: issue.summary,
       author: { "@type": "Person", name: authorName },
-      publisher: { "@type": "Organization", name: "Myro", url: BASE },
+      publisher: {
+        "@type": "Organization",
+        name: "Myro",
+        url: BASE,
+        sameAs: [
+          "https://x.com/himyro",
+          "https://www.linkedin.com/company/himyro-career-intelligence",
+        ],
+      },
       ...(absoluteOgImage && { image: absoluteOgImage }),
     },
     {
@@ -135,10 +143,12 @@ export default async function IssuePage({ params }: Props) {
 
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 32px 96px" }}>
        <div className="nl-grid">
-        <article style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0 }}>
 
-        {/* Back link */}
+        {/* Back link sits above the reading sheet */}
         <NewsletterBackLink />
+
+        <article className="nl-article">
 
         {/* Issue tag */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
@@ -149,18 +159,14 @@ export default async function IssuePage({ params }: Props) {
           }}>
             {themeLabel(issue.theme)}
           </span>
-          <time dateTime={issue.publishedAt} style={{ fontSize: 13, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
+          <time dateTime={issue.publishedAt} style={{ fontSize: 13, color: "var(--tm-text-faint)", letterSpacing: "0.02em" }}>
             {date}
           </time>
         </div>
 
-        {/* Headline */}
-        <h1 style={{ fontSize: "2.125rem", lineHeight: 1.18, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--tm-text)", margin: "0 0 16px", textWrap: "balance" as never }}>
-          {issue.title}
-        </h1>
-        <p style={{ fontSize: "1.0625rem", lineHeight: 1.65, color: "var(--tm-text-muted)", margin: "0 0 32px", textWrap: "pretty" as never }}>
-          {issue.summary}
-        </p>
+        {/* Headline + standfirst — serif publication voice */}
+        <h1 className="nl-headline">{issue.title}</h1>
+        <p className="nl-standfirst">{issue.summary}</p>
 
         {/* Byline */}
         <div style={{
@@ -202,23 +208,27 @@ export default async function IssuePage({ params }: Props) {
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
             Track these jobs as you apply
           </p>
-          <Link
-            href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
-            className="nl-cta-btn"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 8,
-              fontSize: 14, fontWeight: 600, color: "var(--tm-interactive-fg)",
-              background: "#22d3a8", padding: "10px 22px",
-              borderRadius: "var(--tm-radius)", textDecoration: "none",
-              boxShadow: "0 0 8px rgba(0, 245, 212, 0.18)",
-              transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-            }}
-          >
-            Sign up to track jobs
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <Link
+              href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
+              className="nl-cta-btn"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                fontSize: 14, fontWeight: 600, color: "var(--tm-interactive-fg)",
+                background: "#22d3a8", padding: "10px 22px",
+                borderRadius: "var(--tm-radius)", textDecoration: "none",
+                boxShadow: "0 0 8px rgba(0, 245, 212, 0.18)",
+                transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
+              }}
+            >
+              Sign up to track jobs
+            </Link>
+            <ShareButton url={canonicalUrl} title={issue.title} />
+          </div>
         </div>
 
         </article>
+        </div>
 
         <aside className="nl-rail" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ padding: 20, borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", boxShadow: "var(--tm-shadow-1)" }}>

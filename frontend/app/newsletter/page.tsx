@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { getAllIssues, type Issue, type IssueTheme } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
+import { JourneyLoop } from "@/components/newsletter/journey-loop"
 import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
 import styles from "./newsletter-index.module.css"
 
@@ -33,14 +34,6 @@ const THEME_LABELS: Record<IssueTheme, string> = {
   "future-of-work": "Future of work",
 }
 
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
-
 function topicClusters(issues: Issue[]) {
   const clusters = new Map<IssueTheme, { count: number; latest: Issue }>()
   for (const issue of issues) {
@@ -64,10 +57,44 @@ export default async function NewsletterIndexPage() {
   const publishedIssues = issues.filter((i) => i.slug !== "_placeholder")
   const [featuredIssue, ...archiveIssues] = publishedIssues
   const clusters = topicClusters(publishedIssues)
-  const latestDate = featuredIssue ? formatDate(featuredIssue.publishedAt) : "Soon"
+
+  // CollectionPage + ItemList + publisher entity: lets search + AI engines read
+  // /newsletter as a recurring hiring-data publication (AEO — citable source),
+  // not an untyped page. Mirrors the per-article Article/Breadcrumb schema.
+  const indexJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Myro Weekly",
+    description:
+      "Free weekly hiring intelligence: company demand, skill gaps, and where hiring is moving — from live career-page data.",
+    url: `${BASE}/newsletter`,
+    isPartOf: { "@type": "WebSite", name: "Myro", url: BASE },
+    publisher: {
+      "@type": "Organization",
+      name: "Myro",
+      url: BASE,
+      sameAs: [
+        "https://x.com/himyro",
+        "https://www.linkedin.com/company/himyro-career-intelligence",
+      ],
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: publishedIssues.map((issue, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${BASE}/newsletter/${issue.slug}`,
+        name: issue.title,
+      })),
+    },
+  }
 
   return (
     <div className={styles.shell}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(indexJsonLd) }}
+      />
       <header className={styles.masthead}>
         <div className={styles.copy}>
           <p className={styles.kicker}>Free weekly hiring intel</p>
@@ -77,30 +104,18 @@ export default async function NewsletterIndexPage() {
           </p>
           {featuredIssue ? (
             <div className={styles.actions}>
-              <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
-                Sign up
-              </Link>
-              <Link href={`/newsletter/${featuredIssue.slug}`} className={styles.secondaryLink}>
+              <Link href={`/newsletter/${featuredIssue.slug}`} className={styles.primaryLink}>
                 Read latest
+              </Link>
+              <Link href="/signup?utm_source=newsletter_index" className={styles.secondaryLink}>
+                Sign up
               </Link>
             </div>
           ) : null}
         </div>
-        <div className={styles.stats} aria-label="Newsletter signals">
-          <div>
-            <strong>{publishedIssues.length}</strong>
-            <span>issues</span>
-          </div>
-          <div>
-            <strong>{latestDate}</strong>
-            <span>latest</span>
-          </div>
-          <div>
-            <strong>{clusters.length || 1}</strong>
-            <span>topics</span>
-          </div>
-        </div>
       </header>
+
+      <JourneyLoop />
 
       {!featuredIssue ? (
         <section className={styles.empty}>
@@ -138,21 +153,21 @@ export default async function NewsletterIndexPage() {
               <EmailSubscribe compact />
             </section>
 
-            <section className={styles.panel}>
-              <p className={styles.panelKicker}>Topic clusters</p>
-              <div className={styles.clusters}>
-                {clusters.map((cluster) => (
-                  <Link key={cluster.theme} href={`/newsletter/${cluster.latest.slug}`} className={styles.cluster}>
-                    <span>{cluster.label}</span>
-                    <strong>{cluster.count}</strong>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
-              Get your Myro Score
-            </Link>
+            {/* Topic clusters earn a panel only once the taxonomy is real
+                (≥2 themes). One theme = a dead single-row list → hidden. */}
+            {clusters.length > 1 && (
+              <section className={styles.panel}>
+                <p className={styles.panelKicker}>Topic clusters</p>
+                <div className={styles.clusters}>
+                  {clusters.map((cluster) => (
+                    <Link key={cluster.theme} href={`/newsletter/${cluster.latest.slug}`} className={styles.cluster}>
+                      <span>{cluster.label}</span>
+                      <strong>{cluster.count}</strong>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
           </aside>
         </div>
       )}

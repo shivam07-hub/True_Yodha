@@ -144,7 +144,25 @@
   background: var(--tm-int-bg-wash);
 }
 
+/* Public theme switcher — compact in the bar. Each glyph segment shrinks
+   from the 36px account-dropdown size to fit the nav row. */
+.tm-public-nav-theme {
+  display: flex;
+  align-items: center;
+  margin-right: 2px;
+}
+.tm-public-nav-theme .tm-theme-control--icon button {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
 @media (max-width: 720px) {
+  /* No mobile drawer exists to host it; narrow rows keep the OS-default
+     surface (prior pre-login behaviour). Desktop gets the manual switch. */
+  .tm-public-nav-theme {
+    display: none;
+  }
+
   .tm-public-nav {
     gap: 6px;
     padding: 0 var(--tm-mobile-page-px);

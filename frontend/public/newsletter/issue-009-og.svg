@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">BFSI hiring India 2026 — banks out-hire the technology sector</title>
+  <desc id="desc">Myro newsletter image showing 8,182 BFSI roles, more than double the technology sector.</desc>
+  <rect width="1200" height="630" fill="#fbfaf7"/>
+  <rect x="52" y="50" width="1096" height="530" rx="28" fill="#ffffff" stroke="#e7e0d4" stroke-width="2"/>
+  <rect x="52" y="50" width="1096" height="120" rx="28" fill="#0f172a"/>
+  <rect x="52" y="132" width="1096" height="38" fill="#0f172a"/>
+  <text x="92" y="112" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Myro Hiring Heatmap</text>
+  <text x="92" y="148" fill="#fbbf24" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600">BFSI hiring India 2026</text>
+
+  <text x="92" y="242" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800">8,182 BFSI roles</text>
+  <text x="92" y="298" fill="#374151" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="600">Banks out-hire big tech — 2.1&#215; the tech sector</text>
+  <text x="92" y="344" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="25">Axis, Barclays, DBS, State Street, Kotak, Wells Fargo and Deutsche Bank.</text>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="23" font-weight="700">
+    <rect x="92" y="400" width="200" height="58" rx="29" fill="#fff7ed" stroke="#fed7aa"/>
+    <text x="125" y="437" fill="#9a3412">Axis 1,000</text>
+    <rect x="312" y="400" width="215" height="58" rx="29" fill="#ecfeff" stroke="#a5f3fc"/>
+    <text x="346" y="437" fill="#155e75">Barclays 951</text>
+    <rect x="547" y="400" width="180" height="58" rx="29" fill="#eff6ff" stroke="#bfdbfe"/>
+    <text x="581" y="437" fill="#1d4ed8">DBS 840</text>
+    <rect x="747" y="400" width="200" height="58" rx="29" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="781" y="437" fill="#166534">Kotak 765</text>
+    <rect x="92" y="482" width="180" height="58" rx="29" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="127" y="519" fill="#334155">Finance</text>
+    <rect x="292" y="482" width="240" height="58" rx="29" fill="#fff1f2" stroke="#fecdd3"/>
+    <text x="326" y="519" fill="#be123c">Risk &amp; Compliance</text>
+  </g>
+
+  <line x1="830" y1="492" x2="1098" y2="492" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="830" y="535" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">himyro.com/newsletter</text>
+  <text x="830" y="562" fill="#6b7280" font-family="Inter, Arial, sans-serif" font-size="18">Career intelligence for focused searches</text>
+</svg>

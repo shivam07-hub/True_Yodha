@@ -6,7 +6,34 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sun, 31 May 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 13 Jun 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>One in Four India Roles Is in Bengaluru 2026</title>
+      <link>https://www.himyro.com/newsletter/2026-06-bengaluru-hiring-share</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-06-bengaluru-hiring-share</guid>
+      <description>Bengaluru holds 8,991 of 34,959 India roles in our June 2026 data — one in four. See the top employers and a free skill-gap analysis.</description>
+      <pubDate>Sat, 13 Jun 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Banks Out-Hire Big Tech in India 2026</title>
+      <link>https://www.himyro.com/newsletter/2026-06-bfsi-beats-tech-hiring</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-06-bfsi-beats-tech-hiring</guid>
+      <description>In 35,000 India roles, BFSI posted 8,182 — more than double the technology sector. A free June 2026 hiring breakdown with the top banks.</description>
+      <pubDate>Wed, 10 Jun 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Siemens Hiring India 2026: 1,461 Roles</title>
+      <link>https://www.himyro.com/newsletter/2026-06-siemens-india-hiring</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-06-siemens-india-hiring</guid>
+      <description>A June 2026 snapshot of 1,461 active Siemens India roles — more than Wipro or Accenture in our dataset. Free skill-gap analysis inside.</description>
+      <pubDate>Sat, 06 Jun 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>NCR Job Search 2026: The 20-company Watchlist</title>

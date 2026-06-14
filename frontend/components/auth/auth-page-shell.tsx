@@ -4,6 +4,8 @@ import { Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicFooter } from "@/components/public/public-footer"
+import "@/components/public/landing/landing-engine.css"
+import "./auth-page-shell.css"
 
 /**
  * ADR-0006 — page shell shared by /signup + /login + /auth/callback.
@@ -11,12 +13,17 @@ import { PublicFooter } from "@/components/public/public-footer"
    * Owns the chrome (logo, theme toggle, footer). The form
  * itself is injected via children so each page can render a different
  * component without duplicating layout.
+ *
+ * `aside` adds a value panel beside the form (the sample readout) so every
+ * auth surface shows what Myro does, not just a bare form. Stacks below the
+ * form on narrow screens.
  */
 interface Props {
   title: string
   subtitle?: string
   children: ReactNode
   footerCopy?: ReactNode
+  aside?: ReactNode
 }
 
 function nextFromQuery(raw: string | null): string | null {
@@ -25,25 +32,9 @@ function nextFromQuery(raw: string | null): string | null {
   return raw
 }
 
-export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) {
-  return (
-    <main style={{
-      minHeight: "100dvh",
-      display: "flex",
-      flexDirection: "column",
-      position: "relative",
-      background: "var(--tm-bg)",
-    }}>
-      <div style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "28px 18px",
-        position: "relative",
-        zIndex: 2,
-      }}>
-        <div style={{ width: "100%", maxWidth: 380 }}>
+export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: Props) {
+  const formPane = (
+    <>
           <div style={{
             display: "flex",
             flexDirection: "column",
@@ -91,7 +82,34 @@ export function AuthPageShell({ title, subtitle, children, footerCopy }: Props) 
               color: "var(--tm-text-faint)",
             }}>{footerCopy}</p>
           )}
-        </div>
+    </>
+  )
+
+  return (
+    <main style={{
+      minHeight: "100dvh",
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+      background: "var(--tm-bg)",
+    }}>
+      <div style={{
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "28px 18px",
+        position: "relative",
+        zIndex: 2,
+      }}>
+        {aside ? (
+          <div className="auth-shell-grid">
+            <div className="auth-shell-form">{formPane}</div>
+            <div className="auth-shell-aside">{aside}</div>
+          </div>
+        ) : (
+          <div style={{ width: "100%", maxWidth: 380 }}>{formPane}</div>
+        )}
       </div>
       <PublicFooter />
     </main>

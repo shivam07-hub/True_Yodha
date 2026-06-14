@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, type ReactNode } from "react"
 import { Mail, GraduationCap } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
+import { ThemeControl } from "@/components/ui/theme-control"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "./public-nav.css"
@@ -85,6 +86,10 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
       </div>
 
       <div className="tm-public-nav-auth">
+        {/* Public surface (light/dark) switch — reverses the pre-login
+            "follow-OS only" rule so visitors read in their preferred brand.
+            Same canonical primitive as the authed account dropdown. */}
+        <ThemeControl className="tm-public-nav-theme" />
         {showSignIn && !isAuthed && (
           <Link
             href="/login"

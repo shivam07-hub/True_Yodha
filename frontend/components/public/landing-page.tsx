@@ -114,6 +114,17 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           companiesMonitored={data.companiesMonitored}
           skillsMapped={data.skillsMapped}
           seekers={data.seekers}
+          scoring={scoring}
+          scoreError={scoreError}
+          onScoring={() => {
+            setScoring(true)
+            setScoreError(null)
+          }}
+          onResult={handleResult}
+          onError={(message) => {
+            setScoreError(message)
+            setScoring(false)
+          }}
         />
 
         <LandingSurfaces />
