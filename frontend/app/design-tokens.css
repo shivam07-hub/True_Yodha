@@ -18,14 +18,17 @@
    otherwise inherit from :root[data-surface="light"]. Flash-free, no JS. */
 :root,
 .myrology-root {
-  /* ── Base surface: Myro Engine dark (canonical · cool near-black) ──
-     Source of truth = the landing "Engine" palette, now site-wide. The
-     light override below is its lightness-inverse (same cool hue). */
-  --tm-bg:            #0a0a0c;
-  --tm-surface:       #13141a;
-  --tm-surface-2:     #181a23;
-  --tm-surface-3:     #20232e;
-  --tm-border:        #242424;
+  /* ── Base surface: Myro warm-dark (canonical · warm near-black) ──
+     Consumer-warm brand standard (locked 2026-06-16): neutrals warmed
+     +100% off the old cool Engine palette — the cold blue is gone. The
+     two deliberate cold-console EXCEPTIONS (landing engine pipeline,
+     in-app score reveal) pin their own hardcoded #13141a, so they are
+     unaffected by this warming and stay intentionally cool. */
+  --tm-bg:            #100c09;
+  --tm-surface:       #1b1611;
+  --tm-surface-2:     #241d17;
+  --tm-surface-3:     #2e251d;
+  --tm-border:        #2c2620;
   --tm-border-soft:   rgba(255, 255, 255, 0.10);
   --tm-border-faint:  rgba(255, 255, 255, 0.06);
   --tm-scrim:         rgba(0, 0, 0, 0.72);
@@ -38,7 +41,7 @@
      The base must read as a *real shape* against the ink page —
      a near-invisible blob communicates "empty", not "loading".
      `sheen` is the directional teal shimmer band that sweeps across. */
-  --tm-skeleton:       #1A1A1A;
+  --tm-skeleton:       #221c16;
   --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
@@ -48,18 +51,18 @@
        faint    ≥ 4.5:1 (AA body) — never used for primary content
        disabled ≥ 3:1 (AA Large or decorative only — does NOT convey meaning)
      Numbers measured; see docs/DESIGN_SYSTEM.md §Color. */
-  --tm-text:          #e8e8ea;
-  --tm-text-muted:    #9aa4bf;
-  --tm-text-faint:    #646e8c;
-  --tm-text-disabled: #555555;
+  --tm-text:          #ece6dd;
+  --tm-text-muted:    #b6ab9b;
+  --tm-text-faint:    #8a7e6e;
+  --tm-text-disabled: #5b544c;
   --tm-accent-text:   #00f5d4;
 
   /* ── Reading surface (long-form prose) ──────────────────────
      Dark: lift the read onto a warm sheet so it stops being a pure-black
      void (halation). Ink is a hair softer than --tm-text to calm shimmer
      of serif body on the dark sheet. Light override mirrors below. */
-  --tm-reading-surface: #101117;
-  --tm-reading-ink:     #e3e5ec;
+  --tm-reading-surface: #16120d;
+  --tm-reading-ink:     #e6e0d6;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -261,7 +264,7 @@
   --tm-accent-grid:        var(--tm-interactive-grid);
   --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
-  --tm-bg-inset:        #0d0e12;
+  --tm-bg-inset:        #14100c;
   --tm-bg-surface-hover: var(--tm-surface-2);
   --tm-border-subtle:   var(--tm-border-soft);
   --tm-text-primary:    var(--tm-text);
@@ -298,13 +301,13 @@
   /* Myro LIGHT = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
      dashboard handoff, Jun 2026). Light is its OWN brand, not a teal inverse:
      dark = quiet Engine teal, light = warm Firecrawl orange. */
-  --tm-bg:            #F9F9F9;
-  --tm-surface:       #FFFFFF;
-  --tm-surface-2:     #F3F3F1;
-  --tm-surface-3:     #EAEAE8;
-  --tm-bg-inset:      #F3F3F1;
-  --tm-border:        #E9E9E7;
-  --tm-border-soft:   #F0F0EE;
+  --tm-bg:            #faf6f0;
+  --tm-surface:       #fffdfa;
+  --tm-surface-2:     #f4efe8;
+  --tm-surface-3:     #ece5db;
+  --tm-bg-inset:      #f4efe8;
+  --tm-border:        #ece6dd;
+  --tm-border-soft:   #f2ece3;
   --tm-border-faint:  rgba(38, 38, 38, 0.08);
   --tm-scrim:         rgba(38, 38, 38, 0.22);
   --tm-overlay-soft:  rgba(38, 38, 38, 0.12);
@@ -313,7 +316,7 @@
   --tm-icon-muted:    rgba(38, 38, 38, 0.48);
 
   /* Skeleton on the warm paper page — visible block + white sweep */
-  --tm-skeleton:       #E7E7E5;
+  --tm-skeleton:       #ece5db;
   --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
   /* Firecrawl paper text — warm greys on #F9F9F9
@@ -321,15 +324,15 @@
        muted    #6E6E6E → AA body
        faint    #9D9D9D → micro-labels / icons at rest
        disabled #B4B4B4 → decorative only — never load-bearing text */
-  --tm-text:          #262626;
-  --tm-text-muted:    #6E6E6E;
-  --tm-text-faint:    #9D9D9D;
-  --tm-text-disabled: #B4B4B4;
-  --tm-accent-text:   #DE4200;
+  --tm-text:          #29241e;
+  --tm-text-muted:    #6e655a;
+  --tm-text-faint:    #a3998c;
+  --tm-text-disabled: #bab1a6;
+  --tm-accent-text:   #c13c00;
 
   /* Reading: white sheet on warm paper (Substack/Medium read), warm ink. */
-  --tm-reading-surface: #FFFFFF;
-  --tm-reading-ink:     #1F1F1F;
+  --tm-reading-surface: #fffdfa;
+  --tm-reading-ink:     #221e18;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   --tm-info:          #7C3AED;
@@ -373,8 +376,8 @@
   --tm-int-border:         rgba(255, 76, 0, 0.32);
   --tm-int-solid:          #FF4C00;
   --tm-int-solid-hover:    #E84500;
-  --tm-int-text:           #DE4200;
-  --tm-int-text-strong:    #C93B00;
+  --tm-int-text:           #c13c00;
+  --tm-int-text-strong:    #a83400;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────
@@ -382,45 +385,45 @@
    Mirror our tokens into that shape so existing components just work.
    ───────────────────────────────────────────────────────────── */
 :root {
-  --background:          240 9% 4%;
-  --foreground:          240 5% 91%;
-  --card:                231 16% 9%;
-  --card-foreground:     240 5% 91%;
-  --popover:             231 16% 9%;
-  --popover-foreground:  240 5% 91%;
+  --background:          26 24% 5%;
+  --foreground:          38 24% 90%;
+  --card:                30 24% 9%;
+  --card-foreground:     38 24% 90%;
+  --popover:             30 24% 9%;
+  --popover-foreground:  38 24% 90%;
   --primary:             172 100% 48%;
   --primary-foreground:  170 78% 7%;
-  --secondary:           229 19% 12%;
-  --secondary-foreground: 240 5% 91%;
-  --muted:               231 16% 9%;
-  --muted-foreground:    224 22% 68%;
+  --secondary:           30 24% 11%;
+  --secondary-foreground: 38 24% 90%;
+  --muted:               30 24% 9%;
+  --muted-foreground:    33 16% 65%;
   --accent:              172 100% 48%;
   --accent-foreground:   170 78% 7%;
   --destructive:         0 84% 60%;
   --destructive-foreground: 0 0% 97%;
-  --border:              228 12% 16%;
-  --input:               228 12% 16%;
+  --border:              30 16% 15%;
+  --input:               30 16% 15%;
   --ring:                172 100% 48%;
   --radius:              6px;
 }
 :root[data-surface="light"] {
-  --background:          0 0% 98%;
-  --foreground:          0 0% 15%;
-  --card:                0 0% 100%;
-  --card-foreground:     0 0% 15%;
-  --popover:             0 0% 100%;
-  --popover-foreground:  0 0% 15%;
+  --background:          36 33% 96%;
+  --foreground:          33 16% 14%;
+  --card:                40 50% 99%;
+  --card-foreground:     33 16% 14%;
+  --popover:             40 50% 99%;
+  --popover-foreground:  33 16% 14%;
   --primary:             18 100% 50%;
   --primary-foreground:  0 0% 100%;
   --accent:              18 100% 50%;
   --accent-foreground:   0 0% 100%;
-  --secondary:           0 0% 94%;
-  --secondary-foreground: 0 0% 15%;
-  --muted:               0 0% 94%;
-  --muted-foreground:    0 0% 43%;
+  --secondary:           35 30% 93%;
+  --secondary-foreground: 33 16% 14%;
+  --muted:               35 30% 93%;
+  --muted-foreground:    31 11% 39%;
   --destructive-foreground: 0 0% 100%;
-  --border:              0 0% 91%;
-  --input:               0 0% 91%;
+  --border:              35 30% 90%;
+  --input:               35 30% 90%;
   --ring:                18 100% 50%;
 }
 :root[data-accent="forge"] {

@@ -41,24 +41,26 @@
   /* COMFY density (the standard) */
   --db-pad: 22px;
   --db-feed-gap: 14px;
-  --db-role-fs: 19px;
+  --db-role-fs: 20px;
   --db-snip-clamp: 2;
 
   --db-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Quiet-dark: cards lose their fill, hairlines carry structure; teal stays
-   for fit rings / active segment / primary CTA only. */
+/* Warm-dark consumer standard (locked 2026-06-16): cards gain a real fill +
+   soft elevation so they lift off the page (LinkedIn/Quora warmth). Teal stays
+   rationed to fit rings / active segment / primary CTA only. Reverses the
+   former quiet-dark "transparent card / hairline-on-void" treatment. */
 :root[data-surface="dark"] .db {
-  --db-card: transparent;
+  --db-card: var(--tm-surface);
   --db-btn2: rgba(255, 255, 255, 0.06);
   --db-btn2-hover: rgba(255, 255, 255, 0.10);
-  --db-inset: #101116;
-  --db-ok: #22d3a8;
-  --db-ok-wash: rgba(34, 211, 168, 0.08);
-  --db-ok-border: rgba(34, 211, 168, 0.32);
-  --db-card-shadow: none;
-  --db-card-shadow-up: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --db-inset: #241d17;
+  --db-ok: #34d39e;
+  --db-ok-wash: rgba(52, 211, 158, 0.09);
+  --db-ok-border: rgba(52, 211, 158, 0.32);
+  --db-card-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  --db-card-shadow-up: 0 16px 40px rgba(0, 0, 0, 0.6);
   --db-btn-primary-shadow: 0 0 22px rgba(0, 245, 212, 0.16);
 }
 
@@ -97,13 +99,15 @@
 
 .db-chip {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; padding: 3px 10px; border-radius: 99px;
+  font-size: 13px; padding: 4px 10px; border-radius: 99px;
   border: 1px solid var(--db-line); color: var(--db-mut);
   white-space: nowrap;
 }
 .db-chip.match {
-  border-color: var(--db-wash-border); color: var(--db-accent-text);
-  background: var(--db-wash-strong); /* BOLD accent: matched chips read stronger */
+  /* Accent rationed to score + primary action only (locked 2026-06-16):
+     matched chips read as success-green, not accent — they no longer
+     compete with the fit ring + Tailor-CV button for the eye. */
+  border-color: var(--db-ok-border); color: var(--db-ok); background: var(--db-ok-wash);
 }
 .db-chip.ok { border-color: var(--db-ok-border); color: var(--db-ok); background: var(--db-ok-wash); }
 .db-chip svg { flex-shrink: 0; }
@@ -223,23 +227,25 @@
 .db-card-main { display: flex; gap: 14px; padding: var(--db-pad); cursor: pointer; text-align: left; width: 100%; background: none; border: none; font: inherit; color: inherit; }
 .db-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .db-card-toprow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.db-card-co { font-size: 13px; font-weight: 600; color: var(--db-mut); }
+.db-card-co { font-size: 14px; font-weight: 600; color: var(--db-mut); }
 .db-card-dot { color: var(--db-faint); font-size: 11px; }
-.db-card-when { font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-faint); }
+.db-card-when { font-size: 12px; color: var(--db-faint); }
+/* De-terminal (locked 2026-06-16): meta micro-labels were mono/uppercase/wide-
+   tracked — the main "console" tell. Now humanist sentence-case. */
 .db-statuschip {
-  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 99px; background: var(--db-ok-wash); border: 1px solid var(--db-ok-border); color: var(--db-ok);
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 9px; border-radius: 99px; background: var(--db-ok-wash); border: 1px solid var(--db-ok-border); color: var(--db-ok);
 }
 .db-sourcechip {
-  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint);
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 9px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint);
 }
 .db-card-role { font-size: var(--db-role-fs); font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; margin: 0; color: var(--db-ink); overflow-wrap: anywhere; }
-.db-card-loc { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--db-mut); }
-.db-locmode { font-family: var(--tm-font-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint); white-space: nowrap; }
+.db-card-loc { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--db-mut); }
+.db-locmode { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--db-line); color: var(--db-faint); white-space: nowrap; }
 .db-locmode.remote { color: var(--db-ok); border-color: var(--db-ok-border); }
 .db-snippet {
-  margin: 2px 0 0; font-size: 13px; line-height: 1.55; color: var(--db-mut);
+  margin: 2px 0 0; font-size: 15px; line-height: 1.6; color: var(--db-mut);
   display: -webkit-box; -webkit-line-clamp: var(--db-snip-clamp); line-clamp: var(--db-snip-clamp); -webkit-box-orient: vertical; overflow: hidden;
 }
 .db-card-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
