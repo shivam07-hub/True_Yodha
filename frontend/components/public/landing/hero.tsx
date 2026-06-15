@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import { LandingDropzone } from "./dropzone"
+import { LandingStats } from "./stats"
 import type { AnonScoreResponse } from "@/lib/api"
 
 const FLOW_PATHS = [
@@ -27,6 +28,11 @@ interface LandingHeroProps {
   companiesLabel: string
   /** Real company names from the Engine corpus for the monogram chips. */
   companyNames: string[]
+  /** Live Engine corpus counters — top-of-page credibility strip. */
+  jobsTracked: number
+  companiesMonitored: number
+  skillsMapped: number
+  seekers: number
   /** Live CV-score preview plumbing (owned by LandingPage, rendered in the Readout). */
   scoring?: boolean
   scoreError?: string | null
@@ -46,6 +52,10 @@ function smoothScrollToEngine(e: React.MouseEvent) {
 export function LandingHero({
   companiesLabel,
   companyNames,
+  jobsTracked,
+  companiesMonitored,
+  skillsMapped,
+  seekers,
   scoring,
   scoreError,
   onScoring,
@@ -61,10 +71,15 @@ export function LandingHero({
       <div className="lp-grid-bg" aria-hidden />
       <div className="lp-hero-glow" aria-hidden />
 
+      <LandingStats
+        jobsTracked={jobsTracked}
+        companiesMonitored={companiesMonitored}
+        skillsMapped={skillsMapped}
+        seekers={seekers}
+      />
+
       <div className="lp-wrap lp-hero-inner">
         <div className="lp-hero-left">
-          <span className="lp-eyebrow">Myro · Career Intelligence</span>
-
           <h1 className="lp-hero-h1">
             The Career Intelligence Platform.
             <span className="lp-hero-h1-sub">
@@ -73,9 +88,8 @@ export function LandingHero({
           </h1>
 
           <p className="lp-hero-support">
-            Myro tracks live openings across {companiesLabel} company career pages, scores your
-            CV against real hiring demand, and tailors a version for every job you target — the
-            first one in 10 minutes.
+            Live openings from {companiesLabel} career pages, your CV scored against real demand,
+            tailored per job — the first version in 10 minutes.
           </p>
 
           <div className="lp-hero-chips">

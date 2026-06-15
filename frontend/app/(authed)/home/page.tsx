@@ -8,12 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
-import { Hero } from "@/components/mission-control/hero"
-import { MobilePeekStrip } from "@/components/mission-control/peek-panel"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
-import { HeroLoading } from "@/components/mission-control/hero-loading"
-import { MobileBanner } from "@/components/home/mobile-banner"
-import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
 import { RouteLoading } from "@/components/loading/route-loading"
 import { SectionGate } from "@/components/loading/section-gate"
 import { TealField } from "@/components/loading/teal-field"
@@ -23,16 +18,14 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { openFeedbackHub } from "@/components/feedback"
 import { useParticleMoment } from "@/components/particle"
-import { cv, diary, jobs, scores, upskilling, users } from "@/lib/api"
+import { cv, diary, jobs, scores, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { useApplicationStatus } from "@/lib/hooks/use-application-status"
 import { useFeedState, isFeedAheadOfMatches } from "@/lib/hooks/use-feed-state"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
-import { computeStreakFromDates } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
-import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
@@ -90,14 +83,6 @@ function MissionControlInner() {
     enabled: !!token && bootstrapSettled,
     staleTime: 5 * 60 * 1000,
   })
-  // Practice streak — graded upskilling sets (seeded by the bootstrap bundle).
-  const practiceActivityQuery = useQuery({
-    queryKey: ["practice-activity-dates", token],
-    queryFn: () => upskilling.activityDates(token!),
-    enabled: !!token && bootstrapSettled,
-    staleTime: 5 * 60 * 1000,
-  })
-
   const allMatchedJobs: JobMatch[] = useMemo(() => jobsData?.jobs ?? [], [jobsData])
   const dismissedJobIds = useMemo(() => new Set(jobsData?.dismissed_job_ids ?? []), [jobsData])
 
@@ -109,7 +94,6 @@ function MissionControlInner() {
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
-  const streak = computeStreakFromDates(practiceActivityQuery.data?.dates ?? [])
   const score = Math.round(scoreData?.total_score ?? 0)
   const cartSkillNames = useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
@@ -220,20 +204,15 @@ function MissionControlInner() {
 
   // ── First-run vs returning (progressive-nav grill Q3)
   const nav = useNavUnlocks()
-  const { isDesktop } = useViewport()
 
-  // ── Hero data
+  // ── Dashboard data (feed). The greeting hero relocated to /market.
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
-  const dayStr = useMemo(
-    () => new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
-    [],
-  )
-  const activeTargets = apps.filter((a) => ["saved", "applied", "screening", "interviewing", "final_round"].includes(a.status)).length
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const hasApplied = apps.some((a) => a.status !== "saved")
   const hasForged = entries.length > 0
 
-  // Daily loop — the five ritual steps the LoopRing closes. `href` is where
+  // Daily loop — the five ritual steps. Still passed to the Dashboard feed
+  // (the LoopRing itself moved to the /market hero). `href` = where
   // "close this step" routes; on-page steps (Log → diary panel below) omit it.
   const steps: LoopStep[] = [
     { label: "Find Job", done: topJobs.length > 0, icon: "target", href: "/market" },
@@ -242,8 +221,6 @@ function MissionControlInner() {
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
     { label: "Apply", done: hasApplied, icon: "arrowRight", href: "/market" },
   ]
-
-  const scoreDelta = evidenceData?.score_delta ?? 0
 
   // Section-readiness model (dashboard-loading grill Q1): each region paints when
   // its own query resolves — no global gate blocking the whole page on the
@@ -286,13 +263,8 @@ function MissionControlInner() {
     return (
       <PageShell>
         <TealField mode="masked">
-          {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
+          <DashboardSkeleton />
         </TealField>
-        <div style={{ marginTop: isDesktop ? 36 : 16 }}>
-          <TealField mode="masked">
-            <DashboardSkeleton />
-          </TealField>
-        </div>
       </PageShell>
     )
   }
@@ -326,8 +298,6 @@ function MissionControlInner() {
     )
   }
 
-  const dateLine = [dayStr, profile?.target_location].filter(Boolean).join(" · ")
-
   return (
     <>
       <RequiresCV>
@@ -336,48 +306,11 @@ function MissionControlInner() {
             <StaleBanner lastViewAt={lastViewAt} onRefresh={refreshCore} />
           )}
 
-          {/* Hero section — paints on score+profile. Desktop = the pinned rail
-              of the workspace; mobile collapses to a thin banner so the card
-              feed owns the viewport (Q6). */}
-          {(() => {
-            const heroGate = (
-              <SectionGate
-                loading={coreLoading}
-                fallback={
-                  <TealField mode="masked" interactive={false}>
-                    {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
-                  </TealField>
-                }
-                slowText="Still loading your dashboard…"
-              >
-                {isDesktop ? (
-                  <Hero
-                    variant="rail"
-                    name={firstName}
-                    dateLine={dateLine}
-                    activeTargets={activeTargets}
-                    steps={steps}
-                    score={score}
-                    streak={streak}
-                    scoreDelta={scoreDelta}
-                    loggedToday={loggedToday}
-                    sessions={entries.length}
-                    diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
-                  />
-                ) : (
-                  <MobileBanner
-                    name={firstName}
-                    score={score}
-                    streak={streak}
-                    scoreDelta={scoreDelta}
-                    loggedToday={loggedToday}
-                  />
-                )}
-              </SectionGate>
-            )
-
-            const feedGate = (
-              <SectionGate
+          {/* The greeting hero (daily-loop ring + score/streak) relocated to
+              /market (Live is the primary daily surface). Dashboard now keeps
+              just the match feed — full width on every breakpoint. */}
+          <div className="mc-ws-main">
+            <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
                 // fast-but-empty jobs result never sits beside a still-loading
                 // hero (the half-skeleton / half-"No matches" jolt). The above-
@@ -415,24 +348,8 @@ function MissionControlInner() {
                     onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}
                   />
                 ) : null}
-              </SectionGate>
-            )
-
-            // Desktop = 3-zone workspace (pinned rail · centre feed · peek
-            // panel). Mobile = the legacy vertical stack (banner + feed).
-            return isDesktop ? (
-              <div className="mc-workspace">
-                <aside className="mc-ws-rail">{heroGate}</aside>
-                <div className="mc-ws-main">{feedGate}</div>
-              </div>
-            ) : (
-              <>
-                {heroGate}
-                {token ? <MobilePeekStrip token={token} steps={steps} /> : null}
-                <div style={{ marginTop: 16 }}>{feedGate}</div>
-              </>
-            )
-          })()}
+            </SectionGate>
+          </div>
         </PageShell>
       </RequiresCV>
 

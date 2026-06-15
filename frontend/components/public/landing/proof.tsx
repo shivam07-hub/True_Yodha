@@ -73,7 +73,6 @@ export function LandingProof({ rows, asOf, companiesLabel }: LandingProofProps) 
     <section className="lp-proof" id="proof" aria-label="Proof — the Engine, live">
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <span className="lp-eyebrow">Proof</span>
           <h2 className="lp-section-title">The Engine, live.</h2>
         </div>
 

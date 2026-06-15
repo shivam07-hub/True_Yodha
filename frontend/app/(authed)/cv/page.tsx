@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
-import { takeStashedFile } from "@/lib/anon-cv-stash"
+import { takeStashedFile, takeStashedComposedCvText } from "@/lib/anon-cv-stash"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -22,6 +22,7 @@ import {
   getPersistedCVUploadJobId,
   pollCVUploadStatus,
   uploadCV,
+  uploadCVText,
   users,
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -200,6 +201,49 @@ function CVPage() {
     }
   }
 
+  // Claim-on-signup for the pre-login PLAYGROUND (grill Q8): the logged-out user
+  // built + improved a CV at /cv-preview, hit "Save & download", then signed up.
+  // The composed CV text is stashed → replay it to /cv/text so the IMPROVED CV
+  // becomes their Main CV (re-parsed + scored server-side). Mirrors handleUpload
+  // but for text; uploadCVText polls internally so there's no phase callback.
+  async function handleUploadText(text: string) {
+    if (!token) return
+    if (uploadInFlightRef.current) return
+    uploadInFlightRef.current = true
+    setShowUpload(true)
+    setUploading(true); setUploadResult(null); setUploadError(null)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
+    startCvPromiseOptimistic()
+    try {
+      const result = await uploadCVText(token, text, "text_describe")
+      if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+      setUploadPhase("ready")
+      setBiggestDrag(lowestDomainFromCache())
+      setUploadResult({ skills_detected: result.skills_detected, score: result.score })
+      setUploadFailureCount(0); setLastFailureCode("unknown"); setFallbackError(null); setFallbackReceipt(null)
+    } catch (err) {
+      if (err instanceof CVUploadFailure) {
+        if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
+        setLastFailureCode(err.code)
+        setUploadError(tokenizedUserMessage(err.message))
+      } else {
+        setLastFailureCode("upload_unknown_error")
+        setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Could not save CV")
+      }
+      setUploadFailureCount((n) => n + 1)
+    } finally {
+      setUploading(false)
+      uploadInFlightRef.current = false
+    }
+  }
+
   function openEdit(versionId: number) {
     const v = playground.threadVersions.find(x => x.id === versionId)
     if (!v?.polished_text) return
@@ -255,13 +299,18 @@ function CVPage() {
     if (playground.versionsLoading) return
     autoUploadFiredRef.current = true
     if (!hasBaseline) {
-      // Claim-on-signup (grill Q8): a logged-out visitor who scored their CV on
-      // the landing arrives here with the File still stashed in memory. Replay it
-      // straight into the real upload — no re-pick. A full-page OAuth redirect
-      // drops the in-memory File → takeStashedFile() returns null → fall back to
-      // the picker, the original first-upload flow.
+      // Claim-on-signup (grill Q8). Priority order:
+      //  1. composed playground text — the user BUILT + improved a CV at
+      //     /cv-preview then chose "Save & download". sessionStorage survives the
+      //     signup redirect, so this is the most resilient path. Replay → /cv/text.
+      //  2. in-memory scored File — they scored on the landing and signed up in
+      //     the same SPA tab (email/pw). Replay it to the real upload, no re-pick.
+      //  3. neither (e.g. OAuth full-page redirect dropped the File) → open the
+      //     picker, the original first-upload flow.
+      const composed = takeStashedComposedCvText()
       const stashed = takeStashedFile()
-      if (stashed) void handleUpload(stashed)
+      if (composed) void handleUploadText(composed)
+      else if (stashed) void handleUpload(stashed)
       else openFilePicker()
     }
     router.replace("/cv", { scroll: false })

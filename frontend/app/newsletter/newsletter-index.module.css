@@ -7,14 +7,37 @@
 .masthead {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
-  align-items: end;
+  gap: 28px;
+  align-items: center;
   padding-bottom: 28px;
   border-bottom: 1px solid var(--tm-border-soft);
 }
 
 .copy {
   max-width: 720px;
+}
+
+/* Filter bar above the feed when a loop stage is active. */
+.filterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.filterBar a {
+  color: var(--tm-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.filterBar a:hover {
+  text-decoration: underline;
 }
 
 .kicker,
@@ -35,14 +58,6 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
-}
-
-.copyText {
-  max-width: 600px;
-  margin: 0;
-  color: var(--tm-text-muted);
-  font-size: 16px;
-  line-height: 1.65;
 }
 
 .actions {
@@ -216,9 +231,17 @@
   line-height: 1.55;
 }
 
+/* Loop sits beside the masthead once there's room for 4 nodes. */
+@media (min-width: 860px) {
+  .masthead {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 0.92fr);
+    gap: 40px;
+  }
+}
+
 @media (min-width: 1024px) {
   .copy h1 {
-    font-size: 64px;
+    font-size: 60px;
   }
 
   .grid {
@@ -243,13 +266,6 @@
   .shell {
     padding-top: 26px;
     padding-bottom: 52px;
-  }
-
-  /* Mobile: drop the hero subheading + buttons — the loop band + featured
-     card carry value/entry below. Kept on desktop (≥561px). */
-  .copyText,
-  .actions {
-    display: none;
   }
 
   .copy h1 {

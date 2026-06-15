@@ -21,8 +21,8 @@ from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
-from app.services import cv_parser
-from app.services.llm_provider import get_cv_upload_provider
+from app.services import cv_parser, cv_restructure, cv_rewrite
+from app.services.llm_provider import get_cv_upload_provider, get_llm_provider
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
 
@@ -95,9 +95,19 @@ _ALLOWED_CONTENT_TYPES = {
 # Soft per-IP sliding-window limit. In-process (per worker) — a soft cost guard,
 # NOT the primary bot defence (that's Turnstile). Good enough at current scale;
 # promote to a Redis window if multi-instance precision is ever needed.
-_ANON_RATE_MAX = 5
+#
+# Per-action buckets keyed by (action, ip): scoring, AI bullet rewrite, and
+# whole-CV restructure each have their own ceiling because they cost different
+# amounts of LLM budget. Unlimited actions (page-fill, hide/show bullets) never
+# touch the server, so there's nothing to cap there.
 _ANON_RATE_WINDOW_SECONDS = 3600.0
-_anon_score_hits: dict[str, deque[float]] = {}
+_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2}
+_ANON_RATE_MSG = {
+    "score": "You've previewed a few CVs already. Sign up free to keep scoring.",
+    "rewrite": "You've polished a lot of bullets. Sign up free to keep improving your CV.",
+    "restructure": "You've restructured this CV a couple of times. Sign up free to keep going.",
+}
+_anon_hits: dict[tuple[str, str], deque[float]] = {}
 
 _TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
@@ -141,15 +151,16 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _enforce_anon_rate(ip: str) -> None:
+def _enforce_anon_rate(action: str, ip: str) -> None:
     now = time.monotonic()
-    hits = _anon_score_hits.setdefault(ip, deque())
+    limit = _ANON_RATE_MAX.get(action, 5)
+    hits = _anon_hits.setdefault((action, ip), deque())
     while hits and now - hits[0] > _ANON_RATE_WINDOW_SECONDS:
         hits.popleft()
-    if len(hits) >= _ANON_RATE_MAX:
+    if len(hits) >= limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="You've previewed a few CVs already. Sign up free to keep scoring.",
+            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up free to keep going."),
         )
     hits.append(now)
 
@@ -194,7 +205,7 @@ async def score_cv_preview(
     cf_turnstile_token: str | None = Form(default=None),
 ) -> AnonScoreResponse:
     ip = _client_ip(request)
-    _enforce_anon_rate(ip)
+    _enforce_anon_rate("score", ip)
     await _verify_turnstile(cf_turnstile_token, ip)
 
     content_type = (file.content_type or "").split(";")[0].strip()
@@ -283,4 +294,98 @@ async def score_cv_preview(
         skills_detected=len(skills_detected),
         cv=cv_body,
         contact=contact,
+    )
+
+
+# ─── Public CV playground — AI actions (no auth, no persist) ──────────────────
+#
+# The pre-login playground (/cv-preview) lets a logged-out user improve the CV
+# they just scored: per-bullet Mentor rewrite + whole-CV restructure. Both reuse
+# the EXACT same pure services as the authed surface (cv_rewrite.suggest_rewrite,
+# cv_restructure.suggest_restructure) — compute-only, applies nothing, persists
+# nothing (PV1). The authed surface charges Myro Coins on restructure-keep; anon
+# is free as a deliberate loss-leader (neutralised by the 3000-coin welcome grant
+# on signup, XP-DB1). Guarded by Turnstile (when provisioned) + per-action IP
+# caps. There is NO main-CV job here, so role/company/keywords are optional and
+# the rewrite/restructure fall back to generic best-practice (grill Q1).
+
+
+class AnonRewriteRequest(BaseModel):
+    bullet:           str
+    role:             str | None = None
+    missing_keywords: list[str] = []
+    metric:           str | None = None
+    allow_no_metric:  bool = False
+    cf_turnstile_token: str | None = None
+
+
+class AnonRewriteResponse(BaseModel):
+    mode:           str               # "rewrite" | "question" | "error"
+    rewritten_text: str | None = None
+    question:       str | None = None
+    rationale:      str | None = None
+
+
+class AnonRestructureRequest(BaseModel):
+    cv_text:          str
+    role:             str | None = None
+    company:          str | None = None
+    missing_keywords: list[str] = []
+    cf_turnstile_token: str | None = None
+
+
+class AnonRestructureResponse(BaseModel):
+    mode:          str               # "proposal" | "error"
+    proposed_text: str | None = None
+    changes:       list[str] = []
+    rationale:     str | None = None
+    playbook:      str | None = None
+    uncertainty:   str | None = None
+
+
+@router.post("/rewrite-bullet", response_model=AnonRewriteResponse)
+async def rewrite_bullet_preview(
+    body: AnonRewriteRequest,
+    request: Request,
+) -> AnonRewriteResponse:
+    ip = _client_ip(request)
+    _enforce_anon_rate("rewrite", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    result = await cv_rewrite.suggest_rewrite(
+        body.bullet,
+        body.role,
+        body.missing_keywords,
+        body.metric,
+        get_llm_provider(),
+        allow_no_metric=body.allow_no_metric,
+    )
+    return AnonRewriteResponse(**result)
+
+
+@router.post("/restructure", response_model=AnonRestructureResponse)
+async def restructure_preview(
+    body: AnonRestructureRequest,
+    request: Request,
+) -> AnonRestructureResponse:
+    ip = _client_ip(request)
+    _enforce_anon_rate("restructure", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    result = await cv_restructure.suggest_restructure(
+        cv_text=body.cv_text,
+        role=body.role,
+        company=body.company,
+        missing_keywords=body.missing_keywords,
+        provider=get_llm_provider(),
+    )
+    # suggest_restructure returns a superset (includes a couple of internal keys);
+    # the response_model filters to the public shape.
+    return AnonRestructureResponse(
+        mode=result["mode"],
+        proposed_text=result.get("proposed_text"),
+        changes=result.get("changes") or [],
+        rationale=result.get("rationale"),
+        playbook=result.get("playbook"),
+        uncertainty=result.get("uncertainty"),
     )

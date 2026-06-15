@@ -2909,6 +2909,34 @@ export interface AnonScoreResponse {
   contact: AnonContact | null
 }
 
+export interface AnonRewriteResponse {
+  mode: "rewrite" | "question" | "error"
+  rewritten_text: string | null
+  question: string | null
+  rationale: string | null
+}
+
+export interface AnonRestructureResponse {
+  mode: "proposal" | "error"
+  proposed_text: string | null
+  changes: string[]
+  rationale: string | null
+  playbook: string | null
+  uncertainty: string | null
+}
+
+async function postPublicJson<T>(path: string, payload: Record<string, unknown>): Promise<T> {
+  if (!BASE) throw new Error("API base URL is not configured.")
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(extractError(body, res.status))
+  return body as T
+}
+
 export const publicCv = {
   scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
@@ -2920,6 +2948,41 @@ export const publicCv = {
     if (!res.ok) throw new Error(extractError(body, res.status))
     return body as AnonScoreResponse
   },
+
+  // Pre-login playground AI — compute-only, persists nothing (PV1). Same pure
+  // services as the authed surface; anon is free (loss-leader, neutralised by
+  // the welcome grant). No job → role/keywords optional → generic best-practice.
+  rewriteBullet: (payload: {
+    bullet: string
+    role?: string | null
+    missing_keywords?: string[]
+    metric?: string | null
+    allow_no_metric?: boolean
+    turnstileToken?: string | null
+  }): Promise<AnonRewriteResponse> =>
+    postPublicJson<AnonRewriteResponse>("/public/rewrite-bullet", {
+      bullet: payload.bullet,
+      role: payload.role ?? null,
+      missing_keywords: payload.missing_keywords ?? [],
+      metric: payload.metric ?? null,
+      allow_no_metric: payload.allow_no_metric ?? false,
+      cf_turnstile_token: payload.turnstileToken ?? null,
+    }),
+
+  restructure: (payload: {
+    cv_text: string
+    role?: string | null
+    company?: string | null
+    missing_keywords?: string[]
+    turnstileToken?: string | null
+  }): Promise<AnonRestructureResponse> =>
+    postPublicJson<AnonRestructureResponse>("/public/restructure", {
+      cv_text: payload.cv_text,
+      role: payload.role ?? null,
+      company: payload.company ?? null,
+      missing_keywords: payload.missing_keywords ?? [],
+      cf_turnstile_token: payload.turnstileToken ?? null,
+    }),
 }
 
 // ── Home bootstrap (BFF) ────────────────────────────────────────────────────

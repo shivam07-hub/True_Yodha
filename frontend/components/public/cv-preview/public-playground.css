@@ -1,0 +1,232 @@
+/* PublicPlayground — pre-login CV playground (/cv-preview). Lean styles over the
+   canonical --tm-* tokens; the CV sheet + modal/button atoms come from
+   cv-sheet.css + cv-builder.css (.cvb-*). */
+
+.cvp {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+.cvp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.cvp-eyebrow {
+  font-family: var(--tm-font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--tm-accent-text);
+  margin-bottom: 6px;
+}
+.cvp-title {
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--tm-text);
+  margin: 0;
+}
+.cvp-sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+  max-width: 52ch;
+}
+.cvp-head-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cvp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 880px) {
+  .cvp-grid { grid-template-columns: 1fr; }
+  .cvp-preview { order: -1; } /* show the result first on mobile */
+}
+
+/* Page-fill meter */
+.cvp-fill { margin-bottom: 14px; }
+.cvp-fill-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--tm-surface-2, rgba(127,127,127,0.15));
+  overflow: hidden;
+}
+.cvp-fill-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.cvp-fill-ok    .cvp-fill-bar span { background: var(--tm-success, #22c55e); }
+.cvp-fill-tight .cvp-fill-bar span { background: var(--tm-warning, #f59e0b); }
+.cvp-fill-over  .cvp-fill-bar span { background: var(--tm-danger, #ef4444); }
+.cvp-fill-label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+.cvp-fill-over .cvp-fill-label { color: var(--tm-danger, #ef4444); }
+
+.cvp-score-note {
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  margin-bottom: 16px;
+}
+.cvp-score-num {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--tm-accent-text);
+  margin-right: 2px;
+}
+
+/* Editor sections */
+.cvp-sections { display: flex; flex-direction: column; gap: 18px; }
+.cvp-section {
+  border: 1px solid var(--tm-border-soft, rgba(127,127,127,0.18));
+  border-radius: 12px;
+  padding: 14px 14px 8px;
+  background: var(--tm-surface, transparent);
+}
+.cvp-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text);
+  margin: 0 0 10px;
+}
+.cvp-bullet-wrap { margin-bottom: 8px; }
+.cvp-polish {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 4px 30px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--tm-accent-text);
+  background: transparent;
+  border: 1px solid var(--tm-border-soft, rgba(127,127,127,0.2));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cvp-polish:hover {
+  background: var(--tm-accent-wash, rgba(0,245,212,0.08));
+  border-color: var(--tm-accent-text);
+}
+
+/* ATS audit */
+.cvp-ats {
+  margin-top: 22px;
+  border: 1px solid var(--tm-border-soft, rgba(127,127,127,0.18));
+  border-radius: 12px;
+  padding: 14px;
+}
+.cvp-ats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-accent-text);
+}
+.cvp-ats-head > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.cvp-ats-count {
+  font-family: var(--tm-font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--tm-text-muted);
+}
+.cvp-ats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 480px) { .cvp-ats-grid { grid-template-columns: 1fr; } }
+.cvp-ats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+.cvp-ats-mark {
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.cvp-ats-mark.ok   { background: var(--tm-success-wash, rgba(34,197,94,0.15)); color: var(--tm-success, #22c55e); }
+.cvp-ats-mark.warn { background: var(--tm-warning-wash, rgba(245,158,11,0.15)); color: var(--tm-warning, #f59e0b); }
+
+/* Preview */
+.cvp-preview {
+  position: sticky;
+  top: 84px;
+}
+@media (max-width: 880px) { .cvp-preview { position: static; } }
+
+/* Rewrite modal */
+.cvp-rw-modal { max-width: 540px; }
+.cvp-rw-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.cvp-rw-label {
+  font-family: var(--tm-font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.cvp-rw-original p, .cvp-rw-suggestion p {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--tm-text);
+}
+.cvp-rw-original {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--tm-surface-2, rgba(127,127,127,0.08));
+}
+.cvp-rw-suggestion {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-accent-text);
+  background: var(--tm-accent-wash, rgba(0,245,212,0.06));
+}
+.cvp-rw-rationale { margin: 0; font-size: 12px; color: var(--tm-text-muted); }
+.cvp-rw-status { font-size: 13px; color: var(--tm-accent-text); padding: 10px 0; }
+.cvp-rw-error { margin: 0; font-size: 13px; color: var(--tm-danger, #ef4444); }
+.cvp-rw-question { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--tm-text); }
+.cvp-rw-input {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border-soft, rgba(127,127,127,0.25));
+  background: var(--tm-surface, transparent);
+  color: var(--tm-text);
+  font-size: 13px;
+}
+.cvp-rw-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+
+.cvp-rs-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+
+/* Download modal */
+.cvp-dl-modal { max-width: 440px; }
+.cvp-dl-body { padding: 16px; }
+.cvp-dl-copy { margin: 0 0 14px; font-size: 14px; color: var(--tm-text); }
+.cvp-dl-actions { display: flex; flex-direction: column; gap: 10px; }
+.cvp-dl-actions .cvb-btn { justify-content: center; }
+.cvp-dl-note { margin: 12px 0 0; font-size: 11.5px; color: var(--tm-text-faint); }

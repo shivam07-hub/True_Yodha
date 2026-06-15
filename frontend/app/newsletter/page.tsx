@@ -8,6 +8,18 @@ import styles from "./newsletter-index.module.css"
 
 const BASE = "https://www.himyro.com"
 
+// Each everyday loop noun maps to one or more content themes, so a clicked
+// node filters the feed to that stage of the journey.
+const STAGE_THEMES: Record<string, IssueTheme[]> = {
+  jobs: ["heatmap"],
+  gaps: ["skill"],
+  skills: ["trajectory"],
+  offers: ["boom-watch", "future-of-work"],
+}
+const STAGE_LABEL: Record<string, string> = {
+  jobs: "Jobs", gaps: "Gaps", skills: "Skills", offers: "Offers",
+}
+
 export const metadata: Metadata = {
   title: "Myro Weekly - Free AI Hiring Live Job Data",
   description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings. No fluff.",
@@ -52,10 +64,23 @@ function topicClusters(issues: Issue[]) {
   }))
 }
 
-export default async function NewsletterIndexPage() {
+export default async function NewsletterIndexPage({
+  searchParams,
+}: {
+  searchParams: { stage?: string }
+}) {
   const issues = await getAllIssues()
   const publishedIssues = issues.filter((i) => i.slug !== "_placeholder")
-  const [featuredIssue, ...archiveIssues] = publishedIssues
+
+  // Stage filter (loop nodes). Unknown/absent stage = show everything.
+  const activeStage =
+    searchParams.stage && STAGE_THEMES[searchParams.stage] ? searchParams.stage : undefined
+  const stageThemes = activeStage ? STAGE_THEMES[activeStage] : null
+  const shownIssues = stageThemes
+    ? publishedIssues.filter((i) => stageThemes.includes(i.theme))
+    : publishedIssues
+
+  const [featuredIssue, ...archiveIssues] = shownIssues
   const clusters = topicClusters(publishedIssues)
 
   // CollectionPage + ItemList + publisher entity: lets search + AI engines read
@@ -97,44 +122,54 @@ export default async function NewsletterIndexPage() {
       />
       <header className={styles.masthead}>
         <div className={styles.copy}>
-          <p className={styles.kicker}>Free weekly hiring intel</p>
+          <p className={styles.kicker}>Weekly hiring intelligence</p>
           <h1>Myro Weekly</h1>
-          <p className={styles.copyText}>
-            Fresh reads on company demand, skill gaps, and where hiring is moving across live career-page data.
-          </p>
-          {featuredIssue ? (
+          {publishedIssues.length > 0 && (
             <div className={styles.actions}>
-              <Link href={`/newsletter/${featuredIssue.slug}`} className={styles.primaryLink}>
+              <Link href={`/newsletter/${publishedIssues[0].slug}`} className={styles.primaryLink}>
                 Read latest
               </Link>
-              <Link href="/signup?utm_source=newsletter_index" className={styles.secondaryLink}>
-                Sign up
-              </Link>
             </div>
-          ) : null}
+          )}
         </div>
+        <JourneyLoop activeStage={activeStage} />
       </header>
-
-      <JourneyLoop />
 
       {!featuredIssue ? (
         <section className={styles.empty}>
           <div className={styles.emptyMark} aria-hidden="true" />
-          <h2>First issue coming soon</h2>
-          <p>Sign up to get notified when Issue 001 drops.</p>
-          <Link href="/signup?utm_source=newsletter_index" className={styles.primaryLink}>
-            Get notified
-          </Link>
+          {activeStage ? (
+            <>
+              <h2>First {STAGE_LABEL[activeStage]} issue is coming</h2>
+              <p>Subscribe to get it the week it drops — plus every issue in between.</p>
+              <EmailSubscribe compact />
+              <Link href="/newsletter" className={styles.secondaryLink} style={{ marginTop: 16 }}>
+                ← All issues
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2>First issue coming soon</h2>
+              <p>Subscribe to get notified when Issue 001 drops.</p>
+              <EmailSubscribe compact />
+            </>
+          )}
         </section>
       ) : (
         <div className={styles.grid}>
           <main className={styles.main}>
+            {activeStage && (
+              <div className={styles.filterBar}>
+                <span>{STAGE_LABEL[activeStage]} · {shownIssues.length} {shownIssues.length === 1 ? "issue" : "issues"}</span>
+                <Link href="/newsletter">All issues</Link>
+              </div>
+            )}
             <IssueCard issue={featuredIssue} featured />
 
             {archiveIssues.length > 0 && (
               <section aria-labelledby="newsletter-archive">
                 <div className={styles.sectionHead}>
-                  <h2 id="newsletter-archive">Latest issues</h2>
+                  <h2 id="newsletter-archive">{activeStage ? "More in this stage" : "Latest issues"}</h2>
                   <span>{archiveIssues.length} more</span>
                 </div>
                 <div className={styles.archiveList}>

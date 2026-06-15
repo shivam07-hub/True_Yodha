@@ -78,7 +78,7 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
         return
       }
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
-      router.push(next ?? "/home")
+      router.push(next ?? "/market")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.")
       signupEvents.failed({ method: "password", stage: "login", error_code: "auth_failed" })

@@ -29,10 +29,10 @@ class _FakeProjection:
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit_and_turnstile(monkeypatch: pytest.MonkeyPatch):
-    public_router._anon_score_hits.clear()
+    public_router._anon_hits.clear()
     monkeypatch.setattr(public_router.settings, "turnstile_secret", "", raising=False)
     yield
-    public_router._anon_score_hits.clear()
+    public_router._anon_hits.clear()
 
 
 def _wire_engine(
@@ -133,7 +133,76 @@ def test_score_cv_no_skills(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_score_cv_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
     client = TestClient(app)
-    for _ in range(public_router._ANON_RATE_MAX):
+    for _ in range(public_router._ANON_RATE_MAX["score"]):
         assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 200
     # one past the cap, same client IP
     assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 429
+
+
+# ─── /public/rewrite-bullet + /public/restructure (anon playground AI) ────────
+
+
+def test_rewrite_bullet_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake(bullet, role, kws, metric, provider, allow_no_metric=False):
+        assert bullet == "Built a thing that saved 20% time"
+        return {"mode": "rewrite", "rewritten_text": "Engineered X cutting cycle time 20%.", "rationale": "XYZ."}
+
+    monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
+    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+
+    res = TestClient(app).post(
+        "/public/rewrite-bullet",
+        json={"bullet": "Built a thing that saved 20% time", "role": "Engineer"},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["mode"] == "rewrite"
+    assert body["rewritten_text"].startswith("Engineered")
+
+
+def test_rewrite_bullet_no_metric_question(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake(*args, **kwargs):
+        return {"mode": "question", "question": "What was the impact?"}
+
+    monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
+    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+
+    body = TestClient(app).post("/public/rewrite-bullet", json={"bullet": "Did work"}).json()
+    assert body["mode"] == "question"
+    assert body["question"]
+
+
+def test_restructure_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake(*, cv_text, role, company, missing_keywords, provider):
+        assert cv_text
+        return {
+            "mode": "proposal",
+            "proposed_text": "RESTRUCTURED CV",
+            "changes": ["Reordered experience."],
+            "why": "Lead with impact.",
+            "rationale": "Lead with impact.",
+            "playbook": "XYZ",
+            "uncertainty": None,
+        }
+
+    monkeypatch.setattr(public_router.cv_restructure, "suggest_restructure", _fake)
+    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+
+    res = TestClient(app).post("/public/restructure", json={"cv_text": "my cv text here"})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["mode"] == "proposal"
+    assert body["proposed_text"] == "RESTRUCTURED CV"
+    assert body["changes"] == ["Reordered experience."]
+
+
+def test_rewrite_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake(*args, **kwargs):
+        return {"mode": "rewrite", "rewritten_text": "x", "rationale": "y"}
+
+    monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
+    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+    client = TestClient(app)
+    for _ in range(public_router._ANON_RATE_MAX["rewrite"]):
+        assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 200
+    assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 429

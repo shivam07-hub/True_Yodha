@@ -694,6 +694,21 @@ body::after {
   transform: scale(1.06);
 }
 
+/* Selected segment must read as a defined chip — not a soft wash that
+   dissolves into the track on a light dropdown card (the "floating blob"
+   bug). A crisp accent ring + a touch of lift turns the fill into a
+   deliberate "selected" button. Ring via inset shadow → the glyph never
+   shifts. One rule, every home (account dropdown, mobile drawer, Settings)
+   plus the public bar, since they share this primitive. */
+.tm-theme-control button[aria-checked="true"] {
+  box-shadow: inset 0 0 0 1px var(--tm-accent), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+/* Recess the track so the framed chip has a container to sit in even when
+   the surrounding surface is near-white. */
+.tm-theme-control.tm-segment-toggle {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
 /* ── Page entrance animation ──────────────────────────────── */
 @keyframes tmPageIn {
   from { opacity: 0; transform: translateY(4px); }

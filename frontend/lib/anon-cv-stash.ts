@@ -17,6 +17,10 @@
 import type { AnonScoreResponse } from "@/lib/api"
 
 const RESULT_KEY = "myro_anon_score_v1"
+// The COMPOSED CV text after the logged-out user's playground edits (hides +
+// rewrites + a kept restructure). sessionStorage so it survives the signup
+// redirect → claim-replay POSTs it to /cv/text as the new Main CV (grill Q8).
+const COMPOSED_KEY = "myro_anon_cv_text_v1"
 
 let stashedFile: File | null = null
 
@@ -47,10 +51,33 @@ export function readStashedResult(): AnonScoreResponse | null {
   }
 }
 
+/** Stash the composed CV text the user built in the pre-login playground.
+ *  Replayed to /cv/text on signup so the IMPROVED CV becomes their Main CV. */
+export function stashComposedCvText(text: string): void {
+  try {
+    sessionStorage.setItem(COMPOSED_KEY, text)
+  } catch {
+    // storage blocked — the save-on-signup path is then unavailable; the user
+    // can still re-upload. Never throws into the playground.
+  }
+}
+
+/** Consume the stashed composed text. Returns null when nothing was saved. */
+export function takeStashedComposedCvText(): string | null {
+  try {
+    const text = sessionStorage.getItem(COMPOSED_KEY)
+    if (text) sessionStorage.removeItem(COMPOSED_KEY)
+    return text && text.trim() ? text : null
+  } catch {
+    return null
+  }
+}
+
 export function clearAnonCvStash(): void {
   stashedFile = null
   try {
     sessionStorage.removeItem(RESULT_KEY)
+    sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // ignore
   }

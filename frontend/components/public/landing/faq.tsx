@@ -26,7 +26,6 @@ export function LandingFaq({ scoring, scoreError, onScoring, onResult, onError }
     <section className="lp-faq" aria-label="Questions and closing call to action">
       <div className="lp-wrap">
         <div className="lp-section-head center lp-reveal">
-          <span className="lp-eyebrow">Questions</span>
           <h2 className="lp-section-title">Free to start. Private by default.</h2>
         </div>
 

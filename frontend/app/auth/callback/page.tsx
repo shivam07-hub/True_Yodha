@@ -137,7 +137,9 @@ function CallbackInner() {
       const createdAt = session.user?.created_at ?? null
       const firstSignup =
         createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000 ? "1" : "0"
-      routeOnce(next ?? (firstSignup === "1" ? "/onboarding" : "/home"))
+      // Returning users land on /market (Live = the primary daily surface);
+      // brand-new signups still run the first-run onboarding stepper.
+      routeOnce(next ?? (firstSignup === "1" ? "/onboarding" : "/market"))
 
       backgroundPostSignin(session, provider, firstSignup)
     }

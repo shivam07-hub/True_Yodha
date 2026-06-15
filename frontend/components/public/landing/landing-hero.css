@@ -8,6 +8,42 @@
   overflow: hidden;
 }
 
+/* ── Top stats bar — the live Engine corpus, above the fold ──────
+   Moved up from S2 (where it read as context-less, lost mid-page). Now the
+   first thing read: credibility before the pitch. Slim band, hairline base. */
+.lp-stats {
+  position: relative;
+  border-bottom: 1px solid var(--lp-border);
+}
+
+.lp-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.lp-stat-num {
+  font-family: var(--lp-mono);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lp-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.lp-stat-num .plus { color: var(--lp-accent-text); }
+
+.lp-stat-lbl {
+  margin-top: 6px;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+}
+
 .lp-hero-glow {
   position: absolute;
   top: -180px;
@@ -25,15 +61,17 @@
   grid-template-columns: 1.1fr 0.9fr;
   gap: 56px;
   align-items: center;
-  padding-top: 72px;
-  padding-bottom: 56px;
-  min-height: calc(100vh - 64px);
+  padding-top: 40px;
+  padding-bottom: 40px;
+  /* nav (64) + stats bar (~82) subtracted so the stats strip + hero headline +
+     dropzone read as one full screen — no dead whitespace below the fold. */
+  min-height: calc(100vh - 64px - 82px);
 }
 
 .lp-hero-left { display: flex; flex-direction: column; align-items: flex-start; }
 
 .lp-hero-h1 {
-  margin: 18px 0 0;
+  margin: 0;
   font-size: var(--lp-fs-hero);
   line-height: 1.08;
   font-weight: 700;
@@ -400,6 +438,8 @@
 }
 
 @media (max-width: 640px) {
+  .lp-stats-row { grid-template-columns: repeat(2, 1fr); gap: 22px 24px; }
+  .lp-stat-num { font-size: 24px; }
   .lp-hero-h1 { font-size: 34px; }
   .lp-hero-h1-sub { font-size: 20px; }
   .lp-hero-support { font-size: 16px; }
