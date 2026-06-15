@@ -8,6 +8,7 @@
      score, and the CV download, is gated behind signup. */
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import type { AnonScoreResponse } from "@/lib/api"
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
@@ -45,6 +46,7 @@ function ScaledSheet({ children }: { children: React.ReactNode }) {
 
 export function LandingReadout({ result }: { result?: AnonScoreResponse | null }) {
   const signup = useSignupGate()
+  const router = useRouter()
   const live = !!result
   const hasCv = !!result?.cv
   const [tab, setTab] = useState<"score" | "cv">("score")
@@ -156,9 +158,9 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
               <button
                 type="button"
                 className="lp-readout-unlock-cta"
-                onClick={() => signup.open({ surface: "manual", next: "/cv?upload=1", source: "landing_readout_download" })}
+                onClick={() => router.push("/cv-preview")}
               >
-                Download my CV →
+                Improve &amp; download my CV →
               </button>
             </div>
 
@@ -176,13 +178,24 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
               That&apos;s your score. Sign up free to unlock the jobs you match, the exact skills to
               practice, a tailored CV for every role, and the download of this Myro-standard CV.
             </p>
-            <button
-              type="button"
-              className="lp-readout-unlock-cta"
-              onClick={() => signup.open({ surface: "manual", next: "/cv?upload=1", source: "landing_readout_unlock" })}
-            >
-              Unlock my matches →
-            </button>
+            <div className="lp-readout-unlock-ctas">
+              {hasCv && (
+                <button
+                  type="button"
+                  className="lp-readout-unlock-cta ghost"
+                  onClick={() => router.push("/cv-preview")}
+                >
+                  Improve &amp; download my CV →
+                </button>
+              )}
+              <button
+                type="button"
+                className="lp-readout-unlock-cta"
+                onClick={() => signup.open({ surface: "manual", next: "/cv?upload=1", source: "landing_readout_unlock" })}
+              >
+                Unlock my matches →
+              </button>
+            </div>
           </div>
         )}
       </div>
