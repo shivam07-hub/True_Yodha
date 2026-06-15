@@ -17,6 +17,7 @@ import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
+import { CONTENT_NAV } from "@/lib/nav-items"
 
 const SKELETON_BASE = "var(--tm-surface-2)"
 const SKELETON_HIGHLIGHT = "rgba(255,255,255,0.06)"
@@ -331,6 +332,26 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>{profile?.email ?? ""}</div>
           </div>
         </div>
+
+        {/* Shared content — Intel / Newsletter (intel-authed grill Q13). The
+            5-slot bottom bar has no room, so the mobile home for these is the
+            account sheet; on desktop they sit in the topbar cluster instead. */}
+        {CONTENT_NAV.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            onClick={onClose}
+            style={{
+              display: "flex", alignItems: "center", gap: 14,
+              width: "100%", padding: "14px 4px",
+              borderBottom: "1px solid var(--tm-border-soft)",
+              textDecoration: "none", color: "var(--tm-interactive-rest)",
+            }}
+          >
+            <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>↗</span>
+            <span style={{ fontSize: 15, fontWeight: 500 }}>{item.label}</span>
+          </Link>
+        ))}
 
         {[
           { label: "My Profile",        icon: "⚙",  action: () => setShowSettings(true) },

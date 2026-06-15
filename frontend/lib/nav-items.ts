@@ -39,7 +39,7 @@ export interface NavCoach {
 
 export interface NavItem {
   /** Stable id, also the localStorage coachmark-seen key suffix and the gate key. */
-  id: "home" | "forge" | "market" | "cv" | "tracker" | "myrology"
+  id: "home" | "forge" | "market" | "cv" | "tracker" | "myrology" | "intel" | "newsletter"
   href: string
   label: string
   /** Native title attribute / tooltip. */
@@ -69,10 +69,12 @@ export const AUTHED_NAV: NavItem[] = [
   {
     id: "market",
     href: "/market",
-    // A pulsing dot precedes this label in the topbar (see TopbarNav) — the live
-    // signal lives in the nav now, not beside the in-page Jobs|Heatmap toggle.
-    label: "Live",
-    desc: "Browse openings read live from career pages",
+    // "Jobs" not "Live" (intel-authed grill 2026-06-16, Q12): /intel now also
+    // sits in the nav as "Intel", so the personal openings feed needs a word
+    // that says *act* — "Jobs" — not collide with the market mirror. The pulsing
+    // live-dot stays on it (see TopbarNav) as the freshness signal.
+    label: "Jobs",
+    desc: "Openings matched to you — save, apply, tailor",
     stage: "base",
     surfaces: ["desktop", "mobile"],
     mobileIcon: "intel",
@@ -124,6 +126,34 @@ export const AUTHED_NAV: NavItem[] = [
     // Free opt-in reveals the icon; the intro+confirm prompt is the
     // introduction, so no coachmark here (NEW pill still fires on transition).
     unlock: (ctx) => ctx.myrologyInterested,
+  },
+]
+
+/** Shared-content bucket (intel-authed grill 2026-06-16, Q11–13).
+ *
+ * Login is a *continuation*, not a different app: the marketing-site surfaces
+ * that are actually product content — the live market mirror and the
+ * newsletter — must not vanish at the door. They render as a secondary cluster
+ * on desktop (right of the workspace tabs) and inside the account menu on
+ * mobile, where the 5-slot bottom bar has no room. Always visible (no gate);
+ * `surfaces` left empty because these never sit in the primary tab bars — the
+ * shells render CONTENT_NAV explicitly, not via visibleNavItems(). */
+export const CONTENT_NAV: NavItem[] = [
+  {
+    id: "intel",
+    href: "/intel",
+    label: "Intel",
+    desc: "The whole market — companies, industries, cities, and your fit",
+    stage: "base",
+    surfaces: [],
+  },
+  {
+    id: "newsletter",
+    href: "/newsletter",
+    label: "Newsletter",
+    desc: "Weekly hiring signals, read from live job data",
+    stage: "base",
+    surfaces: [],
   },
 ]
 

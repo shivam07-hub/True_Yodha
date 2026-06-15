@@ -142,28 +142,70 @@ export function CompanyHiringRow({
   )
 }
 
-export function JobRow({ job }: { job: ResultJob }) {
-  const fresh = job.ageMin < 60 * 24
+export interface JobRowFit {
+  overlap_score: number
+  matched_count: number
+  total_skills: number
+}
+
+/** Fit band → strong / building / gap, mirrors the dashboard fit scale. */
+function fitBand(score: number): "strong" | "building" | "gap" {
+  if (score >= 70) return "strong"
+  if (score >= 40) return "building"
+  return "gap"
+}
+
+function FitSlot({
+  authed, hasCv, fit,
+}: { authed: boolean; hasCv: boolean; fit: JobRowFit | null }) {
   const signup = useSignupGate()
+
+  // Logged out — the lock is the conversion hook.
+  if (!authed) {
+    return (
+      <button
+        type="button"
+        className="tm-intel-fit-locked"
+        title="Sign in to see your fit % against this role"
+        onClick={() => signup.open({ surface: "manual", mode: "login", source: "intel_fit_lock" })}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        fit · sign in
+      </button>
+    )
+  }
+
+  // Logged in but fit unknown — no CV, or this role carries no taxonomy skills.
+  // The header owns the single upload CTA (no per-row nagging); rows go quiet.
+  if (!hasCv || !fit) {
+    return <span className="tm-intel-fit-muted" aria-hidden="true">—</span>
+  }
+
+  const band = fitBand(fit.overlap_score)
+  return (
+    <span
+      className={`tm-intel-fit-pill is-${band}`}
+      title={`${fit.matched_count} of ${fit.total_skills} required skills matched`}
+    >
+      {Math.round(fit.overlap_score)}%
+      <span className="tm-intel-fit-skills">· {fit.matched_count}/{fit.total_skills} skills</span>
+    </span>
+  )
+}
+
+export function JobRow({
+  job, authed = false, hasCv = false, fit = null,
+}: { job: ResultJob; authed?: boolean; hasCv?: boolean; fit?: JobRowFit | null }) {
+  const fresh = job.ageMin < 60 * 24
   return (
     <div className="tm-intel-job-row">
       <div className="tm-intel-job-head">
         <div className="tm-intel-job-title">{job.title}</div>
-        <button
-          type="button"
-          className="tm-intel-fit-locked"
-          title="Sign in to see your fit % against this role"
-          onClick={() =>
-            signup.open({ surface: "manual", mode: "login", source: "intel_fit_lock" })
-          }
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          fit · sign in
-        </button>
+        <FitSlot authed={authed} hasCv={hasCv} fit={fit} />
       </div>
       <div className="tm-intel-job-sub">
         <span>{job.city}</span>

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { RESULTS_SORT, RESULTS_SORT_OPTIONS, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
-import { CompanyHiringRow, CompanyRow, Empty, GroupRow, JobRow } from "./intel-rows"
+import { CompanyHiringRow, CompanyRow, Empty, GroupRow, JobRow, type JobRowFit } from "./intel-rows"
 import { IntelRowSkeletonList } from "./intel-row-skeleton"
 import { fmtBatch } from "./intel-data"
 
@@ -87,6 +87,12 @@ interface ResultsProps {
   sort: ResultsSortKey
   onSortChange: (k: ResultsSortKey) => void
   latestBatchIso: string | null
+  /** Logged-in viewer — unlocks real fit, drops the signup CTA. */
+  authed: boolean
+  /** Authed + a CV uploaded — gates whether fit can be computed at all. */
+  hasCv: boolean
+  /** job_id → fit, lazily fetched for the active company's open roles. */
+  fits: Map<string, JobRowFit>
 }
 
 export function IntelResults(props: ResultsProps) {
@@ -297,9 +303,17 @@ function Split(props: ResultsProps) {
         ) : isOpenRolesLoading && !jobsForActive.length ? (
           <IntelRowSkeletonList count={4} variant="job" />
         ) : jobsForActive.length
-          ? jobsForActive.map((j) => <JobRow key={j.id} job={j} />)
+          ? jobsForActive.map((j) => (
+              <JobRow
+                key={j.id}
+                job={j}
+                authed={props.authed}
+                hasCv={props.hasCv}
+                fit={props.fits.get(j.id) ?? null}
+              />
+            ))
           : <Empty />}
-        <LockedCta />
+        {props.authed ? null : <LockedCta />}
       </div>
     </div>
   )

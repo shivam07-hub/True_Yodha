@@ -1944,6 +1944,20 @@ export interface GlobalJobSearchResponse {
   hits: GlobalJobHit[]
 }
 
+// Deterministic fit % for a batch of jobs against the caller's CV skills —
+// powers the logged-in /intel drill. Same `_compute_overlap` the analyse path
+// uses, so the number matches the dashboard. No charge, no LLM, no persist.
+export interface JobFitItem {
+  job_id: string
+  overlap_score: number
+  matched_skills: string[]
+  matched_count: number
+  total_skills: number
+}
+export interface JobFitBatchResponse {
+  fits: JobFitItem[]
+}
+
 export const jobs = {
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
@@ -1963,6 +1977,13 @@ export const jobs = {
     params.set(group.kind, group.name)
     return request<TopCompaniesAtResponse>(`/jobs/companies-at?${params.toString()}`)
   },
+
+  fitBatch: (token: string, jobIds: string[]) =>
+    request<JobFitBatchResponse>("/jobs/fit-batch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ job_ids: jobIds }),
+    }),
 
   globalSearch: (q: string, limit = 12) =>
     request<GlobalJobSearchResponse>(

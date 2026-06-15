@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { jobs, type CompanyOpenRoleItem, type JobLocationFilters } from "@/lib/api"
+import { home, jobs, type CompanyOpenRoleItem, type JobFitItem, type JobLocationFilters } from "@/lib/api"
+import { getAccessToken } from "@/lib/session"
 import { dataKeys } from "@/lib/domain-data"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
 import { useResultsSort, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
-import { IntelHero } from "./intel/intel-hero"
+import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
+import type { JobRowFit } from "./intel/intel-rows"
 import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { IntelCommons } from "./intel/intel-commons"
@@ -40,6 +42,23 @@ export function IntelPane() {
   const { sort, setSort } = useResultsSort("intel", "velocity")
 
   useJobsRealtime()
+
+  // Optional session — read WITHOUT useAuth(), which redirects anon visitors to
+  // /login (this is a public, SEO-indexed route). getAccessToken() just peeks.
+  const [token, setToken] = useState<string | null>(null)
+  useEffect(() => { setToken(getAccessToken()) }, [])
+  const authed = !!token
+
+  // Personal header data (grill Q4=B/Q5=A). One cheap BFF call already used by
+  // the dashboard; reused here for score + CV presence. Anon never fetches it.
+  const { data: bootstrap } = useQuery({
+    queryKey: ["intel_personal", token],
+    queryFn: () => home.bootstrap(token as string),
+    enabled: authed,
+    staleTime: 5 * 60 * 1000,
+  })
+  const personalScore = bootstrap?.score?.total_score ?? null
+  const hasCv = (bootstrap?.cv_versions?.versions?.length ?? 0) > 0
 
   // Active chips → backend analytics filter. Country chips are mutually exclusive
   // (backend takes one location_country); "remote" is an independent mode toggle.
@@ -225,6 +244,28 @@ export function IntelPane() {
     }))
   }, [openRolesData, nowMs])
 
+  // Lazy fit — only the visible company's open roles (grill Q3=A). Fires on
+  // company-select; never eager across the company list. Skipped without a CV
+  // (header carries the upload CTA instead).
+  const visibleJobIds = useMemo(() => openRoleJobs.map((j) => j.id), [openRoleJobs])
+  const { data: fitData } = useQuery({
+    queryKey: ["intel_fit", token, visibleJobIds],
+    queryFn: () => jobs.fitBatch(token as string, visibleJobIds),
+    enabled: authed && hasCv && visibleJobIds.length > 0,
+    staleTime: 30 * 60 * 1000,
+  })
+  const fits = useMemo(() => {
+    const m = new Map<string, JobRowFit>()
+    for (const f of (fitData?.fits ?? []) as JobFitItem[]) {
+      m.set(f.job_id, {
+        overlap_score: f.overlap_score,
+        matched_count: f.matched_count,
+        total_skills: f.total_skills,
+      })
+    }
+    return m
+  }, [fitData])
+
   const jobsShown = globalSearch.isActive ? globalSearch.hits.length : jobsTotal
 
   function toggleChip(id: string) {
@@ -246,18 +287,26 @@ export function IntelPane() {
 
   return (
     <div className="tm-intel-page tm-page-enter">
-      <IntelHero
-        jobsCount={safeJobsTotal}
-        jobsTick={false}
-        companiesCount={safeCompanies}
-        industriesCount={safeIndustries}
-        industriesMapped={safeIndustries}
-        parsedToday={analytics?.total_jobs_today ?? 0}
-        jobsAdded1h={analytics?.jobs_added_1h ?? 0}
-        companiesAdded7d={analytics?.companies_added_7d ?? 0}
-        latestBatchIso={analytics?.latest_batch ?? null}
-        uptime={uptime}
-      />
+      {authed ? (
+        <IntelAuthedHeader
+          score={personalScore}
+          hasCv={hasCv}
+          parsedToday={analytics?.total_jobs_today ?? 0}
+        />
+      ) : (
+        <IntelHero
+          jobsCount={safeJobsTotal}
+          jobsTick={false}
+          companiesCount={safeCompanies}
+          industriesCount={safeIndustries}
+          industriesMapped={safeIndustries}
+          parsedToday={analytics?.total_jobs_today ?? 0}
+          jobsAdded1h={analytics?.jobs_added_1h ?? 0}
+          companiesAdded7d={analytics?.companies_added_7d ?? 0}
+          latestBatchIso={analytics?.latest_batch ?? null}
+          uptime={uptime}
+        />
+      )}
 
       <IntelCommandBar
         value={query}
@@ -302,6 +351,9 @@ export function IntelPane() {
         sort={sort}
         onSortChange={setSort}
         latestBatchIso={analytics?.latest_batch ?? null}
+        authed={authed}
+        hasCv={hasCv}
+        fits={fits}
       />
 
       <IntelCommons />

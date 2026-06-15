@@ -553,6 +553,36 @@
   background: rgba(176, 132, 255, 0.12);
   border-color: rgba(176, 132, 255, 0.3);
 }
+/* Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter as a
+   secondary, lighter-weight group right of the workspace tabs, set off by a
+   hairline. Subordinate: muted at rest, full weight only when active. */
+.tm-nav-content-cluster {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--tm-border);
+  flex-shrink: 0;
+}
+.tm-topbar-link-content {
+  color: var(--tm-text-muted);
+  font-weight: 500;
+}
+.tm-topbar-link-content:hover {
+  color: var(--tm-text);
+}
+.tm-topbar-link-content[data-active="true"] {
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
+}
+/* Tight viewports: let the workspace tabs win the space — the content cluster
+   is reachable from the account menu, so it can drop out here. */
+@media (max-width: 1080px) {
+  .tm-nav-content-cluster { display: none; }
+}
+
 .tm-topbar-right {
   display: flex;
   align-items: center;

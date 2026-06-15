@@ -54,15 +54,26 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
 
   const intelLabel = isAuthed ? `Live Job Data · ${formatTodayShort()}` : "Live Job Data"
 
+  // Continuous-nav (intel-authed grill): a logged-in viewer on a public route
+  // gets the SHARED bucket (Newsletter, Intel) but not ACQUISITION ("For
+  // Colleges"), and the logo returns them to the app, not the marketing home.
+  const navItems = isAuthed
+    ? STATIC_NAV_ITEMS.filter((i) => i.id !== "institutions")
+    : STATIC_NAV_ITEMS
+
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
-      <Link href="/" aria-label="Myro home" className="tm-public-nav-brand">
+      <Link
+        href={isAuthed ? "/home" : "/"}
+        aria-label={isAuthed ? "Myro — back to app" : "Myro home"}
+        className="tm-public-nav-brand"
+      >
         <MyroLogo size={34} />
         <span className="tm-public-nav-wordmark">Myro</span>
       </Link>
 
       <div className="tm-public-nav-links">
-        {STATIC_NAV_ITEMS.map(({ Icon, ...item }) => (
+        {navItems.map(({ Icon, ...item }) => (
           <Link
             key={item.id}
             href={item.href}
