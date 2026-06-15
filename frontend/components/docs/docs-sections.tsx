@@ -237,7 +237,9 @@ export function DataSection() {
 
 // ── Section 7: FAQ ────────────────────────────────────────────────────────────
 
-const FAQ_ITEMS: [string, string][] = [
+// Canonical product-FAQ source. /docs#faq is the hub that owns FAQPage schema
+// (emitted in app/docs/page.tsx). Landing emits only its unique conversion Qs.
+export const FAQ_ITEMS: [string, string][] = [
   ["Is Myro free?", "Yes — uploading your CV, getting your Myro Score, and seeing your 10-domain breakdown are free. You can start without a credit card."],
   ["What file formats can I upload?", "PDF or DOCX. Drop your CV on the homepage and Myro reads it in under a minute."],
   ["Do I need to use my real name or email?", "No. Any email works — throwaway or alias — and we do not verify identity. Your public identity is your Myro handle, never your name or email."],

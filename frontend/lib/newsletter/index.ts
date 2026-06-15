@@ -5,6 +5,36 @@ import matter from "gray-matter"
 export type IssueTheme = "heatmap" | "skill" | "trajectory" | "boom-watch" | "future-of-work"
 export type IssuePillar = "ai-careers" | "career-trajectories" | "career-switching" | "in-demand-skills"
 
+/** One FAQ pair. Feeds both the visible accordion and FAQPage JSON-LD. */
+export interface IssueFaq {
+  q: string
+  a: string
+}
+
+/** A HowTo step. Feeds the visible ladder and HowTo JSON-LD (trajectory issues). */
+export interface IssueStep {
+  name: string
+  text: string
+}
+
+/**
+ * Aggregate dataset descriptor. Presence-gated: when set, the issue emits
+ * Dataset JSON-LD + a build-time CSV at /newsletter/{slug}/dataset.csv.
+ * Aggregates only (never raw rows) — licensed CC BY 4.0 for citation backlinks.
+ */
+export interface IssueDataset {
+  name: string
+  description: string
+  spatialCoverage?: string
+  /** ISO 8601 interval or month, e.g. "2026-06". */
+  temporalCoverage?: string
+  variableMeasured?: string[]
+  /** CSV header row. */
+  columns: string[]
+  /** CSV body rows, column-aligned with `columns`. */
+  table: (string | number)[][]
+}
+
 export interface IssueFrontmatter {
   title: string
   seoTitle?: string
@@ -12,6 +42,7 @@ export interface IssueFrontmatter {
   publishedAt: string
   theme: IssueTheme
   primaryKeyword: string
+  secondaryKeywords?: string[]
   ctaRole: string
   ogImage?: string
   ogImageAlt?: string
@@ -22,6 +53,11 @@ export interface IssueFrontmatter {
   readMinutes?: number
   authorName?: string
   authorInitials?: string
+  /** Slug of the pillar heatmap this spoke is built on (hub-and-spoke cluster). */
+  sourceIssue?: string
+  faqs?: IssueFaq[]
+  steps?: IssueStep[]
+  dataset?: IssueDataset
 }
 
 export interface Issue extends IssueFrontmatter {
@@ -52,4 +88,39 @@ export async function getAllIssues(): Promise<Issue[]> {
 export async function getIssueBySlug(slug: string): Promise<Issue | null> {
   const filename = `${slug}.mdx`
   return readIssueFile(filename)
+}
+
+/** Spoke issues that declare this slug as their `sourceIssue` (pillar → spokes). */
+export async function getSpokesOf(slug: string): Promise<Issue[]> {
+  const all = await getAllIssues()
+  return all.filter((i) => i.sourceIssue === slug)
+}
+
+/**
+ * Topic-cluster related issues for the rail. Prefers same pillar, then the
+ * pillar this issue points at (or its spokes), then recency as a backstop.
+ */
+export async function getRelatedIssues(issue: Issue, limit = 3): Promise<Issue[]> {
+  const all = (await getAllIssues()).filter(
+    (i) => i.slug !== issue.slug && i.slug !== "_placeholder",
+  )
+  const score = (i: Issue): number => {
+    if (issue.pillar && i.pillar === issue.pillar) return 3
+    if (issue.sourceIssue && (i.slug === issue.sourceIssue || i.sourceIssue === issue.sourceIssue)) return 2
+    if (i.sourceIssue === issue.slug) return 2
+    return 0
+  }
+  return [...all]
+    .sort((a, b) => score(b) - score(a) || b.publishedAt.localeCompare(a.publishedAt))
+    .slice(0, limit)
+}
+
+/** Serialize a dataset table to CSV (RFC 4180 quoting). */
+export function datasetToCsv(dataset: IssueDataset): string {
+  const esc = (v: string | number): string => {
+    const s = String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const rows = [dataset.columns, ...dataset.table]
+  return rows.map((row) => row.map(esc).join(",")).join("\r\n") + "\r\n"
 }

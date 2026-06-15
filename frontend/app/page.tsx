@@ -59,9 +59,11 @@ const JSON_LD = {
       description: DESCRIPTION,
       offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
     },
+    // FAQPage emits ONLY landing-unique conversion Qs (schema: true). Product/
+    // reference Qs are owned by /docs#faq so no duplicate structured data exists.
     {
       "@type": "FAQPage",
-      mainEntity: FAQ_ITEMS.map((item) => ({
+      mainEntity: FAQ_ITEMS.filter((item) => item.schema).map((item) => ({
         "@type": "Question",
         name: item.q,
         acceptedAnswer: { "@type": "Answer", text: item.a },
