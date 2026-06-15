@@ -41,7 +41,8 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
   useEffect(() => {
     if (getAccessToken() || getRefreshToken()) {
       setRedirecting(true)
-      router.replace("/home")
+      // Returning users land on /market — Live is the primary daily surface.
+      router.replace("/market")
     }
   }, [router])
 
@@ -95,6 +96,10 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingHero
           companiesLabel={data.companiesLabel}
           companyNames={data.marqueeNames}
+          jobsTracked={data.jobsTracked}
+          companiesMonitored={data.companiesMonitored}
+          skillsMapped={data.skillsMapped}
+          seekers={data.seekers}
           scoring={scoring}
           scoreError={scoreError}
           onScoring={() => {
@@ -110,10 +115,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
         <LandingEngine
           companiesLabel={data.companiesLabel}
-          jobsTracked={data.jobsTracked}
-          companiesMonitored={data.companiesMonitored}
-          skillsMapped={data.skillsMapped}
-          seekers={data.seekers}
           scoring={scoring}
           scoreError={scoreError}
           onScoring={() => {

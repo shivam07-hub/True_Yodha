@@ -40,7 +40,6 @@ export function LandingSurfaces() {
     <section className="lp-surfaces" id="surfaces" aria-label="The surfaces">
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <span className="lp-eyebrow">The Surfaces</span>
           <h2 className="lp-section-title">Three ways into the Engine.</h2>
         </div>
 

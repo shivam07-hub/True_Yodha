@@ -65,7 +65,6 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
     <section className="lp-readout" id="cv-hub" aria-label={live ? "Your readout" : "Sample readout"}>
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <span className="lp-eyebrow">{live ? "Your readout" : "Sample readout"}</span>
           <h2 className="lp-section-title">
             {live ? "What the Engine says about your CV." : "What the Engine says about one CV version."}
           </h2>

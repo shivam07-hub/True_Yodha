@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { Globe, Sparkles, Network, Target, FileText, type LucideIcon } from "lucide-react"
 import { LandingDropzone } from "@/components/public/landing/dropzone"
@@ -29,64 +28,8 @@ function StageCard({ stage, className }: { stage: Stage; className?: string }) {
   )
 }
 
-/** Count-up once on scroll-into-view; static value for reduced motion / no JS. */
-function Counter({ target, label }: { target: number; label: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [value, setValue] = useState(target)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (reduce || !("IntersectionObserver" in window)) {
-      setValue(target)
-      return
-    }
-    setValue(0)
-    let raf = 0
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          io.unobserve(entry.target)
-          const DUR = 800
-          let start: number | null = null
-          const frame = (ts: number) => {
-            if (start === null) start = ts
-            const p = Math.min((ts - start) / DUR, 1)
-            const eased = 1 - Math.pow(1 - p, 3)
-            setValue(Math.round(target * eased))
-            if (p < 1) raf = requestAnimationFrame(frame)
-          }
-          raf = requestAnimationFrame(frame)
-        }
-      },
-      { threshold: 0.4 },
-    )
-    io.observe(el)
-    return () => {
-      io.disconnect()
-      cancelAnimationFrame(raf)
-    }
-  }, [target])
-
-  return (
-    <div className="lp-counter" ref={ref}>
-      <div className="lp-counter-num">
-        <span>{value.toLocaleString("en-US")}</span>
-        <span className="plus">+</span>
-      </div>
-      <div className="lp-counter-lbl">{label}</div>
-    </div>
-  )
-}
-
 interface LandingEngineProps {
   companiesLabel: string
-  jobsTracked: number
-  companiesMonitored: number
-  skillsMapped: number
-  seekers: number
   scoring: boolean
   scoreError: string | null
   onScoring: () => void
@@ -96,10 +39,6 @@ interface LandingEngineProps {
 
 export function LandingEngine({
   companiesLabel,
-  jobsTracked,
-  companiesMonitored,
-  skillsMapped,
-  seekers,
   scoring,
   scoreError,
   onScoring,
@@ -187,13 +126,6 @@ export function LandingEngine({
             />
             {scoreError ? <p className="lp-dropzone-error">{scoreError}</p> : null}
           </div>
-        </div>
-
-        <div className="lp-counters lp-reveal" aria-label="Live Engine counters">
-          <Counter target={jobsTracked} label="Jobs tracked" />
-          <Counter target={companiesMonitored} label="Companies monitored" />
-          <Counter target={skillsMapped} label="Skills mapped" />
-          <Counter target={seekers} label="Job seekers" />
         </div>
 
         <p className="lp-roadmap-line lp-reveal">
