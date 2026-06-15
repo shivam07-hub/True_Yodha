@@ -8,6 +8,7 @@ import { jobs, users, xp } from "@/lib/api"
 import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, JobLocationFilters } from "@/lib/api"
 import { formatJobLocation } from "@/lib/format-location"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
+import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -724,6 +725,14 @@ function IntelPageInner() {
         }
       `}</style>
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
+       <div className="mc-workspace">
+        {/* Greeting hero — the daily-loop block relocated off /home; Live is the
+            primary daily surface now. Desktop = pinned rail, mobile = banner
+            above the feed (mc-workspace collapses to one column ≤980px). */}
+        <aside className="mc-ws-rail">
+          <MissionHeroRail token={token ?? null} />
+        </aside>
+        <div className="mc-ws-main">
         {/* The "live" signal now lives beside the Live link in the topbar — the
             toggle bar stands alone here (no indicator beside it). */}
         {/* Jobs | Heatmap tab switcher */}
@@ -799,6 +808,8 @@ function IntelPageInner() {
             )}
           </div>
         )}
+        </div>
+       </div>
       </div>
     </>
   )
