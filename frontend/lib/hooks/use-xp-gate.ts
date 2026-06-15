@@ -32,10 +32,10 @@ interface XPGateResult {
  * This hook is the deep-module read API; the heavy lifting (modal,
  * telemetry, future earn-path routing) lives behind it. Callers do:
  *
- *     const gate = useXPGate({ cost: 10, action: "follow_company" })
+ *     const gate = useCoinsGate({ cost: 10, action: "follow_company" })
  *     <button disabled={!gate.canAfford} onClick={() => gate.attempt(() => follow())}>
  */
-export function useXPGate({ cost, action, floor = 0 }: UseXPGateParams): XPGateResult {
+export function useCoinsGate({ cost, action, floor = 0 }: UseXPGateParams): XPGateResult {
   const balance = useXPStore((s) => s.balance)
   const openGate = useXPGateStore((s) => s.openGate)
 

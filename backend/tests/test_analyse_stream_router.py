@@ -98,7 +98,7 @@ def test_stream_charges_on_success_and_persists(monkeypatch):
     tokens = "".join(f.get("text", "") for f in frames if f["type"] == "token")
     done = [f for f in frames if f["type"] == "done"]
     assert tokens == "Strong match."
-    assert done and done[0]["new_xp_balance"] == 90
+    assert done and done[0]["new_coin_balance"] == 90
     assert charged["amt"] == 10
     assert charged["ref_table"] == "user_job_matches"
     assert len(repo.upserts) == 1
@@ -131,7 +131,7 @@ def test_stream_cached_replays_without_charge(monkeypatch):
     done = [f for f in frames if f["type"] == "done"]
     assert tokens == "Already analysed."
     assert done and done[0].get("cached") is True
-    assert done[0]["new_xp_balance"] == 77
+    assert done[0]["new_coin_balance"] == 77
     assert charge_called["n"] == 0  # cached path never charges
     assert repo.upserts == []
 

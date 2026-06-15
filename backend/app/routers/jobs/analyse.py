@@ -112,7 +112,7 @@ async def analyse_job(
         "job_id": job_id,
         "overlap_score": overlap_score,
         "matched_count": len(matched_skills),
-        "new_xp_balance": new_balance,
+        "new_coin_balance": new_balance,
     }
 
 
@@ -169,7 +169,7 @@ async def analyse_job_stream(
                 yield _sse({"type": "token", "text": chunk})
                 await asyncio.sleep(0.012)
             balance = await xp_service.get_xp_balance(user_id)
-            yield _sse({"type": "done", "new_xp_balance": balance, "cached": True})
+            yield _sse({"type": "done", "new_coin_balance": balance, "cached": True})
         return StreamingResponse(replay(), media_type="text/event-stream")
 
     # Funding preflight (no mutation). Frontend gates broke users, but defend the
@@ -225,6 +225,6 @@ async def analyse_job_stream(
             "llm_rank": None,
             "computed_at": datetime.now(timezone.utc).isoformat(),
         })
-        yield _sse({"type": "done", "new_xp_balance": new_balance})
+        yield _sse({"type": "done", "new_coin_balance": new_balance})
 
     return StreamingResponse(generate(), media_type="text/event-stream")

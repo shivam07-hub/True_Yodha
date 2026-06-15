@@ -31,7 +31,7 @@ class JobRefresh:
             batch_week=batch_week,
             excluded_job_ids=excluded_job_ids,
             xp_charged=MATCH_REFRESH_XP_COST,
-            new_xp_balance=new_balance,
+            new_coin_balance=new_balance,
         )
 
     @staticmethod

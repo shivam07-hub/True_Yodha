@@ -340,8 +340,8 @@ export interface UserProfile {
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
-  xp_earned: number
-  new_xp_balance: number | null
+  coins_earned: number
+  new_coin_balance: number | null
 }
 
 export interface ProfileUpdate {
@@ -402,7 +402,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   followCompany: (token: string, companyName: string) =>
-    request<{ company_name: string; new_xp_balance: number | null }>("/users/me/following/companies", {
+    request<{ company_name: string; new_coin_balance: number | null }>("/users/me/following/companies", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ company_name: companyName }),
@@ -1569,7 +1569,7 @@ export interface RefreshTicketResponse {
   progress_label: string
   batch_week: string
   xp_charged: number
-  new_xp_balance: number
+  new_coin_balance: number
   matches_written: number | null
 }
 
@@ -1580,7 +1580,7 @@ export interface RefreshStateResponse {
   batch_week: string
   matches_written: number | null
   refund: number | null
-  new_xp_balance: number | null
+  new_coin_balance: number | null
   outcome_kind: RefreshOutcomeKind | null
   error: string | null
   debug: Record<string, unknown> | null
@@ -1682,8 +1682,8 @@ export interface ApplicationResponse {
   last_stage_changed_at?: string | null
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
-  xp_earned?: number | null
-  xp_balance?: number | null
+  coins_earned?: number | null
+  coin_balance?: number | null
 }
 
 export interface JobFileExtract {
@@ -2172,7 +2172,7 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   reportInactive: (token: string, jobId: string) =>
-    request<{ report_count: number; already_reported: boolean; xp_earned: number }>(
+    request<{ report_count: number; already_reported: boolean; coins_earned: number }>(
       `/jobs/${encodeURIComponent(jobId)}/report`,
       { method: "POST", headers: { Authorization: `Bearer ${token}` } },
     ),
@@ -2261,7 +2261,7 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   analyseJob: (token: string, jobId: string) =>
-    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_xp_balance: number }>(
+    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_coin_balance: number }>(
       `/jobs/analyse/${jobId}`,
       { method: "POST", headers: { Authorization: `Bearer ${token}` } },
     ),
@@ -2457,8 +2457,8 @@ export interface RazorpayVerifyPayload {
 
 export interface RazorpayVerifyResponse {
   success: boolean
-  xp_earned: number
-  new_xp_balance: number
+  coins_earned: number
+  new_coin_balance: number
   product: string
   myrology_unlocked: boolean
 }
@@ -3052,7 +3052,7 @@ export interface SubmitSetResponse {
   passed: boolean
   first_clear: boolean
   tokens_awarded: number
-  new_xp_balance: number
+  new_coin_balance: number
   next_level_unlocked: number | null
   results: QuestionResult[]
 }

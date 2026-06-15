@@ -7,8 +7,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { users, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { XP_POLICY } from "@/lib/xp-policy"
-import { useXPGate } from "@/lib/hooks/use-xp-gate"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 
@@ -23,7 +23,7 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
  *  - Three exits: Run analysis (save+spend) / Save targeting only / Discard.
  *  - Broke: gate opens, edits stay free, Run disabled + shortfall + /xp link
  *    (reuses the canonical "See how tokens works →" route, not a new earn path).
- *  - Reuses useXPGate (policy/telemetry) + the JobMatchDetail dialog pattern.
+ *  - Reuses useCoinsGate (policy/telemetry) + the JobMatchDetail dialog pattern.
  *
  * EXTRACTABLE CORE: everything below the manifest rows (ConsentReadout + the
  * three-exit footer + broke state) is action-agnostic. When a SECOND
@@ -31,7 +31,7 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
  * <AgentRunGate manifest=… action=…/> and keep this as a thin caller.
  */
 
-const COST = XP_POLICY.matchRefreshCost
+const COST = MYRO_COINS_POLICY.matchRefreshCost
 
 type GateProfile = Pick<
   UserProfile,
@@ -89,7 +89,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const open = useRefreshGateStore((s) => s.open)
   const close = useRefreshGateStore((s) => s.closeRefreshGate)
   const balance = useXPStore((s) => s.balance)
-  const { canAfford, attempt } = useXPGate({ cost: COST, action: "match_refresh" })
+  const { canAfford, attempt } = useCoinsGate({ cost: COST, action: "match_refresh" })
   const queryClient = useQueryClient()
 
   const [draft, setDraft] = useState<Draft>(() => seed(profile))

@@ -46,7 +46,7 @@ async def create_or_update_entry(
         new_balance = await earn_xp(user_id, DIARY_XP)
     except Exception as exc:
         _log.warning("XP earn failed for diary entry user=%s: %s", user_id, exc)
-    return _to_diary_response(row, score_before, score_after, xp_earned=DIARY_XP, new_xp_balance=new_balance)
+    return _to_diary_response(row, score_before, score_after, coins_earned=DIARY_XP, new_coin_balance=new_balance)
 
 
 @router.get("/history", response_model=DiaryHistoryResponse)
@@ -96,8 +96,8 @@ def _to_diary_response(
     row: dict,
     score_before: float | None = None,
     score_after: float | None = None,
-    xp_earned: int = 0,
-    new_xp_balance: int | None = None,
+    coins_earned: int = 0,
+    new_coin_balance: int | None = None,
 ) -> DiaryEntryResponse:
     deltas = [SkillDeltaItem(**d) for d in (row.get("skills_delta") or [])]
     return DiaryEntryResponse(
@@ -107,8 +107,8 @@ def _to_diary_response(
         skills_delta=deltas,
         score_before=score_before,
         score_after=score_after,
-        xp_earned=xp_earned,
-        new_xp_balance=new_xp_balance,
+        coins_earned=coins_earned,
+        new_coin_balance=new_coin_balance,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

@@ -105,8 +105,8 @@ export default function OnboardingPage() {
 
     const promise = runner
       .then((result): CVUploadCompletion => {
-        if (typeof result.new_xp_balance === "number") {
-          applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
+        if (typeof result.new_coin_balance === "number") {
+          applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
         }
         queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })

@@ -80,8 +80,8 @@ class VerifyPaymentRequest(BaseModel):
 
 class VerifyPaymentResponse(BaseModel):
     success: bool
-    xp_earned: int
-    new_xp_balance: int
+    coins_earned: int
+    new_coin_balance: int
     product: str
     myrology_unlocked: bool = False
 
@@ -399,11 +399,11 @@ async def verify_payment(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment verification is already in progress")
 
     balance = await _apply_fulfilment(principal.id, product, payment)
-    xp_earned = 0 if product.kind == "entitlement" else int(payment.get("xp_amount") or product.xp_amount)
+    coins_earned = 0 if product.kind == "entitlement" else int(payment.get("xp_amount") or product.xp_amount)
     return VerifyPaymentResponse(
         success=True,
-        xp_earned=xp_earned,
-        new_xp_balance=balance,
+        coins_earned=coins_earned,
+        new_coin_balance=balance,
         product=product.key,
         myrology_unlocked=product.kind == "entitlement",
     )
@@ -414,8 +414,8 @@ async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentR
     balance = await xp_service.get_xp_balance(user_id)
     return VerifyPaymentResponse(
         success=True,
-        xp_earned=0,
-        new_xp_balance=balance,
+        coins_earned=0,
+        new_coin_balance=balance,
         product=product.key,
         myrology_unlocked=product.kind == "entitlement",
     )

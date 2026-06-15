@@ -50,8 +50,8 @@ function application(partial: Partial<ApplicationResponse>): ApplicationResponse
     last_stage_changed_at: null,
     is_first_offer: false,
     cv_badge: null,
-    xp_earned: null,
-    xp_balance: null,
+    coins_earned: null,
+    coin_balance: null,
     ...partial,
   }
 }

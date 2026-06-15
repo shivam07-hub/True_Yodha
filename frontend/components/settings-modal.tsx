@@ -8,7 +8,7 @@ import { ThemeControl } from "@/components/ui/theme-control"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
@@ -274,8 +274,8 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
       return users.updateProfile(token, payload)
     },
     onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "profile_update" })
-      if ((data.xp_earned ?? 0) > 0) setRewardNotice(`+${data.xp_earned} Myro Coins earned`)
+      if (typeof data.new_coin_balance === "number") applyXpChange({ newBalance: data.new_coin_balance, action: "profile_update" })
+      if ((data.coins_earned ?? 0) > 0) setRewardNotice(`+${data.coins_earned} Myro Coins earned`)
       queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       setSaveStatus("saved"); setSaveError(null)
       if (savedTimer.current) clearTimeout(savedTimer.current)
@@ -474,9 +474,9 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
           setBillingMessage("Verifying payment…")
           try {
             const verified = await billing.verifyPayment(token, response)
-            applyXpChange({ newBalance: verified.new_xp_balance, action: "xp_purchase" })
+            applyXpChange({ newBalance: verified.new_coin_balance, action: "xp_purchase" })
             setBillingStatus("success")
-            setBillingMessage(`+${verified.xp_earned} Myro Coins added. New balance: ${verified.new_xp_balance} Myro Coins.`)
+            setBillingMessage(`+${verified.coins_earned} Myro Coins added. New balance: ${verified.new_coin_balance} Myro Coins.`)
           } catch (error) {
             setBillingStatus("error")
             setBillingMessage(messageFromError(error, "Payment verification failed."))
@@ -654,7 +654,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 <div className="tm-settings-linkedin-row" style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <div style={ROW_LABEL}>LinkedIn</div>
-                    <div style={ROW_DESC}>Add once to earn +{XP_POLICY.linkedInProfile} Myro Coins</div>
+                    <div style={ROW_DESC}>Add once to earn +{MYRO_COINS_POLICY.linkedInProfile} Myro Coins</div>
                   </div>
                   <div className="tm-settings-linkedin-field" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
                     <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
@@ -857,7 +857,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     <div>
                       <div style={ROW_LABEL}>Target Companies</div>
                       <div style={ROW_DESC}>
-                        Companies whose jobs you track in Market · -{XP_POLICY.followCompanyCost} Myro Coins each
+                        Companies whose jobs you track in Market · -{MYRO_COINS_POLICY.followCompanyCost} Myro Coins each
                       </div>
                     </div>
                     {followedCompanies.length > 0 && (
@@ -909,7 +909,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>
                             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-interactive)", whiteSpace: "nowrap" }}>
-                              -{XP_POLICY.followCompanyCost} Myro Coins
+                              -{MYRO_COINS_POLICY.followCompanyCost} Myro Coins
                             </span>
                           </button>
                         ))}
@@ -937,7 +937,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                      No companies followed yet. Following costs {XP_POLICY.followCompanyCost} Myro Coins.
+                      No companies followed yet. Following costs {MYRO_COINS_POLICY.followCompanyCost} Myro Coins.
                     </div>
                   </div>
                 ) : (

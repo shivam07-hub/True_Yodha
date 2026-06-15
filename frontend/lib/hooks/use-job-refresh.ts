@@ -7,10 +7,10 @@ import { dataKeys } from "@/lib/domain-data"
 import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
 import { readSse, type SseEvent } from "@/lib/streaming/read-sse"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
-export const REFRESH_XP_COST = XP_POLICY.matchRefreshCost
+export const REFRESH_XP_COST = MYRO_COINS_POLICY.matchRefreshCost
 
 export type RefreshState =
   | "idle"
@@ -50,13 +50,13 @@ export interface UseJobRefreshResult {
 interface DoneResult {
   matches_written?: number | null
   outcome_kind?: RefreshOutcomeKind | null
-  new_xp_balance?: number | null
+  new_coin_balance?: number | null
   progress_label?: string | null
 }
 
 interface ErrResult {
   state?: string
-  new_xp_balance?: number | null
+  new_coin_balance?: number | null
 }
 
 /** Job Refresh view-model — see CONTEXT.md "Job Refresh". ADR-0009 PR2: a single
@@ -87,8 +87,8 @@ export function useJobRefresh(
   const finishDone = useCallback(
     (result: DoneResult) => {
       stopStream()
-      if (result.new_xp_balance != null) {
-        applyXpChange({ newBalance: result.new_xp_balance, action: "match_refresh" })
+      if (result.new_coin_balance != null) {
+        applyXpChange({ newBalance: result.new_coin_balance, action: "match_refresh" })
       }
       setState("done")
       setProgressLabel(result.progress_label ?? null)
@@ -135,7 +135,7 @@ export function useJobRefresh(
           finishDone((ev.result as DoneResult) ?? {})
         } else if (ev.type === "error") {
           const res = (ev.result as ErrResult) ?? {}
-          finishError((ev.message as string) || "Refresh failed. Please try again.", res.new_xp_balance)
+          finishError((ev.message as string) || "Refresh failed. Please try again.", res.new_coin_balance)
         }
       }
 
@@ -169,7 +169,7 @@ export function useJobRefresh(
     setProgressLabel("Charging tokens")
     try {
       const ticket = await jobs.refresh(token)
-      applyXpChange({ newBalance: ticket.new_xp_balance, action: "match_refresh" })
+      applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
       setState("computing")
       setProgressLabel(ticket.progress_label)
       startStream(ticket.id)

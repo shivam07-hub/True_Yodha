@@ -27,7 +27,7 @@ export type CVUploadInitial =
       error_detail: string | null
       xp_charged?: number | null
       xp_refunded?: boolean | null
-      new_xp_balance?: number | null
+      new_coin_balance?: number | null
       redirect_to?: string | null
     }
 
@@ -41,7 +41,7 @@ export interface CVUploadPolledStatus {
   error_detail: string | null
   xp_charged: number
   xp_refunded: boolean
-  new_xp_balance: number
+  new_coin_balance: number
   /** Job-creation timestamp (ISO). Anchors the 10-min CV-promise countdown. */
   started_at?: string | null
   redirect_to: string | null
@@ -51,7 +51,7 @@ export interface CVUploadResultShape {
   skills_detected: number
   score: number
   xp_charged: number
-  new_xp_balance: number | null
+  new_coin_balance: number | null
   redirect_to: string
 }
 
@@ -102,7 +102,7 @@ export async function resolveCVUploadResult(
       skills_detected: initial.skills_detected,
       score: initial.score,
       xp_charged: initial.xp_charged,
-      new_xp_balance: null,
+      new_coin_balance: null,
       redirect_to: initial.redirect_to,
     }
   }
@@ -111,7 +111,7 @@ export async function resolveCVUploadResult(
       tokenizedUserMessage(initial.error_detail ?? "CV analysis failed. Please try again."),
       initial.error_code ?? "unknown",
       initial.xp_refunded ?? false,
-      initial.new_xp_balance ?? null,
+      initial.new_coin_balance ?? null,
       false,
       "parse",
     )
@@ -151,7 +151,7 @@ export async function resolveCVUploadResult(
         skills_detected: status.skills_detected ?? 0,
         score: status.score ?? 0,
         xp_charged: status.xp_charged,
-        new_xp_balance: status.new_xp_balance,
+        new_coin_balance: status.new_coin_balance,
         redirect_to: status.redirect_to ?? "/onboarding/score",
       }
     }
@@ -160,7 +160,7 @@ export async function resolveCVUploadResult(
         tokenizedUserMessage(status.error_detail ?? "CV analysis failed. Please try again."),
         status.error_code ?? "unknown",
         status.xp_refunded,
-        status.new_xp_balance,
+        status.new_coin_balance,
         false,
         "parse",
       )

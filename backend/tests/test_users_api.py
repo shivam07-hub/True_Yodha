@@ -199,8 +199,8 @@ def test_update_profile_grants_linkedin_xp_once_when_linkedin_added(monkeypatch)
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["xp_earned"] == 50
-    assert response.json()["new_xp_balance"] == 1050
+    assert response.json()["coins_earned"] == 50
+    assert response.json()["new_coin_balance"] == 1050
     assert grants == ["u1"]
 
 
@@ -226,8 +226,8 @@ def test_update_profile_does_not_grant_linkedin_xp_after_first_reward(monkeypatc
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["xp_earned"] == 0
-    assert response.json()["new_xp_balance"] is None
+    assert response.json()["coins_earned"] == 0
+    assert response.json()["new_coin_balance"] is None
 
 
 def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
@@ -280,5 +280,5 @@ def test_follow_company_case_insensitive_duplicate_does_not_spend_xp(monkeypatch
         app.dependency_overrides.clear()
 
     assert response.status_code == 201
-    assert response.json() == {"company_name": "Google", "new_xp_balance": None}
+    assert response.json() == {"company_name": "Google", "new_coin_balance": None}
     assert repo.followed_writes == []

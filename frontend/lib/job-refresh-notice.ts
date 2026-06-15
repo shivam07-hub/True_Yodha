@@ -1,4 +1,4 @@
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 
 export type RefreshNoticeKind = "success" | "error" | "info"
 export type RefreshState =
@@ -31,7 +31,7 @@ export function deriveRefreshNotice({
 
   if (state === "done") {
     if (matchesWritten != null && matchesWritten > 0) {
-      return { msg: `+${matchesWritten} new matches · -${XP_POLICY.matchRefreshCost} tokens`, kind: "success" }
+      return { msg: `+${matchesWritten} new matches · -${MYRO_COINS_POLICY.matchRefreshCost} tokens`, kind: "success" }
     }
     if (outcomeKind === "cache_hit") {
       return { msg: "Already current · tokens refunded", kind: "info" }

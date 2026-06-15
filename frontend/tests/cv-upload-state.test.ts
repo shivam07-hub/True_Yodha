@@ -18,7 +18,7 @@ function makeStatus(over: Partial<CVUploadPolledStatus> = {}): CVUploadPolledSta
     error_detail: null,
     xp_charged: 200,
     xp_refunded: false,
-    new_xp_balance: 2800,
+    new_coin_balance: 2800,
     redirect_to: null,
     ...over,
   }
@@ -36,7 +36,7 @@ test("hash-cache hit returns synchronously without polling", async () => {
   assert.equal(result.skills_detected, 12)
   assert.equal(result.score, 64.2)
   assert.equal(result.xp_charged, 0)
-  assert.equal(result.new_xp_balance, null)  // hash-hit path can't know the wallet
+  assert.equal(result.new_coin_balance, null)  // hash-hit path can't know the wallet
 })
 
 test("processing → done resolves with status payload", async () => {
@@ -48,7 +48,7 @@ test("processing → done resolves with status payload", async () => {
       skills_detected: 7,
       score: 71.5,
       redirect_to: "/onboarding/score",
-      new_xp_balance: 2800,
+      new_coin_balance: 2800,
     }),
   ]
   let idx = 0
@@ -61,7 +61,7 @@ test("processing → done resolves with status payload", async () => {
   assert.equal(idx, 3)
   assert.equal(result.skills_detected, 7)
   assert.equal(result.score, 71.5)
-  assert.equal(result.new_xp_balance, 2800)
+  assert.equal(result.new_coin_balance, 2800)
   assert.equal(result.redirect_to, "/onboarding/score")
 })
 
@@ -75,7 +75,7 @@ test("processing → failed throws CVUploadFailure with refund context", async (
         error_code: "provider_unavailable",
         error_detail: "Our CV analysis service was down. Your XP has been refunded — please try again in a few minutes.",
         xp_refunded: true,
-        new_xp_balance: 3000,
+        new_coin_balance: 3000,
       }),
       { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
     )
@@ -103,7 +103,7 @@ test("initial failed idempotency replay throws without polling", async () => {
         error_detail: "Job exceeded 5 min in processing - server restart or stuck worker.",
         xp_charged: 200,
         xp_refunded: true,
-        new_xp_balance: null,
+        new_coin_balance: null,
       },
       async () => {
         polls += 1
@@ -159,7 +159,7 @@ test("failed status with missing detail falls back to a generic message", async 
         error_code: null,
         error_detail: null,
         xp_refunded: false,
-        new_xp_balance: 2800,
+        new_coin_balance: 2800,
       }),
       { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
     )

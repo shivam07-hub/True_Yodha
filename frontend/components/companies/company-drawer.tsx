@@ -7,12 +7,12 @@ import { jobs as jobsApi, users } from "@/lib/api"
 import type { ApplicationResponse, CompanyPage } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useXPGate } from "@/lib/hooks/use-xp-gate"
+import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useViewport } from "@/mobile"
 import { useXPStore } from "@/store/xpStore"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 
-const MAX_FOLLOWED = XP_POLICY.followedCompanyLimit
+const MAX_FOLLOWED = MYRO_COINS_POLICY.followedCompanyLimit
 
 const LIVE_STAGES = ["saved", "applied", "screening", "interviewing", "final_round"] as const
 
@@ -35,10 +35,10 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const queryClient = useQueryClient()
   const { isDesktop } = useViewport()
   const applyXpChange = useXPStore(s => s.applyXpChange)
-  const gate = useXPGate({
-    cost: XP_POLICY.followCompanyCost,
+  const gate = useCoinsGate({
+    cost: MYRO_COINS_POLICY.followCompanyCost,
     action: "follow_company",
-    floor: XP_POLICY.followCompanyFloor,
+    floor: MYRO_COINS_POLICY.followCompanyFloor,
   })
   const [dragOffset, setDragOffset] = useState(0)
   const dragStart = useRef<number | null>(null)
@@ -77,7 +77,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const followMutation = useMutation({
     mutationFn: () => users.followCompany(token!, company),
     onSuccess: (data) => {
-      if (typeof data.new_xp_balance === "number") applyXpChange({ newBalance: data.new_xp_balance, action: "follow_company" })
+      if (typeof data.new_coin_balance === "number") applyXpChange({ newBalance: data.new_coin_balance, action: "follow_company" })
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     },
   })
@@ -210,7 +210,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             }}
             title={atCap ? `Cap: ${MAX_FOLLOWED} companies` : ""}
           >
-            {isFollowed ? "★ Following" : `☆ Follow · -${XP_POLICY.followCompanyCost} Myro Coins`}
+            {isFollowed ? "★ Following" : `☆ Follow · -${MYRO_COINS_POLICY.followCompanyCost} Myro Coins`}
           </button>
 
           {/* Saved jobs section */}

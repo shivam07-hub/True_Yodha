@@ -19,12 +19,12 @@ async def get_xp_balance(user_id: str) -> int:
     result = (
         get_supabase_admin()
         .table("user_profiles")
-        .select("xp_balance")
+        .select("coin_balance")
         .eq("id", user_id)
         .single()
         .execute()
     )
-    return int((result.data or {}).get("xp_balance", 0))
+    return int((result.data or {}).get("coin_balance", 0))
 
 
 async def grant_welcome_xp(user_id: str) -> int:
@@ -37,14 +37,14 @@ async def grant_welcome_xp(user_id: str) -> int:
     admin = get_supabase_admin()
     check = (
         admin.table("user_profiles")
-        .select("xp_balance, welcome_xp_granted")
+        .select("coin_balance, welcome_coins_granted")
         .eq("id", user_id)
         .single()
         .execute()
     )
     data = check.data or {}
-    if data.get("welcome_xp_granted"):
-        return int(data.get("xp_balance", 0))
+    if data.get("welcome_coins_granted"):
+        return int(data.get("coin_balance", 0))
 
     result = admin.rpc(
         "increment_xp_and_grant_welcome",
@@ -63,18 +63,18 @@ async def earn_xp(user_id: str, amount: int) -> int:
 
 
 async def grant_linkedin_profile_xp(user_id: str) -> tuple[int, int]:
-    """Grant LinkedIn profile XP once. Returns (xp_earned, new_balance)."""
+    """Grant LinkedIn profile XP once. Returns (coins_earned, new_balance)."""
     admin = get_supabase_admin()
     check = (
         admin.table("user_profiles")
-        .select("xp_balance, linkedin_xp_granted")
+        .select("coin_balance, linkedin_coins_granted")
         .eq("id", user_id)
         .single()
         .execute()
     )
     data = check.data or {}
-    current = int(data.get("xp_balance", 0))
-    if data.get("linkedin_xp_granted"):
+    current = int(data.get("coin_balance", 0))
+    if data.get("linkedin_coins_granted"):
         return 0, current
 
     new_balance = current + LINKEDIN_PROFILE_XP
@@ -98,7 +98,7 @@ async def spend_xp(user_id: str, amount: int, action: str) -> int:
     if current < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient tokens — need {amount}, have {current}. Action: {action}",
+            detail=f"Insufficient Myro Coins — need {amount}, have {current}. Action: {action}",
         )
     new_balance = current - amount
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
@@ -112,7 +112,7 @@ async def assert_can_spend_xp(user_id: str, amount: int, action: str) -> int:
     if current < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient tokens — need {amount}, have {current}. Action: {action}",
+            detail=f"Insufficient Myro Coins — need {amount}, have {current}. Action: {action}",
         )
     return current
 
@@ -125,7 +125,7 @@ async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int =
     if new_balance < floor:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Token floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
+            detail=f"Myro Coin floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
         )
     admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
@@ -150,7 +150,7 @@ class InsufficientXPError(HTTPException):
         self.action = action
         super().__init__(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Out of tokens — this action costs {amount} tokens and you have {balance}.",
+            detail=f"Out of Myro Coins — this action costs {amount} Myro Coins and you have {balance}.",
         )
 
 
@@ -172,7 +172,7 @@ async def charge_or_raise(
     if amount <= 0:
         return await get_xp_balance(user_id)
     admin = get_supabase_admin()
-    result = admin.rpc("charge_xp", {
+    result = admin.rpc("charge_coins", {
         "p_user_id": user_id,
         "p_amount": amount,
         "p_action": action,
@@ -210,7 +210,7 @@ async def refund(
     if amount <= 0:
         return await get_xp_balance(user_id)
     admin = get_supabase_admin()
-    result = admin.rpc("refund_xp", {
+    result = admin.rpc("refund_coins", {
         "p_user_id": user_id,
         "p_amount": amount,
         "p_action": action,
@@ -250,7 +250,7 @@ async def reward(
     if amount <= 0:
         return await get_xp_balance(user_id)
     admin = get_supabase_admin()
-    result = admin.rpc("reward_xp", {
+    result = admin.rpc("reward_coins", {
         "p_user_id": user_id,
         "p_amount": amount,
         "p_action": action,

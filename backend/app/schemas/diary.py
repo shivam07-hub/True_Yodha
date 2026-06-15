@@ -35,8 +35,8 @@ class DiaryEntryResponse(BaseModel):
     skills_delta: list[SkillDeltaItem]
     score_before: float | None
     score_after: float | None
-    xp_earned: int = 0
-    new_xp_balance: int | None = None
+    coins_earned: int = 0
+    new_coin_balance: int | None = None
     created_at: datetime
     updated_at: datetime
 

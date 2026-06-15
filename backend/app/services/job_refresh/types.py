@@ -23,7 +23,7 @@ class RefreshTicket:
     id: str
     state: Literal["queued", "computing", "done"]
     xp_charged: int
-    new_xp_balance: int
+    new_coin_balance: int
     batch_week: date
     progress_label: str
     matches_written: int | None = None
@@ -43,7 +43,7 @@ class RefreshState:
     batch_week: date
     matches_written: int | None = None
     refund: int | None = None
-    new_xp_balance: int | None = None
+    new_coin_balance: int | None = None
     outcome_kind: RefreshOutcomeKind | None = None
     error: str | None = None
     debug: dict[str, Any] = field(default_factory=dict)

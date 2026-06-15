@@ -168,7 +168,7 @@ function CVPage() {
         setUploadPhase(s.current_phase ?? null)
         if (s.started_at) setUploadStartedAt(s.started_at)
       })
-      if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
+      if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
@@ -216,7 +216,7 @@ function CVPage() {
     startCvPromiseOptimistic()
     try {
       const result = await uploadCVText(token, text, "text_describe")
-      if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
+      if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
@@ -333,7 +333,7 @@ function CVPage() {
       },
     })
       .then((result) => {
-        if (result.new_xp_balance != null) applyXpChange({ newBalance: result.new_xp_balance, action: "cv_upload" })
+        if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
         queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
         queryClient.invalidateQueries({ queryKey: dataKeys.scores() })

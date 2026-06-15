@@ -1,11 +1,11 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { followGateReason } from "../lib/hooks/use-follow-company"
-import { XP_POLICY } from "../lib/xp-policy"
+import { MYRO_COINS_POLICY } from "../lib/xp-policy"
 
-const LIMIT = XP_POLICY.followedCompanyLimit // 10
-const COST = XP_POLICY.followCompanyCost // 10
-const FLOOR = XP_POLICY.followCompanyFloor // -30
+const LIMIT = MYRO_COINS_POLICY.followedCompanyLimit // 10
+const COST = MYRO_COINS_POLICY.followCompanyCost // 10
+const FLOOR = MYRO_COINS_POLICY.followCompanyFloor // -30
 
 test("allows a follow when under cap and funded", () => {
   assert.equal(

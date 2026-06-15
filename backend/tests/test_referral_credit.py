@@ -97,7 +97,7 @@ def test_referral_credit_pays_once_and_replay_pays_zero(monkeypatch: Any) -> Non
     assert first_paid == 100
     assert replay_paid == 0
     assert spy.rpc_calls == [(
-        "reward_xp",
+        "reward_coins",
         {
             "p_user_id": "referrer-user",
             "p_amount": 100,

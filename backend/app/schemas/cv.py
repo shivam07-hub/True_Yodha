@@ -26,7 +26,7 @@ class CVUploadFailedResponse(BaseModel):
     error_detail: str | None = None
     xp_charged: int = 0
     xp_refunded: bool = False
-    new_xp_balance: int | None = None
+    new_coin_balance: int | None = None
     redirect_to: str | None = None
 
 
@@ -48,7 +48,7 @@ class CVUploadResponse(BaseModel):
     redirect_to: str | None = None
     xp_charged: int | None = None
     xp_refunded: bool | None = None
-    new_xp_balance: int | None = None
+    new_coin_balance: int | None = None
 
 
 class CVUploadStatusResponse(BaseModel):
@@ -62,7 +62,7 @@ class CVUploadStatusResponse(BaseModel):
     error_detail: str | None = None
     xp_charged: int = 0
     xp_refunded: bool = False
-    new_xp_balance: int
+    new_coin_balance: int
     # Job-creation timestamp (ISO). Anchors the 10-min CV-promise countdown.
     started_at: str | None = None
     redirect_to: str | None = None

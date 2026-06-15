@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useStreamingText } from "@/lib/hooks/use-streaming-text"
-import { useXPGate } from "@/lib/hooks/use-xp-gate"
+import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { jobs as jobsApi, type JobMatch, type SkillGapItem } from "@/lib/api"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
@@ -156,7 +156,7 @@ export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapI
 export function LensWhy({ job, token, active }: LensProps) {
   const stream = useStreamingText()
   const applyXpChange = useXPStore((s) => s.applyXpChange)
-  const gate = useXPGate({ cost: ANALYSE_COST, action: "analyse_job" })
+  const gate = useCoinsGate({ cost: ANALYSE_COST, action: "analyse_job" })
   const [started, setStarted] = React.useState(false)
   const persisted = job.llm_explanation ? stripMarkdown(job.llm_explanation) : null
 
@@ -164,7 +164,7 @@ export function LensWhy({ job, token, active }: LensProps) {
     if (started) return
     setStarted(true)
     stream.start(jobsApi.analyseStreamPath(job.job_id), token, (ev) => {
-      const bal = typeof ev.new_xp_balance === "number" ? ev.new_xp_balance : null
+      const bal = typeof ev.new_coin_balance === "number" ? ev.new_coin_balance : null
       if (bal != null) applyXpChange({ newBalance: bal, action: "analyse_job" })
     })
   }, [started, stream, job.job_id, token, applyXpChange])

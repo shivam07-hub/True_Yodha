@@ -150,8 +150,8 @@ async def import_job(
             ref_table="job_applications",
             ref_id=str(saved.get("id")),
         )
-        saved["xp_earned"] = ADD_JOB_REWARD_XP
-        saved["xp_balance"] = new_balance
+        saved["coins_earned"] = ADD_JOB_REWARD_XP
+        saved["coin_balance"] = new_balance
     except Exception as exc:  # noqa: BLE001 — reward is best-effort, save already committed
         _log.warning("add_job reward failed for user=%s id=%s: %s", principal.id, saved.get("id"), exc)
 

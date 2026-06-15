@@ -124,7 +124,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
         secondary_skills: opts.skipSkills ? [] : Array.from(secondarySel),
         status,
       })
-      if (typeof app.xp_balance === "number") setBalance(app.xp_balance)
+      if (typeof app.coin_balance === "number") setBalance(app.coin_balance)
       onSaved(app)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed")
