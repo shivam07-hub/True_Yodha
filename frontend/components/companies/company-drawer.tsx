@@ -210,7 +210,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
             }}
             title={atCap ? `Cap: ${MAX_FOLLOWED} companies` : ""}
           >
-            {isFollowed ? "★ Following" : `☆ Follow · -${XP_POLICY.followCompanyCost} tokens`}
+            {isFollowed ? "★ Following" : `☆ Follow · -${XP_POLICY.followCompanyCost} Myro Coins`}
           </button>
 
           {/* Saved jobs section */}

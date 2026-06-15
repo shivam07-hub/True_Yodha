@@ -245,7 +245,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
       {error ? <p className="tm-company-error" role="alert">{error}</p> : null}
 
       <div className="tm-company-footer">
-        <span>Following costs {XP_POLICY.followCompanyCost} tokens per company.</span>
+        <span>Following costs {XP_POLICY.followCompanyCost} Myro Coins per company.</span>
         <button type="button" onClick={onNext} disabled={finishing || cvStatus === "failed"}>
           {finishing ? "Finishing analysis" : selected.length > 0 ? "Continue" : "Skip"}
           {finishing ? <Loader2 size={15} className="tm-company-spin" aria-hidden="true" /> : <ArrowRight size={15} aria-hidden="true" />}

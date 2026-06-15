@@ -36,7 +36,7 @@ function NextSetHero({ skill, onStart }: { skill: LadderSkill; onStart: (skill: 
         </div>
         <h2 className="up-hero-name">{skill.name} · Level {next}</h2>
         <p className="up-hero-meta">
-          Clear the <b>{titleNext} (L{next})</b> set — 10 questions, untimed. Pass <b>8/10</b> to bank tokens and unlock L{Math.min(next + 1, 5)}.
+          Clear the <b>{titleNext} (L{next})</b> set — 10 questions, untimed. Pass <b>8/10</b> to bank Myro Coins and unlock L{Math.min(next + 1, 5)}.
         </p>
         <div className="up-hero-laddwrap">
           <LevelLadder clearedLevel={skill.clearedLevel} maxBankLevel={skill.maxBankLevel} onStart={(lvl) => onStart(skill, lvl)} />

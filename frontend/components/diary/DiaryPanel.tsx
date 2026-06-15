@@ -222,7 +222,7 @@ export function DiaryPanel({
                 opacity: submitting ? 0.7 : 1,
               }}
             >
-              {submitting ? "Saving…" : "Log entry · earn +30 tokens"}
+              {submitting ? "Saving…" : "Log entry · earn +30 Myro Coins"}
             </button>
           </div>
 

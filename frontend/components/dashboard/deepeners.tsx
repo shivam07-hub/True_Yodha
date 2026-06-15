@@ -78,7 +78,7 @@ export function Deepeners({ jobId, token, active }: { jobId: string; token: stri
                 {hit !== undefined ? (
                   <span className="db-deepen-tag">↺</span>
                 ) : (
-                  <span className="db-deepen-tag cost">{free ? "free" : `${DEEPEN_COST} tokens`}</span>
+                  <span className="db-deepen-tag cost">{free ? "free" : `${DEEPEN_COST} Myro Coins`}</span>
                 )}
               </button>
               {showAnswer ? (

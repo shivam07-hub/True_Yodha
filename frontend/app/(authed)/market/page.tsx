@@ -230,7 +230,7 @@ function SkillHeatmap({
         <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 8 }}>Your heatmap is empty</div>
         <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
           Tap “+ Heatmap” on companies in the list above to add them here.
-          Each follow costs {XP_POLICY.followCompanyCost} tokens — up to {XP_POLICY.followedCompanyLimit} companies.
+          Each follow costs {XP_POLICY.followCompanyCost} Myro Coins — up to {XP_POLICY.followedCompanyLimit} companies.
         </div>
       </div>
     )

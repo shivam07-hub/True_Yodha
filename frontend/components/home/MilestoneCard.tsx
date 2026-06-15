@@ -55,7 +55,7 @@ export function MilestoneCard({ milestone, proofText, saving, onProofChange, onS
         onBlur={(e) => { e.currentTarget.style.borderColor = "var(--tm-border)" }}
       />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Save proof to claim tokens</span>
+        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Save proof to claim Myro Coins</span>
         <button
           onClick={onSave}
           disabled={!proofText.trim() || saving}

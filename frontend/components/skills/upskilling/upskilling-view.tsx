@@ -349,13 +349,13 @@ export function UpskillingView({
               )}
               <SkillList skills={skills} activeKey={quiz?.skill.key ?? null} onStart={startSet} />
               <div className="up-foot-note">
-                Tokens are earned only on a clear, only the first time per level. 10/10 = +50 · 9/10 = +30 · 8/10 = +20 · below 8 = 0.
+                Myro Coins are earned only on a clear, only the first time per level. 10/10 = +50 · 9/10 = +30 · 8/10 = +20 · below 8 = 0.
               </div>
             </>
           ) : (
             <div className="up-card up-empty-card">
               <h3>Your upskilling ladder is on the way</h3>
-              <p>Question banks for your skills are still filling. Check back soon — clearing a level set earns tokens and raises your real skill level.</p>
+              <p>Question banks for your skills are still filling. Check back soon — clearing a level set earns Myro Coins and raises your real skill level.</p>
             </div>
           )}
         </div>
@@ -364,7 +364,7 @@ export function UpskillingView({
       {screen === "gap-quiz" && gap && (
         <QuizRunner
           title="Readiness calibration"
-          subtitle={`${gap.jobTitle} · diagnostic · earns no tokens`}
+          subtitle={`${gap.jobTitle} · diagnostic · earns no Myro Coins`}
           questions={gap.questions}
           onSubmit={submitGap}
           onExit={goHome}

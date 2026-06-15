@@ -909,7 +909,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>
                             <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-interactive)", whiteSpace: "nowrap" }}>
-                              -{XP_POLICY.followCompanyCost} coins
+                              -{XP_POLICY.followCompanyCost} Myro Coins
                             </span>
                           </button>
                         ))}

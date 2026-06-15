@@ -337,7 +337,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             <XPCoin />
             {canAfford ? (
               <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
-                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} tokens</strong>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} Myro Coins</strong>
                 {" · "}<span style={{ color: "var(--tm-text-muted)" }}>charged only if new matches are found</span>
               </div>
             ) : (
@@ -347,7 +347,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
                 </strong>
                 <span style={{ color: "var(--tm-text-muted)" }}>{` (${shortfall} short)`}</span>{" — "}
                 <Link href="/tokens" onClick={() => close()} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
-                  See how tokens work →
+                  See how Myro Coins work →
                 </Link>
               </div>
             )}

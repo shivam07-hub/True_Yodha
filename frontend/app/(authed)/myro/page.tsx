@@ -17,7 +17,7 @@ const RESOURCES = [
   },
   {
     href: "/tokens",
-    label: "Tokens guide",
+    label: "Myro Coins guide",
     kicker: "Earn and spend fairly",
     detail: "Practice skills, complete your diary, add LinkedIn, and build your CV.",
   },

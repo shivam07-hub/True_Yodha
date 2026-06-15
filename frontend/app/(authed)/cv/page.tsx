@@ -563,7 +563,7 @@ function CVPage() {
                         textDecoration: "underline",
                       }}
                     >
-                      Earn 50 tokens from a practice session →
+                      Earn 50 Myro Coins from a practice session →
                     </button>
                   )}
                 </div>

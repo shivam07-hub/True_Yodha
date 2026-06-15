@@ -17,7 +17,7 @@ interface ShippedItem {
 
 const SHIPPED_ITEMS: ShippedItem[] = [
   { id: "SH-22", title: "Inline CV-pointer edit on Skills cards", category: "idea", ts: "1d ago" },
-  { id: "SH-21", title: "Universal Practice — tokens build across any tab", category: "idea", ts: "2d ago" },
+  { id: "SH-21", title: "Universal Practice — Myro Coins build across any tab", category: "idea", ts: "2d ago" },
   { id: "SH-20", title: "Stale-application warnings in the Tracker pill", category: "idea", ts: "5d ago" },
   { id: "SH-19", title: "Tabular numerals in the Score widget", category: "bug", ts: "9d ago" },
   { id: "SH-18", title: "Diary entries now auto-save on blur", category: "bug", ts: "14d ago" },
