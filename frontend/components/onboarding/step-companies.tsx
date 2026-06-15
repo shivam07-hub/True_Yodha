@@ -13,7 +13,7 @@ import {
   removeCompany,
   shouldSearchCompanies,
 } from "@/lib/onboarding-company-selection"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 import "./step-companies.css"
 import "./step-companies.states.css"
@@ -88,14 +88,14 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
   }
 
   async function followCompany(name: string) {
-    if (selected.length >= XP_POLICY.followedCompanyLimit || isCompanySelected(selected, name)) return
+    if (selected.length >= MYRO_COINS_POLICY.followedCompanyLimit || isCompanySelected(selected, name)) return
     setError(null)
     addPending(name)
-    setSelected((prev) => prependCompany(prev, name, XP_POLICY.followedCompanyLimit))
+    setSelected((prev) => prependCompany(prev, name, MYRO_COINS_POLICY.followedCompanyLimit))
     try {
       const result = await users.followCompany(token, name)
-      if (typeof result.new_xp_balance === "number") {
-        applyXpChange({ newBalance: result.new_xp_balance, action: "follow_company" })
+      if (typeof result.new_coin_balance === "number") {
+        applyXpChange({ newBalance: result.new_coin_balance, action: "follow_company" })
       }
       setInput("")
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
@@ -115,14 +115,14 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
       await users.unfollowCompany(token, name)
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     } catch (err) {
-      setSelected((prev) => prependCompany(prev, name, XP_POLICY.followedCompanyLimit))
+      setSelected((prev) => prependCompany(prev, name, MYRO_COINS_POLICY.followedCompanyLimit))
       setError(err instanceof Error ? err.message : "Could not remove that company.")
     } finally {
       removePending(name)
     }
   }
 
-  const atLimit = selected.length >= XP_POLICY.followedCompanyLimit
+  const atLimit = selected.length >= MYRO_COINS_POLICY.followedCompanyLimit
   const showEmptySearch =
     shouldSearchCompanies(debouncedInput) &&
     !searchQuery.isLoading &&
@@ -210,7 +210,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
         <div className="tm-company-panel tm-company-selected-panel">
           <div className="tm-company-selected-head">
             <span>Starred</span>
-            <span>{selected.length} / {XP_POLICY.followedCompanyLimit}</span>
+            <span>{selected.length} / {MYRO_COINS_POLICY.followedCompanyLimit}</span>
           </div>
           {selected.length === 0 ? (
             <div className="tm-company-empty">
@@ -245,7 +245,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
       {error ? <p className="tm-company-error" role="alert">{error}</p> : null}
 
       <div className="tm-company-footer">
-        <span>Following costs {XP_POLICY.followCompanyCost} tokens per company.</span>
+        <span>Following costs {MYRO_COINS_POLICY.followCompanyCost} Myro Coins per company.</span>
         <button type="button" onClick={onNext} disabled={finishing || cvStatus === "failed"}>
           {finishing ? "Finishing analysis" : selected.length > 0 ? "Continue" : "Skip"}
           {finishing ? <Loader2 size={15} className="tm-company-spin" aria-hidden="true" /> : <ArrowRight size={15} aria-hidden="true" />}

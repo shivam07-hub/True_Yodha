@@ -51,5 +51,5 @@ def report_job_inactive(
     return {
         "report_count": visible_report_count,
         "already_reported": not receipt.created,
-        "xp_earned": 0,
+        "coins_earned": 0,
     }

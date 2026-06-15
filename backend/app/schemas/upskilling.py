@@ -77,7 +77,7 @@ class SubmitSetResponse(BaseModel):
     passed: bool
     first_clear: bool
     tokens_awarded: int
-    new_xp_balance: int
+    new_coin_balance: int
     next_level_unlocked: int | None  # null when already at L5
     results: list[QuestionResult]
 

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useStreamingText } from "@/lib/hooks/use-streaming-text"
-import { useXPGate } from "@/lib/hooks/use-xp-gate"
+import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -20,7 +20,7 @@ export const DEEPEN_PROMPTS: ReadonlyArray<{ key: string; label: string }> = [
 export function Deepeners({ jobId, token, active }: { jobId: string; token: string; active: boolean }) {
   const stream = useStreamingText()
   const applyXpChange = useXPStore((s) => s.applyXpChange)
-  const gate = useXPGate({ cost: DEEPEN_COST, action: "deepen_job" })
+  const gate = useCoinsGate({ cost: DEEPEN_COST, action: "deepen_job" })
   const [openKey, setOpenKey] = React.useState<string | null>(null)
 
   // Already-purchased answers + whether the account has used its one free sample.
@@ -47,7 +47,7 @@ export function Deepeners({ jobId, token, active }: { jobId: string; token: stri
         return
       }
       stream.start(jobsApi.deepenStreamPath(jobId, key), token, (ev) => {
-        const bal = typeof ev.new_xp_balance === "number" ? ev.new_xp_balance : null
+        const bal = typeof ev.new_coin_balance === "number" ? ev.new_coin_balance : null
         if (bal != null) applyXpChange({ newBalance: bal, action: "deepen_job" })
       })
     },
@@ -78,7 +78,7 @@ export function Deepeners({ jobId, token, active }: { jobId: string; token: stri
                 {hit !== undefined ? (
                   <span className="db-deepen-tag">↺</span>
                 ) : (
-                  <span className="db-deepen-tag cost">{free ? "free" : `${DEEPEN_COST} tokens`}</span>
+                  <span className="db-deepen-tag cost">{free ? "free" : `${DEEPEN_COST} Myro Coins`}</span>
                 )}
               </button>
               {showAnswer ? (

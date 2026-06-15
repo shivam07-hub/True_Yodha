@@ -260,8 +260,8 @@ def test_verify_payment_credits_xp_after_valid_signature(monkeypatch: pytest.Mon
     assert response.status_code == 200, response.text
     assert response.json() == {
         "success": True,
-        "xp_earned": 1000,
-        "new_xp_balance": 2200,
+        "coins_earned": 1000,
+        "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
     }
@@ -311,8 +311,8 @@ def test_verify_payment_unlocks_myrology_entitlement(monkeypatch: pytest.MonkeyP
     assert response.status_code == 200, response.text
     assert response.json() == {
         "success": True,
-        "xp_earned": 0,
-        "new_xp_balance": 1500,
+        "coins_earned": 0,
+        "new_coin_balance": 1500,
         "product": "myro_myrology_unlock",
         "myrology_unlocked": True,
     }
@@ -358,8 +358,8 @@ def test_verify_payment_is_idempotent_for_already_verified_order(monkeypatch: py
     assert response.status_code == 200, response.text
     assert response.json() == {
         "success": True,
-        "xp_earned": 0,
-        "new_xp_balance": 2200,
+        "coins_earned": 0,
+        "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
     }

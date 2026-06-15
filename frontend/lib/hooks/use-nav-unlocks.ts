@@ -19,6 +19,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import {
   AUTHED_NAV,
+  CONTENT_NAV,
   deriveNavUnlockCtx,
   firstRunFromData,
   isNavItemUnlocked,
@@ -62,6 +63,8 @@ export interface NavUnlocksVm {
   loading: boolean
   visibleDesktop: NavItem[]
   visibleMobile: NavItem[]
+  /** Shared-content surfaces (Intel, Newsletter) — persist across login. */
+  content: NavItem[]
   /** Gated items awaiting their one-time introduction, FIFO. */
   coachQueue: NavItem[]
   /** Front of the queue — the coachmark currently shown, or null. */
@@ -163,6 +166,7 @@ export function useNavUnlocks(): NavUnlocksVm {
     loading: versionsLoading || profileLoading,
     visibleDesktop: visibleNavItems("desktop", ctx),
     visibleMobile: visibleNavItems("mobile", ctx),
+    content: CONTENT_NAV,
     coachQueue,
     activeCoach,
     newItems,

@@ -3,8 +3,12 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { MDXRemote } from "next-mdx-remote/rsc"
 import remarkGfm from "remark-gfm"
-import { getAllIssues, getIssueBySlug } from "@/lib/newsletter"
+import { getAllIssues, getIssueBySlug, getRelatedIssues, getSpokesOf } from "@/lib/newsletter"
 import { NewsletterCTA } from "@/components/newsletter/issue-cta"
+import { NewsletterFAQ } from "@/components/newsletter/newsletter-faq"
+import { HowToLadder } from "@/components/newsletter/howto-ladder"
+import { DatasetDownload } from "@/components/newsletter/dataset-download"
+import { HowMyroWorks } from "@/components/newsletter/how-myro-works"
 import { ChartEmbed } from "@/components/newsletter/chart-embed"
 import { ReadingProgress } from "@/components/newsletter/reading-progress"
 import { ShareButton } from "@/components/newsletter/share-button"
@@ -88,9 +92,9 @@ export default async function IssuePage({ params }: Props) {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) notFound()
 
-  const moreIssues = (await getAllIssues())
-    .filter((i) => i.slug !== issue.slug && i.slug !== "_placeholder")
-    .slice(0, 3)
+  const moreIssues = await getRelatedIssues(issue, 3)
+  const spokes = await getSpokesOf(issue.slug)
+  const pillar = issue.sourceIssue ? await getIssueBySlug(issue.sourceIssue) : null
 
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
@@ -106,7 +110,7 @@ export default async function IssuePage({ params }: Props) {
   const absoluteOgImage = issue.ogImage
     ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`
     : undefined
-  const jsonLd = [
+  const jsonLd: Record<string, unknown>[] = [
     {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -135,6 +139,63 @@ export default async function IssuePage({ params }: Props) {
       ],
     },
   ]
+
+  // FAQPage — presence-gated. AEO play (AI-citation), not Google rich result.
+  // On-page accordion carries the same Q/A so the markup is backed by visible text.
+  if (issue.faqs?.length) {
+    jsonLd.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: issue.faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    })
+  }
+
+  // Dataset — per-issue, presence-gated. Aggregates only, CC BY 4.0, with a
+  // crawlable CSV distribution → Google Dataset Search + AI citation.
+  if (issue.dataset) {
+    const d = issue.dataset
+    jsonLd.push({
+      "@context": "https://schema.org",
+      "@type": "Dataset",
+      name: d.name,
+      description: d.description,
+      url: canonicalUrl,
+      isAccessibleForFree: true,
+      license: "https://creativecommons.org/licenses/by/4.0/",
+      creator: { "@type": "Organization", name: "Myro", url: BASE },
+      ...(d.spatialCoverage && { spatialCoverage: d.spatialCoverage }),
+      ...(d.temporalCoverage && { temporalCoverage: d.temporalCoverage }),
+      ...(d.variableMeasured?.length && { variableMeasured: d.variableMeasured }),
+      distribution: [
+        {
+          "@type": "DataDownload",
+          encodingFormat: "text/csv",
+          contentUrl: `${canonicalUrl}/dataset.csv`,
+        },
+      ],
+    })
+  }
+
+  // HowTo — trajectory issues only (presence-gated on steps). Backed by the
+  // visible numbered ladder rendered in the value zone.
+  if (issue.steps?.length) {
+    jsonLd.push({
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      name: issue.seoTitle ?? issue.title,
+      description: issue.summary,
+      step: issue.steps.map((s, i) => ({
+        "@type": "HowToStep",
+        position: i + 1,
+        name: s.name,
+        text: s.text,
+      })),
+    })
+  }
 
   return (
     <>
@@ -191,22 +252,61 @@ export default async function IssuePage({ params }: Props) {
           <ShareButton url={canonicalUrl} title={issue.title} />
         </div>
 
+        {/* ── VALUE ZONE — editorial only, no product pitch (see HowMyroWorks below the divider) ── */}
         {/* MDX content */}
         <div className="mdx-prose newsletter-prose">
           <MDXRemote source={issue.content} options={mdxOptions} components={mdxComponents} />
         </div>
 
-        {/* Bottom CTA */}
+        {/* Career-trajectory step ladder (HowTo source) */}
+        {issue.steps?.length ? <HowToLadder steps={issue.steps} /> : null}
+
+        {/* Citable open data (Dataset source) */}
+        {issue.dataset ? <DatasetDownload slug={issue.slug} dataset={issue.dataset} /> : null}
+
+        {/* Spoke → pillar link (hub-and-spoke cluster) */}
+        {pillar ? (
+          <p style={{ fontSize: 14, color: "var(--tm-text-muted)", marginTop: 32 }}>
+            Built on{" "}
+            <Link href={`/newsletter/${pillar.slug}`} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
+              {pillar.title}
+            </Link>{" "}
+            — this week&rsquo;s hiring data.
+          </p>
+        ) : null}
+
+        {/* Pillar → spokes list (this issue is the hub) */}
+        {spokes.length > 0 ? (
+          <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--tm-border-soft)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+              More from this week
+            </div>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+              {spokes.map((s) => (
+                <li key={s.slug}>
+                  <Link href={`/newsletter/${s.slug}`} style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", textDecoration: "none" }}>
+                    {s.title} →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* FAQ (FAQPage source) */}
+        {issue.faqs?.length ? <NewsletterFAQ items={issue.faqs} /> : null}
+
+        {/* ── CTA DIVIDER — end of value zone, start of product ── */}
         <div style={{
           background: "rgba(0, 245, 212, 0.04)",
           border: "1px solid rgba(0, 245, 212, 0.15)",
           borderTop: "2px solid #22d3a8",
           borderRadius: "var(--tm-radius-lg)", padding: "28px 32px",
-          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 40,
+          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 56,
           boxShadow: "0 0 32px rgba(0, 245, 212, 0.06)",
         }}>
           <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
-            Track these jobs as you apply
+            Upload a CV to check your Myro Score
           </p>
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <Link
@@ -221,11 +321,14 @@ export default async function IssuePage({ params }: Props) {
                 transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
               }}
             >
-              Sign up to track jobs
+              Get my free Myro Score →
             </Link>
             <ShareButton url={canonicalUrl} title={issue.title} />
           </div>
         </div>
+
+        {/* ── BELOW THE LINE — product explainer, the only place Myro pitches ── */}
+        <HowMyroWorks />
 
         </article>
         </div>

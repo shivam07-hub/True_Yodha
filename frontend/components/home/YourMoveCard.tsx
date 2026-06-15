@@ -32,8 +32,8 @@ function resolveMove(
     return {
       tag: "START HERE",
       headline: "Upload your CV",
-      sub: "Unlocks job matching, skill scoring, and tokens",
-      xp: "+3000 tokens",
+      sub: "Unlocks job matching, skill scoring, and Myro Coins",
+      xp: "+3000 Myro Coins",
       action: { label: "Upload CV →", href: "/cv" },
     }
   }
@@ -51,16 +51,16 @@ function resolveMove(
     return {
       tag: "YOUR MOVE",
       headline: `Practice ${skill}`,
-      sub: "Practice the skill · log the session · earn tokens · keeps streak",
-      xp: "+50 tokens",
+      sub: "Practice the skill · log the session · earn Myro Coins · keeps streak",
+      xp: "+50 Myro Coins",
       action: { label: "Enter Practice ↗", onClick: onForge },
     }
   }
   return {
     tag: "CLOSE THE LOOP",
     headline: "Log today's work",
-    sub: "Lock in your proof · diary entry earns tokens · loop complete",
-    xp: "+30 tokens",
+    sub: "Lock in your proof · diary entry earns Myro Coins · loop complete",
+    xp: "+30 Myro Coins",
     action: { label: "Open Diary →", onClick: onDiary },
   }
 }

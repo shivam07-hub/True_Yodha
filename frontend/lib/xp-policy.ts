@@ -1,4 +1,4 @@
-export const XP_POLICY = {
+export const MYRO_COINS_POLICY = {
   welcomeBaseline: 3000,
   linkedInProfile: 50,
   diaryEntry: 30,
@@ -22,35 +22,35 @@ export const XP_EARN_ACTIONS = [
   {
     title: "Complete your diary",
     detail: "Log what you practiced or shipped so your skill evidence keeps improving.",
-    amount: `+${XP_POLICY.diaryEntry} Myro Coins`,
+    amount: `+${MYRO_COINS_POLICY.diaryEntry} Myro Coins`,
     meta: "per entry",
     status: "live",
   },
   {
     title: "Add your LinkedIn",
     detail: "Connect your public profile so applications and CV work have a stronger identity signal.",
-    amount: `+${XP_POLICY.linkedInProfile} Myro Coins`,
+    amount: `+${MYRO_COINS_POLICY.linkedInProfile} Myro Coins`,
     meta: "once",
     status: "live",
   },
   {
     title: "Build your CV baseline",
     detail: "Upload a CV or write your experience during onboarding.",
-    amount: `+${XP_POLICY.welcomeBaseline} Myro Coins`,
+    amount: `+${MYRO_COINS_POLICY.welcomeBaseline} Myro Coins`,
     meta: "once",
     status: "live",
   },
   {
     title: "Track a job",
     detail: "Add a job to your tracker — paste it, or upload the posting as a PDF, Word doc, or screenshot.",
-    amount: `+${XP_POLICY.addJobReward} Myro Coins`,
+    amount: `+${MYRO_COINS_POLICY.addJobReward} Myro Coins`,
     meta: "per job",
     status: "live",
   },
   {
     title: "Share with a friend",
     detail: "A verified invite should reward the work of bringing another job seeker in.",
-    amount: `+${XP_POLICY.verifiedInviteReward} Myro Coins`,
+    amount: `+${MYRO_COINS_POLICY.verifiedInviteReward} Myro Coins`,
     meta: "planned",
     status: "planned",
   },
@@ -60,16 +60,16 @@ export const XP_SPEND_ACTIONS = [
   {
     title: "Analyse a job",
     detail: "Run the skill gap and explanation for a saved job.",
-    amount: `-${XP_POLICY.analyseJobCost} Myro Coins`,
+    amount: `-${MYRO_COINS_POLICY.analyseJobCost} Myro Coins`,
   },
   {
     title: "Follow a target company",
-    detail: `Track up to ${XP_POLICY.followedCompanyLimit} companies. Following can use the ${XP_POLICY.followCompanyFloor} Myro Coin floor.`,
-    amount: `-${XP_POLICY.followCompanyCost} Myro Coins`,
+    detail: `Track up to ${MYRO_COINS_POLICY.followedCompanyLimit} companies. Following can use the ${MYRO_COINS_POLICY.followCompanyFloor} Myro Coin floor.`,
+    amount: `-${MYRO_COINS_POLICY.followCompanyCost} Myro Coins`,
   },
   {
     title: "Refresh matches",
     detail: "Requires enough Myro Coins to start. Charged only when new matches are written.",
-    amount: `-${XP_POLICY.matchRefreshCost} Myro Coins if new`,
+    amount: `-${MYRO_COINS_POLICY.matchRefreshCost} Myro Coins if new`,
   },
 ] as const

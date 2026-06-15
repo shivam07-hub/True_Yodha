@@ -142,7 +142,7 @@ export function RestructureProposal({ token, versionId, onKept, onClose }: Restr
             <div className="cvb-rs-foot">
               <button type="button" className="cvb-btn sm" onClick={onClose} disabled={busy}>Discard</button>
               <button type="button" className="cvb-btn sm primary" onClick={keep} disabled={busy}>
-                <Icon name="check" size={12}/> {busy ? "Keeping…" : `Keep · ${cost} coins`}
+                <Icon name="check" size={12}/> {busy ? "Keeping…" : `Keep · ${cost} Myro Coins`}
               </button>
             </div>
           </div>

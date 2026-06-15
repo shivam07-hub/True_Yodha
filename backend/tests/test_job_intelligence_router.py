@@ -253,7 +253,7 @@ def test_legacy_inactive_report_uses_quality_feedback_without_xp() -> None:
     assert response.json() == {
         "report_count": 0,
         "already_reported": False,
-        "xp_earned": 0,
+        "coins_earned": 0,
     }
     _, command = intelligence.feedback_commands[0]
     assert command.feedback_kind == "quality"

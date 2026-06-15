@@ -10,7 +10,7 @@ import {
   Target,
 } from "lucide-react"
 import { LinkedInIcon } from "@/components/icons/social-icons"
-import { XP_EARN_ACTIONS, XP_POLICY, XP_SPEND_ACTIONS } from "@/lib/xp-policy"
+import { XP_EARN_ACTIONS, MYRO_COINS_POLICY, XP_SPEND_ACTIONS } from "@/lib/xp-policy"
 
 type XpAction = typeof XP_EARN_ACTIONS[number] | typeof XP_SPEND_ACTIONS[number]
 type XpIcon = ElementType
@@ -160,7 +160,7 @@ export function XpFairnessNote({ compact = false }: { compact?: boolean }) {
       }}
     >
       Fairness rule: Myro should only spend Myro Coins when the action completes. Skill advice is charged after advice exists,
-      and match refresh spends {XP_POLICY.matchRefreshCost} Myro Coins only when it writes new matches.
+      and match refresh spends {MYRO_COINS_POLICY.matchRefreshCost} Myro Coins only when it writes new matches.
     </div>
   )
 }

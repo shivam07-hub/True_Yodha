@@ -11,8 +11,8 @@ def _mock_admin(balance: int = 100, welcome_granted: bool = False):
     admin = MagicMock()
     # get_xp_balance path
     admin.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {
-        "xp_balance": balance,
-        "welcome_xp_granted": welcome_granted,
+        "coin_balance": balance,
+        "welcome_coins_granted": welcome_granted,
     }
     # update path
     admin.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
@@ -72,7 +72,7 @@ async def test_spend_xp_insufficient_raises_400():
         with pytest.raises(HTTPException) as exc_info:
             await spend_xp("user-1", 100, "test_action")
     assert exc_info.value.status_code == 400
-    assert "Insufficient tokens" in exc_info.value.detail
+    assert "Insufficient Myro Coins" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
@@ -95,7 +95,7 @@ def _mock_admin_rpc(rpc_return: int | None = None, balance: int = 0):
     admin.rpc.return_value.execute.return_value.data = rpc_return
     # get_xp_balance fallback path
     admin.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value.data = {
-        "xp_balance": balance,
+        "coin_balance": balance,
     }
     return admin
 
@@ -110,7 +110,7 @@ async def test_charge_or_raise_invokes_rpc_with_floor_and_ref():
             ref_table="cv_upload_jobs", ref_id="job-abc",
         )
     assert new_balance == 100
-    admin.rpc.assert_called_once_with("charge_xp", {
+    admin.rpc.assert_called_once_with("charge_coins", {
         "p_user_id": "user-1",
         "p_amount": 200,
         "p_action": "cv_upload",
@@ -130,7 +130,7 @@ async def test_charge_or_raise_raises_400_when_rpc_returns_null():
         with pytest.raises(HTTPException) as exc_info:
             await charge_or_raise("user-1", 200, "cv_upload", floor=0)
     assert exc_info.value.status_code == 400
-    assert "Out of tokens" in exc_info.value.detail
+    assert "Out of Myro Coins" in exc_info.value.detail
     # Detail surfaces the floor-respecting current balance from get_xp_balance
     assert "have 50" in exc_info.value.detail
 
@@ -145,7 +145,7 @@ async def test_refund_invokes_rpc_with_action_and_ref():
             ref_table="cv_upload_jobs", ref_id="job-abc",
         )
     assert new_balance == 3000
-    admin.rpc.assert_called_once_with("refund_xp", {
+    admin.rpc.assert_called_once_with("refund_coins", {
         "p_user_id": "user-1",
         "p_amount": 200,
         "p_action": "cv_upload",

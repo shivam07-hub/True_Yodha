@@ -4,12 +4,12 @@ import { useCallback, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import type { FollowedCompany, FollowedCompaniesResponse } from "@/lib/api"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useXPStore } from "@/store/xpStore"
 
-const COST = XP_POLICY.followCompanyCost
-const LIMIT = XP_POLICY.followedCompanyLimit
-const FLOOR = XP_POLICY.followCompanyFloor
+const COST = MYRO_COINS_POLICY.followCompanyCost
+const LIMIT = MYRO_COINS_POLICY.followedCompanyLimit
+const FLOOR = MYRO_COINS_POLICY.followCompanyFloor
 
 // ── IH2 reasons, single source ───────────────────────────────────────────────
 const REASON_LIMIT = `Heatmap limit ${LIMIT}`
@@ -134,8 +134,8 @@ export function useFollowCompany(
       return { previous }
     },
     onSuccess: (result) => {
-      if (result && typeof result.new_xp_balance === "number") {
-        applyXpChange({ newBalance: result.new_xp_balance, action: "follow_company" })
+      if (result && typeof result.new_coin_balance === "number") {
+        applyXpChange({ newBalance: result.new_coin_balance, action: "follow_company" })
       }
     },
     onError: (err, vars, context) => {

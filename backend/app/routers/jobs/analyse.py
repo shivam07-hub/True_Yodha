@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
@@ -15,6 +16,11 @@ from app.routers.jobs._shared import last_monday
 router = APIRouter()
 
 ANALYSE_XP_COST = 10
+
+# Upper bound on one fit-batch request. The /intel drill only ever shows a
+# single company's open roles (~6–20); the cap stops a crafted request from
+# scanning the whole job table through this free, no-charge endpoint.
+FIT_BATCH_MAX = 50
 
 _SYSTEM_PROMPT = (
     "You are a senior career advisor. Given a candidate's skill profile and a job posting, "
@@ -54,6 +60,72 @@ def _compute_overlap(skill_rows: list[dict], user_lower: dict[str, int]) -> tupl
     score = round((2.0 * len(main_hits) + 1.0 * len(side_hits)) / max_possible * 100, 1) if max_possible else 0.0
     matched = list({k for k in main_hits + side_hits})
     return score, matched
+
+
+class FitBatchRequest(BaseModel):
+    job_ids: list[str] = Field(default_factory=list)
+
+
+class FitItem(BaseModel):
+    job_id: str
+    overlap_score: float
+    matched_skills: list[str]
+    matched_count: int
+    total_skills: int
+
+
+class FitBatchResponse(BaseModel):
+    fits: list[FitItem]
+
+
+@router.post("/fit-batch", response_model=FitBatchResponse)
+async def fit_batch(
+    body: FitBatchRequest,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> FitBatchResponse:
+    """Deterministic fit % for a set of jobs against the caller's CV skills.
+
+    Powers the logged-in /intel drill — the SAME `_compute_overlap` the analyse
+    path uses, so the number here matches the dashboard. No LLM, no charge, no
+    persist: pure read + arithmetic. Jobs absent from job_skills (no taxonomy
+    rows) are omitted from the response rather than reported as 0% — a missing
+    skill map is "unknown fit", not "no fit".
+    """
+    job_ids = list(dict.fromkeys(body.job_ids))  # de-dup, preserve order
+    if not job_ids:
+        return FitBatchResponse(fits=[])
+    if len(job_ids) > FIT_BATCH_MAX:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Too many job_ids; max {FIT_BATCH_MAX} per request.",
+        )
+
+    skill_rows = repo.get_all_job_skill_rows(job_ids=job_ids)
+    rows_by_job: dict[str, list[dict]] = {}
+    for row in skill_rows:
+        jid = row.get("job_id")
+        if jid:
+            rows_by_job.setdefault(str(jid), []).append(row)
+
+    user_skill_map = repo.get_user_skill_map(principal.id)
+    user_lower = {k.lower(): v for k, v in user_skill_map.items()}
+
+    fits: list[FitItem] = []
+    for jid in job_ids:
+        rows = rows_by_job.get(jid)
+        if not rows:
+            continue
+        score, matched = _compute_overlap(rows, user_lower)
+        total_skills = sum(1 for r in rows if (r.get("skills") or {}).get("taxonomy_key"))
+        fits.append(FitItem(
+            job_id=jid,
+            overlap_score=score,
+            matched_skills=matched,
+            matched_count=len(matched),
+            total_skills=total_skills,
+        ))
+    return FitBatchResponse(fits=fits)
 
 
 @router.post("/analyse/{job_id}", status_code=status.HTTP_201_CREATED)
@@ -112,7 +184,7 @@ async def analyse_job(
         "job_id": job_id,
         "overlap_score": overlap_score,
         "matched_count": len(matched_skills),
-        "new_xp_balance": new_balance,
+        "new_coin_balance": new_balance,
     }
 
 
@@ -169,7 +241,7 @@ async def analyse_job_stream(
                 yield _sse({"type": "token", "text": chunk})
                 await asyncio.sleep(0.012)
             balance = await xp_service.get_xp_balance(user_id)
-            yield _sse({"type": "done", "new_xp_balance": balance, "cached": True})
+            yield _sse({"type": "done", "new_coin_balance": balance, "cached": True})
         return StreamingResponse(replay(), media_type="text/event-stream")
 
     # Funding preflight (no mutation). Frontend gates broke users, but defend the
@@ -225,6 +297,6 @@ async def analyse_job_stream(
             "llm_rank": None,
             "computed_at": datetime.now(timezone.utc).isoformat(),
         })
-        yield _sse({"type": "done", "new_xp_balance": new_balance})
+        yield _sse({"type": "done", "new_coin_balance": new_balance})
 
     return StreamingResponse(generate(), media_type="text/event-stream")

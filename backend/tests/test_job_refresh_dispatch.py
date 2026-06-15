@@ -33,7 +33,7 @@ def test_dispatch_runs_inline_when_redis_refresh_queue_has_no_worker(monkeypatch
             batch_week=date(2026, 6, 1),
             excluded_job_ids=[],
             xp_charged=50,
-            new_xp_balance=450,
+            new_coin_balance=450,
         )
         assert ticket.state == "queued"
         await asyncio.sleep(0)
@@ -73,7 +73,7 @@ def test_refresh_excludes_all_prior_match_jobs_for_novelty(monkeypatch: pytest.M
                 "progress_label": "Queued",
                 "batch_week": kwargs["batch_week"],
                 "xp_charged": kwargs["xp_charged"],
-                "new_xp_balance": kwargs["new_xp_balance"],
+                "new_coin_balance": kwargs["new_coin_balance"],
                 "matches_written": None,
             },
         )()

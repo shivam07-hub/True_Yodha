@@ -13,8 +13,8 @@ interface LoopNode {
 
 const NODES: LoopNode[] = [
   { id: "find-job", label: "Find job",  href: "/market" },
-  { id: "forge",    label: "Practice",  xp: "+50 tokens" },
-  { id: "log",      label: "Log",       xp: "+30 tokens" },
+  { id: "forge",    label: "Practice",  xp: "+50 Myro Coins" },
+  { id: "log",      label: "Log",       xp: "+30 Myro Coins" },
   { id: "level",    label: "Level up" },
   { id: "apply",    label: "Apply",     href: "/cv?lens=stage" },
 ]

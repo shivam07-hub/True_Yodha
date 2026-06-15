@@ -98,7 +98,7 @@ export function GapReadiness({
       </div>
 
       <div className="up-res-unlock up-readiness-note">
-        <Icon name="sparkle" size={15} /> Calibration is diagnostic — it measures, it doesn&apos;t pay. Practice the gaps in Upskilling to earn tokens and raise your real level.
+        <Icon name="sparkle" size={15} /> Calibration is diagnostic — it measures, it doesn&apos;t pay. Practice the gaps in Upskilling to earn Myro Coins and raise your real level.
       </div>
     </div>
   )

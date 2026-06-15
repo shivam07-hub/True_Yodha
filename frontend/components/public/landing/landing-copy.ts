@@ -6,6 +6,11 @@
 export interface FaqItem {
   q: string
   a: string
+  /* FAQPage governance: one Q/A = one canonical URL. /docs#faq is the product-FAQ
+     hub and owns the schema for product/reference questions. Mark `schema: true`
+     ONLY on landing-unique conversion questions that /docs does not cover, so the
+     two surfaces never emit duplicate structured data. */
+  schema?: boolean
 }
 
 /* What's free vs what spends Myro Coins. Plain, honest split — no fake tiers.
@@ -40,18 +45,22 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     q: "How is this different from LinkedIn or Naukri?",
     a: "They show you jobs. The Myro Engine scores your CV against live hiring demand and shows you exactly what's stopping you from getting them — then helps you fix it.",
+    schema: true,
   },
   {
+    // Score intent is owned by /docs#faq ("How is my Myro Score calculated?") — no schema here.
     q: "What is the Myro Score?",
     a: "A 0–100 score across 10 career domains, computed by the Engine from your CV skills against real hiring demand. It rises as you practice skills and add evidence.",
   },
   {
+    // CV-privacy intent is owned by /docs#faq ("Is my CV shared…?") — no schema here.
     q: "Is my CV private?",
     a: "Yes. Your CV is never shared or visible to recruiters. Your public profile shows only your score and domain map — never your CV text.",
   },
   {
     q: "What is Forge?",
     a: "Your practice yard. Pick a skill the Engine says is in demand, clear levelled question sets, move from L0 to L5.",
+    schema: true,
   },
 ]
 

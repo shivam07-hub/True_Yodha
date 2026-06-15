@@ -19,6 +19,33 @@ seriesLabel: "Monday Hiring Heatmap"
 readMinutes: 7
 authorName: "Myro"
 authorInitials: "M"
+dataset:
+  name: "India hiring by city — April 2026 window"
+  description: "Active jobs by city (de-duplicated) across a 9,446-listing April 2026 window from 60 enterprise career pages."
+  spatialCoverage: "India"
+  temporalCoverage: "2026-04-11/2026-04-19"
+  variableMeasured:
+    - "Active jobs by city"
+    - "Hiring companies by city"
+  columns: ["City", "Active jobs", "Companies"]
+  table:
+    - ["Bangalore (all variants)", 996, 20]
+    - ["Pune", 768, 5]
+    - ["Bengaluru (variants)", 404, 12]
+    - ["Hyderabad", 396, 8]
+    - ["Noida", 250, 4]
+    - ["Chennai", 226, 8]
+    - ["Mumbai", 61, 9]
+    - ["Gurgaon", 32, 1]
+faqs:
+  - q: "Is Pune a bigger tech-hiring city than Hyderabad in 2026?"
+    a: "In this data, yes. Pune had 768 active jobs against Hyderabad's 396 in the April 2026 window — though Pune's volume comes from just five large captives such as CMA CGM and Alstom. Treat it as one batch's snapshot, not a weekly trend."
+  - q: "Do employers actually require soft skills like collaboration?"
+    a: "Mostly no. 'Cross-Functional Collaboration' appears 229 times in skill tags but only 3 postings list it as a primary requirement; 'Quality Culture' appears 179 times with zero primary. The real primary requirements are engineering practices — programming languages, development methodologies and requirements engineering."
+  - q: "Who hires more in India — Big Tech or the consultancies?"
+    a: "The consultancies. Accenture alone posted 1,000 roles on 19 April; Accenture, Cognizant and DXC together total 1,594 — larger than every Big Tech name in the dataset combined (around 450)."
+  - q: "What skills should I put on my CV for India tech jobs in 2026?"
+    a: "Prioritise the actual primary requirements: one programming language with a production project (Python, Java, Scala or Go), one development methodology you can defend in interview (Agile, TDD, BDD), and one or two data or cloud infrastructure skills. That covers roughly 20–25% of the dataset."
 ---
 
 After tracking more than 30,000 jobs from MNC career pages and analysing a 9-day April window of 9,446 active listings across 60 enterprise employers, the data answers five questions Issue 001 did not. Pune sits second on the city leaderboard. Two pharmaceutical companies posted a thousand roles between them in one Saturday batch. The single most-listed skill across all postings is "Cross-Functional Collaboration," and across 229 mentions, exactly three job ads list it as required.
@@ -109,7 +136,7 @@ What is primary at scale tells a different story. Programming Languages (164 of 
 
 The primary requirements are unsexy engineering practices. The secondary mentions are organisational and behavioural language that companies use to describe culture. A reader optimising their CV for the headline skills is optimising for the language of postings, not the language of requirements.
 
-For Myro users this is the entire reason we extract primary skills from a CV separately from secondary ones. The gap between what a company *says* it values and what it *requires you to have* is where most candidates lose six weeks of wasted retraining.
+This is exactly why primary skills must be read separately from secondary ones. The gap between what a company *says* it values and what it *requires you to have* is where most candidates lose six weeks of wasted retraining.
 
 If you are updating a CV this week, prioritise: a programming language stack (any one of Python, Java, Scala, Go), one development methodology you can defend in interview (Agile, TDD, BDD), one delivery framework, and one or two data infrastructure skills. That covers the actual primary requirements across roughly 20 to 25% of the dataset.
 
@@ -169,10 +196,7 @@ If you are a senior, plant a flag in Pune. The talent supply is below Bengaluru.
 
 ## The one move to make this week
 
-Pick a role and a city from this issue. Run them through Myro. We will return your top five skill gaps against the actual primary requirements in our dataset, ranked by which gap closes a job match fastest.
-
-> 🎯 **Free for readers:** [Get your skill-gap analysis →](https://www.himyro.com/skill-gap?ref=newsletter-002)
-> Two minutes. A personalised map of what to learn, in what order, and roughly how long it will take.
+Pick a role and a city from this issue, then find your top skill gaps against the actual primary requirements above — and close the one that unlocks a match fastest, not the longest list.
 
 ## Methodology
 
@@ -182,8 +206,4 @@ Caveats worth noting. Coverage is heavier on Indian listings than on European or
 
 ## Coming next
 
-Issue 003 lands when our latest scrape finishes ingesting. Expect the BFSI vs. Pharma vs. Big Tech rank order to shift once the dataset widens further. We will also publish the first proper "primary skill demand vs. supply" map. What employers require versus what the average CV uploaded to Myro this month shows.
-
----
-
-*Myro is an AI career intelligence platform. Upload your CV in 60 seconds; we return a Myro Score across 10 career domains, the top three jobs you can realistically land today, and a 7-day plan to close the gap. [himyro.com](https://www.himyro.com)*
+Issue 003 lands when our latest scrape finishes ingesting. Expect the BFSI vs. Pharma vs. Big Tech rank order to shift once the dataset widens further. We will also publish the first proper "primary skill demand vs. supply" map. What employers require versus what the average CV uploaded this month shows.

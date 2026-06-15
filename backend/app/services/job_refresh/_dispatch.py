@@ -121,7 +121,7 @@ def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
         batch_week=bw_parsed,
         matches_written=raw.get("matches_written"),
         refund=raw.get("refund"),
-        new_xp_balance=raw.get("new_xp_balance"),
+        new_coin_balance=raw.get("new_coin_balance"),
         outcome_kind=raw.get("outcome_kind"),
         error=raw.get("error"),
         debug=raw.get("debug") or {},
@@ -138,7 +138,7 @@ def _state(
     *,
     matches_written: int | None = None,
     refund: int | None = None,
-    new_xp_balance: int | None = None,
+    new_coin_balance: int | None = None,
     outcome_kind: RefreshOutcomeKind | None = None,
     error: str | None = None,
     debug: dict[str, Any] | None = None,
@@ -153,7 +153,7 @@ def _state(
         batch_week=batch_week,
         matches_written=matches_written,
         refund=refund,
-        new_xp_balance=new_xp_balance,
+        new_coin_balance=new_coin_balance,
         outcome_kind=outcome_kind,
         error=error,
         debug=debug or {},
@@ -206,7 +206,7 @@ async def _run_inline(
             "failed",
             batch_week,
             refund=xp_charged,
-            new_xp_balance=new_balance,
+            new_coin_balance=new_balance,
             error=str(exc),
         )
         _write_state(user_id, final)
@@ -220,7 +220,7 @@ async def _run_inline(
             batch_week,
             matches_written=outcome.matches_written,
             refund=xp_charged,
-            new_xp_balance=refunded_balance,
+            new_coin_balance=refunded_balance,
             outcome_kind=outcome.kind,
             debug=outcome.debug,
         )
@@ -244,7 +244,7 @@ async def dispatch(
     batch_week: date,
     excluded_job_ids: list[str],
     xp_charged: int,
-    new_xp_balance: int,
+    new_coin_balance: int,
 ) -> RefreshTicket:
     """Create a ticket, kick off compute, return queued state."""
     tid = _ticket_id()
@@ -268,7 +268,7 @@ async def dispatch(
                 "failed",
                 batch_week,
                 refund=xp_charged,
-                new_xp_balance=new_balance,
+                new_coin_balance=new_balance,
                 error="Failed to queue compute.",
             )
             _write_state(user_id, failed)
@@ -276,7 +276,7 @@ async def dispatch(
                 id=tid,
                 state="done",
                 xp_charged=0,
-                new_xp_balance=new_balance if new_balance is not None else new_xp_balance,
+                new_coin_balance=new_balance if new_balance is not None else new_coin_balance,
                 batch_week=batch_week,
                 progress_label=PROGRESS_LABELS["failed"],
             )
@@ -298,7 +298,7 @@ async def dispatch(
         id=tid,
         state="queued",
         xp_charged=xp_charged,
-        new_xp_balance=new_xp_balance,
+        new_coin_balance=new_coin_balance,
         batch_week=batch_week,
         progress_label=PROGRESS_LABELS["queued"],
     )
@@ -333,7 +333,7 @@ def run_pipeline_worker(
             "failed",
             batch_week,
             refund=xp_charged,
-            new_xp_balance=new_balance,
+            new_coin_balance=new_balance,
             error=str(exc),
         )
         _write_state(user_id, final)
@@ -347,7 +347,7 @@ def run_pipeline_worker(
             batch_week,
             matches_written=outcome.matches_written,
             refund=xp_charged,
-            new_xp_balance=refunded_balance,
+            new_coin_balance=refunded_balance,
             outcome_kind=outcome.kind,
             debug=outcome.debug,
         )

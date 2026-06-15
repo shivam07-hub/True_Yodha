@@ -85,7 +85,7 @@ async def start_job_refresh(
         progress_label=ticket.progress_label,
         batch_week=ticket.batch_week,
         xp_charged=ticket.xp_charged,
-        new_xp_balance=ticket.new_xp_balance,
+        new_coin_balance=ticket.new_coin_balance,
         matches_written=ticket.matches_written,
     )
 
@@ -105,7 +105,7 @@ async def get_job_refresh_status(
         batch_week=state.batch_week,
         matches_written=state.matches_written,
         refund=state.refund,
-        new_xp_balance=state.new_xp_balance,
+        new_coin_balance=state.new_coin_balance,
         outcome_kind=state.outcome_kind,
         error=state.error,
         debug=state.debug or None,
@@ -169,7 +169,7 @@ async def stream_job_refresh(
                         "matches_written": state.matches_written,
                         "outcome_kind": state.outcome_kind,
                         "refund": state.refund,
-                        "new_xp_balance": state.new_xp_balance,
+                        "new_coin_balance": state.new_coin_balance,
                     },
                 })
                 return
@@ -181,7 +181,7 @@ async def stream_job_refresh(
                     "result": {
                         "state": "failed",
                         "refund": state.refund,
-                        "new_xp_balance": state.new_xp_balance,
+                        "new_coin_balance": state.new_coin_balance,
                     },
                 })
                 return

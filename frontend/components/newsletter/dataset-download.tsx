@@ -1,0 +1,47 @@
+import type { IssueDataset } from "@/lib/newsletter"
+
+interface DatasetDownloadProps {
+  slug: string
+  dataset: IssueDataset
+}
+
+/**
+ * Compact "download the data" strip. Sits in the value zone under the prose.
+ * Points at the build-time CSV (/newsletter/{slug}/dataset.csv) and states the
+ * CC BY 4.0 licence — the citable artifact AI engines and journalists link back
+ * to (the AEO backlink lever).
+ */
+export function DatasetDownload({ slug, dataset }: DatasetDownloadProps) {
+  return (
+    <div
+      style={{
+        margin: "40px 0 0", padding: "16px 20px",
+        borderRadius: "var(--tm-radius)", background: "var(--tm-surface)",
+        border: "1px solid var(--tm-border-soft)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", gap: 12,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>
+          {dataset.name}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>
+          Aggregate data · CSV · CC&nbsp;BY&nbsp;4.0 — reuse with attribution to Myro
+        </div>
+      </div>
+      <a
+        href={`/newsletter/${slug}/dataset.csv`}
+        download
+        style={{
+          flexShrink: 0, fontSize: 13, fontWeight: 600,
+          color: "var(--tm-interactive)", textDecoration: "none",
+          border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-pill)",
+          padding: "7px 16px", background: "var(--tm-int-bg-wash)",
+        }}
+      >
+        Download CSV ↓
+      </a>
+    </div>
+  )
+}

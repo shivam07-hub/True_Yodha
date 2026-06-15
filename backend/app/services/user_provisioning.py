@@ -94,7 +94,7 @@ def credit_referrer_for_signup(new_user_id: str) -> int:
         if prior.data:
             return 0
 
-        admin.rpc("reward_xp", {
+        admin.rpc("reward_coins", {
             "p_user_id": referrer_id,
             "p_amount": REFERRAL_REWARD_XP,
             "p_action": REFERRAL_REWARD_ACTION,

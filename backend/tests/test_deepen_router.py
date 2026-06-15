@@ -137,7 +137,7 @@ def test_paid_deepener_charges_5xp_with_ref(monkeypatch):
     assert resp.status_code == 200
     ev = _events(resp)
     done = [e for e in ev if e["type"] == "done"]
-    assert done and done[0]["new_xp_balance"] == 2995
+    assert done and done[0]["new_coin_balance"] == 2995
     assert len(charged) == 1
     args, kwargs = charged[0]
     assert args[1] == DEEPEN_XP_COST and args[2] == "deepen_job"

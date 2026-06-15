@@ -88,6 +88,26 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
             </div>
           )
         })}
+
+        {/* Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter
+            persist across login as a secondary, lighter-weight group right of the
+            workspace tabs. Desktop-only (CSS); on mobile they live in the account
+            menu. The hairline divider sets them apart from the workspace. */}
+        {nav.content.length > 0 && (
+          <div className="tm-nav-content-cluster" aria-label="Browse">
+            {nav.content.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                title={item.desc}
+                className="tm-topbar-link tm-topbar-link-content"
+                data-active={pathname.startsWith(item.href)}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </nav>
     </>
   )

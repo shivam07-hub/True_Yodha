@@ -1030,6 +1030,56 @@
 
 .tm-intel-fit-locked svg { width: 10px; height: 10px; }
 
+/* Logged-in fit pill — replaces the lock with the real number (grill Q7).
+   Color-banded to the fit scale: strong / building / gap. */
+.tm-intel-fit-pill {
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.tm-intel-fit-pill .tm-intel-fit-skills {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.tm-intel-fit-pill.is-strong {
+  color: var(--ok, #22d3a8);
+  background: color-mix(in srgb, var(--ok, #22d3a8) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ok, #22d3a8) 35%, transparent);
+}
+.tm-intel-fit-pill.is-building {
+  color: var(--tm-accent-text);
+  background: color-mix(in srgb, var(--tm-accent-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--tm-accent-text) 30%, transparent);
+}
+.tm-intel-fit-pill.is-gap {
+  color: var(--tm-text-faint);
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-border);
+}
+/* No CV / unknown fit — quiet em-dash, header owns the single CTA (grill Q8). */
+.tm-intel-fit-muted {
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  color: var(--tm-text-faint);
+  flex-shrink: 0;
+  padding: 3px 6px;
+}
+
+/* Personal header readout (grill Q4=B/Q5=A) — score ring sits where the
+   marketing pitch used to. */
+.tm-intel-authed-readout {
+  margin: 14px 0 12px;
+}
+
 .tm-intel-job-sub {
   display: flex;
   align-items: center;

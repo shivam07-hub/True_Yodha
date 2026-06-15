@@ -93,7 +93,7 @@ async def deepen_job_stream(
                 yield _sse({"type": "token", "text": chunk})
                 await asyncio.sleep(0.012)
             balance = await xp_service.get_xp_balance(user_id)
-            yield _sse({"type": "done", "new_xp_balance": balance, "cached": True})
+            yield _sse({"type": "done", "new_coin_balance": balance, "cached": True})
         return StreamingResponse(replay(), media_type="text/event-stream")
 
     skill_rows = repo.get_all_job_skill_rows(job_ids=[job_id])
@@ -155,6 +155,6 @@ async def deepen_job_stream(
                 return
 
         repo.upsert_deepening(user_id, job_id, prompt_key, text)
-        yield _sse({"type": "done", "new_xp_balance": new_balance})
+        yield _sse({"type": "done", "new_coin_balance": new_balance})
 
     return StreamingResponse(generate(), media_type="text/event-stream")

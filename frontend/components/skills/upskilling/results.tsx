@@ -31,7 +31,7 @@ export function Results({
   const cleared = passed
   const verdict = cleared ? (firstClear ? "Level cleared!" : "Cleared again") : "Not cleared yet"
   // Speed stat is display-only — deliberately NOT in the announce (DEC-S6).
-  const announce = `${score} out of ${max}. ${cleared ? `Level ${level} cleared.` : "Not cleared."} ${tokens > 0 ? `${tokens} tokens earned.` : "No tokens earned."}`
+  const announce = `${score} out of ${max}. ${cleared ? `Level ${level} cleared.` : "Not cleared."} ${tokens > 0 ? `${tokens} Myro Coins earned.` : "No Myro Coins earned."}`
 
   // Time line (DEC-S5): "best yet" on a first/faster clear, "best M:SS" on a
   // slower re-clear, plain "Time · M:SS" on a fail.
@@ -53,15 +53,15 @@ export function Results({
         <p className="up-res-sub">
           {cleared
             ? (firstClear
-              ? <>You passed the bar (8/10). Tokens banked and the next level is open.</>
-              : <>You&apos;ve already cleared this level — great recall. Re-clears earn 0 tokens, but practice is always free.</>)
+              ? <>You passed the bar (8/10). Myro Coins banked and the next level is open.</>
+              : <>You&apos;ve already cleared this level — great recall. Re-clears earn 0 Myro Coins, but practice is always free.</>)
             : <>You scored {score}/{max}. Clear <b>8/10</b> to earn — try a freshly drawn set, the questions rotate.</>}
         </p>
 
         {cleared ? (
           firstClear ? (
             <div className="up-res-award earned" role="status">
-              <Icon name="coin" size={18} /> +{tokens} tokens earned
+              <Icon name="coin" size={18} /> +{tokens} Myro Coins earned
             </div>
           ) : (
             <div className="up-res-award zero"><Icon name="coin" size={14} /> +0 — already banked on first clear</div>

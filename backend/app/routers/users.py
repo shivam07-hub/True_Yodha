@@ -111,12 +111,12 @@ async def update_profile(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
 
-    xp_earned = 0
-    new_xp_balance = None
+    coins_earned = 0
+    new_coin_balance = None
     if should_grant_linkedin_xp:
-        xp_earned, new_xp_balance = await grant_linkedin_profile_xp(user_id)
+        coins_earned, new_coin_balance = await grant_linkedin_profile_xp(user_id)
 
-    return UpdateProfileResponse(**profile, xp_earned=xp_earned, new_xp_balance=new_xp_balance)
+    return UpdateProfileResponse(**profile, coins_earned=coins_earned, new_coin_balance=new_coin_balance)
 
 
 @router.get("/me/following/companies", response_model=FollowedCompaniesResponse)
@@ -151,7 +151,7 @@ async def follow_company(
     already_following = existing_by_key.get(_company_key(name))
 
     if already_following:
-        return {"company_name": already_following["company_name"], "new_xp_balance": None}
+        return {"company_name": already_following["company_name"], "new_coin_balance": None}
 
     if len(existing) >= _MAX_FOLLOWED:
         raise HTTPException(
@@ -166,7 +166,7 @@ async def follow_company(
         floor=FOLLOW_COMPANY_XP_FLOOR,
     )
     users_repo.follow_company(principal.id, name)
-    return {"company_name": name, "new_xp_balance": new_balance}
+    return {"company_name": name, "new_coin_balance": new_balance}
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)

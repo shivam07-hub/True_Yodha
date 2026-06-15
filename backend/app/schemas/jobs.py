@@ -178,7 +178,7 @@ class RefreshTicketResponse(BaseModel):
     progress_label: str
     batch_week: date
     xp_charged: int
-    new_xp_balance: int
+    new_coin_balance: int
     matches_written: int | None = None
 
 
@@ -190,7 +190,7 @@ class RefreshStateResponse(BaseModel):
     batch_week: date
     matches_written: int | None = None
     refund: int | None = None
-    new_xp_balance: int | None = None
+    new_coin_balance: int | None = None
     outcome_kind: Literal["written", "cache_hit", "exhausted", "needs_onboarding"] | None = None
     error: str | None = None
     debug: dict[str, Any] | None = None
@@ -226,7 +226,7 @@ class ApplicationResponse(BaseModel):
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
-    xp_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)
+    coins_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)
     xp_balance: int | None = None                   # wallet balance after the reward (transient)
 
 

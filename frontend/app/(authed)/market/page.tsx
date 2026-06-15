@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useXPStore } from "@/store/xpStore"
-import { XP_POLICY } from "@/lib/xp-policy"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 
 // ── Job drill-down panel ─────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ function SkillHeatmap({
         <div style={{ fontSize: 14, fontWeight: 500, color: "var(--tm-text)", marginBottom: 8 }}>Your heatmap is empty</div>
         <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
           Tap “+ Heatmap” on companies in the list above to add them here.
-          Each follow costs {XP_POLICY.followCompanyCost} tokens — up to {XP_POLICY.followedCompanyLimit} companies.
+          Each follow costs {MYRO_COINS_POLICY.followCompanyCost} Myro Coins — up to {MYRO_COINS_POLICY.followedCompanyLimit} companies.
         </div>
       </div>
     )

@@ -46,7 +46,7 @@ def _state(life: str, **kw: Any) -> RefreshState:
         batch_week=date(2026, 5, 25),
         matches_written=kw.get("matches_written"),
         refund=kw.get("refund"),
-        new_xp_balance=kw.get("new_xp_balance"),
+        new_coin_balance=kw.get("new_coin_balance"),
         outcome_kind=kw.get("outcome_kind"),
         error=kw.get("error"),
         debug={},
@@ -58,7 +58,7 @@ def _state(life: str, **kw: Any) -> RefreshState:
 
 def test_refresh_stream_phase_then_done(monkeypatch):
     seq = [_state("computing"), _state("computing", progress_label="Ranking"),
-           _state("done", matches_written=7, new_xp_balance=90, outcome_kind="ok")]
+           _state("done", matches_written=7, new_coin_balance=90, outcome_kind="ok")]
 
     async def fake_status(user_id, ticket_id):
         return seq.pop(0)
@@ -76,7 +76,7 @@ def test_refresh_stream_phase_then_done(monkeypatch):
     done = [f for f in frames if f["type"] == "done"]
     assert len(phases) == 2  # computing → Ranking (label change)
     assert done and done[0]["result"]["matches_written"] == 7
-    assert done[0]["result"]["new_xp_balance"] == 90
+    assert done[0]["result"]["new_coin_balance"] == 90
 
 
 def test_refresh_stream_emits_per_job_progress(monkeypatch):
@@ -85,7 +85,7 @@ def test_refresh_stream_emits_per_job_progress(monkeypatch):
                revealed=[{"title": "Eng", "company": "Acme"}]),
         _state("computing", progress_done=2, progress_total=3,
                revealed=[{"title": "Eng", "company": "Acme"}, {"title": "SRE", "company": "Beta"}]),
-        _state("done", matches_written=3, new_xp_balance=90),
+        _state("done", matches_written=3, new_coin_balance=90),
     ]
 
     async def fake_status(user_id, ticket_id):
@@ -108,7 +108,7 @@ def test_refresh_stream_emits_per_job_progress(monkeypatch):
 
 def test_refresh_stream_failed_emits_error(monkeypatch):
     async def fake_status(user_id, ticket_id):
-        return _state("failed", error="boom", refund=20, new_xp_balance=120)
+        return _state("failed", error="boom", refund=20, new_coin_balance=120)
 
     monkeypatch.setattr(match_router.JobRefresh, "status", staticmethod(fake_status))
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
@@ -120,7 +120,7 @@ def test_refresh_stream_failed_emits_error(monkeypatch):
     frames = _frames(r.text)
     errors = [f for f in frames if f["type"] == "error"]
     assert errors and errors[0]["recoverable"] is True
-    assert errors[0]["result"]["new_xp_balance"] == 120
+    assert errors[0]["result"]["new_coin_balance"] == 120
 
 
 def test_refresh_stream_unknown_ticket(monkeypatch):

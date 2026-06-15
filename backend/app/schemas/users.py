@@ -28,8 +28,8 @@ class UserProfileResponse(BaseModel):
 
 
 class UpdateProfileResponse(UserProfileResponse):
-    xp_earned: int = 0
-    new_xp_balance: int | None = None
+    coins_earned: int = 0
+    new_coin_balance: int | None = None
 
 
 class UpdateProfileRequest(BaseModel):
