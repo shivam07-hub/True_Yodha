@@ -105,6 +105,20 @@
 
 .lp-eyebrow-logo { margin-bottom: 4px; }
 
+/* Logo as a leading pointer — heading text flows right next to it. */
+.lp-section-title-mark {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 0;
+}
+.lp-section-title-mark.center { justify-content: center; }
+.lp-section-title-mark .lp-eyebrow-logo {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  margin-top: 0.06em;
+}
+
 .lp-section-head { max-width: 720px; margin-bottom: 36px; }
 
 .lp-section-head.center { text-align: center; margin-left: auto; margin-right: auto; }

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { Layers, BarChart3, Activity, Moon, ArrowRight, type LucideIcon } from "lucide-react"
+import { SectionTitle } from "@/components/public/landing/section-title"
 
 interface Surface {
   title: string
@@ -40,7 +41,7 @@ export function LandingSurfaces() {
     <section className="lp-surfaces" id="surfaces" aria-label="The surfaces">
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <h2 className="lp-section-title">Three ways into the Engine.</h2>
+          <SectionTitle>Three ways into the Engine.</SectionTitle>
         </div>
 
         <div className="lp-surface-grid">

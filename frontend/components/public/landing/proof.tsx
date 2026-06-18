@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { newsletter } from "@/lib/api"
 import { QUOTES } from "./landing-copy"
+import { SectionTitle } from "./section-title"
 import type { IntelTeaserRow } from "./use-landing-data"
 
 function NewsletterStrip({ companiesLabel }: { companiesLabel: string }) {
@@ -73,7 +74,7 @@ export function LandingProof({ rows, asOf, companiesLabel }: LandingProofProps) 
     <section className="lp-proof" id="proof" aria-label="Proof — the Engine, live">
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <h2 className="lp-section-title">The Engine, live.</h2>
+          <SectionTitle>The Engine, live.</SectionTitle>
         </div>
 
         <div className="lp-reveal">

@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { ChevronDown } from "lucide-react"
 import { FAQ_ITEMS, PRICING_FREE, PRICING_PAID, PRICING_LEAD, PRICING_FOOTNOTE } from "./landing-copy"
 import { LandingDropzone } from "./dropzone"
+import { SectionTitle } from "./section-title"
 import type { AnonScoreResponse } from "@/lib/api"
 
 interface LandingFaqProps {
@@ -26,7 +27,7 @@ export function LandingFaq({ scoring, scoreError, onScoring, onResult, onError }
     <section className="lp-faq" aria-label="Questions and closing call to action">
       <div className="lp-wrap">
         <div className="lp-section-head center lp-reveal">
-          <h2 className="lp-section-title">Free to start. Private by default.</h2>
+          <SectionTitle center>Free to start. Private by default.</SectionTitle>
         </div>
 
         <div className="lp-pricing lp-reveal" aria-label="What's free and what spends Myro Coins">

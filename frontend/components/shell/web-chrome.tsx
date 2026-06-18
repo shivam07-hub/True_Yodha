@@ -6,7 +6,7 @@ import Link from "next/link"
 
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { MyroLogo } from "@/components/myro-logo"
-import { TopbarNav } from "@/components/nav/topbar-nav"
+import { TopbarNav, NavContentCluster } from "@/components/nav/topbar-nav"
 import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
@@ -64,6 +64,9 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
           <MyroLogo size={26} />
           <span className="tm-nav-beta" title="Early access — Myro is still evolving">beta</span>
         </Link>
+
+        {/* Browse cluster (Intel / Newsletter) — hugs the logo, left of the tabs */}
+        <NavContentCluster nav={nav} />
 
         {/* Progressive-disclosure nav (grows as surfaces are earned) */}
         <TopbarNav nav={nav} />

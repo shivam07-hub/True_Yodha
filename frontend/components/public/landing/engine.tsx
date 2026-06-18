@@ -1,8 +1,8 @@
 "use client"
 
-import Image from "next/image"
 import { Globe, Sparkles, Network, Target, FileText, type LucideIcon } from "lucide-react"
 import { LandingDropzone } from "@/components/public/landing/dropzone"
+import { SectionTitle } from "@/components/public/landing/section-title"
 import type { AnonScoreResponse } from "@/lib/api"
 
 interface Stage {
@@ -78,15 +78,7 @@ export function LandingEngine({
 
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <Image
-            src="/brand/myro-mark.png"
-            alt="Myro"
-            width={40}
-            height={40}
-            className="lp-eyebrow-logo"
-            priority
-          />
-          <h2 className="lp-section-title">One pipeline runs everything on Myro.</h2>
+          <SectionTitle priority>One pipeline runs everything on Myro.</SectionTitle>
           <p className="lp-section-sub">
             The Myro Engine reads the market continuously. Every product on this page is a
             different window into the same machine.
