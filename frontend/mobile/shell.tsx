@@ -333,6 +333,25 @@ export function MobileProfileSheet({ profile, onClose, signOut }: {
           </div>
         </div>
 
+        {/* Skills & Score — the upskilling hub (/skills). It has no bottom-nav
+            slot (5 are full) and /forge is nav-hidden, so the account sheet is
+            its first-class door (market-feed redesign 2026-06-18). Previously the
+            ONLY way in was tapping the score ring on /market; giving it a real
+            menu entry frees that strip to be a plain stat. */}
+        <Link
+          href="/skills"
+          onClick={onClose}
+          style={{
+            display: "flex", alignItems: "center", gap: 14,
+            width: "100%", padding: "14px 4px",
+            borderBottom: "1px solid var(--tm-border-soft)",
+            textDecoration: "none", color: "var(--tm-interactive-rest)",
+          }}
+        >
+          <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>▲</span>
+          <span style={{ fontSize: 15, fontWeight: 500 }}>Skills &amp; Score</span>
+        </Link>
+
         {/* Shared content — Intel / Newsletter (intel-authed grill Q13). The
             5-slot bottom bar has no room, so the mobile home for these is the
             account sheet; on desktop they sit in the topbar cluster instead. */}

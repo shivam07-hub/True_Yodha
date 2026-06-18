@@ -9,11 +9,11 @@ import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
-import { FeedControls, FilterChips, FiltersSheet, RoleSwitcher } from "./feed-filters"
+import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
-import { MarketRail, MarketChipStrip } from "./market-rail"
+import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
@@ -47,6 +47,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const hasTargetRoles = targetRoles.length > 0
 
   const [searchInput, setSearchInput] = useState("")
+  const [searchOpen, setSearchOpen] = useState(false)
   const [q, setQ] = useState("")
   // roleDomain is sourced from the page's selectedCluster; the rest is local.
   // Rank defaults to "Best fit" when the user has signal (CV or roles), else
@@ -133,30 +134,53 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   return (
     <div className="tm-market-layout">
       <main className="tm-market-main">
-        {/* Search leads; everything else is one control row. */}
-        <div className="tm-feed-searchrow" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <input
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search roles, companies, skills…"
-            aria-label="Search jobs"
-            style={{ flex: "1 1 260px", minWidth: 0, minHeight: 44, padding: "0 16px", borderRadius: 999, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)", color: "var(--tm-text)", fontSize: 16, outline: "none" }}
-          />
-        </div>
-
-        {/* mobile-only: the rail collapses to a sticky chip strip */}
-        <MarketChipStrip {...railProps} />
-
-        <div style={{ marginTop: 12 }}>
-          <FeedControls
-            filters={filters}
-            onChange={onChangeFilters}
-            hasCv={hasCv}
-            hasTargetRoles={hasTargetRoles}
-            savedCount={savedCount}
-            onOpenSaved={() => router.push("/home")}
-            onOpenFilters={() => setFiltersOpen(true)}
-          />
+        {/* One compact control bar (market-feed redesign 2026-06-18): search is
+            an ICON that expands on tap (triage is browse-first, not query-first),
+            then the rank toggle + Filters door. The old full-width search input,
+            the demand-movers chip strip, and the separate filter row collapsed
+            into this — the demand movers now interleave as StoryCards in the
+            scroll, not a band the user scrolls past. */}
+        <div className="tm-feed-bar">
+          {searchOpen ? (
+            <>
+              <input
+                autoFocus
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search roles, companies, skills…"
+                aria-label="Search jobs"
+                className="tm-feed-search"
+              />
+              <button
+                type="button"
+                className="tm-feed-iconbtn"
+                aria-label="Close search"
+                onClick={() => { setSearchInput(""); setSearchOpen(false) }}
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="tm-feed-iconbtn"
+                aria-label="Search jobs"
+                onClick={() => setSearchOpen(true)}
+              >
+                <span aria-hidden>🔍</span>
+              </button>
+              <FeedControls
+                filters={filters}
+                onChange={onChangeFilters}
+                hasCv={hasCv}
+                hasTargetRoles={hasTargetRoles}
+                savedCount={savedCount}
+                onOpenSaved={() => router.push("/home")}
+                onOpenFilters={() => setFiltersOpen(true)}
+              />
+            </>
+          )}
         </div>
 
         {/* cold-start: only once CV state is RESOLVED absent — never on load */}
@@ -178,17 +202,25 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
           ) : (
             <>
+              {/* One merged chip row (market-feed redesign 2026-06-18): count +
+                  location scope, then the ACTIVE role-cluster and any active hard
+                  filters as removable chips. Raw counts dropped; the standalone
+                  "adjust" link is gone — the Filters door above is the only door,
+                  and switching to a *different* cluster happens inside it. */}
               <div className="tm-feed-summary">
                 <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
                 <LocationScopePill locations={targetLocations} />
-                <RoleSwitcher
-                  targetRoles={targetRoles}
-                  chipCountMap={chipCountMap}
-                  selected={filters.roleDomain}
-                  onSelect={role => onChangeFilters({ ...filters, roleDomain: role })}
-                />
+                {filters.roleDomain ? (
+                  <button
+                    type="button"
+                    className="tm-feed-activechip"
+                    onClick={() => onChangeFilters({ ...filters, roleDomain: null })}
+                    aria-label={`Remove role: ${filters.roleDomain}`}
+                  >
+                    {filters.roleDomain} <span aria-hidden>✕</span>
+                  </button>
+                ) : null}
                 <FilterChips filters={filters} onChange={onChangeFilters} />
-                <button type="button" onClick={() => setFiltersOpen(true)} className="tm-feed-summary-adjust">adjust</button>
               </div>
               {isDesktop ? (
                 <VirtualFeed
