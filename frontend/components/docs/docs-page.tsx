@@ -4,6 +4,7 @@ import Link from "next/link"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { ScoringSection } from "@/components/docs/scoring-section"
+import "./docs-page.css"
 import {
   CVReadingSection,
   SkillLevelsSection,
@@ -36,9 +37,6 @@ export function DocsPage() {
       <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "48px 32px 36px", position: "relative", overflow: "hidden", flexShrink: 0 }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 0%, var(--tm-int-bg-wash), transparent 60%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 820, margin: "0 auto", position: "relative" }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 10 }}>
-            HOW MYRO WORKS
-          </div>
           <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, color: "var(--tm-text)" }}>
             Methodology &amp; documentation
           </h1>
@@ -50,13 +48,10 @@ export function DocsPage() {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, maxWidth: 820, width: "100%", margin: "0 auto", padding: "44px 32px 80px", display: "flex", gap: 52, alignItems: "flex-start", boxSizing: "border-box" }}>
+      <div className="docs-body">
 
-        {/* Sticky TOC — desktop only */}
-        <nav
-          aria-label="Page sections"
-          style={{ flexShrink: 0, width: 172, position: "sticky", top: 80, display: "flex", flexDirection: "column", gap: 4 }}
-        >
+        {/* Sticky TOC — desktop only (hidden < 768px via docs-page.css) */}
+        <nav aria-label="Page sections" className="docs-toc">
           <div style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 8 }}>
             On this page
           </div>

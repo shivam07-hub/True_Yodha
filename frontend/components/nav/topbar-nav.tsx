@@ -88,27 +88,34 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
             </div>
           )
         })}
-
-        {/* Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter
-            persist across login as a secondary, lighter-weight group right of the
-            workspace tabs. Desktop-only (CSS); on mobile they live in the account
-            menu. The hairline divider sets them apart from the workspace. */}
-        {nav.content.length > 0 && (
-          <div className="tm-nav-content-cluster" aria-label="Browse">
-            {nav.content.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                title={item.desc}
-                className="tm-topbar-link tm-topbar-link-content"
-                data-active={pathname.startsWith(item.href)}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        )}
       </nav>
     </>
+  )
+}
+
+/**
+ * Shared-content cluster (intel-authed grill Q11–13) — Intel / Newsletter persist
+ * across login as a secondary, lighter-weight group. Rendered in the header right
+ * of the logo (between the brand and the centered workspace tabs). Desktop-only
+ * (CSS); on mobile they live in the account menu. The hairline divider sets them
+ * apart from the brand.
+ */
+export function NavContentCluster({ nav }: { nav: NavUnlocksVm }) {
+  const pathname = usePathname()
+  if (nav.content.length === 0) return null
+  return (
+    <div className="tm-nav-content-cluster" aria-label="Browse">
+      {nav.content.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          title={item.desc}
+          className="tm-topbar-link tm-topbar-link-content"
+          data-active={pathname.startsWith(item.href)}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </div>
   )
 }

@@ -29,7 +29,7 @@ export default function IntelPage() {
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <IntelPane />
-        <PublicFooter />
+        <PublicFooter commons />
       </div>
     </div>
   )

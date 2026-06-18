@@ -1,0 +1,39 @@
+/* Docs page layout — responsive two-column → single-column.
+   Lives in CSS (not inline) so the body grid can collapse on mobile.
+   Bug it fixes: inline-styled flex(TOC 172px + content) never collapsed,
+   so at 375px the content column was ~150px and prose wrapped 2–3 words/line. */
+
+.docs-body {
+  flex: 1;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 44px 32px 80px;
+  display: flex;
+  gap: 52px;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.docs-toc {
+  flex-shrink: 0;
+  width: 172px;
+  position: sticky;
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Below the two-column threshold: stack, drop the sticky in-page TOC
+   (it was authored "desktop only"), reclaim the full content width. */
+@media (max-width: 768px) {
+  .docs-body {
+    flex-direction: column;
+    gap: 0;
+    padding: 32px 20px 64px;
+  }
+  .docs-toc {
+    display: none;
+  }
+}

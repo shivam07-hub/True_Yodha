@@ -8,17 +8,13 @@ interface ChartEmbedProps {
 
 export function ChartEmbed({ src, title, height = 480 }: ChartEmbedProps) {
   return (
-    <div
-      style={{
-        margin: "28px 0",
-        borderRadius: "var(--tm-radius-lg)",
-        border: "1px solid var(--tm-border-soft)",
-        overflow: "hidden",
-      }}
+    <figure
+      className="nl-fig nl-data"
+      style={{ margin: "2.5rem 0", overflow: "hidden" }}
     >
-      <div style={{ fontSize: 11, color: "var(--tm-text-faint)", padding: "8px 14px", borderBottom: "1px solid var(--tm-border-soft)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+      <figcaption className="nl-eyebrow" style={{ padding: "10px 16px", borderBottom: "1px solid var(--tm-border)" }}>
         {title}
-      </div>
+      </figcaption>
       <iframe
         src={src}
         title={title}
@@ -27,6 +23,6 @@ export function ChartEmbed({ src, title, height = 480 }: ChartEmbedProps) {
         style={{ display: "block", border: "none" }}
         loading="lazy"
       />
-    </div>
+    </figure>
   )
 }

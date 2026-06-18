@@ -4,7 +4,7 @@
    ───────────────────────────────────────────────────────────── */
 
 /* ── S3 — SURFACES ──────────────────────────────────────────── */
-.lp-surfaces { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
+.lp-surfaces { padding: clamp(32px, 4vw, 56px) 0 var(--lp-section-py); border-top: 1px solid var(--lp-border); }
 
 .lp-surface-grid {
   display: grid;

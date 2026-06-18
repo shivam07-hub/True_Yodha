@@ -49,9 +49,43 @@ const FOOTER_COLS = [
   },
 ]
 
-export function PublicFooter() {
+const GITHUB_URL = "https://github.com/shivam07-hub/True_Yodha"
+
+// `commons` renders the "Open by default" transparency strip (model chain +
+// license + privacy). Intel-gated — only /intel passes it. Folds the old
+// standalone <IntelCommons> section into the footer so the page ends in one
+// band, not two grid-twin blocks.
+export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
   return (
     <footer className="pub-footer">
+      {commons && (
+        <div className="pub-footer-commons">
+          <span className="pub-footer-commons-label">Open by default</span>
+          <div className="pub-footer-commons-items">
+            <span className="pub-footer-commons-item">
+              <span className="pub-footer-commons-k">Model</span>
+              <span className="pub-footer-commons-v">openrouter → groq → gemini</span>
+            </span>
+            <span className="pub-footer-commons-item">
+              <span className="pub-footer-commons-k">License</span>
+              <span className="pub-footer-commons-v">MIT · fork freely</span>
+            </span>
+            <span className="pub-footer-commons-item">
+              <span className="pub-footer-commons-k">Privacy</span>
+              <span className="pub-footer-commons-v">PV1 · CV never public</span>
+            </span>
+          </div>
+          <div className="pub-footer-commons-links">
+            <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="pub-footer-commons-link">
+              Provider chain →
+            </a>
+            <a href={`${GITHUB_URL}/blob/Develop/LICENSE`} target="_blank" rel="noreferrer" className="pub-footer-commons-link">
+              Read terms →
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="pub-footer-inner">
         <div className="pub-footer-brand">
           <Link href="/" className="pub-footer-logo" aria-label="Myro home">

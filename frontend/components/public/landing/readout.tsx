@@ -13,6 +13,7 @@ import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import type { AnonScoreResponse } from "@/lib/api"
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { SampleReadoutCard } from "./sample-readout"
+import { SectionTitle } from "./section-title"
 
 import "@/app/(authed)/cv/cv-fonts.css"
 import "@/app/(authed)/cv/cv-sheet.css"
@@ -67,9 +68,9 @@ export function LandingReadout({ result }: { result?: AnonScoreResponse | null }
     <section className="lp-readout" id="cv-hub" aria-label={live ? "Your readout" : "Sample readout"}>
       <div className="lp-wrap">
         <div className="lp-section-head lp-reveal">
-          <h2 className="lp-section-title">
+          <SectionTitle>
             {live ? "What the Engine says about your CV." : "What the Engine says about one CV version."}
-          </h2>
+          </SectionTitle>
         </div>
 
         {hasCv && (

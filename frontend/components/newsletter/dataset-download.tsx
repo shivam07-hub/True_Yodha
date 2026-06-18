@@ -14,13 +14,8 @@ interface DatasetDownloadProps {
 export function DatasetDownload({ slug, dataset }: DatasetDownloadProps) {
   return (
     <div
-      style={{
-        margin: "40px 0 0", padding: "16px 20px",
-        borderRadius: "var(--tm-radius)", background: "var(--tm-surface)",
-        border: "1px solid var(--tm-border-soft)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexWrap: "wrap", gap: 12,
-      }}
+      className="nl-fig nl-callout"
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, padding: "18px 22px" }}
     >
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>
@@ -30,16 +25,7 @@ export function DatasetDownload({ slug, dataset }: DatasetDownloadProps) {
           Aggregate data · CSV · CC&nbsp;BY&nbsp;4.0 — reuse with attribution to Myro
         </div>
       </div>
-      <a
-        href={`/newsletter/${slug}/dataset.csv`}
-        download
-        style={{
-          flexShrink: 0, fontSize: 13, fontWeight: 600,
-          color: "var(--tm-interactive)", textDecoration: "none",
-          border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-pill)",
-          padding: "7px 16px", background: "var(--tm-int-bg-wash)",
-        }}
-      >
+      <a href={`/newsletter/${slug}/dataset.csv`} download className="nl-pill-ghost">
         Download CSV ↓
       </a>
     </div>
