@@ -57,9 +57,6 @@ function CVJobCard({ app, cv, onOpen, onStageChange }: {
 
       <div>
         <div className="tm-lib-job-title">{app.title}</div>
-        <div className="tm-lib-job-location" style={{ marginTop: 3 }}>
-          {app.source ?? ""}
-        </div>
       </div>
 
       <div className="tm-lib-job-meta">
@@ -82,7 +79,7 @@ function CVJobCard({ app, cv, onOpen, onStageChange }: {
       <div className="tm-lib-job-card-actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className={`tm-lib-btn sm tm-lib-job-card-action-primary${action.tone === "primary" ? " primary" : ""}`}
+          className={`tm-lib-btn sm tm-lib-job-card-action-primary${!cv ? " primary" : ""}`}
           onClick={onOpen}
         >
           <LIcon d={cv ? I.file : I.plus} size={12}/> {action.label}
@@ -105,7 +102,6 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
   const activeCount = apps.filter((app) => APPLICATION_STAGES.includes(app.status)).length
   const newCvJobId = useMemo(() => pickNewCvJobId(apps, versions), [apps, versions])
   const hasUntailoredRole = apps.some((app) => app.job_id && !latestCVVersionForJob(app.job_id, versions))
-  const newCvLabel = hasUntailoredRole ? "Create CV" : "Open role CV"
 
   function openNewCvTarget() {
     if (newCvJobId) onOpenJob(newCvJobId)
@@ -132,11 +128,16 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
             {apps.length} tracked role{apps.length !== 1 ? "s" : ""} · {cvsCount} tailored CV{cvsCount !== 1 ? "s" : ""}
           </div>
         </div>
-        <div className="tm-lib-folder-actions" onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="tm-lib-btn sm" onClick={openNewCvTarget} disabled={!newCvJobId}>
-            <LIcon d={hasUntailoredRole ? I.plus : I.file} size={12}/> {newCvLabel}
-          </button>
-        </div>
+        {/* Create shortcut shows ONLY when a tracked role still lacks a CV.
+            When every role is tailored there is nothing to create, so the
+            header carries no action (the per-role cards open their own CVs). */}
+        {hasUntailoredRole && (
+          <div className="tm-lib-folder-actions" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="tm-lib-btn sm" onClick={openNewCvTarget} disabled={!newCvJobId}>
+              <LIcon d={I.plus} size={12}/> Create CV
+            </button>
+          </div>
+        )}
       </div>
 
       {open && (
@@ -151,13 +152,15 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
                 onStageChange={onStageChange}
               />
             ))}
-            <button className="tm-lib-new-cv-card" onClick={openNewCvTarget} disabled={!newCvJobId}>
-              <LIcon d={hasUntailoredRole ? I.plus : I.file} size={20}/>
-              <div className="tm-lib-new-cv-card-title">{newCvLabel} for {companyName}</div>
-              <div className="tm-lib-new-cv-card-sub">
-                {hasUntailoredRole ? "Starts from Main CV" : "All tracked roles have CVs"}
-              </div>
-            </button>
+            {/* In-grid create slot — only when a role still needs a CV. Once
+                every role is tailored this vanishes (no empty-state bloat). */}
+            {hasUntailoredRole && (
+              <button className="tm-lib-new-cv-card" onClick={openNewCvTarget} disabled={!newCvJobId}>
+                <LIcon d={I.plus} size={20}/>
+                <div className="tm-lib-new-cv-card-title">Create CV for {companyName}</div>
+                <div className="tm-lib-new-cv-card-sub">Starts from Main CV</div>
+              </button>
+            )}
           </div>
         </div>
       )}
