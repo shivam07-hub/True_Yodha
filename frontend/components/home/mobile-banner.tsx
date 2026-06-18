@@ -9,48 +9,42 @@ interface MobileBannerProps {
   streak: number
   scoreDelta: number
   loggedToday: boolean
-}
-
-/* Compact score dial — score / 100 as a donut, accent arc = progress. */
-function ScoreDial({ score }: { score: number }) {
-  const size = 44
-  const r = (size - 6) / 2
-  const c = 2 * Math.PI * r
-  const off = c * (1 - Math.max(0, Math.min(100, score)) / 100)
-  return (
-    <svg className="mb-dial" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-      <circle className="track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3.5" />
-      <circle
-        className="arc"
-        cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3.5" strokeLinecap="round"
-        strokeDasharray={c} strokeDashoffset={off}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <text className="num" x="50%" y="50%" dominantBaseline="central" textAnchor="middle">{score}</text>
-    </svg>
-  )
+  sessions: number
 }
 
 /**
- * Mobile top strip — the greeting is gone (D1); the feed owns the viewport. What
- * remains is the one thing worth pinning: the Myro Score as an *actionable* dial
- * that taps through to the skill map, plus the streak. Sticky, non-snapping.
+ * Mobile top strip — a thin, glanceable STAT line, not a ring (market-feed
+ * redesign 2026-06-18). The circular dial used to eat the whole first viewport
+ * before any job; the feed owns the viewport now. Score · streak · sessions sit
+ * on one hairline row that taps through to the skill map. Orange is spent only
+ * on the score number (the accent budget); everything else is muted. Its old
+ * duty as the *sole* door to /skills moved to the account sheet, so this is now
+ * purely a stat — free to be small. Sticky, non-snapping. Desktop never renders
+ * this (home/market branch on useViewport).
  */
-export function MobileBanner({ score, streak, scoreDelta }: MobileBannerProps) {
+export function MobileBanner({ score, streak, scoreDelta, sessions }: MobileBannerProps) {
   return (
-    <div className="mb">
-      <Link href="/skills" className="mb-score tm-control-focus" aria-label={`Myro Score ${score} of 100 — open your skill map`}>
-        <ScoreDial score={score} />
-        <span className="mb-score-meta">
-          <span className="mb-score-lab">Myro Score</span>
-          <span className="mb-score-sub">
-            of 100{scoreDelta > 0 ? <span className="mb-up"> · ▲{scoreDelta}</span> : null}
-          </span>
-        </span>
-      </Link>
+    <Link
+      href="/skills"
+      className="mb tm-control-focus"
+      aria-label={`Myro Score ${score} of 100${scoreDelta > 0 ? `, up ${scoreDelta}` : ""} — open your skill map`}
+    >
+      <span className="mb-stat mb-stat--score">
+        <span className="mb-lab">Score</span>
+        <span className="mb-val">{score}</span>
+        {scoreDelta > 0 ? <span className="mb-up" aria-hidden>↗{scoreDelta}</span> : null}
+      </span>
       {streak > 0 ? (
-        <span className="mb-chip mb-chip--streak" title="Day streak">🔥 {streak}</span>
+        <span className="mb-stat">
+          <span className="mb-ico" aria-hidden>🔥</span>
+          <span className="mb-val mb-val--muted">{streak}</span>
+        </span>
       ) : null}
-    </div>
+      <span className="mb-stat">
+        <span className="mb-val mb-val--muted">{sessions}</span>
+        <span className="mb-lab">{sessions === 1 ? "session" : "sessions"}</span>
+      </span>
+      <span className="mb-go" aria-hidden>›</span>
+    </Link>
   )
 }

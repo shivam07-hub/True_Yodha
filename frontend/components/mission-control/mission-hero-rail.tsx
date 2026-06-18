@@ -142,6 +142,7 @@ export function MissionHeroRail({ token }: { token: string | null }) {
           streak={streak}
           scoreDelta={scoreDelta}
           loggedToday={loggedToday}
+          sessions={entries.length}
         />
       )}
     </SectionGate>

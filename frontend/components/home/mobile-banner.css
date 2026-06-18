@@ -1,6 +1,7 @@
-/* Mobile top strip (D1). Greeting dropped — only the actionable score dial +
-   streak remain. Page-scoped per ADR-0003. Sticky, non-snapping. Desktop never
-   renders this (home branches on useViewport). */
+/* Mobile top strip (market-feed redesign 2026-06-18). A thin hairline STAT row —
+   score · streak · sessions — replacing the old circular dial that ate the first
+   viewport. Page-scoped per ADR-0003. Sticky, non-snapping. Orange spent only on
+   the score number. Desktop never renders this (branch on useViewport). */
 
 .mb {
   position: sticky;
@@ -9,46 +10,60 @@
   scroll-snap-align: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0 12px;
-  margin-bottom: 4px;
+  gap: 14px;
+  padding: 9px 2px 10px;
+  margin-bottom: 2px;
   background: var(--tm-bg);
   border-bottom: 1px solid var(--tm-border-soft, var(--tm-border));
-}
-
-/* Actionable score dial → taps through to /skills. */
-.mb-score {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
   text-decoration: none;
-  min-width: 0;
 }
-.mb-dial { display: block; flex-shrink: 0; }
-.mb-dial .track { stroke: var(--tm-border); }
-.mb-dial .arc { stroke: var(--tm-interactive); transition: stroke-dashoffset 500ms ease; }
-.mb-dial .num {
-  font-size: 14px; font-weight: 700; fill: var(--tm-text);
-  font-variant-numeric: tabular-nums; font-family: var(--tm-font-mono);
-}
-.mb-score-meta { display: flex; flex-direction: column; min-width: 0; }
-.mb-score-lab { font-size: 13.5px; font-weight: 650; color: var(--tm-text); }
-.mb-score-sub {
-  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.04em;
-  color: var(--tm-text-faint);
-}
-.mb-up { color: var(--tm-success); }
 
-.mb-chip {
-  flex-shrink: 0;
-  font-size: 13px;
+.mb-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  position: relative;
+}
+/* hairline dot separator before every stat except the first */
+.mb-stat + .mb-stat::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--tm-border);
+  transform: translateY(-50%);
+}
+
+.mb-lab {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tm-text-muted);
+}
+.mb-val {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--tm-font-mono);
+  color: var(--tm-text);
+}
+/* the one accent in this strip — the score itself */
+.mb-stat--score .mb-val { color: var(--tm-accent-text, var(--tm-interactive)); }
+.mb-val--muted { color: var(--tm-text-muted); font-weight: 650; }
+
+.mb-up {
+  font-size: 11px;
   font-weight: 700;
   font-family: var(--tm-font-mono);
-  color: var(--tm-text-muted);
-  background: transparent;
-  border: 1px solid var(--tm-border);
-  border-radius: 99px;
-  padding: 4px 11px;
+  color: var(--tm-success);
 }
-.mb-chip--streak { color: var(--tm-text-muted); }
+.mb-ico { font-size: 12px; line-height: 1; }
+
+.mb-go {
+  margin-left: auto;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--tm-text-faint);
+}

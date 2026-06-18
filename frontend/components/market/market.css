@@ -39,6 +39,25 @@
 .tm-triage-save { border-color: var(--tm-interactive); color: var(--tm-interactive); background: var(--tm-int-bg-wash); }
 .tm-triage-save:hover { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
 
+/* ── compact control bar: search-icon · rank · Filters (market-feed redesign) ─ */
+.tm-feed-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.tm-feed-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 999px; cursor: pointer;
+  font-size: 15px; line-height: 1;
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface);
+  color: var(--tm-text-muted); font-family: inherit; transition: all 120ms ease;
+}
+.tm-feed-iconbtn:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
+.tm-feed-search {
+  flex: 1 1 220px; min-width: 0; min-height: 44px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface); color: var(--tm-text); font-size: 16px; outline: none;
+}
+.tm-feed-search:focus { border-color: var(--tm-int-border); }
+
 /* ── control row: Filters · Sort · Saved · location ──────────────────────── */
 .tm-feed-ctl {
   display: inline-flex; align-items: center; gap: 6px;
@@ -48,13 +67,16 @@
   color: var(--tm-interactive-rest); font-family: inherit; transition: all 120ms ease;
 }
 .tm-feed-ctl:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
+/* Filter-count badge — neutral, NOT accent. Orange is rationed to the score +
+   the card's fit-signal/primary action only (market-feed redesign 2026-06-18). */
 .tm-feed-ctl-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-  background: var(--tm-interactive); color: var(--tm-on-interactive, #fff);
+  background: var(--tm-text-muted); color: var(--tm-bg);
   font-size: 10px; font-weight: 700; font-family: var(--tm-font-mono);
 }
-.tm-feed-saved { border-color: var(--tm-interactive); color: var(--tm-interactive); }
+/* "★ Saved N" is a shortcut to the shortlist, not a primary action → neutral. */
+.tm-feed-saved { border-color: var(--tm-border); color: var(--tm-text); }
 
 /* ── rank toggle (segmented: Best fit ⇄ Newest) ──────────────────────────── */
 .tm-feed-segmented { display: inline-flex; gap: 2px; padding: 3px; background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: 999px; }
@@ -63,11 +85,21 @@
   font-size: 13px; font-weight: 600; font-family: inherit;
   background: transparent; color: var(--tm-text-muted); transition: all 120ms ease;
 }
-.tm-feed-seg:hover { color: var(--tm-interactive); }
-.tm-feed-seg.is-on { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
+.tm-feed-seg:hover { color: var(--tm-text); }
+/* Active rank = neutral inverted fill (NOT accent orange). Selection stays
+   unmistakable via fill+contrast; orange is reserved for score + card. */
+.tm-feed-seg.is-on { background: var(--tm-text); color: var(--tm-bg); }
 
-/* ── summary line: count · location · filter chips · adjust ───────────────── */
-.tm-feed-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 12px; }
+/* ── merged chip row: count · location · active cluster + filter chips ─────── */
+/* One horizontal-scroll line on mobile (no wrap → chips never stack into bands).
+   Children never shrink; the row scrolls under the thumb instead. */
+.tm-feed-summary {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 8px;
+  margin: 16px 0 12px; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; padding-bottom: 2px;
+}
+.tm-feed-summary::-webkit-scrollbar { display: none; }
+.tm-feed-summary > * { flex: 0 0 auto; }
 .tm-feed-summary-count { font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--tm-text-faint); }
 .tm-feed-summary-loc {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; cursor: pointer;
@@ -81,12 +113,15 @@
 }
 .tm-feed-summary-adjust:hover { text-decoration: underline; }
 
+/* Active/removable chip (cluster + hard filters) — neutral, not accent. The ✕
+   carries "removable"; orange is rationed away from chrome (redesign 2026-06-18). */
 .tm-feed-activechip {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
-  font-size: 12px; font-weight: 500; color: var(--tm-interactive);
-  background: var(--tm-int-bg-wash); border: 1px solid var(--tm-interactive);
+  font-size: 12px; font-weight: 500; color: var(--tm-text);
+  background: var(--tm-surface-2, var(--tm-surface)); border: 1px solid var(--tm-border);
+  font-family: inherit; transition: all 120ms ease;
 }
-.tm-feed-activechip:hover { filter: brightness(1.08); }
+.tm-feed-activechip:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
 
 /* Inactive target-role chip — one tap loads that role's feed (active one uses
    .tm-feed-activechip = accent: orange in light, teal in dark). */
