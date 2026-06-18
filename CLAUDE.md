@@ -492,6 +492,20 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-18 · CV & Applications company-card empty-state + orange-budget fix — pushed Develop dd5b5cb)
+
+`/frontend-design` critique of a mobile CV & Applications screenshot (3M folder) → `/grill-me` (4 decisions, all recommended) → built + pushed same session. Outer repo `shivam07-hub/True_Yodha`, Develop `dd5b5cb` (committed ONLY my 2 files — foreign uncommitted work left in tree untouched).
+
+**Root issue:** the 3M company folder rendered three near-identical "open CV" affordances + a 200px dashed empty card that showed even when every role was tailored ("All tracked roles have CVs" = a CTA for nothing-to-do), plus raw `app.source` ("system_match") leaking into user copy, plus per-card "Open latest CV" filled orange on every card (accent budget blown).
+
+**Built ([library-company-row.tsx](frontend/components/cv/builder/library-company-row.tsx) + [library-view.css](frontend/components/cv/builder/library-view.css)), tsc0/lint0:**
+- Dashed create slot + folder-header Create button now gate to `hasUntailoredRole` → fully-tailored folder shows neither (no 200px bloat). Dropped the degraded "All tracked roles have CVs" branch.
+- Orange rationed to the **create** action only: per-card open demoted to outline (`.primary` kept solely on the no-CV card, keyed `!cv`). Tailored folder = zero orange; max one orange per folder (the contextual create).
+- Removed the raw `app.source` line — internal provenance, not user copy.
+- Deleted now-dead `.tm-lib-job-location` rule + unused `newCvLabel`.
+
+**Owed (Shivam):** 375px eyeball both states (untailored = create slot present; all-tailored = clean outline-open only). Part of the CLAUDE.md #29 dashboard/CV-surface design lane.
+
 ## LAST SESSION SUMMARY (2026-06-16 · Backlog #25 Myro Coins rename — copy + full DB/code cutover shipped)
 
 Took #25 from "copy half done" to **functionally complete** in one session (4 pushes to Develop). All on outer repo `shivam07-hub/True_Yodha` (the nested `frontend/.git` is a remote-less mid-reshuffle artifact — ignore for push).
