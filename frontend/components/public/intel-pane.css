@@ -1186,85 +1186,8 @@
 }
 
 /* ── Open data commons strip ───────────────────────────────────── */
-.tm-intel-commons {
-  margin: 56px 0 24px;
-  display: grid;
-  grid-template-columns: 280px repeat(2, 1fr);
-  gap: 32px;
-  padding: 32px 0 0;
-  border-top: 1px solid var(--tm-border-soft);
-}
-
-@media (max-width: 980px) {
-  .tm-intel-commons {
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-  }
-}
-
-.tm-intel-commons-head h3 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0;
-  font-family: var(--tm-font-display);
-  font-style: normal;
-  color: var(--tm-text);
-}
-
-.tm-intel-commons-head p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--tm-text-muted);
-  line-height: 1.55;
-  max-width: 240px;
-}
-
-.tm-intel-commons-col h4 {
-  margin: 0 0 14px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  font-weight: 600;
-}
-
-.tm-intel-commons-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
-}
-
-.tm-intel-commons-k {
-  font-family: var(--tm-font-mono);
-  font-size: 13px;
-  color: var(--tm-text);
-  font-weight: 500;
-}
-
-.tm-intel-commons-v {
-  font-size: 11px;
-  color: var(--tm-text-muted);
-  font-family: var(--tm-font-mono);
-}
-
-.tm-intel-commons-link {
-  color: var(--tm-accent);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--tm-font-mono);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  text-decoration: none;
-}
-
-.tm-intel-commons-link:hover {
-  color: var(--tm-accent-hover, #2DFFE0);
-}
-
-/* Footer → canonical <PublicFooter> (mounted by app/intel/page.tsx). */
+/* "Open by default" commons strip + footer → <PublicFooter commons />
+   (mounted by app/intel/page.tsx). Styles live in public-footer.css. */
 
 /* ── Mobile polish ─────────────────────────────────────────────── */
 @media (max-width: 720px) {
@@ -1283,7 +1206,29 @@
   .tm-intel-sort-lbl { display: none; }
 }
 
+/* Phone: discard the fake LLM-runner console + compact the stats to one line each. */
+@media (max-width: 640px) {
+  .tm-intel-console { display: none; }
+
+  .tm-intel-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px 0 4px;
+  }
+  .tm-intel-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .tm-intel-stat-num { font-size: 22px; }
+  .tm-intel-stat-lbl {
+    margin-top: 0;
+    white-space: nowrap;
+  }
+  .tm-intel-stat-delta { display: none; }
+}
+
 @media (max-width: 380px) {
-  .tm-intel-stats { grid-template-columns: 1fr; }
   .tm-intel-display { font-size: var(--tm-fs-title); }
 }

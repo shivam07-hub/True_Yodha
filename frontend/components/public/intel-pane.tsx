@@ -13,7 +13,6 @@ import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
 import type { JobRowFit } from "./intel/intel-rows"
 import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
-import { IntelCommons } from "./intel/intel-commons"
 import { CHIP_FILTER, COUNTRY_CHIP_IDS, sparkFor, velocityFor } from "./intel/intel-data"
 import { formatUptime, weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
@@ -356,9 +355,8 @@ export function IntelPane() {
         fits={fits}
       />
 
-      <IntelCommons />
-      {/* Footer is the canonical <PublicFooter>, mounted by app/intel/page.tsx —
-          the old per-pane footer (stale Myrology tagline + source-repo link) was removed. */}
+      {/* "Open by default" commons + canonical footer are folded into
+          <PublicFooter commons />, mounted by app/intel/page.tsx. */}
     </div>
   )
 }
