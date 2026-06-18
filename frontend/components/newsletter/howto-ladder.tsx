@@ -11,33 +11,12 @@ interface HowToLadderProps {
 export function HowToLadder({ steps }: HowToLadderProps) {
   if (!steps?.length) return null
   return (
-    <ol style={{ listStyle: "none", counterReset: "ladder", margin: "32px 0", padding: 0 }}>
+    <ol className="nl-ladder">
       {steps.map((step, i) => (
-        <li
-          key={i}
-          style={{
-            position: "relative", paddingLeft: 52, marginBottom: 20,
-            minHeight: 36,
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute", left: 0, top: 0,
-              width: 36, height: 36, borderRadius: "50%",
-              background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
-              color: "var(--tm-interactive)", fontSize: 14, fontWeight: 700,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            {i + 1}
-          </span>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.4, marginBottom: 4 }}>
-            {step.name}
-          </div>
-          <p style={{ fontSize: 15, color: "var(--tm-text-muted)", lineHeight: 1.65, margin: 0 }}>
-            {step.text}
-          </p>
+        <li key={i}>
+          <span aria-hidden="true" className="nl-ladder-i">{i + 1}</span>
+          <div className="nl-ladder-name">{step.name}</div>
+          <p className="nl-ladder-text">{step.text}</p>
         </li>
       ))}
     </ol>

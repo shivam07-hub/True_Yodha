@@ -297,29 +297,14 @@ export default async function IssuePage({ params }: Props) {
         {issue.faqs?.length ? <NewsletterFAQ items={issue.faqs} /> : null}
 
         {/* ── CTA DIVIDER — end of value zone, start of product ── */}
-        <div style={{
-          background: "rgba(0, 245, 212, 0.04)",
-          border: "1px solid rgba(0, 245, 212, 0.15)",
-          borderTop: "2px solid #22d3a8",
-          borderRadius: "var(--tm-radius-lg)", padding: "28px 32px",
-          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 56,
-          boxShadow: "0 0 32px rgba(0, 245, 212, 0.06)",
-        }}>
-          <p style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3, margin: 0 }}>
+        <div className="nl-callout" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16, marginTop: 56 }}>
+          <p className="nl-callout-title" style={{ margin: 0 }}>
             Upload a CV to check your Myro Score
           </p>
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <Link
               href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
-              className="nl-cta-btn"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                fontSize: 14, fontWeight: 600, color: "var(--tm-interactive-fg)",
-                background: "#22d3a8", padding: "10px 22px",
-                borderRadius: "var(--tm-radius)", textDecoration: "none",
-                boxShadow: "0 0 8px rgba(0, 245, 212, 0.18)",
-                transition: "background var(--tm-dur) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease)",
-              }}
+              className="nl-pill"
             >
               Get my free Myro Score →
             </Link>

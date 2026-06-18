@@ -23,3 +23,260 @@
     top: 24px;
   }
 }
+
+/* ============================================================
+   EDITORIAL FIGURE SYSTEM — "one magazine"
+   Every in-article block (tables, stats, bars, callouts) shares
+   this rhythm so an issue reads as one designed publication.
+   Law: serif = voice (prose/headings). Sans = labels. Mono = data.
+   Accent is themed (orange in light, teal in dark) via --tm-accent*
+   and rationed — one accent, intensity by width, never a rainbow.
+   ============================================================ */
+
+/* Block rhythm — every figure breathes the same. */
+.nl-fig { margin: 2.5rem 0; }
+.nl-fig:last-child { margin-bottom: 0; }
+
+/* Figure eyebrow — the small-caps voice marker above a figure/callout. */
+.nl-eyebrow {
+  font-family: var(--tm-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.nl-eyebrow--accent { color: var(--tm-accent-text); }
+
+/* DATA FIGURE — framed by hairline rules, no box. The newspaper-table
+   idiom: the data sits on the page, ruled top and bottom, not in a card. */
+.nl-data {
+  border-top: 1px solid var(--tm-border);
+  border-bottom: 1px solid var(--tm-border);
+}
+
+/* CALLOUT — surface sidebar with an accent spine. The pull-quote idiom:
+   TL;DR, methodology, dataset, the product CTA all share this shape so
+   "asides" read as one family distinct from the prose. */
+.nl-callout {
+  position: relative;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-left: 2px solid var(--tm-accent);
+  border-radius: var(--tm-radius);
+  padding: 22px 26px;
+  box-shadow: var(--tm-shadow-1);
+}
+
+/* MAGNITUDE BAR — one accent, intensity by width only. */
+.nl-bar { display: flex; align-items: center; gap: 14px; }
+.nl-bar-name {
+  flex-shrink: 0;
+  color: var(--tm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nl-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--tm-text) 9%, transparent);
+}
+.nl-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tm-accent);
+  transition: width var(--tm-dur) var(--tm-ease);
+}
+.nl-num {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--tm-text-muted);
+}
+
+/* EDITORIAL TABLE — ruled, sans uppercase header, mono numerals in figures. */
+.nl-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.nl-table thead th {
+  font-family: var(--tm-font-sans);
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  border-bottom: 1px solid var(--tm-border);
+  text-align: left;
+}
+.nl-table thead th.nl-right { text-align: right; }
+.nl-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  vertical-align: middle;
+}
+.nl-table tbody tr:last-child td { border-bottom: none; }
+.nl-table tbody tr { transition: background var(--tm-dur-fast) var(--tm-ease); }
+.nl-table tbody tr:hover td { background: var(--tm-hover-soft); }
+.nl-table td.nl-right { text-align: right; font-family: var(--tm-font-mono); font-size: 13px; }
+.nl-td-bold { color: var(--tm-text); font-weight: 500; }
+.nl-td-lead { color: var(--tm-accent-text); font-weight: 500; }
+.nl-td-muted { color: var(--tm-text-faint); }
+
+/* In-table heat cell reuses the magnitude bar, right-aligned + compact. */
+.nl-heat { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.nl-heat .nl-bar-track { flex: 0 0 72px; height: 4px; }
+.nl-heat .nl-num { width: 28px; color: var(--tm-text); }
+.nl-heat .nl-num[data-zero="true"] { color: var(--tm-text-faint); }
+
+/* STAT FIGURE — "by the numbers" grid. Numbers stay sans+tabular (legible),
+   labels sit beneath in faint sans. */
+.nl-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--tm-border-soft);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius);
+  overflow: hidden;
+}
+.nl-stat { background: var(--tm-surface); padding: 20px 22px; }
+.nl-stat-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--tm-text);
+}
+.nl-stat-num.nl-accent { color: var(--tm-accent-text); }
+.nl-stat-lbl { margin-top: 7px; font-size: 12px; line-height: 1.4; color: var(--tm-text-faint); }
+
+/* CALLOUT internals shared by TL;DR / career / dataset / CTA. */
+.nl-callout-title {
+  margin: 6px 0 0;
+  font-family: var(--tm-font-reading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--tm-text);
+}
+.nl-callout-body { font-size: 14px; line-height: 1.65; color: var(--tm-text-muted); }
+.nl-dot {
+  flex-shrink: 0;
+  width: 6px; height: 6px;
+  margin-top: 0.55em;
+  border-radius: 50%;
+  background: var(--tm-accent);
+}
+
+/* List-of-points (TL;DR) */
+.nl-points { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 14px 0 0; padding: 0; }
+.nl-points li { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; line-height: 1.55; color: var(--tm-text-muted); }
+.nl-points strong { color: var(--tm-text); font-weight: 600; }
+
+/* Pill button — the rationed accent CTA inside callouts. */
+.nl-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--tm-dur-fast) var(--tm-ease), transform var(--tm-dur-fast) var(--tm-ease);
+}
+.nl-pill:hover { background: var(--tm-accent-hover); transform: translateY(-1px); }
+
+/* Ghost pill — secondary accent action (dataset download). */
+.nl-pill-ghost {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: var(--tm-radius-pill);
+  border: 1px solid var(--tm-accent-ring);
+  background: var(--tm-accent-wash);
+  color: var(--tm-accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.nl-pill-ghost:hover { border-color: var(--tm-accent); }
+
+/* ADVICE ROWS (career cards) — ruled list, sans badge + sans body. */
+.nl-rows > * + * { border-top: 1px solid var(--tm-border-soft); }
+.nl-row { display: flex; gap: 16px; align-items: flex-start; padding: 18px 0; }
+.nl-row:first-child { padding-top: 4px; }
+.nl-row:last-child { padding-bottom: 4px; }
+.nl-badge {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--tm-accent-text);
+}
+.nl-row-body { font-size: 14px; line-height: 1.65; color: var(--tm-text-muted); }
+.nl-row-body strong { color: var(--tm-text); font-weight: 600; }
+
+/* NOTE — quiet methodology footnote. No accent spine: it's a footnote, not an
+   aside. Hairline box, faint ink, set apart from the prose. */
+.nl-note {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius);
+  padding: 18px 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--tm-text-faint);
+}
+
+/* Numbered step ladder (HowTo) — accent index discs. */
+.nl-ladder { list-style: none; margin: 2.5rem 0; padding: 0; }
+.nl-ladder li { position: relative; padding-left: 52px; margin-bottom: 22px; min-height: 36px; }
+.nl-ladder li:last-child { margin-bottom: 0; }
+.nl-ladder-i {
+  position: absolute; left: 0; top: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  color: var(--tm-accent-text);
+  font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.nl-ladder-name { font-size: 16px; font-weight: 600; color: var(--tm-text); line-height: 1.4; margin-bottom: 4px; }
+.nl-ladder-text { font-size: 15px; color: var(--tm-text-muted); line-height: 1.65; margin: 0; }
+
+/* FAQ — ruled disclosure list. */
+.nl-faq summary {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tm-text);
+  cursor: pointer;
+  list-style: none;
+  line-height: 1.45;
+}
+.nl-faq summary::-webkit-details-marker { display: none; }
+.nl-faq details { border-top: 1px solid var(--tm-border-soft); padding: 14px 0; }
+.nl-faq details:first-of-type { border-top: none; }
+.nl-faq p { font-size: 15px; color: var(--tm-text-muted); line-height: 1.65; margin: 10px 0 0; }
+
+@media (max-width: 560px) {
+  .nl-stats { grid-template-columns: 1fr 1fr; }
+}

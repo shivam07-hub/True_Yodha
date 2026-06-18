@@ -5,20 +5,10 @@ interface MethodologyBlockProps {
 }
 
 export function MethodologyBlock({ children }: MethodologyBlockProps) {
+  // `methodology-block` keeps its inner-element styling (globals.css);
+  // `nl-note` carries the shared quiet-footnote frame.
   return (
-    <div
-      className="methodology-block"
-      style={{
-        background: "var(--tm-surface)",
-        border: "1px solid var(--tm-border-soft)",
-        borderRadius: "var(--tm-radius)",
-        padding: "20px 24px",
-        fontSize: 13,
-        lineHeight: 1.65,
-        color: "var(--tm-text-faint)",
-        margin: "40px 0",
-      }}
-    >
+    <div className="methodology-block nl-fig nl-note">
       {children}
     </div>
   )
