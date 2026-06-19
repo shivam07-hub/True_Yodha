@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
 from app.routers import onboarding
+from app.services import onboarding_preview
 from app.services.onboarding_preview import build_preview_payload
 from app.services.onboarding_service import derive_role_clusters, target_context_hash
 
@@ -166,6 +169,27 @@ def test_preview_payload_is_evidence_backed_and_inexact() -> None:
         }
     ]
     assert payload["estimate_min"] < payload["estimate_max"]
+
+
+def test_preview_completion_does_not_bypass_target(monkeypatch) -> None:
+    repo = _StateRepo()
+
+    async def parse(*_args, **_kwargs):
+        return {"skills_detected": [{"taxonomy_key": "SQL", "evidence": "Used SQL"}]}
+
+    monkeypatch.setattr(onboarding_preview, "get_supabase_admin", lambda: object())
+    monkeypatch.setattr(onboarding_preview, "OnboardingRepository", lambda _db: repo)
+    monkeypatch.setattr(onboarding_preview.cv_parser, "parse_cv_text", parse)
+    monkeypatch.setattr(onboarding_preview, "get_cv_upload_provider", lambda: object())
+    monkeypatch.setattr(onboarding_preview.cv_upload_jobs, "set_phase", lambda *_a, **_k: None)
+    monkeypatch.setattr(onboarding_preview.cv_upload_jobs, "mark_done", lambda *_a, **_k: None)
+
+    asyncio.run(onboarding_preview.run_profile_preview({
+        "job_id": "job-1", "user_id": "u1", "raw_text": "Used SQL",
+    }, allow_retry=False))
+
+    assert repo.patches[-1]["status"] == "result_ready"
+    assert "current_stage" not in repo.patches[-1]
 
 
 def test_role_mapping_preserves_product_semantics() -> None:

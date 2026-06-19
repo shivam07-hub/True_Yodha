@@ -40,6 +40,7 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /onboarding\.saveTarget/)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.match(page, /pollCVUploadStatus/)
+  assert.match(page, /state\.isFetchedAfterMount/)
 })
 
 test("progressive personalization uses a durable three-action checklist", () => {

@@ -480,11 +480,22 @@ export function PlaygroundView({
               <span>{hiddenItems.size} hidden</span>
               <span style={{ opacity: 0.4 }}>·</span>
               {isDirty
-                ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes — Save in the top bar</span>
+                ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes</span>
                 : <span style={{ color: "var(--tm-success)" }}>
                     in sync{selectedVersion ? ` with ${formatThreadVersionLabel(selectedVersion, threadVersions)}` : ""}
                   </span>}
             </div>
+            {isDirty && (
+              <button
+                type="button"
+                className="cvb-btn sm primary"
+                onClick={handleSave}
+                disabled={!canSave || playground.saveVersion.isPending}
+              >
+                <Icon name="save" size={13}/>
+                {playground.saveVersion.isPending ? "Saving…" : "Save"}
+              </button>
+            )}
           </div>
         </div>
 

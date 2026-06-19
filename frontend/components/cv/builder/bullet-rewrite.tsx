@@ -96,7 +96,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
           <button type="button" className="cvb-rw-skip" onClick={() => run({ allowNoMetric: true })}>
             No number — reframe qualitatively
           </button>
-          <div className="cvb-rw-nofab">Myro never invents numbers · ADR-0016</div>
+          <div className="cvb-rw-nofab">Myro never invents numbers</div>
         </div>
       )}
 

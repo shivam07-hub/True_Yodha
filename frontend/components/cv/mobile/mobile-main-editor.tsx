@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import type { UserProfile } from "@/lib/api"
 import { Icon, type IconName } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
@@ -65,9 +66,11 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
 
   if (!ready || !draft) {
     return (
-      <div className="tm-mcv-focus" role="dialog" aria-modal="true" aria-label="Edit Main CV">
-        <div className="tm-mcv-loading" role="status">Loading your CV…</div>
-      </div>
+      <FocusPortal>
+        <div className="tm-mcv-focus" role="dialog" aria-modal="true" aria-label="Edit Main CV">
+          <div className="tm-mcv-loading" role="status">Loading your CV…</div>
+        </div>
+      </FocusPortal>
     )
   }
 
@@ -83,16 +86,19 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
 
   if (preview) {
     return (
-      <div className="tm-mcv-focus tm-mcv-full-preview" role="dialog" aria-modal="true" aria-label="CV preview">
-        <FocusHeader title="Preview" onBack={() => setPreview(false)} status={saveLabel} />
-        <main className="tm-mcv-focus-body">
-          <MobileDocumentPreview cv={cv} contact={previewContact(cv, profile)} />
-        </main>
-      </div>
+      <FocusPortal>
+        <div className="tm-mcv-focus tm-mcv-full-preview" role="dialog" aria-modal="true" aria-label="CV preview">
+          <FocusHeader title="Preview" onBack={() => setPreview(false)} status={saveLabel} />
+          <main className="tm-mcv-focus-body">
+            <MobileDocumentPreview cv={cv} contact={previewContact(cv, profile)} />
+          </main>
+        </div>
+      </FocusPortal>
     )
   }
 
   return (
+    <FocusPortal>
     <div className="tm-mcv-focus" role="dialog" aria-modal="true" aria-label={activeLabel}>
       <FocusHeader
         title={activeLabel}
@@ -140,7 +146,23 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
         </Button>
       </footer>
     </div>
+    </FocusPortal>
   )
+}
+
+// The authed shell's scroll container keeps a lingering `transform` from
+// `.tm-page-enter` (animation fill-mode: forwards), which makes it the
+// containing block for any descendant position:fixed — trapping this overlay
+// between the global top bar and bottom nav, so its own back button and Done
+// footer were unreachable. Portaling to <body> escapes that transformed
+// ancestor so `.tm-mcv-focus` is viewport-anchored (same fix as the job-detail
+// drawer; see globals.css ~L41). `.tm-mcv-focus` uses global --tm-* tokens, so
+// no scope class is needed outside the component tree.
+function FocusPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return null
+  return createPortal(children, document.body)
 }
 
 function FocusHeader({ title, status, onBack, error = false }: { title: string; status: string; onBack: () => void; error?: boolean }) {

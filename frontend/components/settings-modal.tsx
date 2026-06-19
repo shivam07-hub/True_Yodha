@@ -113,6 +113,20 @@ const normalizeLocations = (locations: string[]): string[] => {
   }, [])
 }
 
+// Inline, state-aware save indicator. Sits next to the thing being saved
+// (section header / chips) rather than in a disconnected corner. Renders nothing
+// while idle so it never lingers as a permanent label.
+function SaveBadge({ status }: { status: SaveStatus }) {
+  if (status === "idle") return null
+  const map = {
+    saving: { text: "Saving…", color: "var(--tm-text-faint)", weight: 400 },
+    saved: { text: "✓ Saved", color: "var(--tm-success)", weight: 500 },
+    error: { text: "Couldn't save", color: "var(--tm-danger)", weight: 500 },
+  } as const
+  const s = map[status]
+  return <span role="status" style={{ fontSize: 11, color: s.color, fontWeight: s.weight, whiteSpace: "nowrap" }}>{s.text}</span>
+}
+
 function InitialsAvatar({ name, size = 52 }: { name: string; size?: number }) {
   const initials = name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("") || "?"
   return (
@@ -499,18 +513,39 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
 
   const followedCompanies = following.companies
 
-  const statusNode = saveStatus === "saving" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>Saving…</span>
-  ) : saveStatus === "saved" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-success)", fontWeight: 500 }}>✓ Saved</span>
-  ) : saveStatus === "error" ? (
-    <span style={{ fontSize: 11, color: "var(--tm-danger)", fontWeight: 500 }}>✗ Error</span>
-  ) : null
+  // Following-tab save state, derived from the follow hook so the indicator can
+  // sit inline next to the chips. Flashes "✓ Saved" briefly once an in-flight
+  // follow/unfollow settles cleanly, then falls back to idle.
+  const [followSavedFlash, setFollowSavedFlash] = useState(false)
+  const prevFollowPending = useRef(false)
+  useEffect(() => {
+    const wasPending = prevFollowPending.current
+    prevFollowPending.current = following.anyPending
+    if (wasPending && !following.anyPending && !following.error) {
+      setFollowSavedFlash(true)
+      const t = setTimeout(() => setFollowSavedFlash(false), SAVED_DISPLAY_MS)
+      return () => clearTimeout(t)
+    }
+  }, [following.anyPending, following.error])
+
+  const followStatus: SaveStatus = following.anyPending
+    ? "saving"
+    : following.error
+    ? "error"
+    : followSavedFlash
+    ? "saved"
+    : "idle"
+
+  const statusNode = saveStatus === "idle" ? null : <SaveBadge status={saveStatus} />
 
   const liveAnnouncement = saveStatus === "saved"
     ? "Profile saved"
     : saveStatus === "error"
     ? `Save failed: ${saveError ?? "unknown error"}`
+    : followStatus === "saved"
+    ? "Target companies updated"
+    : followStatus === "error"
+    ? `Could not update target companies: ${following.error?.message ?? "unknown error"}`
     : ""
 
   const TAB_ICONS: Record<Tab, string> = { Account: "◉", Following: "★", Feedback: "◎", Billing: "▤" }
@@ -592,10 +627,14 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
             ))}
           </nav>
 
-          {/* Autosave indicator */}
-          <div className="tm-settings-autosave" style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
-            {statusNode ?? <span style={{ fontSize: 11, color: "var(--tm-text-faint)", opacity: 0.5 }}>Auto-saved</span>}
-          </div>
+          {/* Autosave indicator — transient only; lives inline next to each
+              section's content (see SaveBadge), so the corner no longer carries
+              a permanent "Auto-saved" label. */}
+          {statusNode && (
+            <div className="tm-settings-autosave" style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
+              {statusNode}
+            </div>
+          )}
         </div>
 
         {/* ── Right content ── */}
@@ -860,11 +899,14 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                         Companies whose jobs you track in Market · -{MYRO_COINS_POLICY.followCompanyCost} Myro Coins each
                       </div>
                     </div>
-                    {followedCompanies.length > 0 && (
-                      <span style={{ fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
-                        {followedCompanies.length} targeted
-                      </span>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: 12 }}>
+                      <SaveBadge status={followStatus} />
+                      {followedCompanies.length > 0 && (
+                        <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
+                          {followedCompanies.length} targeted
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ position: "relative" }}>
                     <input
@@ -917,8 +959,15 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     )}
                   </div>
                   {following.error && (
-                    <div role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--tm-danger, #f87171)" }}>
-                      {following.error.message}
+                    <div role="alert" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--tm-danger, #f87171)" }}>
+                      <span>{following.error.message}</span>
+                      <button
+                        type="button"
+                        onClick={() => { if (following.error) following.toggle(following.error.name) }}
+                        style={{ background: "transparent", border: "1px solid currentColor", color: "inherit", borderRadius: "var(--tm-radius-sm)", padding: "2px 8px", fontSize: 11, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
+                      >
+                        Retry
+                      </button>
                     </div>
                   )}
                 </div>
