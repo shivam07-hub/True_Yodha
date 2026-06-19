@@ -36,6 +36,13 @@
   display: contents;
 }
 
+/* Authed workspace tabs (Jobs / Dashboard / CV / Myrology) injected into the
+   public bar so a logged-in viewer keeps app nav on marketing surfaces.
+   `contents` lets them join the same flex row as the shared switchers. */
+.tm-public-nav-workspace {
+  display: contents;
+}
+
 .tm-public-nav-link {
   display: flex;
   align-items: center;
@@ -160,6 +167,13 @@
   /* No mobile drawer exists to host it; narrow rows keep the OS-default
      surface (prior pre-login behaviour). Desktop gets the manual switch. */
   .tm-public-nav-theme {
+    display: none;
+  }
+
+  /* Workspace tabs are label-only (no glyph); the mobile bar collapses labels
+     to icons, which would leave them blank. Hide the whole group — the brand
+     logo still routes a logged-in user back to /home. */
+  .tm-public-nav-workspace {
     display: none;
   }
 

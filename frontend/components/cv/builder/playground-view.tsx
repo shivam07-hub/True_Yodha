@@ -27,7 +27,7 @@ import { BulletRewrite } from "./bullet-rewrite"
 import { RestructureProposal } from "./restructure-proposal"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
-import { formatGlobalVersionLabel, formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
+import { formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
 import type { CVPlaygroundState, CVWriteAction } from "@/lib/hooks/use-cv-playground"
 import { Icon } from "./icons"
 import { BulletRow } from "./bullet-row"
@@ -54,16 +54,6 @@ interface PlaygroundViewProps {
   onEditPolished: (versionId: number) => void
   externalError?: string | null
   focusSkill?: string | null
-}
-
-function humanKind(kind: CVVersion["kind"]): string {
-  switch (kind) {
-    case "baseline_upload": return "Main CV"
-    case "polished":        return "AI polished"
-    case "edited":          return "edited copy"
-    case "deterministic":   return "tailored CV"
-    default:                return kind
-  }
 }
 
 function tabKindDot(kind: CVVersion["kind"]) {
@@ -291,20 +281,20 @@ export function PlaygroundView({
               <button type="button" className="cvb-btn ghost sm" onClick={onBackToBaseline} style={{ padding: "2px 8px" }}>
                 <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/> CV Library
               </button>
-              <span className="sep">/</span>
-              <span className="accent">{company}</span>
-              <span className="sep">/</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>{jobTitle}</span>
             </div>
-            <h1 className="cvb-page-title" style={{ marginTop: 8 }}>Tailor for {company}</h1>
-            <p className="cvb-page-sub">
-              Choose the proof this job needs. Myro keeps the saved copies in your CV Library.
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+              <span className="eyebrow">
+                <span style={{ color: "var(--tm-interactive)" }}>{company}</span> · tailoring
+              </span>
+              {application && (
+                <PursuitStageControl token={token} application={application} />
+              )}
+            </div>
+            <h1 className="cvb-page-title" style={{ marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {jobTitle}
+            </h1>
           </div>
           <div className="cvb-action-group">
-            {application && (
-              <PursuitStageControl token={token} application={application} />
-            )}
             <button type="button" className="cvb-btn sm" onClick={() => setDrawerOpen(true)} title="Job description & keyword gaps">
               <Icon name="intel" size={13}/> Intel
               {missingTargets.length > 0 && (
@@ -374,12 +364,7 @@ export function PlaygroundView({
                 <span className="v-dot" style={tabKindDot(v.kind)}/>
                 {formatThreadVersionLabel(v, threadVersions)}
               </span>
-              <span className="v-meta">
-                {v.kind === "baseline_upload"
-                  ? `Main CV · ${formatGlobalVersionLabel(v)}`
-                  : `${formatGlobalVersionLabel(v)} · ${humanKind(v.kind)}`}
-                {" · "}{timeAgo(v.created_at)}
-              </span>
+              <span className="v-meta">{timeAgo(v.created_at)}</span>
             </button>
           )
         })}
@@ -414,11 +399,8 @@ export function PlaygroundView({
 
       <div className="cvb-pg-body">
         <div className={`cvb-pg-pane edit${mobileTab === "preview" ? " show-preview-mobile" : ""}`}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 12, flexWrap: "wrap" }}>
+          <div style={{ marginBottom: 4 }}>
             <span className="eyebrow">experience · {visibleCount}/{totalBullets} visible</span>
-            <span style={{ display: "inline-flex", gap: 6, fontSize: 11, color: "var(--tm-text-faint)", alignItems: "center" }}>
-              <span className="cvb-kbd">click</span> to toggle
-            </span>
           </div>
 
           {externalError && (
@@ -477,8 +459,6 @@ export function PlaygroundView({
 
           <div className="cvb-save-bar">
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)", flexWrap: "wrap" }}>
-              <span>{hiddenItems.size} hidden</span>
-              <span style={{ opacity: 0.4 }}>·</span>
               {isDirty
                 ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes</span>
                 : <span style={{ color: "var(--tm-success)" }}>
@@ -618,11 +598,6 @@ interface IntelStripProps {
 function IntelStrip({ score, delta, missing, allCovered, atsSc, atsChecks, pageFill }: IntelStripProps) {
   const atsAllPass = atsSc.passed === atsSc.total
   const atsFailedLabels = atsChecks.filter(c => !c.pass).map(c => c.detail ?? c.label)
-  const scoreLabel = missing.length > 0
-    ? `${missing.length} skill${missing.length === 1 ? "" : "s"} to add`
-    : allCovered
-      ? "Ready to export"
-      : "No JD targets yet"
 
   return (
     <div className="cvb-intel-strip" style={{ flexWrap: "wrap", gap: 10 }}>
@@ -632,23 +607,21 @@ function IntelStrip({ score, delta, missing, allCovered, atsSc, atsChecks, pageF
         </span>
         <div className="delta">
           <div style={{ textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 10, color: "var(--tm-text-faint)" }}>JD match</div>
-          <div>
-            {delta > 0 ? (
-              <>
-                <strong>+{delta}</strong>{" "}vs. Main CV
-              </>
-            ) : scoreLabel}
-          </div>
+          {delta > 0 && (
+            <div><strong>+{delta}</strong>{" "}vs. Main CV</div>
+          )}
         </div>
       </div>
 
+      {/* Diagnostics: quiet ✓ at rest, loud words only when failing. */}
       <span
         className={`cvb-pill${atsAllPass ? " success" : " warning"}`}
         title={atsAllPass ? "All ATS checks pass" : atsFailedLabels.join(" · ")}
+        aria-label={atsAllPass ? "ATS checks pass" : `ATS ${atsSc.passed} of ${atsSc.total} checks pass`}
         style={{ cursor: "default", fontSize: 11 }}
       >
         <Icon name={atsAllPass ? "check" : "x"} size={10} stroke={3}/>
-        ATS {atsSc.passed}/{atsSc.total}
+        {!atsAllPass && <>ATS {atsSc.passed}/{atsSc.total}</>}
       </span>
 
       <span
@@ -659,11 +632,11 @@ function IntelStrip({ score, delta, missing, allCovered, atsSc, atsChecks, pageF
         aria-valuenow={Math.min(100, pageFill.pct)}
         aria-valuetext={`${pageFill.pct}% of one page`}
         aria-label="Page fill"
-        title={pageFill.fits ? "Fits on one page" : `Spills onto ${pageFill.pages} pages — trim to fit`}
+        title={pageFill.fits ? `Fits on one page · ${pageFill.pct}% full` : `Spills onto ${pageFill.pages} pages — trim to fit`}
         style={{ cursor: "default", fontSize: 11 }}
       >
         <Icon name={pageFill.fits ? "check" : "x"} size={10} stroke={3}/>
-        Page {pageFill.pct}%
+        {!pageFill.fits && <>{pageFill.pages} pages</>}
       </span>
 
       <div className="gaps" style={{ flex: 1 }}>

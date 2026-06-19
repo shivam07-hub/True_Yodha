@@ -133,7 +133,7 @@ function FollowedCard({ token }: { token: string }) {
   })
   const companies = data?.companies ?? []
   return (
-    <PeekCard icon={<Building2 size={15} />} title="Followed companies" href="/intel" hrefLabel={companies.length ? "Open intel heatmap" : "Browse companies"}>
+    <PeekCard icon={<Building2 size={15} />} title="Followed companies" href={companies.length ? "/market?tab=heatmap" : "/intel"} hrefLabel={companies.length ? "Open intel heatmap" : "Browse companies"}>
       {companies.length === 0 ? (
         <p className="mc-peek-empty">Star a company to track which skills it hires for most.</p>
       ) : (
@@ -157,7 +157,7 @@ function IntelCard({ token }: { token: string }) {
   })
   const top = [...(data?.skills ?? [])].sort((a, b) => b.weighted_demand - a.weighted_demand)[0]
   return (
-    <PeekCard icon={<Radar size={15} />} title="Live intel" href="/intel" hrefLabel="Where to invest">
+    <PeekCard icon={<Radar size={15} />} title="Live intel" href={top ? "/market?tab=heatmap" : "/intel"} hrefLabel="Where to invest">
       {top ? (
         <p className="mc-peek-intel">
           Most in-demand right now: <strong>{top.display_name}</strong>

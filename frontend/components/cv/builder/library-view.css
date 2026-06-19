@@ -49,7 +49,7 @@
 /* ── Page header ────────────────────────────────────────────────── */
 .tm-lib-page-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
@@ -618,37 +618,6 @@
   justify-content: center;
 }
 
-/* New CV dashed card */
-.tm-lib-new-cv-card {
-  min-height: 200px;
-  border-radius: 10px;
-  border: 1px dashed var(--tm-border-soft);
-  background: transparent;
-  color: var(--tm-text-muted);
-  font-family: var(--tm-font-sans);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: border-color 160ms var(--tm-ease), color 160ms var(--tm-ease);
-}
-.tm-lib-new-cv-card:hover {
-  border-color: var(--tm-accent-ring);
-  color: var(--tm-interactive);
-}
-.tm-lib-new-cv-card:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.tm-lib-new-cv-card:disabled:hover {
-  border-color: var(--tm-border-soft);
-  color: var(--tm-text-muted);
-}
-.tm-lib-new-cv-card-title { font-size: 13px; font-weight: 500; }
-.tm-lib-new-cv-card-sub { font-size: 11px; color: var(--tm-text-faint); }
-
 /* ── Empty state ─────────────────────────────────────────────────── */
 .tm-lib-empty {
   display: flex;
@@ -814,10 +783,12 @@
   .tm-lib-header-stat-strip { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 600px) {
-  /* Top padding is redundant — the cvb-page wrapper already pads above this.
-     Dropping it lifts the view toggle out of the dead space at the top. */
-  .tm-lib-main { padding: 0 16px 32px; }
+  /* tm-lib-main is the sole padding owner now (cvb-page goes flush for the
+     library), so it carries the top inset at every size. */
+  .tm-lib-main { padding: 16px 16px 32px; }
   .tm-lib-header-stat-strip { grid-template-columns: repeat(3, 1fr); }
+  /* Stats wrap to a full-width row under the toggle on mobile. */
+  .tm-lib-head-stats { width: 100%; grid-template-columns: repeat(3, 1fr); }
   .tm-lib-viewseg { margin-top: 4px; }
   .tm-lib-page-head { flex-direction: column; margin-bottom: 8px; }
   .tm-lib-master-preview { display: none; }
@@ -921,6 +892,16 @@
   max-width: none;
   margin-top: 18px;
   margin-bottom: 18px;
+}
+
+/* Desktop: stats ride beside the toggle in the page head — content-width on the
+   right, no strip margins (the head owns the spacing). Wraps below the pills via
+   the page-head's flex-wrap when the row gets tight; full-width row on mobile. */
+.tm-lib-head-stats {
+  margin: 0;
+  max-width: none;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(3, minmax(92px, auto));
 }
 
 /* Closed verdicts — the desktop aside is .tm-lib-rail (already styled as a

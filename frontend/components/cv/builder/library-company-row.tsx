@@ -152,15 +152,9 @@ export function CompanyFolderRow({ companyName, apps, versions, defaultOpen, onO
                 onStageChange={onStageChange}
               />
             ))}
-            {/* In-grid create slot — only when a role still needs a CV. Once
-                every role is tailored this vanishes (no empty-state bloat). */}
-            {hasUntailoredRole && (
-              <button className="tm-lib-new-cv-card" onClick={openNewCvTarget} disabled={!newCvJobId}>
-                <LIcon d={I.plus} size={20}/>
-                <div className="tm-lib-new-cv-card-title">Create CV for {companyName}</div>
-                <div className="tm-lib-new-cv-card-sub">Starts from Main CV</div>
-              </button>
-            )}
+            {/* No generic in-grid create card: per-role cards are the only
+                create path (CVJT1 = one CV per exact job). The folder header
+                "Create CV" covers the quick-start entry. */}
           </div>
         </div>
       )}

@@ -384,7 +384,10 @@ function CVPage() {
   return (
     <>
       <div className="cvb-scope">
-        <div className="cvb-page">
+        {/* LibraryView is a self-contained full-bleed surface that owns its own
+            padding (tm-lib-main); when it renders, the page wrapper goes flush
+            so the two don't stack a double inset (the dead gap above the toggle). */}
+        <div className={`cvb-page${hasBaseline && view === "baseline" ? " cvb-page--flush" : ""}`}>
           {/* No baseline yet — onboarding empty state */}
           {!hasBaseline && (
             <>
