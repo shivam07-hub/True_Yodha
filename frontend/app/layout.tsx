@@ -97,7 +97,13 @@ const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface')
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${grotesk.variable} ${inter.variable} ${newsreader.variable}`} data-accent="signal" data-surface="light">
+    <html
+      lang="en"
+      className={`${grotesk.variable} ${inter.variable} ${newsreader.variable}`}
+      data-accent="signal"
+      data-surface="light"
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased">
         <Script id="myro-surface-init" strategy="beforeInteractive">
           {SURFACE_INIT}

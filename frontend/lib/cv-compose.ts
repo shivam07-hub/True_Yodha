@@ -93,6 +93,18 @@ export function renderDeterministic(
   const keep = (iid: string) => !hiddenItems.has(iid)
   const lines: string[] = []
 
+  const contact = cv.contact
+  if (contact) {
+    const contactLine = [contact.location, contact.email, contact.phone, contact.linkedin]
+      .map(value => value.trim())
+      .filter(Boolean)
+      .join(" · ")
+    if (contact.name.trim()) lines.push(contact.name.trim())
+    if (contact.title.trim()) lines.push(contact.title.trim())
+    if (contactLine) lines.push(contactLine)
+    if (contact.name.trim() || contact.title.trim() || contactLine) lines.push("")
+  }
+
   if (cv.summary) {
     const iid = itemId("summary", 0, cv.summary)
     if (keep(iid)) {

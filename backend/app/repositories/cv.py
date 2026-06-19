@@ -44,6 +44,7 @@ class CVVersionWriteSpec:
     proof_count:        int = 0
     ai_polished:        bool = False
     ai_polish_used_at:  str | None = None
+    footer_mark_hidden: bool = True
 
 
 class CVVersionsRepository:
@@ -339,6 +340,32 @@ class CVVersionsRepository:
             return 1
         return int(result.data[0].get("revision_number") or 0) + 1
 
+    def list_master_revisions(self, user_id: str, limit: int = 60) -> list[dict[str, Any]]:
+        master = self.latest_baseline(user_id)
+        if master is None:
+            return []
+        result = (
+            self._db.table("cv_master_revisions")
+            .select("id, master_version_id, revision_number, body_text, cv_structured, snapshot_hash, created_at")
+            .eq("user_id", user_id)
+            .eq("master_version_id", master["id"])
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
+    def find_master_revision(self, revision_id: int, user_id: str) -> dict[str, Any] | None:
+        result = (
+            self._db.table("cv_master_revisions")
+            .select("id, master_version_id, revision_number, body_text, cv_structured, snapshot_hash, created_at")
+            .eq("id", revision_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
     def update_master(
         self,
         user_id: str,
@@ -454,6 +481,7 @@ class CVVersionsRepository:
             "proof_count":         spec.proof_count,
             "ai_polished":         spec.ai_polished,
             "ai_polish_used_at":   spec.ai_polish_used_at,
+            "footer_mark_hidden":  spec.footer_mark_hidden,
         }
         result = self._db.table("cv_versions").insert(payload).execute()
         if not result.data:

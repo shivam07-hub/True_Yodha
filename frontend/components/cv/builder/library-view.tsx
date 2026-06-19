@@ -13,7 +13,11 @@ import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace
 import { MasterCVHero, MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
+import { MobileCVHub } from "../mobile/mobile-cv-hub"
+import { useViewport } from "@/mobile"
 import "./library-view.css"
+import "../mobile/mobile-cv-hub.css"
+import "../mobile/mobile-cv-editor.css"
 
 // Top-level view switcher (market Jobs/Heatmap pill pattern). CV = master CV on
 // its own full-width page; Active = stat strip + live pipeline + closed rail.
@@ -121,6 +125,7 @@ export function LibraryView({
 }: LibraryViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isDesktop } = useViewport()
 
   // Top-level view (market Jobs/Heatmap pill). CV leads by default — the master
   // CV is the source of truth, so it gets its own full-width page. Legacy deep
@@ -150,6 +155,30 @@ export function LibraryView({
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
+
+  if (!isDesktop) {
+    if (view === "cv" && cv) {
+      return (
+        <MobileCVHub
+          token={token}
+          cv={cv}
+          versions={versions}
+          currentBaseline={currentBaseline}
+          applications={applications}
+          profile={profile}
+          onOpenJob={onOpenJob}
+          onReplaceCV={onReplaceCV}
+        />
+      )
+    }
+    return (
+      <div className="tm-mcv-applications">
+        <header><h1>Applications</h1></header>
+        <WorkspacePipeline filter="active" versions={versions} onOpenJob={onOpenJob} />
+        <ClosedRail applications={applications} versions={versions} onPickJob={onOpenJob} variant="inline" />
+      </div>
+    )
+  }
 
   return (
     <div className="tm-lib-scope">

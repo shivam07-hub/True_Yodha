@@ -13,6 +13,7 @@ from app.services.cv_parser import (
     _fuzzy_match,
     _is_plausible_professional_text,
     _parse_llm_json,
+    _validate_structured,
     _validate_and_normalize,
     parse_cv,
 )
@@ -67,6 +68,36 @@ class TestParseLlmJson:
 
     def test_empty_string_returns_none(self) -> None:
         assert _parse_llm_json("") == (None, None)
+
+
+class TestValidateStructured:
+    def test_preserves_cv_contact_identity(self) -> None:
+        structured = _validate_structured({
+            "contact": {
+                "name": " Ada Lovelace ",
+                "title": "Engineer",
+                "email": "ada@example.com",
+                "phone": "+44 20 0000 0000",
+                "location": "London",
+                "linkedin": "linkedin.com/in/ada",
+            },
+            "summary": None,
+            "education": [],
+            "experience": [],
+            "projects": [],
+            "skills_line": None,
+            "certs": [],
+        })
+
+        assert structured is not None
+        assert structured["contact"] == {
+            "name": "Ada Lovelace",
+            "title": "Engineer",
+            "email": "ada@example.com",
+            "phone": "+44 20 0000 0000",
+            "location": "London",
+            "linkedin": "linkedin.com/in/ada",
+        }
 
 
 # ── _validate_and_normalize ────────────────────────────────────────────────────

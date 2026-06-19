@@ -499,7 +499,18 @@ export interface CVProjectItem {
   bullets: string[]
 }
 
+export interface CVContact {
+  name: string
+  title: string
+  email: string
+  phone: string
+  location: string
+  linkedin: string
+}
+
 export interface CVStructured {
+  /** Printed CV identity. Optional only for legacy rows created before 2026-06-19. */
+  contact?: CVContact
   summary: string | null
   education: CVEducationItem[]
   experience: CVExperienceItem[]
@@ -514,6 +525,13 @@ export interface MasterSaveResponse {
   recompute_pending: boolean
 }
 
+export interface MasterRevision {
+  id: number
+  revision_number: number
+  created_at: string
+  cv_structured: CVStructured
+}
+
 export type CVVersionKind = "baseline_upload" | "deterministic" | "polished" | "edited"
 
 export interface CVVersion {
@@ -526,6 +544,7 @@ export interface CVVersion {
   title: string | null
   hidden_items: string[]
   edited_items: Record<string, string>
+  cv_structured?: CVStructured | null
   body_text: string
   polished_text: string | null
   ai_polished: boolean
@@ -622,6 +641,15 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(structured),
     }),
+  masterRevisions: (token: string) =>
+    request<{ revisions: MasterRevision[] }>("/cv/master/revisions", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  restoreMasterRevision: (token: string, revisionId: number) =>
+    request<MasterSaveResponse>(`/cv/master/revisions/${revisionId}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   requestUploadFallback: (
     token: string,
     body: CVUploadFallbackSubmissionRequest,
@@ -674,7 +702,18 @@ export const cv = {
       request<CVVersion>(`/cv/versions/${versionId}/edit`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ edited_items: editedItems, title }),
+      body: JSON.stringify({ edited_items: editedItems, title }),
+    }),
+    structuredEdit: (
+      token: string,
+      versionId: number,
+      structured: CVStructured,
+      title?: string,
+    ) =>
+      request<CVVersion>(`/cv/versions/${versionId}/structured`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cv: structured, title }),
       }),
     // Toggle the Myro footer mark on a CV Version (certified ⇄ un-certified).
     setFooterMark: (token: string, versionId: number, hidden: boolean) =>

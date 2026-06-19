@@ -298,7 +298,37 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-19 - Trustworthy first-value onboarding design)
+## LAST SESSION SUMMARY (2026-06-19 - Mobile CV Hub full rollout)
+
+Rebuilt the mobile CV experience as a document-first workspace and rolled it
+out directly without a feature flag.
+
+- Split the mobile navigation into CV and Applications destinations.
+- Replaced the cramped CV controls with a fit-width Main CV preview, direct
+  Edit/Export actions, and job-grouped tailored-version history.
+- Added a full-screen structured editor for contact, summary, experience,
+  projects, skills, education, and certifications.
+- Added explicit manual Edit and AI Rewrite actions for CV bullets, ordering,
+  guarded deletion, immediate local preview, autosave, and session history.
+- Kept CV contact data distinct from account identity while offering an
+  explicit account-email fill action.
+- Added visual export template selection, actionable ATS review, PDF/DOCX
+  actions, and an opt-in Myro verification mark.
+- Added immutable structured job-version edits plus non-destructive Main CV
+  restore endpoints; existing JSONB storage required no schema migration.
+- Browser-verified the Hub, editor, preview, export, ATS score, and destructive
+  confirmation flows at mobile widths from 320px through 430px.
+
+Validation:
+
+- Backend: `703 passed`
+- Mobile CV contracts: `6 passed`
+- TypeScript: clean
+- Frontend lint: clean
+- Production build: passed, 55 static pages generated
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-06-19 - Trustworthy first-value onboarding design)
 
 Completed the production QA, design grill, and approved contract for the P1
 onboarding and plain-language ask.

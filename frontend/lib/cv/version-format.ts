@@ -112,9 +112,9 @@ export function getLedgerPreviewText(
 
 export function timeAgo(iso: string): string {
   const t = new Date(iso).getTime()
-  const diff = Date.now() - t
+  const diff = Math.max(0, Date.now() - t)
   const s = Math.floor(diff / 1000)
-  if (s < 60) return `${s}s ago`
+  if (s < 60) return "just now"
   const m = Math.floor(s / 60)
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)

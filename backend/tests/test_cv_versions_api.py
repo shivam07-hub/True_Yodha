@@ -14,6 +14,7 @@ def test_cv_version_response_flattens_job_metadata() -> None:
         "title": "v16 · 2026-05-18 13:40",
         "hidden_items": ["a", "b"],
         "edited_items": {},
+        "cv_structured": {"contact": {"name": "Ada Lovelace"}},
         "body_text": "Tailored CV",
         "polished_text": None,
         "ai_polished": False,
@@ -28,3 +29,4 @@ def test_cv_version_response_flattens_job_metadata() -> None:
 
     assert response.job_title == "Workplace Events Lead"
     assert response.company_name == "Autodesk"
+    assert response.cv_structured["contact"]["name"] == "Ada Lovelace"

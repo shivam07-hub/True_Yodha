@@ -129,11 +129,15 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
   const update = useCallback((next: CVStructured) => {
     latestRef.current = next
     setDraft(next)
+    // The Hub and export preview subscribe to the same structured query. Keep
+    // them in lockstep with the local draft instead of showing stale content
+    // until the async re-tag finishes.
+    queryClient.setQueryData(dataKeys.cvStructured(), next)
     try { window.localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* private mode */ }
     setStatus("saving")
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => { void flush() }, DEBOUNCE_MS)
-  }, [draftKey, flush])
+  }, [draftKey, flush, queryClient])
 
   const saveNow = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
