@@ -280,8 +280,15 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
         job_id="job-1", user_id="u1", raw_text="text", content_hash="h",
     ))
 
-    assert done_calls == [{"job_id": "job-1", "skills_detected": 1, "score": 71.0}]
-    assert repo.profile_updates == [{"onboarding_complete": True}]
+    assert done_calls == [
+        {
+            "job_id": "job-1",
+            "skills_detected": 1,
+            "score": 71.0,
+            "baseline_version_id": 1,
+        }
+    ]
+    assert repo.profile_updates == []
     assert repo.created and repo.created[0].kind == "baseline_upload"
 
 
@@ -404,7 +411,7 @@ def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
     assert body["status"] == "done"
     assert body["score"] == 64.2
     assert body["new_coin_balance"] == 2800
-    assert body["redirect_to"] == "/onboarding/score"
+    assert body["redirect_to"] == "/onboarding/result"
 
 
 def test_upload_with_idempotency_key_returns_existing_job_without_recharging(monkeypatch) -> None:
