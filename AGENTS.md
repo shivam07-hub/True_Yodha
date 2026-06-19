@@ -298,7 +298,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-19 - Mobile CV Hub full rollout)
+## LAST SESSION SUMMARY (2026-06-20 - Trustworthy onboarding rollout)
+
+Implemented and verified the approved first-value onboarding contract on
+`Develop` while preserving the intervening CV, navigation, and newsletter work.
+
+- Shipped the durable `Experience -> Target -> Result` journey with resumable
+  state, description-based Profile Preview, and proof-first full results.
+- Added the fact-grounded five-question baseline generator with visible
+  progress, autosave, review, and correction paths.
+- Enforced credible recommendation promotion and contextual result actions.
+- Added exact-city to remote to country-wide browse expansion, persistent
+  rejection, six-second bottom Undo, and Hidden jobs restore.
+- Added progressive personalization through the three-action onboarding
+  checklist and forced match refresh when onboarding context changes.
+- Browser-verified desktop and 375px flows with a disposable account. QA found
+  and fixed the preview-stage race and stale cached-state redirect; the account
+  and owned rows were deleted after verification.
+
+Validation:
+
+- Backend: `734 passed`
+- Frontend onboarding/session/market/credibility/mobile contracts: `22 passed`
+- TypeScript: clean
+- Frontend lint: clean
+- Production build: passed, 56 static pages generated
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-06-19 - Mobile CV Hub full rollout)
 
 Rebuilt the mobile CV experience as a document-first workspace and rolled it
 out directly without a feature flag.
