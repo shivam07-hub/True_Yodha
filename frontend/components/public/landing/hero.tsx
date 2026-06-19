@@ -3,7 +3,6 @@
 import Image from "next/image"
 import { LandingDropzone } from "./dropzone"
 import { LandingStats } from "./stats"
-import type { AnonScoreResponse } from "@/lib/api"
 
 const FLOW_PATHS = [
   "M63,93 C160,93 170,250 232,250",
@@ -33,12 +32,6 @@ interface LandingHeroProps {
   companiesMonitored: number
   skillsMapped: number
   seekers: number
-  /** Live CV-score preview plumbing (owned by LandingPage, rendered in the Readout). */
-  scoring?: boolean
-  scoreError?: string | null
-  onScoring?: () => void
-  onResult?: (result: AnonScoreResponse, file: File) => void
-  onError?: (message: string) => void
 }
 
 function smoothScrollToEngine(e: React.MouseEvent) {
@@ -56,11 +49,6 @@ export function LandingHero({
   companiesMonitored,
   skillsMapped,
   seekers,
-  scoring,
-  scoreError,
-  onScoring,
-  onResult,
-  onError,
 }: LandingHeroProps) {
   const chipInitials = (
     companyNames.length >= 4 ? companyNames.slice(0, 4) : ["Google", "Microsoft", "Amazon", "Netflix"]
@@ -99,18 +87,7 @@ export function LandingHero({
             <span className="lp-hero-chip accent">10 minutes</span>
           </div>
 
-          <LandingDropzone
-            source="landing_dropzone_hero"
-            busy={scoring}
-            onScoring={onScoring}
-            onResult={onResult}
-            onError={onError}
-          />
-          {scoreError && (
-            <p className="lp-dropzone-error" role="alert">
-              {scoreError}
-            </p>
-          )}
+          <LandingDropzone source="landing_dropzone_hero" />
 
           <a className="lp-hero-secondary" href="#engine" onClick={smoothScrollToEngine}>
             See the Engine <span aria-hidden>↓</span>

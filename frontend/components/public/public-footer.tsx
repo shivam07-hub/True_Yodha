@@ -27,7 +27,7 @@ const FOOTER_COLS = [
   {
     title: "Product",
     links: [
-      { label: "CV Hub",        href: "/#cv-hub"      },
+      { label: "CV Hub",        href: "/cv-preview"   },
       { label: "Live Job Data", href: "/intel"        },
       { label: "For Colleges",  href: "/institutions" },
       { label: "Myrology",      href: "/myrology"     },

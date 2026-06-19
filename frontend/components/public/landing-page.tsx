@@ -6,14 +6,12 @@ import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingEngine } from "@/components/public/landing/engine"
-import { LandingReadout } from "@/components/public/landing/readout"
 import { LandingSurfaces } from "@/components/public/landing/surfaces"
 import { LandingProof } from "@/components/public/landing/proof"
 import { LandingFaq } from "@/components/public/landing/faq"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { useReveal } from "@/components/public/landing/use-reveal"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
-import type { AnonScoreResponse } from "@/lib/api"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
 import "@/components/public/landing/landing-engine.css"
@@ -22,8 +20,10 @@ import "@/components/public/landing/landing-sections.css"
 /**
  * Myro landing — "The Myro Engine" redesign.
  * Sections organized around one named centerpiece: S1 hero → S2 engine →
- * S3 surfaces → proof → sample readout (the personalized payoff, kept adjacent
- * to the closing CTA) → FAQ + closing CTA → footer.
+ * S3 surfaces → proof → FAQ + closing CTA → footer. Dropping a CV in any band
+ * navigates to /cv-preview, which scores it and either opens the playground or
+ * routes to /signup with the score readout (navigate-then-load; the dropzone
+ * owns that jump, so the landing holds no scoring state).
  * Design source: reference/building landing page.zip (confirmed).
  * (The retention-loop diagram was removed from the marketing page — it reads as
  * architecture, not story. Concept preserved in docs/FEATURE_LOOP_REGISTRY.md.)
@@ -49,7 +49,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
   // The landing now follows the canonical surface (it consumes --tm-* like the
   // rest of the product — pre = post). No force-dark: a light-pref/OS visitor
   // sees the light Engine; a dark one sees the dark Engine. The Engine pipeline
-  // + readout stay dark consoles regardless (pinned in landing-engine.css).
+  // stays a dark console regardless (pinned in landing-engine.css).
 
   // Nav hairline fades in after 8px scroll (handoff §Interactions).
   const [scrolled, setScrolled] = useState(false)
@@ -63,24 +63,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
   useReveal(rootRef)
 
   const data = useLandingData()
-
-  // Live CV-score preview (grill). State lives here so the hero dropzone (input)
-  // and the Readout (output) — two different sections — share one result. On a
-  // score, reveal the live Readout and scroll to it so the user sees the payoff.
-  const [anonResult, setAnonResult] = useState<AnonScoreResponse | null>(null)
-  const [scoring, setScoring] = useState(false)
-  const [scoreError, setScoreError] = useState<string | null>(null)
-
-  function handleResult(result: AnonScoreResponse) {
-    setAnonResult(result)
-    setScoring(false)
-    requestAnimationFrame(() => {
-      const target = document.getElementById("cv-hub")
-      if (!target) return
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" })
-    })
-  }
 
   if (redirecting) return null
 
@@ -100,53 +82,15 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           companiesMonitored={data.companiesMonitored}
           skillsMapped={data.skillsMapped}
           seekers={data.seekers}
-          scoring={scoring}
-          scoreError={scoreError}
-          onScoring={() => {
-            setScoring(true)
-            setScoreError(null)
-          }}
-          onResult={handleResult}
-          onError={(message) => {
-            setScoreError(message)
-            setScoring(false)
-          }}
         />
 
-        <LandingEngine
-          companiesLabel={data.companiesLabel}
-          scoring={scoring}
-          scoreError={scoreError}
-          onScoring={() => {
-            setScoring(true)
-            setScoreError(null)
-          }}
-          onResult={handleResult}
-          onError={(message) => {
-            setScoreError(message)
-            setScoring(false)
-          }}
-        />
+        <LandingEngine companiesLabel={data.companiesLabel} />
 
         <LandingSurfaces />
 
         <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
 
-        <LandingReadout result={anonResult} />
-
-        <LandingFaq
-          scoring={scoring}
-          scoreError={scoreError}
-          onScoring={() => {
-            setScoring(true)
-            setScoreError(null)
-          }}
-          onResult={handleResult}
-          onError={(message) => {
-            setScoreError(message)
-            setScoring(false)
-          }}
-        />
+        <LandingFaq />
       </main>
 
       <PublicFooter />

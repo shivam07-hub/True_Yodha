@@ -3,7 +3,6 @@
 import { Globe, Sparkles, Network, Target, FileText, type LucideIcon } from "lucide-react"
 import { LandingDropzone } from "@/components/public/landing/dropzone"
 import { SectionTitle } from "@/components/public/landing/section-title"
-import type { AnonScoreResponse } from "@/lib/api"
 
 interface Stage {
   num: string
@@ -30,21 +29,9 @@ function StageCard({ stage, className }: { stage: Stage; className?: string }) {
 
 interface LandingEngineProps {
   companiesLabel: string
-  scoring: boolean
-  scoreError: string | null
-  onScoring: () => void
-  onResult: (result: AnonScoreResponse, file: File) => void
-  onError: (message: string) => void
 }
 
-export function LandingEngine({
-  companiesLabel,
-  scoring,
-  scoreError,
-  onScoring,
-  onResult,
-  onError,
-}: LandingEngineProps) {
+export function LandingEngine({ companiesLabel }: LandingEngineProps) {
   const stages: Stage[] = [
     {
       num: "01",
@@ -109,14 +96,7 @@ export function LandingEngine({
               <span className="lp-stage-num">STAGE 04</span>
             </div>
             <div className="lp-stage-title">Your CV</div>
-            <LandingDropzone
-              source="engine-stage04"
-              busy={scoring}
-              onScoring={onScoring}
-              onResult={onResult}
-              onError={onError}
-            />
-            {scoreError ? <p className="lp-dropzone-error">{scoreError}</p> : null}
+            <LandingDropzone source="engine-stage04" />
           </div>
         </div>
 
