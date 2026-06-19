@@ -81,7 +81,7 @@ function ForgePageInner() {
     enabled: !!token, staleTime: 5 * 60 * 1000, retry: false,
   })
   const { data: profile } = useQuery({
-    queryKey: ["users-me", token], queryFn: () => users.me(token!),
+    queryKey: dataKeys.profile(), queryFn: () => users.me(token!),
     enabled: !!token, staleTime: 5 * 60 * 1000,
   })
 

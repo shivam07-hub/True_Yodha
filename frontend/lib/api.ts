@@ -28,6 +28,14 @@ import type {
   BetaAssignmentStatus,
   BetaFeedbackDraft,
 } from "./beta-feedback"
+import {
+  clearCVUploadPersistence,
+  createCVUploadIdempotencyKey,
+  persistCVUploadIdempotencyKey,
+  persistCVUploadJob,
+  readCVUploadIdempotencyKey,
+  readCVUploadJob,
+} from "./cv-upload-storage"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -962,45 +970,15 @@ export const cv = {
  * Throws CVUploadFailure on terminal "failed" so the caller can surface the
  * refund context. Throws Error for transport / 4xx errors.
  */
-const CV_UPLOAD_JOB_KEY = "myro_cv_upload_job_v1"
-const CV_UPLOAD_IDEM_KEY = "myro_cv_upload_idem_v1"
 const CV_UPLOAD_TELEMETRY_PATH = "/v1/telemetry/cv-upload-phase"
-
-function _newIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID()
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-}
-
-function _persistUploadJob(jobId: string): void {
-  try { localStorage.setItem(CV_UPLOAD_JOB_KEY, jobId) } catch { /* private mode */ }
-}
-
-function _readUploadIdemKey(): string | null {
-  try { return localStorage.getItem(CV_UPLOAD_IDEM_KEY) } catch { return null }
-}
-
-function _persistUploadIdemKey(key: string): void {
-  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, key) } catch { /* private mode */ }
-}
-
-function _clearUploadPersistence(opts: { clearIdem: boolean }): void {
-  try {
-    localStorage.removeItem(CV_UPLOAD_JOB_KEY)
-    if (opts.clearIdem) localStorage.removeItem(CV_UPLOAD_IDEM_KEY)
-  } catch {
-    /* private mode */
-  }
-}
 
 /** Returns the in-flight job_id stored from a prior session, if any. */
 export function getPersistedCVUploadJobId(): string | null {
-  try { return localStorage.getItem(CV_UPLOAD_JOB_KEY) } catch { return null }
+  return readCVUploadJob()
 }
 
 export function clearPersistedCVUploadState(opts: { clearIdem?: boolean } = {}): void {
-  _clearUploadPersistence({ clearIdem: opts.clearIdem ?? true })
+  clearCVUploadPersistence(opts.clearIdem ?? true)
 }
 
 type CVUploadTelemetryPhase = "pick" | "signed-url" | "put" | "poll" | "parse"
@@ -1080,11 +1058,11 @@ export async function beginCVUpload(
   file: File,
   source: CVUploadSource = "pdf_upload",
 ): Promise<{ initial: CVUploadResponse; file: File }> {
-  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
-  _persistUploadIdemKey(idempotencyKey)
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
   const safeFile = await _normalizeUploadFile(file)
   const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
-  if (initial.status === "processing" && initial.job_id) _persistUploadJob(initial.job_id)
+  if (initial.status === "processing" && initial.job_id) persistCVUploadJob(initial.job_id)
   return { initial, file: safeFile }
 }
 
@@ -1094,8 +1072,8 @@ export async function uploadCV(
   source: CVUploadSource = "pdf_upload",
   onProgress?: (status: CVUploadStatusResponse) => void,
 ): Promise<CVUploadResult> {
-  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
-  _persistUploadIdemKey(idempotencyKey)
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
   _emitCVUploadTelemetry(token, {
     phase: "pick",
     outcome: "started",
@@ -1127,44 +1105,44 @@ export async function uploadCV(
       fileMime: file.type,
       fileBytes: file.size,
     })
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     throw failure
   }
 
   try {
     const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
-    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    if (initial.status === "processing") persistCVUploadJob(initial.job_id)
     const result = await _resolveUploadResult(
       token,
       initial,
       { idempotencyKey, fileName: safeFile.name, fileMime: safeFile.type, fileBytes: safeFile.size },
       onProgress,
     )
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     return result
   } catch (err) {
     const failure = _asUploadFailure(err, "put")
-    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    if (!failure.retryable) clearCVUploadPersistence(true)
     throw failure
   }
 }
 
 export async function uploadCVText(token: string, text: string, source: CVUploadSource = "text_describe"): Promise<CVUploadResult> {
-  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
-  _persistUploadIdemKey(idempotencyKey)
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
   try {
     const initial = await request<CVUploadResponse>("/cv/text", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text, idempotency_key: idempotencyKey, source }),
     })
-    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    if (initial.status === "processing") persistCVUploadJob(initial.job_id)
     const result = await _resolveUploadResult(token, initial, { idempotencyKey })
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     return result
   } catch (err) {
     const failure = _asUploadFailure(err, "poll")
-    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    if (!failure.retryable) clearCVUploadPersistence(true)
     throw failure
   }
 }
@@ -1519,7 +1497,7 @@ export async function pollCVUploadStatus(
     phase: "poll",
     outcome: "started",
     jobId,
-    idempotencyKey: _readUploadIdemKey(),
+    idempotencyKey: readCVUploadIdempotencyKey(),
   })
   try {
     const result = await resolveCVUploadResult(
@@ -1536,7 +1514,7 @@ export async function pollCVUploadStatus(
             phase: "poll",
             outcome: "retrying",
             jobId: jid,
-            idempotencyKey: _readUploadIdemKey(),
+            idempotencyKey: readCVUploadIdempotencyKey(),
             reasonCode: failure.code,
             errorDetail: failure.message,
           })
@@ -1549,13 +1527,13 @@ export async function pollCVUploadStatus(
       phase: "poll",
       outcome: "succeeded",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
     })
     _emitCVUploadTelemetry(token, {
       phase: "parse",
       outcome: "succeeded",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
     })
     return result
   } catch (err) {
@@ -1564,7 +1542,7 @@ export async function pollCVUploadStatus(
       phase: failure.phase ?? "poll",
       outcome: "failed",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
       reasonCode: failure.code,
       errorDetail: failure.message,
     })
