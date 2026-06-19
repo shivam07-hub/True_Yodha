@@ -260,6 +260,7 @@ def persist_matches(
     batch_week: date,
     top_jobs: list[dict],
     evaluations: dict[str, dict],
+    profile: dict[str, Any] | None = None,
 ) -> int:
     """Upsert weekly matches to user_job_matches. Returns count written.
 
@@ -288,10 +289,21 @@ def persist_matches(
         reverse=True,
     )
 
+    from app.services.match_credibility import evaluate_credibility
+
+    profile = profile or {}
+    baseline_version_id = profile.get("baseline_version_id")
     rows: list[dict] = []
+    recommended_count = 0
     for rank_idx, job in enumerate(ordered, start=1):
         jid = str(job["job_id"])
         ev = evaluations.get(jid) or {}
+        overall = ev.get("overall_score")
+        recommendation = ev.get("recommendation")
+        credibility = evaluate_credibility(profile, job, overall, recommendation)
+        is_recommended = credibility.credible and recommended_count < 3
+        if is_recommended:
+            recommended_count += 1
         rows.append({
             "user_id": user_id,
             "job_id": jid,
@@ -300,9 +312,9 @@ def persist_matches(
             "matched_skills": job.get("matched_skills") or [],
             "llm_rank": rank_idx,
             "llm_explanation": ev.get("summary"),
-            "overall_score": ev.get("overall_score"),
+            "overall_score": overall,
             "grade": ev.get("grade"),
-            "recommendation": ev.get("recommendation"),
+            "recommendation": credibility.recommendation,
             "application_angle": ev.get("application_angle"),
             "summary": ev.get("summary"),
             "role_fit": ev.get("role_fit"),
@@ -312,6 +324,10 @@ def persist_matches(
             "risk_score": ev.get("risk_score"),
             "strengths": ev.get("strengths") or [],
             "concerns": ev.get("concerns") or [],
+            "is_recommended": is_recommended,
+            "baseline_version_id": baseline_version_id,
+            "target_context_hash": credibility.context_hash,
+            "seniority_compatibility": credibility.seniority_compatibility,
             "computed_at": now,
         })
 
@@ -344,4 +360,4 @@ async def rank_and_persist(
             "Matching Brain: all evals failed for user %s — storing overlap scores only",
             user_id,
         )
-    return persist_matches(db, user_id, batch_week, top_jobs, evaluations)
+    return persist_matches(db, user_id, batch_week, top_jobs, evaluations, profile)

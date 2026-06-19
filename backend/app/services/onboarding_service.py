@@ -9,6 +9,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin
 from app.repositories.cv import CVVersionsRepository
+from app.repositories.jobs import JobsRepository
 from app.repositories.onboarding import OnboardingRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
@@ -189,6 +190,22 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         target["seniority"],
         target["location"],
     )
+    credible_match = JobsRepository(db).get_current_credible_match(
+        user_id,
+        int(baseline["id"]),
+        context_hash,
+    )
+    if credible_match:
+        job = credible_match.get("jobs") or {}
+        primary_action = {
+            "kind": "tailor_credible_job",
+            "label": f"Tailor for {job.get('job_title') or 'this role'} at {job.get('company_name') or 'this company'}",
+            "href": f"/cv?jobId={credible_match['job_id']}",
+        }
+        secondary_action = {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"}
+    else:
+        primary_action = {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"}
+        secondary_action = {"kind": "browse_jobs", "label": "Browse jobs", "href": "/market"}
     return {
         "kind": "full_result_ready",
         "baseline_version_id": int(baseline["id"]),
@@ -202,9 +219,9 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "skills_assessed": int(score.get("skills_assessed") or 0),
         },
         "score_factors": _score_factors(score),
-        "credible_match": None,
-        "primary_action": {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"},
-        "secondary_action": {"kind": "browse_jobs", "label": "Browse jobs", "href": "/market"},
+        "credible_match": credible_match,
+        "primary_action": primary_action,
+        "secondary_action": secondary_action,
     }
 
 

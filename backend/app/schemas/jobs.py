@@ -423,6 +423,8 @@ class JobFeedResponse(BaseModel):
     page_size: int
     has_next_page: bool
     sort: str  # echo of the applied sort mode
+    expansion_tier: Literal["exact", "remote_country", "country"] = "exact"
+    expansion_label: str | None = None
 
 
 class CompanyOpenRoleItem(BaseModel):

@@ -1541,6 +1541,24 @@ class JobsRepository:
         _user_target_locations_cache[user_id] = (now, locations)
         return locations
 
+    def user_target_location_countries(self, user_id: str) -> list[str]:
+        result = (
+            self._db.table("user_profiles")
+            .select("target_location_countries, target_location_country")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        data = (result.data if result else None) or {}
+        countries = [
+            str(value).strip()
+            for value in (data.get("target_location_countries") or [])
+            if str(value).strip()
+        ]
+        if not countries and data.get("target_location_country"):
+            countries = [str(data["target_location_country"]).strip()]
+        return list(dict.fromkeys(countries))
+
     # ── user skills / demand ───────────────────────────────────────────────────
 
     def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
@@ -1809,6 +1827,7 @@ class JobsRepository:
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
+                "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
@@ -1888,6 +1907,7 @@ class JobsRepository:
             .select(
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
+                "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
@@ -1903,6 +1923,33 @@ class JobsRepository:
             if row.get("jobs"):
                 _hydrate_location_fields(row["jobs"])
         return rows
+
+    def get_current_credible_match(
+        self,
+        user_id: str,
+        baseline_version_id: int,
+        context_hash: str,
+    ) -> dict[str, Any] | None:
+        result = (
+            self._db.table("user_job_matches")
+            .select(
+                "id, job_id, overall_score, grade, recommendation, summary, "
+                "overlap_score, llm_rank, matched_skills, "
+                "jobs(job_title, company_name, location, location_city, "
+                "location_country, location_mode, apply_url)"
+            )
+            .eq("user_id", user_id)
+            .eq("baseline_version_id", baseline_version_id)
+            .eq("target_context_hash", context_hash)
+            .eq("is_recommended", True)
+            .order("llm_rank")
+            .execute()
+        )
+        dismissed = set(self.get_dismissed_job_card_ids(user_id))
+        for row in result.data or []:
+            if str(row.get("job_id")) not in dismissed:
+                return row
+        return None
 
     def get_match_explanation(
         self, user_id: str, job_id: str, batch_week: date
@@ -2000,6 +2047,7 @@ class JobsRepository:
             .select(
                 "target_roles, target_location, target_location_country, "
                 "target_locations, target_location_countries, "
+                "target_role_title, target_seniority, "
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)
@@ -2010,6 +2058,19 @@ class JobsRepository:
         profile = data or {}
         profile["cv_markdown"] = self.get_user_cv_markdown(user_id)
         return profile
+
+    def get_latest_baseline_id(self, user_id: str) -> int | None:
+        result = (
+            self._db.table("cv_versions")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return int(rows[0]["id"]) if rows else None
 
     def get_user_cv_markdown(self, user_id: str) -> str:
         """Latest CV text for the Matching Brain prompt.

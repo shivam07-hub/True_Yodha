@@ -141,6 +141,90 @@ def test_persist_matches_dedupes_repeated_job_ids() -> None:
     assert by_job_id["job-1"]["matched_skills"] == ["Python", "SQL"]
 
 
+def _target_profile(**over: Any) -> dict[str, Any]:
+    profile = {
+        "baseline_version_id": 7,
+        "target_role_title": "Product Manager",
+        "target_seniority": "senior",
+        "target_location": "Bengaluru, India",
+        "target_location_country": "India",
+    }
+    profile.update(over)
+    return profile
+
+
+def _target_job(job_id: str, **over: Any) -> dict[str, Any]:
+    job = {
+        "job_id": job_id,
+        "title": "Senior Product Manager",
+        "overlap_score": 82.0,
+        "matched_skills": ["Product Management"],
+        "location": "Bengaluru, Karnataka, India",
+        "location_city": "Bengaluru",
+        "location_country": "India",
+        "location_mode": "onsite",
+    }
+    job.update(over)
+    return job
+
+
+def test_persist_matches_marks_at_most_three_credible_jobs() -> None:
+    db = _FakeDB()
+    jobs = [_target_job(f"job-{index}") for index in range(4)]
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=jobs,
+        evaluations={job["job_id"]: _eval() for job in jobs},
+        profile=_target_profile(),
+    )
+
+    rows = db.tape["rows"]
+    assert sum(row["is_recommended"] for row in rows) == 3
+    assert all(row["target_context_hash"] for row in rows)
+    assert all(row["baseline_version_id"] == 7 for row in rows)
+
+
+def test_persist_matches_never_recommends_low_score_or_wrong_seniority() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[
+            _target_job("low"),
+            _target_job("junior", title="Junior Product Manager"),
+        ],
+        evaluations={
+            "low": _eval(overall_score=2.8, recommendation="Apply"),
+            "junior": _eval(overall_score=4.7, recommendation="Apply"),
+        },
+        profile=_target_profile(),
+    )
+
+    by_id = {row["job_id"]: row for row in db.tape["rows"]}
+    assert by_id["low"]["recommendation"] == "Skip"
+    assert by_id["low"]["is_recommended"] is False
+    assert by_id["junior"]["seniority_compatibility"] == "incompatible"
+    assert by_id["junior"]["is_recommended"] is False
+
+
+def test_persist_matches_never_recommends_location_mismatch() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[_target_job("mismatch", location="Mumbai, India", location_city="Mumbai")],
+        evaluations={"mismatch": _eval(overall_score=4.7)},
+        profile=_target_profile(),
+    )
+
+    row = db.tape["rows"][0]
+    assert row["is_recommended"] is False
+
+
 # ── parse_eval ──────────────────────────────────────────────────────────────────
 
 def test_parse_eval_extracts_object_from_fenced_json() -> None:

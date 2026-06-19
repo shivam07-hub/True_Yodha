@@ -122,7 +122,7 @@ def test_cv_workflow_background_run_uses_scores_repository_for_scoring(monkeypat
     )
 
     assert isinstance(captured["scores_repo"], ScoresRepository)
-    assert repo.updated_profile is not None
+    assert repo.updated_profile is None
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
 

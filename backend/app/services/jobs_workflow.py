@@ -222,6 +222,8 @@ async def compute_job_matches(
         if row.get("skills")
     }
     profile = repo.get_user_profile_targeting(user_id)
+    if hasattr(repo, "get_latest_baseline_id"):
+        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
     target_roles_count = len(profile.get("target_roles") or [])
     target_countries = profile.get("target_location_countries") or []
     if not target_countries and profile.get("target_location_country"):
