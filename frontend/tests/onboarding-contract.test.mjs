@@ -41,3 +41,11 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.match(page, /pollCVUploadStatus/)
 })
+
+test("progressive personalization uses a durable three-action checklist", () => {
+  const checklist = read("components/onboarding/next-steps.tsx")
+  assert.match(checklist, /Review one score gap/)
+  assert.match(checklist, /Save a relevant job/)
+  assert.match(checklist, /Tailor your CV/)
+  assert.match(checklist, /onboarding\.dismissChecklist/)
+})

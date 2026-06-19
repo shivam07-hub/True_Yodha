@@ -2,7 +2,7 @@
 
 import "./mission-control.css"
 
-import { useEffect, useMemo, useRef, Suspense, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
@@ -31,6 +31,8 @@ import { useCartStore } from "@/store/cartStore"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
+import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
+import { NextSteps } from "@/components/onboarding/next-steps"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -104,6 +106,8 @@ function MissionControlInner() {
     for (const a of apps) m[a.job_id] = a.status
     return m
   }, [apps])
+  const credibleJobId = credibleJobs[0]?.job_id ?? null
+  const credibleJobSaved = credibleJobs.some((job) => apps.some((app) => app.job_id === job.job_id))
 
   // WOW moment #1 — the peak. The first time this user ever sees job matches
   // ("it sees me"), light up the whole dashboard with a big centre burst.
@@ -124,6 +128,9 @@ function MissionControlInner() {
   // matches actually written so a "0 new" finish doesn't fake a payoff.
   // refreshFiredRef guards the done edge so a re-render can't double-fire.
   const refreshFiredRef = useRef(false)
+  const dismissRequestRef = useRef<{ jobId: string; operation: Promise<unknown> } | null>(null)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [pendingDismissal, setPendingDismissal] = useState<string | null>(null)
   useEffect(() => {
     if (refreshVm.state === "done" && (refreshVm.matchesWritten ?? 0) > 0) {
       if (!refreshFiredRef.current) {
@@ -179,6 +186,28 @@ function MissionControlInner() {
       queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     },
   })
+
+  function handleRemove(jobId: string) {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    const operation = removeCard.mutateAsync(jobId).catch(() => undefined)
+    dismissRequestRef.current = { jobId, operation }
+    setPendingDismissal(jobId)
+    dismissTimerRef.current = setTimeout(() => setPendingDismissal(null), 6_000)
+  }
+
+  function undoRemove() {
+    const pending = dismissRequestRef.current
+    if (!pending || !token) return
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    setPendingDismissal(null)
+    void pending.operation.catch(() => undefined).then(() => jobs.unskipJob(token, pending.jobId)).finally(() => {
+      clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
+      clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
+      void queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+    })
+  }
+
+  useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
 
   function handleSkillToggle(skill: SkillGapItem) {
     if (cartSkills.find((c) => c.skill_name === skill.skill)) {
@@ -296,6 +325,7 @@ function MissionControlInner() {
               : null
           }
         />
+        {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored={false} /> : null}
       </PageShell>
     )
   }
@@ -312,6 +342,7 @@ function MissionControlInner() {
               /market (Live is the primary daily surface). Dashboard now keeps
               just the match feed — full width on every breakpoint. */}
           <div className="mc-ws-main">
+            {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored /> : null}
             <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
                 // fast-but-empty jobs result never sits beside a still-loading
@@ -345,7 +376,7 @@ function MissionControlInner() {
                     initialJobId={urlJobId}
                     steps={steps}
                     onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}
-                    onRemove={(jobId) => removeCard.mutate(jobId)}
+                    onRemove={handleRemove}
                     onSkillToggle={handleSkillToggle}
                     onManualAdded={() => queryClient.invalidateQueries({ queryKey: dataKeys.applications() })}
                   />
@@ -361,6 +392,7 @@ function MissionControlInner() {
         profile={profile}
         onRun={() => refreshVm.refresh()}
       />
+      {pendingDismissal && token ? <NotInterestedUndo kind="skipped" jobId={pendingDismissal} token={token} surface="dashboard" onUndo={undoRemove} /> : null}
     </>
   )
 }

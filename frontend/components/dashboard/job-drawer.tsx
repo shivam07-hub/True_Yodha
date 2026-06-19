@@ -76,7 +76,7 @@ export function DashboardJobDrawer({
             <button
               type="button"
               className="db-icon-btn"
-              aria-label="Skip"
+              aria-label="Not interested"
               onClick={() => {
                 onSkip()
                 onClose()

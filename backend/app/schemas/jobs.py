@@ -431,6 +431,14 @@ class JobFeedResponse(BaseModel):
     expansion_label: str | None = None
 
 
+class HiddenJobItem(BaseModel):
+    job_id: str
+    job_title: str
+    company_name: str | None = None
+    location: str | None = None
+    dismissed_at: datetime | None = None
+
+
 class CompanyOpenRoleItem(BaseModel):
     job_id: str
     job_title: str

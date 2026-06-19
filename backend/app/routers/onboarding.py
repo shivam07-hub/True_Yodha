@@ -19,6 +19,7 @@ router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 Seniority = Literal["intern", "entry", "mid", "senior", "lead", "executive", "any"]
 ActivationKind = Literal["tailor_credible_job", "review_score_gap", "save_credible_job"]
+MilestoneKind = Literal["score_gap_reviewed", "credible_job_saved", "tailored_cv_created"]
 
 
 class FileMetadata(BaseModel):
@@ -219,6 +220,19 @@ def activate(
     principal: Principal = Depends(get_principal),
 ) -> None:
     onboarding_service.mark_activated(get_supabase_admin(), principal.id, body.activation_kind)
+
+
+@router.post("/milestones/{milestone}", status_code=status.HTTP_204_NO_CONTENT)
+def mark_milestone(
+    milestone: MilestoneKind,
+    principal: Principal = Depends(get_principal),
+) -> None:
+    OnboardingRepository(get_supabase_admin()).mark_milestone(principal.id, milestone)
+
+
+@router.post("/checklist/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_checklist(principal: Principal = Depends(get_principal)) -> None:
+    OnboardingRepository(get_supabase_admin()).dismiss_checklist(principal.id)
 
 
 @router.post("/start-over", status_code=status.HTTP_204_NO_CONTENT)

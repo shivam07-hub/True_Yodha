@@ -736,3 +736,27 @@ def test_feed_endpoint_expands_remote_inside_saved_country() -> None:
     assert repo.kwargs["exclude_job_ids"] == {"hidden"}
     assert response.json()["expansion_tier"] == "remote_country"
     assert response.json()["expansion_label"] == "More remote roles in India"
+
+
+def test_hidden_feed_jobs_can_be_recovered() -> None:
+    class _HiddenRepo:
+        def get_dismissed_jobs(self, user_id: str) -> list[dict[str, Any]]:
+            assert user_id == "u1"
+            return [{
+                "job_id": "hidden-1",
+                "job_title": "Product Manager",
+                "company_name": "Acme",
+                "location": "Bengaluru",
+                "dismissed_at": "2026-06-19T10:00:00Z",
+            }]
+
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: _HiddenRepo()
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/feed/hidden")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()[0]["job_id"] == "hidden-1"

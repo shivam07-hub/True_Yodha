@@ -120,6 +120,19 @@ class OnboardingRepository:
             .execute()
         )
 
+    def mark_milestone(self, user_id: str, milestone: str) -> None:
+        field = {
+            "score_gap_reviewed": "score_gap_reviewed_at",
+            "credible_job_saved": "credible_job_saved_at",
+            "tailored_cv_created": "tailored_cv_created_at",
+        }.get(milestone)
+        if field is None:
+            raise ValueError(f"Unsupported onboarding milestone: {milestone}")
+        self.patch_state(user_id, {field: _now()})
+
+    def dismiss_checklist(self, user_id: str) -> None:
+        self.patch_state(user_id, {"checklist_dismissed_at": _now()})
+
     def list_skill_overrides(
         self,
         user_id: str,

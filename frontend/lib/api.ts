@@ -443,6 +443,11 @@ export interface OnboardingState {
   generator_step: number
   generator_answers: Record<string, Record<string, unknown>>
   generated_draft?: string | null
+  checklist_dismissed_at?: string | null
+  score_gap_reviewed_at?: string | null
+  credible_job_saved_at?: string | null
+  tailored_cv_created_at?: string | null
+  activation_kind?: "tailor_credible_job" | "review_score_gap" | "save_credible_job" | null
 }
 
 export interface OnboardingTarget {
@@ -532,6 +537,13 @@ export const onboarding = {
       method: "POST", headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ activation_kind: activationKind }),
     }),
+  markMilestone: (token: string, milestone: "score_gap_reviewed" | "credible_job_saved" | "tailored_cv_created") =>
+    request<void>(`/onboarding/milestones/${milestone}`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
   startOver: (token: string) => request<void>("/onboarding/start-over", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
   }),
@@ -1984,6 +1996,14 @@ export interface JobFeedResponse {
   expansion_label: string | null
 }
 
+export interface HiddenJobItem {
+  job_id: string
+  job_title: string
+  company_name: string | null
+  location: string | null
+  dismissed_at: string | null
+}
+
 export interface JobFeedParams {
   cluster?: string | null
   roleDomain?: string | null
@@ -2298,6 +2318,10 @@ export const jobs = {
   unskipJob: (token: string, jobId: string) =>
     request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  hiddenJobs: (token: string) =>
+    request<HiddenJobItem[]>("/jobs/feed/hidden", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   mySkillDemand: (token: string) =>

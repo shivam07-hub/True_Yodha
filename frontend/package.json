@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test:contracts": "node --test tests/api-session-contract.test.mjs",
     "test:onboarding": "node --test tests/onboarding-contract.test.mjs",
+    "test:market-browse": "tsx --test tests/market-browse-contract.test.ts",
     "test:beta-feedback": "node --no-warnings --test tests/beta-feedback-contract.test.mjs",
     "test:upskilling": "node --test tests/upskilling-load-state.test.mjs",
     "new:issue": "tsx ../scripts/new-issue.ts",

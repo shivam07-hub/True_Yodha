@@ -11,9 +11,18 @@ export interface PendingUndo {
   jobId: string
   kind: TriageKind
   job: JobFeedItem
+  operation: Promise<boolean>
 }
 
-const UNDO_MS = 5000
+const UNDO_MS = 6000
+type BrowseScope = "exact" | "remote_country" | "country"
+type FeedPageParam = { page: number; scope: BrowseScope }
+
+const NEXT_SCOPE: Record<BrowseScope, BrowseScope | null> = {
+  exact: "remote_country",
+  remote_country: "country",
+  country: null,
+}
 
 /** Drop a job from every page of the cached infinite feed + decrement the
  *  first page's available_total (the draining-queue count). */
@@ -64,7 +73,7 @@ export function useJobFeed({
 
   const feed = useInfiniteQuery({
     queryKey,
-    queryFn: ({ pageParam = 1 }) =>
+    queryFn: ({ pageParam }) =>
       jobs.feed(token, {
         // roleDomain holds the selected target-role cluster label; the backend
         // resolves it to jobs.role_domain (passing it raw would skip resolution).
@@ -73,18 +82,49 @@ export function useJobFeed({
         sort: filters.sort,
         minSkillMatches: filters.minSkillMatches,
         followingOnly: filters.followingOnly,
-        page: pageParam,
+        page: pageParam.page,
         pageSize: 20,
+        browseScope: pageParam.scope,
       }),
-    initialPageParam: 1,
-    getNextPageParam: last => (last.has_next_page ? last.page + 1 : undefined),
+    initialPageParam: { page: 1, scope: "exact" } as FeedPageParam,
+    getNextPageParam: last => {
+      if (last.has_next_page) return { page: last.page + 1, scope: last.expansion_tier }
+      const scope = NEXT_SCOPE[last.expansion_tier]
+      return scope ? { page: 1, scope } : undefined
+    },
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   })
 
-  const allJobs = useMemo(() => feed.data?.pages.flatMap(p => p.jobs) ?? [], [feed.data])
-  const total = feed.data?.pages[0]?.available_total ?? 0
+  const allJobs = useMemo(() => {
+    const seen = new Set<string>()
+    return (feed.data?.pages.flatMap((page) => page.jobs) ?? []).filter((job) => {
+      if (seen.has(job.job_id)) return false
+      seen.add(job.job_id)
+      return true
+    })
+  }, [feed.data])
+  const total = Math.max(0, ...(feed.data?.pages.map((page) => page.available_total) ?? [0]))
+  const expansionDividers = useMemo(() => {
+    const seen = new Set<string>()
+    const dividers: Array<{ beforeJobId: string; label: string }> = []
+    for (const page of feed.data?.pages ?? []) {
+      const firstNew = page.jobs.find((job) => !seen.has(job.job_id))
+      if (page.page === 1 && page.expansion_tier !== "exact" && page.expansion_label && firstNew) {
+        dividers.push({ beforeJobId: firstNew.job_id, label: page.expansion_label })
+      }
+      page.jobs.forEach((job) => seen.add(job.job_id))
+    }
+    return dividers
+  }, [feed.data])
+
+  useEffect(() => {
+    const last = feed.data?.pages.at(-1)
+    if (last && last.returned_total === 0 && feed.hasNextPage && !feed.isFetchingNextPage) {
+      void feed.fetchNextPage()
+    }
+  }, [feed])
 
   const clearUndoTimer = useCallback(() => {
     if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null }
@@ -101,12 +141,13 @@ export function useJobFeed({
       qc.setQueryData<InfiniteData<JobFeedResponse>>(queryKey, prev => removeJobFromPages(prev, job.job_id))
       if (kind === "saved") setSavedCount(c => c + 1)
       const call = kind === "saved" ? jobs.saveJob(token, job.job_id) : jobs.skipJob(token, job.job_id)
-      void call.catch(() => {
+      const operation = call.then(() => true).catch(() => {
         // Roll back the optimistic drain on failure so the card isn't lost.
         void qc.invalidateQueries({ queryKey })
         if (kind === "saved") setSavedCount(c => Math.max(0, c - 1))
+        return false
       })
-      setPending({ jobId: job.job_id, kind, job })
+      setPending({ jobId: job.job_id, kind, job, operation })
       undoTimer.current = setTimeout(() => setPending(null), UNDO_MS)
     },
     [qc, queryKey, token, clearUndoTimer],
@@ -114,17 +155,18 @@ export function useJobFeed({
 
   const undo = useCallback(() => {
     if (!pending) return
-    const { jobId, kind } = pending
+    const { jobId, kind, operation } = pending
     clearUndoTimer()
-    const reverse = kind === "saved" ? jobs.removeTrackerJob(token, jobId) : jobs.unskipJob(token, jobId)
-    void reverse
-      .then(() => qc.invalidateQueries({ queryKey }))
-      .catch(() => qc.invalidateQueries({ queryKey }))
+    void operation.then((committed) => {
+      if (!committed) return qc.invalidateQueries({ queryKey })
+      const reverse = kind === "saved" ? jobs.removeTrackerJob(token, jobId) : jobs.unskipJob(token, jobId)
+      return reverse.then(() => qc.invalidateQueries({ queryKey })).catch(() => qc.invalidateQueries({ queryKey }))
+    })
     if (kind === "saved") setSavedCount(c => Math.max(0, c - 1))
     setPending(null)
   }, [pending, token, qc, queryKey, clearUndoTimer])
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  return { feed, allJobs, total, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, total, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }

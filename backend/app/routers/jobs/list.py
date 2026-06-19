@@ -26,6 +26,7 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.schemas.jobs import (
+    HiddenJobItem,
     JobFeedItem,
     JobFeedResponse,
     JobSearchItem,
@@ -33,6 +34,14 @@ from app.schemas.jobs import (
 )
 
 router = APIRouter()
+
+
+@router.get("/feed/hidden", response_model=list[HiddenJobItem])
+def hidden_feed_jobs(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> list[HiddenJobItem]:
+    return [HiddenJobItem(**row) for row in repo.get_dismissed_jobs(principal.id)]
 
 
 @router.get("/companies/search")

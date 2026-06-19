@@ -1804,6 +1804,28 @@ class JobsRepository:
         )
         return [str(r["job_id"]) for r in (result.data or []) if r.get("job_id")]
 
+    def get_dismissed_jobs(self, user_id: str) -> list[dict[str, Any]]:
+        dismissed = (
+            self._db.table("user_dismissed_job_cards")
+            .select("job_id,dismissed_at")
+            .eq("user_id", user_id)
+            .order("dismissed_at", desc=True)
+            .execute()
+        ).data or []
+        job_ids = [str(row["job_id"]) for row in dismissed if row.get("job_id")]
+        jobs_by_id = {str(row["job_id"]): row for row in self.get_jobs_by_ids(job_ids)}
+        return [
+            {
+                "job_id": job_id,
+                "job_title": jobs_by_id.get(job_id, {}).get("job_title") or "Unavailable role",
+                "company_name": jobs_by_id.get(job_id, {}).get("company_name"),
+                "location": jobs_by_id.get(job_id, {}).get("location"),
+                "dismissed_at": row.get("dismissed_at"),
+            }
+            for row in dismissed
+            if (job_id := str(row.get("job_id") or ""))
+        ]
+
     def get_existing_match_job_ids(self, user_id: str, batch_week: date | None = None) -> list[str]:
         query = self._db.table("user_job_matches").select("job_id").eq("user_id", user_id)
         if batch_week is not None:

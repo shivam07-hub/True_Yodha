@@ -15,6 +15,8 @@ class _StateRepo:
         self.patches: list[dict] = []
         self.answers: list[tuple[int, dict]] = []
         self.drafts: list[str] = []
+        self.milestones: list[str] = []
+        self.checklist_dismissed = False
 
     def get_state(self, _user_id):
         return self.state
@@ -27,6 +29,12 @@ class _StateRepo:
 
     def save_generated_draft(self, _user_id, draft):
         self.drafts.append(draft)
+
+    def mark_milestone(self, _user_id, milestone):
+        self.milestones.append(milestone)
+
+    def dismiss_checklist(self, _user_id):
+        self.checklist_dismissed = True
 
 
 def _client(monkeypatch, repo: _StateRepo) -> TestClient:
@@ -121,6 +129,21 @@ def test_complete_requires_full_result(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 409
+
+
+def test_checklist_progress_is_durable(monkeypatch) -> None:
+    repo = _StateRepo()
+    try:
+        with _client(monkeypatch, repo) as client:
+            milestone = client.post("/onboarding/milestones/score_gap_reviewed")
+            dismissed = client.post("/onboarding/checklist/dismiss")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert milestone.status_code == 204
+    assert dismissed.status_code == 204
+    assert repo.milestones == ["score_gap_reviewed"]
+    assert repo.checklist_dismissed is True
 
 
 def test_preview_payload_is_evidence_backed_and_inexact() -> None:

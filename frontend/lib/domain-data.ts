@@ -9,6 +9,7 @@ export const dataKeys = {
   scores: () => ["scores"] as const,
   userSkills: () => ["user-skills"] as const,
   jobs: () => ["jobs"] as const,
+  hiddenJobs: () => ["jobs", "hidden"] as const,
   feedState: () => ["jobs", "feed-state"] as const,
   jobPulses: (jobIds: string[]) => ["jobs", "pulses", jobIds] as const,
   applications: () => ["applications"] as const,
