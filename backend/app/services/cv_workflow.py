@@ -23,7 +23,11 @@ from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp
 _log = logging.getLogger(__name__)
 
 
-async def _trigger_initial_match_compute(user_id: str) -> None:
+async def _trigger_initial_match_compute(
+    user_id: str,
+    *,
+    force_context_refresh: bool = False,
+) -> None:
     """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus)."""
     try:
         from app.repositories.jobs import JobsRepository
@@ -35,8 +39,10 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
         batch_week = last_monday()
 
         existing = jobs_repo.get_existing_match_job_ids(user_id, batch_week)
-        if existing:
+        if existing and not force_context_refresh:
             return
+        if force_context_refresh:
+            jobs_repo.clear_recommendations(user_id)
 
         await jobs_workflow.compute_job_matches(
             repo=jobs_repo,
@@ -44,6 +50,7 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
             batch_week=batch_week,
             llm_provider=get_llm_provider(),
             excluded_job_ids=[],
+            force=force_context_refresh,
         )
     except Exception as exc:
         _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
@@ -429,7 +436,10 @@ async def _cv_parse_score_failure(payload: dict[str, Any]) -> None:
 
 @background.handler("initial_match")
 async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> None:
-    await _trigger_initial_match_compute(payload["user_id"])
+    await _trigger_initial_match_compute(
+        payload["user_id"],
+        force_context_refresh=bool(payload.get("force_context_refresh")),
+    )
 
 
 async def _handle_job_failure(
@@ -550,7 +560,7 @@ async def _run_cv_upload_job(
     background.enqueue(
         background.LANE_BULK,
         "initial_match",
-        payload={"user_id": user_id},
+        payload={"user_id": user_id, "force_context_refresh": True},
         correlation_id=user_id,
     )
 

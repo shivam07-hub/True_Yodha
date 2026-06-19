@@ -1894,6 +1894,16 @@ class JobsRepository:
             .execute()
         )
 
+    def clear_recommendations(self, user_id: str) -> None:
+        """Remove promotion status before a new CV/target context is ranked."""
+        (
+            self._db.table("user_job_matches")
+            .update({"is_recommended": False})
+            .eq("user_id", user_id)
+            .eq("is_recommended", True)
+            .execute()
+        )
+
     def get_saved_job_ids(self, user_id: str) -> list[str]:
         """job_ids the user has saved (any application row exists). Feed excludes
         these so the draining queue only shows undecided roles (S3: every saved

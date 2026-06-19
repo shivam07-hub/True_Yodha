@@ -91,7 +91,7 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
         background.enqueue(
             background.LANE_BULK,
             "initial_match",
-            payload={"user_id": user_id},
+            payload={"user_id": user_id, "force_context_refresh": True},
             correlation_id=f"target-match:{user_id}",
         )
     OnboardingRepository(db).patch_state(

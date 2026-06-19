@@ -17,6 +17,10 @@ class _FakeQuery:
         self._tape["on_conflict"] = on_conflict
         return self
 
+    def update(self, payload: dict[str, Any]) -> "_FakeQuery":
+        self._tape["payload"] = payload
+        return self
+
     def select(self, value: str) -> "_FakeQuery":
         self._tape["select"] = value
         return self
@@ -225,6 +229,18 @@ def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:
     assert user_db.tape["table"] == "user_dismissed_job_cards"
     assert user_db.tape["payload"] == {"user_id": "user-1", "job_id": "job-1"}
     assert user_db.tape["on_conflict"] == "user_id,job_id"
+
+
+def test_context_refresh_clears_old_recommendations() -> None:
+    user_db = _FakeDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    repo.clear_recommendations("user-1")
+
+    assert user_db.tape["table"] == "user_job_matches"
+    assert user_db.tape["payload"] == {"is_recommended": False}
+    assert ("user_id", "user-1") in user_db.tape["eq"]
+    assert ("is_recommended", True) in user_db.tape["eq"]
 
 
 class _Raises204Builder:
