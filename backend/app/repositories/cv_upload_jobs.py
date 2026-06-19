@@ -25,6 +25,7 @@ def create_processing_job(
     user_id: str,
     content_hash: str | None,
     idempotency_key: str | None = None,
+    analysis_kind: str = "baseline",
 ) -> str:
     """Insert a row in `processing` status with xp_charged=0. Caller charges
     XP against this job_id immediately after; mark_charged updates the column
@@ -36,6 +37,7 @@ def create_processing_job(
         "xp_charged": 0,
         "content_hash": content_hash,
         "current_phase": "queued",
+        "analysis_kind": analysis_kind,
     }
     if idempotency_key:
         payload["idempotency_key"] = idempotency_key
@@ -52,7 +54,11 @@ def find_by_idempotency_key(user_id: str, idempotency_key: str) -> dict[str, Any
     admin = get_supabase_admin()
     result = (
         admin.table(_TABLE)
-        .select("id, status, skills_detected, score, xp_charged, xp_refunded, error_code, error_detail")
+        .select(
+            "id, status, current_phase, analysis_kind, result_payload, "
+            "baseline_version_id, skills_detected, score, xp_charged, "
+            "xp_refunded, error_code, error_detail"
+        )
         .eq("user_id", user_id)
         .eq("idempotency_key", idempotency_key)
         .limit(1)
@@ -92,15 +98,22 @@ def mark_done(
     *,
     skills_detected: int,
     score: float,
+    result_payload: dict[str, Any] | None = None,
+    baseline_version_id: int | None = None,
 ) -> None:
     admin = get_supabase_admin()
-    admin.table(_TABLE).update({
+    payload: dict[str, Any] = {
         "status": "done",
         "current_phase": "ready",
         "skills_detected": skills_detected,
         "score": score,
         "finished_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", job_id).execute()
+    }
+    if result_payload is not None:
+        payload["result_payload"] = result_payload
+    if baseline_version_id is not None:
+        payload["baseline_version_id"] = baseline_version_id
+    admin.table(_TABLE).update(payload).eq("id", job_id).execute()
 
 
 def mark_failed(
@@ -130,7 +143,11 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
     client = db or get_supabase_admin()
     result = (
         client.table(_TABLE)
-        .select("id, status, current_phase, skills_detected, score, error_code, error_detail, xp_charged, xp_refunded, created_at, finished_at")
+        .select(
+            "id, status, current_phase, analysis_kind, result_payload, "
+            "baseline_version_id, skills_detected, score, error_code, "
+            "error_detail, xp_charged, xp_refunded, created_at, finished_at"
+        )
         .eq("id", job_id)
         .eq("user_id", user_id)
         .limit(1)
