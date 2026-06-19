@@ -105,17 +105,22 @@ export function NavContentCluster({ nav }: { nav: NavUnlocksVm }) {
   if (nav.content.length === 0) return null
   return (
     <div className="tm-nav-content-cluster" aria-label="Browse">
-      {nav.content.map((item) => (
-        <Link
-          key={item.id}
-          href={item.href}
-          title={item.desc}
-          className="tm-topbar-link tm-topbar-link-content"
-          data-active={pathname.startsWith(item.href)}
-        >
-          {item.label}
-        </Link>
-      ))}
+      {nav.content.map((item) => {
+        const isNew = nav.newItems.has(item.id)
+        return (
+          <Link
+            key={item.id}
+            href={item.href}
+            title={item.desc}
+            className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
+            data-active={pathname.startsWith(item.href)}
+            onClick={() => { if (isNew) nav.clearNew(item.id) }}
+          >
+            {item.special ? `✦ ${item.label}` : item.label}
+            {isNew && <span className="tm-nav-new">NEW</span>}
+          </Link>
+        )
+      })}
     </div>
   )
 }
