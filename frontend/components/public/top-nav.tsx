@@ -7,6 +7,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
+import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import "./public-nav.css"
 
 export type PublicNavPage = "intel" | "newsletter" | "home" | "privacy" | "signup" | "login" | "docs" | "institutions"
@@ -48,9 +49,24 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
   const [isAuthed, setIsAuthed] = useState(false)
   const signup = useSignupGate()
 
+  // Continuous-nav fix: a logged-in viewer on a public surface (newsletter /
+  // intel / institutions) must not "fall out" of the app — the workspace tabs
+  // have to follow them across the public/authed layout boundary. Reuse the SAME
+  // useNavUnlocks seam the authed shell consumes so the gate (Jobs+Dashboard
+  // always, CV on baseline, Myrology on opt-in) is decided once and never drifts
+  // between the two navs. Queries are token-gated and React-Query-deduped, so on
+  // a logged-out visit this is inert (no fetch) and renders nothing extra.
+  const nav = useNavUnlocks()
+
   useEffect(() => {
     setIsAuthed(!!getAccessToken())
   }, [])
+
+  // Desktop-only: the mobile public bar is icon-only with no room for workspace
+  // labels (CSS hides .tm-public-nav-workspace ≤720px). visibleDesktop already
+  // excludes Myrology; we re-attach it (accent/✦) from the content cluster.
+  const workspaceItems = isAuthed ? nav.visibleDesktop : []
+  const myrologyItem = isAuthed ? nav.content.find((i) => i.id === "myrology") : undefined
 
   const intelLabel = isAuthed ? `Live Job Data · ${formatTodayShort()}` : "Live Job Data"
 
@@ -73,6 +89,29 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
       </Link>
 
       <div className="tm-public-nav-links">
+        {workspaceItems.length > 0 && (
+          <div className="tm-public-nav-workspace">
+            {workspaceItems.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="tm-public-nav-link"
+                title={item.desc}
+              >
+                <span className="tm-public-nav-label">{item.label}</span>
+              </Link>
+            ))}
+            {myrologyItem && (
+              <Link
+                href={myrologyItem.href}
+                className="tm-public-nav-link tm-public-nav-link-accent"
+                title={myrologyItem.desc}
+              >
+                <span className="tm-public-nav-label">✦ {myrologyItem.label}</span>
+              </Link>
+            )}
+          </div>
+        )}
         {navItems.map(({ Icon, ...item }) => (
           <Link
             key={item.id}
