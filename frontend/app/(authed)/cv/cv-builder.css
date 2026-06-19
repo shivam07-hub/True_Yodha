@@ -31,6 +31,9 @@
   padding: 24px 32px 48px;
   min-height: 100vh;
 }
+/* Flush variant for the self-padding LibraryView (compound selector so it wins
+   over the responsive .cvb-page padding overrides without a media duplicate). */
+.cvb-page.cvb-page--flush { padding: 0; }
 .cvb-page-head {
   display: flex;
   align-items: flex-start;

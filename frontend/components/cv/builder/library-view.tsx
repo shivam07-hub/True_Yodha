@@ -188,6 +188,16 @@ export function LibraryView({
             <div className="tm-lib-page-head-main">
               <ViewSwitch view={view} onChange={setView} />
             </div>
+            {/* Stats ride beside the toggle on desktop, filling the head's
+                right slot; on the Active view only (CV view has no stats).
+                Below the page-head breakpoint they wrap to their own row. */}
+            {view === "active" && (
+              <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin tm-lib-head-stats" aria-label="CV workspace summary">
+                {stats.map((stat) => (
+                  <StatTile key={stat.key} eyebrow={stat.eyebrow} value={stat.value} sub={stat.sub} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── CV view: the Main CV is the whole point, full width ──────
@@ -225,17 +235,6 @@ export function LibraryView({
           {/* ── Active view: thin stat strip + live pipeline ─────────── */}
           {view === "active" && (
             <>
-              <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin" aria-label="CV workspace summary">
-                {stats.map((stat) => (
-                  <StatTile
-                    key={stat.key}
-                    eyebrow={stat.eyebrow}
-                    value={stat.value}
-                    sub={stat.sub}
-                  />
-                ))}
-              </div>
-
               <WorkspacePipeline filter="active" versions={versions} onOpenJob={onOpenJob} />
 
               {/* Mobile fallback: the closed rail is CSS-hidden below 1100px,
