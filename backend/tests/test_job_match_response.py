@@ -11,6 +11,10 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
             "batch_week": "2026-05-25",
             "overlap_score": 81,
             "matched_skills": [],
+            "is_recommended": True,
+            "baseline_version_id": 17,
+            "target_context_hash": "current-target",
+            "seniority_compatibility": True,
             "jobs": {
                 "job_title": "Analyst",
                 "company_name": "Acme",
@@ -27,3 +31,7 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
     assert match.last_seen_at == "2020-01-01"
     assert match.is_stale is True
     assert match.is_active is False
+    assert match.is_recommended is True
+    assert match.baseline_version_id == 17
+    assert match.target_context_hash == "current-target"
+    assert match.seniority_compatibility is True

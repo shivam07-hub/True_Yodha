@@ -64,6 +64,10 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         risk_score=row.get("risk_score"),
         strengths=row.get("strengths") or [],
         concerns=row.get("concerns") or [],
+        is_recommended=bool(row.get("is_recommended")),
+        baseline_version_id=row.get("baseline_version_id"),
+        target_context_hash=row.get("target_context_hash"),
+        seniority_compatibility=row.get("seniority_compatibility"),
     )
 
 

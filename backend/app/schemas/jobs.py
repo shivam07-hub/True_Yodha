@@ -85,6 +85,10 @@ class JobMatchResponse(BaseModel):
     risk_score: float | None = None     # HIGHER = riskier
     strengths: list[str] = []
     concerns: list[str] = []
+    is_recommended: bool = False
+    baseline_version_id: int | None = None
+    target_context_hash: str | None = None
+    seniority_compatibility: bool | None = None
 
 
 class JobMatchesResponse(BaseModel):

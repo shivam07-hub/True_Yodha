@@ -1645,6 +1645,10 @@ export interface JobMatch {
   last_seen_at?: string | null
   is_stale?: boolean
   is_active?: boolean
+  is_recommended?: boolean
+  baseline_version_id?: number | null
+  target_context_hash?: string | null
+  seniority_compatibility?: boolean | null
 }
 
 export interface JobMatchesResponse {

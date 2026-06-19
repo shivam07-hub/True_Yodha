@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
+import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -92,6 +93,7 @@ function MissionControlInner() {
   const feedState = useFeedState()
   const feedAhead = isFeedAheadOfMatches(feedState.data, jobsData?.matches_computed_at)
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
+  const credibleJobs = useMemo(() => credibleRecommendations(allMatchedJobs), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const score = Math.round(scoreData?.total_score ?? 0)
@@ -273,7 +275,7 @@ function MissionControlInner() {
   // the pre-upload invitation (no RequiresCV gate) and owns the whole upload →
   // score → tailor journey until the first tailored CV exists.
   if (nav.firstRun) {
-    const best = topJobs[0]
+    const best = credibleJobs[0]
     return (
       <PageShell>
         <FirstRunHero
