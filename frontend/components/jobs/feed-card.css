@@ -80,10 +80,14 @@
 
 .fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .fc-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 999px; font-size: 11px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%;
+  padding: 3px 9px; border-radius: 999px; font-size: 11px;
   background: var(--tm-surface-2, var(--tm-surface)); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
+/* A long taxonomy name ("Cross-Functional Team Leadership") truncates rather
+   than blowing the chip to full card width — keeps the strip to ≤2 lines. */
+.fc-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-chip-more { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .fc-chip.is-match { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border, var(--tm-interactive)); color: var(--tm-interactive); }
 
 /* ── fit slot (top-right) ─────────────────────────────────────────────────── */

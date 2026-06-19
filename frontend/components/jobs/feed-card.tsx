@@ -44,7 +44,15 @@ export function FeedFitPill({ matchedCount, roleMatch, hasCv }: { matchedCount: 
     )
   }
   if (matchedCount > 0) {
-    return <span className="fc-fitpill fc-fitpill-on">◉ {matchedCount} skill{matchedCount === 1 ? "" : "s"}</span>
+    // Green wash is the *strong* fit signal — reserve it for 3+ overlaps so a
+    // thin 1-skill match doesn't shout success (ND1) or clash with the company
+    // monogram colour. 1–2 overlaps read in the quiet style.
+    const strong = matchedCount >= 3
+    return (
+      <span className={`fc-fitpill${strong ? " fc-fitpill-on" : ""}`}>
+        ◉ {matchedCount} skill{matchedCount === 1 ? "" : "s"}
+      </span>
+    )
   }
   if (roleMatch > 0) return <span className="fc-fitpill fc-fitpill-on">◉ your role</span>
   return <span className="fc-fitpill">no overlap yet</span>
@@ -144,9 +152,12 @@ export function FeedCard({
               {data.chips.map((c) => (
                 <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
                   {c.matched ? <Check8 /> : null}
-                  {c.name}
+                  <span className="fc-chip-name">{c.name}</span>
                 </span>
               ))}
+              {data.extraChipCount > 0 ? (
+                <span className="fc-chip fc-chip-more">+{data.extraChipCount}</span>
+              ) : null}
             </div>
           ) : null}
         </div>

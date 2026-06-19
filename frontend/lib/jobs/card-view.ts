@@ -25,6 +25,8 @@ export interface FeedCardData {
   maxYears: number | null
   snippet: string
   chips: FeedChip[]
+  /** Skills beyond the shown chips → rendered as a `+N` overflow pill. */
+  extraChipCount: number
   ageIso: string | null
 }
 
@@ -53,7 +55,12 @@ export function experienceLabel(min: number | null, max: number | null): string 
  *  stays free of the lens module's heavy streaming/XP dependencies. */
 function snippetOf(text: string | null | undefined, max = 200): string {
   if (!text) return ""
-  const flat = text.replace(/\s+/g, " ").trim()
+  // Strip Markdown emphasis/heading marks — raw scraper summaries carry `**bold**`,
+  // `_em_`, `` `code` ``, leading `#`/`>` that otherwise leak into the card body.
+  const plain = text
+    .replace(/[*_`~]+/g, "")
+    .replace(/^\s*[#>\-]+\s?/gm, "")
+  const flat = plain.replace(/\s+/g, " ").trim()
   return flat.length > max ? `${flat.slice(0, max).trimEnd()}…` : flat
 }
 
@@ -63,7 +70,8 @@ export function feedDataFromMatch(
   opts: { maxChips?: number; snippetMax?: number } = {},
 ): FeedCardData {
   const { job } = src
-  const maxChips = opts.maxChips ?? 4
+  const maxChips = opts.maxChips ?? 3
+  const allChips = job.matched_skills ?? []
   return {
     jobId: src.jobId,
     company: src.company,
@@ -77,7 +85,8 @@ export function feedDataFromMatch(
     minYears: job.min_years_experience ?? null,
     maxYears: job.max_years_experience ?? null,
     snippet: snippetOf(job.job_summary?.trim() || job.job_description, opts.snippetMax),
-    chips: (job.matched_skills ?? []).slice(0, maxChips).map((name) => ({ name, matched: true })),
+    chips: allChips.slice(0, maxChips).map((name) => ({ name, matched: true })),
+    extraChipCount: Math.max(0, allChips.length - maxChips),
     ageIso: job.first_seen ?? null,
   }
 }
@@ -87,7 +96,7 @@ export function feedDataFromFeedItem(
   job: JobFeedItem,
   opts: { maxChips?: number; snippetMax?: number } = {},
 ): FeedCardData {
-  const maxChips = opts.maxChips ?? 4
+  const maxChips = opts.maxChips ?? 3
   return {
     jobId: job.job_id,
     company: job.company_name,
@@ -102,6 +111,7 @@ export function feedDataFromFeedItem(
     maxYears: null,
     snippet: snippetOf(job.job_description, opts.snippetMax),
     chips: job.skills.slice(0, maxChips).map((name) => ({ name })),
+    extraChipCount: Math.max(0, job.skills.length - maxChips),
     ageIso: job.first_seen ?? null,
   }
 }
