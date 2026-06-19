@@ -29,7 +29,7 @@ class FileMetadata(BaseModel):
 
 class ExperienceRequest(BaseModel):
     entry_mode: Literal["uploaded_cv"]
-    upload_job_id: str
+    upload_job_id: str | None = None
     file_metadata: FileMetadata
 
 

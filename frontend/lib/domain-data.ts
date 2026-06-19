@@ -4,6 +4,8 @@ type JobId = string | null | undefined
 
 export const dataKeys = {
   profile: () => ["profile"] as const,
+  onboarding: () => ["onboarding"] as const,
+  onboardingResult: () => ["onboarding", "result"] as const,
   scores: () => ["scores"] as const,
   userSkills: () => ["user-skills"] as const,
   jobs: () => ["jobs"] as const,

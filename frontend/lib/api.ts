@@ -320,6 +320,8 @@ export interface UserProfile {
   full_name: string | null
   linkedin_url: string | null
   target_roles: string[]
+  target_role_title?: string | null
+  target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
@@ -348,6 +350,8 @@ export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
   target_roles?: string[] | null
+  target_role_title?: string | null
+  target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
@@ -422,6 +426,115 @@ export const users = {
     request<{ ninja_name: string }>("/profile/ninja-name/suggest", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+}
+
+// ── Trustworthy onboarding ──────────────────────────────────────────────────
+
+export type OnboardingStage = "experience" | "target" | "result" | "generator"
+export type TargetSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any"
+
+export interface OnboardingState {
+  user_id: string
+  status: "draft" | "analyzing" | "result_ready" | "completed"
+  current_stage: OnboardingStage
+  entry_mode?: "uploaded_cv" | "description" | null
+  upload_job_id?: string | null
+  accepted_file_metadata?: { name: string; mime: string; size_bytes: number }
+  generator_step: number
+  generator_answers: Record<string, Record<string, unknown>>
+  generated_draft?: string | null
+}
+
+export interface OnboardingTarget {
+  role_title: string
+  seniority: TargetSeniority
+  location: string
+}
+
+export interface OnboardingProofSkill {
+  taxonomy_key: string
+  name: string
+  level?: number
+  evidence: string
+}
+
+export type OnboardingResult =
+  | {
+      kind: "profile_preview"
+      target: OnboardingTarget
+      preview: { skills: OnboardingProofSkill[]; estimate_min: number; estimate_max: number }
+      primary_action: { kind: "build_baseline"; label: string }
+      secondary_action: { kind: "upload_cv"; label: string }
+    }
+  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
+  | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
+  | {
+      kind: "full_result_ready"
+      baseline_version_id: number
+      target_context_hash: string
+      target: OnboardingTarget
+      skills: OnboardingProofSkill[]
+      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number }
+      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+      credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
+      primary_action: { kind: string; label: string; href: string }
+      secondary_action: { kind: string; label: string; href: string }
+    }
+
+export const onboarding = {
+  state: (token: string) => request<OnboardingState>("/onboarding/state", {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveExperience: (token: string, body: {
+    entry_mode: "uploaded_cv"
+    upload_job_id: string | null
+    file_metadata: { name: string; mime: string; size_bytes: number }
+  }) => request<void>("/onboarding/experience", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  profilePreview: (token: string, description: string, idempotencyKey: string) =>
+    request<{ status: "processing"; job_id: string }>("/onboarding/profile-preview", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ description }),
+    }),
+  saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  result: (token: string) => request<OnboardingResult>("/onboarding/result", {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveAnswer: (token: string, step: number, answer: Record<string, unknown>) =>
+    request<void>(`/onboarding/baseline/answers/${step}`, {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ answer }),
+    }),
+  generateBaseline: (token: string) => request<{ draft: string; source_ids: string[] }>("/onboarding/baseline/generate", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveDraft: (token: string, draft: string) => request<void>("/onboarding/baseline/draft", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ draft }),
+  }),
+  approveBaseline: (token: string, draft: string, idempotencyKey: string) => request<CVUploadResponse>("/onboarding/baseline/approve", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({ draft }),
+  }),
+  saveSkillOverrides: (token: string, baselineId: number, overrides: Array<{
+    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+  }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
+  complete: (token: string) => request<void>("/onboarding/complete", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  activate: (token: string, activationKind: "tailor_credible_job" | "review_score_gap" | "save_credible_job") =>
+    request<void>("/onboarding/activate", {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ activation_kind: activationKind }),
+    }),
+  startOver: (token: string) => request<void>("/onboarding/start-over", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
 }
 
 // ── Public profile (Shareability v1) ──────────────────────────────────────────
@@ -948,7 +1061,20 @@ function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUpload
   return new CVUploadFailureBase("Upload failed unexpectedly. Tap to try again.", "upload_unknown_error", false, null, true, phase)
 }
 
-export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf"
+export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf" | "generated_baseline"
+
+export async function beginCVUpload(
+  token: string,
+  file: File,
+  source: CVUploadSource = "pdf_upload",
+): Promise<{ initial: CVUploadResponse; file: File }> {
+  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
+  _persistUploadIdemKey(idempotencyKey)
+  const safeFile = await _normalizeUploadFile(file)
+  const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+  if (initial.status === "processing" && initial.job_id) _persistUploadJob(initial.job_id)
+  return { initial, file: safeFile }
+}
 
 export async function uploadCV(
   token: string,
@@ -1850,6 +1976,8 @@ export interface JobFeedResponse {
   page_size: number
   has_next_page: boolean
   sort: JobFeedSort
+  expansion_tier: "exact" | "remote_country" | "country"
+  expansion_label: string | null
 }
 
 export interface JobFeedParams {
@@ -1866,6 +1994,7 @@ export interface JobFeedParams {
   followingOnly?: boolean
   page?: number
   pageSize?: number
+  browseScope?: "exact" | "remote_country" | "country"
 }
 
 export interface MarketAnalytics {
@@ -2151,6 +2280,7 @@ export const jobs = {
     if (p.followingOnly) params.set("following_only", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
+    if (p.browseScope) params.set("browse_scope", p.browseScope)
     const qs = params.toString()
     return request<JobFeedResponse>(`/jobs/feed${qs ? `?${qs}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -2489,7 +2619,7 @@ export interface Skill {
 }
 
 export const skills = {
-  all: () => request<Skill[]>("/skills"),
+  all: () => request<{ skills: Skill[]; total: number }>("/skills").then((response) => response.skills),
   domains: () => request<string[]>("/skills/domains"),
 }
 

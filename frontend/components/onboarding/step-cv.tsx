@@ -70,7 +70,7 @@ export function StepCV({ onNext, onNextText, defaultMode = "upload" }: Props) {
     setMode(next)
     setUploadError(null)
     setDescribeError(null)
-    const sourceMap: Record<Mode, CVUploadSource> = {
+    const sourceMap: Record<Mode, Exclude<CVUploadSource, "generated_baseline">> = {
       upload: "pdf_upload",
       describe: "text_describe",
       linkedin: "linkedin_pdf",
