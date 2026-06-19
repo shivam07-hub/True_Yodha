@@ -905,6 +905,7 @@
   padding: 0;
   color: var(--tm-interactive-fg);
 }
+.cvb-checkbox:hover { border-color: var(--tm-int-border); }
 .cvb-checkbox.checked { background: var(--tm-interactive); border-color: var(--tm-interactive); }
 .cvb-checkbox svg { opacity: 0; }
 .cvb-checkbox.checked svg { opacity: 1; }

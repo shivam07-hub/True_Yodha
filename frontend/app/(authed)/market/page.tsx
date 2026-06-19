@@ -466,7 +466,9 @@ function IntelPageInner() {
   const locationCity = ""
   const locationCountry = ""
   const locationMode = ""
-  const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">("jobs")
+  const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">(
+    searchParams.get("tab") === "heatmap" ? "heatmap" : "jobs",
+  )
 
   // Sync tokens balance if not yet set from another page visit
   useQuery({

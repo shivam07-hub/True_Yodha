@@ -21,19 +21,19 @@ const STAGE_LABEL: Record<string, string> = {
 }
 
 export const metadata: Metadata = {
-  title: "Myro Weekly - Free AI Hiring Live Job Data",
+  title: "Myro Letters - Free AI Hiring Live Job Data",
   description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings. No fluff.",
   alternates: { canonical: `${BASE}/newsletter` },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Myro Weekly - Free AI Hiring Live Job Data",
+    title: "Myro Letters - Free AI Hiring Live Job Data",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
     type: "website",
     url: `${BASE}/newsletter`,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Myro Weekly - Free AI Hiring Live Job Data",
+    title: "Myro Letters - Free AI Hiring Live Job Data",
     description: "Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.",
   },
 }
@@ -89,7 +89,7 @@ export default async function NewsletterIndexPage({
   const indexJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "Myro Weekly",
+    name: "Myro Letters",
     description:
       "Free weekly hiring intelligence: company demand, skill gaps, and where hiring is moving — from live career-page data.",
     url: `${BASE}/newsletter`,
@@ -123,14 +123,7 @@ export default async function NewsletterIndexPage({
       <header className={styles.masthead}>
         <div className={styles.copy}>
           <p className={styles.kicker}>Weekly hiring intelligence</p>
-          <h1>Myro Weekly</h1>
-          {publishedIssues.length > 0 && (
-            <div className={styles.actions}>
-              <Link href={`/newsletter/${publishedIssues[0].slug}`} className={styles.primaryLink}>
-                Read latest
-              </Link>
-            </div>
-          )}
+          <h1>Myro Letters</h1>
         </div>
         <JourneyLoop activeStage={activeStage} />
       </header>

@@ -36,7 +36,7 @@ const BASE = "https://www.himyro.com"
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) return {}
-  const title = issue.seoTitle ? `${issue.seoTitle} | Myro` : `${issue.title} | Myro Weekly`
+  const title = issue.seoTitle ? `${issue.seoTitle} | Myro` : `${issue.title} | Myro Letters`
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const absoluteOgImage = issue.ogImage
     ? issue.ogImage.startsWith("http") ? issue.ogImage : `${BASE}${issue.ogImage}`

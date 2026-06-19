@@ -24,11 +24,11 @@ export function HiddenJobsDialog({ token }: { token: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger className="tm-feed-iconbtn" aria-label="Open hidden jobs" title="Hidden jobs"><EyeOff className="size-4" /></DialogTrigger>
-      <DialogContent className="max-h-[85dvh] max-w-xl overflow-y-auto bg-[var(--tm-surface)] text-[var(--tm-text)]">
+      <DialogContent className="max-h-[85dvh] w-full max-w-[calc(100%-2rem)] overflow-y-auto bg-[var(--tm-surface)] text-[var(--tm-text)] sm:max-w-xl">
         <DialogHeader><DialogTitle>Hidden jobs</DialogTitle><DialogDescription>Jobs marked Not interested stay out of recommendations until restored.</DialogDescription></DialogHeader>
         {hidden.isLoading ? <p className="py-6 text-sm text-[var(--tm-text-muted)]">Loading...</p> : hidden.data?.length ? (
           <div className="divide-y divide-[var(--tm-border-soft)] rounded-md border border-[var(--tm-border-soft)]">
-            {hidden.data.map((job) => <div key={job.job_id} className="flex items-center gap-3 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{job.job_title}</p><p className="mt-1 truncate text-xs text-[var(--tm-text-muted)]">{[job.company_name, job.location].filter(Boolean).join(" · ")}</p></div><Button size="sm" variant="outline" loading={restore.isPending && restore.variables === job.job_id} onClick={() => restore.mutate(job.job_id)}><RotateCcw className="size-3.5" />Restore</Button></div>)}
+            {hidden.data.map((job) => <div key={job.job_id} className="flex items-center gap-3 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{job.job_title}</p><p className="mt-1 truncate text-xs text-[var(--tm-text-muted)]">{[job.company_name, job.location].filter(Boolean).join(" · ")}</p></div><Button size="sm" variant="outline" className="shrink-0" loading={restore.isPending && restore.variables === job.job_id} onClick={() => restore.mutate(job.job_id)}><RotateCcw className="size-3.5" />Restore</Button></div>)}
           </div>
         ) : <p className="py-6 text-sm text-[var(--tm-text-muted)]">No hidden jobs.</p>}
       </DialogContent>

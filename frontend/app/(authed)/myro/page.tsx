@@ -6,7 +6,7 @@ const RESOURCES = [
   {
     href: "/newsletter",
     label: "Newsletter",
-    kicker: "Myro Weekly",
+    kicker: "Myro Letters",
     detail: "Weekly hiring live job data, market maps, and skill-demand shifts.",
   },
   {
