@@ -110,7 +110,6 @@ async def run_profile_preview(payload: dict[str, Any], allow_retry: bool) -> Non
         user_id,
         {
             "status": "result_ready",
-            "current_stage": "result",
             "preview_payload": result,
         },
     )

@@ -40,10 +40,6 @@ export function DocsPage() {
           <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, color: "var(--tm-text)" }}>
             Methodology &amp; documentation
           </h1>
-          <p style={{ margin: "14px 0 0", fontSize: 16, color: "var(--tm-text-muted)", lineHeight: 1.6, maxWidth: 520 }}>
-            A plain-English explanation of how Myro reads your CV, scores your career
-            profile, and surfaces job matches — no black boxes.
-          </p>
         </div>
       </div>
 

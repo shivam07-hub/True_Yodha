@@ -30,11 +30,12 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!state.isFetchedAfterMount) return
     const current = state.data?.current_stage
     if (current === "target") setStage(1)
     if (current === "result" || current === "generator") router.replace("/onboarding/result")
     if (state.data?.status === "completed") router.replace("/home")
-  }, [router, state.data])
+  }, [router, state.data, state.isFetchedAfterMount])
 
   useEffect(() => {
     const jobId = state.data?.upload_job_id

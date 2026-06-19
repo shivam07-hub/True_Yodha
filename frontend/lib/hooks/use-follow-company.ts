@@ -49,6 +49,8 @@ export interface UseFollowCompany {
   isLoading: boolean
   /** True for any company whose follow/unfollow is in flight (per-name). */
   isPending: (name: string) => boolean
+  /** True when any follow/unfollow is in flight — for an aggregate "Saving…" badge. */
+  anyPending: boolean
   /** IH2 gate: may this *not-yet-followed* company be added right now? */
   canFollow: (name: string) => boolean
   /** Why canFollow is false (undefined when it's allowed or already followed). */
@@ -150,6 +152,7 @@ export function useFollowCompany(
   })
 
   const isPending = useCallback((name: string) => pending.has(name), [pending])
+  const anyPending = pending.size > 0
 
   const canFollow = useCallback(
     (name: string) =>
@@ -203,6 +206,7 @@ export function useFollowCompany(
     count,
     isLoading,
     isPending,
+    anyPending,
     canFollow,
     disabledReason,
     follow,

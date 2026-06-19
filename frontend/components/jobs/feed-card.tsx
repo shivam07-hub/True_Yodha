@@ -145,8 +145,6 @@ export function FeedCard({
             </div>
           ) : null}
 
-          {data.snippet ? <p className="fc-snip">{data.snippet}</p> : null}
-
           {data.chips.length > 0 ? (
             <div className="fc-chips">
               {data.chips.map((c) => (
