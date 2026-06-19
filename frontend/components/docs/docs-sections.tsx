@@ -166,7 +166,7 @@ export function XPSection() {
         Myro Coins are your activity currency. They are a permanent record of your
         engagement — Myro Coins never expire or reset.
       </P>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "16px 0" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12, margin: "16px 0" }}>
         {[{ heading: "You earn", rows: EARN_ROWS }, { heading: "You spend", rows: SPEND_ROWS }].map(col => (
           <div key={col.heading} style={{ background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 10, padding: "14px 16px" }}>
             <div style={{ fontSize: 10, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>{col.heading}</div>

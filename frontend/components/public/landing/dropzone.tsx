@@ -1,44 +1,48 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { publicCv, type AnonScoreResponse } from "@/lib/api"
-import { stashAnonCv } from "@/lib/anon-cv-stash"
+import { useRouter } from "next/navigation"
+import { stashAnonCvFile } from "@/lib/anon-cv-stash"
 
 /**
- * The live CV dropzone (grill: pre-login real score). Appears in the hero (S1)
- * and closing CTA (S6). A logged-out user drops a CV and gets their REAL Myro
- * Score back — the backend runs the real engine compute-only and stores nothing
- * (PV1). The file + result are stashed for claim-on-signup. Every action AFTER
- * the score (jobs, practice, save, tailor) is gated behind signup upstream.
+ * The live CV dropzone (grill: pre-login real score). Appears in the hero (S1),
+ * the engine band, and the closing FAQ — anywhere a logged-out user can drop a
+ * CV to get their REAL Myro Score.
  *
- * Turnstile: the token arg is optional. When Cloudflare Turnstile is provisioned
- * a widget should feed its token in here; until then the backend skips
- * verification (per-IP rate limit still applies) so this works in dev.
+ * Navigate-then-load (grill 2026-06-19): the dropzone does NOT score here. It
+ * stashes the File and jumps to /cv-preview, which scores it and either opens
+ * the playground (structured CV) or routes to /signup with the score readout
+ * (degraded parse). One destination owns the loading + the fork.
+ *
+ * On /cv-preview itself the page passes `onFile` to score in place instead of
+ * navigating — same picker, different owner.
  */
 const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 interface LandingDropzoneProps {
   source: string
-  onScoring?: () => void
-  onResult?: (result: AnonScoreResponse, file: File) => void
-  onError?: (message: string) => void
+  /** When set, the parent owns scoring (the /cv-preview direct-hit case). When
+   *  omitted, the dropzone stashes the file and navigates to /cv-preview. */
+  onFile?: (file: File) => void
   busy?: boolean
 }
 
-export function LandingDropzone({ source, onScoring, onResult, onError, busy }: LandingDropzoneProps) {
+export function LandingDropzone({ source, onFile, busy }: LandingDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
+  const router = useRouter()
+  const [navigating, setNavigating] = useState(false)
+  const pending = busy || navigating
 
-  async function handleFile(file: File) {
-    if (busy) return
-    onScoring?.()
-    try {
-      const result = await publicCv.scorePreview(file)
-      stashAnonCv(file, result)
-      onResult?.(result, file)
-    } catch (err) {
-      onError?.(err instanceof Error ? err.message : "Something went wrong reading that CV.")
+  function handleFile(file: File) {
+    if (pending) return
+    if (onFile) {
+      onFile(file)
+      return
     }
+    // Landing path: hold the file, jump to the scorer.
+    setNavigating(true)
+    stashAnonCvFile(file)
+    router.push("/cv-preview")
   }
 
   return (
@@ -50,28 +54,25 @@ export function LandingDropzone({ source, onScoring, onResult, onError, busy }: 
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0]
-          if (file) void handleFile(file)
+          if (file) handleFile(file)
           e.target.value = "" // allow re-selecting the same file
         }}
         data-source={source}
       />
       <button
         type="button"
-        className={`lp-dropzone${dragging ? " is-dragging" : ""}`}
+        className={`lp-dropzone${navigating ? " is-dragging" : ""}`}
         aria-label="Drop your CV to see your Myro Score"
-        aria-busy={busy}
-        disabled={busy}
+        aria-busy={pending}
+        disabled={pending}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault()
-          if (!busy) setDragging(true)
         }}
-        onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
           e.preventDefault()
-          setDragging(false)
           const file = e.dataTransfer.files?.[0]
-          if (file) void handleFile(file)
+          if (file) handleFile(file)
         }}
       >
         <span className="lp-dropzone-icon" aria-hidden>
@@ -90,7 +91,7 @@ export function LandingDropzone({ source, onScoring, onResult, onError, busy }: 
         </span>
         <span className="lp-dropzone-body">
           <span className="lp-dropzone-title">
-            {busy ? "Reading your CV…" : "Drop your CV — PDF or DOCX"}
+            {pending ? "Reading your CV…" : "Drop your CV — PDF or DOCX"}
           </span>
           <span className="lp-dropzone-trust">
             <span>Private</span>
@@ -98,7 +99,7 @@ export function LandingDropzone({ source, onScoring, onResult, onError, busy }: 
           </span>
         </span>
         <span className="lp-dropzone-btn" aria-hidden>
-          {busy ? "Scoring…" : "Choose file"}
+          {pending ? "Scoring…" : "Choose file"}
         </span>
       </button>
       <p className="lp-dropzone-note">Free · no signup to see your score</p>

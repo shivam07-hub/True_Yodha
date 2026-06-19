@@ -58,12 +58,12 @@ function CVExportPage() {
   const jobTitle = playground.selectedVersion?.job_title ?? ""
 
   const contact = useMemo(() => ({
-    name: profile?.full_name?.trim() || "Your name",
-    title: cvData?.experience[0]?.role ?? "",
-    location: profile?.target_location ?? "",
-    email: profile?.email ?? "",
-    phone: "",
-    linkedin: profile?.linkedin_url ?? "",
+    name: cvData?.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
+    title: cvData?.contact?.title?.trim() || cvData?.experience[0]?.role || "",
+    location: cvData?.contact?.location?.trim() || profile?.target_location || "",
+    email: cvData?.contact?.email?.trim() || "",
+    phone: cvData?.contact?.phone?.trim() || "",
+    linkedin: cvData?.contact?.linkedin?.trim() || profile?.linkedin_url || "",
   }), [profile, cvData])
 
   // A direct hit without a job, or before any CV exists, has nothing to export.

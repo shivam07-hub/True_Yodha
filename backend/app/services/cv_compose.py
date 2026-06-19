@@ -75,6 +75,23 @@ def render_deterministic(
 
     lines: list[str] = []
 
+    contact = cv_structured.get("contact") or {}
+    contact_name = str(contact.get("name") or "").strip()
+    contact_title = str(contact.get("title") or "").strip()
+    contact_line = " · ".join(
+        str(contact.get(key) or "").strip()
+        for key in ("location", "email", "phone", "linkedin")
+        if str(contact.get(key) or "").strip()
+    )
+    if contact_name:
+        lines.append(contact_name)
+    if contact_title:
+        lines.append(contact_title)
+    if contact_line:
+        lines.append(contact_line)
+    if contact_name or contact_title or contact_line:
+        lines.append("")
+
     if cv_structured.get("summary"):
         iid = item_id("summary", 0, cv_structured["summary"])
         if keep(iid):

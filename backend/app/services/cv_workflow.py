@@ -23,7 +23,11 @@ from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp
 _log = logging.getLogger(__name__)
 
 
-async def _trigger_initial_match_compute(user_id: str) -> None:
+async def _trigger_initial_match_compute(
+    user_id: str,
+    *,
+    force_context_refresh: bool = False,
+) -> None:
     """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus)."""
     try:
         from app.repositories.jobs import JobsRepository
@@ -35,8 +39,10 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
         batch_week = last_monday()
 
         existing = jobs_repo.get_existing_match_job_ids(user_id, batch_week)
-        if existing:
+        if existing and not force_context_refresh:
             return
+        if force_context_refresh:
+            jobs_repo.clear_recommendations(user_id)
 
         await jobs_workflow.compute_job_matches(
             repo=jobs_repo,
@@ -44,6 +50,7 @@ async def _trigger_initial_match_compute(user_id: str) -> None:
             batch_week=batch_week,
             llm_provider=get_llm_provider(),
             excluded_job_ids=[],
+            force=force_context_refresh,
         )
     except Exception as exc:
         _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
@@ -57,9 +64,8 @@ def _persist_baseline_cv(
     content_hash: str,
     cv_structured: dict | None,
     source: str = "pdf_upload",
-) -> None:
+) -> int | None:
     """Write a new baseline_upload row into cv_versions."""
-    cv_repo.update_cv_profile(user_id, {"onboarding_complete": True})
     spec = CVVersionWriteSpec(
         kind="baseline_upload",
         job_id=None,
@@ -82,6 +88,7 @@ def _persist_baseline_cv(
             ).eq("id", version_id).execute()
         except Exception as exc:  # pragma: no cover — cohort tag is best-effort
             _log.warning("cv_versions.source tag failed for version=%s: %s", version_id, exc)
+    return int(version_id) if version_id is not None else None
 
 
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
@@ -429,7 +436,10 @@ async def _cv_parse_score_failure(payload: dict[str, Any]) -> None:
 
 @background.handler("initial_match")
 async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> None:
-    await _trigger_initial_match_compute(payload["user_id"])
+    await _trigger_initial_match_compute(
+        payload["user_id"],
+        force_context_refresh=bool(payload.get("force_context_refresh")),
+    )
 
 
 async def _handle_job_failure(
@@ -533,19 +543,24 @@ async def _run_cv_upload_job(
         return
 
     score_total = float(score_row["total_score"])
-    _persist_baseline_cv(
+    baseline_version_id = _persist_baseline_cv(
         cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
         cv_structured=parsed.get("cv_structured"),
         source=source,
     )
-    upload_jobs_repo.mark_done(job_id, skills_detected=len(skills_detected), score=score_total)
+    upload_jobs_repo.mark_done(
+        job_id,
+        skills_detected=len(skills_detected),
+        score=score_total,
+        baseline_version_id=baseline_version_id,
+    )
     # ADR-0008 — initial match runs on the bulk Work Lane (nobody's waiting on it).
     background.enqueue(
         background.LANE_BULK,
         "initial_match",
-        payload={"user_id": user_id},
+        payload={"user_id": user_id, "force_context_refresh": True},
         correlation_id=user_id,
     )
 
@@ -591,6 +606,9 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
     return {
         "status": row["status"],
         "current_phase": _status_phase(row),
+        "analysis_kind": row.get("analysis_kind") or "baseline",
+        "result_payload": row.get("result_payload"),
+        "baseline_version_id": row.get("baseline_version_id"),
         "skills_detected": row.get("skills_detected"),
         "score": float(row["score"]) if row.get("score") is not None else None,
         "error_code": row.get("error_code"),
@@ -601,7 +619,7 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
         # Job-creation timestamp = the moment the user committed to the upload.
         # Anchors the 10-min CV-promise countdown pill (progressive-nav Q4).
         "started_at": row.get("created_at"),
-        "redirect_to": "/onboarding/score" if row["status"] == "done" else None,
+        "redirect_to": "/onboarding/result" if row["status"] == "done" else None,
     }
 
 

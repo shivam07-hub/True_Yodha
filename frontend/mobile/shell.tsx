@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
@@ -17,7 +17,7 @@ import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
-import { CONTENT_NAV } from "@/lib/nav-items"
+import { CONTENT_NAV, type NavItem } from "@/lib/nav-items"
 
 const SKELETON_BASE = "var(--tm-surface-2)"
 const SKELETON_HIGHLIGHT = "rgba(255,255,255,0.06)"
@@ -210,18 +210,33 @@ function MobileStaleBadge() {
 
 export function MobileBottomNav() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const nav = useNavUnlocks()
+  type MobileRenderItem = NavItem & { mobileKey: string }
+  const mobileItems = nav.visibleMobile.reduce<MobileRenderItem[]>((items, item) => {
+    if (item.id !== "cv") return [...items, { ...item, mobileKey: item.id }]
+    return [
+      ...items,
+      { ...item, mobileKey: "cv", href: "/cv?view=cv", label: "CV", stalePill: false, mobileIcon: "cv" },
+      { ...item, mobileKey: "applications", href: "/cv?view=active", label: "Applications", stalePill: true, mobileIcon: "tracker" },
+    ]
+  }, [])
 
   return (
     <nav className="tm-mobile-bottomnav">
-      {nav.visibleMobile.map(item => {
-        const active = pathname.startsWith(item.href)
+      {mobileItems.map(item => {
+        const cvView = searchParams.get("view")
+        const active = item.mobileKey === "cv"
+          ? pathname === "/cv" && cvView !== "active"
+          : item.mobileKey === "applications"
+            ? pathname === "/cv" && cvView === "active"
+            : pathname.startsWith(item.href)
         const color = active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)"
         const isNew = nav.newItems.has(item.id)
 
         return (
           <Link
-            key={item.id}
+            key={item.mobileKey}
             href={item.href}
             className="tm-mobile-nav-item"
             data-active={active}

@@ -30,6 +30,7 @@ from app.services import cv_compose, cv_restructure, xp_policy, xp_service
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
 from app.services.llm_provider import get_llm_provider
+from app.routers.cv.structured import CVStructuredResponse
 
 router = APIRouter(prefix="/versions")
 
@@ -48,6 +49,11 @@ class CVVersionEditRequest(BaseModel):
     title:        str | None = None
 
 
+class CVVersionStructuredEditRequest(BaseModel):
+    cv:    CVStructuredResponse
+    title: str | None = None
+
+
 class FooterMarkRequest(BaseModel):
     hidden: bool
 
@@ -62,6 +68,7 @@ class CVVersionResponse(BaseModel):
     title:                str | None
     hidden_items:         list[str]
     edited_items:         dict[str, str]
+    cv_structured:        dict[str, Any]
     body_text:            str
     polished_text:        str | None
     ai_polished:          bool
@@ -110,6 +117,7 @@ def _to_response(row: dict[str, Any]) -> CVVersionResponse:
         title=row.get("title"),
         hidden_items=row.get("hidden_items") or [],
         edited_items=row.get("edited_items") or {},
+        cv_structured=row.get("cv_structured") or {},
         body_text=row.get("body_text") or "",
         polished_text=row.get("polished_text"),
         ai_polished=bool(row.get("ai_polished")),
@@ -189,6 +197,52 @@ def create_cv_version(
         title=body.title or _auto_title("deterministic", next_n),
         snapshot_hash=cv_compose.item_id("save", next_n, body_text),
         confidence_label="user-curated",
+    )
+    return _to_response(cv_repo.create(user_id, spec))
+
+
+@router.post(
+    "/{version_id}/structured",
+    response_model=CVVersionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def edit_cv_version_structured(
+    version_id: int,
+    body: CVVersionStructuredEditRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Create an editable child from a job-specific structured CV draft.
+
+    Submitted/history rows stay immutable: mobile editing always appends a new
+    child and leaves the parent available in the CV Hub.
+    """
+    user_id = principal.id
+    parent = cv_repo.find(version_id, user_id)
+    if not parent:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Parent CV version not found.")
+    if not parent.get("job_id"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Use the Main CV editor for your Main CV.")
+
+    structured = body.cv.model_dump()
+    hidden_items = parent.get("hidden_items") or []
+    body_text = cv_compose.render_deterministic(
+        structured,
+        hidden_items=hidden_items,
+        edited_items=None,
+    )
+    next_n = cv_repo.next_user_version_number(user_id)
+    spec = CVVersionWriteSpec(
+        kind="edited",
+        job_id=parent["job_id"],
+        parent_version_id=parent["id"],
+        body_text=body_text,
+        polished_text=body_text,
+        cv_structured=structured,
+        hidden_items=hidden_items,
+        title=body.title or _auto_title("edited", next_n),
+        snapshot_hash=cv_compose.item_id("structured_edit", next_n, body_text),
+        confidence_label="user-edited",
     )
     return _to_response(cv_repo.create(user_id, spec))
 

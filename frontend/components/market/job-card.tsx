@@ -89,12 +89,12 @@ export function TriageButtons({ onSave, onSkip }: { onSave: () => void; onSkip: 
     <div style={{ display: "inline-flex", gap: 8 }}>
       <button
         type="button"
-        aria-label="Skip this job"
-        title="Not for me"
+        aria-label="Mark this job as not interested"
+        title="Not interested"
         onClick={e => { e.stopPropagation(); onSkip() }}
         className="tm-triage-btn tm-triage-skip"
       >
-        <span aria-hidden>✕</span> Skip
+        <span aria-hidden>✕</span> Not interested
       </button>
       <button
         type="button"

@@ -17,12 +17,13 @@ export function runAtsChecks(
   profile: UserProfile | null,
   filename: string,
 ): AtsCheck[] {
-  const hasName = Boolean(profile?.full_name?.trim())
-  const hasEmail = Boolean(profile?.email?.trim())
+  const hasName = Boolean(cv.contact?.name?.trim() || profile?.full_name?.trim())
+  const hasEmail = Boolean(cv.contact?.email?.trim())
+  const hasPhone = Boolean(cv.contact?.phone?.trim())
   const hasContent = cv.experience.length > 0 || Boolean(cv.skills_line?.trim())
   const datesOk = hasConsistentDates(cv.experience.map(e => e.dates))
-  const contactOk = hasName && hasEmail
-  const filenameOk = /^[a-z0-9_]+\.pdf$/.test(filename)
+  const contactOk = hasName && hasEmail && hasPhone
+  const filenameOk = /^[a-z0-9_]+\.pdf$/i.test(filename)
 
   return [
     { label: "Single column · linear reading order", pass: true },
@@ -44,9 +45,15 @@ export function runAtsChecks(
       detail: !filenameOk ? `Filename contains special chars: ${filename}` : undefined,
     },
     {
-      label: "Contact block complete (name + email)",
+      label: "Contact block complete",
       pass: contactOk,
-      detail: !hasName ? "Add your name in Settings" : !hasEmail ? "Add email in Settings" : undefined,
+      detail: !hasName
+        ? "Add your name in Contact"
+        : !hasEmail
+          ? "Add an email in Contact"
+          : !hasPhone
+            ? "Phone number is missing"
+            : undefined,
     },
   ]
 }

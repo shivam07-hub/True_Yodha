@@ -96,6 +96,12 @@ export function useNavUnlocks(): NavUnlocksVm {
   const versions = versionsData?.versions
   const ctx = useMemo(() => deriveNavUnlockCtx(versions, profile), [versions, profile])
 
+  // Myrology renders in the left content cluster (beside Newsletter), not in the
+  // primary workspace tabs — it is a side offering, not core workflow. It keeps
+  // its free-opt-in gate + violet treatment; pulled out of visibleDesktop below.
+  const myrologyItem = useMemo(() => AUTHED_NAV.find((i) => i.id === "myrology"), [])
+  const myrologyVisible = !!myrologyItem && isNavItemUnlocked(myrologyItem, ctx)
+
   const [coachQueueIds, setCoachQueueIds] = useState<string[]>([])
   const [newItems, setNewItems] = useState<Set<string>>(new Set())
 
@@ -123,7 +129,11 @@ export function useNavUnlocks(): NavUnlocksVm {
 
     // Fold into snapshot immediately so a re-render can't re-enqueue.
     for (const id of freshlyUnlocked) snapshot.add(id)
-    setCoachQueueIds((q) => [...q, ...freshlyUnlocked.filter((id) => !q.includes(id))])
+    // Only items WITH coach copy enqueue a coachmark; the rest (e.g. Myrology —
+    // "no coachmark here", NEW pill still fires on transition) skip the scrim so
+    // a copy-less item never raises a blank, hard-to-dismiss scrim.
+    const coachable = freshlyUnlocked.filter((id) => AUTHED_NAV.find((i) => i.id === id)?.coach)
+    setCoachQueueIds((q) => [...q, ...coachable.filter((id) => !q.includes(id))])
     setNewItems((prev) => {
       const next = new Set(prev)
       for (const id of freshlyUnlocked) next.add(id)
@@ -164,9 +174,9 @@ export function useNavUnlocks(): NavUnlocksVm {
     firstRun: firstRunFromData(versions, profile),
     hasCv: profile?.has_cv ?? false,
     loading: versionsLoading || profileLoading,
-    visibleDesktop: visibleNavItems("desktop", ctx),
+    visibleDesktop: visibleNavItems("desktop", ctx).filter((i) => i.id !== "myrology"),
     visibleMobile: visibleNavItems("mobile", ctx),
-    content: CONTENT_NAV,
+    content: myrologyVisible && myrologyItem ? [...CONTENT_NAV, myrologyItem] : CONTENT_NAV,
     coachQueue,
     activeCoach,
     newItems,

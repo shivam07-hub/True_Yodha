@@ -18,6 +18,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { buildPracticeSkills } from "@/lib/practice-skills"
 import { buildDomainEntries, skillIntelStats } from "@/lib/skill-domains"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
@@ -59,7 +60,7 @@ function ForgePageInner() {
     queryKey: dataKeys.jobs(), queryFn: () => jobs.matches(token!),
     enabled: !!token, staleTime: 5 * 60 * 1000,
   })
-  const topJobs = useMemo(() => (jobsData?.jobs ?? []).slice(0, 5), [jobsData])
+  const topJobs = useMemo(() => credibleRecommendations(jobsData?.jobs ?? []).slice(0, 5), [jobsData])
   const jobGapQueries = useQueries({
     queries: topJobs.map((job) => ({
       queryKey: dataKeys.skillGap(job.job_id),
@@ -80,7 +81,7 @@ function ForgePageInner() {
     enabled: !!token, staleTime: 5 * 60 * 1000, retry: false,
   })
   const { data: profile } = useQuery({
-    queryKey: ["users-me", token], queryFn: () => users.me(token!),
+    queryKey: dataKeys.profile(), queryFn: () => users.me(token!),
     enabled: !!token, staleTime: 5 * 60 * 1000,
   })
 

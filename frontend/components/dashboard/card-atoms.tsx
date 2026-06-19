@@ -135,8 +135,8 @@ export function CardActions({
       <button
         type="button"
         className="db-icon-btn"
-        aria-label="Skip this job"
-        title="Skip"
+        aria-label="Mark this job as not interested"
+        title="Not interested"
         onClick={(e) => {
           e.stopPropagation()
           onSkip()

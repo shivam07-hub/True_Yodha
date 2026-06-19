@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
@@ -26,6 +26,7 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.schemas.jobs import (
+    HiddenJobItem,
     JobFeedItem,
     JobFeedResponse,
     JobSearchItem,
@@ -33,6 +34,14 @@ from app.schemas.jobs import (
 )
 
 router = APIRouter()
+
+
+@router.get("/feed/hidden", response_model=list[HiddenJobItem])
+def hidden_feed_jobs(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> list[HiddenJobItem]:
+    return [HiddenJobItem(**row) for row in repo.get_dismissed_jobs(principal.id)]
 
 
 @router.get("/companies/search")
@@ -245,6 +254,7 @@ def job_feed(
     target_role_only: bool = False,
     freshness_days: Annotated[int, Query(ge=0, le=365)] = 0,
     following_only: bool = False,
+    browse_scope: Literal["exact", "remote_country", "country"] = "exact",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=50)] = 20,
     repo: JobsRepository = Depends(get_token_jobs_repository),
@@ -271,6 +281,7 @@ def job_feed(
         "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
         "saved": lambda: repo.get_saved_job_ids(uid),
         "location_prefs": lambda: repo.user_target_locations(uid),
+        "location_countries": lambda: repo.user_target_location_countries(uid),
     }
     if following_only:
         prelude["followed"] = lambda: repo.get_followed_company_names(uid)
@@ -290,14 +301,27 @@ def job_feed(
     # preferences instead of re-asking. The legacy city/country/mode query params
     # stay for back-compat but the market UI no longer sends them.
     location_prefs = got["location_prefs"]
+    location_countries = got["location_countries"]
+    effective_location_prefs = location_prefs
+    effective_location_country = location_country
+    effective_location_mode = location_mode
+    if not any((location_city, location_country, location_mode)) and location_countries:
+        if browse_scope == "remote_country":
+            effective_location_prefs = []
+            effective_location_country = location_countries[0]
+            effective_location_mode = "remote"
+        elif browse_scope == "country":
+            effective_location_prefs = []
+            effective_location_country = location_countries[0]
+            effective_location_mode = None
     followed: set[str] | None = got.get("followed") if following_only else None
     page_result = repo.feed_jobs(
         role_domain=resolved_domain,
         q=q,
         location_city=location_city,
-        location_country=location_country,
-        location_mode=location_mode,
-        location_prefs=location_prefs,
+        location_country=effective_location_country,
+        location_mode=effective_location_mode,
+        location_prefs=effective_location_prefs,
         sort=sort,
         user_skill_keys=skill_keys,
         user_target_roles=target_roles,
@@ -319,6 +343,14 @@ def job_feed(
         page_size=page_result["page_size"],
         has_next_page=page_result["has_next_page"],
         sort=page_result["sort"],
+        expansion_tier=browse_scope,
+        expansion_label=(
+            None
+            if browse_scope == "exact"
+            else f"More {'remote ' if browse_scope == 'remote_country' else ''}roles in {location_countries[0]}"
+            if location_countries
+            else None
+        ),
     )
 
 

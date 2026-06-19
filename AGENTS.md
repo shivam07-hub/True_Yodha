@@ -298,7 +298,77 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-15 - First intern beta response review)
+## LAST SESSION SUMMARY (2026-06-19 - Mobile CV Hub full rollout)
+
+Rebuilt the mobile CV experience as a document-first workspace and rolled it
+out directly without a feature flag.
+
+- Split the mobile navigation into CV and Applications destinations.
+- Replaced the cramped CV controls with a fit-width Main CV preview, direct
+  Edit/Export actions, and job-grouped tailored-version history.
+- Added a full-screen structured editor for contact, summary, experience,
+  projects, skills, education, and certifications.
+- Added explicit manual Edit and AI Rewrite actions for CV bullets, ordering,
+  guarded deletion, immediate local preview, autosave, and session history.
+- Kept CV contact data distinct from account identity while offering an
+  explicit account-email fill action.
+- Added visual export template selection, actionable ATS review, PDF/DOCX
+  actions, and an opt-in Myro verification mark.
+- Added immutable structured job-version edits plus non-destructive Main CV
+  restore endpoints; existing JSONB storage required no schema migration.
+- Browser-verified the Hub, editor, preview, export, ATS score, and destructive
+  confirmation flows at mobile widths from 320px through 430px.
+
+Validation:
+
+- Backend: `703 passed`
+- Mobile CV contracts: `6 passed`
+- TypeScript: clean
+- Frontend lint: clean
+- Production build: passed, 55 static pages generated
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-06-19 - Trustworthy first-value onboarding design)
+
+Completed the production QA, design grill, and approved contract for the P1
+onboarding and plain-language ask.
+
+- Ran a disposable-account production onboarding session and removed the test
+  user plus owned rows afterward.
+- Confirmed transient polling could report failure after the durable CV job had
+  completed, the role step stored skill clusters, and result actions were below
+  the fold or misrouted.
+- Confirmed Home could promote a stored `Skip`, `is_recommended=false`,
+  `1.2/5` job as `BEST MATCH`; the new contract forbids first-row promotion.
+- Locked `Experience -> Target -> Result`, one primary role plus seniority and
+  location, proof-before-score, resumable analysis, bounded browse expansion,
+  persistent Not interested, bottom Undo, and evidence-backed correction.
+- Locked Profile Preview for descriptions and a fact-grounded five-question
+  baseline generator with `Question N of 5`, visual progress, autosave, review,
+  and no invented facts.
+- Locked contextual result actions, a three-action learn-by-doing checklist,
+  and separate completion and activation definitions.
+- Split the approved design into three linked files so each remains under the
+  300-line project limit.
+
+Artifacts:
+
+- `docs/superpowers/specs/2026-06-19-trustworthy-first-value-onboarding-design.md`
+- `docs/superpowers/specs/2026-06-19-trustworthy-first-value-onboarding-contracts.md`
+- `docs/superpowers/specs/2026-06-19-trustworthy-first-value-onboarding-verification.md`
+
+Validation:
+
+- Backend: `694 passed`
+- TypeScript: clean
+- Frontend lint: clean
+- Production build: passed, 55 static pages generated
+- `git diff --check`: clean
+
+Next: Shivam reviews the approved spec, then create the implementation plan in
+small vertical slices before changing production code.
+
+## OLDER SESSION SUMMARY (2026-06-15 - First intern beta response review)
 
 Reviewed the first structured submission from the intern beta assignment.
 

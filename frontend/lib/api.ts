@@ -28,6 +28,14 @@ import type {
   BetaAssignmentStatus,
   BetaFeedbackDraft,
 } from "./beta-feedback"
+import {
+  clearCVUploadPersistence,
+  createCVUploadIdempotencyKey,
+  persistCVUploadIdempotencyKey,
+  persistCVUploadJob,
+  readCVUploadIdempotencyKey,
+  readCVUploadJob,
+} from "./cv-upload-storage"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -320,6 +328,8 @@ export interface UserProfile {
   full_name: string | null
   linkedin_url: string | null
   target_roles: string[]
+  target_role_title?: string | null
+  target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
@@ -348,6 +358,8 @@ export interface ProfileUpdate {
   full_name?: string | null
   linkedin_url?: string | null
   target_roles?: string[] | null
+  target_role_title?: string | null
+  target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
@@ -422,6 +434,127 @@ export const users = {
     request<{ ninja_name: string }>("/profile/ninja-name/suggest", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+}
+
+// ── Trustworthy onboarding ──────────────────────────────────────────────────
+
+export type OnboardingStage = "experience" | "target" | "result" | "generator"
+export type TargetSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any"
+
+export interface OnboardingState {
+  user_id: string
+  status: "draft" | "analyzing" | "result_ready" | "completed"
+  current_stage: OnboardingStage
+  entry_mode?: "uploaded_cv" | "description" | null
+  upload_job_id?: string | null
+  accepted_file_metadata?: { name: string; mime: string; size_bytes: number }
+  generator_step: number
+  generator_answers: Record<string, Record<string, unknown>>
+  generated_draft?: string | null
+  checklist_dismissed_at?: string | null
+  score_gap_reviewed_at?: string | null
+  credible_job_saved_at?: string | null
+  tailored_cv_created_at?: string | null
+  activation_kind?: "tailor_credible_job" | "review_score_gap" | "save_credible_job" | null
+}
+
+export interface OnboardingTarget {
+  role_title: string
+  seniority: TargetSeniority
+  location: string
+}
+
+export interface OnboardingProofSkill {
+  taxonomy_key: string
+  name: string
+  level?: number
+  evidence: string
+}
+
+export type OnboardingResult =
+  | {
+      kind: "profile_preview"
+      target: OnboardingTarget
+      preview: { skills: OnboardingProofSkill[]; estimate_min: number; estimate_max: number }
+      primary_action: { kind: "build_baseline"; label: string }
+      secondary_action: { kind: "upload_cv"; label: string }
+    }
+  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
+  | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
+  | {
+      kind: "full_result_ready"
+      baseline_version_id: number
+      target_context_hash: string
+      target: OnboardingTarget
+      skills: OnboardingProofSkill[]
+      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number }
+      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+      credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
+      primary_action: { kind: string; label: string; href: string }
+      secondary_action: { kind: string; label: string; href: string }
+    }
+
+export const onboarding = {
+  state: (token: string) => request<OnboardingState>("/onboarding/state", {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveExperience: (token: string, body: {
+    entry_mode: "uploaded_cv"
+    upload_job_id: string | null
+    file_metadata: { name: string; mime: string; size_bytes: number }
+  }) => request<void>("/onboarding/experience", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  profilePreview: (token: string, description: string, idempotencyKey: string) =>
+    request<{ status: "processing"; job_id: string }>("/onboarding/profile-preview", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ description }),
+    }),
+  saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  result: (token: string) => request<OnboardingResult>("/onboarding/result", {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveAnswer: (token: string, step: number, answer: Record<string, unknown>) =>
+    request<void>(`/onboarding/baseline/answers/${step}`, {
+      method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ answer }),
+    }),
+  generateBaseline: (token: string) => request<{ draft: string; source_ids: string[] }>("/onboarding/baseline/generate", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  saveDraft: (token: string, draft: string) => request<void>("/onboarding/baseline/draft", {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ draft }),
+  }),
+  approveBaseline: (token: string, draft: string, idempotencyKey: string) => request<CVUploadResponse>("/onboarding/baseline/approve", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({ draft }),
+  }),
+  saveSkillOverrides: (token: string, baselineId: number, overrides: Array<{
+    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+  }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
+    method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
+  complete: (token: string) => request<void>("/onboarding/complete", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  activate: (token: string, activationKind: "tailor_credible_job" | "review_score_gap" | "save_credible_job") =>
+    request<void>("/onboarding/activate", {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ activation_kind: activationKind }),
+    }),
+  markMilestone: (token: string, milestone: "score_gap_reviewed" | "credible_job_saved" | "tailored_cv_created") =>
+    request<void>(`/onboarding/milestones/${milestone}`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    }),
+  dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  startOver: (token: string) => request<void>("/onboarding/start-over", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
 }
 
 // ── Public profile (Shareability v1) ──────────────────────────────────────────
@@ -499,7 +632,18 @@ export interface CVProjectItem {
   bullets: string[]
 }
 
+export interface CVContact {
+  name: string
+  title: string
+  email: string
+  phone: string
+  location: string
+  linkedin: string
+}
+
 export interface CVStructured {
+  /** Printed CV identity. Optional only for legacy rows created before 2026-06-19. */
+  contact?: CVContact
   summary: string | null
   education: CVEducationItem[]
   experience: CVExperienceItem[]
@@ -514,6 +658,13 @@ export interface MasterSaveResponse {
   recompute_pending: boolean
 }
 
+export interface MasterRevision {
+  id: number
+  revision_number: number
+  created_at: string
+  cv_structured: CVStructured
+}
+
 export type CVVersionKind = "baseline_upload" | "deterministic" | "polished" | "edited"
 
 export interface CVVersion {
@@ -526,6 +677,7 @@ export interface CVVersion {
   title: string | null
   hidden_items: string[]
   edited_items: Record<string, string>
+  cv_structured?: CVStructured | null
   body_text: string
   polished_text: string | null
   ai_polished: boolean
@@ -622,6 +774,15 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(structured),
     }),
+  masterRevisions: (token: string) =>
+    request<{ revisions: MasterRevision[] }>("/cv/master/revisions", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  restoreMasterRevision: (token: string, revisionId: number) =>
+    request<MasterSaveResponse>(`/cv/master/revisions/${revisionId}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   requestUploadFallback: (
     token: string,
     body: CVUploadFallbackSubmissionRequest,
@@ -674,7 +835,18 @@ export const cv = {
       request<CVVersion>(`/cv/versions/${versionId}/edit`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ edited_items: editedItems, title }),
+      body: JSON.stringify({ edited_items: editedItems, title }),
+    }),
+    structuredEdit: (
+      token: string,
+      versionId: number,
+      structured: CVStructured,
+      title?: string,
+    ) =>
+      request<CVVersion>(`/cv/versions/${versionId}/structured`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cv: structured, title }),
       }),
     // Toggle the Myro footer mark on a CV Version (certified ⇄ un-certified).
     setFooterMark: (token: string, versionId: number, hidden: boolean) =>
@@ -798,45 +970,15 @@ export const cv = {
  * Throws CVUploadFailure on terminal "failed" so the caller can surface the
  * refund context. Throws Error for transport / 4xx errors.
  */
-const CV_UPLOAD_JOB_KEY = "myro_cv_upload_job_v1"
-const CV_UPLOAD_IDEM_KEY = "myro_cv_upload_idem_v1"
 const CV_UPLOAD_TELEMETRY_PATH = "/v1/telemetry/cv-upload-phase"
-
-function _newIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID()
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-}
-
-function _persistUploadJob(jobId: string): void {
-  try { localStorage.setItem(CV_UPLOAD_JOB_KEY, jobId) } catch { /* private mode */ }
-}
-
-function _readUploadIdemKey(): string | null {
-  try { return localStorage.getItem(CV_UPLOAD_IDEM_KEY) } catch { return null }
-}
-
-function _persistUploadIdemKey(key: string): void {
-  try { localStorage.setItem(CV_UPLOAD_IDEM_KEY, key) } catch { /* private mode */ }
-}
-
-function _clearUploadPersistence(opts: { clearIdem: boolean }): void {
-  try {
-    localStorage.removeItem(CV_UPLOAD_JOB_KEY)
-    if (opts.clearIdem) localStorage.removeItem(CV_UPLOAD_IDEM_KEY)
-  } catch {
-    /* private mode */
-  }
-}
 
 /** Returns the in-flight job_id stored from a prior session, if any. */
 export function getPersistedCVUploadJobId(): string | null {
-  try { return localStorage.getItem(CV_UPLOAD_JOB_KEY) } catch { return null }
+  return readCVUploadJob()
 }
 
 export function clearPersistedCVUploadState(opts: { clearIdem?: boolean } = {}): void {
-  _clearUploadPersistence({ clearIdem: opts.clearIdem ?? true })
+  clearCVUploadPersistence(opts.clearIdem ?? true)
 }
 
 type CVUploadTelemetryPhase = "pick" | "signed-url" | "put" | "poll" | "parse"
@@ -909,7 +1051,20 @@ function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUpload
   return new CVUploadFailureBase("Upload failed unexpectedly. Tap to try again.", "upload_unknown_error", false, null, true, phase)
 }
 
-export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf"
+export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf" | "generated_baseline"
+
+export async function beginCVUpload(
+  token: string,
+  file: File,
+  source: CVUploadSource = "pdf_upload",
+): Promise<{ initial: CVUploadResponse; file: File }> {
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
+  const safeFile = await _normalizeUploadFile(file)
+  const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+  if (initial.status === "processing" && initial.job_id) persistCVUploadJob(initial.job_id)
+  return { initial, file: safeFile }
+}
 
 export async function uploadCV(
   token: string,
@@ -917,8 +1072,8 @@ export async function uploadCV(
   source: CVUploadSource = "pdf_upload",
   onProgress?: (status: CVUploadStatusResponse) => void,
 ): Promise<CVUploadResult> {
-  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
-  _persistUploadIdemKey(idempotencyKey)
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
   _emitCVUploadTelemetry(token, {
     phase: "pick",
     outcome: "started",
@@ -950,44 +1105,44 @@ export async function uploadCV(
       fileMime: file.type,
       fileBytes: file.size,
     })
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     throw failure
   }
 
   try {
     const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
-    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    if (initial.status === "processing") persistCVUploadJob(initial.job_id)
     const result = await _resolveUploadResult(
       token,
       initial,
       { idempotencyKey, fileName: safeFile.name, fileMime: safeFile.type, fileBytes: safeFile.size },
       onProgress,
     )
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     return result
   } catch (err) {
     const failure = _asUploadFailure(err, "put")
-    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    if (!failure.retryable) clearCVUploadPersistence(true)
     throw failure
   }
 }
 
 export async function uploadCVText(token: string, text: string, source: CVUploadSource = "text_describe"): Promise<CVUploadResult> {
-  const idempotencyKey = _readUploadIdemKey() ?? _newIdempotencyKey()
-  _persistUploadIdemKey(idempotencyKey)
+  const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
+  persistCVUploadIdempotencyKey(idempotencyKey)
   try {
     const initial = await request<CVUploadResponse>("/cv/text", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text, idempotency_key: idempotencyKey, source }),
     })
-    if (initial.status === "processing") _persistUploadJob(initial.job_id)
+    if (initial.status === "processing") persistCVUploadJob(initial.job_id)
     const result = await _resolveUploadResult(token, initial, { idempotencyKey })
-    _clearUploadPersistence({ clearIdem: true })
+    clearCVUploadPersistence(true)
     return result
   } catch (err) {
     const failure = _asUploadFailure(err, "poll")
-    if (!failure.retryable) _clearUploadPersistence({ clearIdem: true })
+    if (!failure.retryable) clearCVUploadPersistence(true)
     throw failure
   }
 }
@@ -1342,7 +1497,7 @@ export async function pollCVUploadStatus(
     phase: "poll",
     outcome: "started",
     jobId,
-    idempotencyKey: _readUploadIdemKey(),
+    idempotencyKey: readCVUploadIdempotencyKey(),
   })
   try {
     const result = await resolveCVUploadResult(
@@ -1359,7 +1514,7 @@ export async function pollCVUploadStatus(
             phase: "poll",
             outcome: "retrying",
             jobId: jid,
-            idempotencyKey: _readUploadIdemKey(),
+            idempotencyKey: readCVUploadIdempotencyKey(),
             reasonCode: failure.code,
             errorDetail: failure.message,
           })
@@ -1372,13 +1527,13 @@ export async function pollCVUploadStatus(
       phase: "poll",
       outcome: "succeeded",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
     })
     _emitCVUploadTelemetry(token, {
       phase: "parse",
       outcome: "succeeded",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
     })
     return result
   } catch (err) {
@@ -1387,7 +1542,7 @@ export async function pollCVUploadStatus(
       phase: failure.phase ?? "poll",
       outcome: "failed",
       jobId,
-      idempotencyKey: _readUploadIdemKey(),
+      idempotencyKey: readCVUploadIdempotencyKey(),
       reasonCode: failure.code,
       errorDetail: failure.message,
     })
@@ -1480,6 +1635,10 @@ export interface JobMatch {
   last_seen_at?: string | null
   is_stale?: boolean
   is_active?: boolean
+  is_recommended?: boolean
+  baseline_version_id?: number | null
+  target_context_hash?: string | null
+  seniority_compatibility?: boolean | null
 }
 
 export interface JobMatchesResponse {
@@ -1811,6 +1970,16 @@ export interface JobFeedResponse {
   page_size: number
   has_next_page: boolean
   sort: JobFeedSort
+  expansion_tier: "exact" | "remote_country" | "country"
+  expansion_label: string | null
+}
+
+export interface HiddenJobItem {
+  job_id: string
+  job_title: string
+  company_name: string | null
+  location: string | null
+  dismissed_at: string | null
 }
 
 export interface JobFeedParams {
@@ -1827,6 +1996,7 @@ export interface JobFeedParams {
   followingOnly?: boolean
   page?: number
   pageSize?: number
+  browseScope?: "exact" | "remote_country" | "country"
 }
 
 export interface MarketAnalytics {
@@ -2112,6 +2282,7 @@ export const jobs = {
     if (p.followingOnly) params.set("following_only", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
+    if (p.browseScope) params.set("browse_scope", p.browseScope)
     const qs = params.toString()
     return request<JobFeedResponse>(`/jobs/feed${qs ? `?${qs}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -2125,6 +2296,10 @@ export const jobs = {
   unskipJob: (token: string, jobId: string) =>
     request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  hiddenJobs: (token: string) =>
+    request<HiddenJobItem[]>("/jobs/feed/hidden", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   mySkillDemand: (token: string) =>
@@ -2450,7 +2625,7 @@ export interface Skill {
 }
 
 export const skills = {
-  all: () => request<Skill[]>("/skills"),
+  all: () => request<{ skills: Skill[]; total: number }>("/skills").then((response) => response.skills),
   domains: () => request<string[]>("/skills/domains"),
 }
 

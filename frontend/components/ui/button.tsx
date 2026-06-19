@@ -1,3 +1,4 @@
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -102,7 +103,7 @@ function ButtonLoader() {
   )
 }
 
-function Button({
+const Button = React.forwardRef<HTMLButtonElement, ButtonOwnProps>(function Button({
   className,
   variant = "solid",
   size = "md",
@@ -110,9 +111,10 @@ function Button({
   disabled,
   children,
   ...props
-}: ButtonOwnProps) {
+}, ref) {
   return (
     <ButtonPrimitive
+      ref={ref}
       data-slot="button"
       data-loading={loading || undefined}
       disabled={disabled || loading}
@@ -122,6 +124,6 @@ function Button({
       {loading ? <ButtonLoader /> : children}
     </ButtonPrimitive>
   )
-}
+})
 
 export { Button, buttonVariants }

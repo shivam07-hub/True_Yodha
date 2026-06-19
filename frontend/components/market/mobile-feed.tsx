@@ -69,7 +69,7 @@ function MobileJobCard({
   return (
     <div className="tm-mfeed-slot">
       {/* triage rails revealed under the card as it slides */}
-      <div className={`tm-mfeed-rail tm-mfeed-rail-skip ${intent === "skip" ? "is-armed" : ""}`} aria-hidden>✕ Skip</div>
+      <div className={`tm-mfeed-rail tm-mfeed-rail-skip ${intent === "skip" ? "is-armed" : ""}`} aria-hidden>✕ Not interested</div>
       <div className={`tm-mfeed-rail tm-mfeed-rail-save ${intent === "save" ? "is-armed" : ""}`} aria-hidden>Save ★</div>
       <FeedCard
         data={feedDataFromFeedItem(job)}
@@ -87,7 +87,7 @@ function MobileJobCard({
         pulse={<PulseRow pulse={pulse} bare />}
         actions={
           <>
-            <button type="button" aria-label="Skip" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Skip</button>
+            <button type="button" aria-label="Not interested" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Not interested</button>
             <button type="button" aria-label="Save" className="tm-triage-btn tm-triage-save" onClick={e => { e.stopPropagation(); commit("right") }}><span aria-hidden>★</span> Save</button>
           </>
         }
@@ -126,7 +126,9 @@ export function MobileFeed({
       gap={14}
       className="tm-mfeed"
       renderItem={(row, i) =>
-        row.t === "story" ? (
+        row.t === "divider" ? (
+          <div className="tm-feed-expansion-divider">{row.label}</div>
+        ) : row.t === "story" ? (
           <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
         ) : (
           <MobileJobCard

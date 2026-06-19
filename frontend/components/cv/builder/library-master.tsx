@@ -34,13 +34,14 @@ function masterDisplayName(profile: UserProfile | null): string {
 }
 
 function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
+  const contact = cv?.contact
   return {
-    name: masterDisplayName(profile),
-    title: cv?.experience[0]?.role || profile?.target_roles?.[0] || "",
-    location: profile?.target_location ?? "",
-    email: profile?.email ?? "",
-    phone: "",
-    linkedin: profile?.linkedin_url ?? "",
+    name: contact?.name?.trim() || masterDisplayName(profile),
+    title: contact?.title?.trim() || cv?.experience[0]?.role || profile?.target_roles?.[0] || "",
+    location: contact?.location?.trim() || profile?.target_location || "",
+    email: contact?.email?.trim() || "",
+    phone: contact?.phone?.trim() || "",
+    linkedin: contact?.linkedin?.trim() || profile?.linkedin_url || "",
   }
 }
 

@@ -30,6 +30,7 @@ import { masterFilename } from "@/lib/cv/download-master"
 import { selectVisibleCV } from "@/lib/cv/visible-cv"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { CV_TEMPLATES, DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
+import { MobileCVExportLayout } from "@/components/cv/mobile/mobile-cv-export-layout"
 
 type ExportContext = "tailored" | "master" | "onboarding"
 
@@ -59,6 +60,9 @@ interface CVExportViewProps {
   /** Navigation out of the export surface. */
   onBack?: () => void
   backLabel?: string
+  /** Mobile full-screen composition; shares the same export handlers and PdfPage. */
+  mobile?: boolean
+  onFixContact?: () => void
 }
 
 function slug(s: string | null | undefined): string {
@@ -105,7 +109,7 @@ export function CVExportView({
   token, cv, hidden, contact, profile, context,
   template, versionId = null, footerMarkHidden = false,
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
-  onBack, backLabel = "Back",
+  onBack, backLabel = "Back", mobile = false, onFixContact,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
@@ -140,11 +144,11 @@ export function CVExportView({
 
   const filename = useMemo(() => {
     if (isTailored) {
-      const parts = [slug(profile?.full_name) || "myro_cv", slug(company), slug(jobTitle)].filter(Boolean)
+      const parts = [slug(contact.name) || "myro_cv", slug(company), slug(jobTitle)].filter(Boolean)
       return `${parts.join("__")}.pdf`
     }
-    return masterFilename(profile?.full_name)
-  }, [isTailored, profile, company, jobTitle])
+    return masterFilename(contact.name || profile?.full_name)
+  }, [isTailored, contact.name, profile?.full_name, company, jobTitle])
 
   const checks = useMemo(() => runAtsChecks(cv, profile, filename), [cv, profile, filename])
   const { passed: passedCount, total: totalChecks } = atsScore(checks)
@@ -265,8 +269,8 @@ export function CVExportView({
 
   const templatePicker = <TemplatePicker value={activeTemplate} onChange={pickTemplate} />
 
-  // The certified mark earns a real product benefit (more push + recommendations),
-  // so the control names the trade-off rather than presenting a neutral on/off.
+  // The footer mark is an explicit export preference. The preview is the proof;
+  // no vague recommendation claim is needed beside the control.
   const markToggle = versionId ? (
     <div className="cvb-mark-toggle">
       <button
@@ -281,11 +285,7 @@ export function CVExportView({
         <Icon name={markHidden ? "x" : "check"} size={11} />
         {markHidden ? "Add Myro mark" : "Myro Certified"}
       </button>
-      <span className="cvb-mark-note">
-        {markHidden
-          ? "Certified CVs get more push & recommendations."
-          : "Shown in your CV footer — gets more push & recommendations."}
-      </span>
+      <span className="cvb-mark-note">Shown in the exported CV footer.</span>
     </div>
   ) : null
 
@@ -298,6 +298,30 @@ export function CVExportView({
   const atsCard = (
     <AtsAuditCard checks={checks} passedCount={passedCount} totalChecks={totalChecks} />
   )
+
+  if (mobile && onBack) {
+    return (
+      <MobileCVExportLayout
+        page={page}
+        template={activeTemplate}
+        onTemplateChange={pickTemplate}
+        checks={checks}
+        passedCount={passedCount}
+        totalChecks={totalChecks}
+        markHidden={markHidden}
+        markBusy={markBusy}
+        canToggleMark={Boolean(versionId)}
+        onToggleMark={toggleMark}
+        onFixContact={onFixContact}
+        pdfBusy={pdfBusy}
+        docxBusy={docxBusy}
+        docxError={docxError}
+        onDownloadPdf={handleDownloadPdf}
+        onDownloadDocx={handleDownloadDocx}
+        onBack={onBack}
+      />
+    )
+  }
 
   if (skin === "inline") {
     // Compact skin — lives inside a panel (master CV / onboarding door). No

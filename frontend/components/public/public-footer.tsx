@@ -27,15 +27,16 @@ const FOOTER_COLS = [
   {
     title: "Product",
     links: [
-      { label: "CV Hub",        href: "/#cv-hub"      },
+      { label: "CV Hub",        href: "/cv-preview"   },
       { label: "Live Job Data", href: "/intel"        },
       { label: "For Colleges",  href: "/institutions" },
-      { label: "Newsletter",    href: "/newsletter"   },
+      { label: "Myrology",      href: "/myrology"     },
     ],
   },
   {
     title: "Learn",
     links: [
+      { label: "Newsletter",   href: "/newsletter" },
       { label: "How it works", href: "/docs"     },
       { label: "FAQ",          href: "/docs#faq" },
     ],

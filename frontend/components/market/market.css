@@ -172,7 +172,7 @@
 
 /* ── undo toast ──────────────────────────────────────────────────────────── */
 .tm-feed-toast {
-  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
   transform: translateX(-50%); z-index: 80;
   display: flex; flex-direction: column; gap: 9px;
   max-width: min(420px, calc(100vw - 28px));
@@ -193,6 +193,17 @@
 }
 .tm-reason-chip:hover { background: color-mix(in srgb, var(--tm-bg, #fff) 24%, transparent); }
 .tm-feed-toast-noted { font-size: 12px; font-weight: 500; opacity: 0.8; }
+.tm-feed-expansion-divider {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; color: var(--tm-text-muted); font-size: 12px; font-weight: 600;
+}
+.tm-feed-expansion-divider::before, .tm-feed-expansion-divider::after {
+  content: ""; height: 1px; flex: 1; background: var(--tm-border-soft);
+}
+
+@media (max-width: 719px) {
+  .tm-feed-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+}
 
 /* ── mobile scroll feed (PR-3: row cards in one vertical feed + swipe) ─────── */
 .tm-mfeed { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }

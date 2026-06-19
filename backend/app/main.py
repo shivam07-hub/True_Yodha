@@ -18,6 +18,7 @@ from app.routers import (
     myrology,
     newsletter,
     newsletter_distribution,
+    onboarding,
     payments,
     profile,
     public,
@@ -70,6 +71,7 @@ app.include_router(payments.router)
 app.include_router(myrology.router)
 app.include_router(newsletter.router)
 app.include_router(newsletter_distribution.router)
+app.include_router(onboarding.router)
 app.include_router(public.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)

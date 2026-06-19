@@ -34,6 +34,19 @@ export function stashAnonCv(file: File, result: AnonScoreResponse): void {
   }
 }
 
+/** Stash just the File before scoring (navigate-then-load): the landing
+ *  dropzone holds the File in-memory and jumps to /cv-preview, which scores it
+ *  and re-stashes the full result. The File survives the in-SPA push (module
+ *  variable); a stale prior result is cleared so the destination scores fresh. */
+export function stashAnonCvFile(file: File): void {
+  stashedFile = file
+  try {
+    sessionStorage.removeItem(RESULT_KEY)
+  } catch {
+    // ignore — destination still finds the in-memory File to score.
+  }
+}
+
 /** Consume the in-memory File for replay. Returns null after the first take or
  *  across a page reload. */
 export function takeStashedFile(): File | null {

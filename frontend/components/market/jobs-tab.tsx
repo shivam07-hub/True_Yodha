@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import type { JobFeedItem, PersonalReasonCode } from "@/lib/api"
-import { PERSONAL_REASONS, sendPersonalFeedback } from "@/lib/jobs/feedback"
+import type { JobFeedItem } from "@/lib/api"
+import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
@@ -16,6 +16,7 @@ import { useMarketIntel } from "@/lib/hooks/use-market-intel"
 import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
+import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
 import "./market.css"
 import "./market-intel.css"
@@ -77,7 +78,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     })
   }, [selectedCluster, onSelectCluster])
 
-  const { feed, allJobs, total, triage, undo, pending, savedCount } =
+  const { feed, allJobs, total, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q })
 
   // One batched pulse request for the visible feed (not one-per-card).
@@ -109,7 +110,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return out
   }, [intel.movers, intel.trending, hasCv, followedNames, targetLocations])
 
-  const rows = useMemo(() => interleaveStories(allJobs, stories), [allJobs, stories])
+  const rows = useMemo(() => interleaveStories(allJobs, stories, expansionDividers), [allJobs, stories, expansionDividers])
 
   const onSeeRoles = useCallback((query: string) => { setSearchInput(query); setQ(query) }, [])
   const onStoryPrimary = useCallback((s: FeedStory) => {
@@ -179,6 +180,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 onOpenSaved={() => router.push("/home")}
                 onOpenFilters={() => setFiltersOpen(true)}
               />
+              <HiddenJobsDialog token={token} />
             </>
           )}
         </div>
@@ -229,7 +231,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   estimateSize={180}
                   gap={14}
                   renderItem={row =>
-                    row.t === "story" ? (
+                    row.t === "divider" ? (
+                      <div className="tm-feed-expansion-divider">{row.label}</div>
+                    ) : row.t === "story" ? (
                       <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
                     ) : (
                       <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} />
@@ -273,7 +277,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         />
       ) : null}
 
-      {pending ? <UndoToast kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
+      {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
     </div>
   )
 }
@@ -319,45 +323,6 @@ function EmptyHandoff({ savedCount, onBuild, onClear }: { savedCount: number; on
         <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>Fresh roles land daily — check back, or loosen your filters.</div>
       )}
       <button type="button" onClick={onClear} style={{ background: "none", border: "none", color: "var(--tm-interactive)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
-    </div>
-  )
-}
-
-function UndoToast({
-  kind, jobId, token, onUndo,
-}: {
-  kind: "saved" | "skipped"
-  jobId: string
-  token: string
-  onUndo: () => void
-}) {
-  const [reason, setReason] = useState<PersonalReasonCode | null>(null)
-  return (
-    <div className="tm-feed-toast" role="status">
-      <div className="tm-feed-toast-head">
-        <span>{kind === "saved" ? "★ Saved" : "Skipped"}</span>
-        <button type="button" onClick={onUndo}>Undo</button>
-      </div>
-      {/* Optional personal "why" — trains only this user's ranking, never the
-          global listing trust. Skipping it keeps the loop fast. */}
-      {kind === "skipped" ? (
-        reason ? (
-          <span className="tm-feed-toast-noted">Noted ✓</span>
-        ) : (
-          <div className="tm-feed-toast-reasons">
-            {PERSONAL_REASONS.map(r => (
-              <button
-                key={r.code}
-                type="button"
-                className="tm-reason-chip"
-                onClick={() => { sendPersonalFeedback(token, jobId, r.code, "market"); setReason(r.code) }}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        )
-      ) : null}
     </div>
   )
 }

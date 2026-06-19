@@ -85,6 +85,10 @@ class JobMatchResponse(BaseModel):
     risk_score: float | None = None     # HIGHER = riskier
     strengths: list[str] = []
     concerns: list[str] = []
+    is_recommended: bool = False
+    baseline_version_id: int | None = None
+    target_context_hash: str | None = None
+    seniority_compatibility: bool | None = None
 
 
 class JobMatchesResponse(BaseModel):
@@ -423,6 +427,16 @@ class JobFeedResponse(BaseModel):
     page_size: int
     has_next_page: bool
     sort: str  # echo of the applied sort mode
+    expansion_tier: Literal["exact", "remote_country", "country"] = "exact"
+    expansion_label: str | None = None
+
+
+class HiddenJobItem(BaseModel):
+    job_id: str
+    job_title: str
+    company_name: str | None = None
+    location: str | None = None
+    dismissed_at: datetime | None = None
 
 
 class CompanyOpenRoleItem(BaseModel):

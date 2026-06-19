@@ -15,7 +15,7 @@ interface Surface {
 const SURFACES: Surface[] = [
   {
     title: "CV Hub",
-    href: "/#cv-hub",
+    href: "/cv-preview",
     body: "Every version of your CV in one place — master, tailored, scored. No more Drive folders and Canva exports.",
     engineLine: "each version scored against the live role it targets",
     Icon: Layers,

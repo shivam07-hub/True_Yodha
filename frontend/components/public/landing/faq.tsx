@@ -5,17 +5,8 @@ import { ChevronDown } from "lucide-react"
 import { FAQ_ITEMS, PRICING_FREE, PRICING_PAID, PRICING_LEAD, PRICING_FOOTNOTE } from "./landing-copy"
 import { LandingDropzone } from "./dropzone"
 import { SectionTitle } from "./section-title"
-import type { AnonScoreResponse } from "@/lib/api"
 
-interface LandingFaqProps {
-  scoring?: boolean
-  scoreError?: string | null
-  onScoring?: () => void
-  onResult?: (result: AnonScoreResponse, file: File) => void
-  onError?: (message: string) => void
-}
-
-export function LandingFaq({ scoring, scoreError, onScoring, onResult, onError }: LandingFaqProps) {
+export function LandingFaq() {
   const [openIdx, setOpenIdx] = useState<number | null>(null)
   const panelRefs = useRef<(HTMLDivElement | null)[]>([])
 
@@ -95,18 +86,7 @@ export function LandingFaq({ scoring, scoreError, onScoring, onResult, onError }
           <p className="lp-closing-line">
             Ten minutes from now you&rsquo;ll have a scored, job-ready CV. Start there.
           </p>
-          <LandingDropzone
-            source="landing_dropzone_closing"
-            busy={scoring}
-            onScoring={onScoring}
-            onResult={onResult}
-            onError={onError}
-          />
-          {scoreError && (
-            <p className="lp-dropzone-error" role="alert">
-              {scoreError}
-            </p>
-          )}
+          <LandingDropzone source="landing_dropzone_closing" />
         </div>
       </div>
     </section>
