@@ -88,7 +88,10 @@ class JobMatchResponse(BaseModel):
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
-    seniority_compatibility: bool | None = None
+    # "compatible" | "incompatible" | "unknown" — the matcher (match_credibility)
+    # writes a string label, not a bool. Typed bool here until now → every match
+    # row with this value 500'd /jobs/matches + /home/bootstrap at serialization.
+    seniority_compatibility: str | None = None
 
 
 class JobMatchesResponse(BaseModel):

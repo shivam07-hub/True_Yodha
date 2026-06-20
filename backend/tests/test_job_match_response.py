@@ -14,7 +14,10 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
             "is_recommended": True,
             "baseline_version_id": 17,
             "target_context_hash": "current-target",
-            "seniority_compatibility": True,
+            # The matcher (match_credibility) writes a string label here, not a
+            # bool. Use the real persisted value so this test exercises the actual
+            # write→read contract (a bool fixture hid the prod-500 type drift).
+            "seniority_compatibility": "compatible",
             "jobs": {
                 "job_title": "Analyst",
                 "company_name": "Acme",
@@ -34,4 +37,4 @@ def test_to_job_match_preserves_row_batch_week_for_historical_cards() -> None:
     assert match.is_recommended is True
     assert match.baseline_version_id == 17
     assert match.target_context_hash == "current-target"
-    assert match.seniority_compatibility is True
+    assert match.seniority_compatibility == "compatible"
