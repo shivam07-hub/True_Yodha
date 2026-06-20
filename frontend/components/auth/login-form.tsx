@@ -101,17 +101,20 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {agent && <InAppBrowserWarning agent={agent} />}
 
+      {/* OAuth is always shown on both sub-forms — best-in-class auth surfaces
+          never hide social login behind a mode toggle (user directive). */}
+      {!agent && <GoogleAuthButton surface={surface} onClick={() => openOAuth("google")} />}
+      <LinkedInAuthButton surface={surface} onClick={() => openOAuth("linkedin_oidc")} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
+        <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
+        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          or
+        </span>
+        <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
+      </div>
+
       {mode === "primary" && (
         <>
-          {!agent && <GoogleAuthButton surface={surface} onClick={() => openOAuth("google")} />}
-          <LinkedInAuthButton surface={surface} onClick={() => openOAuth("linkedin_oidc")} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
-            <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-            <span style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-              or
-            </span>
-            <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-          </div>
           <MagicLinkInput surface={surface} redirectTo={redirectTo} onSent={(e) => setPendingEmail(e)} />
 
           <button
@@ -175,8 +178,8 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
               fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center",
             }}
           >
-            Forgot it?{" "}
-            <span style={{ color: "var(--tm-interactive)" }}>Email me a link</span>
+            <span style={{ color: "var(--tm-interactive)" }}>← Back to all sign-in options</span>
+            {" "}(or email me a link)
           </button>
         </form>
       )}

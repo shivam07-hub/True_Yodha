@@ -1638,7 +1638,7 @@ export interface JobMatch {
   is_recommended?: boolean
   baseline_version_id?: number | null
   target_context_hash?: string | null
-  seniority_compatibility?: boolean | null
+  seniority_compatibility?: string | null // "compatible" | "incompatible" | "unknown"
 }
 
 export interface JobMatchesResponse {

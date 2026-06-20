@@ -1,7 +1,13 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+# Single source of type truth for the matcher's seniority verdict. Declared once
+# here and reused by the matcher's Credibility output, the MatchEval read model,
+# and JobMatchResponse — so the write side and read side can never disagree about
+# the field's type again (the bool/str drift that 500'd the dashboard).
+SeniorityCompat = Literal["compatible", "incompatible", "unknown"]
 
 
 class SkillGapItem(BaseModel):
@@ -39,6 +45,42 @@ class UserSkillDemandItem(BaseModel):
 class UserSkillDemandResponse(BaseModel):
     skills: list[UserSkillDemandItem]
     total: int
+
+
+class MatchEval(BaseModel):
+    """Typed view of the `user_job_matches` eval columns — the matcher's output
+    (deterministic overlap + credibility + the LLM 5-axis eval).
+
+    This is the read seam for a persisted match row: the repository parses raw
+    Supabase dicts into this model, so `to_job_match` receives a typed, validated
+    shape instead of re-guessing each field's type with `.get()`. Tolerant by
+    design — every field optional, unknown columns ignored — so a new persisted
+    column never 500s the read; a *type* mismatch on a known field fails here, at
+    one clear seam, with a test surface, rather than at the per-user response gate.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    overlap_score: float = 0
+    llm_rank: int | None = None
+    llm_explanation: str | None = None
+    matched_skills: list[str] = []
+    is_recommended: bool = False
+    baseline_version_id: int | None = None
+    target_context_hash: str | None = None
+    seniority_compatibility: SeniorityCompat | None = None
+    overall_score: float | None = None
+    grade: str | None = None
+    recommendation: str | None = None
+    application_angle: str | None = None
+    summary: str | None = None
+    role_fit: float | None = None
+    comp_fit: float | None = None
+    growth_fit: float | None = None
+    culture_fit: float | None = None
+    risk_score: float | None = None
+    strengths: list[str] = []
+    concerns: list[str] = []
 
 
 class JobMatchResponse(BaseModel):
@@ -88,7 +130,7 @@ class JobMatchResponse(BaseModel):
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
-    seniority_compatibility: bool | None = None
+    seniority_compatibility: SeniorityCompat | None = None  # reuses the shared alias — cannot drift from MatchEval
 
 
 class JobMatchesResponse(BaseModel):

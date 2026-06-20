@@ -6,6 +6,8 @@ import { useViewport } from "@/mobile"
 import type { JobFeedItem } from "@/lib/api"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
+import { FeedCardSkeleton } from "@/components/jobs/feed-card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
@@ -130,6 +132,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const railProps = {
     token, targetLocations, total, feed: allJobs, pulses,
     onSeeRoles, onOpenJob: setOpenJob,
+    // Rail strip mirrors the feed's readiness — never paints a literal "0 live
+    // roles" before the count has landed (the data-flash root cause).
+    loading: feed.isLoading,
   }
 
   return (
@@ -199,7 +204,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
         <div style={{ marginTop: 8 }}>
           {feed.isLoading ? (
-            <FeedSkeleton />
+            <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
           ) : (
@@ -299,11 +304,24 @@ function LocationScopePill({ locations }: { locations: string[] }) {
   )
 }
 
-function FeedSkeleton({ rows = 4 }: { rows?: number }) {
+/**
+ * Feed loading shape. Mirrors the real list: the summary chip row (only on the
+ * first load — `summary`) above N real-shaped <FeedCardSkeleton> rows, so when
+ * the jobs land they fall into the exact same boxes with no reflow or pop-in.
+ * The next-page variant (`summary={false}`) shows only the trailing cards.
+ */
+function FeedSkeleton({ rows = 4, summary = false }: { rows?: number; summary?: boolean }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: summary ? 8 : 16 }} aria-hidden="true">
+      {summary ? (
+        <div className="tm-feed-summary">
+          <Skeleton style={{ width: 64, height: 11, borderRadius: 4 }} />
+          <Skeleton style={{ width: 96, height: 26, borderRadius: 999 }} />
+          <Skeleton style={{ width: 150, height: 26, borderRadius: 999 }} />
+        </div>
+      ) : null}
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} style={{ height: 132, borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", animation: "pulse 1.5s ease-in-out infinite" }} />
+        <FeedCardSkeleton key={i} />
       ))}
     </div>
   )

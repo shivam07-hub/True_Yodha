@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { useCvPromise } from "@/lib/hooks/use-cv-promise"
 import { AUTHED_NAV, isNavItemUnlocked } from "@/lib/nav-items"
+import { tierForScore } from "@/lib/score-tiers"
 import "./first-run-hero.css"
 
 export interface FirstRunBestMatch {
@@ -57,6 +58,9 @@ export function FirstRunHero({
   const processing = cvReadiness === "processing"
   const failed = cvReadiness === "failed"
   const scored = hasCv && score > 0
+  // Non-punitive milestone framing (canonical — same source as ScoreRing). A low
+  // score reads as a stage ("Emerging") with a next target, never as failure.
+  const tier = tierForScore(score)
 
   const step1: StepState = hasCv ? "done" : processing ? "working" : failed ? "failed" : "active"
   const step2: StepState = scored ? "done" : hasCv ? "working" : "locked"
@@ -65,8 +69,16 @@ export function FirstRunHero({
   // Score is still computing once the CV is parsed but no score has landed yet.
   const scoring = (step1 === "working") || (step1 === "done" && !scored)
 
-  const eyebrowClock =
-    phase === "running" ? mmss : phase === "finish" ? "00:00" : "10 min"
+  // Eyebrow lead never shows a dead "00:00". Once scored the journey is on the
+  // tailor step, so the countdown is retired entirely; an expired-but-unscored
+  // deadline becomes a no-shame "pick up" nudge, not a timer at zero.
+  const eyebrow: { lead: string; rest: string } = scored
+    ? { lead: "Last step", rest: "tailor to a role" }
+    : phase === "running"
+      ? { lead: mmss, rest: "to your first CV" }
+      : phase === "finish"
+        ? { lead: "Pick up", rest: "finish your CV" }
+        : { lead: "10 min", rest: "to your first CV" }
 
   function goUpload() {
     router.push("/cv?upload=1")
@@ -75,18 +87,25 @@ export function FirstRunHero({
     router.push(bestMatch ? `/cv?jobId=${encodeURIComponent(bestMatch.jobId)}` : "/cv")
   }
 
-  // One row per real gated nav surface (D1: derived from nav-items, so copy can
+  // Still-locked gated surfaces only (D1: derived from nav-items, so copy can
   // never drift from the actual unlock logic). Myrology (special) is omitted.
+  // Already-unlocked rows are excluded — "UNLOCKS AS YOU GO" must list what's
+  // still ahead, not an arrived item tagged "IN NAV" (the unlock reward is the
+  // NavCoach coachmark). When nothing is left locked, the whole section hides.
   const grows = AUTHED_NAV.filter(
-    (i) => i.stage === "gated" && !i.special && i.surfaces.includes("desktop"),
+    (i) =>
+      i.stage === "gated" &&
+      !i.special &&
+      i.surfaces.includes("desktop") &&
+      !isNavItemUnlocked(i, ctx),
   )
 
   return (
     <section className="frh" aria-label="Get to your first CV">
       <div className="frh-eyebrow">
-        <span className="frh-eyebrow-clock">{eyebrowClock}</span>
+        <span className="frh-eyebrow-clock">{eyebrow.lead}</span>
         <span className="frh-eyebrow-dot" aria-hidden>·</span>
-        <span className="frh-eyebrow-rest">to your first CV</span>
+        <span className="frh-eyebrow-rest">{eyebrow.rest}</span>
       </div>
 
       <h1 className="frh-title">
@@ -98,9 +117,13 @@ export function FirstRunHero({
       </h1>
 
       <p className="frh-lede">
-        {hasCv
-          ? "Myro read your CV and scored it. Tailor it to your best-matched role to download a scored, job-specific version."
-          : "Drop in your CV. Myro reads it, scores it, and tailors a version for the exact role you want."}
+        {scored
+          ? tier.next !== null
+            ? `Myro scored your CV ${score}/100 — ${tier.label}. Tailor it to a role to push toward ${tier.next}.`
+            : `Myro scored your CV ${score}/100 — ${tier.label}. Tailor it to a role for a job-specific version.`
+          : hasCv
+            ? "Myro read your CV. Your score lands in a moment — then tailor it to a role."
+            : "Drop in your CV. Myro reads it, scores it, and tailors a version for the exact role you want."}
       </p>
 
       {/* Primary action — the single focal point, Upload-first (Gap 1). When the

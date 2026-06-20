@@ -43,6 +43,13 @@
   display: contents;
 }
 
+/* Shared-content cluster (Intel / Newsletter / Myrology) injected for authed
+   viewers — same order + labels as the app shell so the two bars never diverge.
+   `contents` lets it join the same flex row, ahead of the workspace tabs. */
+.tm-public-nav-content {
+  display: contents;
+}
+
 .tm-public-nav-link {
   display: flex;
   align-items: center;
@@ -170,10 +177,11 @@
     display: none;
   }
 
-  /* Workspace tabs are label-only (no glyph); the mobile bar collapses labels
-     to icons, which would leave them blank. Hide the whole group — the brand
+  /* Workspace + content tabs are label-only (no glyph); the mobile bar collapses
+     labels to icons, which would leave them blank. Hide both groups — the brand
      logo still routes a logged-in user back to /home. */
-  .tm-public-nav-workspace {
+  .tm-public-nav-workspace,
+  .tm-public-nav-content {
     display: none;
   }
 

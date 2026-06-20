@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import type { JobPulse } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { fitTier } from "@/lib/dashboard/feed-model"
 import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
 import "./feed-card.css"
@@ -182,6 +183,34 @@ export function FeedCard({
 
       {pulse}
       {actions ? <div className="fc-actions">{actions}</div> : null}
+    </article>
+  )
+}
+
+/**
+ * Loading shape for <FeedCard variant="row">. Co-located beside the real card so
+ * a layout change forces this to move with it (the dashboard-loading grill Q13
+ * doctrine — no central skeleton to orphan). Reuses the real `fc-*` classes, so
+ * the live card lands in the exact same box with no reflow. The ONE feed-card
+ * loading shape — every surface (market, dashboard, bootstrap) renders this, not
+ * a hand-rolled box. Decorative; aria-hidden.
+ */
+export function FeedCardSkeleton() {
+  return (
+    <article className="fc-card fc-row" aria-hidden="true">
+      <div className="fc-row" style={{ width: "100%" }}>
+        <Skeleton style={{ width: 42, height: 42, borderRadius: 12, flex: "0 0 auto" }} />
+        <div className="fc-body">
+          <Skeleton style={{ width: 110, height: 13, borderRadius: 4 }} />
+          <Skeleton style={{ width: "72%", height: 17, borderRadius: 6 }} />
+          <Skeleton style={{ width: 150, height: 12, borderRadius: 4 }} />
+          <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+            <Skeleton style={{ width: 88, height: 22, borderRadius: 999 }} />
+            <Skeleton style={{ width: 116, height: 22, borderRadius: 999 }} />
+            <Skeleton style={{ width: 72, height: 22, borderRadius: 999 }} />
+          </div>
+        </div>
+      </div>
     </article>
   )
 }

@@ -7,7 +7,7 @@ export function isCredibleRecommendation(job: JobMatch): boolean {
     && typeof job.overall_score === "number"
     && job.overall_score >= 3.5
     && CREDIBLE_VERDICTS.has(job.recommendation?.trim().toLocaleLowerCase() ?? "")
-    && job.seniority_compatibility === true
+    && job.seniority_compatibility === "compatible"
     && typeof job.baseline_version_id === "number"
     && Boolean(job.target_context_hash)
 }

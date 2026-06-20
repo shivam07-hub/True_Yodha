@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
 import "./market-intel.css"
 
@@ -15,26 +16,41 @@ export interface MarketRailProps {
   onSeeRoles: (query: string) => void
   /** Open a job's detail (where the deliberate verify/report flow lives). */
   onOpenJob: (job: JobFeedItem) => void
+  /** Feed still resolving — strip shows a shimmer, never a literal "0". */
+  loading?: boolean
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { token, targetLocations, total, feed, pulses, onSeeRoles, onOpenJob } = props
-  const { movers, trending } = useMarketIntel(token, targetLocations)
+  const { token, targetLocations, total, feed, pulses, onSeeRoles, onOpenJob, loading = false } = props
+  const { movers, trending, loading: intelLoading } = useMarketIntel(token, targetLocations)
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
   return (
     <aside className="mi-rail" aria-label="Market intel">
-      {/* thin scope strip — real live-role count, no fabricated daily delta */}
-      <div className="mi-widget mi-strip">
-        <span className="mi-strip-num">{total.toLocaleString()}</span>
-        <span className="mi-strip-sub">live role{total === 1 ? "" : "s"}{city ? ` · ${city}` : ""}</span>
+      {/* thin scope strip — real live-role count, no fabricated daily delta.
+          While the feed is still loading the number is a shimmer, not "0" — a
+          literal zero here reads as "no jobs", the opposite of the truth. */}
+      <div className="mi-strip mi-widget">
+        {loading ? (
+          <Skeleton style={{ width: 104, height: 22, borderRadius: 6 }} />
+        ) : (
+          <>
+            <span className="mi-strip-num">{total.toLocaleString()}</span>
+            <span className="mi-strip-sub">live role{total === 1 ? "" : "s"}{city ? ` · ${city}` : ""}</span>
+          </>
+        )}
       </div>
 
+      {/* movers + trending resolve independently of the feed; while their query
+          is in flight show the real-shape widget skeletons rather than blank
+          (the missing-right-rail root cause). */}
+      {intelLoading ? <MarketRailLoading /> : null}
+
       {/* HERO: the core market lesson */}
-      {movers.length > 0 ? (
+      {!intelLoading && movers.length > 0 ? (
         <div className="mi-widget mi-hero">
           <h4 className="mi-h4">Skill-demand movers</h4>
           <p className="mi-sub">What the market is asking for, this month.</p>
@@ -48,7 +64,7 @@ export function MarketRail(props: MarketRailProps) {
       ) : null}
 
       {/* who's hiring in scope */}
-      {trending.length > 0 ? (
+      {!intelLoading && trending.length > 0 ? (
         <div className="mi-widget">
           <h4 className="mi-h4">Trending companies</h4>
           {trending.map((c) => (
@@ -113,6 +129,39 @@ export function MarketChipStrip(props: MarketRailProps) {
         </button>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * Loading shape for the rail's two intel widgets, co-located here so a rail
+ * layout change moves it too. Keeps the real headings (so they don't pop in for
+ * the common non-empty case) and shimmers the rows over the real `mi-mover` /
+ * `mi-tco` classes — content lands in place. Decorative; aria-hidden.
+ */
+function MarketRailLoading() {
+  return (
+    <>
+      <div className="mi-widget mi-hero" aria-hidden="true">
+        <h4 className="mi-h4">Skill-demand movers</h4>
+        <p className="mi-sub">What the market is asking for, this month.</p>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="mi-mover">
+            <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${72 - i * 7}%` }} />
+            <Skeleton style={{ width: 34, height: 13, borderRadius: 4, flexShrink: 0 }} />
+          </div>
+        ))}
+      </div>
+      <div className="mi-widget" aria-hidden="true">
+        <h4 className="mi-h4">Trending companies</h4>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="mi-tco">
+            <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flex: "0 0 auto" }} />
+            <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${62 - i * 6}%` }} />
+            <Skeleton style={{ width: 44, height: 12, borderRadius: 4, flexShrink: 0 }} />
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 

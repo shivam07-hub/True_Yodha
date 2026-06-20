@@ -175,6 +175,81 @@ export function DashboardSkeleton() {
   )
 }
 
+/**
+ * /market is the primary daily surface: a pinned hero rail · job feed · market
+ * rail. Mirrors that three-region shape (mc-workspace 248px rail + the feed/rail
+ * split) with inline styles, since the page's own CSS modules aren't loaded yet
+ * during the auth-bootstrap window. Keeps the bootstrap instant shaped like the
+ * destination instead of a generic stat-tile page.
+ */
+export function MarketSkeleton() {
+  const FeedRow = () => (
+    <Card>
+      <div style={{ display: "flex", gap: 14 }}>
+        <Skeleton style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+          <Bar w={110} h={13} r={4} />
+          <Bar w={"72%"} h={17} r={6} />
+          <Bar w={150} h={12} r={4} />
+          <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+            <Bar w={88} h={22} r={999} />
+            <Bar w={116} h={22} r={999} />
+            <Bar w={72} h={22} r={999} />
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+  const RailWidget = ({ rows, logo }: { rows: number; logo?: boolean }) => (
+    <Card>
+      <Bar w={120} h={11} r={4} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {logo && <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0 }} />}
+            <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${70 - i * 6}%` }} />
+            <Skeleton style={{ width: 40, height: 12, borderRadius: 4, flexShrink: 0 }} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+  return (
+    <div className="tm-page-enter" aria-hidden="true" style={{ ...PAGE, maxWidth: 1480, margin: "0 auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "248px minmax(0, 1fr)", gap: 28, alignItems: "start" }}>
+        {/* hero rail: greeting + loop ring */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <Bar w={"100%"} h={20} r={6} />
+          <Skeleton style={{ width: 168, height: 168, borderRadius: 999 }} />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {[58, 64, 44, 70, 52].map((w, i) => (
+              <Skeleton key={i} style={{ width: w, height: 22, borderRadius: 999 }} />
+            ))}
+          </div>
+        </div>
+        {/* main: tab pills, then feed + market rail */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Bar w={180} h={42} r={999} />
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 28, alignItems: "start" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Bar w={96} h={26} r={999} />
+                <Bar w={150} h={26} r={999} />
+              </div>
+              {[0, 1, 2, 3].map((i) => <FeedRow key={i} />)}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Card><Bar w={104} h={22} r={6} /></Card>
+              <RailWidget rows={5} />
+              <RailWidget rows={4} logo />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function GenericPageSkeleton() {
   return (
     <div className="tm-page-enter" aria-hidden="true" style={PAGE}>
@@ -196,6 +271,7 @@ export function GenericPageSkeleton() {
  */
 export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/home")) return <DashboardSkeleton />
+  if (pathname.startsWith("/market")) return <MarketSkeleton />
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/forge")) return <ForgeSkeleton />

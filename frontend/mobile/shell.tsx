@@ -198,7 +198,9 @@ function MobileStaleBadge() {
       style={{
         position: "absolute", top: -4, right: -8,
         minWidth: 13, height: 13, borderRadius: 99,
-        background: "var(--tm-danger)", color: "white",
+        // D10: count badge is neutral, not danger — red = error in the token
+        // system. Matches the desktop StaleBadge (topbar-nav).
+        background: "var(--tm-text-muted)", color: "var(--tm-surface)",
         fontSize: 9, fontFamily: "var(--tm-font-mono)",
         display: "grid", placeItems: "center", padding: "0 3px",
       }}

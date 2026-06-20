@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from app.repositories.jobs import _is_marker_stale, _job_feed_marker_to_iso
-from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse
+from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse, MatchEval
 
 
 def last_monday() -> date:
@@ -22,6 +22,11 @@ def _row_batch_week(row: dict, fallback: date) -> date:
 
 def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     job = row.get("jobs") or {}
+    # Parse the user_job_matches eval columns through the typed read model: the
+    # matcher's output (overlap + credibility + LLM 5-axis) is validated here, at
+    # the single read seam, instead of each field being re-guessed via .get().
+    # MatchEval is tolerant (extra ignored), so it never narrows the read.
+    ev = MatchEval.model_validate(row)
     return JobMatchResponse(
         id=row["id"],
         job_id=row["job_id"],
@@ -35,12 +40,12 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         locations=[c for c in (job.get("locations") or []) if c and c.strip()],
         industry=job.get("industry"),
         remote=False,
-        overlap_score=row.get("overlap_score", 0),
-        llm_rank=row.get("llm_rank"),
-        llm_explanation=row.get("llm_explanation"),
+        overlap_score=ev.overlap_score,
+        llm_rank=ev.llm_rank,
+        llm_explanation=ev.llm_explanation,
         batch_week=_row_batch_week(row, batch_week),
         source_url=job.get("apply_url"),
-        matched_skills=row.get("matched_skills") or [],
+        matched_skills=ev.matched_skills,
         job_summary=job.get("job_summary"),
         job_description=job.get("job_description"),
         date_posted=job.get("date_posted"),
@@ -52,22 +57,22 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         last_seen_at=_job_feed_marker_to_iso(job.get("last_seen")),
         is_stale=_is_marker_stale(job.get("last_seen")),
         is_active=bool(job.get("is_active", True)),
-        overall_score=row.get("overall_score"),
-        grade=row.get("grade"),
-        recommendation=row.get("recommendation"),
-        application_angle=row.get("application_angle"),
-        summary=row.get("summary"),
-        role_fit=row.get("role_fit"),
-        comp_fit=row.get("comp_fit"),
-        growth_fit=row.get("growth_fit"),
-        culture_fit=row.get("culture_fit"),
-        risk_score=row.get("risk_score"),
-        strengths=row.get("strengths") or [],
-        concerns=row.get("concerns") or [],
-        is_recommended=bool(row.get("is_recommended")),
-        baseline_version_id=row.get("baseline_version_id"),
-        target_context_hash=row.get("target_context_hash"),
-        seniority_compatibility=row.get("seniority_compatibility"),
+        overall_score=ev.overall_score,
+        grade=ev.grade,
+        recommendation=ev.recommendation,
+        application_angle=ev.application_angle,
+        summary=ev.summary,
+        role_fit=ev.role_fit,
+        comp_fit=ev.comp_fit,
+        growth_fit=ev.growth_fit,
+        culture_fit=ev.culture_fit,
+        risk_score=ev.risk_score,
+        strengths=ev.strengths,
+        concerns=ev.concerns,
+        is_recommended=ev.is_recommended,
+        baseline_version_id=ev.baseline_version_id,
+        target_context_hash=ev.target_context_hash,
+        seniority_compatibility=ev.seniority_compatibility,
     )
 
 

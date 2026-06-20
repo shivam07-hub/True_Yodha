@@ -307,25 +307,30 @@ function MissionControlInner() {
     const best = credibleJobs[0]
     return (
       <PageShell>
-        <FirstRunHero
-          firstName={firstName}
-          hasCv={profile?.has_cv ?? false}
-          cvReadiness={profile?.cv_readiness ?? "missing"}
-          score={score}
-          domainsCount={Object.keys(scoreData?.domain_scores ?? {}).length}
-          bestMatch={
-            best
-              ? {
-                  jobId: best.job_id,
-                  title: best.title,
-                  company: best.company,
-                  location: best.location,
-                  fit: Math.round(best.overlap_score),
-                }
-              : null
-          }
-        />
-        {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored={false} /> : null}
+        {/* First-run is one focused, centered column — hero + next-steps share the
+            same 640 measure so the journey reads as a single aligned rail rather
+            than a narrow hero floating above a full-width block. */}
+        <div className="frh-firstrun-col">
+          <FirstRunHero
+            firstName={firstName}
+            hasCv={profile?.has_cv ?? false}
+            cvReadiness={profile?.cv_readiness ?? "missing"}
+            score={score}
+            domainsCount={Object.keys(scoreData?.domain_scores ?? {}).length}
+            bestMatch={
+              best
+                ? {
+                    jobId: best.job_id,
+                    title: best.title,
+                    company: best.company,
+                    location: best.location,
+                    fit: Math.round(best.overlap_score),
+                  }
+                : null
+            }
+          />
+          {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored={false} /> : null}
+        </div>
       </PageShell>
     )
   }

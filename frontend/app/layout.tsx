@@ -3,6 +3,12 @@ import { Inter, Space_Grotesk, Newsreader } from "next/font/google"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
+// Progressive-nav chrome (beta badge, NEW pill, unlock coachmark + scrim,
+// cv-promise pill, live dot). Disjoint from globals.css's topbar rules — loaded
+// globally here because it renders on both the authed shell (web-chrome) and the
+// public bar's authed view (top-nav). The import was lost in the repo reshuffle,
+// leaving these classes unstyled in production until restored.
+import "@/components/nav/nav.css"
 
 // Space Grotesk is the core UI family site-wide (--tm-font-sans). Inter is kept
 // loaded purely as the fallback in the token stack so text survives if Grotesk
