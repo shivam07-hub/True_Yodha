@@ -35,9 +35,11 @@ export function CvPromisePill({
     >
       <span className="tm-cv-promise-pulse" aria-hidden />
       <span className="tm-cv-promise-lbl">{isFinish ? "FINISH CV" : "FIRST CV IN"}</span>
-      <span className="tm-cv-promise-time">
-        {isPromise ? "10 min" : isFinish ? "00:00" : mmss}
-      </span>
+      {/* No dead "00:00" on the expired state — the label carries the nudge.
+          A timer frozen at zero reads as broken, not as "time's up". */}
+      {!isFinish && (
+        <span className="tm-cv-promise-time">{isPromise ? "10 min" : mmss}</span>
+      )}
     </button>
   )
 }

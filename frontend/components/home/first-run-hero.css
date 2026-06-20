@@ -2,9 +2,16 @@
  * Sits inside the app shell. Text, spacing, and controls follow the superseding
  * brand rhythm so the first upload journey feels guided, not shouted at.
  */
-.frh {
+/* First-run column: hero + next-steps share one centered 640 measure so they
+   align as a single rail (fixes the narrow-hero-over-wide-block mismatch). */
+.frh-firstrun-col {
   max-width: 640px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.frh {
   padding: 8px 4px 24px;
 }
 
@@ -150,7 +157,8 @@
   height: 2px;
   background: var(--tm-border);
 }
-.frh-rail-node[data-state="done"]:not(:last-child)::before { background: var(--tm-accent-ring); }
+/* Completed legs read as green progress — accent (orange) is reserved for the CTA. */
+.frh-rail-node[data-state="done"]:not(:last-child)::before { background: var(--tm-success-border); }
 .frh-rail-dot {
   position: relative;
   z-index: 1;
@@ -173,10 +181,12 @@
   color: var(--tm-accent);
 }
 .frh-rail-node[data-state="working"] .frh-rail-dot { animation: frh-pulse 1.6s ease-in-out infinite; }
+/* Done = green (completion), not a solid accent fill. Keeps the CTA the only
+   solid-orange element on the page so it owns the focal point. */
 .frh-rail-node[data-state="done"] .frh-rail-dot {
-  background: var(--tm-accent);
-  border-color: var(--tm-accent);
-  color: var(--tm-accent-fg);
+  background: var(--tm-success-wash);
+  border-color: var(--tm-success-border);
+  color: var(--tm-success);
 }
 .frh-rail-node[data-state="failed"] .frh-rail-dot {
   background: var(--tm-danger-wash);
@@ -189,12 +199,14 @@
   color: var(--tm-text-muted);
 }
 .frh-rail-node[data-state="locked"] .frh-rail-label { color: var(--tm-text-faint); }
+/* Score is DATA, not a celebration — neutral ink, matching ScoreRing's number
+   (the accent is reserved for the CTA). Non-punitive: low scores read calmly. */
 .frh-rail-detail {
   font-family: var(--tm-font-mono);
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--tm-accent);
+  color: var(--tm-text);
 }
 @keyframes frh-pulse { 50% { outline: 3px solid var(--tm-accent-wash); outline-offset: 2px; } }
 
@@ -218,12 +230,13 @@
   letter-spacing: 0.12em;
   color: var(--tm-text-faint);
 }
+/* Fit % is data, not an action — neutral chip so the card's CTA keeps the accent. */
 .frh-match-fit {
   padding: 3px 9px;
   border-radius: var(--tm-radius-pill, 99px);
-  background: var(--tm-accent-wash);
-  border: 1px solid var(--tm-accent-ring);
-  color: var(--tm-accent);
+  background: var(--tm-surface-2);
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text);
   font-family: var(--tm-font-mono);
   font-size: 11px;
   font-weight: 700;
@@ -235,10 +248,12 @@
   color: var(--tm-text);
   line-height: 1.3;
 }
+/* Company · location is real info → muted, not faint (faint is label-only per
+   the token contract: --tm-text-faint "never used for primary content"). */
 .frh-match-sub {
   margin-top: 3px;
   font-size: 12.5px;
-  color: var(--tm-text-faint);
+  color: var(--tm-text-muted);
 }
 .frh-match-cta {
   margin-top: 14px;
@@ -296,10 +311,11 @@
   border: 1px solid var(--tm-border);
   color: var(--tm-text-faint);
 }
+/* Unlocked = green tick (completion), consistent with done steps; not accent. */
 .frh-grows-row[data-unlocked="true"] .frh-grows-icon {
-  background: var(--tm-accent-wash);
-  border-color: var(--tm-accent-ring);
-  color: var(--tm-accent);
+  background: var(--tm-success-wash);
+  border-color: var(--tm-success-border);
+  color: var(--tm-success);
 }
 .frh-grows-body {
   flex: 1;
@@ -309,14 +325,17 @@
   gap: 1px;
 }
 .frh-grows-title { font-size: 13.5px; font-weight: 600; color: var(--tm-text); }
-.frh-grows-sub { font-size: 11.5px; color: var(--tm-text-faint); }
+/* Unlock hint is instructional copy ("unlocks when you upload your CV") → muted,
+   not faint (faint is reserved for non-load-bearing labels/icons). */
+.frh-grows-sub { font-size: 11.5px; color: var(--tm-text-muted); }
+/* "IN NAV" is a passive status tag, not an action — neutral, never accent. */
 .frh-grows-pill {
   flex-shrink: 0;
   padding: 2px 8px;
   border-radius: var(--tm-radius-pill, 99px);
-  background: var(--tm-accent-wash);
-  border: 1px solid var(--tm-accent-ring);
-  color: var(--tm-accent);
+  background: var(--tm-surface-2);
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
   font-family: var(--tm-font-mono);
   font-size: 9px;
   font-weight: 700;
