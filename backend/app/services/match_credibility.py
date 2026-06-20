@@ -4,13 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.schemas.jobs import SeniorityCompat
 from app.services.onboarding_service import target_context_hash
 
 
 @dataclass(frozen=True)
 class Credibility:
     recommendation: str | None
-    seniority_compatibility: str
+    seniority_compatibility: SeniorityCompat
     context_hash: str | None
     credible: bool
 
@@ -30,7 +31,7 @@ def _seniority_from_title(title: str) -> str:
     return "unknown"
 
 
-def seniority_compatibility(target: str, job_title: str) -> str:
+def seniority_compatibility(target: str, job_title: str) -> SeniorityCompat:
     if target in ("", "any"):
         return "compatible"
     actual = _seniority_from_title(job_title)

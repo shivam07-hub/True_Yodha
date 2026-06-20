@@ -372,6 +372,18 @@ Endpoints never write to `cv_versions` directly. If a new flow needs to create a
 
 ---
 
+## Match Read Seam
+
+A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's durable output: deterministic skill overlap, the credibility gate (`match_credibility`), and the LLM 5-axis eval (`llm_ranker`). **Match Eval** (`MatchEval` in `schemas/jobs.py`) is the typed read model for the `user_job_matches` eval columns; `to_job_match` parses each raw row into it before building the `JobMatchResponse`, so the read boundary receives a validated shape instead of re-guessing each field with `.get()`.
+
+**Invariants**
+- A field's type is declared **once**. Shared type aliases (e.g. `SeniorityCompat = Literal["compatible","incompatible","unknown"]`) bind the matcher's output (`Credibility`), the `MatchEval` read model, and the `JobMatchResponse` field together — the write side and read side cannot disagree about a field's type. (The bool/str drift on `seniority_compatibility` 500'd `/jobs/matches` + `/home/bootstrap` per-user before this seam existed.)
+- `MatchEval` is **tolerant**: every field optional, unknown columns ignored. A newly-added persisted column never narrows the read or 500s the dashboard.
+- A *type* mismatch on a known eval field fails at this seam — one clear, tested boundary — not at the per-user response gate in production. The seam is the test surface (`test_job_match_response.py`).
+- `to_job_match` is the single reader of a match row. New consumers of match eval go through `MatchEval`, not raw dict `.get()`.
+
+---
+
 ## Background Job
 
 A durable unit of deferred work that must survive a process restart. Today: CV upload parse+score, initial match-compute, paid Job Refresh, skill-edit re-tag. Enqueued onto a **Work Lane** as an RQ job, consumed by a **Job Runner**, retried on transient failure, and charged/refunded through the existing XP ledger (ADR-0004). Replaces the legacy `asyncio.create_task` fire-and-forget in `cv_workflow.py` and the FastAPI `BackgroundTasks` in skill-edit.
