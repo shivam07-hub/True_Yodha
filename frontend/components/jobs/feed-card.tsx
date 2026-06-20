@@ -3,7 +3,7 @@
 import * as React from "react"
 import type { JobPulse } from "@/lib/api"
 import { fitTier } from "@/lib/dashboard/feed-model"
-import { ageLabel, experienceLabel, type FeedCardData } from "@/lib/jobs/card-view"
+import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
 import "./feed-card.css"
 
 const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
@@ -18,10 +18,11 @@ function logoStyle(company: string | null): React.CSSProperties {
   return { "--fc-logo-bg": `hsl(${h} 52% 42%)`, "--fc-logo-ink": "#fff" } as React.CSSProperties
 }
 
-/* ── Fit indicators (the top-right slot — shared by every surface) ─────────── */
+/* ── Fit indicator (the top-right slot — ONE component, every surface) ──────── */
 
-/** Donut fit ring (0–100). Arc colour scales with the fit tier (D9). */
-export function FeedFitRing({ fit, size = 52 }: { fit: number; size?: number }) {
+/** Donut fit ring (0–100). Arc colour scales with the fit tier (D9).
+ *  Internal — surfaces render <FitIndicator>, never this directly. */
+function FeedFitRing({ fit, size }: { fit: number; size: number }) {
   const r = (size - 8) / 2
   const c = 2 * Math.PI * r
   const off = c * (1 - Math.max(0, Math.min(100, fit)) / 100)
@@ -34,28 +35,39 @@ export function FeedFitRing({ fit, size = 52 }: { fit: number; size?: number }) 
   )
 }
 
-/** Skill-overlap pill (market has no 0–100 fit — it leads with skill match). */
-export function FeedFitPill({ matchedCount, roleMatch, hasCv }: { matchedCount: number; roleMatch: number; hasCv: boolean }) {
-  if (!hasCv) {
-    return (
-      <a href="/cv" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
-        Upload CV →
-      </a>
-    )
+/**
+ * The ONE fit slot. Every surface (dashboard ring, market skill-pill, upload
+ * nudge) renders through here, driven by the `FitView` view-model the adapters
+ * compute in `card-view.ts`. The ring-vs-pill choice lives in the data, not at
+ * the call site — so adding a surface is one adapter, no new renderer.
+ */
+export function FitIndicator({ fit, size = 52 }: { fit: FitView; size?: number }) {
+  if (!fit) return null
+  switch (fit.kind) {
+    case "score":
+      return <FeedFitRing fit={fit.value} size={size} />
+    case "overlap": {
+      // Green wash is the *strong* fit signal — reserve it for 3+ overlaps so a
+      // thin 1-skill match doesn't shout success (ND1) or clash with the company
+      // monogram colour. 1–2 overlaps read in the quiet style.
+      const strong = fit.count >= 3
+      return (
+        <span className={`fc-fitpill${strong ? " fc-fitpill-on" : ""}`}>
+          ◉ {fit.count} skill{fit.count === 1 ? "" : "s"}
+        </span>
+      )
+    }
+    case "role":
+      return <span className="fc-fitpill fc-fitpill-on">◉ your role</span>
+    case "none":
+      return <span className="fc-fitpill">no overlap yet</span>
+    case "nudge":
+      return (
+        <a href="/cv" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
+          Upload CV →
+        </a>
+      )
   }
-  if (matchedCount > 0) {
-    // Green wash is the *strong* fit signal — reserve it for 3+ overlaps so a
-    // thin 1-skill match doesn't shout success (ND1) or clash with the company
-    // monogram colour. 1–2 overlaps read in the quiet style.
-    const strong = matchedCount >= 3
-    return (
-      <span className={`fc-fitpill${strong ? " fc-fitpill-on" : ""}`}>
-        ◉ {matchedCount} skill{matchedCount === 1 ? "" : "s"}
-      </span>
-    )
-  }
-  if (roleMatch > 0) return <span className="fc-fitpill fc-fitpill-on">◉ your role</span>
-  return <span className="fc-fitpill">no overlap yet</span>
 }
 
 /* ── Listing-confidence dim (D1) — surface-neutral, styled by feed-card.css ── */
@@ -75,8 +87,11 @@ export function feedCardConfidenceClass(pulse?: JobPulse): string {
 
 export interface FeedCardProps {
   data: FeedCardData
-  /** Top-right slot: <FeedFitRing> (dashboard) or <FeedFitPill> (market). */
+  /** Top-right slot override. Normally omitted — the card renders <FitIndicator>
+   *  from `data.fit`. Pass a node only to override (rare). */
   fit?: React.ReactNode
+  /** Fit-ring diameter when the card auto-renders from `data.fit` (mobile = 44). */
+  fitSize?: number
   /** Status chips beside the company (Applied / You added). */
   badges?: React.ReactNode
   /** Trust row above the actions — pass the live <PulseRow>. */
@@ -95,13 +110,16 @@ export interface FeedCardProps {
 }
 
 export function FeedCard({
-  data, fit, badges, pulse, actions, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+  data, fit, fitSize, badges, pulse, actions, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
   const exp = experienceLabel(data.minYears, data.maxYears)
   const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
   const hasLoc = data.locations.length > 0 || data.location || showMode
   const hasMeta = data.datePosted || data.seniority || exp
+  // The fit slot is derived from the data by default; an explicit `fit` node overrides.
+  const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
+  const hasFit = fit != null || data.fit != null
 
   return (
     <article
@@ -159,7 +177,7 @@ export function FeedCard({
             </div>
           ) : null}
         </div>
-        {fit ? <div className="fc-fit">{fit}</div> : null}
+        {hasFit ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
 
       {pulse}

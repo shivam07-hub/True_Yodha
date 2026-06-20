@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { CardActions, PulseRow } from "./card-atoms"
-import { FeedCard, FeedFitRing, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -54,7 +54,7 @@ function MobileCard({
   }
   return (
     <FeedCard
-      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job })}
+      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
       variant="row"
       leaving={leaving}
       extraClass={feedCardConfidenceClass(pulse)}
@@ -65,7 +65,7 @@ function MobileCard({
           {!it.isMatch ? <span className="db-sourcechip">You added</span> : null}
         </>
       }
-      fit={it.fit != null ? <FeedFitRing fit={it.fit} size={44} /> : undefined}
+      fitSize={44}
       pulse={<PulseRow pulse={pulse} mobile />}
       actions={
         <CardActions

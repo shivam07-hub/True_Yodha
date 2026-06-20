@@ -120,16 +120,9 @@
   color: var(--db-mut);
 }
 
-.db-fitring { display: block; }
-.db-fitring .track { stroke: var(--db-line); }
-.db-fitring .arc { stroke: var(--db-accent); transition: stroke-dashoffset 400ms ease; }
-.db-fitnum { font-size: 13px; font-weight: 700; fill: var(--db-ink); font-variant-numeric: tabular-nums; }
+/* The fit ring (.db-fitring/.db-fitnum) moved to .fc-ring in <FitIndicator>
+   (feed-card.css) — the one fit slot for every surface. Tier colours live there. */
 .db-fitcap { font-family: var(--tm-font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--db-faint); }
-/* Fit tiers (D9): only a strong fit earns the accent. Mid reads neutral, low
-   reads muted — a 17% fit must not look like a badge of honour. */
-.db-fitring.fit-mid .arc { stroke: var(--db-mut); }
-.db-fitring.fit-low .arc { stroke: var(--db-faint); }
-.db-fitring.fit-low .db-fitnum { fill: var(--db-mut); }
 
 /* ── Feed controls (db-head) ─────────────────────────────────── */
 .db-head {
@@ -353,10 +346,6 @@
 .db-drawer-apply:hover { text-decoration: underline; }
 
 @keyframes db-fadein { from { opacity: 0; } to { opacity: 1; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .db-fitring .arc { transition: none; }
-}
 
 /* ── Reused "Why you fit" lens (keeps the XP-gated streaming logic) ──── */
 .db-lens--why { display: flex; flex-direction: column; gap: 8px; }

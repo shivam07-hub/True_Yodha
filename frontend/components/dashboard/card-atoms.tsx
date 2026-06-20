@@ -3,7 +3,6 @@
 import * as React from "react"
 import Link from "next/link"
 import { Heart, X, Share, Check, Home, FileText, User, Radar, AlertTriangle } from "lucide-react"
-import { fitTier } from "@/lib/dashboard/feed-model"
 import type { JobMatch, JobPulse, ResponseSignal } from "@/lib/api"
 import { shareJob } from "@/lib/job-share"
 
@@ -17,39 +16,8 @@ export function Monogram({ company, size }: { company: string | null; size?: num
   )
 }
 
-/* ── Fit ring (donut, arc colour scales with the fit tier — D9) ──── */
-export function FitRing({ fit, size = 54 }: { fit: number; size?: number }) {
-  const r = (size - 8) / 2
-  const c = 2 * Math.PI * r
-  const off = c * (1 - Math.max(0, Math.min(100, fit)) / 100)
-  return (
-    <svg
-      className={`db-fitring fit-${fitTier(fit)}`}
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      role="img"
-      aria-label={`${fit} percent fit`}
-    >
-      <circle className="track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" />
-      <circle
-        className="arc"
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray={c}
-        strokeDashoffset={off}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <text className="db-fitnum" x="50%" y="50%" dominantBaseline="central" textAnchor="middle">
-        {fit}
-      </text>
-    </svg>
-  )
-}
+/* ── Fit ring lives in <FitIndicator> (components/jobs/feed-card) — the one
+ *  fit slot shared by every surface. The old db-fitring duplicate was removed. */
 
 /* ── Sparkline (header score trend) ─────────────────────────────── */
 export function Sparkline({ data, width = 120, height = 30 }: { data: number[]; width?: number; height?: number }) {

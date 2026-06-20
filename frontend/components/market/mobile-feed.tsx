@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
-import { FeedCard, FeedFitPill, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { StoryCard, type FeedStory } from "./story-card"
@@ -72,7 +72,7 @@ function MobileJobCard({
       <div className={`tm-mfeed-rail tm-mfeed-rail-skip ${intent === "skip" ? "is-armed" : ""}`} aria-hidden>✕ Not interested</div>
       <div className={`tm-mfeed-rail tm-mfeed-rail-save ${intent === "save" ? "is-armed" : ""}`} aria-hidden>Save ★</div>
       <FeedCard
-        data={feedDataFromFeedItem(job)}
+        data={feedDataFromFeedItem(job, { hasCv })}
         variant="row"
         extraClass={`${hint ? "tm-mfeed-hint" : ""}${feedCardConfidenceClass(pulse)}`}
         onOpen={() => { if (Math.abs(dx) < 6) onOpen() }}
@@ -83,7 +83,6 @@ function MobileJobCard({
           onPointerUp: onUp,
           onPointerCancel: onUp,
         }}
-        fit={<FeedFitPill matchedCount={job.matched_skill_count} roleMatch={job.target_role_match} hasCv={hasCv} />}
         pulse={<PulseRow pulse={pulse} bare />}
         actions={
           <>

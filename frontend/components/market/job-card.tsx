@@ -2,7 +2,7 @@
 
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
-import { FeedCard, FeedFitPill, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
@@ -54,34 +54,6 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
   )
 }
 
-/** The fit slot. Skills-match leads; role-match is a secondary tag. No CV → an
- *  honest upload nudge instead of a fake number. */
-export function FitSignal({ job, hasCv }: { job: JobFeedItem; hasCv: boolean }) {
-  if (!hasCv) {
-    return (
-      <a
-        href="/cv"
-        onClick={e => e.stopPropagation()}
-        style={{ textDecoration: "none", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-interactive-rest)" }}
-      >
-        Upload CV to see fit →
-      </a>
-    )
-  }
-  if (job.matched_skill_count > 0) {
-    return (
-      <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-success)" }}>
-        ◉ {job.matched_skill_count} skill{job.matched_skill_count === 1 ? "" : "s"} match
-        {job.target_role_match > 0 ? <span style={{ color: "var(--tm-text-faint)" }}>{" · matches your role"}</span> : null}
-      </span>
-    )
-  }
-  if (job.target_role_match > 0) {
-    return <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-success)" }}>◉ matches your target role</span>
-  }
-  return <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>no skill overlap yet</span>
-}
-
 // ── triage buttons (Save / Skip — the curation front door) ───────────────────
 
 export function TriageButtons({ onSave, onSkip }: { onSave: () => void; onSkip: () => void }) {
@@ -123,11 +95,10 @@ export function JobCard({
 }) {
   return (
     <FeedCard
-      data={feedDataFromFeedItem(job)}
+      data={feedDataFromFeedItem(job, { hasCv })}
       variant="row"
       extraClass={feedCardConfidenceClass(pulse)}
       onOpen={onOpen}
-      fit={<FeedFitPill matchedCount={job.matched_skill_count} roleMatch={job.target_role_match} hasCv={hasCv} />}
       pulse={<PulseRow pulse={pulse} bare />}
       actions={<TriageButtons onSave={onSave} onSkip={onSkip} />}
     />

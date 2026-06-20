@@ -7,6 +7,34 @@ export interface FeedChip {
 }
 
 /**
+ * What a card shows in its top-right fit slot. ONE canonical view-model so every
+ * surface renders the same `<FitIndicator>` — the ring-vs-pill choice is decided
+ * HERE in the adapter (locality), not smeared across each surface's call site.
+ *
+ * The two surfaces carry genuinely different fit signals: the dashboard has a
+ * 0–100 match score (donut ring), the market feed has only skill-overlap counts
+ * (success pill / honest nudge). Both reduce to this union.
+ */
+export type FitView =
+  | { kind: "score"; value: number } // 0–100 overlap/LLM fit → donut ring (dashboard)
+  | { kind: "overlap"; count: number } // N matched skills → success pill (market, has CV)
+  | { kind: "role" } // target-role match, no skill overlap → quiet pill
+  | { kind: "none" } // CV present, nothing matched → "no overlap yet"
+  | { kind: "nudge" } // no CV → upload prompt
+  | null // nothing to show in the slot
+
+/** Market `JobFeedItem` skill signals → FitView. Mirrors the old FeedFitPill logic. */
+function marketFit(
+  job: Pick<JobFeedItem, "matched_skill_count" | "target_role_match">,
+  hasCv: boolean,
+): FitView {
+  if (!hasCv) return { kind: "nudge" }
+  if (job.matched_skill_count > 0) return { kind: "overlap", count: job.matched_skill_count }
+  if (job.target_role_match > 0) return { kind: "role" }
+  return { kind: "none" }
+}
+
+/**
  * The normalized shape every feed card renders from. Both the market feed
  * (`JobFeedItem`) and the dashboard feed (`JobMatch`) adapt into this one model
  * so a single presentational `<FeedCard>` serves every surface.
@@ -28,6 +56,8 @@ export interface FeedCardData {
   /** Skills beyond the shown chips → rendered as a `+N` overflow pill. */
   extraChipCount: number
   ageIso: string | null
+  /** The top-right fit slot view-model. The card renders `<FitIndicator>` from it. */
+  fit: FitView
 }
 
 /** Compact relative-age badge from an ISO date (day granular). */
@@ -66,7 +96,7 @@ function snippetOf(text: string | null | undefined, max = 200): string {
 
 /** Dashboard `JobMatch` (+ feed wrapper fields) → FeedCardData. */
 export function feedDataFromMatch(
-  src: { jobId: string; company: string | null; role: string; job: JobMatch },
+  src: { jobId: string; company: string | null; role: string; job: JobMatch; fit?: number | null },
   opts: { maxChips?: number; snippetMax?: number } = {},
 ): FeedCardData {
   const { job } = src
@@ -88,13 +118,14 @@ export function feedDataFromMatch(
     chips: allChips.slice(0, maxChips).map((name) => ({ name, matched: true })),
     extraChipCount: Math.max(0, allChips.length - maxChips),
     ageIso: job.first_seen ?? null,
+    fit: src.fit != null ? { kind: "score", value: src.fit } : null,
   }
 }
 
 /** Market `JobFeedItem` → FeedCardData. */
 export function feedDataFromFeedItem(
   job: JobFeedItem,
-  opts: { maxChips?: number; snippetMax?: number } = {},
+  opts: { maxChips?: number; snippetMax?: number; hasCv?: boolean } = {},
 ): FeedCardData {
   const maxChips = opts.maxChips ?? 3
   return {
@@ -113,6 +144,7 @@ export function feedDataFromFeedItem(
     chips: job.skills.slice(0, maxChips).map((name) => ({ name })),
     extraChipCount: Math.max(0, job.skills.length - maxChips),
     ageIso: job.first_seen ?? null,
+    fit: marketFit(job, opts.hasCv ?? false),
   }
 }
 
