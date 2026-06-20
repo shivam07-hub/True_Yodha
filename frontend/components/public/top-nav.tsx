@@ -38,13 +38,6 @@ const STATIC_NAV_ITEMS: {
   { label: "For Colleges", href: "/institutions", id: "institutions", Icon: GraduationCap },
 ]
 
-function formatTodayShort(): string {
-  // Computed at every render — long-lived tabs that survive past midnight no
-  // longer freeze on yesterday's date (beta-3 finding: Intel label stuck on
-  // "24 May" the morning after).
-  return new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-}
-
 export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps) {
   const [isAuthed, setIsAuthed] = useState(false)
   const signup = useSignupGate()
@@ -62,20 +55,13 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
     setIsAuthed(!!getAccessToken())
   }, [])
 
-  // Desktop-only: the mobile public bar is icon-only with no room for workspace
-  // labels (CSS hides .tm-public-nav-workspace ≤720px). visibleDesktop already
-  // excludes Myrology; we re-attach it (accent/✦) from the content cluster.
-  const workspaceItems = isAuthed ? nav.visibleDesktop : []
-  const myrologyItem = isAuthed ? nav.content.find((i) => i.id === "myrology") : undefined
-
-  const intelLabel = isAuthed ? `Live Job Data · ${formatTodayShort()}` : "Live Job Data"
-
-  // Continuous-nav (intel-authed grill): a logged-in viewer on a public route
-  // gets the SHARED bucket (Newsletter, Intel) but not ACQUISITION ("For
-  // Colleges"), and the logo returns them to the app, not the marketing home.
-  const navItems = isAuthed
-    ? STATIC_NAV_ITEMS.filter((i) => i.id !== "institutions")
-    : STATIC_NAV_ITEMS
+  // Single ordered source (no parallel nav): an authed viewer's public bar
+  // renders the SAME shared clusters in the SAME order as the app shell
+  // (web-chrome) — content cluster (Intel / Newsletter / Myrology, nav.content)
+  // first, then workspace tabs (Jobs / Dashboard / CV, nav.visibleDesktop). Both
+  // bars consume useNavUnlocks, so order and labels can't drift between them.
+  // Logged-out visitors get the marketing items (Newsletter, For Colleges) +
+  // the Live Job Data CTA instead; the logo routes an authed viewer to the app.
 
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
@@ -89,50 +75,70 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
       </Link>
 
       <div className="tm-public-nav-links">
-        {workspaceItems.length > 0 && (
-          <div className="tm-public-nav-workspace">
-            {workspaceItems.map((item) => (
+        {isAuthed ? (
+          <>
+            {/* Content cluster — Intel / Newsletter / Myrology — identical order
+                and labels to the app shell's NavContentCluster (nav.content). */}
+            {nav.content.length > 0 && (
+              <div className="tm-public-nav-content">
+                {nav.content.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={`tm-public-nav-link${item.special ? " tm-public-nav-link-accent" : ""}`}
+                    data-active={item.id === active}
+                    title={item.desc}
+                  >
+                    <span className="tm-public-nav-label">
+                      {item.special ? `✦ ${item.label}` : item.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {/* Workspace tabs — Jobs / Dashboard / CV — follow the content
+                cluster, mirroring web-chrome (TopbarNav after NavContentCluster). */}
+            {nav.visibleDesktop.length > 0 && (
+              <div className="tm-public-nav-workspace">
+                {nav.visibleDesktop.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="tm-public-nav-link"
+                    data-active={item.id === active}
+                    title={item.desc}
+                  >
+                    <span className="tm-public-nav-label">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {STATIC_NAV_ITEMS.map(({ Icon, ...item }) => (
               <Link
                 key={item.id}
                 href={item.href}
-                className="tm-public-nav-link"
-                title={item.desc}
+                className={`tm-public-nav-link${item.accent ? " tm-public-nav-link-accent" : ""}`}
+                data-active={item.id === active}
+                title={item.label}
               >
+                <Icon className="tm-public-nav-glyph" size={18} aria-hidden="true" />
                 <span className="tm-public-nav-label">{item.label}</span>
               </Link>
             ))}
-            {myrologyItem && (
-              <Link
-                href={myrologyItem.href}
-                className="tm-public-nav-link tm-public-nav-link-accent"
-                title={myrologyItem.desc}
-              >
-                <span className="tm-public-nav-label">✦ {myrologyItem.label}</span>
-              </Link>
-            )}
-          </div>
+            <Link
+              href="/intel"
+              className="tm-public-nav-link tm-public-nav-link-live"
+              data-active={active === "intel"}
+              title="Live Job Data"
+            >
+              <span className="tm-public-nav-livedot" aria-hidden="true" />
+              <span className="tm-public-nav-label">Live Job Data</span>
+            </Link>
+          </>
         )}
-        {navItems.map(({ Icon, ...item }) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            className={`tm-public-nav-link${item.accent ? " tm-public-nav-link-accent" : ""}`}
-            data-active={item.id === active}
-            title={item.label}
-          >
-            <Icon className="tm-public-nav-glyph" size={18} aria-hidden="true" />
-            <span className="tm-public-nav-label">{item.label}</span>
-          </Link>
-        ))}
-        <Link
-          href="/intel"
-          className="tm-public-nav-link tm-public-nav-link-live"
-          data-active={active === "intel"}
-          title="Live Job Data"
-        >
-          <span className="tm-public-nav-livedot" aria-hidden="true" />
-          <span className="tm-public-nav-label">{intelLabel}</span>
-        </Link>
       </div>
 
       <div className="tm-public-nav-auth">

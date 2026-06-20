@@ -10,7 +10,7 @@ import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, U
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
-import { MasterCVHero, MasterCVPanel } from "./library-master"
+import { MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
 import { MobileCVHub } from "../mobile/mobile-cv-hub"
@@ -148,11 +148,6 @@ export function LibraryView({
     router.replace(`/cv?${params.toString()}`, { scroll: false })
   }
 
-  // On the CV view the Main CV is the whole point, so it opens by default; the
-  // panel's own Close button collapses it to the hero strip. `?master=1` forces
-  // it open on arrival.
-  const [masterOpen, setMasterOpen] = useState(() => true)
-
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
 
@@ -201,34 +196,20 @@ export function LibraryView({
           </div>
 
           {/* ── CV view: the Main CV is the whole point, full width ──────
-              Open (default) → the panel alone is the surface; its own head
-              carries name / version / Edit / Replace / Close. Collapsed → the
-              compact hero strip is the resting state with the re-open button.
-              Never both: stacking them duplicated name + version + replace and
-              buried the preview a screen down (the old scrollIntoView hack). */}
+              The panel is the surface — it always renders; its own head
+              carries name / version / Edit / Replace. No close/collapse:
+              this is a dedicated page, you leave via nav, not by hiding
+              the one thing you came to see. */}
           {view === "cv" && (
             <>
               {isNewUser && <WorkspaceIntroCard />}
-              {masterOpen ? (
-                <MasterCVPanel
-                  token={token}
-                  baseline={currentBaseline}
-                  cv={cv}
-                  profile={profile}
-                  onClose={() => setMasterOpen(false)}
-                  onReplace={onReplaceCV}
-                />
-              ) : (
-                <div className="tm-lib-hero-strip">
-                  <MasterCVHero
-                    baseline={currentBaseline}
-                    profile={profile}
-                    open={false}
-                    onOpen={() => setMasterOpen(true)}
-                    onReplace={onReplaceCV}
-                  />
-                </div>
-              )}
+              <MasterCVPanel
+                token={token}
+                baseline={currentBaseline}
+                cv={cv}
+                profile={profile}
+                onReplace={onReplaceCV}
+              />
             </>
           )}
 
