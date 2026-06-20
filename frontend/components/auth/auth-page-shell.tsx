@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicFooter } from "@/components/public/public-footer"
 import "@/components/public/landing/landing-engine.css"
@@ -35,12 +36,16 @@ function nextFromQuery(raw: string | null): string | null {
 export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: Props) {
   const formPane = (
     <>
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginBottom: 22,
-          }}>
+          <Link
+            href="/"
+            aria-label="Go to Myro home"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              marginBottom: 22,
+              textDecoration: "none",
+            }}>
             <div style={{ marginBottom: 10 }}>
               <MyroLogo size={42} />
             </div>
@@ -54,7 +59,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
             }}>
               career intelligence
             </div>
-          </div>
+          </Link>
 
           <div style={{
             background: "var(--tm-surface)",
