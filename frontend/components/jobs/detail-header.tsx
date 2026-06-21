@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { CompanyLink } from "@/components/companies/company-link"
 
 /**
  * The one canonical job-detail header — title → company → location → close.
@@ -23,7 +24,7 @@ export function DetailHeader({
     <header className="jdrawer-head">
       <div className="jdrawer-head-main">
         <h2 className="jdrawer-title">{title}</h2>
-        {company ? <div className="jdrawer-company">{company}</div> : null}
+        {company ? <CompanyLink company={company} className="jdrawer-company" /> : null}
         {location ? <div className="jdrawer-loc">{location}</div> : null}
       </div>
       <button type="button" className="jdrawer-close tm-control-focus" onClick={onClose} aria-label="Close">

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import type { ApplicationResponse, ApplicationStatus, CVVersionKind } from "@/lib/api"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
+import { CompanyLink } from "@/components/companies/company-link"
 import { STAGE_LABEL, OUTCOME_LABEL, daysBetween } from "./useTrackerBoard"
 import type { StageKey, OutcomeKey } from "./useTrackerBoard"
 import { StatusPicker } from "./StatusPicker"
@@ -71,16 +72,7 @@ export function ApplicationCard({
             {app.title || "Untitled role"}
           </div>
           <div style={{ marginTop: 2, fontSize: 12, color: "var(--tm-text-muted)" }}>
-            {app.company ? (
-              <Link
-                href={`/companies/${encodeURIComponent(app.company)}`}
-                style={{ color: "var(--tm-interactive-rest)", textDecoration: "none", borderBottom: "1px dotted var(--tm-border)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive-rest)" }}
-              >
-                {app.company}
-              </Link>
-            ) : "—"}
+            {app.company ? <CompanyLink company={app.company} /> : "—"}
           </div>
         </div>
         {!isOutcome && (

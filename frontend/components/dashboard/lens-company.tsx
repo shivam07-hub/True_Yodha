@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
+import { CompanyLink } from "@/components/companies/company-link"
 import { Deepeners } from "./deepeners"
 import type { JobMatch } from "@/lib/api"
 
@@ -30,7 +31,7 @@ export function LensCompany({
   return (
     <div className="db-lens db-lens--company">
       <div className="db-co-head">
-        <div className="db-co-name">{company ?? "—"}</div>
+        <CompanyLink company={company} className="db-co-name" />
         {company ? (
           <button type="button" className="db-mini-btn" onClick={() => setDrawerOpen(true)}>
             Reviews + funnel →

@@ -7,6 +7,7 @@ import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { CompanyLink } from "@/components/companies/company-link"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -986,9 +987,8 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                     {followedCompanies.map((company) => (
                       <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
-                        <Link href="/market" onClick={flushAndClose} style={{ fontWeight: 500, color: "var(--tm-interactive)", textDecoration: "none" }}>
-                          {company.company_name}
-                        </Link>
+                        <CompanyLink company={company.company_name} stopPropagation={false} />
+
                         <button
                           type="button"
                           onClick={() => following.unfollow(company.company_name)}

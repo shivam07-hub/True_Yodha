@@ -88,7 +88,10 @@
    than blowing the chip to full card width — keeps the strip to ≤2 lines. */
 .fc-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fc-chip-more { flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.fc-chip.is-match { background: var(--tm-int-bg-wash); border-color: var(--tm-int-border, var(--tm-interactive)); color: var(--tm-interactive); }
+/* Matched skill = neutral, NOT accent. Accent now means "clickable company"
+   (grill-locked 2026-06-21) — a chip in that colour would read as a false link.
+   The ✓ check + the stronger ink carry "you already have this". */
+.fc-chip.is-match { color: var(--tm-text); border-color: var(--tm-border); }
 
 /* ── fit slot (top-right) ─────────────────────────────────────────────────── */
 .fc-fit { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }

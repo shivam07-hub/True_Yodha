@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { useMemo, useState } from "react"
 import type { ApplicationResponse } from "@/lib/api"
+import { CompanyLink } from "@/components/companies/company-link"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { formatDate } from "@/lib/format"
 import { OUTCOME_LABEL, partitionVerdicts } from "./useTrackerBoard"
@@ -76,16 +76,7 @@ export function VerdictsTab({ apps, reviewedJobIds, onOpenReview, onDelete }: Pr
                     fontSize: 14, fontWeight: 600, color: "var(--tm-text)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
-                    {v.company ? (
-                      <Link
-                        href={`/companies/${encodeURIComponent(v.company)}`}
-                        style={{ color: "inherit", textDecoration: "none" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-interactive)" }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--tm-text)" }}
-                      >
-                        {v.company}
-                      </Link>
-                    ) : "—"} <span style={{ color: "var(--tm-text-muted)", fontWeight: 400 }}>· {v.title}</span>
+                    {v.company ? <CompanyLink company={v.company} /> : "—"} <span style={{ color: "var(--tm-text-muted)", fontWeight: 400 }}>· {v.title}</span>
                   </div>
                 </div>
                 {!reviewed && (
