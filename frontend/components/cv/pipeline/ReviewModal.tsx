@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { CloseButton } from "@/components/ui/close-button"
 
 const STAGE_LABELS: Record<string, string> = {
   saved: "Saved",
@@ -48,7 +50,7 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
             <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 4 }}>Leave a review</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>{company ?? "Company"}</div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div>
@@ -96,14 +98,10 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
         {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, background: "transparent", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>Skip</button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || stars === 0}
-            style={{ padding: "8px 20px", borderRadius: 8, background: stars > 0 ? "var(--tm-interactive)" : "rgba(255,255,255,0.05)", border: "none", color: stars > 0 ? "var(--tm-interactive-fg)" : "var(--tm-text-faint)", cursor: stars > 0 ? "pointer" : "default", fontSize: 13, fontWeight: 600, fontFamily: "inherit", opacity: submitting ? 0.6 : 1, transition: "all 120ms ease" }}
-          >
+          <Button variant="neutral" size="sm" onClick={onClose}>Skip</Button>
+          <Button variant="solid" size="sm" onClick={handleSubmit} disabled={submitting || stars === 0}>
             {submitting ? "Submitting…" : "Submit review"}
-          </button>
+          </Button>
         </div>
       </div>
     </>
