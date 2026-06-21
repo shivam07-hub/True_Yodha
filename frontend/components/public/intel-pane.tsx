@@ -290,7 +290,6 @@ export function IntelPane() {
         <IntelAuthedHeader
           score={personalScore}
           hasCv={hasCv}
-          parsedToday={analytics?.total_jobs_today ?? 0}
         />
       ) : (
         <IntelHero

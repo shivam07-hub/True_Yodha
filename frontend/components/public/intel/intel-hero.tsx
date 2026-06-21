@@ -94,10 +94,10 @@ function HeroStats({
  * below reads "relative to me"; no CV → the one honest CTA, the live Console
  * stays for continuity. */
 export function IntelAuthedHeader({
-  score, hasCv, parsedToday,
-}: { score: number | null; hasCv: boolean; parsedToday: number }) {
+  score, hasCv,
+}: { score: number | null; hasCv: boolean }) {
   return (
-    <section className="tm-intel-mc tm-intel-mc-authed">
+    <section className="tm-intel-mc tm-intel-mc-authed tm-intel-mc-authed-solo">
       <div className="tm-intel-mc-headline">
         <div className="tm-intel-eyebrow">
           <span className="tm-intel-live-dot" />
@@ -129,8 +129,6 @@ export function IntelAuthedHeader({
           </>
         )}
       </div>
-
-      <Console parsedToday={parsedToday} />
     </section>
   )
 }
