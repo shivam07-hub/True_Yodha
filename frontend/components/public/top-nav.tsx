@@ -8,6 +8,7 @@ import { ThemeControl } from "@/components/ui/theme-control"
 import { getAccessToken } from "@/lib/session"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
+import { navMarketingRoutes } from "@/lib/site-routes"
 import "./public-nav.css"
 
 export type PublicNavPage = "intel" | "newsletter" | "home" | "privacy" | "signup" | "login" | "docs" | "institutions"
@@ -27,16 +28,27 @@ interface PublicTopNavProps {
 // The Myro logo is the sole home affordance (LinkedIn/X pattern). The old
 // "CV Hub" pill pointed at the landing too — a redundant second home link that
 // also mislabelled the whole-platform landing as a single surface. Dropped.
+//
+// The marketing items now DERIVE from the single site-route registry
+// (lib/site-routes): declare a public surface with `nav: {treatment: "mail"|
+// "grad"}` there and it appears here — no parallel list to forget. The /intel
+// "live" treatment is the special live-pill below, not this glyph list.
+const NAV_ICON: Record<"mail" | "grad", typeof Mail> = { mail: Mail, grad: GraduationCap }
+
 const STATIC_NAV_ITEMS: {
   label: string
   href: string
   id: PublicNavPage
   accent?: boolean
   Icon: typeof Mail
-}[] = [
-  { label: "Newsletter",   href: "/newsletter",   id: "newsletter",   Icon: Mail          },
-  { label: "For Colleges", href: "/institutions", id: "institutions", Icon: GraduationCap },
-]
+}[] = navMarketingRoutes()
+  .filter((r) => r.nav.treatment === "mail" || r.nav.treatment === "grad")
+  .map((r) => ({
+    label: r.label,
+    href: r.path,
+    id: r.nav.id as PublicNavPage,
+    Icon: NAV_ICON[r.nav.treatment as "mail" | "grad"],
+  }))
 
 export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps) {
   const [isAuthed, setIsAuthed] = useState(false)

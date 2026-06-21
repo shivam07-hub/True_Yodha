@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getAllIssues } from "@/lib/newsletter"
 import { jobs } from "@/lib/api"
+import { sitemapStaticEntries } from "@/lib/site-routes"
 
 const BASE = "https://www.himyro.com"
 
@@ -34,17 +35,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // company URLs return on the next regeneration.
   }
 
+  // Static page entries derive from the single site-route registry — adding a
+  // public page there (with a `sitemap:` block) lists it here automatically.
+  const staticEntries = sitemapStaticEntries(BASE).map((e) => ({ ...e, lastModified: new Date() }))
+
   return [
-    { url: BASE, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
-    { url: `${BASE}/companies`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 },
+    ...staticEntries,
     ...companyPaths,
-    { url: `${BASE}/docs`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${BASE}/intel`, lastModified: new Date(), changeFrequency: "daily", priority: 0.8 },
-    { url: `${BASE}/newsletter`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.9 },
-    { url: `${BASE}/institutions`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-    { url: `${BASE}/myrology`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE}/privacy`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.4 },
-    { url: `${BASE}/terms`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
     ...issuePaths,
   ]
 }

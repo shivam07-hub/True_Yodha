@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
+import { footerColumns } from "@/lib/site-routes"
 import "./public-footer.css"
 
 // Brand glyphs inlined (lucide has no reliable X/GitHub brand marks). 24×24 viewBox.
@@ -23,34 +24,9 @@ const SOCIALS = [
   },
 ]
 
-const FOOTER_COLS = [
-  {
-    title: "Product",
-    links: [
-      { label: "CV Hub",        href: "/cv-preview"   },
-      { label: "Live Job Data", href: "/intel"        },
-      { label: "Companies",     href: "/companies"    },
-      { label: "For Colleges",  href: "/institutions" },
-      { label: "Myrology",      href: "/myrology"     },
-    ],
-  },
-  {
-    title: "Learn",
-    links: [
-      { label: "Newsletter",     href: "/newsletter" },
-      { label: "How it works",   href: "/docs"       },
-      { label: "Skill Taxonomy", href: "/taxonomy"   },
-      { label: "FAQ",            href: "/docs#faq"   },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Use",   href: "/terms"   },
-    ],
-  },
-]
+// Footer columns now derive from the single site-route registry (lib/site-routes)
+// — add a public page there once and it appears here automatically.
+const FOOTER_COLS = footerColumns()
 
 const GITHUB_URL = "https://github.com/shivam07-hub/True_Yodha"
 
