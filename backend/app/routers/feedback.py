@@ -152,7 +152,7 @@ def submit_feedback(
 ) -> dict:
     if body.payload.get("program") == BETA_ASSIGNMENT_PROGRAM:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="This feedback program is reserved for its validated submission endpoint",
         )
     user_id = _resolve_user_id(credentials)

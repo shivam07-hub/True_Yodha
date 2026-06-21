@@ -136,7 +136,7 @@ def save_generator_answer(
     try:
         answer = validate_answer(step, body.answer)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     OnboardingRepository(get_supabase_admin()).save_generator_answer(principal.id, step, answer)
 
 
@@ -147,7 +147,7 @@ def create_baseline_draft(principal: Principal = Depends(get_principal)) -> dict
     try:
         generated = generate_baseline(state.get("generator_answers") or {})
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     repo.save_generated_draft(principal.id, generated.draft)
     return {"draft": generated.draft, "source_ids": generated.source_ids}
 
