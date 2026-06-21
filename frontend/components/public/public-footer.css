@@ -239,8 +239,13 @@
 .pub-footer-trust {
   font-family: var(--tm-font-mono);
   font-size: 11px;
-  color: var(--tm-text-faint);
+  color: var(--tm-text-muted);
   text-align: center;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.pub-footer-trust:hover {
+  color: var(--tm-interactive);
 }
 
 @media (max-width: 900px) {

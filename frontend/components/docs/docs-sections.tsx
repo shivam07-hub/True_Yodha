@@ -193,11 +193,11 @@ export function XPSection() {
 const DATA_ROWS = [
   {
     label: "Your CV",
-    detail: "Uploaded or described text stored securely. Used only to compute your skill profile. Never shown to other users or employers.",
+    detail: "Stored securely and used only to compute your skill profile. Only you can see it.",
   },
   {
     label: "Job postings",
-    detail: "Scraped weekly from public company career pages. We do not collect applicant data from employers.",
+    detail: "Scraped weekly from public company career pages.",
   },
   {
     label: "Skill taxonomy",
@@ -205,7 +205,7 @@ const DATA_ROWS = [
   },
   {
     label: "Your public profile",
-    detail: "Only your 10-domain score breakdown and aggregate activity counts are visible on your public share link. Your CV, individual skill list, and email are never exposed.",
+    detail: "Only your 10-domain score breakdown and aggregate activity counts are visible on your public share link.",
   },
 ]
 
@@ -213,8 +213,7 @@ export function DataSection() {
   return (
     <Section id="data" title="Data & privacy">
       <P>
-        Myro collects the minimum data needed to serve you. We do not sell data, we do not
-        require your real name, and your CV is never shared with other users or employers.
+        Myro collects the minimum data needed to serve you.
       </P>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "16px 0" }}>
         {DATA_ROWS.map(row => (
@@ -225,8 +224,7 @@ export function DataSection() {
         ))}
       </div>
       <P>
-        Any email address works — throwaway, alias, anything. We do not verify identity.
-        Your Myro handle is your public identity, not your name or email.
+        Any email works. Your public identity is your Myro handle.
       </P>
       <Link href="/privacy" style={{ fontSize: 13, color: "var(--tm-interactive)", textDecoration: "none" }}>
         Read the full privacy policy →
@@ -242,8 +240,8 @@ export function DataSection() {
 export const FAQ_ITEMS: [string, string][] = [
   ["Is Myro free?", "Yes — uploading your CV, getting your Myro Score, and seeing your 10-domain breakdown are free. You can start without a credit card."],
   ["What file formats can I upload?", "PDF or DOCX. Drop your CV on the homepage and Myro reads it in under a minute."],
-  ["Do I need to use my real name or email?", "No. Any email works — throwaway or alias — and we do not verify identity. Your public identity is your Myro handle, never your name or email."],
-  ["Is my CV shared with employers or other users?", "No. Your CV is never shared with other users or employers, and we do not sell your data. It is used only to generate your score and tailored versions for you."],
+  ["Do I need to use my real name or email?", "Any email works. Your public identity is your Myro handle."],
+  ["Is my CV shared with employers or other users?", "Your CV is used only to generate your score and tailored versions for you."],
   ["How is my Myro Score calculated?", "Your CV is read and scored across 10 career domains, then combined into a single 0–100 Myro Score. See the “Your Myro Score” and “How your CV is read” sections above for the full method."],
   ["Where do the job listings come from?", "Jobs are aggregated from third-party job boards and public sources. Myro does not control or guarantee any listing — all hiring decisions are made by the employer."],
 ]

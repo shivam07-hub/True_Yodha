@@ -182,7 +182,7 @@ export function SignupModal() {
           <p className="tm-signup-modal__trust">
             {isLogin
               ? "Right where you left it."
-              : "Throwaway emails welcome."}
+              : "Any email works."}
           </p>
         </aside>
       </div>

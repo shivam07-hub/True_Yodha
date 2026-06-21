@@ -29,10 +29,9 @@ export function LinkedInDisclosure({ surface }: Props) {
           Roles, dates, skills, education, and the summary you&apos;ve already written —
           the same handful of things a recruiter scans in thirty seconds.
         </p>
-        <p className="tm-auth-disclosure-never">
-          <span className="tm-auth-disclosure-never-tag">Never</span>
+        <p className="tm-auth-disclosure-note">
           Your PDF stays in your hub. Tailored versions are yours to download, share, or delete.
-          Nothing auto-sent. Nothing stored where you can&apos;t see it.
+          We save only what you save.
         </p>
       </div>
     </details>

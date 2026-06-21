@@ -55,7 +55,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     // CV-privacy intent is owned by /docs#faq ("Is my CV shared…?") — no schema here.
     q: "Is my CV private?",
-    a: "Yes. Your CV is never shared or visible to recruiters. Your public profile shows only your score and domain map — never your CV text.",
+    a: "Your public profile shows your Myro Score and domain map.",
   },
   {
     q: "What is Forge?",
