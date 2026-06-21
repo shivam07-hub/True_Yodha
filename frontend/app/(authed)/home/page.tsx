@@ -33,6 +33,7 @@ import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/j
 import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { NextSteps } from "@/components/onboarding/next-steps"
+import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -344,9 +345,19 @@ function MissionControlInner() {
           )}
 
           {/* The greeting hero (daily-loop ring + score/streak) relocated to
-              /market (Live is the primary daily surface). Dashboard now keeps
-              just the match feed — full width on every breakpoint. */}
-          <div className="mc-ws-main">
+              /market. The dashboard keeps the match feed in the centre with the
+              context surfaces (missions · skill map · followed · live intel) in a
+              pinned LEFT rail — mirroring the /market workspace. Collapses to one
+              column ≤980px. The job detail opens from the right (drawer) on click. */}
+          <div className="mc-workspace">
+            <aside className="mc-ws-rail">
+              {token ? (
+                <div className="mc-rail">
+                  <PeekSurfaces token={token} steps={steps} />
+                </div>
+              ) : null}
+            </aside>
+            <div className="mc-ws-main">
             {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored /> : null}
             <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
@@ -387,6 +398,7 @@ function MissionControlInner() {
                   />
                 ) : null}
             </SectionGate>
+            </div>
           </div>
         </PageShell>
       </RequiresCV>
