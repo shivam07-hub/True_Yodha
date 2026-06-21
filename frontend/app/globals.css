@@ -29,6 +29,26 @@
   outline-offset: 3px;
 }
 
+/* ── Company link — a company name is always a portal to /companies/{name}
+   (grill-locked 2026-06-21). Inherits the call site's colour/size (the accent
+   is the link signal); adds the cursor + hover-underline so it reads as a link.
+   Renders as an <a>, so reset the UA defaults. */
+.tm-company-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: text-decoration-color 120ms ease;
+}
+.tm-company-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tm-company-link:focus-visible {
+  outline: 2px solid var(--tm-int-border);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* ── Page slide animation (legacy — kept for existing .page-enter users) */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateX(16px); }

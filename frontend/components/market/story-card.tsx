@@ -1,5 +1,6 @@
 "use client"
 
+import { CompanyLink } from "@/components/companies/company-link"
 import "./market-intel.css"
 
 /**
@@ -41,7 +42,7 @@ export function StoryCard({
     <article className="mi-story" aria-label={`Hiring now: ${story.company}`}>
       <div className="mi-story-kicker">Hiring now</div>
       <h3 className="mi-story-h">
-        <span className="mi-accent">{story.company}</span> opened {story.openCount} role{story.openCount === 1 ? "" : "s"}
+        <CompanyLink company={story.company} className="mi-accent" /> opened {story.openCount} role{story.openCount === 1 ? "" : "s"}
         {story.location ? ` in ${story.location}` : ""}
       </h3>
       <p className="mi-story-p">A live window into a company hiring in your scope right now.</p>

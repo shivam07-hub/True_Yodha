@@ -6,6 +6,7 @@ import { useStreamingText } from "@/lib/hooks/use-streaming-text"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { jobs as jobsApi, type JobMatch, type SkillGapItem } from "@/lib/api"
+import { CompanyLink } from "@/components/companies/company-link"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
@@ -133,7 +134,7 @@ export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapI
         <div className="lbl">fit</div>
       </div>
       <h2 className="db-ov-role">{job.title}</h2>
-      <div className="db-ov-sub">{job.company ?? "—"}</div>
+      <CompanyLink company={job.company} className="db-ov-sub" />
       <LocationLine job={job} />
       {matched.length > 0 ? (
         <div className="db-ov-pills">

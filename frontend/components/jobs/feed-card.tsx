@@ -5,6 +5,7 @@ import type { JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fitTier } from "@/lib/dashboard/feed-model"
 import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
+import { CompanyLink, companyHref } from "@/components/companies/company-link"
 import "./feed-card.css"
 
 const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
@@ -138,10 +139,25 @@ export function FeedCard({
       {...articleProps}
     >
       <div className="fc-row">
-        <span className="fc-mono" style={logoStyle(data.company)} aria-hidden>{(data.company ?? "—").slice(0, 1)}</span>
+        {data.company ? (
+          <a
+            href={companyHref(data.company)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fc-mono tm-company-link"
+            style={logoStyle(data.company)}
+            aria-hidden
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {data.company.slice(0, 1)}
+          </a>
+        ) : (
+          <span className="fc-mono" style={logoStyle(data.company)} aria-hidden>—</span>
+        )}
         <div className="fc-body">
           <div className="fc-top">
-            <span className="fc-co">{data.company ?? "—"}</span>
+            <CompanyLink company={data.company} className="fc-co" />
             {badges}
             {age ? <span className="fc-age">{age}</span> : null}
           </div>
