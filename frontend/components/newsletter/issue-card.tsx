@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Issue } from "@/lib/newsletter"
+import { formatDate } from "@/lib/format"
 import styles from "./issue-card.module.css"
 
 interface IssueCardProps {
@@ -21,11 +22,7 @@ export function IssueCard({ issue, featured = false }: IssueCardProps) {
     router.prefetch(href)
   }, [router, href])
 
-  const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
+  const date = formatDate(issue.publishedAt, "long")
 
   return (
     <Link href={href} prefetch className={featured ? styles.featuredCard : styles.card}>

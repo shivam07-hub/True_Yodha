@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
 import type { JobFeedItem } from "@/lib/api"
+import { formatCount } from "@/lib/format"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
 import { FeedCardSkeleton } from "@/components/jobs/feed-card"
@@ -215,7 +216,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   "adjust" link is gone — the Filters door above is the only door,
                   and switching to a *different* cluster happens inside it. */}
               <div className="tm-feed-summary">
-                <span className="tm-feed-summary-count">{total.toLocaleString()} role{total === 1 ? "" : "s"}</span>
+                <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
                 <LocationScopePill locations={targetLocations} />
                 {filters.roleDomain ? (
                   <button

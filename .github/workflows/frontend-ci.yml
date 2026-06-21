@@ -24,6 +24,9 @@ jobs:
       - name: Lint
         run: cd frontend && npm run lint
 
+      - name: UI drift guard
+        run: cd frontend && npm run check:ui-drift
+
       - name: Upskilling contract
         run: cd frontend && npm run test:upskilling
 

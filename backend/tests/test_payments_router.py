@@ -128,14 +128,14 @@ def test_create_order_myrology_records_entitlement_product(monkeypatch: pytest.M
     with TestClient(app) as client:
         response = client.post(
             "/api/create-order",
-            json={"amount": 49900, "currency": "INR", "product": "myrology", "receipt": "myro_1"},
+            json={"amount": 29900, "currency": "INR", "product": "myrology", "receipt": "myro_1"},
             headers={"Authorization": "Bearer token"},
         )
 
     assert response.status_code == 200, response.text
     assert response.json() == {
         "order_id": "order_test_123",
-        "amount": 49900,
+        "amount": 29900,
         "currency": "INR",
         "product": "myro_myrology_unlock",
     }
@@ -279,7 +279,7 @@ def test_verify_payment_unlocks_myrology_entitlement(monkeypatch: pytest.MonkeyP
             "id": "row-9",
             "status": "created",
             "razorpay_payment_id": None,
-            "amount_paise": 49900,
+            "amount_paise": 29900,
             "currency": "INR",
             "xp_amount": 0,
             "product": "myro_myrology_unlock",
@@ -457,7 +457,7 @@ def test_webhook_reconciles_entitlement_and_unlocks(monkeypatch: pytest.MonkeyPa
             "user_id": "user-9",
             "status": "created",
             "razorpay_payment_id": None,
-            "amount_paise": 49900,
+            "amount_paise": 29900,
             "currency": "INR",
             "xp_amount": 0,
             "product": "myro_myrology_unlock",
@@ -495,7 +495,7 @@ def test_webhook_idempotent_when_already_verified(monkeypatch: pytest.MonkeyPatc
             "user_id": "user-9",
             "status": "verified",
             "razorpay_payment_id": "pay_xyz",
-            "amount_paise": 49900,
+            "amount_paise": 29900,
             "currency": "INR",
             "xp_amount": 0,
             "product": "myro_myrology_unlock",
@@ -522,7 +522,7 @@ def test_webhook_lost_cas_does_not_double_fulfil(monkeypatch: pytest.MonkeyPatch
             "user_id": "user-9",
             "status": "created",
             "razorpay_payment_id": None,
-            "amount_paise": 49900,
+            "amount_paise": 29900,
             "currency": "INR",
             "xp_amount": 0,
             "product": "myro_myrology_unlock",

@@ -27,6 +27,8 @@
   .tm-intel-mc { grid-template-columns: 1fr; }
 }
 
+.tm-intel-mc-authed-solo { grid-template-columns: 1fr; }
+
 .tm-intel-mc-headline {
   display: flex;
   flex-direction: column;

@@ -44,14 +44,15 @@ class _FakeAdmin:
         return _FakeExec(self._row)
 
 
-def test_intake_returns_403_when_locked(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(myrology_router, "get_supabase_admin", lambda: _FakeAdmin({"myrology_unlocked": False}))
+def test_intake_accessible_before_payment(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Intake is now collected before payment, so a not-unlocked user can read it.
+    monkeypatch.setattr(myrology_router, "_fetch_intake", lambda user_id: None)
 
     with TestClient(app) as client:
         response = client.get("/myrology/intake", headers={"Authorization": "Bearer token"})
 
-    assert response.status_code == 403
-    assert "locked" in response.json()["detail"].lower()
+    assert response.status_code == 200
+    assert response.json() is None
 
 
 def test_save_intake_normalizes_unknown_time(monkeypatch: pytest.MonkeyPatch) -> None:

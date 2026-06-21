@@ -38,7 +38,7 @@ def apply_skill_overrides(
             effective_ids.add(skill_id)
     if not effective_ids:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Keep at least one evidence-backed skill.",
         )
 

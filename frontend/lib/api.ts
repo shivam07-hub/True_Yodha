@@ -2635,7 +2635,7 @@ export type BillingProduct = "xp_pack" | "myrology"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
-  myrology: 49900,
+  myrology: 29900,
 }
 
 export interface RazorpayOrderResponse {

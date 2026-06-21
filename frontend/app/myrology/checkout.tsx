@@ -10,7 +10,9 @@ import { getAccessToken } from "@/lib/session"
 // return hop instead of mounting useAuth (which auto-redirects to /login).
 const SIGNUP_HREF = "/signup?next=/myrology"
 
-type Phase = "loading" | "locked" | "intake" | "booking"
+// Flow: locked (marketing) → intake (birth details, FREE) → pay (₹299) → booking
+// (confirm + session requests). Intake now precedes payment.
+type Phase = "loading" | "locked" | "intake" | "pay" | "booking"
 type PayStatus = "idle" | "starting" | "verifying" | "error"
 
 interface RazorpaySuccess {
@@ -40,10 +42,12 @@ type RazorpayConstructor = new (options: RazorpayOptions) => RazorpayInstance
 
 interface MyrologyValue {
   phase: Phase
+  authed: boolean
   payStatus: PayStatus
   payError: string | null
   intake: MyrologyIntake | null
   bookings: MyrologyBooking[]
+  begin: () => void
   start: () => void
   saveIntake: (payload: MyrologyIntakePayload) => Promise<void>
   createBooking: (payload: { preferred_windows: string; topic: string | null }) => Promise<void>
@@ -54,19 +58,23 @@ const MyrologyContext = createContext<MyrologyValue | null>(null)
 export function MyrologyProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>("loading")
+  const [authed, setAuthed] = useState(false)
   const [payStatus, setPayStatus] = useState<PayStatus>("idle")
   const [payError, setPayError] = useState<string | null>(null)
   const [intake, setIntake] = useState<MyrologyIntake | null>(null)
   const [bookings, setBookings] = useState<MyrologyBooking[]>([])
 
+  // Paid surface: confirmation + session requests live here.
   const loadUnlockedState = useCallback(async (token: string) => {
     const [intakeRow, bookingList] = await Promise.all([myrology.getIntake(token), myrology.getBookings(token)])
     setIntake(intakeRow)
     setBookings(bookingList.bookings)
-    setPhase(intakeRow ? "booking" : "intake")
+    setPhase("booking")
   }, [])
 
-  // Resolve phase on mount: logged-out / not-unlocked => locked marketing page.
+  // Resolve phase on mount. Intake now precedes payment, so a logged-in,
+  // not-yet-paid user lands on `pay` if they already saved details, otherwise
+  // on the `locked` marketing page (whose CTA starts intake rather than signup).
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -78,11 +86,15 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
       try {
         const profile = await users.me(token)
         if (cancelled) return
-        if (!profile.myrology_unlocked) {
-          setPhase("locked")
+        setAuthed(true)
+        if (profile.myrology_unlocked) {
+          await loadUnlockedState(token)
           return
         }
-        await loadUnlockedState(token)
+        const intakeRow = await myrology.getIntake(token)
+        if (cancelled) return
+        setIntake(intakeRow)
+        setPhase(intakeRow ? "pay" : "locked")
       } catch {
         if (!cancelled) setPhase("locked")
       }
@@ -91,6 +103,16 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [loadUnlockedState])
+
+  // Entry from the marketing CTA: logged-out → signup; logged-in → intake form.
+  const begin = useCallback(() => {
+    const token = getAccessToken()
+    if (!token) {
+      router.push(SIGNUP_HREF)
+      return
+    }
+    setPhase("intake")
+  }, [router])
 
   const start = useCallback(() => {
     setPayError(null)
@@ -176,7 +198,7 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
     }
     const saved = await myrology.saveIntake(token, payload)
     setIntake(saved)
-    setPhase("booking")
+    setPhase("pay")
   }, [router])
 
   const createBooking = useCallback(async (payload: { preferred_windows: string; topic: string | null }) => {
@@ -191,7 +213,7 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
 
   return (
     <MyrologyContext.Provider
-      value={{ phase, payStatus, payError, intake, bookings, start, saveIntake, createBooking }}
+      value={{ phase, authed, payStatus, payError, intake, bookings, begin, start, saveIntake, createBooking }}
     >
       {children}
     </MyrologyContext.Provider>
@@ -204,22 +226,36 @@ export function useMyrology(): MyrologyValue {
   return value
 }
 
-/** Renders children only before unlock — pay CTAs, marketing scarcity, etc. */
+/** Renders children only on the locked marketing page (pre-intake). */
 export function LockedOnly({ children }: { children: ReactNode }) {
   const { phase } = useMyrology()
-  if (phase === "intake" || phase === "booking") return null
+  if (phase !== "locked") return null
   return <>{children}</>
 }
 
-export function MyrologyCta({ variant }: { variant: "price" | "bridge" }) {
-  const { payStatus, payError, start } = useMyrology()
+export function MyrologyCta({ variant }: { variant: "price" | "pay" | "bridge" }) {
+  const { payStatus, payError, begin, start } = useMyrology()
   const busy = payStatus === "starting" || payStatus === "verifying"
+
+  // Marketing entry: free birth-details first, payment comes after.
+  if (variant === "price") {
+    return (
+      <>
+        <button type="button" className="price-cta" onClick={begin}>
+          Start — enter your birth details →
+        </button>
+        <div className="price-cta-meta">
+          <span>Free to start · pay ₹299 after your details</span>
+        </div>
+      </>
+    )
+  }
 
   if (variant === "bridge") {
     return (
       <button type="button" className="bridge-cta" onClick={start} disabled={busy} data-state={payStatus}>
         <div className="bridge-price">
-          <span className="mono big">₹499</span>
+          <span className="mono big">₹299</span>
           <span className="bridge-once">one-time</span>
         </div>
         <span className="bridge-arrow">{busy ? "Processing…" : "Pay & start →"}</span>
@@ -227,17 +263,18 @@ export function MyrologyCta({ variant }: { variant: "price" | "bridge" }) {
     )
   }
 
-  const priceLabel =
+  // variant === "pay": the real checkout, shown after intake is saved.
+  const payLabel =
     payStatus === "verifying"
       ? "Verifying payment…"
       : payStatus === "starting"
         ? "Opening checkout…"
-        : "Unlock Myrology · Pay ₹499 →"
+        : "Pay ₹299 · unlock my sessions →"
 
   return (
     <>
       <button type="button" className="price-cta" onClick={start} disabled={busy} data-state={payStatus}>
-        {priceLabel}
+        {payLabel}
       </button>
       <div className="price-cta-meta">
         {payError ? (

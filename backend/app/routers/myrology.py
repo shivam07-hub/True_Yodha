@@ -1,7 +1,8 @@
-"""Post-unlock Myrology surface: birth-details intake + session booking requests.
+"""Myrology surface: birth-details intake + session booking requests.
 
-Gated behind the ₹499 entitlement (user_profiles.myrology_unlocked). Writes use
-the service-role admin client — the tables expose SELECT-own RLS only. Booking
+Intake is collected BEFORE payment (auth-gated only). Session bookings stay
+behind the ₹299 entitlement (user_profiles.myrology_unlocked). Writes use the
+service-role admin client — the tables expose SELECT-own RLS only. Booking
 requests are emailed to the in-house astrologer for manual confirm; the email is
 best-effort and never blocks the durable booking row.
 """
@@ -199,7 +200,8 @@ def _notify_astrologer(*, user_email: str, intake: dict[str, Any] | None, bookin
 
 @router.get("/intake", response_model=IntakeResponse | None)
 async def get_intake(principal: Principal = Depends(get_principal)) -> IntakeResponse | None:
-    await run_in_threadpool(_require_unlocked, principal.id)
+    # Intake is now collected BEFORE payment, so it is auth-gated only — no
+    # unlock requirement. Bookings stay behind the paid gate below.
     row = await run_in_threadpool(_fetch_intake, principal.id)
     if not row:
         return None
@@ -211,7 +213,7 @@ async def save_intake(
     body: IntakeRequest,
     principal: Principal = Depends(get_principal),
 ) -> IntakeResponse:
-    await run_in_threadpool(_require_unlocked, principal.id)
+    # Pre-payment intake: auth-gated only (see get_intake note above).
     payload = {
         "dob": body.dob.isoformat(),
         "birth_time": None if body.birth_time_unknown or body.birth_time is None else body.birth_time.isoformat(),

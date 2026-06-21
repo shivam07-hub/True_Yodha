@@ -24,6 +24,7 @@ import { cv as cvApi, jobs as jobsApi, type CVStructured, type UserProfile } fro
 import { dataKeys } from "@/lib/domain-data"
 import { Icon } from "./icons"
 import { runAtsChecks, atsScore } from "./ats-checks"
+import { formatDate } from "@/lib/format"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
@@ -70,9 +71,7 @@ function slug(s: string | null | undefined): string {
 }
 
 function formatAppliedDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ""
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+  return formatDate(iso, "medium")
 }
 
 /** Retry a flaky export call with linear backoff — weak mobile networks (the

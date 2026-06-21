@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { ApiError } from "@/lib/api-error"
+import { formatDateTime } from "@/lib/format"
 import { feedback, users } from "@/lib/api"
 import {
   clearBetaFeedbackDraft,
@@ -133,7 +134,7 @@ export function BetaFeedbackForm() {
     return (
       <StateCard
         title="Feedback received"
-        body={`Submission #${receipt.id} was received on ${new Date(receipt.submitted_at).toLocaleString()}.`}
+        body={`Submission #${receipt.id} was received on ${formatDateTime(receipt.submitted_at)}.`}
       >
         <p className="bf-receipt-note">This final submission is linked to your Myro account.</p>
       </StateCard>

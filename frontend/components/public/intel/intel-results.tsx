@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { RESULTS_SORT, RESULTS_SORT_OPTIONS, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
+import { formatCount } from "@/lib/format"
 import { CompanyHiringRow, CompanyRow, Empty, GroupRow, JobRow, type JobRowFit } from "./intel-rows"
 import { IntelRowSkeletonList } from "./intel-row-skeleton"
 import { fmtBatch } from "./intel-data"
@@ -148,7 +149,7 @@ function Tabs({
           onClick={() => onTab(t.id)}
         >
           {t.label}
-          <span className="tm-intel-tab-badge">{t.n.toLocaleString()}</span>
+          <span className="tm-intel-tab-badge">{formatCount(t.n)}</span>
         </button>
       ))}
       <div className="tm-intel-spacer" />

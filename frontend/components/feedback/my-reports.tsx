@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { CATEGORIES, type FeedbackCategory } from "./feedback-types"
 import { CategoryGlyph } from "./category-glyph"
 import { StatusPill } from "./status-pill"
+import { formatDate } from "@/lib/format"
 
 function isHubCategory(t: FeedbackType): t is FeedbackCategory {
   return t === "bug" || t === "idea" || t === "question" || t === "praise"
@@ -20,7 +21,7 @@ function formatRelative(iso: string): string {
   if (diff < hour) return "just now"
   if (diff < day) return `${Math.floor(diff / hour)}h ago`
   if (diff < day * 30) return `${Math.floor(diff / day)}d ago`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso, "medium")
 }
 
 function ReportRow({ r }: { r: FeedbackReport }) {

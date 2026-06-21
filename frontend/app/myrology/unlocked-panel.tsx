@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react"
 
-import { useMyrology } from "./checkout"
+import { MyrologyCta, useMyrology } from "./checkout"
+import { formatDate } from "@/lib/format"
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "Requested",
@@ -21,7 +22,7 @@ function statusMoment(b: {
 }): string | null {
   const iso = b.status === "done" ? b.done_at : b.status === "confirmed" ? b.confirmed_at : b.status === "cancelled" ? b.cancelled_at : null
   if (!iso) return null
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+  return formatDate(iso, "short")
 }
 
 function IntakeForm() {
@@ -57,9 +58,9 @@ function IntakeForm() {
 
   return (
     <form className="my-panel" onSubmit={onSubmit}>
-      <div className="my-panel-eyebrow"><span className="dot pulse" /> UNLOCKED · STEP 1 OF 2</div>
+      <div className="my-panel-eyebrow"><span className="dot pulse" /> STEP 1 OF 2 · YOUR DETAILS</div>
       <h3 className="my-panel-title">Three facts. That’s all he needs.</h3>
-      <p className="my-panel-sub">Date, time and place of birth. No name — yours stays private.</p>
+      <p className="my-panel-sub">Date, time and place of birth. No name — yours stays private. Payment comes after.</p>
 
       <label className="my-field">
         <span>Date of birth</span>
@@ -87,9 +88,34 @@ function IntakeForm() {
 
       {error ? <div className="my-form-error">{error}</div> : null}
       <button type="submit" className="price-cta" disabled={!canSubmit} data-state={busy ? "starting" : "idle"}>
-        {busy ? "Saving…" : "Save & continue →"}
+        {busy ? "Saving…" : "Save & continue to payment →"}
       </button>
     </form>
+  )
+}
+
+function PayPanel() {
+  const { intake, begin } = useMyrology()
+
+  return (
+    <div className="my-panel">
+      <div className="my-panel-eyebrow"><span className="dot pulse" /> STEP 2 OF 2 · PAYMENT</div>
+      <h3 className="my-panel-title">One step left — confirm and pay.</h3>
+      <p className="my-panel-sub">
+        ₹299 one-time. We build your written birth-chart report from these details, then unlock your 3 lifetime sessions.
+      </p>
+
+      {intake ? (
+        <div className="my-intake-summary">
+          <span>{intake.dob}</span>
+          <span>{intake.birth_time_unknown ? "time to rectify" : intake.birth_time ?? "—"}</span>
+          <span>{intake.birth_place}</span>
+          <button type="button" className="my-intake-edit" onClick={begin}>Edit</button>
+        </div>
+      ) : null}
+
+      <MyrologyCta variant="pay" />
+    </div>
   )
 }
 
@@ -120,9 +146,17 @@ function BookingPanel() {
 
   return (
     <div className="my-panel">
-      <div className="my-panel-eyebrow"><span className="dot pulse" /> UNLOCKED · STEP 2 OF 2</div>
+      <div className="my-confirm-banner">
+        <div className="my-confirm-check" aria-hidden="true">✦</div>
+        <div>
+          <div className="my-confirm-title">Payment received.</div>
+          <div className="my-confirm-text">Sit back and relax — our team will reach out with your report.</div>
+        </div>
+      </div>
+
+      <div className="my-panel-eyebrow"><span className="dot pulse" /> UNLOCKED · YOUR 3 SESSIONS</div>
       <h3 className="my-panel-title">Request a session.</h3>
-      <p className="my-panel-sub">One astrologer, limited slots per day. He confirms each request personally.</p>
+      <p className="my-panel-sub">3 one-on-one sessions across your life. One astrologer, limited slots per day — he confirms each request personally.</p>
 
       {intake ? (
         <div className="my-intake-summary">
@@ -170,6 +204,7 @@ function BookingPanel() {
 export function MyrologyUnlockedPanel() {
   const { phase } = useMyrology()
   if (phase === "intake") return <IntakeForm />
+  if (phase === "pay") return <PayPanel />
   if (phase === "booking") return <BookingPanel />
   return null
 }

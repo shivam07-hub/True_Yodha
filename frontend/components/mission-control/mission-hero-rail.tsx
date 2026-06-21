@@ -10,6 +10,7 @@
 import "@/app/(authed)/home/mission-control.css"
 
 import { useMemo } from "react"
+import { formatDate } from "@/lib/format"
 import { useQuery } from "@tanstack/react-query"
 import { Hero } from "@/components/mission-control/hero"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
@@ -87,7 +88,7 @@ export function MissionHeroRail({ token }: { token: string | null }) {
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
   const dayStr = useMemo(
-    () => new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+    () => formatDate(new Date(), "weekday"),
     [],
   )
   const dateLine = [dayStr, profile?.target_location].filter(Boolean).join(" · ")

@@ -2,6 +2,8 @@
 // sparklines/velocities (replaced as soon as backend ships real velocity_bins +
 // last_seen_at on `by_company`).
 
+import { formatCount } from "@/lib/format"
+
 export interface LogSeed {
   op: "parse" | "fetch" | "index" | "embed"
   path: string
@@ -160,6 +162,6 @@ export function fmtAgeMin(min: number): string {
 }
 
 export function fmtNum(n: number): string {
-  return n.toLocaleString("en-US")
+  return formatCount(n)
 }
 

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv, type MasterRevision } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { formatDateTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -56,7 +57,7 @@ export function MobileCVHistory({ token, open, onOpenChange }: Props) {
           {sessions.map(revision => (
             <div key={revision.id}>
               <span>
-                <strong>{formatDate(revision.created_at)}</strong>
+                <strong>{formatDateTime(revision.created_at)}</strong>
                 <small>Revision {revision.revision_number}</small>
               </span>
               <Button type="button" variant="outline" size="sm" onClick={() => setConfirmRevisionId(revision.id)}>Restore</Button>
@@ -95,9 +96,4 @@ function sessionCheckpoints(revisions: MasterRevision[]): MasterRevision[] {
     const previous = sorted[index - 1]
     return Math.abs(Date.parse(previous.created_at) - Date.parse(revision.created_at)) >= 30 * 60 * 1000
   })
-}
-
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  return date.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 }

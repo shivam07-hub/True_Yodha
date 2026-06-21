@@ -6,6 +6,7 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { comments as commentsApi } from "@/lib/api"
 import type { Comment, CommentEntityType } from "@/lib/api"
+import { formatDate } from "@/lib/format"
 
 function commentsKey(entityType: CommentEntityType, entityId: string) {
   return ["comments", entityType, entityId] as const
@@ -34,7 +35,7 @@ function relativeTime(iso: string): string {
   if (hr < 24) return `${hr}h`
   const day = Math.floor(hr / 24)
   if (day < 7) return `${day}d`
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  return formatDate(iso, "short")
 }
 
 interface CommentThreadProps {

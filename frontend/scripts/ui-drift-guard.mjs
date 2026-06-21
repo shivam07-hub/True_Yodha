@@ -1,0 +1,189 @@
+#!/usr/bin/env node
+/**
+ * UI drift guard — the "door check" for design-system consistency.
+ *
+ * Why this exists: consistency is a trust signal, and it only holds if drift
+ * can't silently creep back in (e.g. a second nav styled by hand, a fifth way
+ * to format a date). Discipline rots; a build gate doesn't. This is the gate.
+ *
+ * How it works — a RATCHET, not a wall. Each metric counts how many times a
+ * drift pattern appears today. The baseline (ui-drift-baseline.json) records
+ * those counts. CI fails only if a count moves the WRONG way:
+ *   - mode "max"  → a hand-rolled pattern. Must never INCREASE. The cascade
+ *                   (one primitive at a time) drives it DOWN toward 0; lowering
+ *                   the baseline locks the win in so it can't regress.
+ *   - mode "min"  → a canonical pattern that MUST stay present (single source).
+ *                   Must never DECREASE.
+ *
+ * So it does NOT break CI on day one (baseline == today), but it blocks any new
+ * hand-rolled copy the moment it's added. After cleaning a batch, run
+ * `npm run check:ui-drift -- --update-baseline` to ratchet the floor down.
+ *
+ * This is the Linear/Stripe move: shipping the constraint WITH the kit, so the
+ * wrong way is rejected automatically instead of caught in review (if at all).
+ */
+import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs"
+import { join, extname } from "node:path"
+
+const ROOT = process.cwd()
+const BASELINE_PATH = join(ROOT, "scripts", "ui-drift-baseline.json")
+const SRC_DIRS = ["app", "components", "mobile", "lib"]
+
+/**
+ * Each metric: a named drift pattern.
+ * - exts:    file extensions to scan
+ * - exclude: path substrings to skip (canonical homes are exempt)
+ * - pattern: global regex; total match count across files is the metric
+ * - file:    optional — scan exactly this one file instead of SRC_DIRS
+ * - mode:    "max" (ratchet down) | "min" (must stay present)
+ * - hint:    what to do when it trips
+ */
+const METRICS = [
+  {
+    name: "navUsesCanonicalClass",
+    file: "components/public/top-nav.tsx",
+    exts: [".tsx"],
+    // className contexts only (preceded by quote/backtick/space) — NOT comment
+    // mentions like `.tm-topbar-link`, so editing a comment can't trip the gate.
+    pattern: /["'`\s]tm-topbar-link/g,
+    mode: "min",
+    hint: "The public bar's authed tabs must keep rendering the canonical `.tm-topbar-link` classes from globals.css. A drop means someone reintroduced a parallel nav-link style — re-point it at the shared class.",
+  },
+  {
+    name: "jsHoverStyleMutation",
+    exts: [".tsx"],
+    exclude: [],
+    pattern: /onMouse(Enter|Leave)/g,
+    mode: "max",
+    hint: "Hover belongs in CSS `:hover`, not JS style mutation. Use a class/token, not onMouseEnter/onMouseLeave.",
+  },
+  {
+    name: "handRolledModalScrim",
+    exts: [".tsx"],
+    exclude: ["components/ui/", "components/loading/"],
+    pattern: /inset:\s*0\b/g,
+    mode: "max",
+    hint: "Don't hand-roll a fixed-inset scrim. Use <Dialog> from @/components/ui/dialog.",
+  },
+  {
+    name: "handRolledPill",
+    exts: [".tsx"],
+    exclude: ["components/ui/"],
+    pattern: /borderRadius:\s*["']?9{2,4}\b|rounded-full/g,
+    mode: "max",
+    hint: "Don't hand-roll a pill/badge. Use <Badge> from @/components/ui/badge.",
+  },
+  {
+    name: "rawDateNumberFormat",
+    exts: [".tsx", ".ts"],
+    exclude: ["lib/format", "scripts/"],
+    pattern: /toLocaleDateString|toLocaleString|Intl\.(Date|Number)Format|Intl\.RelativeTimeFormat/g,
+    mode: "max",
+    hint: "Don't format dates/numbers inline. Use the shared helpers in @/lib/format.",
+  },
+]
+
+function walk(dir, exts, acc) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return acc
+  }
+  for (const entry of entries) {
+    if (entry === "node_modules" || entry === ".next") continue
+    const full = join(dir, entry)
+    const st = statSync(full)
+    if (st.isDirectory()) walk(full, exts, acc)
+    else if (exts.includes(extname(entry))) acc.push(full)
+  }
+  return acc
+}
+
+function countMetric(metric) {
+  const files = metric.file
+    ? [join(ROOT, metric.file)]
+    : SRC_DIRS.flatMap((d) => walk(join(ROOT, d), metric.exts, []))
+  let total = 0
+  const offenders = []
+  for (const f of files) {
+    const rel = f.slice(ROOT.length + 1)
+    if ((metric.exclude ?? []).some((ex) => rel.includes(ex))) continue
+    let content
+    try {
+      content = readFileSync(f, "utf8")
+    } catch {
+      continue
+    }
+    const matches = content.match(metric.pattern)
+    if (matches && matches.length) {
+      total += matches.length
+      offenders.push({ rel, n: matches.length })
+    }
+  }
+  offenders.sort((a, b) => b.n - a.n)
+  return { total, offenders }
+}
+
+const update = process.argv.includes("--update-baseline")
+const results = METRICS.map((m) => ({ metric: m, ...countMetric(m) }))
+
+if (update) {
+  const baseline = {}
+  for (const r of results) baseline[r.metric.name] = r.total
+  writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2) + "\n")
+  console.log("Updated UI drift baseline:")
+  for (const r of results) console.log(`  ${r.metric.name}: ${r.total}`)
+  process.exit(0)
+}
+
+let baseline = {}
+try {
+  baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"))
+} catch {
+  console.error(`No baseline at ${BASELINE_PATH}. Run: npm run check:ui-drift -- --update-baseline`)
+  process.exit(1)
+}
+
+const violations = []
+for (const r of results) {
+  const base = baseline[r.metric.name]
+  if (base === undefined) {
+    violations.push({ r, kind: "missing-baseline" })
+    continue
+  }
+  if (r.metric.mode === "max" && r.total > base) violations.push({ r, base, kind: "increased" })
+  if (r.metric.mode === "min" && r.total < base) violations.push({ r, base, kind: "decreased" })
+}
+
+console.log("UI drift guard:")
+for (const r of results) {
+  const base = baseline[r.metric.name]
+  const arrow = r.metric.mode === "max" ? "≤" : "≥"
+  console.log(`  ${r.metric.name}: ${r.total} (${arrow} ${base ?? "?"})`)
+}
+
+if (violations.length === 0) {
+  console.log("\n✓ No new UI drift.")
+  process.exit(0)
+}
+
+console.error("\n✗ UI drift gate failed:\n")
+for (const v of violations) {
+  const { r } = v
+  if (v.kind === "missing-baseline") {
+    console.error(`  ${r.metric.name}: no baseline entry — run --update-baseline.`)
+    continue
+  }
+  if (v.kind === "increased") {
+    console.error(`  ${r.metric.name}: ${v.base} → ${r.total} (new hand-rolled copy added).`)
+  } else {
+    console.error(`  ${r.metric.name}: ${v.base} → ${r.total} (canonical usage dropped).`)
+  }
+  console.error(`    ${r.metric.hint}`)
+  console.error(`    current locations: ${r.offenders.map((o) => `${o.rel}(${o.n})`).join(", ") || "—"}`)
+  console.error("")
+}
+console.error("If you intentionally REDUCED a hand-rolled pattern, lock it in:")
+console.error("  npm run check:ui-drift -- --update-baseline\n")
+process.exit(1)

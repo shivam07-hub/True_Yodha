@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm"
 import { getAllIssues, getIssueBySlug, getRelatedIssues, getSpokesOf } from "@/lib/newsletter"
 import { NewsletterCTA } from "@/components/newsletter/issue-cta"
 import { NewsletterFAQ } from "@/components/newsletter/newsletter-faq"
+import { formatDate } from "@/lib/format"
 import { HowToLadder } from "@/components/newsletter/howto-ladder"
 import { DatasetDownload } from "@/components/newsletter/dataset-download"
 import { HowMyroWorks } from "@/components/newsletter/how-myro-works"
@@ -97,9 +98,7 @@ export default async function IssuePage({ params }: Props) {
   const pillar = issue.sourceIssue ? await getIssueBySlug(issue.sourceIssue) : null
 
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
-  const date = new Date(issue.publishedAt).toLocaleDateString("en-GB", {
-    day: "numeric", month: "long", year: "numeric",
-  })
+  const date = formatDate(issue.publishedAt, "long")
   const initials = issue.authorInitials ?? "SP"
   const authorName = issue.authorName ?? "Shivam Pathak"
   const issueNum = issue.issueNumber ? String(issue.issueNumber).padStart(3, "0") : "001"

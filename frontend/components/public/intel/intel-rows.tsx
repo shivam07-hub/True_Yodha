@@ -4,6 +4,7 @@ import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import {
   COUNTRY_NAMES, fmtAgeMin, fmtBatch, hexToRgba, initialsFor, logoColorFor,
 } from "./intel-data"
+import { formatCount } from "@/lib/format"
 import type { ResultCompany, ResultGroup, ResultJob } from "./intel-results"
 
 export function Spark({
@@ -109,7 +110,7 @@ export function GroupRow({
         </div>
       </div>
       <div className="tm-intel-co-roles">
-        {g.count.toLocaleString()}<span className="tm-intel-co-roles-lab">jobs</span>
+        {formatCount(g.count)}<span className="tm-intel-co-roles-lab">jobs</span>
       </div>
     </button>
   )

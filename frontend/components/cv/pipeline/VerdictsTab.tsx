@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import type { ApplicationResponse } from "@/lib/api"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
+import { formatDate } from "@/lib/format"
 import { OUTCOME_LABEL, partitionVerdicts } from "./useTrackerBoard"
 import type { OutcomeKey } from "./useTrackerBoard"
 import { OutcomeSeal } from "./OutcomeSeal"
@@ -68,8 +69,8 @@ export function VerdictsTab({ apps, reviewedJobIds, onOpenReview, onDelete }: Pr
                   }}>
                     {OUTCOME_LABEL[outcome]} ·{" "}
                     {v.last_stage_changed_at
-                      ? new Date(v.last_stage_changed_at).toLocaleDateString()
-                      : new Date(v.created_at).toLocaleDateString()}
+                      ? formatDate(v.last_stage_changed_at, "medium")
+                      : formatDate(v.created_at, "medium")}
                   </div>
                   <div style={{
                     fontSize: 14, fontWeight: 600, color: "var(--tm-text)",
