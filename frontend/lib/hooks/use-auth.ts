@@ -73,8 +73,16 @@ async function bootstrapSession(): Promise<string | null> {
   return _bootstrapInFlight
 }
 
-export function useAuth() {
-  const router = useRouter()
+/**
+ * Passive session reader. Bootstraps the refresh-token cold start and tracks the
+ * access token across tabs, but NEVER redirects. Use this on surfaces that must
+ * work for logged-OUT visitors (the public nav, marketing pages) where the only
+ * question is "is there a session?", not "require one". `useAuth` is the gate
+ * built on top — it adds the bounce-to-login effect. Splitting the two keeps the
+ * public surface explorable: a hook that only needs to KNOW the auth state must
+ * never be able to eject an anonymous visitor.
+ */
+export function useSession(): { token: string | null; ready: boolean } {
   const [token, setToken] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
@@ -83,12 +91,7 @@ export function useAuth() {
     void (async () => {
       try {
         const t = await bootstrapSession()
-        if (cancelled) return
-        if (!t) {
-          router.replace(loginRedirectTarget())
-        } else {
-          setToken(t)
-        }
+        if (!cancelled && t) setToken(t)
       } finally {
         // Guarantee the gate opens no matter what — a thrown bootstrap must never
         // leave the app stuck on the shell skeleton.
@@ -98,15 +101,28 @@ export function useAuth() {
 
     const onStorage = (e: StorageEvent) => {
       if (e.key !== "mirror_token") return
-      if (e.newValue) setToken(e.newValue)
-      else router.replace(loginRedirectTarget())
+      setToken(e.newValue || null)
     }
     window.addEventListener("storage", onStorage)
     return () => {
       cancelled = true
       window.removeEventListener("storage", onStorage)
     }
-  }, [router])
+  }, [])
+
+  return { token, ready }
+}
+
+export function useAuth() {
+  const router = useRouter()
+  const { token, ready } = useSession()
+
+  // The gate: once the cold-start bootstrap has resolved (ready) with no token,
+  // bounce to /login preserving where the user was headed. Driven by useSession's
+  // state so a cross-tab logout (token cleared elsewhere) redirects here too.
+  useEffect(() => {
+    if (ready && !token) router.replace(loginRedirectTarget())
+  }, [ready, token, router])
 
   function signOut() {
     clearSessionTokens()

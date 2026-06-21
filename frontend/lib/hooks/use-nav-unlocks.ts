@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { cv, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { useSession } from "@/lib/hooks/use-auth"
 import {
   AUTHED_NAV,
   CONTENT_NAV,
@@ -78,7 +78,9 @@ export interface NavUnlocksVm {
 }
 
 export function useNavUnlocks(): NavUnlocksVm {
-  const { token } = useAuth()
+  // Passive read: the public nav consumes this hook, so it must NEVER gate an
+  // anonymous visitor. Token only decides whether the two backing queries run.
+  const { token } = useSession()
 
   const { data: versionsData, isLoading: versionsLoading } = useQuery({
     queryKey: dataKeys.cvVersions(null),
