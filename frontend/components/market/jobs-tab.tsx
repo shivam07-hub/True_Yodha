@@ -53,6 +53,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [searchInput, setSearchInput] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [q, setQ] = useState("")
+  // Skill facet — set by clicking a skill-demand mover. A first-class filter
+  // dimension (job_skills membership), distinct from the free-text search `q`.
+  const [skillFacet, setSkillFacet] = useState<string | null>(null)
   // roleDomain is sourced from the page's selectedCluster; the rest is local.
   // Rank defaults to "Best fit" when the user has signal (CV or roles), else
   // "Newest" — set once on mount so the initial deck lands honestly ranked.
@@ -82,7 +85,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [selectedCluster, onSelectCluster])
 
   const { feed, allJobs, total, expansionDividers, triage, undo, pending, savedCount } =
-    useJobFeed({ token, filters, q })
+    useJobFeed({ token, filters, q, skill: skillFacet })
 
   // One batched pulse request for the visible feed (not one-per-card).
   const pulses = usePulses(token, allJobs.map(j => j.job_id))
@@ -115,15 +118,20 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const rows = useMemo(() => interleaveStories(allJobs, stories, expansionDividers), [allJobs, stories, expansionDividers])
 
-  const onSeeRoles = useCallback((query: string) => { setSearchInput(query); setQ(query) }, [])
+  const onSeeRoles = useCallback((query: string) => { setSkillFacet(null); setSearchInput(query); setQ(query) }, [])
+  // Clicking a skill mover filters by the skill facet, not the text search — the
+  // skill name almost never appears in a job title, so a text search would land
+  // on an empty feed despite the demand count. Clear `q` so the facet is the
+  // sole filter (mirrors a LinkedIn skill chip).
+  const onFilterSkill = useCallback((skill: string) => { setSearchInput(""); setQ(""); setSkillFacet(skill) }, [])
   const onStoryPrimary = useCallback((s: FeedStory) => {
     if (s.kind === "skill") router.push(`/forge?skill=${encodeURIComponent(s.skill)}`)
     else onSeeRoles(s.company)
   }, [router, onSeeRoles])
   const onStorySecondary = useCallback((s: FeedStory) => {
-    if (s.kind === "skill") onSeeRoles(s.display)
+    if (s.kind === "skill") onFilterSkill(s.display)
     else if (s.company) onToggleFollow(s.company)
-  }, [onSeeRoles, onToggleFollow])
+  }, [onFilterSkill, onToggleFollow])
 
   const showCvNudge = cvResolved && !hasCv
 
@@ -132,7 +140,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const railProps = {
     token, targetLocations, total, feed: allJobs, pulses,
-    onSeeRoles, onOpenJob: setOpenJob,
+    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
     // Rail strip mirrors the feed's readiness — never paints a literal "0 live
     // roles" before the count has landed (the data-flash root cause).
     loading: feed.isLoading,
@@ -207,7 +215,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           {feed.isLoading ? (
             <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => onChangeFilters({ ...DEFAULT_FILTERS })} />
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} />
           ) : (
             <>
               {/* One merged chip row (market-feed redesign 2026-06-18): count +
@@ -218,6 +226,16 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
               <div className="tm-feed-summary">
                 <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
                 <LocationScopePill locations={targetLocations} />
+                {skillFacet ? (
+                  <button
+                    type="button"
+                    className="tm-feed-activechip"
+                    onClick={() => setSkillFacet(null)}
+                    aria-label={`Remove skill: ${skillFacet}`}
+                  >
+                    {skillFacet} <span aria-hidden>✕</span>
+                  </button>
+                ) : null}
                 {filters.roleDomain ? (
                   <button
                     type="button"

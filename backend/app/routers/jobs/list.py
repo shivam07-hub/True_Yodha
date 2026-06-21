@@ -246,6 +246,7 @@ def job_feed(
     cluster: str | None = None,
     role_domain: str | None = None,
     q: str | None = None,
+    skill: str | None = None,
     location_city: str | None = None,
     location_country: str | None = None,
     location_mode: str | None = None,
@@ -318,6 +319,7 @@ def job_feed(
     page_result = repo.feed_jobs(
         role_domain=resolved_domain,
         q=q,
+        skill=skill,
         location_city=location_city,
         location_country=effective_location_country,
         location_mode=effective_location_mode,

@@ -342,6 +342,29 @@ row.
   future native clients. Canonical applications and feedback events remain the
   source of truth.
 
+## Scoped Skill Demand
+
+The count of **active jobs in the user's location scope whose skill set includes skill S**. The unit behind the market rail's "Skill-demand movers" — each mover badge is this number, and clicking a mover filters the triage feed by the same skill.
+
+**Why this exists**
+
+A mover badge is a promise: click "↑1190" and you must land on ~1190 roles (the LinkedIn/Inshorts contract — *the number on a chip is what you get*). Before this concept existed, the badge counted one thing (every `job_skills` row for S, globally, active + inactive, all locations) and the click did another (a free-text search of `job_title`/`company_name` for the skill name, which almost never matches) — so "↑1190" routinely landed on an empty feed.
+
+**The single predicate**
+
+`is_active = true AND <location scope> AND S ∈ main_skills`. Defined once, read by both halves of the seam:
+
+- **Count half** — `JobsRepository.scoped_skill_demand_counts(skill_displays, location_prefs)`: one indexed head-count per skill. Powers the rail badge (`UserSkillDemandItem.scoped_job_count`, populated only when `/jobs/my-skills/demand?location_scoped=true`).
+- **Filter half** — `JobsRepository.feed_jobs(skill=…)`: the feed's `skill` facet, a first-class dimension distinct from the free-text `q`.
+
+Because both read the same predicate, the badge equals the feed it links to (modulo the draining-queue triage drop — the same honesty `available_total` already carries).
+
+**Boundary**
+
+- Distinct from market-wide demand (`job_count_30d` / `weighted_demand` from `build_user_skill_demand`), which is the **unscoped** signal the Skills page, landing chips, Forge, peek, and newsletter read. Scoped Skill Demand never replaces it; it is the location-aware count for the click-through rail only.
+- `location_scoped` is opt-in on the demand endpoint so unscoped callers pay nothing.
+- The skill facet matches the canonical skill name against `main_skills` (the back-compat mirror of `job_skills`), case-sensitive on the array-contains; canonical Lightcast names are stored on both sides, so this aligns.
+
 ## Job Intelligence
 
 The deep backend module that owns Feed State, Job Feedback, and Job Pulse.
