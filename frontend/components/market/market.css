@@ -38,6 +38,8 @@
 .tm-triage-skip:hover { border-color: var(--tm-border); color: var(--tm-text); }
 .tm-triage-save { border-color: var(--tm-interactive); color: var(--tm-interactive); background: var(--tm-int-bg-wash); }
 .tm-triage-save:hover { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
+.tm-triage-share { color: var(--tm-text-muted); }
+.tm-triage-share:hover { border-color: var(--tm-border); color: var(--tm-text); }
 
 /* ── compact control bar: search-icon · rank · Filters (market-feed redesign) ─ */
 .tm-feed-bar {

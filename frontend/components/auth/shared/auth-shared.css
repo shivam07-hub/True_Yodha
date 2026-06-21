@@ -169,26 +169,6 @@
   margin-top: 10px;
 }
 
-.tm-auth-disclosure-never {
-  /* Inline-tag pattern — "Never" reads like a label inside the sentence,
-     not a column header above a bullet list. */
-}
-
-.tm-auth-disclosure-never-tag {
-  display: inline-block;
-  margin-right: 8px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--tm-border);
-  background: transparent;
-  color: var(--tm-text);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  vertical-align: baseline;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .tm-auth-disclosure > summary::after {
     transition: none;

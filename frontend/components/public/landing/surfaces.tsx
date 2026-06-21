@@ -28,7 +28,7 @@ const SURFACES: Surface[] = [
     Icon: BarChart3,
   },
   {
-    title: "Live Job Market + Tracker",
+    title: "Live Job Market",
     href: "/intel",
     body: "Openings read straight from career pages — matched to your skills, scored for fit, tracked from saved to offer.",
     engineLine: "matches ranked by skill overlap, refreshed continuously",

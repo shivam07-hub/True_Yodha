@@ -18,7 +18,7 @@
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
     "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
     "growth:import-tracker": "tsx ../scripts/import-growth-tracker.ts",
-    "prebuild": "npm run newsletter:feed"
+    "prebuild": "npm run newsletter:check && npm run newsletter:feed"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

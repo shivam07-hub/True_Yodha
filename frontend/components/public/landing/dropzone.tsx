@@ -95,14 +95,13 @@ export function LandingDropzone({ source, onFile, busy }: LandingDropzoneProps) 
           </span>
           <span className="lp-dropzone-trust">
             <span>Private</span>
-            <span className="aes">processed in memory, never stored</span>
+            <span className="note">scored instantly — saved only when you sign up</span>
           </span>
         </span>
         <span className="lp-dropzone-btn" aria-hidden>
           {pending ? "Scoring…" : "Choose file"}
         </span>
       </button>
-      <p className="lp-dropzone-note">Free · no signup to see your score</p>
     </>
   )
 }

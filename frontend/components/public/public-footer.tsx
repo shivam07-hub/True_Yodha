@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
+import { footerColumns } from "@/lib/site-routes"
 import "./public-footer.css"
 
 // Brand glyphs inlined (lucide has no reliable X/GitHub brand marks). 24×24 viewBox.
@@ -23,32 +24,9 @@ const SOCIALS = [
   },
 ]
 
-const FOOTER_COLS = [
-  {
-    title: "Product",
-    links: [
-      { label: "CV Hub",        href: "/cv-preview"   },
-      { label: "Live Job Data", href: "/intel"        },
-      { label: "For Colleges",  href: "/institutions" },
-      { label: "Myrology",      href: "/myrology"     },
-    ],
-  },
-  {
-    title: "Learn",
-    links: [
-      { label: "Newsletter",   href: "/newsletter" },
-      { label: "How it works", href: "/docs"     },
-      { label: "FAQ",          href: "/docs#faq" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Use",   href: "/terms"   },
-    ],
-  },
-]
+// Footer columns now derive from the single site-route registry (lib/site-routes)
+// — add a public page there once and it appears here automatically.
+const FOOTER_COLS = footerColumns()
 
 const GITHUB_URL = "https://github.com/shivam07-hub/True_Yodha"
 
@@ -59,34 +37,6 @@ const GITHUB_URL = "https://github.com/shivam07-hub/True_Yodha"
 export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
   return (
     <footer className="pub-footer">
-      {commons && (
-        <div className="pub-footer-commons">
-          <span className="pub-footer-commons-label">Open by default</span>
-          <div className="pub-footer-commons-items">
-            <span className="pub-footer-commons-item">
-              <span className="pub-footer-commons-k">Model</span>
-              <span className="pub-footer-commons-v">openrouter → groq → gemini</span>
-            </span>
-            <span className="pub-footer-commons-item">
-              <span className="pub-footer-commons-k">License</span>
-              <span className="pub-footer-commons-v">MIT · fork freely</span>
-            </span>
-            <span className="pub-footer-commons-item">
-              <span className="pub-footer-commons-k">Privacy</span>
-              <span className="pub-footer-commons-v">PV1 · CV never public</span>
-            </span>
-          </div>
-          <div className="pub-footer-commons-links">
-            <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="pub-footer-commons-link">
-              Provider chain →
-            </a>
-            <a href={`${GITHUB_URL}/blob/Develop/LICENSE`} target="_blank" rel="noreferrer" className="pub-footer-commons-link">
-              Read terms →
-            </a>
-          </div>
-        </div>
-      )}
-
       <div className="pub-footer-inner">
         <div className="pub-footer-brand">
           <Link href="/" className="pub-footer-logo" aria-label="Myro home">
@@ -134,14 +84,36 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
         ))}
       </div>
 
+      {commons && (
+        <div className="pub-footer-commons">
+          <span className="pub-footer-commons-label">Open by default</span>
+          <div className="pub-footer-commons-items">
+            <span className="pub-footer-commons-item">
+              <span className="pub-footer-commons-k">Model</span>
+              <span className="pub-footer-commons-v">openrouter → groq → gemini</span>
+            </span>
+            <span className="pub-footer-commons-item">
+              <span className="pub-footer-commons-k">License</span>
+              <span className="pub-footer-commons-v">MIT · fork freely</span>
+            </span>
+          </div>
+          <div className="pub-footer-commons-links">
+            <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="pub-footer-commons-link">
+              Provider chain →
+            </a>
+            <a href={`${GITHUB_URL}/blob/Develop/LICENSE`} target="_blank" rel="noreferrer" className="pub-footer-commons-link">
+              Read terms →
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="pub-footer-bottom">
         <span>© Myro 2026 · All rights reserved</span>
         <span className="pub-footer-bottom-dot">·</span>
         <span>Built for Seekers</span>
         <span className="pub-footer-bottom-dot">·</span>
-        <span className="pub-footer-trust">
-          SOC 2-certified infrastructure (Supabase · Vercel · Railway) · TLS in transit · Row-level security
-        </span>
+        <a className="pub-footer-trust" href="/security">Security →</a>
       </div>
     </footer>
   )

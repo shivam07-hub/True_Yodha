@@ -6,13 +6,9 @@ import { useViewport } from "@/mobile"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { Button } from "@/components/ui/button"
 import { MobileFeed } from "./mobile-feed"
-import { DesktopGrid, otherRolesFor } from "./desktop-grid"
-import { DetailBody } from "./detail-body"
+import { DesktopGrid } from "./desktop-grid"
 import { DashboardJobDrawer } from "./job-drawer"
-import { LocationLine } from "./lenses"
 import { SortMenu } from "./sort-menu"
-import { DetailHeader } from "@/components/jobs/detail-header"
-import { PeekPanel } from "@/components/mission-control/peek-panel"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import {
@@ -54,20 +50,6 @@ export interface DashboardProps {
   onManualAdded?: () => void
 }
 
-/** Wide enough for the 3rd (peek) column to carry the job detail (D5). Below
- *  this the detail falls back to inline card expansion. */
-function useWideWorkspace(): boolean {
-  const [wide, setWide] = React.useState(false)
-  React.useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1180px)")
-    const on = () => setWide(mq.matches)
-    on()
-    mq.addEventListener("change", on)
-    return () => mq.removeEventListener("change", on)
-  }, [])
-  return wide
-}
-
 const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
   { key: "myro", label: "Myro found" },
   { key: "liked", label: "Liked" },
@@ -76,7 +58,6 @@ const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
 
 export function Dashboard(props: DashboardProps) {
   const { isDesktop } = useViewport()
-  const isWide = useWideWorkspace()
   const [segment, setSegment] = React.useState<Segment>("myro")
   const [sort, setSort] = React.useState<SortKey>("fit")
   const [openId, setOpenId] = React.useState<string | null>(props.initialJobId ?? null)
@@ -179,60 +160,22 @@ export function Dashboard(props: DashboardProps) {
       {visible.length === 0 ? (
         <div className="db-empty">{emptyMessage}</div>
       ) : isDesktop ? (
-        (() => {
-          const grid = (
-            <DesktopGrid
-              items={visible}
-              allItems={items}
-              appsByJobId={props.appsByJobId}
-              token={props.token}
-              cartSkillNames={props.cartSkillNames}
-              openId={openId}
-              onOpenJob={setOpenId}
-              onStatus={props.onStatus}
-              onRemove={props.onRemove}
-              onSkillToggle={props.onSkillToggle}
-            />
-          )
-          // Narrow desktop: the open card lifts into the shared drawer (rendered
-          // below). Wide workspace (D5): the centre keeps the card list; the
-          // detail lifts into the peek panel so the feed never loses its place.
-          if (!isWide) return grid
-          return (
-            <div className="db-workspace">
-              {/* Peek panel sits in the LEFT column to match the /market rail
-                  (mc-workspace: rail-left, main-right); feed moves right. */}
-              <PeekPanel
-                token={props.token}
-                steps={props.steps ?? []}
-                header={
-                  openItem ? (
-                    <DetailHeader
-                      title={openItem.job.title}
-                      company={openItem.job.company}
-                      location={<LocationLine job={openItem.job} />}
-                      onClose={() => setOpenId(null)}
-                    />
-                  ) : null
-                }
-                detail={
-                  openItem ? (
-                    <DetailBody
-                      job={openItem.job}
-                      token={props.token}
-                      active
-                      cartSkillNames={props.cartSkillNames}
-                      otherRoles={otherRolesFor(items, openItem)}
-                      onSkillToggle={props.onSkillToggle}
-                      onJump={(jobId) => setOpenId(jobId)}
-                    />
-                  ) : null
-                }
-              />
-              <div className="db-workspace-feed">{grid}</div>
-            </div>
-          )
-        })()
+        // Dashboard is the match feed, full width. The job detail opens from the
+        // right in the shared drawer on click (rendered below) — same direction
+        // as the /market page. No persistent context column (the greeting hero +
+        // surfaces relocated to /market; see home/page.tsx).
+        <DesktopGrid
+          items={visible}
+          allItems={items}
+          appsByJobId={props.appsByJobId}
+          token={props.token}
+          cartSkillNames={props.cartSkillNames}
+          openId={openId}
+          onOpenJob={setOpenId}
+          onStatus={props.onStatus}
+          onRemove={props.onRemove}
+          onSkillToggle={props.onSkillToggle}
+        />
       ) : (
         <MobileFeed
           items={visible}
@@ -246,9 +189,9 @@ export function Dashboard(props: DashboardProps) {
         />
       )}
 
-      {/* Shared job-detail drawer — narrow desktop + mobile. Wide uses the peek
-          panel; the drawer only mounts below the wide breakpoint. */}
-      {!isWide && openItem ? (
+      {/* Shared job-detail drawer — slides in from the right on every width
+          (desktop + mobile), matching the /market page interaction. */}
+      {openItem ? (
         <DashboardJobDrawer
           item={openItem}
           allItems={items}

@@ -50,10 +50,14 @@ export function useJobFeed({
   token,
   filters,
   q,
+  skill,
 }: {
   token: string
   filters: FeedFilters
   q: string
+  /** Active skill facet — filters the feed by skill membership, distinct from
+   *  the free-text `q`. Null when no skill mover is selected. */
+  skill: string | null
 }) {
   const qc = useQueryClient()
   const [pending, setPending] = useState<PendingUndo | null>(null)
@@ -65,10 +69,10 @@ export function useJobFeed({
   // out of the key + payload.
   const queryKey = useMemo(
     () => [
-      "jobFeed", token, q, filters.sort, filters.roleDomain ?? "",
+      "jobFeed", token, q, skill ?? "", filters.sort, filters.roleDomain ?? "",
       filters.minSkillMatches, filters.followingOnly,
     ],
-    [token, q, filters],
+    [token, q, skill, filters],
   )
 
   const feed = useInfiniteQuery({
@@ -79,6 +83,7 @@ export function useJobFeed({
         // resolves it to jobs.role_domain (passing it raw would skip resolution).
         cluster: filters.roleDomain,
         q: q || null,
+        skill: skill || null,
         sort: filters.sort,
         minSkillMatches: filters.minSkillMatches,
         followingOnly: filters.followingOnly,

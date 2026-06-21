@@ -56,6 +56,41 @@ def test_jobs_workflow_uses_scores_repository_for_aspiration_lookup(monkeypatch:
     assert captured["target_roles"] == ["Data Analyst"]
     assert result[0]["skill"] == "Python"
     assert result[0]["needs_upgrade"] is True
+    # Unscoped (default): the rail's scoped count is absent — the market-wide
+    # signal stays untouched for Skills/landing/Forge/peek.
+    assert result[0].get("scoped_job_count") is None
+
+
+class _FakeScopedDemandRepository(_FakeJobsRepository):
+    """Adds the Scoped Skill Demand seam — count half + the user's locations."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.scoped_args: dict[str, Any] = {}
+
+    def user_target_locations(self, _user_id: str) -> list[str]:
+        return ["Bangalore"]
+
+    def scoped_skill_demand_counts(
+        self, skill_displays: list[str], *, location_prefs: list[str] | None = None
+    ) -> dict[str, int]:
+        self.scoped_args = {"skills": skill_displays, "prefs": location_prefs}
+        return {"Python": 42}
+
+
+def test_build_user_skill_demand_attaches_scoped_count_when_location_scoped(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        jobs_workflow, "fetch_aspiration_skills", lambda *_a, **_k: {"python": 3}
+    )
+    repo = _FakeScopedDemandRepository()
+
+    result = jobs_workflow.build_user_skill_demand(repo, "user-1", location_scoped=True)
+
+    # The seam read the user's location scope and counted via the same predicate
+    # the feed facet filters on — so the badge promises the feed it links to.
+    assert repo.scoped_args["prefs"] == ["Bangalore"]
+    assert "Python" in repo.scoped_args["skills"]
+    assert result[0]["scoped_job_count"] == 42
 
 
 class _FakeCVRepository:

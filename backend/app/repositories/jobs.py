@@ -983,7 +983,7 @@ class JobsRepository:
                 .select(
                     "job_id, job_title, company_name, location, location_raw, "
                     "location_city, location_country, location_mode, location_quality, "
-                    "first_seen, last_seen"
+                    "date_posted, first_seen, last_seen"
                 )
                 .eq("company_name", company_name)
             )
@@ -1290,6 +1290,7 @@ class JobsRepository:
         *,
         role_domain: str | None = None,
         q: str | None = None,
+        skill: str | None = None,
         location_city: str | None = None,
         location_country: str | None = None,
         location_mode: str | None = None,
@@ -1351,6 +1352,12 @@ class JobsRepository:
         # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
         # unfiltered cache slot and stay part of the key for ≥2-char terms.
         effective_term = term if len(term) >= 2 else ""
+        # Skill facet — Scoped Skill Demand's filter half. A first-class dimension
+        # (the canonical skill name, matched against the row's main_skills mirror),
+        # NOT folded into the free-text `q` (which only hits job_title/company_name).
+        # This is the same predicate scoped_skill_demand_counts() counts, so the
+        # rail's mover badge and the feed it lands on cannot disagree.
+        skill_facet = (skill or "").strip()
         now = time.monotonic()
 
         role_token_sets = _role_token_sets(user_target_roles)
@@ -1373,6 +1380,10 @@ class JobsRepository:
         # computed filters are per-user and run after shaping.
         def _apply_filters(query: Any) -> Any:
             query = query.eq("is_active", True)
+            if skill_facet:
+                # Array-contains on the canonical skill name. main_skills mirrors
+                # job_skills (CLAUDE.md: back-compat name mirror == [all names]).
+                query = query.contains("main_skills", [skill_facet])
             if domain:
                 query = query.eq("role_domain", domain)
             if scope_clause is not None:
@@ -1404,7 +1415,7 @@ class JobsRepository:
             # Load + cache the freshest CAP candidates (raw rows, no per-user
             # data → shared across users on the same filter set). Per-user
             # shaping, exclusion and computed filters run below the cache.
-            pkey = (domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term)
+            pkey = (domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, skill_facet)
             cached = _feed_personal_cache.get(pkey)
             if cached is not None and (now - cached[0]) < _FEED_TTL:
                 rows = cached[1]
@@ -1461,7 +1472,7 @@ class JobsRepository:
         # DB-paginated browse: fresh + company, nothing computed, nothing excluded.
         start = (scoped_page - 1) * scoped_page_size
         end = start + scoped_page_size - 1
-        ckey = (mode, domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, scoped_page, scoped_page_size)
+        ckey = (mode, domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, skill_facet, scoped_page, scoped_page_size)
         cached = _feed_page_cache.get(ckey)
         if cached is not None and (now - cached[0]) < _FEED_TTL:
             rows, available_total = cached[1]
@@ -1670,6 +1681,41 @@ class JobsRepository:
             weighted_demand[skill_id] += 2 if row.get("is_primary") else 1
             job_count[skill_id] += 1
         return job_count, weighted_demand
+
+    def scoped_skill_demand_counts(
+        self, skill_displays: list[str], *, location_prefs: list[str] | None = None
+    ) -> dict[str, int]:
+        """Scoped Skill Demand — active jobs per skill in the user's location scope.
+
+        The COUNT half of the seam, mirroring feed_jobs' skill facet exactly:
+        `is_active = true AND <location scope> AND skill ∈ main_skills`. Because
+        both read the same predicate, the market rail's mover badge equals the
+        feed it links to (modulo the draining-queue triage drop, same honesty
+        contract as any feed available_total).
+
+        One indexed head-count per skill (no rows fetched). Callers pass only the
+        handful of skills the rail will show, and cache the result.
+        """
+        scope_clause, _ = build_location_scope(location_prefs or [])
+        out: dict[str, int] = {}
+        for display in skill_displays:
+            name = (display or "").strip()
+            if not name:
+                continue
+            try:
+                query = (
+                    self._admin_db.table("jobs")
+                    .select("job_id", count="exact", head=True)
+                    .eq("is_active", True)
+                    .contains("main_skills", [name])
+                )
+                if scope_clause is not None:
+                    query = query.or_(scope_clause)
+                result = query.execute()
+                out[name] = result.count or 0
+            except APIError:
+                out[name] = 0
+        return out
 
     def get_all_jobs_skills(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""

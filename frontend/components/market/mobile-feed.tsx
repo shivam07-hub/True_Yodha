@@ -7,6 +7,7 @@ import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { StoryCard, type FeedStory } from "./story-card"
+import { ShareJobButton } from "./share-job-button"
 import type { FeedRow } from "./feed-rows"
 
 const SWIPE_COMMIT = 96   // px past which a release triggers triage
@@ -88,6 +89,7 @@ function MobileJobCard({
           <>
             <button type="button" aria-label="Not interested" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Not interested</button>
             <button type="button" aria-label="Save" className="tm-triage-btn tm-triage-save" onClick={e => { e.stopPropagation(); commit("right") }}><span aria-hidden>★</span> Save</button>
+            <ShareJobButton job={job} />
           </>
         }
       />

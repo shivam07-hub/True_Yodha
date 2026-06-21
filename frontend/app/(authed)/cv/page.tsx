@@ -636,8 +636,8 @@ function CVPage() {
                 )}
                 {/* Privacy clarity before upload — beta-1 P0 trust signal. */}
                 <p className="cvb-upload-privacy">
-                  Your CV is private by default.{" "}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                  Only you can see your CV.{" "}
+                  <a href="/security" target="_blank" rel="noopener noreferrer">
                     How we handle your data ↗
                   </a>
                 </p>

@@ -51,6 +51,20 @@ const buttonVariants = cva(
           "active:bg-[var(--tm-int-bg-wash)] active:border-[var(--tm-interactive-press)] active:text-[var(--tm-interactive-press)]",
           "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
         ),
+        // ── neutral · the grey/secondary button ─────────────────────────────
+        neutral: cn(
+          "bg-[var(--tm-surface)] text-[var(--tm-interactive-rest)] border-[var(--tm-border)]",
+          "hover:bg-[var(--tm-hover)] hover:border-[var(--tm-border)]",
+          "active:bg-[var(--tm-hover)]",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
+        ),
+        // ── danger · the destructive button (soft at rest, solid-red on hover) ─
+        danger: cn(
+          "bg-[var(--tm-danger-wash)] text-[var(--tm-danger)] border-[var(--tm-danger)]",
+          "hover:bg-[var(--tm-danger)] hover:text-[var(--tm-interactive-fg)] hover:border-[var(--tm-danger)]",
+          "active:bg-[var(--tm-danger)] active:text-[var(--tm-interactive-fg)]",
+          "focus-visible:outline-2 focus-visible:outline-[var(--tm-danger)] focus-visible:outline-offset-2",
+        ),
         // ── ghost · the utility button ──────────────────────────────────────
         ghost: cn(
           // Clickable at rest → bright (never dull). Hover/active carried by bg.

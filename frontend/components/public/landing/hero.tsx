@@ -134,7 +134,7 @@ export function LandingHero({
             </div>
           </div>
 
-          <div className="lp-me-cv" style={{ right: "2%", top: "38%" }}>
+          <div className="lp-me-cv" style={{ right: "-1%", top: "38%" }}>
             <span className="lp-me-toast" role="status">
               <span className="lp-me-toast-plus" aria-hidden>
                 +

@@ -5,6 +5,7 @@ import {
   COUNTRY_NAMES, fmtAgeMin, fmtBatch, hexToRgba, initialsFor, logoColorFor,
 } from "./intel-data"
 import { formatCount } from "@/lib/format"
+import { CompanyLink } from "@/components/companies/company-link"
 import type { ResultCompany, ResultGroup, ResultJob } from "./intel-results"
 
 export function Spark({
@@ -56,16 +57,22 @@ export function CompanyRow({
 }: { co: ResultCompany; isActive: boolean; onClick: () => void }) {
   const velUp = co.velocity >= 0
   return (
-    <button
-      type="button"
+    <div
       className={"tm-intel-co-row" + (isActive ? " is-active" : "")}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } }}
       aria-pressed={isActive}
     >
       <Logo name={co.name} />
       <div className="tm-intel-co-body">
+        {/* Company name = crawlable link to /companies/{name} (locked
+            CompanyLink principle) → SEO/AEO discovery + logged-out access to all
+            of a company's jobs. The row's own click still selects the in-pane
+            role preview. */}
         <div className="tm-intel-co-name">
-          <span>{co.name}</span>
+          <CompanyLink company={co.name} />
           {co.industry ? <span className="tm-intel-co-industry">{co.industry}</span> : null}
         </div>
         <div className="tm-intel-co-meta">
@@ -86,7 +93,7 @@ export function CompanyRow({
         {co.open}
         <span className="tm-intel-co-roles-lab">open</span>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -123,10 +130,20 @@ export function CompanyHiringRow({
   onClick: () => void
 }) {
   return (
-    <button type="button" className="tm-intel-co-row" onClick={onClick}>
+    <div
+      className="tm-intel-co-row"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } }}
+    >
       <Logo name={co.company_name} />
       <div className="tm-intel-co-body">
-        <div className="tm-intel-co-name"><span>{co.company_name}</span></div>
+        {/* Company name = the crawlable link to /companies/{name} (the locked
+            CompanyLink principle). Restores SEO/AEO discovery of company pages
+            and lets logged-out users open all of a company's jobs; the row's own
+            click still opens the in-pane role preview. */}
+        <div className="tm-intel-co-name"><CompanyLink company={co.company_name} /></div>
         <div className="tm-intel-co-meta">
           <span className="tm-intel-co-updated">
             {co.last_seen_at ? `scraped ${fmtBatch(co.last_seen_at)}` : "scrape date n/a"}
@@ -139,7 +156,7 @@ export function CompanyHiringRow({
         {co.open_count}<span className="tm-intel-co-roles-lab">open</span>
       </div>
       <span className="tm-intel-co-go" aria-hidden="true">→</span>
-    </button>
+    </div>
   )
 }
 

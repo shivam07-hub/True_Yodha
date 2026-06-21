@@ -1986,6 +1986,9 @@ export interface JobFeedParams {
   cluster?: string | null
   roleDomain?: string | null
   q?: string | null
+  /** Skill facet — the canonical skill name; filters the feed by job_skills
+   *  membership, distinct from the free-text `q`. */
+  skill?: string | null
   locationCity?: string | null
   locationCountry?: string | null
   locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
@@ -2066,6 +2069,9 @@ export interface UserSkillDemandItem {
   job_count_30d: number
   weighted_demand: number
   demand_band?: DemandBand
+  /** Active jobs needing this skill in the user's location scope. Present only
+   *  on location-scoped demand reads (the market rail); null otherwise. */
+  scoped_job_count?: number | null
 }
 
 export type DemandBand = "very_high" | "high" | "moderate" | "low" | "none"
@@ -2272,6 +2278,7 @@ export const jobs = {
     if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
     if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
     if (p.q && p.q.trim()) params.set("q", p.q.trim())
+    if (p.skill && p.skill.trim()) params.set("skill", p.skill.trim())
     if (p.locationCity && p.locationCity.trim()) params.set("location_city", p.locationCity.trim())
     if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
     if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
@@ -2302,10 +2309,13 @@ export const jobs = {
     request<HiddenJobItem[]>("/jobs/feed/hidden", {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  mySkillDemand: (token: string) =>
-    request<UserSkillDemandResponse>("/jobs/my-skills/demand", {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
+  mySkillDemand: (token: string, opts?: { locationScoped?: boolean }) =>
+    request<UserSkillDemandResponse>(
+      `/jobs/my-skills/demand${opts?.locationScoped ? "?location_scoped=true" : ""}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    ),
   matches: (token: string) =>
     request<JobMatchesResponse>("/jobs/matches", {
       headers: { Authorization: `Bearer ${token}` },

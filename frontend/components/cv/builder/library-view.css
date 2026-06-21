@@ -333,6 +333,34 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* Autosave indicator — lives in the panel head, always visible while editing. */
+.tm-lib-savestatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+}
+.tm-lib-savestatus-dot {
+  width: 7px; height: 7px; flex: none;
+  border-radius: 50%;
+  background: var(--tm-border-soft);
+}
+.tm-lib-savestatus-saving .tm-lib-savestatus-dot {
+  background: var(--tm-warning);
+  animation: tm-lib-savepulse 1s ease-in-out infinite;
+}
+.tm-lib-savestatus-saved .tm-lib-savestatus-dot { background: var(--tm-success, var(--tm-interactive)); }
+.tm-lib-savestatus-error { color: var(--tm-danger); }
+.tm-lib-savestatus-error .tm-lib-savestatus-dot { background: var(--tm-danger); }
+.tm-lib-savestatus-retry {
+  padding: 0; background: none; border: none;
+  color: var(--tm-danger); font-size: 12px; text-decoration: underline; cursor: pointer;
+}
+@keyframes tm-lib-savepulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .tm-lib-master-panel-body {
   max-height: min(70vh, 760px);
   overflow: auto;

@@ -3,8 +3,9 @@
 import { useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { CVExportView } from "./cv-export-view"
-import { MasterEditor } from "./master-editor"
+import { MasterEditor, MasterSaveStatus } from "./master-editor"
 import { I, LIcon } from "./library-icons"
 
 // Master CV has no per-job hidden items — every section renders.
@@ -20,6 +21,10 @@ interface MasterCVPanelProps {
 
 function masterDisplayName(profile: UserProfile | null): string {
   return profile?.full_name?.trim() || "Your Name"
+}
+
+function userKeyFor(profile: UserProfile | null): string {
+  return profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
 }
 
 function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
@@ -41,6 +46,14 @@ export function MasterCVPanel({
   const fallbackText = baseline?.body_text?.trim() ?? ""
   const canEdit = !!baseline && !!cv
 
+  // Autosave is owned here (not in MasterEditor) so the save indicator can live
+  // in the always-visible panel head instead of floating inside the scroll body.
+  const autosave = useMasterAutosave({
+    token,
+    enabled: editing && canEdit,
+    userKey: userKeyFor(profile),
+  })
+
   return (
     <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Main CV preview">
       <div className="tm-lib-master-panel-head">
@@ -53,9 +66,16 @@ export function MasterCVPanel({
         </div>
         <div className="tm-lib-master-panel-actions">
           {editing ? (
-            <button type="button" className="tm-lib-btn primary sm" onClick={() => setEditing(false)}>
-              <LIcon d={I.file} size={12}/> Done
-            </button>
+            <>
+              <MasterSaveStatus
+                status={autosave.status}
+                recomputePending={autosave.recomputePending}
+                onSaveNow={autosave.saveNow}
+              />
+              <button type="button" className="tm-lib-btn primary sm" onClick={() => setEditing(false)}>
+                <LIcon d={I.file} size={12}/> Done
+              </button>
+            </>
           ) : (
             <>
               <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
@@ -84,7 +104,7 @@ export function MasterCVPanel({
 
       <div className="tm-lib-master-panel-body">
         {editing ? (
-          <MasterEditor token={token} profile={profile}/>
+          <MasterEditor autosave={autosave}/>
         ) : cv ? (
           // Master export: the inline skin downloads the CV directly — no
           // tailoring required (the dashboard "Door 2" capability, in-workspace).

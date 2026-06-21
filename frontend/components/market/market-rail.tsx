@@ -13,8 +13,10 @@ export interface MarketRailProps {
   total: number
   feed: JobFeedItem[]
   pulses: Map<string, JobPulse>
-  /** Filter the feed to a skill or company (sets the search box). */
+  /** Filter the feed to a company (sets the free-text search box). */
   onSeeRoles: (query: string) => void
+  /** Filter the feed to a skill (sets the skill facet, not the search box). */
+  onFilterSkill: (skill: string) => void
   /** Open a job's detail (where the deliberate verify/report flow lives). */
   onOpenJob: (job: JobFeedItem) => void
   /** Feed still resolving — strip shows a shimmer, never a literal "0". */
@@ -24,7 +26,7 @@ export interface MarketRailProps {
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { token, targetLocations, total, feed, pulses, onSeeRoles, onOpenJob, loading = false } = props
+  const { token, targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false } = props
   const { movers, trending, loading: intelLoading } = useMarketIntel(token, targetLocations)
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
@@ -56,7 +58,7 @@ export function MarketRail(props: MarketRailProps) {
           <h4 className="mi-h4">Skill-demand movers</h4>
           <p className="mi-sub">What the market is asking for, this month.</p>
           {movers.map((m) => (
-            <button key={m.skill} type="button" className="mi-mover" onClick={() => onSeeRoles(m.display)}>
+            <button key={m.skill} type="button" className="mi-mover" onClick={() => onFilterSkill(m.display)}>
               <span className="mi-mover-n">{m.display}</span>
               <span className="mi-mover-up">↑ {m.jobCount}</span>
             </button>
@@ -100,7 +102,7 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { token, targetLocations, total, feed, pulses, onSeeRoles, onOpenJob } = props
+  const { token, targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob } = props
   const { movers, trending } = useMarketIntel(token, targetLocations)
   const uncertain = uncertainListings(feed, pulses)
   const top = movers[0]
@@ -110,12 +112,12 @@ export function MarketChipStrip(props: MarketRailProps) {
     <div className="mi-chipstrip" role="region" aria-label="Market intel">
       <span className="mi-chip mi-chip-lead">{formatCount(total)} live</span>
       {top ? (
-        <button type="button" className="mi-chip" onClick={() => onSeeRoles(top.display)}>
+        <button type="button" className="mi-chip" onClick={() => onFilterSkill(top.display)}>
           {top.display} <span className="mi-chip-up">↑{top.jobCount}</span>
         </button>
       ) : null}
       {movers[1] ? (
-        <button type="button" className="mi-chip" onClick={() => onSeeRoles(movers[1].display)}>
+        <button type="button" className="mi-chip" onClick={() => onFilterSkill(movers[1].display)}>
           {movers[1].display} <span className="mi-chip-up">↑{movers[1].jobCount}</span>
         </button>
       ) : null}

@@ -92,6 +92,16 @@ function syncDirectory(srcDir: string, dstDir: string, ext: string, label: strin
 function run(): void {
   console.log(`\n📋 Newsletter sync ${DRY_RUN ? "(DRY RUN)" : ""}\n`)
 
+  // The canonical authoring folder ("Myro Newsletter/issues") lives outside the
+  // frontend deploy context — on Vercel/CI it isn't cloned. There, the committed
+  // frontend/content/newsletter/issues IS the source of truth, so skip cleanly
+  // (exit 0) rather than failing the build. This is what makes it safe to wire
+  // newsletter:check into prebuild.
+  if (!fs.existsSync(SOURCE_DIR)) {
+    console.log(`  ⏭  source folder absent (${SOURCE_DIR}) — CI/Vercel build, committed content is source of truth. Skipping.\n`)
+    return
+  }
+
   // Validate MDX files before any copy
   const srcFiles = fs.existsSync(SOURCE_DIR)
     ? fs.readdirSync(SOURCE_DIR).filter(f => f.endsWith(".mdx") && !f.startsWith("_"))

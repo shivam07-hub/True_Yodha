@@ -33,9 +33,12 @@ export interface UncertainListing {
  * Query keys mirror the page's existing ones so React Query dedupes the fetch.
  */
 export function useMarketIntel(token: string, targetLocations: string[]) {
+  // Location-scoped demand: each mover links into the location-scoped triage
+  // feed, so its badge must promise that feed (Scoped Skill Demand). Distinct
+  // query key from the market-wide ["mySkillDemand", token] used elsewhere.
   const demand = useQuery({
-    queryKey: ["mySkillDemand", token],
-    queryFn: () => jobs.mySkillDemand(token),
+    queryKey: ["mySkillDemand", token, "scoped"],
+    queryFn: () => jobs.mySkillDemand(token, { locationScoped: true }),
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
   })
@@ -48,17 +51,22 @@ export function useMarketIntel(token: string, targetLocations: string[]) {
     staleTime: 30 * 60 * 1000,
   })
 
+  // Scoped count is the badge's promise. Fall back to the market-wide count
+  // only if a row is missing the scoped figure (e.g. outside the top-N the
+  // backend scopes) — never show a skill with zero in-scope roles.
+  const scopedCount = (s: { scoped_job_count?: number | null; job_count_30d: number }) =>
+    s.scoped_job_count ?? s.job_count_30d
   const movers = useMemo<SkillMover[]>(
     () =>
       (demand.data?.skills ?? [])
-        .filter((s) => s.job_count_30d > 0)
+        .filter((s) => scopedCount(s) > 0)
         .slice()
-        .sort((a, b) => b.job_count_30d - a.job_count_30d)
+        .sort((a, b) => scopedCount(b) - scopedCount(a))
         .slice(0, 5)
         .map((s) => ({
           skill: s.skill,
           display: s.display_name,
-          jobCount: s.job_count_30d,
+          jobCount: scopedCount(s),
           level: s.current_level,
           needsUpgrade: s.needs_upgrade,
         })),

@@ -40,6 +40,10 @@ class UserSkillDemandItem(BaseModel):
     # Percentile band of weighted_demand across the user's set. Single source of
     # truth for the demand badge. very_high | high | moderate | low | none.
     demand_band: str = "none"
+    # Scoped Skill Demand — active jobs needing this skill in the user's location
+    # scope. Populated only when the demand endpoint is called with
+    # location_scoped=true (the market rail); null on the market-wide responses.
+    scoped_job_count: int | None = None
 
 
 class UserSkillDemandResponse(BaseModel):

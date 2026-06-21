@@ -4,6 +4,7 @@ import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { ShareJobButton } from "@/components/market/share-job-button"
 
 // ── shared helpers (used by card, drawer, mobile feed) ───────────────────────
 
@@ -56,7 +57,7 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
 
 // ── triage buttons (Save / Skip — the curation front door) ───────────────────
 
-export function TriageButtons({ onSave, onSkip }: { onSave: () => void; onSkip: () => void }) {
+export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSave: () => void; onSkip: () => void }) {
   return (
     <div style={{ display: "inline-flex", gap: 8 }}>
       <button
@@ -77,6 +78,7 @@ export function TriageButtons({ onSave, onSkip }: { onSave: () => void; onSkip: 
       >
         <span aria-hidden>★</span> Save
       </button>
+      <ShareJobButton job={job} />
     </div>
   )
 }
@@ -100,7 +102,7 @@ export function JobCard({
       extraClass={feedCardConfidenceClass(pulse)}
       onOpen={onOpen}
       pulse={<PulseRow pulse={pulse} bare />}
-      actions={<TriageButtons onSave={onSave} onSkip={onSkip} />}
+      actions={<TriageButtons job={job} onSave={onSave} onSkip={onSkip} />}
     />
   )
 }

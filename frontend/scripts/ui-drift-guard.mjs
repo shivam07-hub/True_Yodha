@@ -22,7 +22,7 @@
  * This is the Linear/Stripe move: shipping the constraint WITH the kit, so the
  * wrong way is rejected automatically instead of caught in review (if at all).
  */
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs"
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs"
 import { join, extname } from "node:path"
 
 const ROOT = process.cwd()
@@ -125,6 +125,49 @@ function countMetric(metric) {
   return { total, offenders }
 }
 
+/**
+ * "One website" coverage: every public top-level page must be declared in the
+ * site-route registry (lib/site-routes.ts) so it flows into nav/footer/sitemap.
+ * A public app/<seg>/page.tsx with no `route: true` entry there fails the build
+ * — a page can't be silently forgotten (the /companies-in-footer bug class).
+ */
+const NON_PUBLIC_SEGMENTS = new Set(["dashboard", "diary", "login", "onboarding", "signup", "welcome"])
+
+function registeredRouteSegments() {
+  const segs = new Set()
+  let txt
+  try {
+    txt = readFileSync(join(ROOT, "lib", "site-routes.ts"), "utf8")
+  } catch {
+    return segs
+  }
+  for (const line of txt.split("\n")) {
+    if (!/route:\s*true/.test(line)) continue
+    const m = line.match(/path:\s*["'`]\/([^"'`/#]+)/)
+    if (m) segs.add(m[1])
+  }
+  return segs
+}
+
+function checkRouteCoverage() {
+  const registered = registeredRouteSegments()
+  const appDir = join(ROOT, "app")
+  const unregistered = []
+  let entries
+  try {
+    entries = readdirSync(appDir)
+  } catch {
+    return []
+  }
+  for (const entry of entries) {
+    if (entry.startsWith("(") || entry.startsWith("[") || entry === "api") continue
+    if (NON_PUBLIC_SEGMENTS.has(entry)) continue
+    if (!existsSync(join(appDir, entry, "page.tsx"))) continue
+    if (!registered.has(entry)) unregistered.push(entry)
+  }
+  return unregistered
+}
+
 const update = process.argv.includes("--update-baseline")
 const results = METRICS.map((m) => ({ metric: m, ...countMetric(m) }))
 
@@ -156,14 +199,17 @@ for (const r of results) {
   if (r.metric.mode === "min" && r.total < base) violations.push({ r, base, kind: "decreased" })
 }
 
+const unregistered = checkRouteCoverage()
+
 console.log("UI drift guard:")
 for (const r of results) {
   const base = baseline[r.metric.name]
   const arrow = r.metric.mode === "max" ? "≤" : "≥"
   console.log(`  ${r.metric.name}: ${r.total} (${arrow} ${base ?? "?"})`)
 }
+console.log(`  publicRouteCoverage: ${unregistered.length === 0 ? "ok" : `${unregistered.length} unregistered`}`)
 
-if (violations.length === 0) {
+if (violations.length === 0 && unregistered.length === 0) {
   console.log("\n✓ No new UI drift.")
   process.exit(0)
 }
@@ -184,6 +230,13 @@ for (const v of violations) {
   console.error(`    current locations: ${r.offenders.map((o) => `${o.rel}(${o.n})`).join(", ") || "—"}`)
   console.error("")
 }
-console.error("If you intentionally REDUCED a hand-rolled pattern, lock it in:")
-console.error("  npm run check:ui-drift -- --update-baseline\n")
+if (unregistered.length > 0) {
+  console.error(`  publicRouteCoverage: ${unregistered.map((s) => `/${s}`).join(", ")} not in the site-route registry.`)
+  console.error("    Add an entry (with `route: true`) in lib/site-routes.ts so the page flows into nav/footer/sitemap.")
+  console.error("    If it's not a public surface, add its segment to NON_PUBLIC_SEGMENTS in this script.\n")
+}
+if (violations.length > 0) {
+  console.error("If you intentionally REDUCED a hand-rolled pattern, lock it in:")
+  console.error("  npm run check:ui-drift -- --update-baseline\n")
+}
 process.exit(1)
