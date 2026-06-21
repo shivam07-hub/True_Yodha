@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
+import { formatCount } from "@/lib/format"
 import "./taxonomy.css"
 
 interface SkillNode  { name: string; id?: string }
@@ -107,8 +108,8 @@ export function TaxonomyBrowser() {
         <p className="tx-hero-body">
           Myro built and maintains its own skill taxonomy — the engine behind every CV
           score and job match on the platform. Browse all{" "}
-          {stats.skills.toLocaleString()} skills, see how they nest inside{" "}
-          {stats.clusters.toLocaleString()} clusters and {stats.domains} domains, and
+          {formatCount(stats.skills)} skills, see how they nest inside{" "}
+          {formatCount(stats.clusters)} clusters and {stats.domains} domains, and
           discover exactly what Myro looks for in yours.
         </p>
       </section>
@@ -122,7 +123,7 @@ export function TaxonomyBrowser() {
         ].map(({ n, label }, i) => (
           <div key={label} className="tx-stat" role="listitem">
             {i > 0 && <span className="tx-stats-dot" aria-hidden="true">·</span>}
-            <span className="tx-stat-n">{n.toLocaleString()}</span>
+            <span className="tx-stat-n">{formatCount(n)}</span>
             <span className="tx-stat-label">{label}</span>
           </div>
         ))}
@@ -201,12 +202,12 @@ export function TaxonomyBrowser() {
                     key={domain.name}
                     className="tx-domain-card"
                     onClick={() => setExpandedDomain(domain.name)}
-                    aria-label={`Explore ${domain.name}: ${c.skills.toLocaleString()} skills`}
+                    aria-label={`Explore ${domain.name}: ${formatCount(c.skills)} skills`}
                   >
                     <span className="tx-domain-name">{domain.name}</span>
                     <span className="tx-domain-meta">
                       <span className="tx-domain-clusters">{c.clusters} clusters</span>
-                      <span className="tx-domain-skillcount">{c.skills.toLocaleString()} skills</span>
+                      <span className="tx-domain-skillcount">{formatCount(c.skills)} skills</span>
                     </span>
                   </button>
                 )
@@ -221,7 +222,7 @@ export function TaxonomyBrowser() {
                 <span className="tx-cluster-domain-name">{activeDomain.name}</span>
                 <span className="tx-cluster-domain-meta">
                   {activeDomain.children.length} clusters ·{" "}
-                  {domainCounts[activeDomain.name]?.skills.toLocaleString()} skills
+                  {formatCount(domainCounts[activeDomain.name]?.skills ?? 0)} skills
                 </span>
               </div>
 
@@ -257,7 +258,7 @@ export function TaxonomyBrowser() {
                             >
                               Show {Math.min(60, cluster.children.length - visibleCount)} more
                               <span className="tx-show-more-total">
-                                {" "}({(cluster.children.length - visibleCount).toLocaleString()} remaining)
+                                {" "}({formatCount(cluster.children.length - visibleCount)} remaining)
                               </span>
                             </button>
                           )}
