@@ -215,7 +215,10 @@ export default function CompanyJobsPage() {
           </div>
         )}
 
-        {/* Score CTA */}
+        {/* Score CTA — anonymous acquisition only. A logged-in user is already
+            in the app, so this signup pitch (wrong-audience copy + a signup
+            modal) is hidden for them; experience continuity over a dead CTA. */}
+        {!token && (
         <div style={{ marginTop: 48, padding: "28px 32px", background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 0% 50%, var(--tm-int-bg-wash), transparent 50%)", pointerEvents: "none" }} />
           <div style={{ position: "relative" }}>
@@ -236,6 +239,7 @@ export default function CompanyJobsPage() {
             Get my Myro Score →
           </Button>
         </div>
+        )}
       </div>
     </div>
   )
