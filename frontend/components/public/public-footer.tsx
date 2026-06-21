@@ -29,6 +29,7 @@ const FOOTER_COLS = [
     links: [
       { label: "CV Hub",        href: "/cv-preview"   },
       { label: "Live Job Data", href: "/intel"        },
+      { label: "Companies",     href: "/companies"    },
       { label: "For Colleges",  href: "/institutions" },
       { label: "Myrology",      href: "/myrology"     },
     ],
@@ -119,10 +120,6 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
               <span className="pub-footer-commons-k">License</span>
               <span className="pub-footer-commons-v">MIT · fork freely</span>
             </span>
-            <span className="pub-footer-commons-item">
-              <span className="pub-footer-commons-k">Privacy</span>
-              <span className="pub-footer-commons-v">PV1 · CV never public</span>
-            </span>
           </div>
           <div className="pub-footer-commons-links">
             <a href="https://openrouter.ai/models" target="_blank" rel="noreferrer" className="pub-footer-commons-link">
@@ -140,9 +137,7 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
         <span className="pub-footer-bottom-dot">·</span>
         <span>Built for Seekers</span>
         <span className="pub-footer-bottom-dot">·</span>
-        <span className="pub-footer-trust">
-          SOC 2-certified infrastructure (Supabase · Vercel · Railway) · TLS in transit · Row-level security
-        </span>
+        <a className="pub-footer-trust" href="/security">Security →</a>
       </div>
     </footer>
   )
