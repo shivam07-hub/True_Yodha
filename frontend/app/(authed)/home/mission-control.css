@@ -163,14 +163,12 @@
 .mc-ws-main .db-head { margin-top: 0; }
 .mc-ws-main .db-feed { max-width: none; }
 
-/* The centre column splits into feed + peek panel only on a wide workspace
-   (≥1180px, where Dashboard renders `db-workspace`). The feed leads on the LEFT;
-   the peek docks on the RIGHT and carries the open job's detail (D5) — so the
-   job detail opens from the right on every surface, matching the drawer's
-   direction. Only the docking differs (docked here vs overlay below the break). */
+/* Legacy wide-workspace split (peek column beside the feed). No longer used —
+   the dashboard is now the match feed full width, with the job detail in the
+   right-slide drawer (see components/dashboard/dashboard.tsx). Kept harmless. */
 .db-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 312px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -247,17 +245,8 @@
 .mc-peek-intel strong { color: var(--tm-text); font-weight: 650; }
 .mc-peek-intel-meta { color: var(--tm-text-faint); }
 
-/* Peek panel → job-detail swap (D5). The detail slides in from the right —
-   same direction + easing as the overlay drawer (tmDrawerIn), shorter travel
-   because this panel is docked, not floating. One motion language, two dockings. */
-.mc-peek-detail {
-  display: flex; flex-direction: column; gap: 10px; min-height: 0;
-  animation: mcPeekDetailIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes mcPeekDetailIn {
-  from { opacity: 0; transform: translateX(24px); }
-  to { opacity: 1; transform: none; }
-}
+/* Peek panel → job-detail swap (D5) */
+.mc-peek-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .mc-peek-detail-top { display: flex; align-items: center; gap: 10px; }
 .mc-peek-back {
   display: inline-flex; align-items: center; gap: 3px; padding: 5px 9px; border-radius: 8px;
@@ -494,8 +483,7 @@ a.mc-loopring-nudge:hover strong { color: var(--tm-interactive-fg); }
 
 @media (prefers-reduced-motion: reduce) {
   .mc-loopring-seg.is-done,
-  .mc-loopring-core-badge,
-  .mc-peek-detail { animation: none; }
+  .mc-loopring-core-badge { animation: none; }
 }
 
 /* ─── Matches rows ─── */
