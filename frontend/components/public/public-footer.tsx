@@ -36,9 +36,10 @@ const FOOTER_COLS = [
   {
     title: "Learn",
     links: [
-      { label: "Newsletter",   href: "/newsletter" },
-      { label: "How it works", href: "/docs"     },
-      { label: "FAQ",          href: "/docs#faq" },
+      { label: "Newsletter",     href: "/newsletter" },
+      { label: "How it works",   href: "/docs"       },
+      { label: "Skill Taxonomy", href: "/taxonomy"   },
+      { label: "FAQ",            href: "/docs#faq"   },
     ],
   },
   {
