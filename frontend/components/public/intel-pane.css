@@ -881,7 +881,7 @@
   min-width: 0;
 }
 
-.tm-intel-co-name > span:first-child {
+.tm-intel-co-name > :first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
