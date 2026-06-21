@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
 import { formatCount } from "@/lib/format"
+import { Button } from "@/components/ui/button"
 import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
@@ -183,9 +184,9 @@ export default function CompanyJobsPage() {
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 300, lineHeight: 1.6 }}>
               Our scrapers check regularly. Roles appear here as they&apos;re indexed.
             </div>
-            <Link href="/market" style={{ marginTop: 8, padding: "10px 22px", borderRadius: 99, background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            <Button render={<Link href="/market" />} variant="solid" size="md" style={{ marginTop: 8 }}>
               Explore other companies →
-            </Link>
+            </Button>
           </div>
         ) : (
           <>
@@ -196,13 +197,9 @@ export default function CompanyJobsPage() {
             </div>
             {hasNext && (
               <div style={{ textAlign: "center" }}>
-                <button
-                  type="button"
-                  onClick={() => setPage(p => p + 1)}
-                  style={{ padding: "10px 28px", borderRadius: 99, background: "var(--tm-surface)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                >
+                <Button type="button" variant="ghost" size="md" onClick={() => setPage(p => p + 1)}>
                   Load more
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -225,9 +222,11 @@ export default function CompanyJobsPage() {
             <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginBottom: 4 }}>See how you match {companyName} roles</div>
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV. Get a Myro Score + skill gap for every role.</div>
           </div>
-          <Link
-            href="/signup?next=/cv?upload=1"
-            style={{ flexShrink: 0, padding: "10px 22px", borderRadius: 99, background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", position: "relative" }}
+          <Button
+            render={<Link href="/signup?next=/cv?upload=1" />}
+            variant="solid"
+            size="md"
+            style={{ flexShrink: 0, position: "relative" }}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
               e.preventDefault()
@@ -235,7 +234,7 @@ export default function CompanyJobsPage() {
             }}
           >
             Get my Myro Score →
-          </Link>
+          </Button>
         </div>
       </div>
     </div>
