@@ -8,25 +8,18 @@
 "use client"
 
 import { useCallback } from "react"
-import type { CVStructured, UserProfile } from "@/lib/api"
-import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
+import type { CVStructured } from "@/lib/api"
+import type { MasterAutosaveState } from "@/lib/hooks/use-master-autosave"
 import "./master-editor.css"
 
 interface MasterEditorProps {
-  token: string
-  profile: UserProfile | null
+  /** Autosave state owned by MasterCVPanel — the save indicator lives in the
+      always-visible panel head, not inside this scrollable body. */
+  autosave: MasterAutosaveState
 }
 
-function userKeyFor(profile: UserProfile | null): string {
-  return profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
-}
-
-export function MasterEditor({ token, profile }: MasterEditorProps) {
-  const { draft, ready, status, recomputePending, update, saveNow } = useMasterAutosave({
-    token,
-    enabled: true,
-    userKey: userKeyFor(profile),
-  })
+export function MasterEditor({ autosave }: MasterEditorProps) {
+  const { draft, ready, update } = autosave
 
   const patch = useCallback(
     (mut: (d: CVStructured) => CVStructured) => {
@@ -42,8 +35,6 @@ export function MasterEditor({ token, profile }: MasterEditorProps) {
 
   return (
     <div className="tm-me">
-      <SaveBar status={status} recomputePending={recomputePending} onSaveNow={saveNow} />
-
       <Field label="Summary">
         <textarea
           className="tm-me-textarea"
@@ -154,23 +145,25 @@ export function MasterEditor({ token, profile }: MasterEditorProps) {
   )
 }
 
-function SaveBar({ status, recomputePending, onSaveNow }: {
-  status: ReturnType<typeof useMasterAutosave>["status"]
+/** Autosave indicator for the panel head — always visible, never inside the
+    scrolling editor body (so it can't be overlaid by content). */
+export function MasterSaveStatus({ status, recomputePending, onSaveNow }: {
+  status: MasterAutosaveState["status"]
   recomputePending: boolean
   onSaveNow: () => void
 }) {
   const label =
     status === "saving" ? "Saving…"
-    : status === "error" ? "Couldn’t save — retry"
+    : status === "error" ? "Couldn’t save"
     : recomputePending ? "Saved · re-scoring"
     : status === "saved" ? "Saved"
     : "All changes save automatically"
   return (
-    <div className={`tm-me-savebar tm-me-savebar-${status}`} role="status" aria-live="polite">
-      <span className="tm-me-savebar-dot" aria-hidden />
-      <span className="tm-me-savebar-label">{label}</span>
+    <div className={`tm-lib-savestatus tm-lib-savestatus-${status}`} role="status" aria-live="polite">
+      <span className="tm-lib-savestatus-dot" aria-hidden />
+      <span className="tm-lib-savestatus-label">{label}</span>
       {status === "error" && (
-        <button type="button" className="tm-me-retry" onClick={onSaveNow}>Retry now</button>
+        <button type="button" className="tm-lib-savestatus-retry" onClick={onSaveNow}>Retry now</button>
       )}
     </div>
   )

@@ -3,27 +3,8 @@
 .tm-me { display: flex; flex-direction: column; gap: 18px; }
 .tm-me-loading { padding: 24px; text-align: center; color: var(--tm-text-faint); font-size: 13px; }
 
-/* Save status bar — sticky so the state is always visible while editing. */
-.tm-me-savebar {
-  position: sticky; top: 0; z-index: 2;
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; margin-bottom: 2px;
-  border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-sm);
-  background: var(--tm-surface);
-  font-size: 12px; color: var(--tm-text-muted);
-}
-.tm-me-savebar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tm-border-soft); }
-.tm-me-savebar-saving .tm-me-savebar-dot { background: var(--tm-warning); animation: tm-me-pulse 1s ease-in-out infinite; }
-.tm-me-savebar-saved .tm-me-savebar-dot { background: var(--tm-success, var(--tm-interactive)); }
-.tm-me-savebar-error { color: var(--tm-danger); }
-.tm-me-savebar-error .tm-me-savebar-dot { background: var(--tm-danger); }
-.tm-me-savebar-label { font-weight: 600; }
-.tm-me-retry, .tm-me-savebar-error .tm-me-retry {
-  margin-left: auto; padding: 0; background: none; border: none;
-  color: var(--tm-danger); font-size: 12px; text-decoration: underline; cursor: pointer;
-}
-@keyframes tm-me-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+/* Save status now lives in the panel head (.tm-lib-savestatus, library-view.css)
+   — always visible, never floating inside this scrollable body. */
 
 .tm-me-field, .tm-me-section { display: flex; flex-direction: column; gap: 8px; }
 .tm-me-field-label {
