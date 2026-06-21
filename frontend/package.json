@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check:ui-drift": "node scripts/ui-drift-guard.mjs",
     "test:contracts": "node --test tests/api-session-contract.test.mjs",
     "test:onboarding": "node --test tests/onboarding-contract.test.mjs",
     "test:market-browse": "tsx --test tests/market-browse-contract.test.ts",

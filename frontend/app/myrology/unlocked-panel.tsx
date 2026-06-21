@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react"
 
 import { useMyrology } from "./checkout"
+import { formatDate } from "@/lib/format"
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "Requested",
@@ -21,7 +22,7 @@ function statusMoment(b: {
 }): string | null {
   const iso = b.status === "done" ? b.done_at : b.status === "confirmed" ? b.confirmed_at : b.status === "cancelled" ? b.cancelled_at : null
   if (!iso) return null
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+  return formatDate(iso, "short")
 }
 
 function IntakeForm() {

@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react"
 import { RefreshCw } from "lucide-react"
 import { FAILURE_COPY } from "@/lib/failure-copy"
+import { formatRelativeAge } from "@/lib/format"
 
 /**
  * Calm, non-alarming banner shown when a background refresh failed but we still
@@ -10,17 +11,6 @@ import { FAILURE_COPY } from "@/lib/failure-copy"
  * is muted, not red — but the user deserves to know it isn't live, plus a way
  * to retry. Pairs with the query-cache persistence (lib/query-persist.ts).
  */
-
-function relativeAge(ts: number): string {
-  const diff = ts - Date.now() // negative = in the past
-  const mins = Math.round(diff / 60000)
-  if (Math.abs(mins) < 1) return "just now"
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
-  if (Math.abs(mins) < 60) return rtf.format(mins, "minute")
-  const hours = Math.round(mins / 60)
-  if (Math.abs(hours) < 24) return rtf.format(hours, "hour")
-  return rtf.format(Math.round(hours / 24), "day")
-}
 
 const bar: CSSProperties = {
   display: "flex",
@@ -61,7 +51,7 @@ export function StaleBanner({
   onRefresh: () => void
   refreshing?: boolean
 }) {
-  const message = FAILURE_COPY.stale.title.replace("{age}", relativeAge(lastViewAt))
+  const message = FAILURE_COPY.stale.title.replace("{age}", formatRelativeAge(lastViewAt))
   return (
     <div role="status" aria-live="polite" style={bar}>
       <span>{message}</span>

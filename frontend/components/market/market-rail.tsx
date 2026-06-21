@@ -4,6 +4,7 @@ import type { CSSProperties } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
+import { formatCount } from "@/lib/format"
 import "./market-intel.css"
 
 export interface MarketRailProps {
@@ -38,7 +39,7 @@ export function MarketRail(props: MarketRailProps) {
           <Skeleton style={{ width: 104, height: 22, borderRadius: 6 }} />
         ) : (
           <>
-            <span className="mi-strip-num">{total.toLocaleString()}</span>
+            <span className="mi-strip-num">{formatCount(total)}</span>
             <span className="mi-strip-sub">live role{total === 1 ? "" : "s"}{city ? ` · ${city}` : ""}</span>
           </>
         )}
@@ -107,7 +108,7 @@ export function MarketChipStrip(props: MarketRailProps) {
 
   return (
     <div className="mi-chipstrip" role="region" aria-label="Market intel">
-      <span className="mi-chip mi-chip-lead">{total.toLocaleString()} live</span>
+      <span className="mi-chip mi-chip-lead">{formatCount(total)} live</span>
       {top ? (
         <button type="button" className="mi-chip" onClick={() => onSeeRoles(top.display)}>
           {top.display} <span className="mi-chip-up">↑{top.jobCount}</span>

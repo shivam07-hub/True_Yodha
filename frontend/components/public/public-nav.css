@@ -36,18 +36,16 @@
   display: contents;
 }
 
-/* Authed workspace tabs (Jobs / Dashboard / CV / Myrology) injected into the
-   public bar so a logged-in viewer keeps app nav on marketing surfaces.
-   `contents` lets them join the same flex row as the shared switchers. */
+/* Authed workspace tabs (Jobs / Dashboard / CV) injected into the public bar so
+   a logged-in viewer keeps app nav on marketing surfaces. Tight 4px flex group —
+   matches the app shell's `.tm-topbar-nav` rhythm. The tabs themselves render
+   the canonical `.tm-topbar-link` class (globals.css), so their look is shared
+   with the app, not copied here. The authed content cluster reuses the app's
+   own `.tm-nav-content-cluster` directly (no public-side variant). */
 .tm-public-nav-workspace {
-  display: contents;
-}
-
-/* Shared-content cluster (Intel / Newsletter / Myrology) injected for authed
-   viewers — same order + labels as the app shell so the two bars never diverge.
-   `contents` lets it join the same flex row, ahead of the workspace tabs. */
-.tm-public-nav-content {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tm-public-nav-link {
@@ -177,11 +175,11 @@
     display: none;
   }
 
-  /* Workspace + content tabs are label-only (no glyph); the mobile bar collapses
-     labels to icons, which would leave them blank. Hide both groups — the brand
-     logo still routes a logged-in user back to /home. */
-  .tm-public-nav-workspace,
-  .tm-public-nav-content {
+  /* Workspace tabs are label-only (no glyph); the mobile bar collapses labels to
+     icons, which would leave them blank. Hide the group — the brand logo still
+     routes a logged-in user back to /home. (The authed content cluster uses the
+     app's `.tm-nav-content-cluster`, already hidden ≤1080px in globals.css.) */
+  .tm-public-nav-workspace {
     display: none;
   }
 

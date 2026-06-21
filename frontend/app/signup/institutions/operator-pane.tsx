@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { SignupForm } from "@/components/auth/signup-form"
+import { formatCount } from "@/lib/format"
 
 /** Animated count-up for the live-intel stat numbers. */
 function useCountUp(active: boolean) {
@@ -11,7 +12,7 @@ function useCountUp(active: boolean) {
     if (!active || !rootRef.current) return
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const nums = rootRef.current.querySelectorAll<HTMLElement>(".es-stat-num[data-target]")
-    const fmt = (n: number) => n.toLocaleString("en-US")
+    const fmt = formatCount
     const frames: number[] = []
     nums.forEach((el) => {
       const target = parseInt(el.dataset.target ?? "0", 10)

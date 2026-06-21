@@ -6,6 +6,7 @@ import { newsletter } from "@/lib/api"
 import { QUOTES } from "./landing-copy"
 import { SectionTitle } from "./section-title"
 import type { IntelTeaserRow } from "./use-landing-data"
+import { formatDate } from "@/lib/format"
 
 function NewsletterStrip({ companiesLabel }: { companiesLabel: string }) {
   const [email, setEmail] = useState("")
@@ -67,7 +68,7 @@ interface LandingProofProps {
 
 export function LandingProof({ rows, asOf, companiesLabel }: LandingProofProps) {
   const asOfLabel = asOf
-    ? asOf.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    ? formatDate(asOf, "medium")
     : null
 
   return (

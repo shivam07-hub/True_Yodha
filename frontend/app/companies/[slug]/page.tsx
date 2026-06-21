@@ -4,6 +4,7 @@ import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { useState } from "react"
+import { formatCount } from "@/lib/format"
 import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
@@ -164,7 +165,7 @@ export default function CompanyJobsPage() {
           </h1>
           <div style={{ marginTop: 10, fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)" }}>
             {total > 0
-              ? `${total.toLocaleString()} open role${total !== 1 ? "s" : ""} indexed`
+              ? `${formatCount(total)} open role${total !== 1 ? "s" : ""} indexed`
               : "No recent roles indexed"}
             <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
             from Myro&apos;s job database

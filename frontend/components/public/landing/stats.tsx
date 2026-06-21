@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 
+import { formatCount } from "@/lib/format"
+
 /** Count-up once on scroll-into-view; static value for reduced motion / no JS. */
 function Counter({ target, label }: { target: number; label: string }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -46,7 +48,7 @@ function Counter({ target, label }: { target: number; label: string }) {
   return (
     <div className="lp-stat" ref={ref}>
       <div className="lp-stat-num">
-        <span>{value.toLocaleString("en-US")}</span>
+        <span>{formatCount(value)}</span>
         <span className="plus">+</span>
       </div>
       <div className="lp-stat-lbl">{label}</div>

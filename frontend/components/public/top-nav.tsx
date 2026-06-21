@@ -77,21 +77,22 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
       <div className="tm-public-nav-links">
         {isAuthed ? (
           <>
-            {/* Content cluster — Intel / Newsletter / Myrology — identical order
-                and labels to the app shell's NavContentCluster (nav.content). */}
+            {/* Authed bar = the SAME kit as the app shell. Both clusters render
+                the canonical `.tm-topbar-link*` + `.tm-nav-content-cluster`
+                classes from globals.css (the app-shell source of truth), so the
+                look — 13px, boxed active tab, muted-content + violet-Myrology
+                treatment — is byte-identical to web-chrome and cannot drift. */}
             {nav.content.length > 0 && (
-              <div className="tm-public-nav-content">
+              <div className="tm-nav-content-cluster">
                 {nav.content.map((item) => (
                   <Link
                     key={item.id}
                     href={item.href}
-                    className={`tm-public-nav-link${item.special ? " tm-public-nav-link-accent" : ""}`}
+                    className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
                     data-active={item.id === active}
                     title={item.desc}
                   >
-                    <span className="tm-public-nav-label">
-                      {item.special ? `✦ ${item.label}` : item.label}
-                    </span>
+                    {item.special ? `✦ ${item.label}` : item.label}
                   </Link>
                 ))}
               </div>
@@ -104,11 +105,11 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="tm-public-nav-link"
+                    className="tm-topbar-link"
                     data-active={item.id === active}
                     title={item.desc}
                   >
-                    <span className="tm-public-nav-label">{item.label}</span>
+                    {item.label}
                   </Link>
                 ))}
               </div>
