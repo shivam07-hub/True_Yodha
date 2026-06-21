@@ -10,6 +10,7 @@ import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
 import { LocationLine, SkillChip } from "./job-card"
+import { ShareJobButton } from "./share-job-button"
 
 /**
  * Live job detail (discover stage). Shares the canonical drawer shell with the
@@ -79,6 +80,7 @@ export function JobDetailDrawer({
               ) : null}
               <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
               <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>
+              <ShareJobButton job={job} variant="drawer" />
             </div>
             {/* The build-stage bridge — one tap to capture + cross over to tailoring. */}
             <button type="button" onClick={saveAndTailor} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "var(--tm-interactive)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
