@@ -200,8 +200,10 @@ export function Dashboard(props: DashboardProps) {
           if (!isWide) return grid
           return (
             <div className="db-workspace">
-              {/* Peek panel sits in the LEFT column to match the /market rail
-                  (mc-workspace: rail-left, main-right); feed moves right. */}
+              {/* Feed leads on the left; the detail/peek panel docks on the RIGHT
+                  so the job detail opens from the right on every surface (matching
+                  the drawer's direction) — only the docking differs by width. */}
+              <div className="db-workspace-feed">{grid}</div>
               <PeekPanel
                 token={props.token}
                 steps={props.steps ?? []}
@@ -229,7 +231,6 @@ export function Dashboard(props: DashboardProps) {
                   ) : null
                 }
               />
-              <div className="db-workspace-feed">{grid}</div>
             </div>
           )
         })()
