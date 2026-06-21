@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   /myrology — premium sub-brand surface (cosmic career, ₹499).
+   /myrology — premium sub-brand surface (cosmic career, ₹299).
    Ported from the Building-front-end-brand handoff. Amethyst
    accent, layered on the same dark base. Every selector is
    ancestor-scoped under .myrology-root so nothing leaks into the
@@ -351,11 +351,26 @@ html:has(.myrology-root) body {
 .myrology-root .my-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tm-text-muted); margin: -6px 0 16px; cursor: pointer; }
 .myrology-root .my-check input { width: 16px; height: 16px; accent-color: var(--my-amethyst); }
 .myrology-root .my-form-error { font-size: 14px; color: var(--tm-danger, #ff5d5d); margin-bottom: 10px; }
-.myrology-root .my-intake-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.myrology-root .my-intake-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
 .myrology-root .my-intake-summary span {
   font-size: 14px; padding: 4px 10px; border-radius: 99px; background: var(--my-amethyst-wash);
   border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst);
 }
+.myrology-root .my-intake-edit {
+  font-size: 13px; padding: 4px 10px; border-radius: 99px; background: none; cursor: pointer;
+  border: 1px dashed var(--my-amethyst-ring); color: var(--tm-text-muted); font: inherit; font-size: 13px;
+}
+.myrology-root .my-intake-edit:hover { color: var(--my-amethyst); border-color: var(--my-amethyst); }
+.myrology-root .my-confirm-banner {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; padding: 14px 16px;
+  border-radius: var(--tm-radius, 8px); background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring);
+}
+.myrology-root .my-confirm-check {
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--my-amethyst); color: var(--my-card); font-size: 15px;
+}
+.myrology-root .my-confirm-title { font-size: 15px; font-weight: 700; color: var(--my-amethyst); }
+.myrology-root .my-confirm-text { font-size: 14px; color: var(--tm-text-muted); margin-top: 2px; }
 .myrology-root .my-booking-list { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
 .myrology-root .my-booking-row {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;

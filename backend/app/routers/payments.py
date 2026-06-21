@@ -43,7 +43,7 @@ class Product:
 # field entirely, so "xp_pack" must stay the default.
 PRODUCTS: dict[str, Product] = {
     "xp_pack": Product(key="myro_xp_launch_pack", price_paise=9900, xp_amount=1000, kind="xp"),
-    "myrology": Product(key="myro_myrology_unlock", price_paise=49900, xp_amount=0, kind="entitlement"),
+    "myrology": Product(key="myro_myrology_unlock", price_paise=29900, xp_amount=0, kind="entitlement"),
 }
 # Reverse lookup keyed by the persisted product key (used on verify).
 _PRODUCT_BY_KEY: dict[str, Product] = {p.key: p for p in PRODUCTS.values()}

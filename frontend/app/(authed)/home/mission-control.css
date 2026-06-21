@@ -163,12 +163,13 @@
 .mc-ws-main .db-head { margin-top: 0; }
 .mc-ws-main .db-feed { max-width: none; }
 
-/* The centre column splits into feed + peek panel only on a wide workspace
-   (≥1180px, where Dashboard renders `db-workspace`). The peek carries the open
-   job's detail (D5). */
+/* The centre column splits into peek panel + feed only on a wide workspace
+   (≥1180px, where Dashboard renders `db-workspace`). The peek sits on the LEFT
+   to match the /market ("job") page rail (mc-workspace: rail-left, main-right);
+   the peek carries the open job's detail (D5). */
 .db-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 312px;
+  grid-template-columns: 312px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }

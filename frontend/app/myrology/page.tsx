@@ -110,9 +110,8 @@ export default function MyrologyPage() {
             <span className="en">Career, aligned to your stars.</span>
           </h1>
           <p className="my-hero-sub">
-            A second signal beside your data. One research-oriented astrologer reads your stars —
-            3 sessions and a written report — so you know when to move and when to wait.
-            One-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹499</span>.
+            A full birth-chart report — houses, career timings, best-fit roles, even your odds abroad —
+            plus 3 lifetime sessions with one research-oriented astrologer. One-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹299</span>.
             <br />
             <span className="my-hero-privacy">Three facts — date, time, place.</span>
           </p>

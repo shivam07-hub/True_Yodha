@@ -200,7 +200,8 @@ export function Dashboard(props: DashboardProps) {
           if (!isWide) return grid
           return (
             <div className="db-workspace">
-              <div className="db-workspace-feed">{grid}</div>
+              {/* Peek panel sits in the LEFT column to match the /market rail
+                  (mc-workspace: rail-left, main-right); feed moves right. */}
               <PeekPanel
                 token={props.token}
                 steps={props.steps ?? []}
@@ -228,6 +229,7 @@ export function Dashboard(props: DashboardProps) {
                   ) : null
                 }
               />
+              <div className="db-workspace-feed">{grid}</div>
             </div>
           )
         })()

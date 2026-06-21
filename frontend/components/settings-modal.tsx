@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
+import { Badge } from "@/components/ui/badge"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
@@ -606,23 +607,14 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 <span className="tm-settings-nav-icon" style={{ fontSize: 12, opacity: 0.8 }}>{TAB_ICONS[tab]}</span>
                 <span>{tab}</span>
                 {tab === "Following" && following.count > 0 && (
-                  <span className="tm-settings-nav-badge" style={{
-                    marginLeft: "auto", fontSize: 10, fontWeight: 600,
-                    background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
-                    borderRadius: 99, padding: "1px 6px", minWidth: 18, textAlign: "center",
-                  }}>
+                  <Badge variant="default" className="tm-settings-nav-badge" style={{ marginLeft: "auto" }}>
                     {following.count}
-                  </span>
+                  </Badge>
                 )}
                 {tab === "Feedback" && (
-                  <span className="tm-settings-nav-badge" style={{
-                    marginLeft: "auto", fontSize: 9, fontWeight: 700,
-                    background: "var(--tm-success-wash)", color: "var(--tm-success)",
-                    border: "1px solid var(--tm-success)",
-                    borderRadius: 99, padding: "1px 6px", letterSpacing: "0.05em",
-                  }}>
+                  <Badge variant="success" className="tm-settings-nav-badge" style={{ marginLeft: "auto" }}>
                     NEW
-                  </span>
+                  </Badge>
                 )}
               </button>
             ))}

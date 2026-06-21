@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { Badge } from "@/components/ui/badge"
 import type { NavItem } from "@/lib/nav-items"
 import type { NavUnlocksVm } from "@/lib/hooks/use-nav-unlocks"
 
@@ -20,16 +21,9 @@ function StaleBadge() {
   const n = data?.length ?? 0
   if (n === 0) return null
   return (
-    <span
-      style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        minWidth: 14, height: 14, borderRadius: 99, padding: "0 4px",
-        background: "var(--tm-text-muted)", color: "var(--tm-surface)",
-        fontSize: 9, fontFamily: "var(--tm-font-mono)", marginLeft: 4,
-      }}
-    >
+    <Badge variant="neutral" style={{ marginLeft: 4, fontFamily: "var(--tm-font-mono)" }}>
       {n > 9 ? "9+" : n}
-    </span>
+    </Badge>
   )
 }
 
