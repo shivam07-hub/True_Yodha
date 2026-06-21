@@ -21,7 +21,7 @@ export function TaxonomyBrowser() {
 
   // Fetch taxonomy JSON from public/data (not bundled)
   useEffect(() => {
-    fetch("/data/lightcast_taxonomy.json")
+    fetch("/data/skill_taxonomy.json")
       .then((r) => r.json())
       .then((d) => { setData(d); setLoadState("ok") })
       .catch(() => setLoadState("error"))
@@ -100,13 +100,13 @@ export function TaxonomyBrowser() {
     <div className="tx-root">
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="tx-hero">
-        <p className="tx-hero-eyebrow">Lightcast Taxonomy</p>
+        <p className="tx-hero-eyebrow">Myro Skill Taxonomy</p>
         <h1 className="tx-hero-title">
           35,108 Skills.<br />One Taxonomy.<br />Zero Guesswork.
         </h1>
         <p className="tx-hero-body">
-          Myro maps every CV against the Lightcast global skills taxonomy — the same
-          standard used by leading employers worldwide. Browse all{" "}
+          Myro built and maintains its own skill taxonomy — the engine behind every CV
+          score and job match on the platform. Browse all{" "}
           {stats.skills.toLocaleString()} skills, see how they nest inside{" "}
           {stats.clusters.toLocaleString()} clusters and {stats.domains} domains, and
           discover exactly what Myro looks for in yours.

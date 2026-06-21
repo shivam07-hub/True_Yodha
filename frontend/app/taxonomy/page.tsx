@@ -6,23 +6,23 @@ import { TaxonomyBrowser } from "./taxonomy-browser"
 const BASE = "https://www.himyro.com"
 
 export const metadata: Metadata = {
-  title: "Skill Taxonomy — 35,108 Lightcast Skills | Myro",
+  title: "Skill Taxonomy — 35,108 Skills | Myro",
   description:
-    "Browse 35,108 verified skills across 31 domains and 442 clusters. The same Lightcast taxonomy Myro uses to score your CV and match you to jobs.",
+    "Browse 35,108 verified skills across 31 domains and 442 clusters. The same taxonomy Myro uses to score your CV and match you to jobs.",
   alternates: { canonical: `${BASE}/taxonomy` },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Skill Taxonomy — 35,108 Lightcast Skills | Myro",
+    title: "Skill Taxonomy — 35,108 Skills | Myro",
     description:
-      "Browse the full Lightcast skills taxonomy: 31 career domains, 442 sub-skill clusters, 35,108 leaf skills.",
+      "Browse the full Myro skills taxonomy: 31 career domains, 442 sub-skill clusters, 35,108 leaf skills.",
     type: "website",
     url: `${BASE}/taxonomy`,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Skill Taxonomy — 35,108 Lightcast Skills | Myro",
+    title: "Skill Taxonomy — 35,108 Skills | Myro",
     description:
-      "Browse the full Lightcast taxonomy Myro uses to score CVs — 31 domains, 442 clusters, 35,108 skills.",
+      "Browse the full Myro taxonomy used to score CVs — 31 domains, 442 clusters, 35,108 skills.",
   },
 }
 
@@ -65,7 +65,7 @@ const jsonLd = {
   "@type": "DefinedTermSet",
   name: "Myro Career Skills Taxonomy",
   description:
-    "35,108 verified skills organized into 31 career domains and 442 sub-skill clusters. Powered by the Lightcast global skills taxonomy.",
+    "35,108 verified skills organized into 31 career domains and 442 sub-skill clusters. The Myro skill taxonomy powering every CV score and job match.",
   url: `${BASE}/taxonomy`,
   hasDefinedTerm: DOMAINS.map((name) => ({
     "@type": "DefinedTerm",
