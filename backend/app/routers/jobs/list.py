@@ -395,9 +395,13 @@ def list_company_open_roles(
                 location_city=r.get("location_city"),
                 location_country=r.get("location_country"),
                 location_mode=r.get("location_mode"),
-                # first_seen can be NULL on legacy rows → fall back to last_seen so
-                # the panel doesn't read a misleading "0m ago" for every role.
-                created_at=_job_feed_marker_to_iso(r.get("first_seen") or r.get("last_seen")),
+                # Age = the company's actual posting date (date_posted). first_seen/
+                # last_seen are OUR crawl markers — a fresh crawl batch writes them
+                # ≈now, so using them made every role read a misleading "0m ago".
+                # Fall back to crawl markers only when date_posted is NULL (legacy rows).
+                created_at=_job_feed_marker_to_iso(
+                    r.get("date_posted") or r.get("first_seen") or r.get("last_seen")
+                ),
             )
             for r in rows
         ],

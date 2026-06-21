@@ -197,7 +197,7 @@ export default function CompanyJobsPage() {
             </div>
             {hasNext && (
               <div style={{ textAlign: "center" }}>
-                <Button type="button" variant="ghost" size="md" onClick={() => setPage(p => p + 1)}>
+                <Button type="button" variant="neutral" size="md" onClick={() => setPage(p => p + 1)}>
                   Load more
                 </Button>
               </div>

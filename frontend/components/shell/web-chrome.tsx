@@ -11,6 +11,7 @@ import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { Button } from "@/components/ui/button"
 import { AccountLegalLinks } from "@/components/shell/account-legal-links"
 import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import type { SidebarProfile } from "@/lib/shell/contract"
@@ -170,8 +171,8 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 6 }}>Sign out?</div>
             <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>Your progress is saved. You can sign back in anytime.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setSignOutConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-              <button onClick={signOut} style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "rgba(255,130,130,0.9)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>Sign out</button>
+              <Button variant="neutral" size="md" onClick={() => setSignOutConfirm(false)} style={{ flex: 1 }}>Cancel</Button>
+              <Button variant="danger" size="md" onClick={signOut} style={{ flex: 1 }}>Sign out</Button>
             </div>
           </div>
         </div>

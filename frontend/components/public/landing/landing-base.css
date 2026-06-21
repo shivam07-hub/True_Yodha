@@ -164,6 +164,12 @@
   --lp-grid-line: rgba(38, 38, 38, 0.035);
   /* recessed warm panel — white cards (#FFFFFF) lift above it */
   --lp-proof-panel: var(--lp-surface-2);
+  /* The global light faint/muted tokens (#9D9D9D ≈ 2.5:1, #6E6E6E) are too pale
+     for body + meta copy on the paper surface. Darken locally so surface bodies,
+     ENGINE meta lines and the Myrology strip clear WCAG AA — scoped to the
+     landing only, global --tm-* untouched. */
+  --lp-muted: #565656;
+  --lp-faint: #6b6b6b;
 }
 
 /* faint 44px measurement grid — S1 + S2 only */

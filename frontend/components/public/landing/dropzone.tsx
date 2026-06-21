@@ -102,7 +102,6 @@ export function LandingDropzone({ source, onFile, busy }: LandingDropzoneProps) 
           {pending ? "Scoring…" : "Choose file"}
         </span>
       </button>
-      <p className="lp-dropzone-note">Free · no signup to see your score</p>
     </>
   )
 }

@@ -983,7 +983,7 @@ class JobsRepository:
                 .select(
                     "job_id, job_title, company_name, location, location_raw, "
                     "location_city, location_country, location_mode, location_quality, "
-                    "first_seen, last_seen"
+                    "date_posted, first_seen, last_seen"
                 )
                 .eq("company_name", company_name)
             )
