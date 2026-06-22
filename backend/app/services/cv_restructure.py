@@ -12,9 +12,9 @@ Hard guards (CVJT1 "One-page and preview behavior" + no-fabrication ADR-0016):
     certifications, or whole sections — only reorder, merge, or cut individual
     experience / project bullets.
 
-v1 ships on the existing ``llm_provider`` ladder; it swaps to Mentor RAG later
-with no API/UI change — only ``_build_messages`` gains retrieved playbook chunks
-(same seam as ``cv_rewrite``).
+Backlog #32: the restructure prompt is now grounded in the authored CV playbook
+via the Mentor retriever (same seam as ``cv_rewrite``). FAIL-SOFT — empty retrieval
+falls back to the static XYZ guidance, so a restructure never depends on RAG.
 
 Callers: POST /cv/versions/{id}/restructure (propose) — see routers/cv/versions.py.
 """
@@ -23,12 +23,14 @@ from __future__ import annotations
 import json
 import logging
 
+from app.services import mentor_retriever
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 1500
 _MAX_CHANGES = 8
+_RETRIEVE_K = 3
 
 
 def _build_messages(
@@ -36,10 +38,21 @@ def _build_messages(
     role: str | None,
     company: str | None,
     missing_keywords: list[str],
+    passages: list | None = None,
 ) -> list[dict[str, str]]:
+    # #32: ground the restructure in retrieved authored-playbook rules when present;
+    # otherwise the static XYZ guidance below stands. Fail-soft via the caller.
+    grounding = ""
+    if passages:
+        rules = "\n".join(f"- {p.chunk_text}  (source: {p.source_title})" for p in passages)
+        grounding = (
+            "Apply these authored CV-playbook rules when reordering and tightening:\n"
+            f"{rules}\n"
+        )
     system = (
         "You are a sharp senior recruiter restructuring ONE candidate's résumé to "
         "fit a single page and match a target job, WITHOUT inventing anything.\n"
+        f"{grounding}"
         "You MAY: reorder sections and bullets so the most relevant proof comes "
         "first; merge two weak bullets into one stronger line; cut the "
         "lowest-impact experience or project bullets; tighten wording with the "
@@ -133,7 +146,11 @@ async def suggest_restructure(
     if provider is None:
         return {"mode": "error", "rationale": "Restructure is unavailable right now."}
 
-    messages = _build_messages(cv_text, role, company, missing_keywords)
+    # #32: ground in the authored CV playbook (fail-soft → [] uses static guidance).
+    query = " ".join(p for p in [role or "", company or "", " ".join(missing_keywords)] if p).strip()
+    passages = await mentor_retriever.retrieve(query or cv_text[:400], shelf="cv", k=_RETRIEVE_K)
+
+    messages = _build_messages(cv_text, role, company, missing_keywords, passages)
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
