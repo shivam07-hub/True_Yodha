@@ -35,8 +35,9 @@ class _Embeddings:
         self.calls = 0
         self.batch_sizes: list[int] = []
 
-    async def create(self, *, model, input):
+    async def create(self, *, model, input, dimensions=None):
         assert model == EMBED_MODEL
+        assert dimensions == EMBED_DIM      # we always pin the output dimension
         self.calls += 1
         self.batch_sizes.append(len(input))
         result = self._behaviour(self.calls, input)
@@ -96,8 +97,8 @@ def test_batches_over_the_api_cap(monkeypatch):
 
 def test_missing_key_raises_loudly(monkeypatch):
     monkeypatch.setattr(embeddings, "_client", None)
-    monkeypatch.setattr(embeddings.settings, "google_api_key", "")
-    with pytest.raises(EmbeddingError, match="rented"):
+    monkeypatch.setattr(embeddings.settings, "openrouter_api_key", "")
+    with pytest.raises(EmbeddingError, match="OpenRouter"):
         asyncio.run(embeddings.embed_texts(["a"]))
 
 

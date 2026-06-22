@@ -8,11 +8,12 @@ or cosine similarity is meaningless — so this module exposes exactly one model
 fails loudly rather than silently swapping providers (unlike the chat fallback
 ladder in llm_provider.py, where any model can answer a prompt).
 
-Model: Gemini `text-embedding-004` (768-dim) via the OpenAI-compatible base already
-used in llm_provider.py, on the existing `google_api_key`. Near-free, no new key.
-The 768 dimension is pinned to the `playbook_chunks.embedding vector(768)` column —
-changing the model changes the dimension and requires a full corpus re-embed + a
-schema migration.
+Model: OpenAI `text-embedding-3-small` via OpenRouter — the same `openrouter_api_key`
++ base already powering the chat ladder in llm_provider.py. One key for everything.
+We request `dimensions=768` (text-embedding-3 supports native Matryoshka truncation,
+and OpenRouter passes the param through), pinned to the `playbook_chunks.embedding
+vector(768)` column. Changing the model OR the dimension requires a full corpus
+re-embed (and a schema migration if the dim changes).
 
 Scope: Myro cloud stack. Reuses the ADR-0008 provider budget slot + transient retry
 seam from llm_budget so a publish run or a spike cannot fan out past the ceiling.
@@ -31,13 +32,14 @@ from app.services import llm_budget
 logger = logging.getLogger(__name__)
 
 # Pinned. Must match playbook_chunks.embedding vector(<DIM>).
-EMBED_MODEL = "text-embedding-004"
+EMBED_MODEL = "openai/text-embedding-3-small"
 EMBED_DIM = 768
 
-# Gemini's OpenAI-compatible surface (same base llm_provider.py uses for chat).
-_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
+# OpenRouter's OpenAI-compatible surface (same base llm_provider.py uses for chat).
+_OR_BASE = "https://openrouter.ai/api/v1"
+_OR_HEADERS = {"HTTP-Referer": "https://himyro.com", "X-Title": "Myro"}
 
-# Gemini caps inputs per embeddings call; batch larger corpora under this.
+# Batch larger corpora under this per embeddings call.
 _MAX_BATCH = 100
 
 _client: AsyncOpenAI | None = None
@@ -56,12 +58,16 @@ def _get_client() -> AsyncOpenAI:
     """
     global _client
     if _client is None:
-        if not settings.google_api_key:
+        if not settings.openrouter_api_key:
             raise EmbeddingError(
-                "google_api_key is not set — the Mentor retriever needs the rented "
-                f"embedding brain ({EMBED_MODEL}). Set it before publishing or retrieving."
+                "openrouter_api_key is not set — the Mentor retriever embeds via "
+                f"OpenRouter ({EMBED_MODEL}). Set it before publishing or retrieving."
             )
-        _client = AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE)
+        _client = AsyncOpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=_OR_BASE,
+            default_headers=_OR_HEADERS,
+        )
     return _client
 
 
@@ -77,7 +83,9 @@ async def _embed_batch(batch: list[str]) -> list[list[float]]:
     for attempt in range(max_retries + 1):
         try:
             async with llm_budget.provider_slot():
-                resp = await client.embeddings.create(model=EMBED_MODEL, input=batch)
+                resp = await client.embeddings.create(
+                    model=EMBED_MODEL, input=batch, dimensions=EMBED_DIM
+                )
             # Order is not guaranteed by the API contract — sort by index.
             ordered = sorted(resp.data, key=lambda d: d.index)
             vectors = [list(d.embedding) for d in ordered]
