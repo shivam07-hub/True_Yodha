@@ -272,6 +272,78 @@ async def start_cv_upload_job(
     )
 
 
+CV_UPLOAD_BUCKET = "cv-uploads"
+
+
+def _download_cv_object(storage_path: str) -> tuple[bytes, str]:
+    """Pull a resumable-uploaded CV out of private storage (service-role, RLS-bypassing).
+    Caller MUST have already verified storage_path belongs to the requesting user."""
+    ext = storage_path.rsplit(".", 1)[-1].lower() if "." in storage_path else ""
+    if ext == "pdf":
+        file_type = "pdf"
+    elif ext == "docx":
+        file_type = "docx"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "unsupported_format", "message": "Only PDF and DOCX files are accepted."},
+            headers={"X-Myro-Error-Code": "unsupported_format"},
+        )
+    try:
+        data = get_supabase_admin().storage.from_(CV_UPLOAD_BUCKET).download(storage_path)
+    except Exception:  # object gone / storage unreachable — the bytes never landed
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"code": "upload_expired", "message": "Upload expired. Please pick your CV again."},
+            headers={"X-Myro-Error-Code": "upload_expired"},
+        )
+    return data, file_type
+
+
+def _delete_cv_object(storage_path: str) -> None:
+    """Best-effort cleanup once the bytes are in the parse pipeline. Never blocks the response."""
+    try:
+        get_supabase_admin().storage.from_(CV_UPLOAD_BUCKET).remove([storage_path])
+    except Exception:
+        _log.warning("metric cv_upload.object_cleanup_failed path=%s", storage_path)
+
+
+async def start_cv_upload_job_from_storage(
+    cv_repo: CVVersionsRepository,
+    user_id: str,
+    *,
+    storage_path: str,
+    idempotency_key: str | None = None,
+    source: str = "pdf_upload",
+) -> dict[str, Any]:
+    """Phase 1 for the resumable direct-to-storage path. The browser uploaded the CV
+    straight to the cv-uploads bucket (Supabase native resumable/TUS); here we fetch
+    those bytes and run the identical parse/charge/score pipeline as the multipart route.
+    Mirrors start_cv_upload_job — same CVUP1 idempotency + CVUP4 guard + XP-DB4 charge."""
+    # Replay short-circuit BEFORE the download: a retried finalize must not require the
+    # object (it's deleted on first success). Same guard start_cv_upload_job runs first.
+    if idempotency_key:
+        existing = upload_jobs_repo.find_by_idempotency_key(user_id, idempotency_key)
+        if existing:
+            return _idem_response(existing)
+
+    file_bytes, file_type = _download_cv_object(storage_path)
+    try:
+        result = await start_cv_upload_job(
+            cv_repo, user_id,
+            file_bytes=file_bytes, file_type=file_type,
+            idempotency_key=idempotency_key, source=source,
+        )
+    except HTTPException as exc:
+        # Permanent rejections (bad/unreadable file) won't pass on retry → drop the object.
+        # Transient ones (429/5xx) keep it so a retry can finalize without re-uploading.
+        if exc.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY):
+            _delete_cv_object(storage_path)
+        raise
+    _delete_cv_object(storage_path)
+    return result
+
+
 def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
     """Translate a cached job row back into the upload-response shape so the
     frontend's state machine doesn't have to special-case retries."""

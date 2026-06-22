@@ -42,6 +42,11 @@ import {
   readPendingCVUpload,
   stashPendingCVUpload,
 } from "./cv-upload-queue"
+import {
+  jwtSub,
+  resumableUploadSupported,
+  uploadCVToStorage,
+} from "./cv-resumable-upload"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -1076,7 +1081,7 @@ export async function beginCVUpload(
   await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
   let initial: CVUploadResponse
   try {
-    initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+    initial = await _transferCV(token, safeFile, idempotencyKey, source)
   } catch (err) {
     const retryable = err instanceof CVUploadFailureBase ? err.retryable : false
     if (!retryable) await clearPendingCVUpload()
@@ -1138,7 +1143,7 @@ export async function uploadCV(
   // the server job_id (CVUP2) owns the lifecycle.
   await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
   try {
-    const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+    const initial = await _transferCV(token, safeFile, idempotencyKey, source)
     if (initial.status === "processing") persistCVUploadJob(initial.job_id)
     await clearPendingCVUpload()
     const result = await _resolveUploadResult(
@@ -1271,6 +1276,56 @@ function _wrapNetworkError(err: unknown): CVUploadFailureBase {
     true,
     "put",
   )
+}
+
+/**
+ * Get the CV's bytes to the backend, then return the phase-1 job response.
+ *
+ * Primary path = resumable, direct-to-storage (BUG-2 fix): upload straight to the
+ * private Supabase bucket via TUS (a different host than our API + auto-retry +
+ * cross-reload resume), then POST /cv/upload/finalize to ingest. Falls back to the
+ * legacy multipart POST whenever resumable is unavailable OR the storage TRANSFER
+ * fails. A finalize/pipeline rejection (bad file, insufficient coins, rate-limit) is
+ * surfaced as-is — multipart would only repeat the same verdict, so we don't retry it.
+ */
+async function _transferCV(
+  token: string,
+  file: File,
+  idempotencyKey: string,
+  source: CVUploadSource = "pdf_upload",
+): Promise<CVUploadResponse> {
+  const sub = jwtSub(token)
+  if (resumableUploadSupported() && sub) {
+    const ext = file.type === "application/pdf" ? "pdf" : "docx"
+    const objectPath = `${sub}/${idempotencyKey}.${ext}`
+    const meta = { idempotencyKey, fileName: file.name, fileMime: file.type, fileBytes: file.size }
+    _emitCVUploadTelemetry(token, { phase: "signed-url", outcome: "started", ...meta })
+    _emitCVUploadTelemetry(token, { phase: "put", outcome: "started", attempt: 1, ...meta })
+    let stored = false
+    try {
+      await uploadCVToStorage({ token, file, objectPath })
+      stored = true
+      _emitCVUploadTelemetry(token, { phase: "put", outcome: "succeeded", attempt: 1, ...meta })
+    } catch (err) {
+      const wrapped = _wrapNetworkError(err)
+      _emitCVUploadTelemetry(token, { phase: "put", outcome: "failed", attempt: 1, reasonCode: wrapped.code, errorDetail: wrapped.message, ...meta })
+      _emitCVUploadTelemetry(token, { phase: "signed-url", outcome: "failed", reasonCode: "resumable_fallback_to_multipart", ...meta })
+    }
+    if (stored) {
+      try {
+        return await request<CVUploadResponse>("/cv/upload/finalize", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ storage_path: objectPath, idempotency_key: idempotencyKey, source }),
+        })
+      } catch (err) {
+        // Bytes are in storage; the pipeline rejected. Falling back to multipart would
+        // only re-run the identical pipeline → surface the verdict instead.
+        throw _asUploadFailure(err, "parse")
+      }
+    }
+  }
+  return _postCVUpload(token, file, idempotencyKey, source)
 }
 
 async function _postCVUpload(token: string, file: File, idempotencyKey: string, source: CVUploadSource = "pdf_upload"): Promise<CVUploadResponse> {
