@@ -225,7 +225,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   and switching to a *different* cluster happens inside it. */}
               <div className="tm-feed-summary">
                 <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
-                <LocationScopePill locations={targetLocations} />
+                <LocationScopePill locations={targetLocations} onOpen={() => setFiltersOpen(true)} />
                 {skillFacet ? (
                   <button
                     type="button"
@@ -298,6 +298,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           targetRoles={targetRoles}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
+          targetLocations={targetLocations}
+          onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
         />
       ) : null}
 
@@ -306,15 +308,18 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   )
 }
 
-// Read-only geo scope — fixed from settings, tap opens Settings → Following.
-function LocationScopePill({ locations }: { locations: string[] }) {
+// Geo scope — settings-owned (fixed server-side), but it's a chip in the filter
+// summary row, so tapping it opens the Filters door like every other chip there.
+// Location shows read-only inside, with a bridge to Settings → Following.
+function LocationScopePill({ locations, onOpen }: { locations: string[]; onOpen: () => void }) {
   const clean = locations.filter(l => l && l.trim())
   const label = clean.length === 0 ? "All locations" : clean.length === 1 ? clean[0] : `${clean[0]} +${clean.length - 1}`
   return (
     <button
       type="button"
-      onClick={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
-      aria-label={clean.length === 0 ? "Set your target locations in settings" : `Target locations: ${clean.join(", ")}. Change in settings`}
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      aria-label={clean.length === 0 ? "Set your target locations — open filters" : `Target locations: ${clean.join(", ")}. Open filters`}
       title={clean.length > 1 ? clean.join(", ") : undefined}
       className="tm-feed-summary-loc"
     >
