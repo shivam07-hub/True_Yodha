@@ -186,7 +186,10 @@
 
 .tm-sheet-chip { padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; background: var(--tm-surface); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted); }
 .tm-sheet-chip.is-on { background: var(--tm-int-bg-wash); border-color: var(--tm-interactive); color: var(--tm-interactive); }
+.tm-sheet-chip.is-static { cursor: default; color: var(--tm-text); }
 .tm-sheet-empty { font-size: 13px; color: var(--tm-text-faint); }
+.tm-filters-editlink { align-self: flex-start; padding: 0; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--tm-interactive); }
+.tm-filters-editlink:hover { text-decoration: underline; }
 
 .tm-stepper { display: inline-flex; align-items: center; gap: 14px; }
 .tm-stepper button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--tm-border-soft); background: var(--tm-surface); color: var(--tm-text); font-size: 18px; cursor: pointer; }

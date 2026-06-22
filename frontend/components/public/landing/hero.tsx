@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { Check } from "lucide-react"
 import { LandingDropzone } from "./dropzone"
 import { LandingStats } from "./stats"
 
@@ -31,7 +32,8 @@ interface LandingHeroProps {
   jobsTracked: number
   companiesMonitored: number
   skillsMapped: number
-  seekers: number
+  /** Real seeker count, or null when none is configured (T3 — never fabricated). */
+  seekers: number | null
 }
 
 function smoothScrollToEngine(e: React.MouseEvent) {
@@ -88,6 +90,13 @@ export function LandingHero({
           </div>
 
           <LandingDropzone source="landing_dropzone_hero" />
+
+          <p className="lp-hero-freebadge">
+            <span className="lp-hero-freebadge-tick" aria-hidden>
+              <Check size={13} strokeWidth={2.5} />
+            </span>
+            Free to start — no card, no catch
+          </p>
 
           <a className="lp-hero-secondary" href="#engine" onClick={smoothScrollToEngine}>
             See the Engine <span aria-hidden>↓</span>

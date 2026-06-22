@@ -62,8 +62,20 @@ export const FAQ_ITEMS: FaqItem[] = [
     a: "Your practice yard. Pick a skill the Engine says is in demand, clear levelled question sets, move from L0 to L5.",
     schema: true,
   },
+  {
+    // Pricing/"free to start" is a landing-unique conversion question /docs#faq
+    // doesn't own → schema:true so it can surface as structured FAQ data.
+    q: "Do I need to pay to start?",
+    a: "No. Your Myro Score, the full 10-domain analysis, live job matches, and skill practice are free. You start with 3,000 Myro Coins; only deeper actions — per-job fit analysis and AI CV rewrites — spend them.",
+    schema: true,
+  },
 ]
 
+/* PLACEHOLDER — beta testimonials. Structure is final (component reads this
+   array); the copy + names are seeded placeholders to be confirmed or replaced
+   by Shivam with real, consented beta-cohort quotes. Do NOT present unverified
+   quotes as real named endorsements — swap the text/who before public launch.
+   Keep `who` first-name-only + `meta` honest ("beta cohort"). */
 export const QUOTES = [
   {
     text: "The Myro Score and skill mapping made the platform feel highly intelligent from the start.",

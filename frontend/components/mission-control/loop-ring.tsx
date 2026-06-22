@@ -9,6 +9,12 @@ export interface LoopStep {
   icon: IconName
   /** Where "close this step" routes. Omitted for on-page steps (e.g. Log). */
   href?: string
+  /**
+   * Myro Coins earned for closing this step today, e.g. "+30". Shown as an
+   * incentive chip on open missions (MissionsCard). Only set on steps that map
+   * to a real coin-rewarded action; the LoopRing ignores it.
+   */
+  reward?: string
 }
 
 interface LoopRingProps {

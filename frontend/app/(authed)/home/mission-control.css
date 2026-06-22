@@ -261,6 +261,15 @@
 .mc-peek-gap { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
 .mc-peek-gap .lab { color: var(--tm-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-peek-lvl { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-accent-text); flex-shrink: 0; }
+/* Myro Coins incentive chip on open daily missions (MissionsCard). */
+.mc-peek-reward {
+  margin-left: auto; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--tm-font-mono); font-size: 10.5px; font-weight: 600;
+  color: var(--tm-accent-text); background: var(--tm-interactive-wash);
+  padding: 2px 7px; border-radius: 99px;
+}
+.mc-peek-reward svg { width: 11px; height: 11px; }
 .mc-peek-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .mc-peek-chip { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--tm-border); color: var(--tm-text-muted); }
 .mc-peek-intel { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }

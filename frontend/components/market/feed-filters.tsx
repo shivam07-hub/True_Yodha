@@ -121,10 +121,10 @@ export function RoleSwitcher({
   )
 }
 
-// ── the sheet (3 sections: Role · Skill match · Companies) ────────────────────
+// ── the sheet (Location[read-only] · Role · Skill match · Companies) ──────────
 
 export function FiltersSheet({
-  filters, onChange, onClose, targetRoles, chipCountMap, hasCv,
+  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, targetLocations, onEditLocations,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
@@ -132,7 +132,10 @@ export function FiltersSheet({
   targetRoles: string[]
   chipCountMap: Record<string, number>
   hasCv: boolean
+  targetLocations: string[]
+  onEditLocations: () => void
 }) {
+  const cleanLocations = targetLocations.filter(l => l && l.trim())
   const [mounted, setMounted] = useState(false)
   const [draft, setDraft] = useState<FeedFilters>(filters)
   useEffect(() => { setMounted(true) }, [])
@@ -155,6 +158,23 @@ export function FiltersSheet({
           <button type="button" onClick={onClose} aria-label="Close" className="tm-filters-x">×</button>
         </header>
         <div className="tm-filters-body">
+          {/* Location is settings-owned (the feed scopes server-side to saved
+              target locations, never per-session). Shown here read-only so this
+              door surfaces the whole narrowing model — with a bridge to where
+              it's actually editable. Mirrors the summary row's 📍-first order. */}
+          <Section title="Location">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {cleanLocations.length === 0
+                ? <span className="tm-sheet-empty">All locations — set targets in settings to scope your feed.</span>
+                : cleanLocations.map(loc => (
+                    <span key={loc} className="tm-sheet-chip is-static">📍 {loc}</span>
+                  ))}
+            </div>
+            <button type="button" onClick={onEditLocations} className="tm-filters-editlink">
+              Edit in settings →
+            </button>
+          </Section>
+
           <Section title="Role">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {targetRoles.map(role => (

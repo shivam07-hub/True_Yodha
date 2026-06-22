@@ -660,11 +660,6 @@ function IntelPageInner() {
 
   const savedJobIds = useMemo(() => new Set(Array.from(manualSaved)), [manualSaved])
 
-  const TABS: { key: "jobs" | "heatmap"; label: string }[] = [
-    { key: "jobs", label: "Jobs" },
-    { key: "heatmap", label: "Heatmap" },
-  ]
-
   return (
     <>
       <style>{`
@@ -735,33 +730,11 @@ function IntelPageInner() {
           <MissionHeroRail token={token ?? null} />
         </aside>
         <div className="mc-ws-main">
-        {/* The "live" signal now lives beside the Live link in the topbar — the
-            toggle bar stands alone here (no indicator beside it). */}
-        {/* Jobs | Heatmap tab switcher */}
-        <div role="tablist" aria-label="Live Job Data view" style={{ display: "inline-flex", gap: 4, padding: 4, background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 999 }}>
-          {TABS.map(t => {
-            const on = activeTab === t.key
-            return (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setActiveTab(t.key)}
-                style={{
-                  padding: "7px 20px", borderRadius: 999, border: "none", cursor: "pointer",
-                  fontSize: 13, fontWeight: 600,
-                  background: on ? "var(--tm-interactive)" : "transparent",
-                  color: on ? "var(--tm-on-interactive, #fff)" : "var(--tm-text-muted)",
-                  transition: "all 120ms ease",
-                }}
-              >
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-
+        {/* The Jobs | Heatmap switcher was removed (2026-06-22): the heatmap is a
+            dashboard-reached, deep-linked view (peek cards → /market?tab=heatmap),
+            so an on-page toggle didn't belong on the jobs surface. /market renders
+            the jobs feed by default; ?tab=heatmap still opens the heatmap, with a
+            "← Back to jobs" return link in place of the toggle. */}
         {activeTab === "jobs" ? (
           <MarketJobsTab
             token={token ?? ""}
@@ -779,6 +752,20 @@ function IntelPageInner() {
           />
         ) : (
           <div style={{ marginTop: 20 }}>
+            {/* Return path: the toggle that used to switch back to jobs is gone,
+                so a focused-view back link keeps the deep-linked heatmap from
+                being a dead-end. */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("jobs")}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "none", border: "none", padding: 0, cursor: "pointer",
+                color: "var(--tm-interactive)", fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <span aria-hidden>←</span> Back to jobs
+            </button>
             {token && !cvReadyForPersonalization ? (
               <CVPrerequisiteCard readiness={cvReadiness} errorCode={profileData?.cv_upload_error_code ?? null} />
             ) : (

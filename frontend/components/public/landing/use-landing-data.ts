@@ -3,15 +3,30 @@
 import { useQuery } from "@tanstack/react-query"
 import { jobs, publicStats, type MarketAnalytics, type PublicStatsResponse } from "@/lib/api"
 
-/* Static floors — verified values confirmed in the design handoff (DEC-L2).
-   Rendered whenever live data is unavailable; live values are floored so the
-   public numbers only ever grow. */
+/* Static floors — verified Engine-corpus values confirmed in the design handoff
+   (DEC-L2). Rendered whenever live data is unavailable; live values are floored
+   so the public numbers only ever grow. These describe the SCRAPED CORPUS (jobs,
+   companies, skills) — real engine scale, safe to floor.
+   NOTE: there is deliberately NO `seekers` floor here. The user count is real-
+   but-small (<400) and must never be inflated into fake social proof (PV1 /
+   no-fabrication). See `seekers` below — it is env-gated, not floored. */
 export const LANDING_FLOORS = {
   jobs: 4000,
   companies: 150,
   skills: 32000,
-  seekers: 950,
 } as const
+
+/* T3 social proof — honest by construction. We do NOT auto-publish the live
+   user count (small + reveals traction) and we NEVER hardcode a fake "10,000+".
+   The seeker number renders ONLY when a deploy explicitly sets a real value via
+   NEXT_PUBLIC_SEEKERS_COUNT. Unset (the default) → no number; the stats strip
+   falls back to non-numeric proof. Returns null when no real value is set. */
+function configuredSeekerCount(): number | null {
+  const raw = process.env.NEXT_PUBLIC_SEEKERS_COUNT
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
+}
 
 export function floorTo(n: number, step: number): number {
   return Math.floor(n / step) * step
@@ -39,7 +54,9 @@ export interface LandingData {
   jobsTracked: number
   companiesMonitored: number
   skillsMapped: number
-  seekers: number
+  /** Real seeker count to display, or null when none is configured (T3 — never
+   *  fabricated; gated on NEXT_PUBLIC_SEEKERS_COUNT). null → non-numeric proof. */
+  seekers: number | null
   /** Real company names from the Engine's corpus, for the hero marquee. */
   marqueeNames: string[]
   intelRows: IntelTeaserRow[]
@@ -96,7 +113,7 @@ export function useLandingData(): LandingData {
     10,
   )
   const skillsMapped = displayCount(stats?.skills_mapped, LANDING_FLOORS.skills, 1000)
-  const seekers = displayCount(stats?.seekers, LANDING_FLOORS.seekers, 50)
+  const seekers = configuredSeekerCount()
 
   const asOfRaw = stats?.as_of ?? analytics?.latest_batch ?? null
   let asOf: Date | null = null

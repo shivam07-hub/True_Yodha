@@ -44,6 +44,17 @@
   color: var(--lp-faint);
 }
 
+/* T3 — non-numeric social-proof tile (shown when no real seeker count is set).
+   Matches the stat tiles' rhythm so the strip stays balanced at 4 across. */
+.lp-stat-proof-line {
+  font-family: var(--lp-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: var(--lp-text);
+}
+
 .lp-hero-glow {
   position: absolute;
   top: -180px;
@@ -134,6 +145,30 @@
   transition: gap var(--lp-dur) var(--lp-ease);
 }
 .lp-hero-secondary:hover { gap: 11px; }
+
+/* T1 — trust badge sits right under the dropzone CTA. Small, single line,
+   never the loudest thing on the page (the dropzone is). */
+.lp-hero-freebadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--lp-muted);
+}
+.lp-hero-freebadge-tick {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  border: 1px solid var(--lp-accent-ring);
+  flex-shrink: 0;
+}
 
 /* ── Mini-engine stage ──────────────────────────────────────── */
 .lp-mini-engine {

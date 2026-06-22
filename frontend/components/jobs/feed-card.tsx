@@ -187,7 +187,11 @@ export function FeedCard({
           ) : null}
 
           {data.chips.length > 0 ? (
-            <div className="fc-chips">
+            <div
+              className="fc-chips"
+              style={{ touchAction: "pan-x pan-y" }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               {data.chips.map((c) => (
                 <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
                   {c.matched ? <Check8 /> : null}

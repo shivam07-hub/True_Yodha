@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
+import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingEngine } from "@/components/public/landing/engine"
+import { LandingDomains } from "@/components/public/landing/domains"
 import { LandingSurfaces } from "@/components/public/landing/surfaces"
 import { LandingProof } from "@/components/public/landing/proof"
 import { LandingFaq } from "@/components/public/landing/faq"
@@ -16,6 +18,7 @@ import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
 import "@/components/public/landing/landing-engine.css"
 import "@/components/public/landing/landing-sections.css"
+import "@/components/public/landing/landing-depth.css"
 
 /**
  * Myro landing — "The Myro Engine" redesign.
@@ -84,7 +87,11 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           seekers={data.seekers}
         />
 
+        <LandingHowItWorks />
+
         <LandingEngine companiesLabel={data.companiesLabel} />
+
+        <LandingDomains />
 
         <LandingSurfaces />
 
