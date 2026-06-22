@@ -10,22 +10,19 @@ import { stripMarkdown } from "@/lib/text/strip-markdown"
 const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "saved", label: "Saved" },
   { value: "applied", label: "Applied" },
-  { value: "screening", label: "Screening" },
   { value: "interviewing", label: "Interviewing" },
-  { value: "final_round", label: "Final Round" },
 ]
 
 const OUTCOME_OPTIONS: { value: ApplicationStatus; label: string }[] = [
   { value: "ghosted", label: "Ghosted" },
   { value: "rejected", label: "Rejected" },
   { value: "offer", label: "Offer 🎉" },
-  { value: "withdrew", label: "Withdrew" },
 ]
 
 function statusColor(s: ApplicationStatus): string {
-  if (s === "applied" || s === "screening") return "var(--tm-interactive)"
-  if (s === "interviewing" || s === "final_round" || s === "offer") return "var(--tm-success)"
-  if (s === "rejected" || s === "ghosted" || s === "withdrew") return "var(--tm-danger)"
+  if (s === "applied") return "var(--tm-interactive)"
+  if (s === "interviewing" || s === "offer") return "var(--tm-success)"
+  if (s === "rejected" || s === "ghosted") return "var(--tm-danger)"
   return "var(--tm-text-muted)"
 }
 

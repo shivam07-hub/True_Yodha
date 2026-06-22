@@ -95,7 +95,6 @@ export function MobileCVHub({
       <header className="tm-mcv-hub-head">
         <div>
           <h1>My CV</h1>
-          <p>Main CV and every tailored version</p>
         </div>
         <Button
           type="button"

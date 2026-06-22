@@ -1647,6 +1647,7 @@ export interface JobMatchesResponse {
   total: number
   feed_updated_at: string | null
   matches_computed_at: string | null
+  new_jobs_count: number
   dismissed_job_ids: string[]
 }
 
@@ -1748,16 +1749,13 @@ export interface RefreshStateResponse {
 export type ApplicationStatus =
   | "saved"
   | "applied"
-  | "screening"
   | "interviewing"
-  | "final_round"
   | "ghosted"
   | "rejected"
   | "offer"
-  | "withdrew"
 
-export const APPLICATION_STAGES: ApplicationStatus[] = ["saved", "applied", "screening", "interviewing", "final_round"]
-export const APPLICATION_OUTCOMES: ApplicationStatus[] = ["ghosted", "rejected", "offer", "withdrew"]
+export const APPLICATION_STAGES: ApplicationStatus[] = ["saved", "applied", "interviewing"]
+export const APPLICATION_OUTCOMES: ApplicationStatus[] = ["ghosted", "rejected", "offer"]
 
 export interface ApplicationReview {
   id: string
@@ -2017,6 +2015,9 @@ export interface MarketAnalytics {
   by_location_city: NameCountItem[]
   by_location_country: NameCountItem[]
   by_location_mode: NameCountItem[]
+  /** Market-wide top skills by active-job count — universal, same for every
+   *  user. Powers the /market rail's "Skill-demand movers". */
+  top_skills: SkillCountItem[]
 }
 
 export interface EntitySkillsData {

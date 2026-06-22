@@ -1,7 +1,7 @@
 import { APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, CVVersion } from "@/lib/api"
 
-const ACTIVE_APPLICATION_STATUSES = new Set(["applied", "screening", "interviewing", "final_round"])
+const ACTIVE_APPLICATION_STATUSES = new Set(["applied", "interviewing"])
 // Same predicate the company folders group on, so the COMPANIES stat and the
 // folder count are the same number by construction (no "6 vs 13" contradiction).
 const TRACKED_STATUSES = new Set<string>(APPLICATION_STAGES)

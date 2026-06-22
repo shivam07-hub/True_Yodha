@@ -180,11 +180,11 @@ def update_application(
         updates["company_response"] = body.company_response
     if body.status == "applied":
         updates["applied_at"] = now
-    if body.status in {"screening", "interviewing", "final_round", "rejected", "offer"}:
+    if body.status in {"interviewing", "rejected", "offer"}:
         updates["response_at"] = now
     if body.status == "offer":
         updates["offer_received_at"] = now
-    if body.status in {"ghosted", "withdrew", "rejected"}:
+    if body.status in {"ghosted", "rejected"}:
         updates["closed_at"] = now
     if body.followed_up:
         updates["followed_up_at"] = now

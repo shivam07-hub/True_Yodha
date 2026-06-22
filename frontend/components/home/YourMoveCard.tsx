@@ -1,93 +1,26 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 
+/**
+ * YourMoveCard — the home "your move" nudge for Practice.
+ *
+ * Practice is a *post-apply* activity (CV-playground grill, 2026-06-22): while a
+ * user is still tailoring and applying, surfacing Practice steals attention from
+ * the real job. So this nudge appears only once the user has a pursuit at
+ * Applied or Interviewing AND a real skill gap to close. Before that — or with
+ * no gaps — it renders nothing, leaving the dashboard to its apply-first flow.
+ */
 interface YourMoveCardProps {
-  hasCv: boolean
-  hasJob: boolean
-  loggedToday: boolean
+  /** True when at least one pursuit is Applied or Interviewing. */
+  hasApplied: boolean
+  /** Highest-leverage gap skill (from the score), or null when there are none. */
   topGapSkill: string | null
-  onForge: () => void
-  onDiary: () => void
 }
 
-interface MoveConfig {
-  tag: string
-  headline: string
-  sub: string
-  xp: string | null
-  action: { label: string; onClick?: () => void; href?: string }
-}
-
-function resolveMove(
-  hasCv: boolean,
-  hasJob: boolean,
-  loggedToday: boolean,
-  topGapSkill: string | null,
-  onForge: () => void,
-  onDiary: () => void,
-): MoveConfig {
-  if (!hasCv) {
-    return {
-      tag: "START HERE",
-      headline: "Upload your CV",
-      sub: "Unlocks job matching, skill scoring, and Myro Coins",
-      xp: "+3000 Myro Coins",
-      action: { label: "Upload CV →", href: "/cv" },
-    }
-  }
-  if (!hasJob) {
-    return {
-      tag: "STEP 1",
-      headline: "Find your target role",
-      sub: "See exactly which skills to close to get there",
-      xp: null,
-      action: { label: "Browse Live Job Data →", href: "/market" },
-    }
-  }
-  if (!loggedToday) {
-    const skill = topGapSkill ?? "a gap skill"
-    return {
-      tag: "YOUR MOVE",
-      headline: `Practice ${skill}`,
-      sub: "Practice the skill · log the session · earn Myro Coins · keeps streak",
-      xp: "+50 Myro Coins",
-      action: { label: "Enter Practice ↗", onClick: onForge },
-    }
-  }
-  return {
-    tag: "CLOSE THE LOOP",
-    headline: "Log today's work",
-    sub: "Lock in your proof · diary entry earns Myro Coins · loop complete",
-    xp: "+30 Myro Coins",
-    action: { label: "Open Diary →", onClick: onDiary },
-  }
-}
-
-export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge, onDiary }: YourMoveCardProps) {
-  const move = resolveMove(hasCv, hasJob, loggedToday, topGapSkill, onForge, onDiary)
-  const isComplete = hasCv && hasJob && loggedToday
-
-  if (isComplete) {
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", gap: 12,
-        padding: "10px 16px",
-        background: "rgba(34,197,94,0.04)",
-        border: "1px solid rgba(34,197,94,0.15)",
-        borderRadius: "var(--tm-radius)",
-      }}>
-        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--tm-success, #22c55e)", flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: "var(--tm-success, #22c55e)", fontWeight: 600, fontFamily: "var(--tm-font-mono)", letterSpacing: "0.06em" }}>
-          LOOP COMPLETE TODAY ✓
-        </span>
-        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", marginLeft: 4 }}>
-          Come back tomorrow to keep the streak
-        </span>
-      </div>
-    )
-  }
+export function YourMoveCard({ hasApplied, topGapSkill }: YourMoveCardProps) {
+  // Gate: only a post-apply pursuit with a concrete gap earns the nudge.
+  if (!hasApplied || !topGapSkill) return null
 
   return (
     <div style={{
@@ -98,6 +31,7 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
       borderRadius: "var(--tm-radius)",
       padding: "14px 18px",
       display: "flex", alignItems: "center", gap: 16,
+      marginBottom: 20,
     }}>
       {/* Ambient glow */}
       <div style={{
@@ -106,44 +40,35 @@ export function YourMoveCard({ hasCv, hasJob, loggedToday, topGapSkill, onForge,
         pointerEvents: "none",
       }} />
 
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
         <div style={{
-          fontFamily: "var(--tm-font-mono)", fontSize: 9, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "var(--tm-interactive)", opacity: 0.7, marginBottom: 4,
+          textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 10,
+          color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)",
         }}>
-          {move.tag}
+          Your move
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.01em", marginBottom: 2 }}>
-          {move.headline}
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)", marginTop: 2 }}>
+          Practice {topGapSkill}
         </div>
-        <div style={{ fontSize: 12, color: "var(--tm-text-faint)", lineHeight: 1.4 }}>
-          {move.sub}
+        <div style={{ fontSize: 12, color: "var(--tm-text-muted)", marginTop: 2 }}>
+          Close the gaps on roles you&rsquo;ve applied to · earn Myro Coins · keeps your streak
         </div>
       </div>
 
-      {/* tokens badge + CTA */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-        {move.xp && (
-          <div style={{
-            fontFamily: "var(--tm-font-mono)", fontSize: 13, fontWeight: 700,
-            color: "var(--tm-interactive)", letterSpacing: "0.04em",
-            background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
-            borderRadius: 99, padding: "2px 10px",
-          }}>
-            {move.xp} ◆
-          </div>
-        )}
-        {move.action.href ? (
-          <Button variant="solid" size="md" render={<Link href={move.action.href} />}>
-            {move.action.label}
-          </Button>
-        ) : (
-          <Button variant="solid" size="md" onClick={move.action.onClick}>
-            {move.action.label}
-          </Button>
-        )}
-      </div>
+      <Link
+        href="/forge"
+        className="tm-control-focus"
+        style={{
+          flexShrink: 0, position: "relative",
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "9px 14px", borderRadius: "var(--tm-radius)",
+          background: "var(--tm-interactive)", color: "#fff",
+          fontSize: 13, fontWeight: 600, textDecoration: "none",
+          fontFamily: "inherit",
+        }}
+      >
+        Enter Practice ↗
+      </Link>
     </div>
   )
 }

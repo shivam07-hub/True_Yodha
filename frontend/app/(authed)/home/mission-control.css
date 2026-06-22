@@ -191,6 +191,15 @@
 @media (max-width: 980px) {
   .mc-workspace { grid-template-columns: 1fr; gap: 18px; }
   .mc-ws-rail { position: static; max-height: none; overflow-y: visible; padding-right: 0; }
+  /* Dashboard peek rail (missions · skill map · followed · live intel) is heavy
+     ambient context that, DOM-first in the collapsed grid, stacked 4 full cards
+     ABOVE the job feed — gating the user's primary workspace behind secondary
+     context every visit. Each surface is a first-class nav destination
+     (Practice · Skills · Intel), so hide the rail on mobile → dashboard = the
+     job feed, mirroring how /market drops its rail on mobile. display:none also
+     removes the now-empty grid row (no orphan gap). Scoped to --peek so the
+     market greeting rail (also .mc-ws-rail) stays. */
+  .mc-ws-rail--peek { display: none; }
 }
 
 /* Rail meta — the greeting collapsed to one quiet line (D4). */

@@ -90,7 +90,7 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
     const before = applications.find(a => a.job_id === jobId)?.status
     updateStatus.mutate({ jobId, status }, {
       onSuccess: () => {
-        const isOutcome = (["ghosted", "rejected", "offer", "withdrew"] as ApplicationStatus[]).includes(status)
+        const isOutcome = (["ghosted", "rejected", "offer"] as ApplicationStatus[]).includes(status)
         if (isOutcome) {
           setReviewDefaultStage(before && ACTIVE_SET.includes(before) ? before : "applied")
           setReviewJobId(jobId)

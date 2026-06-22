@@ -143,16 +143,17 @@ class JobMatchesResponse(BaseModel):
     total: int
     feed_updated_at: datetime | None = None    # MAX(jobs.last_seen) — when the feed last refreshed
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
+    new_jobs_count: int = 0  # genuinely-new live jobs (first_seen) inserted since this user last matched
     dismissed_job_ids: list[str] = []
 
 
-APPLICATION_STAGES = {"saved", "applied", "screening", "interviewing", "final_round"}
-APPLICATION_OUTCOMES = {"ghosted", "rejected", "offer", "withdrew"}
+APPLICATION_STAGES = {"saved", "applied", "interviewing"}
+APPLICATION_OUTCOMES = {"ghosted", "rejected", "offer"}
 APPLICATION_STATUSES = APPLICATION_STAGES | APPLICATION_OUTCOMES
 
 
 class ApplicationStatusUpdate(BaseModel):
-    status: str     # saved | applied | screening | interviewing | final_round | ghosted | rejected | offer | withdrew
+    status: str     # saved | applied | interviewing | ghosted | rejected | offer
     notes: str | None = None
     company_response: str | None = None
     followed_up: bool | None = None
@@ -570,6 +571,10 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     by_location_city: list[NameCountItem] = []
     by_location_country: list[NameCountItem] = []
     by_location_mode: list[NameCountItem] = []
+    # Market-wide top skills by active-job count (universal, same for every user
+    # — powers the /market rail's "Skill-demand movers"). Location-filterable via
+    # the same query params as the rest of this summary.
+    top_skills: list[SkillCountItem] = []
 
 
 class EntitySkillsResponse(BaseModel):

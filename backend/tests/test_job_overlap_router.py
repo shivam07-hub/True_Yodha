@@ -98,7 +98,7 @@ def test_overlap_returns_intersection_with_owner(monkeypatch: Any, _clear_overri
         "job_applications": [
             {"user_id": "owner-u", "job_id": "j1", "status": "applied"},
             {"user_id": "owner-u", "job_id": "j2", "status": "interviewing"},
-            {"user_id": "viewer-u", "job_id": "j1", "status": "screening"},
+            {"user_id": "viewer-u", "job_id": "j1", "status": "interviewing"},
             {"user_id": "viewer-u", "job_id": "j3", "status": "saved"},
         ],
         "jobs": [

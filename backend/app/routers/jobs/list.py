@@ -104,6 +104,7 @@ def get_my_analytics(
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
         by_location_country=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_country"]],
         by_location_mode=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_mode"]],
+        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
     )
 
 
@@ -192,6 +193,7 @@ def get_market_analytics(
         by_location_city=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_city"]],
         by_location_country=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_country"]],
         by_location_mode=[NameCountItem(name=name, count=count) for name, count in analytics["by_location_mode"]],
+        top_skills=[SkillCountItem(skill=skill, count=count) for skill, count in analytics["top_skills"]],
     )
 
 

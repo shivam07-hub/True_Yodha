@@ -11,14 +11,12 @@ const STAMP_LABEL: Record<OutcomeKey, string> = {
   offer: "OFFER",
   rejected: "DECLINED",
   ghosted: "—",
-  withdrew: "WITHDREW",
 }
 
 const STAMP_COLOR: Record<OutcomeKey, string> = {
   offer: "#D4AF37",                        // gold leaf
   rejected: "var(--tm-text-faint)",
   ghosted: "var(--tm-text-faint)",
-  withdrew: "var(--tm-text-faint)",
 }
 
 export function OutcomeSeal({ outcome, inline }: Props) {

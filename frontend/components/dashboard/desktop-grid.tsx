@@ -28,9 +28,7 @@ export interface DesktopGridProps {
 
 const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>([
   "applied",
-  "screening",
   "interviewing",
-  "final_round",
 ])
 
 export function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {

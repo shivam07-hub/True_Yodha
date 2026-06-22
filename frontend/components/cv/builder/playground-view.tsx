@@ -667,11 +667,10 @@ function IntelStrip({ score, delta, missing, allCovered, atsSc, atsChecks, pageF
           </>
         )}
       </div>
-      {missing.length > 0 ? (
-        <Link href="/forge" className="cvb-btn primary sm" style={{ textDecoration: "none" }}>
-          <Icon name="sparkle" size={12}/> Practice them
-        </Link>
-      ) : null}
+      {/* Practice is a post-apply activity — it surfaces on the tracker card and
+          the home "Your move" nudge once a pursuit is Applied/Interviewing, not
+          here. The playground stays a clean tailor-and-export surface; the gaps
+          chips above are the only diagnostic the user acts on while tailoring. */}
     </div>
   )
 }

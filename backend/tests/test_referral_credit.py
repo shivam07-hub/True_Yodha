@@ -60,9 +60,9 @@ class _ReferralRewardSpy:
             return _Result({
                 "id": self.new_user_id,
                 "referred_by_user_id": self.referred_by_user_id,
-                "welcome_xp_granted": self.welcome_xp_granted,
+                "welcome_coins_granted": self.welcome_xp_granted,
             })
-        if self._table == "xp_ledger":
+        if self._table == "coin_ledger":
             return _Result([{"id": 1}] if self.rewarded else [])
         if self.rpc_calls:
             return _Result(3100)

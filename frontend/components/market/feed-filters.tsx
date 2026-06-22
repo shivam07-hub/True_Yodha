@@ -113,7 +113,7 @@ export function RoleSwitcher({
             className={active ? "tm-feed-activechip" : "tm-feed-rolechip"}
             aria-label={active ? `Showing ${role} — tap to show all roles` : `Show ${role} roles`}
           >
-            {role}{suffix}{active ? <span aria-hidden>✕</span> : null}
+            <span className="tm-feed-chip-label" title={role}>{role}</span>{suffix}{active ? <span aria-hidden>✕</span> : null}
           </button>
         )
       })}

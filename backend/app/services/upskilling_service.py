@@ -338,7 +338,7 @@ def _level_already_paid(admin, user_id: str, skill_id: int, level: int) -> bool:
     Mirrors the reward_xp idempotency check, so we report tokens honestly even
     before the RPC short-circuits."""
     prior = (
-        admin.table("xp_ledger")
+        admin.table("coin_ledger")
         .select("id")
         .eq("user_id", user_id)
         .eq("action", CLEAR_ACTION)

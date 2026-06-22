@@ -35,8 +35,22 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
   const { spokes, rings, polygon, labels } = radarShape(domains, scoresByDomain)
   const polygonPts = pointsToPolygonAttr(polygon)
 
+  // Labels are placed at RADAR_R + 22 from center and middle-anchored, so the
+  // side labels (e.g. "Business" right, "Sales" left) extend past the 280-unit
+  // box and get clipped by the SVG viewport. Reserve a gutter on every side so
+  // label text has bleed room. The geometry constants stay shared/untouched —
+  // only this component's viewport grows; CSS scales the SVG to fit either way.
+  const LABEL_GUTTER = 20
+  const vbSize = RADAR_SVG_SIZE + LABEL_GUTTER * 2
+
   return (
-    <svg width={RADAR_SVG_SIZE} height={RADAR_SVG_SIZE} viewBox={`0 0 ${RADAR_SVG_SIZE} ${RADAR_SVG_SIZE}`} style={{ flexShrink: 0 }}>
+    <svg
+      width={RADAR_SVG_SIZE}
+      height={RADAR_SVG_SIZE}
+      viewBox={`${-LABEL_GUTTER} ${-LABEL_GUTTER} ${vbSize} ${vbSize}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ flexShrink: 0 }}
+    >
       <defs>
         <filter id="radarGlow">
           <feGaussianBlur stdDeviation="4" result="blur" />

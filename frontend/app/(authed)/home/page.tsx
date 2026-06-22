@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
+import { YourMoveCard } from "@/components/home/YourMoveCard"
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { RouteLoading } from "@/components/loading/route-loading"
@@ -21,7 +22,7 @@ import { useParticleMoment } from "@/components/particle"
 import { cv, diary, jobs, scores, users } from "@/lib/api"
 import type { ApplicationStatus, JobMatch, JobMatchesResponse, SkillGapItem } from "@/lib/api"
 import { useApplicationStatus } from "@/lib/hooks/use-application-status"
-import { useFeedState, isFeedAheadOfMatches } from "@/lib/hooks/use-feed-state"
+import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
@@ -93,8 +94,10 @@ function MissionControlInner() {
   // Feed publication sensing — drives the market auto-refresh + tells the
   // dashboard whether new jobs have been published since these matches ran
   // (offer a refresh; never auto-charge).
-  const feedState = useFeedState()
-  const feedAhead = isFeedAheadOfMatches(feedState.data, jobsData?.matches_computed_at)
+  // Keeps the global feed-publication sensor live (it re-fetches the market free
+  // feed on republish). The dashboard's "new jobs" banner no longer reads this —
+  // it uses the genuine per-user new_jobs_count from /matches.
+  useFeedState()
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
   const credibleJobs = useMemo(() => credibleRecommendations(allMatchedJobs), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
@@ -243,6 +246,18 @@ function MissionControlInner() {
   const hasApplied = apps.some((a) => a.status !== "saved")
   const hasForged = entries.length > 0
 
+  // Post-apply Practice nudge (CV-playground grill, 2026-06-22): Practice only
+  // earns the home "your move" slot once a pursuit is actively Applied or
+  // Interviewing (closed outcomes don't count) AND there's a real gap to close.
+  const hasActivePursuit = apps.some((a) => a.status === "applied" || a.status === "interviewing")
+  const topGapSkill = useMemo(() => {
+    const gaps = scoreData?.gap_skills ?? []
+    if (gaps.length === 0) return null
+    return [...gaps].sort(
+      (a, b) => (b.gap_score - a.gap_score) || (b.job_count_30d - a.job_count_30d),
+    )[0]?.skill ?? null
+  }, [scoreData])
+
   // Daily loop — the five ritual steps. Still passed to the Dashboard feed
   // (the LoopRing itself moved to the /market hero). `href` = where
   // "close this step" routes; on-page steps (Log → diary panel below) omit it.
@@ -350,7 +365,7 @@ function MissionControlInner() {
               pinned LEFT rail — mirroring the /market workspace. Collapses to one
               column ≤980px. The job detail opens from the right (drawer) on click. */}
           <div className="mc-workspace">
-            <aside className="mc-ws-rail">
+            <aside className="mc-ws-rail mc-ws-rail--peek">
               {token ? (
                 <div className="mc-rail">
                   <PeekSurfaces token={token} steps={steps} />
@@ -358,6 +373,7 @@ function MissionControlInner() {
               ) : null}
             </aside>
             <div className="mc-ws-main">
+            <YourMoveCard hasApplied={hasActivePursuit} topGapSkill={topGapSkill} />
             {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored /> : null}
             <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
@@ -386,9 +402,7 @@ function MissionControlInner() {
                     refresh={refreshVm}
                     dismissedJobIds={dismissedJobIds}
                     total={jobsData?.total ?? allMatchedJobs.length}
-                    feedUpdatedAt={jobsData?.feed_updated_at ?? null}
-                    matchesComputedAt={jobsData?.matches_computed_at ?? null}
-                    feedAhead={feedAhead}
+                    newJobsCount={jobsData?.new_jobs_count ?? 0}
                     initialJobId={urlJobId}
                     steps={steps}
                     onStatus={(jobId, status) => appStatus.setStatus(jobId, status)}

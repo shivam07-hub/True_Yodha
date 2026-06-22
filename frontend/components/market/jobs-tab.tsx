@@ -102,7 +102,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [feed])
 
   // Market-intel signals → the rail + the two interleaved story cards.
-  const intel = useMarketIntel(token, targetLocations, hasCv)
+  const intel = useMarketIntel(targetLocations)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
@@ -233,7 +233,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     onClick={() => setSkillFacet(null)}
                     aria-label={`Remove skill: ${skillFacet}`}
                   >
-                    {skillFacet} <span aria-hidden>✕</span>
+                    <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>✕</span>
                   </button>
                 ) : null}
                 {filters.roleDomain ? (
@@ -243,7 +243,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     onClick={() => onChangeFilters({ ...filters, roleDomain: null })}
                     aria-label={`Remove role: ${filters.roleDomain}`}
                   >
-                    {filters.roleDomain} <span aria-hidden>✕</span>
+                    <span className="tm-feed-chip-label" title={filters.roleDomain}>{filters.roleDomain}</span> <span aria-hidden>✕</span>
                   </button>
                 ) : null}
                 <FilterChips filters={filters} onChange={onChangeFilters} />
