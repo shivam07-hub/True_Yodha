@@ -1,9 +1,12 @@
 """Per-bullet AI rewrite — Myro Mentor wedge v1 (DESIGN_cv_playground_redesign §6).
 
-Proposes a stronger, JD-aligned rewrite of a single CV bullet, grounded in CV
-playbook rules (Google XYZ formula, ATS, no keyword-stuffing). v1 ships on the
-existing ``llm_provider`` ladder; it swaps to Mentor RAG retrieval later with no
-API/UI change — only ``_build_messages`` gains retrieved playbook chunks.
+Proposes a stronger, JD-aligned rewrite of a single CV bullet, grounded in the
+authored Myro CV Playbook. Backlog #32: the style guidance is now retrieved live
+from the playbook shelf (Mentor retriever, ADR-0013/0014) instead of a hard-coded
+XYZ block — so a rewrite cites the specific rule it applied, and new playbook
+content improves rewrites the day it's published. FAIL-SOFT: if retrieval returns
+nothing (empty corpus, missing key, error) we fall back to the static style rule,
+so a rewrite never depends on RAG being up.
 
 Hard no-fabrication rule (ADR-0016, blocking): if the bullet states no
 measurable result and the user has not supplied one, we DO NOT ask the model to
@@ -17,11 +20,15 @@ from __future__ import annotations
 import logging
 import re
 
+from app.services import mentor_retriever
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 220
+
+# Top-k authored playbook passages to ground a single bullet rewrite.
+_RETRIEVE_K = 3
 
 # A "metric" = any signal of a measurable outcome: a digit, percentage, currency,
 # magnitude word, or a time span. Drives the no-fabrication guard.
@@ -59,22 +66,38 @@ def metric_question(bullet: str) -> str:  # noqa: ARG001 — bullet kept for fut
     )
 
 
+# Invariant guardrails — true regardless of which playbook rules are retrieved.
+# Structural + the no-fabrication law; never style-overridable.
+_GUARDRAILS = (
+    "You are a sharp senior recruiter and CV editor. You rewrite ONE résumé bullet "
+    "to be stronger and ATS-friendly. Unbreakable rules: keep it to ONE line "
+    "(max ~30 words); start with a strong past-tense action verb; NEVER invent "
+    "numbers, employers, titles, dates, or achievements; weave in a target keyword "
+    "ONLY if it is genuinely implied by the original — never keyword-stuff. Output "
+    "ONLY the rewritten bullet: no quotes, no preamble, no explanation."
+)
+
+# Fallback style guidance when retrieval returns nothing (RAG down / empty corpus).
+_STATIC_STYLE = (
+    "Apply the Google XYZ formula: 'Accomplished X, measured by Y, by doing Z'."
+)
+
+
+def _grounding_block(passages: list) -> str:
+    """Turn retrieved playbook passages into a cited guidance block for the prompt."""
+    lines = [f"- {p.chunk_text}  (source: {p.source_title})" for p in passages]
+    return "Ground your rewrite in these authored CV-playbook rules:\n" + "\n".join(lines)
+
+
 def _build_messages(
     bullet: str,
     role: str | None,
     missing_keywords: list[str],
     metric: str | None,
+    passages: list | None = None,
 ) -> list[dict[str, str]]:
-    system = (
-        "You are a sharp senior recruiter and CV editor. You rewrite ONE résumé "
-        "bullet to be stronger and ATS-friendly using the Google XYZ formula: "
-        "'Accomplished X, measured by Y, by doing Z'. Rules: start with a strong "
-        "past-tense action verb; keep it to ONE line (max ~30 words); NEVER invent "
-        "numbers, employers, titles, dates, or achievements; weave in a target "
-        "keyword ONLY if it is genuinely implied by the original — never "
-        "keyword-stuff. Output ONLY the rewritten bullet: no quotes, no preamble, "
-        "no explanation."
-    )
+    guidance = _grounding_block(passages) if passages else _STATIC_STYLE
+    system = f"{_GUARDRAILS}\n\n{guidance}"
     parts = [f"Original bullet:\n{bullet.strip()}"]
     if role:
         parts.append(f"Role context: {role.strip()}")
@@ -117,7 +140,12 @@ async def suggest_rewrite(
     if provider is None:
         return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
 
-    messages = _build_messages(bullet, role, missing_keywords, metric)
+    # #32: ground in the authored CV playbook. retrieve() is fail-soft → [] on any
+    # error, in which case _build_messages uses the static style rule.
+    query = " ".join(p for p in [bullet, role or "", " ".join(missing_keywords)] if p).strip()
+    passages = await mentor_retriever.retrieve(query, shelf="cv", k=_RETRIEVE_K)
+
+    messages = _build_messages(bullet, role, missing_keywords, metric, passages)
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
@@ -128,6 +156,13 @@ async def suggest_rewrite(
     if not text:
         return {"mode": "error", "rationale": "No rewrite produced."}
 
+    # De-duped source titles, preserving retrieval order, for the UI citation chip.
+    citations: list[str] = list(dict.fromkeys(p.source_title for p in passages))
     used = [k for k in missing_keywords if k.strip() and k.lower() in text.lower()]
     rationale = ("Worked in: " + ", ".join(used)) if used else "Tightened with the XYZ formula."
-    return {"mode": "rewrite", "rewritten_text": text, "rationale": rationale}
+    return {
+        "mode": "rewrite",
+        "rewritten_text": text,
+        "rationale": rationale,
+        "citations": citations,
+    }

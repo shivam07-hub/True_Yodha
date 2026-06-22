@@ -27,6 +27,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
   const [phase, setPhase] = useState<Phase>("idle")
   const [question, setQuestion] = useState<string | null>(null)
   const [rationale, setRationale] = useState<string | null>(null)
+  const [citations, setCitations] = useState<string[]>([])
   const [proposed, setProposed] = useState("")
   const [metric, setMetric] = useState("")
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -48,6 +49,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
       } else if (res.mode === "rewrite") {
         setProposed(res.rewritten_text ?? "")
         setRationale(res.rationale ?? null)
+        setCitations(res.citations ?? [])
         setPhase("diff")
       } else {
         setErrMsg(res.rationale ?? "Rewrite is unavailable.")
@@ -60,7 +62,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
   }
 
   function reset() {
-    setPhase("idle"); setProposed(""); setMetric(""); setQuestion(null); setRationale(null); setErrMsg(null)
+    setPhase("idle"); setProposed(""); setMetric(""); setQuestion(null); setRationale(null); setCitations([]); setErrMsg(null)
   }
 
   if (phase === "idle") {
@@ -107,6 +109,11 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
           <div className="cvb-rw-diff-tag">after</div>
           <div className="cvb-rw-diff-new">{proposed}</div>
           {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
+          {citations.length > 0 && (
+            <div className="cvb-rw-citation" title="This rewrite was grounded in the Myro CV Playbook">
+              <Icon name="sparkle" size={11}/> Grounded in {citations.join(", ")}
+            </div>
+          )}
           <div className="cvb-rw-actions">
             <button type="button" className="cvb-btn sm" onClick={reset} disabled={applying}>Discard</button>
             <button

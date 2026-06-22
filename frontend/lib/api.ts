@@ -745,6 +745,9 @@ export interface RewriteBulletResponse {
   rewritten_text?: string | null
   question?: string | null
   rationale?: string | null
+  // #32: authored-playbook sources this rewrite was grounded in. Empty when
+  // retrieval found nothing (the rewrite still succeeds on the static rules).
+  citations?: string[]
 }
 
 // Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1).

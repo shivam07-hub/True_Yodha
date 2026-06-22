@@ -92,6 +92,9 @@ class RewriteBulletResponse(BaseModel):
     rewritten_text: str | None = None
     question:       str | None = None
     rationale:      str | None = None
+    # #32: authored-playbook source titles the rewrite was grounded in (empty when
+    # retrieval found nothing / RAG was down — the rewrite still succeeds).
+    citations:      list[str] = Field(default_factory=list)
 
 
 class RewriteApplyRequest(BaseModel):
