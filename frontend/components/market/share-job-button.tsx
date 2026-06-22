@@ -52,7 +52,7 @@ export function ShareJobButton({ job, variant = "triage" }: { job: ShareJob; var
       title="Share this job"
       className="tm-triage-btn tm-triage-share"
     >
-      <span aria-hidden>{glyph}</span> {label}
+      <span aria-hidden>{glyph}</span> <span className="tm-share-label">{label}</span>
     </button>
   )
 }

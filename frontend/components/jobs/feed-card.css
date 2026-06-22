@@ -82,15 +82,24 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 
-.fc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* PRODUCT LOCK (2026-06-22): the skill strip is ONE line that scrolls sideways —
+   it never wraps to multiple rows. Each chip keeps its natural width; the row
+   overflows into a horizontal scroll (scrollbar hidden, the trailing +N hints
+   more). Pointer isolation on the element (feed-card.tsx) keeps this scroll from
+   triggering the mobile card's swipe-to-triage. */
+.fc-chips {
+  display: flex; flex-wrap: nowrap; gap: 6px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;
+}
+.fc-chips::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .fc-chip {
-  display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%;
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 4px;
   padding: 3px 9px; border-radius: 999px; font-size: 11px;
   background: var(--tm-surface-2, var(--tm-surface)); border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
 }
-/* A long taxonomy name ("Cross-Functional Team Leadership") truncates rather
-   than blowing the chip to full card width — keeps the strip to ≤2 lines. */
-.fc-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-chip-name { white-space: nowrap; }
 .fc-chip-more { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 /* Matched skill = neutral, NOT accent. Accent now means "clickable company"
    (grill-locked 2026-06-21) — a chip in that colour would read as a false link.
@@ -119,11 +128,21 @@
 .fc-fitpill-nudge { color: var(--tm-interactive-rest, var(--tm-interactive)); text-decoration: none; }
 
 /* ── action row ───────────────────────────────────────────────────────────── */
-/* The slotted action component owns its own internal layout (dashboard's
-   like/skip/tailor row, market's triage pair). Each direct child fills the row;
-   on immersive that gives the two triage buttons a clean 50/50 split. */
-.fc-actions { display: flex; align-items: center; gap: 10px; }
+/* PRODUCT LOCK (2026-06-22): the triage trio (Not interested · Save · Share) is
+   ALWAYS one line — it never wraps to a second row. The squeeze on a narrow phone
+   is absorbed by collapsing Share to its glyph only (label hidden ≤600px, below),
+   which frees enough width for the two text pills to sit on one line. */
+.fc-actions { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; }
 .fc-actions > * { flex: 1 1 auto; }
+/* Share is the lowest-priority action — on phones it shrinks to its glyph and
+   stops growing; the freed width + tighter pill padding keep the two text buttons
+   on one line down to a 320px viewport without clipping. */
+@media (max-width: 600px) {
+  .fc-actions { gap: 8px; }
+  .fc-actions .tm-triage-btn { padding: 0 12px; }
+  .fc-actions .tm-triage-share { flex: 0 0 auto; }
+  .fc-actions .tm-triage-share .tm-share-label { display: none; }
+}
 .fc-immersive .fc-actions .tm-triage-btn { justify-content: center; min-height: 48px; }
 
 /* ── immersive (tall single-screen mobile card — Inshorts read) ───────────── */
