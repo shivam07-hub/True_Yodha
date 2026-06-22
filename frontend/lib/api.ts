@@ -22,6 +22,7 @@ import {
 import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
 import { ApiError, classifyError, readTraceId } from "./api-error"
+import { getTurnstileToken } from "./turnstile"
 import type { AcquisitionAttribution } from "./attribution"
 import type {
   BetaAssignmentReceipt,
@@ -3147,9 +3148,10 @@ async function postPublicJson<T>(path: string, payload: Record<string, unknown>)
 export const publicCv = {
   scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
+    const token = turnstileToken ?? (await getTurnstileToken())
     const form = new FormData()
     form.append("file", file)
-    if (turnstileToken) form.append("cf_turnstile_token", turnstileToken)
+    if (token) form.append("cf_turnstile_token", token)
     const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
     const body = await res.json().catch(() => null)
     if (!res.ok) throw new Error(extractError(body, res.status))
@@ -3159,7 +3161,7 @@ export const publicCv = {
   // Pre-login playground AI — compute-only, persists nothing (PV1). Same pure
   // services as the authed surface; anon is free (loss-leader, neutralised by
   // the welcome grant). No job → role/keywords optional → generic best-practice.
-  rewriteBullet: (payload: {
+  rewriteBullet: async (payload: {
     bullet: string
     role?: string | null
     missing_keywords?: string[]
@@ -3173,10 +3175,10 @@ export const publicCv = {
       missing_keywords: payload.missing_keywords ?? [],
       metric: payload.metric ?? null,
       allow_no_metric: payload.allow_no_metric ?? false,
-      cf_turnstile_token: payload.turnstileToken ?? null,
+      cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
     }),
 
-  restructure: (payload: {
+  restructure: async (payload: {
     cv_text: string
     role?: string | null
     company?: string | null
@@ -3188,7 +3190,7 @@ export const publicCv = {
       role: payload.role ?? null,
       company: payload.company ?? null,
       missing_keywords: payload.missing_keywords ?? [],
-      cf_turnstile_token: payload.turnstileToken ?? null,
+      cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
     }),
 }
 
