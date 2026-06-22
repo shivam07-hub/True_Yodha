@@ -36,10 +36,9 @@ export interface DashboardProps {
   refresh: UseJobRefreshResult
   dismissedJobIds: Set<string>
   total: number
-  feedUpdatedAt: string | null
-  matchesComputedAt: string | null
-  /** True when the Feed State publication clock is ahead of these matches. */
-  feedAhead?: boolean
+  /** Genuinely-new live jobs inserted (first_seen) since this user last matched.
+   *  The only honest staleness signal — see /jobs/matches. >0 ⇒ offer a refresh. */
+  newJobsCount: number
   initialJobId?: string | null
   /** Daily-loop steps — feed the peek panel's "Today's missions" surface. */
   steps?: LoopStep[]
@@ -99,18 +98,11 @@ export function Dashboard(props: DashboardProps) {
           : "Nothing in this view."
 
   const isRefreshing = props.refresh.state === "charging" || props.refresh.state === "computing"
-  // The Feed State publication clock (props.feedAhead) is the canonical signal;
-  // feed_updated_at is the legacy fallback for when feed-state hasn't hydrated.
-  const isFeedStale =
-    !!props.total &&
-    (
-      !!props.feedAhead ||
-      (
-        !!props.feedUpdatedAt &&
-        !!props.matchesComputedAt &&
-        new Date(props.feedUpdatedAt) > new Date(props.matchesComputedAt)
-      )
-    )
+  // Genuine new-job count from /matches (jobs.first_seen newer than this user's
+  // last compute). >0 is the ONLY honest "feed is stale" signal — the old
+  // publication-clock / last_seen checks fired on re-crawls that added nothing.
+  const newJobsCount = props.newJobsCount
+  const isFeedStale = !!props.total && newJobsCount > 0
 
   return (
     <div className="db" id="browse">
@@ -145,7 +137,9 @@ export function Dashboard(props: DashboardProps) {
 
       {isFeedStale && !isRefreshing ? (
         <div className="db-stale">
-          <span>New jobs added since your last match — results may be outdated.</span>
+          <span>
+            {newJobsCount} new {newJobsCount === 1 ? "job" : "jobs"} since your last match — results may be outdated.
+          </span>
           <Button
             variant="outline"
             size="sm"

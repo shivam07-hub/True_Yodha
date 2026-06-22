@@ -313,7 +313,6 @@
 }
 
 /* ── Mobile feed ("Twitter for jobs") ────────────────────────── */
-.db-mpull { text-align: center; padding: 12px 0 4px; }
 
 .db-mcard { display: flex; gap: 12px; padding: 14px 16px 6px; border-bottom: 1px solid var(--db-line-soft); border-top: none; border-left: none; border-right: none; cursor: pointer; text-align: left; width: 100%; background: none; font: inherit; color: inherit; }
 .db-mcard .db-monogram { width: 40px; height: 40px; }

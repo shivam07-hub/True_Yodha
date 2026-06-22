@@ -59,12 +59,23 @@ def get_job_matches(
         except (ValueError, TypeError):
             pass
 
+    # Genuine "new jobs since your last match" — count live rows whose first_seen
+    # (insert marker) post-dates this user's match compute. first_seen is the only
+    # honest signal: last_seen bumps on re-crawl and feed publications re-publish
+    # the same rows, both of which make the dashboard banner cry wolf. Skip for
+    # never-matched users (no baseline → nothing is "new").
+    new_jobs_count = 0
+    if matches_computed_at is not None:
+        marker = int(matches_computed_at.strftime("%Y%m%d"))
+        new_jobs_count = repo.count_new_jobs_since(marker)
+
     return JobMatchesResponse(
         jobs=jobs,
         batch_week=batch_week,
         total=len(jobs),
         feed_updated_at=feed_updated_at,
         matches_computed_at=matches_computed_at,
+        new_jobs_count=new_jobs_count,
         dismissed_job_ids=repo.get_dismissed_job_card_ids(principal.id),
     )
 
