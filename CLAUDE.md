@@ -516,6 +516,16 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-22 · mobile clip/gate fixes — radar labels + market toolbar + dashboard peek rail — pushed Develop 4d9dc24)
+
+`/frontend-design` + first-principles critique of 5 mobile screenshots → 3 bugs, all one root principle: **a primary track must never be silently clipped, nor sit behind secondary context.** Committed ONLY my 6 files (foreign uncommitted work — cv/builder ApplicationStatus drift, OutcomeSeal, etc. — left in tree untouched).
+
+- **Radar labels clipped** (`Business`→`Busine`, `Sales`→`ales`) — [domain-radar.tsx](frontend/components/skills/domain-radar.tsx): labels at `R+22` blow past the `280` viewBox. Widened viewBox by 20px gutter/side + `preserveAspectRatio`; shared geometry constants (OG/profile radars) untouched, SVG CSS-scaled so it just rescales.
+- **Market toolbar** ([market.css](frontend/components/market/market.css) + [jobs-tab.tsx](frontend/components/market/jobs-tab.tsx) + [feed-filters.tsx](frontend/components/market/feed-filters.tsx)): hide-jobs eye wrapped to own row → mobile `.tm-feed-bar` `nowrap+overflow-x:auto`, children `flex-shrink:0`; chip row clip → right-edge `mask-image` fade (reads as scroll); oversized role chip (`Business-to-Business (B2B)`) → `.tm-feed-chip-label` `max-width:16ch` ellipsis + title, count suffix outside.
+- **Dashboard peek rail gating feed** ([home/page.tsx](frontend/app/(authed)/home/page.tsx) + [mission-control.css](frontend/app/(authed)/home/mission-control.css)): `.mc-workspace` rail is DOM-first → at ≤980px collapse it stacked 4 full cards (missions·skill map·followed·live intel) ABOVE the job feed. **Shivam chose: hide on mobile** (mirrors /market rail). Tagged `mc-ws-rail--peek` + `@media(≤980){display:none}` — scoped so market's greeting rail (shares `.mc-ws-rail`) stays; `display:none` drops the empty grid row. No feature loss — each surface is a first-class nav destination.
+
+tsc: my files clean (errors are pre-existing foreign cv/builder ApplicationStatus drift). lint clean. **Owed (Shivam):** 375px eyeball on a logged-in session (dashboard feed-first, radar labels uncut, market bar one row); commit the foreign work separately. Folds into CLAUDE.md #29.
+
 ## LAST SESSION SUMMARY (2026-06-18 · CV & Applications company-card empty-state + orange-budget fix — pushed Develop dd5b5cb)
 
 `/frontend-design` critique of a mobile CV & Applications screenshot (3M folder) → `/grill-me` (4 decisions, all recommended) → built + pushed same session. Outer repo `shivam07-hub/True_Yodha`, Develop `dd5b5cb` (committed ONLY my 2 files — foreign uncommitted work left in tree untouched).
