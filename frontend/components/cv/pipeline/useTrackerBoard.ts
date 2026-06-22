@@ -1,8 +1,8 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs, APPLICATION_STAGES, APPLICATION_OUTCOMES } from "@/lib/api"
-import type { ApplicationResponse, ApplicationStatus, StaleApplication } from "@/lib/api"
+import { jobs, APPLICATION_OUTCOMES } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -19,12 +19,6 @@ export const OUTCOME_LABEL: Record<OutcomeKey, string> = {
   ghosted: "Ghosted",
   rejected: "Rejected",
   offer: "Offer",
-}
-
-export const STAGE_ROMAN: Record<StageKey, string> = {
-  saved: "I",
-  applied: "II",
-  interviewing: "III",
 }
 
 export interface UpdateStatusInput {
@@ -116,35 +110,6 @@ export function useTrackerBoard() {
   }
 }
 
-export function daysBetween(iso: string | null | undefined): number {
-  if (!iso) return 0
-  const then = new Date(iso).getTime()
-  const now = Date.now()
-  return Math.max(0, Math.floor((now - then) / (1000 * 60 * 60 * 24)))
-}
-
-export function partitionByStage(
-  apps: ApplicationResponse[],
-): Record<StageKey, ApplicationResponse[]> {
-  const byStage: Record<StageKey, ApplicationResponse[]> = {
-    saved: [], applied: [], interviewing: [],
-  }
-  for (const a of apps) {
-    if ((APPLICATION_STAGES as readonly string[]).includes(a.status)) {
-      byStage[a.status as StageKey].push(a)
-    }
-  }
-  // Active = oldest at top (most stuck surfaces). Q12.
-  for (const k of Object.keys(byStage) as StageKey[]) {
-    byStage[k].sort((a, b) => {
-      const aT = new Date(a.last_stage_changed_at ?? a.created_at).getTime()
-      const bT = new Date(b.last_stage_changed_at ?? b.created_at).getTime()
-      return aT - bT
-    })
-  }
-  return byStage
-}
-
 export function partitionVerdicts(apps: ApplicationResponse[]): ApplicationResponse[] {
   return apps
     .filter(a => (APPLICATION_OUTCOMES as readonly string[]).includes(a.status))
@@ -154,8 +119,4 @@ export function partitionVerdicts(apps: ApplicationResponse[]): ApplicationRespo
       const bT = new Date(b.last_stage_changed_at ?? b.closed_at ?? b.created_at).getTime()
       return bT - aT
     })
-}
-
-export function isStuck(stale: StaleApplication[], jobId: string): StaleApplication | null {
-  return stale.find(s => s.job_id === jobId) ?? null
 }
