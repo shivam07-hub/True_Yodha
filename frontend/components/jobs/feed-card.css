@@ -54,6 +54,10 @@
   font-size: 12px; font-weight: 500;
   color: var(--tm-text-muted);
 }
+/* Inline-fit header (market pill): company · time · skills cluster left, no gap —
+   age no longer pushes to the far edge, and the fit pill sits right after it. */
+.fc-top-inlinefit .fc-age { margin-left: 0; }
+.fc-top-inlinefit .fc-fitpill { flex-shrink: 0; }
 
 .fc-role {
   margin: 0; font-weight: 600; color: var(--tm-text);

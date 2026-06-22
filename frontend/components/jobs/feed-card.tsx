@@ -122,6 +122,11 @@ export function FeedCard({
   // The fit slot is derived from the data by default; an explicit `fit` node overrides.
   const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
   const hasFit = fit != null || data.fit != null
+  // Pill-shaped fits (skill overlap / role / nudge) read as part of the header
+  // line — company · time · skills — not as a detached right-hand column that
+  // floats to the card edge on narrow mobile. The score *ring* stays its own
+  // right column (that's its design).
+  const fitInTop = fit == null && data.fit != null && data.fit.kind !== "score"
 
   return (
     <article
@@ -156,10 +161,11 @@ export function FeedCard({
           <span className="fc-mono" style={logoStyle(data.company)} aria-hidden>—</span>
         )}
         <div className="fc-body">
-          <div className="fc-top">
+          <div className={`fc-top${fitInTop ? " fc-top-inlinefit" : ""}`}>
             <CompanyLink company={data.company} className="fc-co" />
             {badges}
             {age ? <span className="fc-age">{age}</span> : null}
+            {fitInTop ? fitNode : null}
           </div>
           <h3 className="fc-role">{data.role}</h3>
 
@@ -194,7 +200,7 @@ export function FeedCard({
             </div>
           ) : null}
         </div>
-        {hasFit ? <div className="fc-fit">{fitNode}</div> : null}
+        {hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
 
       {pulse}
