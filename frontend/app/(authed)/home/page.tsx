@@ -27,6 +27,7 @@ import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
+import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
@@ -261,10 +262,15 @@ function MissionControlInner() {
   // Daily loop — the five ritual steps. Still passed to the Dashboard feed
   // (the LoopRing itself moved to the /market hero). `href` = where
   // "close this step" routes; on-page steps (Log → diary panel below) omit it.
+  // `reward` is the Myro Coins incentive chip shown on open missions. Set only on
+  // steps that map to a real coin-rewarded action: Practice = "Clear a skill
+  // level" (+20/30/50 first clear per level, mirrors XP_EARN_ACTIONS) and Log =
+  // a diary entry (MYRO_COINS_POLICY.diaryEntry). Find/Level Up/Apply carry no
+  // direct coin reward today, so they show as plain missions.
   const steps: LoopStep[] = [
     { label: "Find Job", done: topJobs.length > 0, icon: "target", href: "/market" },
-    { label: "Practice", done: hasForged, icon: "forge", href: "/forge" },
-    { label: "Log", done: loggedToday, icon: "diary" },
+    { label: "Practice", done: hasForged, icon: "forge", href: "/forge", reward: "+20–50" },
+    { label: "Log", done: loggedToday, icon: "diary", reward: `+${MYRO_COINS_POLICY.diaryEntry}` },
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
     { label: "Apply", done: hasApplied, icon: "arrowRight", href: "/market" },
   ]

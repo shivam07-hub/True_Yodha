@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { Target, TrendingUp, Building2, Radar, ArrowRight, Check } from "lucide-react"
+import { Target, TrendingUp, Building2, Radar, ArrowRight, Check, Coins } from "lucide-react"
 import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { DomainRadar } from "@/components/skills/domain-radar"
@@ -75,12 +75,18 @@ function MissionsCard({ steps }: { steps: LoopStep[] }) {
             <li key={s.label}>
               <Link href={s.href} className="mc-peek-row is-open tm-control-focus">
                 <span className="dot" aria-hidden /> <span>{s.label}</span>
+                {s.reward ? (
+                  <span className="mc-peek-reward"><Coins size={11} aria-hidden /> {s.reward}</span>
+                ) : null}
                 <ArrowRight size={12} aria-hidden className="go" />
               </Link>
             </li>
           ) : (
             <li key={s.label} className="mc-peek-row is-open">
               <span className="dot" aria-hidden /> <span>{s.label}</span>
+              {s.reward ? (
+                <span className="mc-peek-reward"><Coins size={11} aria-hidden /> {s.reward}</span>
+              ) : null}
             </li>
           ),
         )}
