@@ -7,9 +7,7 @@ import { CloseButton } from "@/components/ui/close-button"
 const STAGE_LABELS: Record<string, string> = {
   saved: "Saved",
   applied: "Applied",
-  screening: "Screening",
   interviewing: "Interviewing",
-  final_round: "Final Round",
 }
 
 interface ReviewModalProps {

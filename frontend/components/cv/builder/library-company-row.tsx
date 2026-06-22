@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo, useState } from "react"
 import { APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus, CVVersion } from "@/lib/api"
@@ -84,6 +85,14 @@ function CVJobCard({ app, cv, onOpen, onStageChange }: {
         >
           <LIcon d={cv ? I.file : I.plus} size={12}/> {action.label}
         </button>
+        {/* Practice is a post-apply move — only once this pursuit is Applied or
+            Interviewing does closing skill gaps become the user's job. Quiet
+            secondary link, never competes with the tailor/open-CV action. */}
+        {(app.status === "applied" || app.status === "interviewing") && (
+          <Link href="/forge" className="tm-lib-btn sm" style={{ textDecoration: "none" }}>
+            <LIcon d={I.target} size={12}/> Practice gaps
+          </Link>
+        )}
       </div>
     </div>
   )

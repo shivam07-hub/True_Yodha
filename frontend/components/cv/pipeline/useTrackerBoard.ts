@@ -6,30 +6,25 @@ import type { ApplicationResponse, ApplicationStatus, StaleApplication } from "@
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
-export type StageKey = "saved" | "applied" | "screening" | "interviewing" | "final_round"
-export type OutcomeKey = "ghosted" | "rejected" | "offer" | "withdrew"
+export type StageKey = "saved" | "applied" | "interviewing"
+export type OutcomeKey = "ghosted" | "rejected" | "offer"
 
 export const STAGE_LABEL: Record<StageKey, string> = {
   saved: "Saved",
   applied: "Applied",
-  screening: "Screening",
   interviewing: "Interviewing",
-  final_round: "Final Round",
 }
 
 export const OUTCOME_LABEL: Record<OutcomeKey, string> = {
   ghosted: "Ghosted",
   rejected: "Rejected",
   offer: "Offer",
-  withdrew: "Withdrew",
 }
 
 export const STAGE_ROMAN: Record<StageKey, string> = {
   saved: "I",
   applied: "II",
-  screening: "III",
-  interviewing: "IV",
-  final_round: "V",
+  interviewing: "III",
 }
 
 export interface UpdateStatusInput {
@@ -132,7 +127,7 @@ export function partitionByStage(
   apps: ApplicationResponse[],
 ): Record<StageKey, ApplicationResponse[]> {
   const byStage: Record<StageKey, ApplicationResponse[]> = {
-    saved: [], applied: [], screening: [], interviewing: [], final_round: [],
+    saved: [], applied: [], interviewing: [],
   }
   for (const a of apps) {
     if ((APPLICATION_STAGES as readonly string[]).includes(a.status)) {

@@ -37,7 +37,7 @@ from app.services import ninja_name as nn
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_ACTIVE_STATUSES = ("saved", "applied", "screening", "interviewing", "final_round")
+_ACTIVE_STATUSES = ("saved", "applied", "interviewing")
 _OVERLAP_LIMIT = 3
 
 

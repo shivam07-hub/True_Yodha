@@ -23,16 +23,13 @@ export function companyInitials(name: string): string {
 export const STAGE_META: Record<ApplicationStatus, { label: string; color: string }> = {
   saved:        { label: "Saved",        color: "var(--tm-text-muted)" },
   applied:      { label: "Applied",      color: "var(--tm-info)" },
-  screening:    { label: "Screening",    color: "var(--tm-warning)" },
   interviewing: { label: "Interviewing", color: "var(--tm-interactive)" },
-  final_round:  { label: "Final Round",  color: "var(--tm-interactive)" },
   offer:        { label: "Offer",        color: "var(--tm-success)" },
   ghosted:      { label: "Ghosted",      color: "var(--tm-text-faint)" },
   rejected:     { label: "Rejected",     color: "var(--tm-danger)" },
-  withdrew:     { label: "Withdrew",     color: "var(--tm-text-faint)" },
 }
 
-export const STAGE_RANK: ApplicationStatus[] = ["saved", "applied", "screening", "interviewing", "final_round", "offer", "ghosted", "rejected", "withdrew"]
+export const STAGE_RANK: ApplicationStatus[] = ["saved", "applied", "interviewing", "offer", "ghosted", "rejected"]
 
 export function stageRank(s: ApplicationStatus): number { return STAGE_RANK.indexOf(s) }
 
@@ -59,7 +56,7 @@ export function CompanyAvatar({ name, size = 32 }: { name: string; size?: number
 // ── StatusDot ─────────────────────────────────────────────────────
 export function StatusDot({ stage }: { stage: ApplicationStatus }) {
   const m = STAGE_META[stage] ?? STAGE_META.saved
-  const glow = (stage === "interviewing" || stage === "final_round")
+  const glow = stage === "interviewing"
     ? `0 0 6px ${m.color}` : "none"
   return (
     <span

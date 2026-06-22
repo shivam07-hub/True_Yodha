@@ -111,7 +111,7 @@ export function BaselineView({
 
   const activeApplications = useMemo<ApplicationResponse[]>(() => {
     const list = applicationsQuery.data ?? []
-    const liveStages: ApplicationResponse["status"][] = ["saved", "applied", "screening", "interviewing", "final_round"]
+    const liveStages: ApplicationResponse["status"][] = ["saved", "applied", "interviewing"]
     return list
       .filter(a => liveStages.includes(a.status))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

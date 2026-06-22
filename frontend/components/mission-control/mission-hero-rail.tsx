@@ -93,7 +93,7 @@ export function MissionHeroRail({ token }: { token: string | null }) {
   )
   const dateLine = [dayStr, profile?.target_location].filter(Boolean).join(" · ")
   const activeTargets = apps.filter((a) =>
-    ["saved", "applied", "screening", "interviewing", "final_round"].includes(a.status),
+    ["saved", "applied", "interviewing"].includes(a.status),
   ).length
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const hasApplied = apps.some((a) => a.status !== "saved")

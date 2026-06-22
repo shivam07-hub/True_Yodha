@@ -14,7 +14,7 @@ import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 
 const MAX_FOLLOWED = MYRO_COINS_POLICY.followedCompanyLimit
 
-const LIVE_STAGES = ["saved", "applied", "screening", "interviewing", "final_round"] as const
+const LIVE_STAGES = ["saved", "applied", "interviewing"] as const
 
 interface Props {
   company: string

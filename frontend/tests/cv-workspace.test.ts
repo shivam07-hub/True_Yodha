@@ -66,7 +66,7 @@ test("CV workspace stats are non-interactive; COMPANIES counts tracked companies
     [
       application({ id: 1, job_id: "job-1", status: "saved", company: "3M" }),
       application({ id: 2, job_id: "job-2", status: "applied", company: "3M" }),
-      application({ id: 3, job_id: "job-3", status: "screening", company: "Acme" }),
+      application({ id: 3, job_id: "job-3", status: "interviewing", company: "Acme" }),
     ],
   )
 

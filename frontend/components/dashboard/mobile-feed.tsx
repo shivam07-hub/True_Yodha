@@ -24,9 +24,7 @@ export interface MobileFeedProps {
 
 const APPLIED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>([
   "applied",
-  "screening",
   "interviewing",
-  "final_round",
 ])
 
 /* ── Row card (shared <FeedCard>) ───────────────────────────────── */
@@ -89,10 +87,6 @@ export function MobileFeed(p: MobileFeedProps) {
 
   return (
     <div className="db-mfeed">
-      <div className="db-mpull">
-        <span className="db-label">↓ pull to refresh · next batch tonight</span>
-      </div>
-
       <VirtualFeed
         items={p.items}
         getKey={(it) => it.jobId}

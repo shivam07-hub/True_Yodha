@@ -254,6 +254,21 @@ def get_feed_updated_at(db: Client) -> str | None:
         return cached_value
     _feed_ts_cache = (time.monotonic(), value)
     return value
+
+
+def count_jobs_first_seen_after(db: Client, marker: int) -> int:
+    """Count live jobs whose first_seen (YYYYMMDD insert marker) is strictly after
+    ``marker``. This is the genuine "new jobs since X" signal — first_seen is the
+    insert date, unlike last_seen (re-crawl) or feed publications (re-publish the
+    same rows). Date-granular by design: the feed is date-batched."""
+    result = (
+        db.table("jobs")
+        .select("job_id", count="exact", head=True)
+        .eq("is_active", True)
+        .gt("first_seen", marker)
+        .execute()
+    )
+    return int(result.count or 0)
 SKILL_DRILL_MAX_PAGE_SIZE = 100
 ENTITY_SKILL_LIMIT = 20
 
@@ -1849,6 +1864,9 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
+    def count_new_jobs_since(self, marker: int) -> int:
+        return count_jobs_first_seen_after(self._db, marker)
+
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         result = (
             self._db.table("user_dismissed_job_cards")
@@ -2240,7 +2258,7 @@ class JobsRepository:
         # edits don't mask company silence. Dismiss also bumps this column → 7-day snooze.
         from datetime import datetime, timedelta, timezone
         cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        stages = ["saved", "applied", "screening", "interviewing", "final_round"]
+        stages = ["saved", "applied", "interviewing"]
         result = (
             self._db.table("job_applications")
             .select("id, job_id, status, last_stage_changed_at, updated_at, jobs(job_title, company_name)")

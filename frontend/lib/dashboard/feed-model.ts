@@ -40,9 +40,7 @@ export function synthMatch(app: ApplicationResponse): JobMatch {
 const LIKED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>([
   "saved",
   "applied",
-  "screening",
   "interviewing",
-  "final_round",
 ])
 
 /** Build the single continuous stack: every Myro match, then any liked job not

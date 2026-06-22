@@ -37,7 +37,7 @@ interface LibraryViewProps {
 // Display order only (presentation). Membership is the canonical predicate
 // from lib/api — APPLICATION_OUTCOMES — so the rail count, the folder badge, and
 // the main board can never disagree on what counts as closed.
-const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted", "withdrew"]
+const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted"]
 
 // Closed verdicts list — the right rail no longer toggles. It is a single
 // always-closed surface (outcomes only). Active pursuits live in the main panel
