@@ -27,27 +27,23 @@ export interface UncertainListing {
 
 /**
  * Market-intel signals for the /market rail + interleaved story cards. All
- * read-only, all from endpoints that already exist (no new backend):
- *   movers   ← /jobs/my-skills/demand   (the core market lesson)
- *   trending ← /jobs/companies-at       (who's hiring in the user's city)
- * Query keys mirror the page's existing ones so React Query dedupes the fetch.
+ * read-only, all public (no token, no parsed CV):
+ *   movers   ← /jobs/analytics top_skills (universal market demand, city-scoped)
+ *   trending ← /jobs/companies-at         (who's hiring in the user's city)
  */
-export function useMarketIntel(token: string, targetLocations: string[], cvReady = true) {
-  // Location-scoped demand: each mover links into the location-scoped triage
-  // feed, so its badge must promise that feed (Scoped Skill Demand). Distinct
-  // query key from the market-wide ["mySkillDemand", token] used elsewhere.
-  // Gated on cvReady — movers are the user's own skills × market, so with no
-  // parsed CV the endpoint returns []; firing it anyway only paints a skeleton
-  // that resolves to a silently-empty widget (mirrors the page's own demand
-  // gate). No CV → no query, no false promise; trending (public) still shows.
+export function useMarketIntel(targetLocations: string[]) {
+  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
+
+  // Skill-demand movers = the market overall, NOT the user's CV. Universal and
+  // identical for every viewer: the most-demanded skills across active jobs,
+  // scoped to the rail's city. Reads the public /jobs/analytics aggregate
+  // (top_skills), so it needs no token and no parsed CV — that CV gate was the
+  // root cause of the rail's stuck "movers" skeleton for CV-less users.
   const demand = useQuery({
-    queryKey: ["mySkillDemand", token, "scoped"],
-    queryFn: () => jobs.mySkillDemand(token, { locationScoped: true }),
-    enabled: !!token && cvReady,
+    queryKey: ["marketTopSkills", city ?? ""],
+    queryFn: () => jobs.analytics(null, { locationCity: city }),
     staleTime: 30 * 60 * 1000,
   })
-
-  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const companies = useQuery({
     queryKey: ["topCompaniesAt", "city", city ?? ""],
     queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }),
@@ -55,24 +51,21 @@ export function useMarketIntel(token: string, targetLocations: string[], cvReady
     staleTime: 30 * 60 * 1000,
   })
 
-  // Scoped count is the badge's promise. Fall back to the market-wide count
-  // only if a row is missing the scoped figure (e.g. outside the top-N the
-  // backend scopes) — never show a skill with zero in-scope roles.
-  const scopedCount = (s: { scoped_job_count?: number | null; job_count_30d: number }) =>
-    s.scoped_job_count ?? s.job_count_30d
+  // top_skills is already sorted desc by active-job count and city-scoped by the
+  // endpoint; take the top 5 with a real count. skill == the feed's skill-facet
+  // value, so each mover's button filters the feed to exactly what its badge
+  // counts. level/needsUpgrade are CV-relative and unused here (universal view).
   const movers = useMemo<SkillMover[]>(
     () =>
-      (demand.data?.skills ?? [])
-        .filter((s) => scopedCount(s) > 0)
-        .slice()
-        .sort((a, b) => scopedCount(b) - scopedCount(a))
+      (demand.data?.top_skills ?? [])
+        .filter((s) => s.count > 0)
         .slice(0, 5)
         .map((s) => ({
           skill: s.skill,
-          display: s.display_name,
-          jobCount: scopedCount(s),
-          level: s.current_level,
-          needsUpgrade: s.needs_upgrade,
+          display: s.skill,
+          jobCount: s.count,
+          level: 0,
+          needsUpgrade: false,
         })),
     [demand.data],
   )
@@ -87,8 +80,8 @@ export function useMarketIntel(token: string, targetLocations: string[], cvReady
 
   // Both widgets share one shimmer; fold the companies query in so trending
   // resolving slower than demand doesn't blank out under a finished spinner.
-  // Disabled queries (no token/cv, no city) report isLoading=false, so this is
-  // false when there's nothing to fetch.
+  // The companies query is disabled with no city (isLoading=false), so this is
+  // false when there's nothing left to fetch.
   return { movers, trending, loading: demand.isLoading || companies.isLoading }
 }
 

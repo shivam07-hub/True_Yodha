@@ -21,16 +21,17 @@ export interface MarketRailProps {
   onOpenJob: (job: JobFeedItem) => void
   /** Feed still resolving — strip shows a shimmer, never a literal "0". */
   loading?: boolean
-  /** User has a parsed CV → skill-demand movers can resolve. Without it the
-   *  movers query is skipped (no skills to score against the market). */
+  /** @deprecated Skill-demand movers are now the universal market aggregate, not
+   *  CV-personalized, so this no longer gates anything. Kept until callers drop
+   *  it from the shared rail props. */
   cvReady?: boolean
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { token, targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false, cvReady = true } = props
-  const { movers, trending, loading: intelLoading } = useMarketIntel(token, targetLocations, cvReady)
+  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false } = props
+  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations)
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
@@ -105,8 +106,8 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { token, targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, cvReady = true } = props
-  const { movers, trending } = useMarketIntel(token, targetLocations, cvReady)
+  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob } = props
+  const { movers, trending } = useMarketIntel(targetLocations)
   const uncertain = uncertainListings(feed, pulses)
   const top = movers[0]
   const co = trending[0]

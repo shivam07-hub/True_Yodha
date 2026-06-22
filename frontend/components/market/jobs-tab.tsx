@@ -102,7 +102,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [feed])
 
   // Market-intel signals → the rail + the two interleaved story cards.
-  const intel = useMarketIntel(token, targetLocations, hasCv)
+  const intel = useMarketIntel(targetLocations)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]

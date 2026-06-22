@@ -570,6 +570,10 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     by_location_city: list[NameCountItem] = []
     by_location_country: list[NameCountItem] = []
     by_location_mode: list[NameCountItem] = []
+    # Market-wide top skills by active-job count (universal, same for every user
+    # — powers the /market rail's "Skill-demand movers"). Location-filterable via
+    # the same query params as the rest of this summary.
+    top_skills: list[SkillCountItem] = []
 
 
 class EntitySkillsResponse(BaseModel):

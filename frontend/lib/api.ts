@@ -2017,6 +2017,9 @@ export interface MarketAnalytics {
   by_location_city: NameCountItem[]
   by_location_country: NameCountItem[]
   by_location_mode: NameCountItem[]
+  /** Market-wide top skills by active-job count — universal, same for every
+   *  user. Powers the /market rail's "Skill-demand movers". */
+  top_skills: SkillCountItem[]
 }
 
 export interface EntitySkillsData {
