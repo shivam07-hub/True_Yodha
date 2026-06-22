@@ -134,6 +134,34 @@
 }
 .tm-feed-rolechip:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
 
+/* Long dynamic chip values (e.g. role "Business-to-Business (B2B)", skill names)
+   truncate so a single chip never spans the viewport. Full value via title +
+   the chip's own scroll row. The count suffix stays outside this span. */
+.tm-feed-chip-label {
+  display: inline-block; max-width: 16ch;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: bottom;
+}
+
+@media (max-width: 768px) {
+  /* One horizontal-scroll control row — never wrap a lone control (the hide-jobs
+     eye) onto its own line. Same nowrap+scroll pattern as the summary row + the
+     topbar nav. Children keep their width (shrink:0) so the row scrolls under
+     the thumb instead of squashing controls; the open-search input still grows. */
+  .tm-feed-bar {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tm-feed-bar::-webkit-scrollbar { display: none; }
+  .tm-feed-bar > * { flex-shrink: 0; }
+  /* Right-edge fade signals the chip row scrolls — was reading as a hard clip
+     at "…Business-to-Business (B2B". */
+  .tm-feed-summary {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+  }
+}
+
 /* ── filters sheet ───────────────────────────────────────────────────────── */
 .tm-filters-sheet {
   position: fixed; z-index: 71; background: var(--tm-bg, var(--tm-surface));

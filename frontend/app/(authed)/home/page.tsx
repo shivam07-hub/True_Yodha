@@ -350,7 +350,7 @@ function MissionControlInner() {
               pinned LEFT rail — mirroring the /market workspace. Collapses to one
               column ≤980px. The job detail opens from the right (drawer) on click. */}
           <div className="mc-workspace">
-            <aside className="mc-ws-rail">
+            <aside className="mc-ws-rail mc-ws-rail--peek">
               {token ? (
                 <div className="mc-rail">
                   <PeekSurfaces token={token} steps={steps} />
