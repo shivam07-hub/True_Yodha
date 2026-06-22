@@ -5,7 +5,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
@@ -123,7 +123,6 @@ function ClosedRail({ applications, versions, onPickJob, variant = "aside" }: {
 export function LibraryView({
   token, cv, versions, currentBaseline, applications, profile, onOpenJob, onReplaceCV,
 }: LibraryViewProps) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
 
@@ -139,14 +138,6 @@ export function LibraryView({
     viewParam === "cv" || legacyMaster ? "cv"
     : viewParam === "active" || legacyClosed ? "active"
     : "active"
-
-  function setView(next: View) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("view", next)
-    params.delete("filter")
-    params.delete("master")
-    router.replace(`/cv?${params.toString()}`, { scroll: false })
-  }
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
@@ -179,21 +170,21 @@ export function LibraryView({
     <div className="tm-lib-scope">
       <div className="tm-lib-root">
         <div className="tm-lib-main">
-          <div className="tm-lib-page-head">
-            <div className="tm-lib-page-head-main">
-              <ViewSwitch view={view} onChange={setView} />
-            </div>
-            {/* Stats ride beside the toggle on desktop, filling the head's
-                right slot; on the Active view only (CV view has no stats).
-                Below the page-head breakpoint they wrap to their own row. */}
-            {view === "active" && (
+          {/* Active/CV switching now lives in the top nav (CV + Applications
+              tabs) on both shells, so the in-page ViewSwitch is retired. The
+              head survives only to carry the Active-view stat strip; the empty
+              head-main is a flex spacer that keeps the strip right-aligned as
+              before. CV view needs no head. */}
+          {view === "active" && (
+            <div className="tm-lib-page-head">
+              <div className="tm-lib-page-head-main" />
               <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin tm-lib-head-stats" aria-label="CV workspace summary">
                 {stats.map((stat) => (
                   <StatTile key={stat.key} eyebrow={stat.eyebrow} value={stat.value} sub={stat.sub} />
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── CV view: the Main CV is the whole point, full width ──────
               The panel is the surface — it always renders; its own head
@@ -239,34 +230,6 @@ export function LibraryView({
           />
         )}
       </div>
-    </div>
-  )
-}
-
-// 2-pill view switcher — filled-active pill, mirrors the market Jobs/Heatmap
-// toggle. Click swaps the whole panel below; no stacking.
-function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
-  const TABS: { key: View; label: string }[] = [
-    { key: "active", label: "Active" },
-    { key: "cv", label: "CV" },
-  ]
-  return (
-    <div className="tm-lib-viewseg" role="tablist" aria-label="CV workspace view">
-      {TABS.map((t) => {
-        const on = view === t.key
-        return (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            className={`tm-lib-viewseg-btn${on ? " active" : ""}`}
-            onClick={() => onChange(t.key)}
-          >
-            {t.label}
-          </button>
-        )
-      })}
     </div>
   )
 }

@@ -817,7 +817,6 @@
   .tm-lib-header-stat-strip { grid-template-columns: repeat(3, 1fr); }
   /* Stats wrap to a full-width row under the toggle on mobile. */
   .tm-lib-head-stats { width: 100%; grid-template-columns: repeat(3, 1fr); }
-  .tm-lib-viewseg { margin-top: 4px; }
   .tm-lib-page-head { flex-direction: column; margin-bottom: 8px; }
   .tm-lib-master-preview { display: none; }
   .tm-lib-master-name { font-size: 18px; }
@@ -878,42 +877,6 @@
   .tm-lib-seg-btn { transition: none; }
 }
 
-/* ── View switcher (CV | Active) — filled-active pill, market Jobs/Heatmap ── */
-.tm-lib-viewseg {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  margin-top: 14px;
-  border-radius: 999px;
-  background: var(--tm-surface);
-  border: 1px solid var(--tm-border-soft);
-}
-.tm-lib-viewseg-btn {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--tm-text-muted);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 22px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background var(--tm-dur, 120ms) var(--tm-ease, ease),
-    color var(--tm-dur, 120ms) var(--tm-ease, ease);
-}
-.tm-lib-viewseg-btn:hover:not(.active) { color: var(--tm-text); }
-.tm-lib-viewseg-btn.active {
-  background: var(--tm-interactive);
-  color: var(--tm-on-interactive, #fff);
-}
-.tm-lib-viewseg-btn:focus-visible {
-  outline: 2px solid var(--tm-interactive);
-  outline-offset: 2px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tm-lib-viewseg-btn { transition: none; }
-}
 
 /* Active-view stat strip — full width, sits below the pills. */
 .tm-lib-stat-strip-thin {

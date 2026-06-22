@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -53,18 +53,40 @@ function Coachmark({ item, onAck }: { item: NavItem; onAck: () => void }) {
 
 export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const activeCoachId = nav.activeCoach?.id ?? null
+
+  // Split the merged CV workspace into two sibling tabs — CV and Applications —
+  // exactly as the mobile bottom bar does (mobile/shell.tsx). Both point at the
+  // same /cv surface via a ?view= param, so the route contract is shared and the
+  // /cv page needs no change. renderKey disambiguates the two cv slots; the
+  // coachmark and NEW pill stay on the primary (CV) slot only so they don't fire twice.
+  type RenderItem = NavItem & { renderKey: string }
+  const items = nav.visibleDesktop.reduce<RenderItem[]>((acc, item) => {
+    if (item.id !== "cv") return [...acc, { ...item, renderKey: item.id }]
+    return [
+      ...acc,
+      { ...item, renderKey: "cv", href: "/cv?view=cv", label: "CV", stalePill: false },
+      { ...item, renderKey: "applications", href: "/cv?view=active", label: "Applications", stalePill: true },
+    ]
+  }, [])
 
   return (
     <>
       {activeCoachId && <div className="tm-nav-scrim" onClick={nav.ackCoach} aria-hidden />}
       <nav className="tm-topbar-nav" aria-label="Primary navigation">
-        {nav.visibleDesktop.map((item) => {
-          const active = pathname.startsWith(item.href)
-          const isTarget = activeCoachId === item.id
-          const isNew = nav.newItems.has(item.id)
+        {items.map((item) => {
+          const cvView = searchParams.get("view")
+          const active = item.renderKey === "cv"
+            ? pathname === "/cv" && cvView !== "active"
+            : item.renderKey === "applications"
+              ? pathname === "/cv" && cvView === "active"
+              : pathname.startsWith(item.href)
+          const isPrimarySlot = item.id !== "cv" || item.renderKey === "cv"
+          const isTarget = activeCoachId === item.id && isPrimarySlot
+          const isNew = nav.newItems.has(item.id) && isPrimarySlot
           return (
-            <div key={item.id} className={`tm-nav-slot${isTarget ? " tm-nav-slot--target" : ""}`}>
+            <div key={item.renderKey} className={`tm-nav-slot${isTarget ? " tm-nav-slot--target" : ""}`}>
               <Link
                 href={item.href}
                 title={item.desc}
