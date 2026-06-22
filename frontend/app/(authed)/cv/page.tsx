@@ -21,10 +21,13 @@ import {
   jobs as jobsApi,
   getPersistedCVUploadJobId,
   pollCVUploadStatus,
+  resumePendingCVUpload,
+  type CVUploadResult,
   uploadCV,
   uploadCVText,
   users,
 } from "@/lib/api"
+import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
 import { dataKeys } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { startCvPromiseOptimistic } from "@/lib/cv-promise"
@@ -55,6 +58,10 @@ function CVPage() {
   const [uploadStartedAt, setUploadStartedAt] = useState<string | null>(null)
   const [biggestDrag, setBiggestDrag] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  // Calm "we've got it" state: the mobile radio dropped the upload mid-flight,
+  // the file is held durably (IndexedDB) and will auto-resume on reconnect /
+  // next app load. NOT an error — the user can keep moving.
+  const [uploadDeferred, setUploadDeferred] = useState(false)
   const [uploadFailureCount, setUploadFailureCount] = useState(0)
   const [lastFailureCode, setLastFailureCode] = useState<string>("unknown")
   const [lastUploadMeta, setLastUploadMeta] = useState<{ name: string; type: string; size: number } | null>(null)
@@ -144,6 +151,37 @@ function CVPage() {
     return lo
   }
 
+  // A retryable network interrupt/timeout on the phase-1 POST means the file is
+  // already held durably and will auto-resume — the calm "we've got it" path,
+  // not a failure wall (CV-upload weak-radio resilience).
+  function isDeferrableUpload(err: unknown): err is InstanceType<typeof CVUploadFailure> {
+    return (
+      err instanceof CVUploadFailure &&
+      err.retryable &&
+      (err.code === "upload_post_interrupted" || err.code === "upload_post_timeout")
+    )
+  }
+
+  // Shared terminal-success handling for first upload, text claim, and resume.
+  function finishUploadSuccess(result: CVUploadResult) {
+    if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+    setUploadPhase("ready")
+    setBiggestDrag(lowestDomainFromCache())
+    setUploadResult({ skills_detected: result.skills_detected, score: result.score })
+    setUploadFailureCount(0)
+    setLastFailureCode("unknown")
+    setFallbackError(null)
+    setFallbackReceipt(null)
+    setUploadDeferred(false)
+  }
+
   async function handleUpload(file: File) {
     if (!token) return
     if (uploadInFlightRef.current) return  // double-fire guard
@@ -159,7 +197,7 @@ function CVPage() {
 
     uploadInFlightRef.current = true
     setShowUpload(true)
-    setUploading(true); setUploadResult(null); setUploadError(null)
+    setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
     setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
     // Start the 10-min CV-promise clock the instant the upload begins (Q4).
     startCvPromiseOptimistic()
@@ -168,33 +206,63 @@ function CVPage() {
         setUploadPhase(s.current_phase ?? null)
         if (s.started_at) setUploadStartedAt(s.started_at)
       })
-      if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
-      setUploadPhase("ready")
-      setBiggestDrag(lowestDomainFromCache())
-      setUploadResult({ skills_detected: result.skills_detected, score: result.score })
-      setUploadFailureCount(0)
-      setLastFailureCode("unknown")
-      setFallbackError(null)
-      setFallbackReceipt(null)
+      finishUploadSuccess(result)
       // #6: no auto-close — the done-morph holds the score + Improve action
       // until the user acts or dismisses (inline-done, Q4).
     } catch (err) {
-      if (err instanceof CVUploadFailure) {
+      if (isDeferrableUpload(err)) {
+        // Radio dropped mid-upload. The file is held; auto-resume on reconnect.
+        // Calm, no failure wall, no fallback escalation (CVUP weak-radio path).
+        setUploadDeferred(true)
+        setLastFailureCode(err.code)
+      } else if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
         setLastFailureCode(err.code)
         setUploadError(tokenizedUserMessage(err.message))
+        setUploadFailureCount((n) => n + 1)
       } else {
         setLastFailureCode("upload_unknown_error")
         setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Could not upload CV")
+        setUploadFailureCount((n) => n + 1)
       }
-      setUploadFailureCount((n) => n + 1)
+    } finally {
+      setUploading(false)
+      uploadInFlightRef.current = false
+    }
+  }
+
+  // Resume a flaky-radio-interrupted upload from the durable file stash. Shared
+  // by the `online` listener and the next-app-load effect. Re-deferring on a
+  // fresh interrupt keeps it calm — no failure-count escalation, no fallback.
+  async function resumeDeferredUpload() {
+    if (!token) return
+    if (uploadInFlightRef.current) return
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return
+    uploadInFlightRef.current = true
+    setShowUpload(true)
+    setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
+    setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
+    try {
+      const result = await resumePendingCVUpload(token, (s) => {
+        setUploadPhase(s.current_phase ?? null)
+        if (s.started_at) setUploadStartedAt(s.started_at)
+      })
+      if (!result) return  // nothing pending (already resumed elsewhere)
+      finishUploadSuccess(result)
+    } catch (err) {
+      if (isDeferrableUpload(err)) {
+        setUploadDeferred(true)
+        setLastFailureCode(err.code)
+      } else if (err instanceof CVUploadFailure) {
+        if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
+        setLastFailureCode(err.code)
+        setUploadError(tokenizedUserMessage(err.message))
+        setUploadFailureCount((n) => n + 1)
+      } else {
+        setLastFailureCode("upload_unknown_error")
+        setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Could not upload CV")
+        setUploadFailureCount((n) => n + 1)
+      }
     } finally {
       setUploading(false)
       uploadInFlightRef.current = false
@@ -216,18 +284,7 @@ function CVPage() {
     startCvPromiseOptimistic()
     try {
       const result = await uploadCVText(token, text, "text_describe")
-      if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
-      setUploadPhase("ready")
-      setBiggestDrag(lowestDomainFromCache())
-      setUploadResult({ skills_detected: result.skills_detected, score: result.score })
-      setUploadFailureCount(0); setLastFailureCode("unknown"); setFallbackError(null); setFallbackReceipt(null)
+      finishUploadSuccess(result)
     } catch (err) {
       if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
@@ -362,6 +419,37 @@ function CVPage() {
         setUploading(false)
         uploadInFlightRef.current = false
       })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, ready])
+
+  // Resume a flaky-radio-interrupted upload (phase-1 POST never landed → no
+  // job_id, only the durable file stash). On next app load: if a pending file
+  // exists, resume immediately when online, or show the calm "we'll finish when
+  // you're back online" state when offline. The job_id resume above owns the
+  // landed-but-parsing case, so skip when a job_id is present.
+  useEffect(() => {
+    if (!token || !ready || uploadInFlightRef.current) return
+    if (getPersistedCVUploadJobId()) return
+    let cancelled = false
+    void (async () => {
+      const pending = await hasPendingCVUpload()
+      if (cancelled || !pending || uploadInFlightRef.current) return
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setShowUpload(true); setUploadDeferred(true)
+        return
+      }
+      void resumeDeferredUpload()
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, ready])
+
+  // Auto-resume the instant the radio comes back (the calm-deferred recovery).
+  useEffect(() => {
+    if (!token || !ready) return
+    function onOnline() { void resumeDeferredUpload() }
+    window.addEventListener("online", onOnline)
+    return () => window.removeEventListener("online", onOnline)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, ready])
 
@@ -527,6 +615,23 @@ function CVPage() {
                 </div>
               )}
             </>
+          ) : uploadDeferred ? (
+            <div className="cvb-upload-deferred" role="status">
+              <span className="cvb-upload-deferred-icon"><Icon name="upload" size={20} /></span>
+              <div className="cvb-upload-deferred-title">Saved — we&rsquo;ll finish when you&rsquo;re back online</div>
+              <p className="cvb-upload-deferred-body">
+                Weak signal interrupted the upload. We&rsquo;re holding{" "}
+                {lastUploadMeta?.name ? <strong>{lastUploadMeta.name}</strong> : "your CV"} and it
+                uploads itself the moment your connection returns. You can keep using Myro.
+              </p>
+              <button
+                type="button"
+                className="cvb-upload-deferred-retry"
+                onClick={() => void resumeDeferredUpload()}
+              >
+                Try now
+              </button>
+            </div>
           ) : (
             <>
               <button

@@ -37,6 +37,11 @@ import {
   readCVUploadIdempotencyKey,
   readCVUploadJob,
 } from "./cv-upload-storage"
+import {
+  clearPendingCVUpload,
+  readPendingCVUpload,
+  stashPendingCVUpload,
+} from "./cv-upload-queue"
 
 /**
  * Hard ceiling on a single request. Without this a server that accepts the
@@ -1065,8 +1070,20 @@ export async function beginCVUpload(
   const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
   persistCVUploadIdempotencyKey(idempotencyKey)
   const safeFile = await _normalizeUploadFile(file)
-  const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+  // Durable "we've got it" hold (weak-radio resilience). A retryable interrupt
+  // leaves the stash so the /cv resume effects can replay it on next visit with
+  // the same Idempotency-Key (CVUP1 dedup). Cleared once the bytes land.
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
+  let initial: CVUploadResponse
+  try {
+    initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
+  } catch (err) {
+    const retryable = err instanceof CVUploadFailureBase ? err.retryable : false
+    if (!retryable) await clearPendingCVUpload()
+    throw err
+  }
   if (initial.status === "processing" && initial.job_id) persistCVUploadJob(initial.job_id)
+  await clearPendingCVUpload()
   return { initial, file: safeFile }
 }
 
@@ -1113,9 +1130,17 @@ export async function uploadCV(
     throw failure
   }
 
+  // "We've got it": hold the picked file durably BEFORE the vulnerable phase-1
+  // POST. If the mobile radio drops the multipart mid-flight (upload_post_
+  // interrupted) the throw below leaves this stash intact so the upload can
+  // resume on reconnect / next app load with the SAME Idempotency-Key (CVUP1
+  // dedups → no double charge). Cleared the instant the bytes land, after which
+  // the server job_id (CVUP2) owns the lifecycle.
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
   try {
     const initial = await _postCVUpload(token, safeFile, idempotencyKey, source)
     if (initial.status === "processing") persistCVUploadJob(initial.job_id)
+    await clearPendingCVUpload()
     const result = await _resolveUploadResult(
       token,
       initial,
@@ -1126,9 +1151,34 @@ export async function uploadCV(
     return result
   } catch (err) {
     const failure = _asUploadFailure(err, "put")
-    if (!failure.retryable) clearCVUploadPersistence(true)
+    // Non-retryable (bad file, insufficient coins, hard 4xx) → nothing to
+    // resume, drop the stash. A retryable network interrupt keeps it.
+    if (!failure.retryable) {
+      clearCVUploadPersistence(true)
+      await clearPendingCVUpload()
+    }
     throw failure
   }
+}
+
+/**
+ * Resume a CV upload whose phase-1 POST never landed (flaky-radio interrupt).
+ * Reads the durable file stash and replays the upload with the SAME persisted
+ * Idempotency-Key (CVUP1 dedup). Returns null when nothing is pending. The
+ * underlying uploadCV re-stashes and clears on success, so this is idempotent.
+ */
+export async function resumePendingCVUpload(
+  token: string,
+  onProgress?: (status: CVUploadStatusResponse) => void,
+): Promise<CVUploadResult | null> {
+  // A landed-but-still-parsing upload is owned by the job_id resume path, not
+  // this one — don't re-POST bytes the server already has.
+  if (getPersistedCVUploadJobId()) return null
+  const pending = await readPendingCVUpload()
+  if (!pending) return null
+  // Pin the original key so the replay dedups against the first attempt.
+  persistCVUploadIdempotencyKey(pending.idempotencyKey)
+  return uploadCV(token, pending.file, pending.source, onProgress)
 }
 
 export async function uploadCVText(token: string, text: string, source: CVUploadSource = "text_describe"): Promise<CVUploadResult> {
