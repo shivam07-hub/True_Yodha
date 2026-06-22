@@ -185,10 +185,10 @@ def _seed_store(*, answer_all_correct=True, prior_clear=False, prior_clear_user=
         "quiz_answers": [],
         "skill_assessed_level": [],
         "user_skills": [],
-        "xp_ledger": [],
+        "coin_ledger": [],
     }
     if prior_clear:
-        store["xp_ledger"].append(
+        store["coin_ledger"].append(
             {
                 "id": "led-1",
                 "user_id": prior_clear_user,

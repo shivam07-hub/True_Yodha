@@ -86,7 +86,7 @@ def _linkedin_reward_is_due(before: dict | None, updates: dict) -> bool:
         return False
     if not str(updates.get("linkedin_url") or "").strip():
         return False
-    if before and before.get("linkedin_xp_granted"):
+    if before and before.get("linkedin_coins_granted"):
         return False
     if before and str(before.get("linkedin_url") or "").strip():
         return False

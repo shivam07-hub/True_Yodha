@@ -58,7 +58,7 @@ async def earn_xp(user_id: str, amount: int) -> int:
     admin = get_supabase_admin()
     current = await get_xp_balance(user_id)
     new_balance = current + amount
-    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    admin.table("user_profiles").update({"coin_balance": new_balance}).eq("id", user_id).execute()
     return new_balance
 
 
@@ -79,7 +79,7 @@ async def grant_linkedin_profile_xp(user_id: str) -> tuple[int, int]:
 
     new_balance = current + LINKEDIN_PROFILE_XP
     admin.table("user_profiles").update(
-        {"xp_balance": new_balance, "linkedin_xp_granted": True}
+        {"coin_balance": new_balance, "linkedin_coins_granted": True}
     ).eq("id", user_id).execute()
     _log.info(
         "XP earn: user=%s action=linkedin_profile amount=%d balance=%d→%d",
@@ -101,7 +101,7 @@ async def spend_xp(user_id: str, amount: int, action: str) -> int:
             detail=f"Insufficient Myro Coins — need {amount}, have {current}. Action: {action}",
         )
     new_balance = current - amount
-    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    admin.table("user_profiles").update({"coin_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
     return new_balance
 
@@ -127,7 +127,7 @@ async def spend_xp_to_floor(user_id: str, amount: int, action: str, floor: int =
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Myro Coin floor reached — balance would be {new_balance} (floor: {floor}). Action: {action}",
         )
-    admin.table("user_profiles").update({"xp_balance": new_balance}).eq("id", user_id).execute()
+    admin.table("user_profiles").update({"coin_balance": new_balance}).eq("id", user_id).execute()
     _log.info("XP spend: user=%s action=%s amount=%d balance=%d→%d", user_id, action, amount, current, new_balance)
     return new_balance
 
@@ -203,7 +203,7 @@ async def refund(
     """Credit `amount` XP back. Idempotent on (ref_table, ref_id) — calling
     twice for the same originating row is a no-op (returns current balance).
 
-    The RPC scans xp_ledger for a prior `refund_*` entry tied to the same ref;
+    The RPC scans coin_ledger for a prior `refund_*` entry tied to the same ref;
     if found, no mutation runs. This is the durable guard against the
     double-refund class of bugs (worker retries, manual replays).
     """

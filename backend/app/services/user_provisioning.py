@@ -67,7 +67,7 @@ def credit_referrer_for_signup(new_user_id: str) -> int:
     try:
         profile = (
             admin.table("user_profiles")
-            .select("id, referred_by_user_id, welcome_xp_granted")
+            .select("id, referred_by_user_id, welcome_coins_granted")
             .eq("id", new_user_id)
             .maybe_single()
             .execute()
@@ -75,14 +75,14 @@ def credit_referrer_for_signup(new_user_id: str) -> int:
         row = profile.data or {}
         referrer_id = row.get("referred_by_user_id")
         if (
-            not row.get("welcome_xp_granted")
+            not row.get("welcome_coins_granted")
             or not referrer_id
             or referrer_id == new_user_id
         ):
             return 0
 
         prior = (
-            admin.table("xp_ledger")
+            admin.table("coin_ledger")
             .select("id")
             .eq("action", REFERRAL_REWARD_ACTION)
             .eq("ref_table", REFERRAL_REWARD_REF_TABLE)
@@ -217,7 +217,7 @@ async def set_linkedin_identity(
     try:
         existing = (
             admin.table("user_profiles")
-            .select("linkedin_url, linkedin_xp_granted")
+            .select("linkedin_url, linkedin_coins_granted")
             .eq("id", user_id)
             .limit(1)
             .execute()

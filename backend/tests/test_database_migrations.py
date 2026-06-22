@@ -53,6 +53,46 @@ def test_reward_scope_migration_is_user_scoped_and_keeps_referrals_global() -> N
     assert "notify pgrst, 'reload schema';" in sql
 
 
+def test_coins_rename_contract_flips_authority_and_drops_xp() -> None:
+    sql = _migration("20260622_coins_rename_contract.sql").lower()
+
+    # Single all-or-nothing transaction.
+    assert "begin;" in sql
+    assert "commit;" in sql
+
+    # Drops the EXPAND-phase generated read-aliases (they block the rename).
+    assert "drop column if exists coin_balance" in sql
+    assert "drop column if exists welcome_coins_granted" in sql
+    assert "drop column if exists linkedin_coins_granted" in sql
+
+    # Renames the physical columns + ledger table to coin_*.
+    assert "rename column xp_balance         to coin_balance" in sql
+    assert "rename column welcome_xp_granted  to welcome_coins_granted" in sql
+    assert "rename column linkedin_xp_granted to linkedin_coins_granted" in sql
+    assert "alter table public.xp_ledger rename to coin_ledger" in sql
+
+    # Recreates the mutation RPCs as real coin-named fns, bodies on coin_*.
+    assert "create or replace function public.charge_coins" in sql
+    assert "create or replace function public.refund_coins" in sql
+    assert "create or replace function public.reward_coins" in sql
+    assert "set    coin_balance = coin_balance - p_amount" in sql
+    assert "insert into public.coin_ledger" in sql
+
+    # Sweep now refunds via refund_coins (kept fn name).
+    assert "perform public.refund_coins(" in sql
+
+    # Drops the orphaned xp_* mutation fns last.
+    assert "drop function if exists public.charge_xp" in sql
+    assert "drop function if exists public.refund_xp" in sql
+    assert "drop function if exists public.reward_xp" in sql
+
+    # No literal xp_balance / xp_ledger writes survive in the new fn bodies.
+    assert "xp_balance =" not in sql
+    assert "into public.xp_ledger" not in sql
+
+    assert "notify pgrst, 'reload schema';" in sql
+
+
 def test_growth_command_migration_creates_private_generic_tables() -> None:
     sql = _migration("20260613_growth_command_phase1.sql").lower()
     tables = (

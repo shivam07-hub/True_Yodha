@@ -181,7 +181,7 @@ def test_update_profile_writes_through_token_repository() -> None:
 
 
 def test_update_profile_grants_linkedin_xp_once_when_linkedin_added(monkeypatch) -> None:
-    repo = _FakeUsersRepository(profile=_profile_row(linkedin_url=None, linkedin_xp_granted=False))
+    repo = _FakeUsersRepository(profile=_profile_row(linkedin_url=None, linkedin_coins_granted=False))
     grants: list[str] = []
 
     async def _grant(user_id: str) -> tuple[int, int]:
@@ -208,7 +208,7 @@ def test_update_profile_does_not_grant_linkedin_xp_after_first_reward(monkeypatc
     repo = _FakeUsersRepository(
         profile=_profile_row(
             linkedin_url="https://linkedin.com/in/ada",
-            linkedin_xp_granted=True,
+            linkedin_coins_granted=True,
         )
     )
 
