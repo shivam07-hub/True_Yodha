@@ -103,6 +103,47 @@ async def upload_cv(
     return CVUploadResponse(**payload)
 
 
+class CVFinalizeRequest(BaseModel):
+    storage_path: str = Field(..., min_length=3, max_length=300)
+    idempotency_key: str | None = None
+    source: str | None = Field(default=None, max_length=40)
+
+
+@router.post(
+    "/upload/finalize",
+    response_model=CVUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        200: {"model": CVUploadDoneResponse, "description": "Hash cache hit — no LLM call, no XP charge"},
+        202: {"model": CVUploadResponse, "description": "LLM job queued, or terminal idempotency replay"},
+    },
+)
+async def finalize_cv_upload(
+    body: CVFinalizeRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVRepository = Depends(get_token_cv_repository),
+) -> CVUploadResponse:
+    """Resumable-upload completion: the browser pushed the CV straight to storage; ingest it.
+    The finalize uses a service-role download (RLS-bypassing), so ownership is enforced HERE —
+    the path must live under the caller's own {user_id}/ prefix."""
+    expected_prefix = f"{principal.id}/"
+    if not body.storage_path.startswith(expected_prefix) or ".." in body.storage_path:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "forbidden_path", "message": "Storage path does not belong to you."},
+            headers={"X-Myro-Error-Code": "forbidden_path"},
+        )
+    source = _normalize_source(body.source, default="pdf_upload")
+    payload = await cv_workflow.start_cv_upload_job_from_storage(
+        cv_repo=cv_repo,
+        user_id=principal.id,
+        storage_path=body.storage_path,
+        idempotency_key=body.idempotency_key,
+        source=source,
+    )
+    return CVUploadResponse(**payload)
+
+
 @router.post(
     "/text",
     response_model=CVUploadResponse,

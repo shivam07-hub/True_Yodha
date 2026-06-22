@@ -9,6 +9,8 @@ import type { JobSearchItem, UserSkillDemandItem, FollowedCompany, JobLocationFi
 import { formatJobLocation } from "@/lib/format-location"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
+import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
+import { useViewport } from "@/mobile"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -447,6 +449,7 @@ function SkillHeatmap({
 
 function IntelPageInner() {
   const { token } = useAuth()
+  const { isDesktop } = useViewport()
   // Feed publication sensing — auto-invalidates the free market feed when a new
   // batch publishes (handoff client-refresh contract).
   useFeedState()
@@ -728,6 +731,14 @@ function IntelPageInner() {
             above the feed (mc-workspace collapses to one column ≤980px). */}
         <aside className="mc-ws-rail">
           <MissionHeroRail token={token ?? null} />
+          {/* Skill map relocated here off the /home dashboard rail. Desktop-only
+              so it never pushes the mobile job feed below the fold (mirrors how
+              the rail's heavy context is dropped on mobile). */}
+          {isDesktop && token ? (
+            <div className="mc-rail" style={{ marginTop: 16 }}>
+              <SkillMapCard token={token} />
+            </div>
+          ) : null}
         </aside>
         <div className="mc-ws-main">
         {/* The Jobs | Heatmap switcher was removed (2026-06-22): the heatmap is a

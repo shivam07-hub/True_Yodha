@@ -20,7 +20,6 @@ export function PeekSurfaces({ token, steps }: { token: string; steps: LoopStep[
   return (
     <>
       <MissionsCard steps={steps} />
-      <SkillGapsCard token={token} />
       <FollowedCard token={token} />
       <IntelCard token={token} />
     </>
@@ -95,8 +94,11 @@ function MissionsCard({ steps }: { steps: LoopStep[] }) {
   )
 }
 
-/* ── 2 · Skill map (live domain radar — the /skills artifact, inline) ─── */
-function SkillGapsCard({ token }: { token: string }) {
+/* ── Skill map (live domain radar — the /skills artifact, inline) ───────
+ * Relocated off the /home dashboard rail onto the Jobs (/market) rail — see
+ * app/(authed)/market/page.tsx. Exported so /market mounts it under the
+ * greeting hero; the shared React Query keys dedupe its reads. */
+export function SkillMapCard({ token }: { token: string }) {
   const { data: demand } = useQuery({
     queryKey: dataKeys.userSkillDemand(),
     queryFn: () => jobsApi.mySkillDemand(token),
