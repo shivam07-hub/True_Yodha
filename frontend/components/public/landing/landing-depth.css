@@ -1,0 +1,114 @@
+/* ─────────────────────────────────────────────────────────────
+   Myro landing — depth layer (PR-LANDING-DEPTH):
+   "How it works" 3-step + "What you're scored on" domain chips.
+   Tokens are --lp-* only (which alias --tm-*) — no raw hex, themes
+   light/dark with the rest of the landing.
+   ───────────────────────────────────────────────────────────── */
+
+/* ── How it works — 3 steps ─────────────────────────────────── */
+.lp-howit { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
+
+.lp-howit-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  counter-reset: howit;
+}
+
+.lp-howit-step {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 28px 26px;
+  border-radius: 12px;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border-strong);
+}
+
+.lp-howit-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+
+.lp-howit-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  border: 1px solid var(--lp-accent-ring);
+  flex-shrink: 0;
+}
+
+.lp-howit-num {
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+}
+
+.lp-howit-title {
+  font-size: var(--lp-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lp-text);
+  margin-bottom: 8px;
+}
+
+.lp-howit-body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--lp-muted);
+  text-wrap: pretty;
+}
+
+/* ── What you're scored on — domain chips ───────────────────── */
+.lp-domains { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
+
+.lp-domain-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Neutral by default — the accent budget (D8) is spent on the score/Engine, not
+   on ten equal chips. Hover/focus lift to the accent ring only on intent. */
+.lp-domain-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* a11y tap target */
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-border-strong);
+  background: var(--lp-surface);
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--lp-muted);
+  white-space: nowrap;
+  transition: border-color var(--lp-dur) var(--lp-ease), color var(--lp-dur) var(--lp-ease),
+    background var(--lp-dur) var(--lp-ease);
+}
+
+.lp-domain-chip:hover {
+  color: var(--lp-text);
+  border-color: var(--lp-accent-ring);
+  background: var(--lp-accent-wash);
+}
+
+.lp-domain-chip:focus-visible {
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: 2px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1060px) {
+  .lp-howit-grid { grid-template-columns: 1fr; }
+}

@@ -60,11 +60,15 @@ interface LandingStatsProps {
   jobsTracked: number
   companiesMonitored: number
   skillsMapped: number
-  seekers: number
+  /** Real seeker count, or null. Null → non-numeric proof tile, never a fake
+   *  number (T3 / PV1). The three corpus counts above are real engine scale. */
+  seekers: number | null
 }
 
 /** Credibility strip at the very top of the page — the live Engine corpus, made
- *  loud where the user actually starts reading (was buried mid-page in S2). */
+ *  loud where the user actually starts reading (was buried mid-page in S2).
+ *  The fourth tile is social proof: a real seeker count when one is configured,
+ *  otherwise an honest non-numeric line (no fabricated user totals). */
 export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped, seekers }: LandingStatsProps) {
   return (
     <div className="lp-stats" aria-label="Myro, by the numbers">
@@ -72,7 +76,14 @@ export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped, se
         <Counter target={jobsTracked} label="Jobs tracked" />
         <Counter target={companiesMonitored} label="Companies monitored" />
         <Counter target={skillsMapped} label="Skills mapped" />
-        <Counter target={seekers} label="Job seekers" />
+        {seekers !== null ? (
+          <Counter target={seekers} label="Job seekers" />
+        ) : (
+          <div className="lp-stat lp-stat-proof">
+            <div className="lp-stat-proof-line">Built in India</div>
+            <div className="lp-stat-lbl">for job seekers</div>
+          </div>
+        )}
       </div>
     </div>
   )
