@@ -16,6 +16,7 @@ import { users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 /** Read + write the free interest preference. Writes invalidate the profile
  *  query, so the nav recomputes visibility for free. */
@@ -91,33 +92,12 @@ export function MyrologyOptInPrompt({
           </p>
 
           <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              style={{
-                flex: 1, padding: "10px", borderRadius: "var(--tm-radius-sm)",
-                background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)",
-                color: "var(--tm-text-muted)", fontSize: 13, fontWeight: 500,
-                cursor: isPending ? "not-allowed" : "pointer", fontFamily: "inherit",
-              }}
-            >
+            <Button type="button" variant="neutral" size="md" onClick={onClose} disabled={isPending} style={{ flex: 1 }}>
               Not now
-            </button>
-            <button
-              type="button"
-              onClick={confirm}
-              disabled={isPending}
-              style={{
-                flex: 1, padding: "10px", borderRadius: "var(--tm-radius-sm)", border: "none",
-                background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
-                fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-                cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? 0.65 : 1,
-                boxShadow: "0 0 18px var(--tm-int-bg-hover)",
-              }}
-            >
+            </Button>
+            <Button type="button" variant="solid" size="md" onClick={confirm} disabled={isPending} style={{ flex: 1 }}>
               {isPending ? "…" : "Follow the signal"}
-            </button>
+            </Button>
           </div>
         </div>
       </DialogContent>

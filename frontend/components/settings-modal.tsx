@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { CompanyLink } from "@/components/companies/company-link"
 import { billing, jobs, users } from "@/lib/api"
@@ -1201,20 +1202,9 @@ function FeedbackTabContent({ onClose }: { onClose: () => void }) {
         <div style={{ marginTop: 6, fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
           Every dispatch is read by a human. A growing share of Myro&apos;s roadmap starts as a user signal.
         </div>
-        <button
-          type="button"
-          onClick={() => open()}
-          style={{
-            marginTop: 14,
-            padding: "10px 18px", borderRadius: "var(--tm-radius-sm)",
-            background: "var(--tm-interactive)", color: "var(--tm-interactive-fg)",
-            border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            boxShadow: "0 0 18px var(--tm-int-bg-hover)",
-            display: "inline-flex", alignItems: "center", gap: 8,
-          }}
-        >
+        <Button type="button" variant="solid" size="sm" onClick={() => open()} style={{ marginTop: 14 }}>
           Open feedback hub <span>↗</span>
-        </button>
+        </Button>
       </div>
 
       {/* Quick dispatch */}

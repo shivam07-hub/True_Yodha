@@ -102,7 +102,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [feed])
 
   // Market-intel signals → the rail + the two interleaved story cards.
-  const intel = useMarketIntel(token, targetLocations)
+  const intel = useMarketIntel(token, targetLocations, hasCv)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
@@ -139,7 +139,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   const railProps = {
-    token, targetLocations, total, feed: allJobs, pulses,
+    token, targetLocations, total, feed: allJobs, pulses, cvReady: hasCv,
     onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
     // Rail strip mirrors the feed's readiness — never paints a literal "0 live
     // roles" before the count has landed (the data-flash root cause).

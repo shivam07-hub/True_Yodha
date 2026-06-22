@@ -158,7 +158,20 @@
   gap: 28px;
   align-items: start;
 }
-.mc-ws-rail { position: sticky; top: 84px; align-self: start; min-width: 0; }
+.mc-ws-rail {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  min-width: 0;
+  /* Rail content can exceed the viewport (missions · skill map · followed ·
+     intel). A bare sticky box pins at top:84 with its bottom below the fold,
+     unreachable — the page scroll only moves the feed. Cap to the viewport and
+     give the rail its own scroll so the lower surfaces stay reachable. */
+  max-height: calc(100vh - 84px - 24px);
+  overflow-y: auto;
+  /* room for the scrollbar so it doesn't clip rail content */
+  padding-right: 4px;
+}
 .mc-ws-main { min-width: 0; }
 .mc-ws-main .db-head { margin-top: 0; }
 .mc-ws-main .db-feed { max-width: none; }
@@ -177,7 +190,7 @@
 /* Collapse the rail above the feed on narrow desktop. */
 @media (max-width: 980px) {
   .mc-workspace { grid-template-columns: 1fr; gap: 18px; }
-  .mc-ws-rail { position: static; }
+  .mc-ws-rail { position: static; max-height: none; overflow-y: visible; padding-right: 0; }
 }
 
 /* Rail meta — the greeting collapsed to one quiet line (D4). */

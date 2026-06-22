@@ -16,7 +16,7 @@ import { ShareJobButton } from "./share-job-button"
  * Live job detail (discover stage). Shares the canonical drawer shell with the
  * Dashboard's build stage — same chrome, same motion, same header. Apply lives
  * HERE, after the user has read the JD. Save/Skip stay on the card; "Save &
- * tailor later" is the one-tap bridge into the build stage.
+ * tailor now" is the one-tap bridge into the build stage.
  */
 export function JobDetailDrawer({
   job, pulse, token, onClose, followed, onToggleFollow, onSave,
@@ -41,7 +41,7 @@ export function JobDetailDrawer({
   const verifiedDays = daysAgo(pulse?.last_verified_at ?? job.last_seen_at)
 
   const saveAndTailor = () => {
-    if (!saved) onSave()
+    if (!saved) { onSave(); setSaved(true) }
     router.push("/home")
   }
 
@@ -84,7 +84,7 @@ export function JobDetailDrawer({
             </div>
             {/* The build-stage bridge — one tap to capture + cross over to tailoring. */}
             <button type="button" onClick={saveAndTailor} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "var(--tm-interactive)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              Save &amp; tailor later →
+              Save &amp; tailor now →
             </button>
             <ReportProblem token={token} jobId={job.job_id} />
           </div>

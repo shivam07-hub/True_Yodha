@@ -6,6 +6,8 @@ import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
 import { useXPStore } from "@/store/xpStore"
 import { STAGE_LABEL } from "./useTrackerBoard"
 import type { StageKey } from "./useTrackerBoard"
+import { Button } from "@/components/ui/button"
+import { CloseButton } from "@/components/ui/close-button"
 
 type PreviewResult = Awaited<ReturnType<typeof jobs.importPreview>>
 
@@ -157,7 +159,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
               {step === 1 ? "Track a job from anywhere" : `${company || "Company"} — ${role}`}
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: 14, fontFamily: "inherit" }}>✕</button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {step === 1 && (
@@ -168,19 +170,16 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Input value={url} onChange={setUrl} placeholder="https://… job posting link" />
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="neutral"
+                  size="sm"
                   onClick={handleFetchUrl}
                   disabled={fetching || parsing || !url.trim()}
-                  style={{
-                    ...buttonOutlineStyle,
-                    flexShrink: 0,
-                    opacity: fetching || !url.trim() ? 0.6 : 1,
-                    cursor: fetching ? "wait" : !url.trim() ? "not-allowed" : "pointer",
-                  }}
+                  style={{ flexShrink: 0 }}
                 >
                   {fetching ? "Reading…" : "Fetch"}
-                </button>
+                </Button>
               </div>
               <button
                 type="button"
@@ -256,20 +255,12 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
             </Field>
             {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-              <button
-                onClick={() => handleSave({ skipSkills: true })}
-                disabled={busy}
-                style={buttonOutlineStyle}
-              >
+              <Button variant="neutral" size="sm" onClick={() => handleSave({ skipSkills: true })} disabled={busy}>
                 {busy ? "…" : "Save"}
-              </button>
-              <button
-                onClick={handleExtract}
-                disabled={busy}
-                style={buttonPrimaryStyle}
-              >
+              </Button>
+              <Button variant="solid" size="sm" onClick={handleExtract} disabled={busy}>
                 {busy ? "…" : "Extract skills →"}
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -295,10 +286,10 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
             )}
             {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
-              <button onClick={() => setStep(1)} style={buttonGhostStyle}>← Back</button>
-              <button onClick={() => handleSave()} disabled={busy} style={buttonPrimaryStyle}>
+              <Button variant="neutral" size="sm" onClick={() => setStep(1)}>← Back</Button>
+              <Button variant="solid" size="sm" onClick={() => handleSave()} disabled={busy}>
                 {busy ? "Saving…" : "Add to tracker"}
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -396,23 +387,3 @@ const textareaStyle: React.CSSProperties = {
   fontFamily: "inherit", resize: "vertical", outline: "none",
 }
 
-const buttonGhostStyle: React.CSSProperties = {
-  padding: "8px 14px", borderRadius: 8,
-  background: "transparent", border: "1px solid var(--tm-border)",
-  color: "var(--tm-interactive-rest)", cursor: "pointer",
-  fontSize: 13, fontFamily: "inherit",
-}
-
-const buttonOutlineStyle: React.CSSProperties = {
-  padding: "8px 14px", borderRadius: 8,
-  background: "rgba(255,255,255,0.03)", border: "1px solid var(--tm-border)",
-  color: "var(--tm-text)", cursor: "pointer",
-  fontSize: 13, fontFamily: "inherit",
-}
-
-const buttonPrimaryStyle: React.CSSProperties = {
-  padding: "8px 18px", borderRadius: 8,
-  background: "var(--tm-interactive)", border: "none",
-  color: "var(--tm-interactive-fg)", cursor: "pointer",
-  fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-}

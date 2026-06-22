@@ -486,6 +486,23 @@ def test_list_top_companies_at_repo_filters_by_city() -> None:
     assert [r["company_name"] for r in rows] == ["Acme"]
 
 
+def test_list_top_companies_at_repo_canonicalizes_city_label() -> None:
+    # The user's saved label "Bangalore" must hit canonical DB city "Bengaluru"
+    # (the feed/movers normalize; trending must too). Without canonicalization the
+    # exact-match eq returns 0 and the rail's Trending widget silently empties.
+    jobs = [
+        {"job_id": "j0", "company_name": "Acme", "location_city": "Bengaluru",
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501},
+        {"job_id": "j1", "company_name": "Globex", "location_city": "Mumbai",
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502},
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+    rows = JobsRepository(db).list_top_companies_at(city="Bangalore", limit=8)
+
+    assert [r["company_name"] for r in rows] == ["Acme"]
+
+
 class _GroupCompaniesRepo:
     def __init__(self) -> None:
         self.call: dict[str, Any] | None = None

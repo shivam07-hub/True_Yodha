@@ -380,6 +380,21 @@ export function PlaygroundView({
         </div>
       )}
 
+      {/* Job readout (score · ATS · page-fill · gaps). Lives full-width under the
+          toolbar — not inside the preview column — so the live preview's first row
+          aligns on the same baseline as the experience editor across from it. */}
+      <div className="cvb-readout-band">
+        <IntelStrip
+          score={matchScore}
+          delta={delta}
+          missing={missingTargets}
+          allCovered={evaluatedTargets.length > 0 && missingTargets.length === 0}
+          atsSc={atsSc}
+          atsChecks={atsChecks}
+          pageFill={pageFill}
+        />
+      </div>
+
       <div className="cvb-pg-seg">
         <button
           type="button"
@@ -480,17 +495,7 @@ export function PlaygroundView({
         </div>
 
         <div className={`cvb-pg-pane preview${mobileTab === "preview" ? " show-preview-mobile" : ""}`}>
-          <IntelStrip
-            score={matchScore}
-            delta={delta}
-            missing={missingTargets}
-            allCovered={evaluatedTargets.length > 0 && missingTargets.length === 0}
-            atsSc={atsSc}
-            atsChecks={atsChecks}
-            pageFill={pageFill}
-          />
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span className="eyebrow" style={{ color: isDirty ? "var(--tm-warning)" : "var(--tm-interactive)" }}>
               live preview · {isDirty ? "unsaved" : "synced"}
             </span>

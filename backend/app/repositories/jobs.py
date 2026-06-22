@@ -1018,7 +1018,15 @@ class JobsRepository:
         24h in-process cache keyed on (kind, value, limit). Mirrors the
         list_jobs_at_company read pattern (admin_db, APIError → cached/[]).
         """
-        kind, value = ("industry", _norm_filter(industry)) if industry else ("city", _norm_filter(city))
+        if industry:
+            kind, value = "industry", _norm_filter(industry)
+        else:
+            # Canonicalize the freeform city label the same way the feed/movers do
+            # (build_location_scope → normalize_location). The user's saved label
+            # ("Bangalore") must hit the canonical DB city ("Bengaluru") or this
+            # exact-match eq returns 0 and trending silently empties.
+            raw_city = _norm_filter(city)
+            kind, value = "city", (normalize_location(raw_city).location_city or raw_city) if raw_city else None
         if not value:
             return []
         scoped_limit = max(1, min(20, int(limit)))

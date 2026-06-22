@@ -832,6 +832,14 @@
 .cvb-pg-pane.edit { border-right: 1px solid var(--tm-border-soft); }
 .cvb-pg-pane.preview { background: var(--tm-bg); }
 
+/* Full-width job-readout band under the toolbar. Holds the IntelStrip so the two
+   panes below it start on a shared baseline (live preview ↔ experience editor). */
+.cvb-readout-band {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  background: var(--tm-bg);
+}
+
 /* Mobile segmented control */
 .cvb-pg-seg {
   display: none;
@@ -1376,6 +1384,7 @@ mark.cvb-kw {
   .cvb-page-title { font-size: 30px; line-height: 1.1; letter-spacing: -0.03em; }
   .cvb-page-sub { font-size: 16px; line-height: 1.55; }
   .cvb-page-head { gap: 18px; }
+  .cvb-readout-band { padding: 10px 18px; }
   .cvb-library-head-actions {
     width: 100%;
     justify-content: space-between;
