@@ -32,14 +32,18 @@ export interface UncertainListing {
  *   trending ← /jobs/companies-at       (who's hiring in the user's city)
  * Query keys mirror the page's existing ones so React Query dedupes the fetch.
  */
-export function useMarketIntel(token: string, targetLocations: string[]) {
+export function useMarketIntel(token: string, targetLocations: string[], cvReady = true) {
   // Location-scoped demand: each mover links into the location-scoped triage
   // feed, so its badge must promise that feed (Scoped Skill Demand). Distinct
   // query key from the market-wide ["mySkillDemand", token] used elsewhere.
+  // Gated on cvReady — movers are the user's own skills × market, so with no
+  // parsed CV the endpoint returns []; firing it anyway only paints a skeleton
+  // that resolves to a silently-empty widget (mirrors the page's own demand
+  // gate). No CV → no query, no false promise; trending (public) still shows.
   const demand = useQuery({
     queryKey: ["mySkillDemand", token, "scoped"],
     queryFn: () => jobs.mySkillDemand(token, { locationScoped: true }),
-    enabled: !!token,
+    enabled: !!token && cvReady,
     staleTime: 30 * 60 * 1000,
   })
 
@@ -81,7 +85,11 @@ export function useMarketIntel(token: string, targetLocations: string[]) {
     [companies.data],
   )
 
-  return { movers, trending, loading: demand.isLoading }
+  // Both widgets share one shimmer; fold the companies query in so trending
+  // resolving slower than demand doesn't blank out under a finished spinner.
+  // Disabled queries (no token/cv, no city) report isLoading=false, so this is
+  // false when there's nothing to fetch.
+  return { movers, trending, loading: demand.isLoading || companies.isLoading }
 }
 
 /** Listings in the visible feed the community flags as possibly gone. */
