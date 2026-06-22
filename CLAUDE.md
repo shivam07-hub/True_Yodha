@@ -210,7 +210,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
     - **`up-*`** (upskilling — `quiz-runner`, `results` 27): one `.up-opt`/`.up-iconbtn`/… family.
 
     Two tracks left, each a decision (not a blind sweep):
-    1. **Finish genuine inline stragglers** → `settings-modal` (~5 inline-style buttons) + a couple in `playground-view`/`baseline-view`. Migrate genuine CTAs → `solid`/`neutral`/`danger`/`ghost`; `CloseButton` for ✕. Each: full `tsc` + lint + `check:ui-drift` + Shivam visual QC, then push.
+    1. ✅ **DONE 2026-06-22.** Genuine inline stragglers cleared. On inspection there was just one clean stateless inline CTA left — settings-modal "Open feedback hub" → `<Button solid>` (`1f11aba`). Deliberately LEFT: settings Save/Buy (turn green on success = intentional state feedback, not drift), listbox options + category cards (selectors), and the builder-view buttons (all `cvb-*` kit → Track 2, never inline drift). Net: the genuine ad-hoc inline-button drift is now cleared — what a user *sees* is consistent.
     2. **Optional kit-unification (decision-worthy, medium value):** fold `cvb-btn` and `up-*` into the canonical `<Button>` + delete their CSS. They're already consistent internally, so the win is "one kit not three", not fixing drift — weigh vs effort/risk. Do as a dedicated initiative, not piecemeal.
 
     **Always LEAVE:** selectors/chips (filter pills, stage chips, severity selectors, star ratings) — a separate future "chip" standardization — and **intentionally-different** buttons (`new-report.tsx` submit is category-colored bug=red/praise=green, not drift). The `ui-drift-guard` keeps NEW inline drift out regardless. Memory: `project_truyodha_standardization_system`, `feedback_standardization_trust`.
