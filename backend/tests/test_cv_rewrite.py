@@ -93,10 +93,10 @@ def test_suggest_rewrite_empty_bullet_is_error():
 # ── #32 grounding ──────────────────────────────────────────────────────────────
 
 def test_build_messages_injects_retrieved_passages():
-    passages = [_Passage("Start every bullet with a strong action verb.", "Myro CV Playbook v1")]
+    passages = [_Passage("Start every bullet with a strong action verb.", "Myro CV Playbook")]
     sys_grounded = cv_rewrite._build_messages("Cut churn 18%", None, [], None, passages)[0]["content"]
     assert "strong action verb" in sys_grounded
-    assert "Myro CV Playbook v1" in sys_grounded
+    assert "Myro CV Playbook" in sys_grounded
     # No passages → static XYZ guidance instead.
     sys_static = cv_rewrite._build_messages("Cut churn 18%", None, [], None, None)[0]["content"]
     assert "XYZ" in sys_static
@@ -106,12 +106,12 @@ def test_build_messages_injects_retrieved_passages():
 def test_grounded_rewrite_surfaces_citations(monkeypatch):
     provider = _FakeProvider()
     _patch_retrieve(monkeypatch, [
-        _Passage("Quantify impact, and never invent the number.", "Myro CV Playbook v1"),
-        _Passage("Tailor the bullet to the target job description.", "Myro CV Playbook v1"),
+        _Passage("Quantify impact, and never invent the number.", "Myro CV Playbook"),
+        _Passage("Tailor the bullet to the target job description.", "Myro CV Playbook"),
     ])
     out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", "Senior PM", [], None, provider))
     assert out["mode"] == "rewrite"
-    assert out["citations"] == ["Myro CV Playbook v1"]          # de-duped, separate from rationale
+    assert out["citations"] == ["Myro CV Playbook"]          # de-duped, separate from rationale
     # the retrieved rule reached the system prompt
     assert "never invent the number" in provider.last_messages[0]["content"]
 
