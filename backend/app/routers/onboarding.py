@@ -38,8 +38,10 @@ class PreviewRequest(BaseModel):
 
 class TargetRequest(BaseModel):
     role_title: str = Field(min_length=2, max_length=120)
-    seniority: Seniority
-    location: str = Field(min_length=2, max_length=160)
+    # Optional so a point-of-use "edit role" (issue #145) can change only the
+    # role title; save_target preserves the user's existing seniority/location.
+    seniority: Seniority | None = None
+    location: str | None = Field(default=None, min_length=2, max_length=160)
 
 
 class GeneratorAnswerRequest(BaseModel):

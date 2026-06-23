@@ -7,24 +7,12 @@ import { ScoreGauge } from "./score-gauge"
 import { cv as cvApi, users } from "@/lib/api"
 import type { ScoreResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { DOMAIN_LABELS } from "@/lib/domain-labels"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 
 interface Props {
   score: ScoreResponse
   token: string
-}
-
-const DOMAIN_LABELS: Record<string, string> = {
-  SD: "Software Dev",
-  DE: "Data Engineering",
-  AML: "AI / ML",
-  CLD: "Cloud",
-  SEC: "Security",
-  PMG: "Product Mgmt",
-  BIZ: "Business",
-  COM: "Communication",
-  LDR: "Leadership",
-  OPS: "Operations",
 }
 
 export function StepScore({ score, token }: Props) {
