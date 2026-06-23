@@ -5,8 +5,6 @@ import re
 from datetime import date
 from typing import Any
 
-from supabase import Client
-
 from app.schemas.jobs import APPLICATION_STATUSES
 from app.services.taxonomy_loader import get_all_skills
 
@@ -188,59 +186,54 @@ def _emerging_payloads(
     return payloads
 
 
-def save_imported_job(db: Client, user_id: str, body: Any) -> dict[str, Any]:
+def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
+    """Shape the rows for an extension-imported job. Pure — no DB access.
+
+    The repository owns which client writes each table: ``jobs`` and
+    ``job_skill_candidates`` are community/scraper-owned (service-role),
+    while ``job_applications`` is user-owned (user-token, RLS by user).
+    """
     valid_keys = _valid_taxonomy_keys()
     primary, primary_emerging = split_confirmed_skills(body.primary_skills, valid_keys, "primary")
     secondary, secondary_emerging = split_confirmed_skills(body.secondary_skills, valid_keys, "secondary")
     job_id = build_extension_job_id(body.source_url, body.role_name, body.company_name, body.location)
 
-    db.table("jobs").upsert(
-        {
-            "job_id": job_id,
-            "job_title": body.role_name.strip(),
-            "company_name": body.company_name,
-            "industry": None,
-            "location": body.location,
-            "apply_url": body.source_url,
-            "source_url": body.source_url,
-            "source_platform": body.source_platform or "generic",
-            "job_description": body.job_description.strip(),
-            "main_skills": primary,
-            "side_skills": secondary,
-            "batch_date": int(date.today().strftime("%Y%m%d")),
-            "ingestion_source": "extension",
-            "quality_status": "user_confirmed",
-            "created_by_user_id": user_id,
-        },
-        on_conflict="job_id",
-    ).execute()
+    job_row = {
+        "job_id": job_id,
+        "job_title": body.role_name.strip(),
+        "company_name": body.company_name,
+        "industry": None,
+        "location": body.location,
+        "apply_url": body.source_url,
+        "source_url": body.source_url,
+        "source_platform": body.source_platform or "generic",
+        "job_description": body.job_description.strip(),
+        "main_skills": primary,
+        "side_skills": secondary,
+        "batch_date": int(date.today().strftime("%Y%m%d")),
+        "ingestion_source": "extension",
+        "quality_status": "user_confirmed",
+        "created_by_user_id": user_id,
+    }
 
     emerging_inputs = list(body.emerging_skills) + primary_emerging + secondary_emerging
-    candidates = _emerging_payloads(job_id, user_id, body.source_platform or "generic", emerging_inputs)
-    if candidates:
-        db.table("job_skill_candidates").upsert(
-            candidates,
-            on_conflict="job_id,normalized_label,skill_type",
-        ).execute()
+    candidate_rows = _emerging_payloads(job_id, user_id, body.source_platform or "generic", emerging_inputs)
 
     status = getattr(body, "status", None) or "saved"
     if status not in APPLICATION_STATUSES:
         status = "saved"
-    db.table("job_applications").upsert(
-        {"user_id": user_id, "job_id": job_id, "status": status},
-        on_conflict="user_id,job_id",
-    ).execute()
 
-    result = (
-        db.table("job_applications")
-        .select("*, jobs(job_title, company_name, job_description)")
-        .eq("user_id", user_id)
-        .eq("job_id", job_id)
-        .single()
-        .execute()
-    )
+    return {
+        "job_id": job_id,
+        "job_row": job_row,
+        "candidate_rows": candidate_rows,
+        "application_row": {"user_id": user_id, "job_id": job_id, "status": status},
+        "status": status,
+    }
 
-    row = result.data or {}
+
+def shape_application_response(row: dict[str, Any], job_id: str, body: Any, status: str) -> dict[str, Any]:
+    """Pure projection of a job_applications row (+ joined job) to the API shape."""
     job = row.get("jobs") or {}
     return {
         "id": row.get("id", 0),

@@ -15,6 +15,7 @@ from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
+from app.services import job_importer
 from app.services.industry_grouping import normalize_industry_group
 from app.services.location_normalizer import normalize_location
 
@@ -600,6 +601,43 @@ class JobsRepository:
     @property
     def client(self) -> Client:
         return self._db
+
+    # ── imported-job write (mixed ownership) ────────────────────────────────────
+
+    def save_imported_job(self, user_id: str, body: Any) -> dict[str, Any]:
+        """Persist an extension-imported job, routing each table to its RLS context.
+
+        ``jobs`` and ``job_skill_candidates`` are community/scraper-owned — written
+        with the service-role client (``_admin_db``), which bypasses RLS. The
+        ``job_applications`` row is user-owned, so it (and the read-back) go through
+        the user-token client (``_db``) where the "own applications" policy applies.
+        """
+        plan = job_importer.build_imported_job(user_id, body)
+
+        self._admin_db.table("jobs").upsert(
+            plan["job_row"], on_conflict="job_id"
+        ).execute()
+
+        if plan["candidate_rows"]:
+            self._admin_db.table("job_skill_candidates").upsert(
+                plan["candidate_rows"], on_conflict="job_id,normalized_label,skill_type"
+            ).execute()
+
+        self._db.table("job_applications").upsert(
+            plan["application_row"], on_conflict="user_id,job_id"
+        ).execute()
+
+        result = (
+            self._db.table("job_applications")
+            .select("*, jobs(job_title, company_name, job_description)")
+            .eq("user_id", user_id)
+            .eq("job_id", plan["job_id"])
+            .single()
+            .execute()
+        )
+        return job_importer.shape_application_response(
+            result.data or {}, plan["job_id"], body, plan["status"]
+        )
 
     # ── public / global data ───────────────────────────────────────────────────
 

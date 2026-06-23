@@ -85,25 +85,21 @@ def test_import_preview_returns_suggestions(monkeypatch) -> None:
 
 def test_import_job_calls_service_and_returns_application(monkeypatch) -> None:
     repo = _FakeJobsRepository()
+    repo.save_imported_job = lambda user_id, body: {
+        "id": 1,
+        "job_id": "ext_abc",
+        "title": "Data Engineer",
+        "company": "Acme",
+        "job_description": "Build data products with Python.",
+        "status": "pending",
+        "applied_at": None,
+        "response_at": None,
+        "checkin_sent_at": None,
+        "notes": None,
+        "created_at": "2026-04-24T00:00:00+00:00",
+    }
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    monkeypatch.setattr(
-        jobs.job_importer,
-        "save_imported_job",
-        lambda db, user_id, body: {
-            "id": 1,
-            "job_id": "ext_abc",
-            "title": "Data Engineer",
-            "company": "Acme",
-            "job_description": "Build data products with Python.",
-            "status": "pending",
-            "applied_at": None,
-            "response_at": None,
-            "checkin_sent_at": None,
-            "notes": None,
-            "created_at": "2026-04-24T00:00:00+00:00",
-        },
-    )
 
     try:
         with TestClient(app) as client:
