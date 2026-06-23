@@ -34,6 +34,8 @@ import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/j
 import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { NextSteps } from "@/components/onboarding/next-steps"
+import { NextBestSteps } from "@/components/home/next-best-steps"
+import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
@@ -258,6 +260,23 @@ function MissionControlInner() {
     )[0]?.skill ?? null
   }, [scoreData])
 
+  // Post-score "Your next 3 steps" (issue #146) — three ranked, named moves
+  // derived from this user's own score breakdown. The best-fit job prefers a
+  // credible recommendation, falling back to the top raw match.
+  const nextBestSteps = useMemo(() => {
+    if (!scoreData) return []
+    const best = credibleJobs[0] ?? topJobs[0] ?? null
+    return deriveNextBestSteps({
+      score,
+      gapSkills: scoreData.gap_skills ?? [],
+      domainScores: scoreData.domain_scores ?? {},
+      bestJob: best
+        ? { jobId: best.job_id, title: best.title, company: best.company, fit: Math.round(best.overlap_score) }
+        : null,
+      tailorJobId: credibleJobId,
+    })
+  }, [scoreData, credibleJobs, topJobs, credibleJobId, score])
+
   // Daily loop — the five ritual steps. Still passed to the Dashboard feed
   // (the LoopRing itself moved to the /market hero). `href` = where
   // "close this step" routes; on-page steps (Log → diary panel below) omit it.
@@ -350,7 +369,11 @@ function MissionControlInner() {
                 : null
             }
           />
-          {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored={false} /> : null}
+          {token
+            ? nextBestSteps.length > 0
+              ? <NextBestSteps score={score} steps={nextBestSteps} />
+              : <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored={false} />
+            : null}
         </div>
       </PageShell>
     )
@@ -379,7 +402,10 @@ function MissionControlInner() {
             </aside>
             <div className="mc-ws-main">
             <YourMoveCard hasApplied={hasActivePursuit} topGapSkill={topGapSkill} />
-            {token ? <NextSteps token={token} credibleJobId={credibleJobId} credibleJobSaved={credibleJobSaved} tailored /> : null}
+            {/* Post-score "next 3 steps" (issue #146) — the pre-activation
+                dead-end fix. Once the user has applied somewhere they're
+                activated; the feed + YourMoveCard carry them, so it retires. */}
+            {token && !hasApplied ? <NextBestSteps score={score} steps={nextBestSteps} /> : null}
             <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
                 // fast-but-empty jobs result never sits beside a still-loading
