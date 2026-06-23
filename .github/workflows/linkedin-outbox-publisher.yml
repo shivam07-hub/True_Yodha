@@ -1,0 +1,50 @@
+name: LinkedIn Outbox Publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: "Publish due posts now (true) or run dry-run (false)"
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '*/15 * * * *'
+
+concurrency:
+  group: linkedin-outbox-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish-linkedin-posts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Validate LinkedIn outbox
+        run: cd frontend && npm run linkedin:lint
+
+      - name: Publish due LinkedIn posts
+        env:
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          LINKEDIN_REFRESH_TOKEN: ${{ secrets.LINKEDIN_REFRESH_TOKEN }}
+          LINKEDIN_ORGANIZATION_URN: ${{ secrets.LINKEDIN_ORGANIZATION_URN }}
+          LINKEDIN_API_VERSION: ${{ secrets.LINKEDIN_API_VERSION }}
+        run: |
+          cd frontend
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.execute }}" != "true" ]; then
+            npm run linkedin:publish-due
+          else
+            npm run linkedin:publish-due:live
+          fi

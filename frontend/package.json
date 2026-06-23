@@ -18,6 +18,9 @@
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
     "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
     "growth:import-tracker": "tsx ../scripts/import-growth-tracker.ts",
+    "linkedin:lint": "tsx ../scripts/linkedin-publish-due.ts --check-only",
+    "linkedin:publish-due": "tsx ../scripts/linkedin-publish-due.ts",
+    "linkedin:publish-due:live": "tsx ../scripts/linkedin-publish-due.ts --execute",
     "prebuild": "npm run newsletter:check && npm run newsletter:feed"
   },
   "dependencies": {
