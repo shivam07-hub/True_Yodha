@@ -69,6 +69,7 @@ class MatchEval(BaseModel):
     llm_rank: int | None = None
     llm_explanation: str | None = None
     matched_skills: list[str] = []
+    missing_skills: list[str] = []  # required skills the user lacks (T3-1 gap chips)
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
@@ -106,6 +107,7 @@ class JobMatchResponse(BaseModel):
     batch_week: date                    # Monday this match was generated
     source_url: str | None
     matched_skills: list[str] = []
+    missing_skills: list[str] = []    # required skills the user lacks (T3-1 gap chips)
     job_summary: str | None = None    # LLM-enriched ≤100-word clean prose (card body)
     job_description: str | None = None
     # Scraper structured chip columns (backlog #22) — NULL when a provider omits them
@@ -462,6 +464,7 @@ class JobFeedItem(BaseModel):
     is_stale: bool = False  # last_seen older than STALE_AFTER_DAYS — warn before Apply 404
     is_active: bool = True
     skills: list[str] = []  # top main_skills display names, capped
+    matched_skills: list[str] = []  # which of the requesting user's CV skills this job needs (T3-1)
     matched_skill_count: int = 0  # overlap with the requesting user's CV skills (0 if anon)
     target_role_match: int = 0  # how many of the user's target roles this job covers (0 if none set)
 

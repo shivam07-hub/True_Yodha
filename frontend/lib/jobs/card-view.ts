@@ -1,10 +1,22 @@
 import type { JobFeedItem, JobMatch } from "@/lib/api"
 
-/** A skill pill on a feed card. `matched` = the user's CV covers it (✓ accent). */
+/**
+ * A skill pill on a feed card.
+ *  - `matched`  → the user's CV covers it (✓ accent).
+ *  - `missing`  → the job needs it and the CV doesn't have it (✗ + Forge link).
+ * A chip is exactly one of the two (or neither, for anon/no-CV browse).
+ */
 export interface FeedChip {
   name: string
   matched?: boolean
+  missing?: boolean
 }
+
+/** How many of each kind a card face shows before overflowing to "+N". Matched
+ *  leads (the reason to like it); missing is capped tighter so a 0-fit card
+ *  doesn't become a wall of red and blow the #29 accent budget at 375px. */
+const MAX_MATCHED_CHIPS = 3
+const MAX_MISSING_CHIPS = 2
 
 /**
  * What a card shows in its top-right fit slot. ONE canonical view-model so every
@@ -31,7 +43,19 @@ function marketFit(
   if (!hasCv) return { kind: "nudge" }
   if (job.matched_skill_count > 0) return { kind: "overlap", count: job.matched_skill_count }
   if (job.target_role_match > 0) return { kind: "role" }
-  return { kind: "none" }
+  // 0 skill overlap, CV present: no dead-end pill. The ✗ missing chips in the
+  // chip row are the reason now (T3-1, Q3) — so the slot stays empty.
+  return null
+}
+
+/** Build the matched-✓-then-missing-✗ chip list a card renders. Matched leads;
+ *  missing fills the remainder up to its own cap. `+N` counts everything not shown. */
+function composeChips(matched: string[], missing: string[]): { chips: FeedChip[]; extra: number } {
+  const m = matched.slice(0, MAX_MATCHED_CHIPS).map((name) => ({ name, matched: true }))
+  const g = missing.slice(0, MAX_MISSING_CHIPS).map((name) => ({ name, missing: true }))
+  const shown = m.length + g.length
+  const total = matched.length + missing.length
+  return { chips: [...m, ...g], extra: Math.max(0, total - shown) }
 }
 
 /**
@@ -100,8 +124,7 @@ export function feedDataFromMatch(
   opts: { maxChips?: number; snippetMax?: number } = {},
 ): FeedCardData {
   const { job } = src
-  const maxChips = opts.maxChips ?? 3
-  const allChips = job.matched_skills ?? []
+  const { chips, extra } = composeChips(job.matched_skills ?? [], job.missing_skills ?? [])
   return {
     jobId: src.jobId,
     company: src.company,
@@ -115,8 +138,8 @@ export function feedDataFromMatch(
     minYears: job.min_years_experience ?? null,
     maxYears: job.max_years_experience ?? null,
     snippet: snippetOf(job.job_summary?.trim() || job.job_description, opts.snippetMax),
-    chips: allChips.slice(0, maxChips).map((name) => ({ name, matched: true })),
-    extraChipCount: Math.max(0, allChips.length - maxChips),
+    chips,
+    extraChipCount: extra,
     ageIso: job.first_seen ?? null,
     fit: src.fit != null ? { kind: "score", value: src.fit } : null,
   }
@@ -128,6 +151,20 @@ export function feedDataFromFeedItem(
   opts: { maxChips?: number; snippetMax?: number; hasCv?: boolean } = {},
 ): FeedCardData {
   const maxChips = opts.maxChips ?? 3
+  const hasCv = opts.hasCv ?? false
+  // With a CV we can split this job's skills into ✓have / ✗missing; without one
+  // they're just the role's required skills (plain), never marked as gaps.
+  let chips: FeedChip[]
+  let extra: number
+  if (hasCv) {
+    const matchedSet = new Set((job.matched_skills ?? []).map((s) => s.toLowerCase()))
+    const matched = job.skills.filter((s) => matchedSet.has(s.toLowerCase()))
+    const missing = job.skills.filter((s) => !matchedSet.has(s.toLowerCase()))
+    ;({ chips, extra } = composeChips(matched, missing))
+  } else {
+    chips = job.skills.slice(0, maxChips).map((name) => ({ name }))
+    extra = Math.max(0, job.skills.length - maxChips)
+  }
   return {
     jobId: job.job_id,
     company: job.company_name,
@@ -141,10 +178,10 @@ export function feedDataFromFeedItem(
     minYears: null,
     maxYears: null,
     snippet: snippetOf(job.job_description, opts.snippetMax),
-    chips: job.skills.slice(0, maxChips).map((name) => ({ name })),
-    extraChipCount: Math.max(0, job.skills.length - maxChips),
+    chips,
+    extraChipCount: extra,
     ageIso: job.first_seen ?? null,
-    fit: marketFit(job, opts.hasCv ?? false),
+    fit: marketFit(job, hasCv),
   }
 }
 

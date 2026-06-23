@@ -192,12 +192,28 @@ export function FeedCard({
               style={{ touchAction: "pan-x pan-y" }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {data.chips.map((c) => (
-                <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
-                  {c.matched ? <Check8 /> : null}
-                  <span className="fc-chip-name">{c.name}</span>
-                </span>
-              ))}
+              {data.chips.map((c) =>
+                c.missing ? (
+                  // A gap → one tap to start closing it. The chip IS the Forge CTA
+                  // (design-over-words), so a 0-fit card reads as "here's the path".
+                  <a
+                    key={c.name}
+                    href={`/forge?skill=${encodeURIComponent(c.name)}`}
+                    className="fc-chip is-gap"
+                    title={`Practice ${c.name} in Forge`}
+                    aria-label={`Missing: ${c.name}. Practice it in Forge`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Cross8 />
+                    <span className="fc-chip-name">{c.name}</span>
+                  </a>
+                ) : (
+                  <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
+                    {c.matched ? <Check8 /> : null}
+                    <span className="fc-chip-name">{c.name}</span>
+                  </span>
+                )
+              )}
               {data.extraChipCount > 0 ? (
                 <span className="fc-chip fc-chip-more">+{data.extraChipCount}</span>
               ) : null}
@@ -245,6 +261,14 @@ function Check8() {
   return (
     <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4 12.5l5 5L20 7" />
+    </svg>
+  )
+}
+
+function Cross8() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" />
     </svg>
   )
 }

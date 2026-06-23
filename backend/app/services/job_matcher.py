@@ -22,6 +22,7 @@ PRIMARY_WEIGHT = 2.0
 SECONDARY_WEIGHT = 1.0
 ROLE_BOOST = 1.3
 COMPANY_CAP_RATIO = 0.30
+MAX_MISSING_SKILLS = 8  # cap the persisted gap list; the card shows far fewer
 
 
 def get_top_matches(
@@ -80,10 +81,23 @@ def get_top_matches(
         raw = (PRIMARY_WEIGHT * len(main_hits) + SECONDARY_WEIGHT * len(side_hits)) / max_possible
         score = round(raw * 100, 1)
 
+        # The required skills the user does NOT yet have — primary first (they
+        # weigh more in the score), de-duped, capped. This is the "why your fit
+        # isn't higher" signal the card turns into Forge CTAs (T3-1).
+        hit_lower = {s.lower() for s in main_hits + side_hits}
+        seen_missing: set[str] = set()
+        missing: list[str] = []
+        for s in main + side:
+            low = s.lower()
+            if low not in hit_lower and low not in seen_missing:
+                seen_missing.add(low)
+                missing.append(s)
+
         scored.append({
             "job_id": jid,
             "overlap_score": score,
             "matched_skills": list({s for s in main_hits + side_hits}),
+            "missing_skills": missing[:MAX_MISSING_SKILLS],
             "_match_count": match_count,
         })
 
@@ -145,6 +159,7 @@ def get_top_matches(
             "overlap_score": job["overlap_score"],
             "boosted_score": boosted,
             "matched_skills": job["matched_skills"],
+            "missing_skills": job["missing_skills"],
         })
 
     full_scored.sort(key=lambda x: x["boosted_score"], reverse=True)
