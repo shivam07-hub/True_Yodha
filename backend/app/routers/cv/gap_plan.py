@@ -68,6 +68,9 @@ class UpgradeOffer(BaseModel):
     display_name: str
     from_level: int
     to_level: int
+    # Located host bullet when CV evidence exists → the closing panel claims it
+    # one-tap; null → no CV evidence yet, the offer routes to practice instead.
+    host: GapHostBullet | None = None
 
 
 class GapPlanResponse(BaseModel):

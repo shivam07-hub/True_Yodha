@@ -815,6 +815,9 @@ export interface UpgradeOffer {
   display_name: string
   from_level: number
   to_level: number
+  // Located host bullet when CV evidence exists → claim it one-tap in the closing
+  // panel; null → no evidence on the CV yet, the offer routes to practice instead.
+  host: GapHostBullet | null
 }
 export interface GapPlanResponse {
   job_id: string

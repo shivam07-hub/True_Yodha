@@ -26,6 +26,7 @@ import {
   type GapPlanResponse,
   type HostBulletCard,
   type RewriteBulletResponse,
+  type UpgradeOffer,
 } from "@/lib/api"
 import { Icon } from "./icons"
 
@@ -156,9 +157,11 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
           )}
           {!onDeck && (
             <ClosingPanel
+              token={token}
               resolved={resolved}
               practiceSkills={practiceSkills}
               upgrades={plan.upgrade_offers}
+              onApplied={onApplied}
               onClose={onClose}
             />
           )}
@@ -399,12 +402,77 @@ function RewriteBody({ phase, proposed, rationale, citations, applying, errMsg, 
   return null
 }
 
+// ── Flywheel upgrade: claim a practice-proven level onto its host bullet ──────
+
+function UpgradeRow({ token, upgrade, onApplied }: {
+  token: string; upgrade: UpgradeOffer; onApplied: () => void
+}) {
+  const host = upgrade.host
+  const meta = (
+    <>L{upgrade.from_level} → <strong>L{upgrade.to_level}</strong> proven</>
+  )
+
+  // No CV evidence to surface onto yet — the proof lives in practice. Route there.
+  if (!host) {
+    return (
+      <Link href={forgeHref(upgrade.skill)} className="cvb-gs-row proven">
+        <span className="cvb-gs-row-name">{upgrade.display_name}</span>
+        <span className="cvb-gs-row-meta">{meta}</span>
+      </Link>
+    )
+  }
+
+  return (
+    <ClaimableUpgrade token={token} upgrade={upgrade} host={host} meta={meta} onApplied={onApplied} />
+  )
+}
+
+function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
+  token: string
+  upgrade: UpgradeOffer
+  host: NonNullable<UpgradeOffer["host"]>
+  meta: React.ReactNode
+  onApplied: () => void
+}) {
+  const { phase, proposed, rationale, citations, applying, propose, accept, reset, errMsg } =
+    useRewrite(token, host.bullet_text, [upgrade.display_name], host)
+
+  if (phase === "intro") {
+    return (
+      <div className="cvb-gs-row proven">
+        <span className="cvb-gs-row-name">{upgrade.display_name}</span>
+        <span className="cvb-gs-row-meta">{meta}</span>
+        <button type="button" className="cvb-btn sm primary cvb-gs-claim" onClick={() => void propose()}>
+          <Icon name="sparkle" size={12}/> Claim on CV
+        </button>
+      </div>
+    )
+  }
+
+  // Once claiming, the row opens the same propose → diff → accept flow as a card.
+  return (
+    <div className="cvb-gs-row proven claiming">
+      <div className="cvb-gs-claim-head">
+        <span className="cvb-gs-row-name">{upgrade.display_name}</span>
+        <span className="cvb-gs-row-meta">{meta}</span>
+      </div>
+      <RewriteBody
+        phase={phase} proposed={proposed} rationale={rationale} citations={citations}
+        applying={applying} errMsg={errMsg} before={host.bullet_text}
+        onAccept={() => void accept(onApplied)} onDiscard={reset} onRetry={() => void propose()}
+      />
+    </div>
+  )
+}
+
 // ── Closing panel: build in practice + claim what you've proven ──────────────
 
-function ClosingPanel({ resolved, practiceSkills, upgrades, onClose }: {
+function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, onClose }: {
+  token: string
   resolved: number
   practiceSkills: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow" }[]
   upgrades: GapPlanResponse["upgrade_offers"]
+  onApplied: () => void
   onClose: () => void
 }) {
   return (
@@ -420,10 +488,7 @@ function ClosingPanel({ resolved, practiceSkills, upgrades, onClose }: {
           <div className="cvb-gs-section-h proven">You&apos;ve already proven these</div>
           <p className="cvb-gs-section-lede">Practice took these past what your CV shows — claim the higher level.</p>
           {upgrades.map(u => (
-            <Link key={u.skill} href={forgeHref(u.skill)} className="cvb-gs-row proven">
-              <span className="cvb-gs-row-name">{u.display_name}</span>
-              <span className="cvb-gs-row-meta">L{u.from_level} → <strong>L{u.to_level}</strong> proven</span>
-            </Link>
+            <UpgradeRow key={u.skill} token={token} upgrade={u} onApplied={onApplied} />
           ))}
         </section>
       )}

@@ -139,6 +139,18 @@ def _extract_json(raw: str) -> str:
     return match.group(0) if match else raw
 
 
+def _host_dict(bullet: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Shape a located host bullet into the card/offer `host` contract (or None)."""
+    if not bullet:
+        return None
+    return {
+        "section": bullet["section"],
+        "item_index": bullet["item_index"],
+        "bullet_index": bullet["bullet_index"],
+        "bullet_text": bullet["text"],
+    }
+
+
 def assemble_plan(
     gap_items: list[dict[str, Any]],
     bullets: list[dict[str, Any]],
@@ -164,16 +176,24 @@ def assemble_plan(
         current = int(gap.get("user_level") or 0)
         required = int(gap.get("required_level") or 0)
 
+        # The classify pass locates a single host bullet for any missing skill with
+        # genuine evidence (latent verdict). Resolve it once — the upgrade offer and
+        # the below-level card both surface onto it; no host → practice-only.
+        verdict, host = classification.get(skill, ("absent", None))
+        host_bullet = bullets[host] if (verdict == "latent" and host is not None) else None
+
         # Flywheel: practice proved a level the CV doesn't show yet → offer upgrade.
+        # Carry the located host so the closing panel can claim it one-tap; without a
+        # host (no CV evidence yet) the offer routes to practice to build the proof.
         proven = int(assessed_levels.get(skill, 0) or 0)
         if proven > current:
             upgrades.append({
                 "skill": skill, "display_name": name,
                 "from_level": current, "to_level": min(proven, required),
+                "host": _host_dict(host_bullet),
             })
 
         if current == 0:
-            verdict, host = classification.get(skill, ("absent", None))
             if verdict == "latent" and host is not None:
                 card = host_cards.get(host)
                 if card is None:
@@ -199,19 +219,13 @@ def assemble_plan(
             # The skill is already on the CV, so a host bullet exists — the classify
             # pass locates it so the card can offer the one-notch surface. No host →
             # practice-only (the user earns the level in Forge, flywheel does the rest).
-            verdict, host = classification.get(skill, ("absent", None))
-            host_bullet = bullets[host] if (verdict == "latent" and host is not None) else None
             below_cards.append({
                 "order": order,
                 "skill": skill, "display_name": name,
                 "current_level": current, "required_level": required,
                 "surface_to": min(current + 1, required),
                 "is_primary": bool(gap.get("is_primary")),
-                "host": (
-                    {"section": host_bullet["section"], "item_index": host_bullet["item_index"],
-                     "bullet_index": host_bullet["bullet_index"], "bullet_text": host_bullet["text"]}
-                    if host_bullet else None
-                ),
+                "host": _host_dict(host_bullet),
             })
             order += 1
 

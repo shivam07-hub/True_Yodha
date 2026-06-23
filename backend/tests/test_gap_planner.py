@@ -202,6 +202,7 @@ def test_flywheel_practice_proven_beyond_cv_offers_upgrade():
     up = plan["upgrade_offers"][0]
     assert up["from_level"] == 2
     assert up["to_level"] == 4  # min(assessed, required)
+    assert up["host"] is None  # no CV evidence located → routes to practice
 
 
 def test_flywheel_proven_caps_at_required_not_beyond():
@@ -212,6 +213,23 @@ def test_flywheel_proven_caps_at_required_not_beyond():
         display_names={"sql": "SQL"},
     )
     assert plan["upgrade_offers"][0]["to_level"] == 3
+
+
+def test_flywheel_upgrade_carries_located_host_for_one_tap_claim():
+    # Practice proved L4 and the CV evidence sits in a bullet → the offer carries
+    # the host so the closing panel can claim it one-tap (not just route to Forge).
+    plan = gap_planner.assemble_plan(
+        gap_items=[_gap("sql", user_level=2, required_level=4)],
+        bullets=[_bullet("exp_bullet", 1, 0, "Built reports in SQL")],
+        classification={"sql": ("latent", 0)},
+        assessed_levels={"sql": 4},
+        display_names={"sql": "SQL"},
+    )
+    up = plan["upgrade_offers"][0]
+    assert up["host"] is not None
+    assert up["host"]["bullet_text"] == "Built reports in SQL"
+    assert up["host"]["item_index"] == 1
+    assert up["host"]["section"] == "exp_bullet"
 
 
 def test_non_missing_gaps_are_excluded():
