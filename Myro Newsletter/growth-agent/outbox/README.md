@@ -42,6 +42,18 @@ Source claim:
 Copy:
 ```
 
+Timestamp format recommendation:
+
+```text
+2026-05-27T10:00:00+05:30
+```
+
+Automation checks:
+
+- `Copy` should include the exact `CTA URL`.
+- `CTA URL` UTM params should match `UTM source/medium/campaign/content` fields exactly.
+- Optional `Review window hours:` can override inferred windows (2h default, 24h sensitive).
+
 ## Review Notes
 
 Normal posts need a 2-hour review notice before publish.

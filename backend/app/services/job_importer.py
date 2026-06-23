@@ -207,7 +207,7 @@ def save_imported_job(db: Client, user_id: str, body: Any) -> dict[str, Any]:
             "job_description": body.job_description.strip(),
             "main_skills": primary,
             "side_skills": secondary,
-            "batch_date": str(date.today()),
+            "batch_date": int(date.today().strftime("%Y%m%d")),
             "ingestion_source": "extension",
             "quality_status": "user_confirmed",
             "created_by_user_id": user_id,
