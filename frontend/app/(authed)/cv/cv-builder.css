@@ -1578,6 +1578,10 @@ mark.cvb-kw {
 .cvb-gs-tick { height: 3px; flex: 1; border-radius: 2px; background: var(--tm-border-soft); transition: background 200ms var(--tm-ease); }
 .cvb-gs-tick.done { background: var(--tm-success); }
 .cvb-gs-tick.active { background: var(--tm-accent-text); }
+.cvb-gs-tick-more {
+  flex: 0 0 auto; align-self: center; font-family: var(--cvb-font-mono);
+  font-size: 9px; color: var(--tm-text-faint); padding-left: 2px;
+}
 
 .cvb-gs-body { padding: 16px 18px 18px; overflow-y: auto; flex: 1; min-height: 0; }
 
@@ -1646,6 +1650,17 @@ mark.cvb-kw {
   padding: 2px 6px; border-radius: 999px;
 }
 .cvb-gs-foot { display: flex; justify-content: flex-end; padding-top: 4px; }
+/* Batch checkpoint — keep going through more gaps, or wrap up here. */
+.cvb-gs-checkpoint {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 18px; border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  background: var(--tm-surface-sunken, var(--tm-surface));
+}
+.cvb-gs-checkpoint-h {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 700; color: var(--tm-success);
+}
+.cvb-gs-checkpoint-lede { font-size: 12px; line-height: 1.55; color: var(--tm-text-muted); margin: 0; }
 @media (max-width: 720px) {
   .cvb-gs-modal { max-width: 100%; }
   .cvb-gs-body .cvb-btn, .cvb-gs-row, .cvb-rw-input { min-height: 44px; }

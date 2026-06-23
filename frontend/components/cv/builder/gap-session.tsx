@@ -50,11 +50,16 @@ function forgeHref(skill: string): string {
   return `/forge?skill=${encodeURIComponent(skill)}`
 }
 
+// Cards walked in one sitting before the checkpoint offers to continue. Mirrors
+// the backend's gap-priority top-N; the deck is already ordered by it.
+const SESSION_BATCH = 5
+
 export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessionProps) {
   const [plan, setPlan] = useState<GapPlanResponse | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [idx, setIdx] = useState(0)
   const [resolved, setResolved] = useState(0)
+  const [revealed, setRevealed] = useState(SESSION_BATCH)
 
   const load = useCallback(async () => {
     setLoadErr(null)
@@ -125,22 +130,32 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
     )
   }
 
-  const onDeck = idx < deck.length
+  // Pagination: walk the deck in SESSION_BATCH chunks. At a batch boundary with
+  // more cards left, the checkpoint lets the user keep going or wrap up early.
+  const walkedAll = idx >= deck.length
+  const atCheckpoint = !walkedAll && idx >= revealed
+  const onDeck = !walkedAll && !atCheckpoint
   const card = onDeck ? deck[idx] : null
+  const ticks = Math.min(revealed, deck.length)
 
   function advance() { setIdx(i => i + 1) }
   function onResolved() { setResolved(r => r + 1); onApplied(); advance() }
+  function continueBatch() { setRevealed(r => r + SESSION_BATCH) }
+  function wrapUp() { setIdx(deck.length) }
 
   return (
     <Backdrop onClose={onClose}>
       <div className="cvb-modal cvb-gs-modal" onClick={e => e.stopPropagation()}>
         <Header score={score} plan={plan} onClose={onClose} />
 
-        <div className="cvb-gs-progress" aria-hidden>
-          {deck.map((_, i) => (
-            <span key={i} className={`cvb-gs-tick${i < idx ? " done" : i === idx ? " active" : ""}`} />
-          ))}
-        </div>
+        {deck.length > 1 && (
+          <div className="cvb-gs-progress" aria-hidden>
+            {Array.from({ length: ticks }, (_, i) => (
+              <span key={i} className={`cvb-gs-tick${i < idx ? " done" : i === idx ? " active" : ""}`} />
+            ))}
+            {deck.length > revealed && <span className="cvb-gs-tick-more">+{deck.length - revealed}</span>}
+          </div>
+        )}
 
         <div className="cvb-gs-body">
           {card?.kind === "latent" && (
@@ -155,7 +170,15 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
               onResolved={onResolved} onSkip={advance}
             />
           )}
-          {!onDeck && (
+          {atCheckpoint && (
+            <Checkpoint
+              resolved={resolved}
+              remaining={deck.length - idx}
+              onContinue={continueBatch}
+              onWrap={wrapUp}
+            />
+          )}
+          {walkedAll && (
             <ClosingPanel
               token={token}
               resolved={resolved}
@@ -400,6 +423,33 @@ function RewriteBody({ phase, proposed, rationale, citations, applying, errMsg, 
     )
   }
   return null
+}
+
+// ── Batch checkpoint: keep going through more gaps, or wrap up here ───────────
+
+function Checkpoint({ resolved, remaining, onContinue, onWrap }: {
+  resolved: number; remaining: number; onContinue: () => void; onWrap: () => void
+}) {
+  return (
+    <div className="cvb-gs-checkpoint">
+      <div className="cvb-gs-checkpoint-h">
+        <Icon name="check" size={14} stroke={3}/>
+        {resolved > 0
+          ? `Surfaced ${resolved} skill${resolved === 1 ? "" : "s"} so far.`
+          : "Paused here."}
+      </div>
+      <p className="cvb-gs-checkpoint-lede">
+        {remaining} more {remaining === 1 ? "gap is" : "gaps are"} ready when you are.
+        Keep going, or wrap up and review what you&apos;ve surfaced.
+      </p>
+      <div className="cvb-gs-actions">
+        <button type="button" className="cvb-btn sm ghost" onClick={onWrap}>Wrap up</button>
+        <button type="button" className="cvb-btn sm primary" onClick={onContinue}>
+          <Icon name="sparkle" size={12}/> Keep going · {Math.min(SESSION_BATCH, remaining)} more
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Flywheel upgrade: claim a practice-proven level onto its host bullet ──────
