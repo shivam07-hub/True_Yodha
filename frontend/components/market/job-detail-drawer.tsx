@@ -10,6 +10,7 @@ import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
 import { LocationLine, SkillChip } from "./job-card"
+import { JobReadinessPanel } from "./job-readiness"
 import { ShareJobButton } from "./share-job-button"
 
 /**
@@ -32,6 +33,7 @@ export function JobDetailDrawer({
   const router = useRouter()
   const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [assessOpen, setAssessOpen] = useState(false)
   const dead = useDeadLinkPrompt({ token, jobId: job.job_id, surface: "job_detail" })
 
   // Confidence drives the trust band (D1). Fall back to the feed's binary
@@ -97,14 +99,25 @@ export function JobDetailDrawer({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{job.skills.map(s => <SkillChip key={s} label={s} />)}</div>
         </div>
       ) : null}
-      <button
-        type="button"
-        onClick={() => router.push(`/forge?gap=${encodeURIComponent(job.job_id)}`)}
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", padding: "12px 14px", marginBottom: 18, borderRadius: 10, border: "1px solid var(--tm-int-border-soft)", background: "var(--tm-int-bg-wash)", color: "var(--tm-interactive)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-      >
-        <span>◎ Assess my readiness for this job</span>
-        <span aria-hidden>→</span>
-      </button>
+      {/* Job-SPECIFIC readiness, inline (T2-5). The button is the discloser; the
+          answer (match% + have/missing vs THIS job) opens right here — no detour
+          to the generic Skills page. Lazy: nothing fetched until asked. */}
+      <div style={{ marginBottom: 18 }}>
+        <button
+          type="button"
+          aria-expanded={assessOpen}
+          onClick={() => setAssessOpen((v) => !v)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 10, border: "1px solid var(--tm-int-border-soft)", background: "var(--tm-int-bg-wash)", color: "var(--tm-interactive)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+        >
+          <span>◎ Assess my readiness for this job</span>
+          <span aria-hidden style={{ transform: assessOpen ? "rotate(90deg)" : "none", transition: "transform 160ms var(--tm-ease, ease)" }}>→</span>
+        </button>
+        {assessOpen ? (
+          <div style={{ padding: "14px", marginTop: 8, borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface)" }}>
+            <JobReadinessPanel token={token} jobId={job.job_id} />
+          </div>
+        ) : null}
+      </div>
       <div>
         <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Job description</div>
         <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13.5, lineHeight: 1.6, color: "var(--tm-text)" }}>{job.job_description || "No description available."}</pre>
