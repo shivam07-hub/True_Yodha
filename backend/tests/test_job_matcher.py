@@ -96,12 +96,32 @@ class TestBasic:
         assert "Docker" in matched
         assert "SQL" not in matched
 
+    def test_missing_skills_are_required_minus_matched_primary_first(self) -> None:
+        # Job needs Python+SQL (main) + Docker+Bash (side); user has Python+Bash.
+        # Missing = SQL (main) then Docker (side) — primary first, matched excluded.
+        jobs = [_job("j1", "Job", "Acme", ["Python", "SQL"], ["Docker", "Bash"])]
+        result = _run(jobs, {"Python": 3, "Bash": 1}, top_n=1)
+        assert result[0]["missing_skills"] == ["SQL", "Docker"]
+        # And nothing the user already has leaks into the gap list.
+        assert "Python" not in result[0]["missing_skills"]
+        assert "Bash" not in result[0]["missing_skills"]
+
+    def test_missing_skills_capped(self) -> None:
+        from app.services.job_matcher import MAX_MISSING_SKILLS
+        gaps = [f"skill{i}" for i in range(MAX_MISSING_SKILLS + 5)]
+        # User clears the overlap floor with 3 real matches; the long gap tail is
+        # then capped so the card payload stays bounded.
+        jobs = [_job("j1", "Job", "Acme", ["Python", "SQL", "Go", *gaps], [])]
+        result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=1)
+        assert len(result[0]["missing_skills"]) == MAX_MISSING_SKILLS
+
     def test_returned_shape(self) -> None:
         jobs = [_job("abc123", "DE", "TechCorp", ["Python", "SQL", "Go"], [])]
         result = _run(jobs, {"Python": 3, "SQL": 2, "Go": 1}, top_n=1)
         keys = {
             "job_id", "title", "company", "location", "industry",
             "apply_url", "description", "overlap_score", "matched_skills",
+            "missing_skills",
         }
         assert keys.issubset(result[0].keys())
         assert result[0]["job_id"] == "abc123"

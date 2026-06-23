@@ -106,6 +106,18 @@
    The ✓ check + the stronger ink carry "you already have this". */
 .fc-chip.is-match { color: var(--tm-text); border-color: var(--tm-border); }
 
+/* Missing skill = a gap the user can close. Warning tone (NOT the company accent
+   — that means "clickable company"); the chip itself is the Forge link, so the
+   ✗ + colour carry "you don't have this yet → practice it". */
+.fc-chip.is-gap {
+  color: var(--tm-warning);
+  border-color: var(--tm-warning-border);
+  background: var(--tm-warning-wash, var(--tm-surface));
+  text-decoration: none; cursor: pointer;
+  transition: border-color var(--tm-dur, .15s) var(--tm-ease, ease);
+}
+.fc-chip.is-gap:hover { border-color: var(--tm-warning); }
+
 /* ── fit slot (top-right) ─────────────────────────────────────────────────── */
 .fc-fit { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 

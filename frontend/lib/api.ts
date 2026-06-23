@@ -1718,6 +1718,7 @@ export interface JobMatch {
   batch_week: string
   source_url: string | null
   matched_skills: string[]
+  missing_skills?: string[] // required skills the user lacks — powers ✗ gap chips (T3-1)
   job_summary?: string | null // LLM-enriched ≤100-word clean prose — card body, preferred over job_description
   job_description?: string | null
   // Scraper structured chip columns (backlog #22) — null when a provider omits them
@@ -2067,6 +2068,7 @@ export interface JobFeedItem {
   is_stale?: boolean            // unseen >21d — warn before the Apply link 404s
   is_active: boolean
   skills: string[]
+  matched_skills?: string[]  // which of `skills` the user's CV covers — ✓/✗ chip marking (T3-1)
   matched_skill_count: number
   target_role_match: number  // how many of the user's target roles this job covers
 }

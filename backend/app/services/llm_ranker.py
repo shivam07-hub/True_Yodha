@@ -310,6 +310,7 @@ def persist_matches(
             "batch_week": str(batch_week),
             "overlap_score": job["overlap_score"],
             "matched_skills": job.get("matched_skills") or [],
+            "missing_skills": job.get("missing_skills") or [],
             "llm_rank": rank_idx,
             "llm_explanation": ev.get("summary"),
             "overall_score": overall,
