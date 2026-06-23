@@ -90,6 +90,22 @@ export function invalidateCvData(queryClient: QueryClient): void {
   invalidateScoreData(queryClient)
 }
 
+/**
+ * Target-role edit (issue #145) changes the role that drives BOTH the Myro
+ * Score and the job feed, so a role write must refresh every role-dependent
+ * read: profile (the role label), the score, skills/demand, and the job feed +
+ * its analytics. Partial keys invalidate every query under that prefix.
+ */
+export function invalidateTargetRoleData(queryClient: QueryClient): void {
+  queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.userSkillDemand() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+  queryClient.invalidateQueries({ queryKey: ["jobs-analytics-me"] })
+}
+
 export function invalidateJobData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
   queryClient.invalidateQueries({ queryKey: dataKeys.applications() })

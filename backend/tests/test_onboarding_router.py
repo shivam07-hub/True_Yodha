@@ -88,6 +88,30 @@ def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
     }
 
 
+def test_target_accepts_role_only_edit(monkeypatch) -> None:
+    """Point-of-use 'edit role' (issue #145): only role_title supplied; the
+    canonical save_target preserves existing seniority/location."""
+    captured = {}
+    monkeypatch.setattr(
+        onboarding.onboarding_service,
+        "save_target",
+        lambda _db, user_id, **values: captured.update(user_id=user_id, **values),
+    )
+    try:
+        with _client(monkeypatch, _StateRepo()) as client:
+            response = client.put(
+                "/onboarding/target",
+                json={"role_title": "Data Scientist"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert captured["role_title"] == "Data Scientist"
+    assert captured["seniority"] is None
+    assert captured["location"] is None
+
+
 def test_profile_preview_starts_durable_preview_job(monkeypatch) -> None:
     monkeypatch.setattr(onboarding, "start_profile_preview", lambda *_a, **_k: "job-1")
     try:

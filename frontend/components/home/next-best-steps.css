@@ -1,0 +1,191 @@
+/* Post-score "Your next 3 steps" panel (issue #146).
+   Token-only (two-brand safe). Accent rationed to the #1 lever + its CTA. */
+
+.nbs {
+  margin-bottom: 20px;
+  padding: 18px 20px 20px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius);
+}
+
+.nbs-head {
+  margin-bottom: 14px;
+}
+
+.nbs-eyebrow {
+  display: block;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.nbs-title {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tm-text);
+}
+
+.nbs-lede {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
+.nbs-lede strong {
+  color: var(--tm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.nbs-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nbs-list > li {
+  margin: 0;
+}
+
+.nbs-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm);
+  text-decoration: none;
+  transition: border-color 180ms var(--tm-ease), background 180ms var(--tm-ease);
+}
+
+.nbs-row:hover {
+  border-color: var(--tm-border);
+  background: var(--tm-surface-2);
+}
+
+/* The single accented row — the highest-impact move. */
+.nbs-row[data-rank="1"] {
+  border-color: var(--tm-int-border);
+  border-left: 3px solid var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+}
+
+.nbs-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border);
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text-faint);
+}
+
+.nbs-row[data-rank="1"] .nbs-rank {
+  border-color: var(--tm-interactive);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
+
+.nbs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nbs-row-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.nbs-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.nbs-row-detail {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.nbs-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: var(--tm-radius-sm);
+  border: 1px solid var(--tm-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+}
+
+.nbs-row:hover .nbs-cta {
+  color: var(--tm-text);
+}
+
+/* Only the #1 lever's CTA is filled — one accent destination. */
+.nbs-row[data-rank="1"] .nbs-cta {
+  border-color: var(--tm-interactive);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
+
+.nbs-cta svg {
+  transition: transform 180ms var(--tm-ease);
+}
+
+.nbs-row:hover .nbs-cta svg {
+  transform: translateX(2px);
+}
+
+/* 375px — drop the CTA label to its arrow, give the body the width. */
+@media (max-width: 440px) {
+  .nbs-row {
+    gap: 10px;
+    padding: 12px;
+  }
+  .nbs-cta {
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
+  }
+  .nbs-cta svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nbs-row,
+  .nbs-cta,
+  .nbs-cta svg {
+    transition: none;
+  }
+  .nbs-row:hover .nbs-cta svg {
+    transform: none;
+  }
+}

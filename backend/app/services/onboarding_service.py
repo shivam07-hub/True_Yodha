@@ -56,11 +56,28 @@ def save_target(
     user_id: str,
     *,
     role_title: str,
-    seniority: str,
-    location: str,
+    seniority: str | None = None,
+    location: str | None = None,
 ) -> None:
+    """Canonical target-role write (issue #145, decision A).
+
+    Moves `target_role_title` + derived `target_roles` clusters in lockstep and
+    enqueues a score recompute + re-match. A point-of-use "edit role" may supply
+    only `role_title`; omitted `seniority`/`location` are preserved from the
+    user's existing profile so a role-only edit never silently wipes them.
+    """
+    users_repo = UsersRepository(db)
+    if seniority is None or location is None:
+        profile = users_repo.get_profile(user_id) or {}
+        if seniority is None:
+            seniority = profile.get("target_seniority") or "any"
+        if location is None:
+            existing_locations = profile.get("target_locations") or []
+            location = (existing_locations[0] if existing_locations else None) or (
+                profile.get("target_location") or ""
+            )
     clusters = derive_role_clusters(role_title)
-    UsersRepository(db).update_profile(
+    users_repo.update_profile(
         user_id,
         {
             "target_role_title": role_title.strip(),

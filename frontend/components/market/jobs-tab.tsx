@@ -31,6 +31,8 @@ export interface MarketJobsTabProps {
    *  it never flashes while CV state is still `undefined` (the #18 bug-class). */
   cvResolved?: boolean
   targetRoles: string[]
+  /** Primary target role driving score + matches — editable in the filter (#145). */
+  targetRole?: string | null
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
   onSelectCluster: (cluster: string | null) => void
@@ -43,7 +45,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, cvResolved = false, targetRoles, targetRole, chipCountMap, selectedCluster, onSelectCluster,
     targetLocations, followedNames, onToggleFollow,
   } = props
   const router = useRouter()
@@ -296,6 +298,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           onChange={onChangeFilters}
           onClose={() => setFiltersOpen(false)}
           targetRoles={targetRoles}
+          targetRole={targetRole}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
           targetLocations={targetLocations}
