@@ -196,12 +196,22 @@ def assemble_plan(
                 })
         else:
             # Shallow: surface ONE notch (capped at required), earn the rest in Forge.
+            # The skill is already on the CV, so a host bullet exists — the classify
+            # pass locates it so the card can offer the one-notch surface. No host →
+            # practice-only (the user earns the level in Forge, flywheel does the rest).
+            verdict, host = classification.get(skill, ("absent", None))
+            host_bullet = bullets[host] if (verdict == "latent" and host is not None) else None
             below_cards.append({
                 "order": order,
                 "skill": skill, "display_name": name,
                 "current_level": current, "required_level": required,
                 "surface_to": min(current + 1, required),
                 "is_primary": bool(gap.get("is_primary")),
+                "host": (
+                    {"section": host_bullet["section"], "item_index": host_bullet["item_index"],
+                     "bullet_index": host_bullet["bullet_index"], "bullet_text": host_bullet["text"]}
+                    if host_bullet else None
+                ),
             })
             order += 1
 

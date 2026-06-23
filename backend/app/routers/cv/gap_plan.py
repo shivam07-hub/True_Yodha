@@ -38,6 +38,13 @@ class HostBulletCard(BaseModel):
     skills: list[GapSkillRef]
 
 
+class GapHostBullet(BaseModel):
+    section: str
+    item_index: int
+    bullet_index: int
+    bullet_text: str
+
+
 class BelowLevelCard(BaseModel):
     order: int
     skill: str
@@ -46,6 +53,7 @@ class BelowLevelCard(BaseModel):
     required_level: int
     surface_to: int
     is_primary: bool
+    host: GapHostBullet | None = None
 
 
 class AbsentSkill(BaseModel):
@@ -105,21 +113,23 @@ async def gap_plan(
     display_names = {k: v["display_name"] for k, v in context.items()}
     assessed_levels = {k: v["assessed_level"] for k, v in context.items()}
 
-    # Only level-0 missing gaps need latent/absent classification (Q1).
-    zero_level = [
+    # Every missing gap is run through host-finding: a level-0 gap with a host is
+    # latent (else absent); a below-level gap with a host can offer the one-notch
+    # surface. Classification is skipped only when there are no bullets to host onto.
+    surfaceable = [
         {"skill": g["skill"], "display_name": display_names.get(g["skill"], g["skill"])}
         for g in gap_items
-        if g["missing"] and g["user_level"] == 0
+        if g["missing"]
     ]
     classification: dict[str, tuple[str, int | None]] = {}
-    if zero_level:
-        messages = gap_planner.build_classify_messages(zero_level, bullets)
+    if surfaceable and bullets:
+        messages = gap_planner.build_classify_messages(surfaceable, bullets)
         try:
-            raw = await get_llm_provider().complete(messages, max_tokens=600)
+            raw = await get_llm_provider().complete(messages, max_tokens=800)
         except LLMProviderError:
             raw = None  # fail-safe: parse_classification → all absent (never fabricate)
         classification = gap_planner.parse_classification(
-            raw, valid_skills={s["skill"] for s in zero_level}, n_bullets=len(bullets)
+            raw, valid_skills={s["skill"] for s in surfaceable}, n_bullets=len(bullets)
         )
 
     plan = gap_planner.assemble_plan(

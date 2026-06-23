@@ -152,7 +152,7 @@ def test_below_level_gap_surfaces_one_notch_capped_then_forge():
     plan = gap_planner.assemble_plan(
         gap_items=[_gap("sql", user_level=2, required_level=4)],
         bullets=[],
-        classification={},  # level>=1 skips LLM classification
+        classification={},  # no host found → practice-only
         assessed_levels={},
         display_names={"sql": "SQL"},
     )
@@ -161,6 +161,23 @@ def test_below_level_gap_surfaces_one_notch_capped_then_forge():
     assert c["current_level"] == 2
     assert c["required_level"] == 4
     assert c["surface_to"] == 3  # min(current+1, required)
+    assert c["host"] is None  # no host → practice-only
+
+
+def test_below_level_gap_with_host_can_offer_surface():
+    # The skill is already on the CV; the classify pass located its host bullet,
+    # so the card can offer the one-notch surface (not just route to practice).
+    plan = gap_planner.assemble_plan(
+        gap_items=[_gap("sql", user_level=2, required_level=4)],
+        bullets=[_bullet("exp_bullet", 1, 0, "Built reports in SQL")],
+        classification={"sql": ("latent", 0)},
+        assessed_levels={},
+        display_names={"sql": "SQL"},
+    )
+    host = plan["below_level_cards"][0]["host"]
+    assert host is not None
+    assert host["bullet_text"] == "Built reports in SQL"
+    assert host["item_index"] == 1
 
 
 def test_below_level_one_notch_never_overshoots_required():
