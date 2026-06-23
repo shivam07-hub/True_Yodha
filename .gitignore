@@ -19,7 +19,9 @@ out/
 .env.local
 .env.production
 .env.development
+.env.*
 *.env
+scripts/.env.linkedin
 
 # IDE
 .idea/
