@@ -471,8 +471,10 @@ export interface OnboardingState {
 
 export interface OnboardingTarget {
   role_title: string
-  seniority: TargetSeniority
-  location: string
+  // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
+  // existing seniority/location; the backend preserves them via save_target.
+  seniority?: TargetSeniority
+  location?: string
 }
 
 export interface OnboardingProofSkill {

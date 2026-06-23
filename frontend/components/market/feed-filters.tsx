@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import type { JobFeedSort } from "@/lib/api"
+import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
 import {
   type FeedFilters, SORT_TOGGLE, canRankByFit, activeFilterCount,
 } from "./feed-types"
@@ -124,12 +125,14 @@ export function RoleSwitcher({
 // ── the sheet (Location[read-only] · Role · Skill match · Companies) ──────────
 
 export function FiltersSheet({
-  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, targetLocations, onEditLocations,
+  filters, onChange, onClose, targetRoles, targetRole, chipCountMap, hasCv, targetLocations, onEditLocations,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
   onClose: () => void
   targetRoles: string[]
+  /** Primary target role driving the score + matches — editable in place (#145). */
+  targetRole?: string | null
   chipCountMap: Record<string, number>
   hasCv: boolean
   targetLocations: string[]
@@ -176,19 +179,23 @@ export function FiltersSheet({
           </Section>
 
           <Section title="Role">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {targetRoles.map(role => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, roleDomain: draft.roleDomain === role ? null : role })}
-                  className={`tm-sheet-chip ${draft.roleDomain === role ? "is-on" : ""}`}
-                >
-                  {role}{chipCountMap[role] != null ? ` · ${chipCountMap[role]}` : ""}
-                </button>
-              ))}
-              {targetRoles.length === 0 ? <span className="tm-sheet-empty">Set target roles in settings to filter by role.</span> : null}
+            <div style={{ marginBottom: targetRoles.length ? 10 : 0 }}>
+              <TargetRoleEditor role={targetRole} />
             </div>
+            {targetRoles.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {targetRoles.map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setDraft({ ...draft, roleDomain: draft.roleDomain === role ? null : role })}
+                    className={`tm-sheet-chip ${draft.roleDomain === role ? "is-on" : ""}`}
+                  >
+                    {role}{chipCountMap[role] != null ? ` · ${chipCountMap[role]}` : ""}
+                  </button>
+                ))}
+              </div>
+            )}
           </Section>
 
           <Section title="Skill match" locked={!hasCv} lockNote="Upload your CV to filter by skill match">

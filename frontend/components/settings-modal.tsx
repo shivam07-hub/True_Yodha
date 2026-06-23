@@ -8,6 +8,7 @@ import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
 import { CompanyLink } from "@/components/companies/company-link"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
@@ -17,16 +18,6 @@ import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
 import { LinkedInIcon } from "@/components/icons/social-icons"
-import {
-  DndContext, DragOverlay, PointerSensor, closestCenter,
-  useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext, arrayMove, horizontalListSortingStrategy, useSortable,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import { L2_CLUSTERS, MAX_TARGET_ROLES } from "@/lib/l2-clusters"
 import Link from "next/link"
 import {
   CATEGORIES,
@@ -38,7 +29,7 @@ import {
 import "./settings-modal.css"
 
 export type Tab = "Account" | "Following" | "Feedback" | "Billing"
-type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_roles" | "target_location" | "target_locations" | "linkedin_url">
+type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_role_title" | "target_location" | "target_locations" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
 
@@ -97,15 +88,6 @@ const normalizeLinkedIn = (v: string): string | null => {
   if (!t) return null
   return /^https?:\/\//i.test(t) ? t : `https://${t}`
 }
-const normalizeRoles = (roles: string[]): string[] => {
-  const seen = new Set<string>()
-  return roles.reduce<string[]>((acc, r) => {
-    const t = r.trim()
-    if (!t || seen.has(t.toLowerCase()) || acc.length >= MAX_TARGET_ROLES) return acc
-    seen.add(t.toLowerCase())
-    return [...acc, t]
-  }, [])
-}
 const MAX_TARGET_LOCATIONS = 5
 const normalizeLocations = (locations: string[]): string[] => {
   const seen = new Set<string>()
@@ -161,39 +143,6 @@ function CompanyAvatar({ name, size = 36 }: { name: string; size?: number }) {
   )
 }
 
-export function SortableRoleChip({
-  role, index, onRemove, isOverlay = false,
-}: { role: string; index: number; onRemove: (i: number) => void; isOverlay?: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: role })
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform), transition: transition ?? undefined,
-        opacity: isDragging ? 0.4 : 1, cursor: isDragging ? "grabbing" : "grab",
-        display: "inline-flex", alignItems: "center", gap: 6,
-        padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)",
-        background: isDragging ? "transparent" : "var(--tm-int-bg-wash)",
-        border: isDragging ? "1px dashed var(--tm-int-border)" : "1px solid var(--tm-int-border)",
-        fontSize: 12, color: isDragging ? "transparent" : "var(--tm-interactive)", userSelect: "none",
-        boxShadow: isOverlay ? "0 4px 16px rgba(0,0,0,0.4)" : undefined,
-      }}
-      {...attributes} {...listeners}
-    >
-      <span style={{ fontWeight: 500 }}>{role}</span>
-      <button
-        type="button" onClick={(e) => { e.stopPropagation(); onRemove(index) }}
-        aria-label={`Remove ${role}`}
-        style={{
-          width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center",
-          justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none",
-          padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1,
-        }}
-      >×</button>
-    </div>
-  )
-}
-
 const INPUT_STYLE: React.CSSProperties = {
   width: "100%", padding: "9px 12px", borderRadius: "var(--tm-radius-sm)",
   background: "rgba(255,255,255,0.03)", border: "1px solid var(--tm-border-soft)",
@@ -234,13 +183,8 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
   const [locations, setLocations] = useState<string[]>([])
   const [locationInput, setLocationInput] = useState("")
   const [linkedin, setLinkedin] = useState("")
-  const [roles, setRoles] = useState<string[]>([])
-  const [roleInput, setRoleInput] = useState("")
-  const [roleDropdown, setRoleDropdown] = useState(false)
-  const [roleFocused, setRoleFocused] = useState(false)
   const [locationDropdown, setLocationDropdown] = useState(false)
   const [locationFocused, setLocationFocused] = useState(false)
-  const [activeId, setActiveId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
   const [rewardNotice, setRewardNotice] = useState<string | null>(null)
@@ -253,8 +197,6 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
   const [companyDropdown, setCompanyDropdown] = useState(false)
   const [companyFocused, setCompanyFocused] = useState(false)
 
-  const roleInputRef = useRef<HTMLInputElement>(null)
-  const roleCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const locationInputRef = useRef<HTMLInputElement>(null)
   const locationCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const companyInputRef = useRef<HTMLInputElement>(null)
@@ -271,17 +213,14 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
       ?? (profile?.target_location ? [profile.target_location] : [])
     )
     setLinkedin(profile?.linkedin_url ?? "")
-    setRoles(profile?.target_roles?.filter((r) => r.trim()) ?? [])
-    setRoleInput(""); setRoleDropdown(false); setRoleFocused(false)
     setLocationInput(""); setLocationDropdown(false); setLocationFocused(false)
     setSaveStatus("idle"); setSaveError(null); setRewardNotice(null)
     setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
-  }, [open, profile?.full_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url, profile?.target_roles])
+  }, [open, profile?.full_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url])
 
   useEffect(() => () => {
-    if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current)
     if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
   }, [])
 
@@ -360,34 +299,11 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
       full_name: normalize(name),
       target_locations: normalizeLocations(locations),
       linkedin_url: normalizeLinkedIn(linkedin),
-      target_roles: normalizeRoles(roles),
     }
     pending.current = {}
     setSaveStatus("saving"); setSaveError(null)
     mutation.mutate(payload)
   }
-
-  function handleRolesChange(next: string[]) { setRoles(next); schedule({ target_roles: normalizeRoles(next) }) }
-  function removeRole(i: number) { handleRolesChange(roles.filter((_, idx) => idx !== i)) }
-  function selectRole(r: string) {
-    if (roles.length >= MAX_TARGET_ROLES) return
-    handleRolesChange([...roles, r])
-    setRoleInput(""); setRoleDropdown(false); roleInputRef.current?.focus()
-  }
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
-  function onDragStart(e: DragStartEvent) { setActiveId(e.active.id as string) }
-  function onDragEnd(e: DragEndEvent) {
-    setActiveId(null)
-    const { active, over } = e
-    if (!over || active.id === over.id) return
-    handleRolesChange(arrayMove(roles, roles.indexOf(active.id as string), roles.indexOf(over.id as string)))
-  }
-
-  const atMax = roles.length >= MAX_TARGET_ROLES
-  const suggestions = roleInput.trim()
-    ? L2_CLUSTERS.filter((c) => c.toLowerCase().includes(roleInput.toLowerCase()) && !roles.some((r) => r.toLowerCase() === c.toLowerCase())).slice(0, 8)
-    : []
 
   const locationCatalogQuery = useQuery({
     queryKey: dataKeys.jobsAnalytics(),
@@ -775,61 +691,16 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 {/* Job search section */}
                 <div style={SECTION_HEADER}>Job Search</div>
 
-                {/* Target roles */}
+                {/* Target role — the single role the Myro Score + matches are
+                    measured against. Edits route through the canonical,
+                    recompute-wired path (#145); job-match clusters are derived
+                    server-side, so there is no separate role array to manage. */}
                 <div style={ROW_STYLE}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div>
-                      <div style={ROW_LABEL}>Target Roles</div>
-                      <div style={ROW_DESC}>Role types powering your job matches</div>
-                    </div>
-                    <span style={{ fontSize: 11, color: atMax ? "var(--tm-warning)" : "var(--tm-text-faint)", flexShrink: 0, marginLeft: 12 }}>
-                      {roles.length} / {MAX_TARGET_ROLES}
-                    </span>
+                  <div>
+                    <div style={ROW_LABEL}>Target Role</div>
+                    <div style={ROW_DESC}>What your Myro Score and job matches are measured against</div>
                   </div>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      ref={roleInputRef} type="text" value={roleInput}
-                      role="combobox" aria-expanded={roleDropdown && suggestions.length > 0}
-                      aria-controls="sm-role-listbox" aria-autocomplete="list" aria-label="Search target roles"
-                      onChange={(e) => { setRoleInput(e.target.value); setRoleDropdown(true) }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); if (suggestions[0]) selectRole(suggestions[0]) }
-                        if (e.key === "Escape") setRoleDropdown(false)
-                      }}
-                      onFocus={(e) => { setRoleFocused(true); setRoleDropdown(true); Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE) }}
-                      onBlur={(e) => { roleCloseTimer.current = setTimeout(() => setRoleDropdown(false), 150); setRoleFocused(false); Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE) }}
-                      placeholder={atMax ? `Max ${MAX_TARGET_ROLES} selected` : "Search roles…"}
-                      disabled={atMax} autoComplete="off"
-                      style={{ ...INPUT_STYLE, borderColor: roleFocused ? "var(--tm-int-border)" : "var(--tm-border-soft)", opacity: atMax ? 0.45 : 1 }}
-                    />
-                    {roleDropdown && suggestions.length > 0 && (
-                      <div
-                        id="sm-role-listbox" role="listbox" aria-label="Role suggestions"
-                        onMouseDown={() => { if (roleCloseTimer.current) clearTimeout(roleCloseTimer.current) }}
-                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)", borderRadius: "var(--tm-radius-sm)", zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 220, overflowY: "auto" }}
-                      >
-                        {suggestions.map((c) => (
-                          <button key={c} type="button" role="option" aria-selected={false} onClick={() => selectRole(c)}
-                            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--tm-int-bg-wash)"; e.currentTarget.style.color = "var(--tm-interactive)" }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--tm-interactive-rest)" }}
-                          >{c}</button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {roles.length > 0 && (
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-                      <SortableContext items={roles} strategy={horizontalListSortingStrategy}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {roles.map((r, i) => <SortableRoleChip key={r} role={r} index={i} onRemove={removeRole} />)}
-                        </div>
-                      </SortableContext>
-                      <DragOverlay>
-                        {activeId ? <SortableRoleChip role={activeId} index={roles.indexOf(activeId)} onRemove={() => {}} isOverlay /> : null}
-                      </DragOverlay>
-                    </DndContext>
-                  )}
+                  <TargetRoleEditor role={profile?.target_role_title} />
                 </div>
 
                 {/* Target location */}

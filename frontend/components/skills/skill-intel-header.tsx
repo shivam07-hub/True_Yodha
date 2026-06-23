@@ -2,12 +2,15 @@
 
 import { ScoreRing } from "@/components/skills/score-ring"
 import { ShareButton } from "@/components/profile/ShareButton"
+import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
 import type { SkillIntelStats } from "@/lib/skill-domains"
 
 interface Props {
   totalScore: number | null
   ninjaName?: string | null
   stats: SkillIntelStats | null
+  /** Primary role the score is measured against — editable in place (#145). */
+  targetRole?: string | null
 }
 
 /**
@@ -17,7 +20,7 @@ interface Props {
  * its own organization (Quick-wins vs Hottest sort, on-CV vs gap grouping), so
  * the header carries no competing filter control.
  */
-export function SkillIntelHeader({ totalScore, ninjaName, stats }: Props) {
+export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole }: Props) {
   const shareUrl =
     ninjaName && typeof window !== "undefined"
       ? `${window.location.origin}/profile/${ninjaName}`
@@ -34,6 +37,10 @@ export function SkillIntelHeader({ totalScore, ninjaName, stats }: Props) {
         <div className="tm-pv-head-actions">
           {shareUrl && <ShareButton url={shareUrl} ninjaName={ninjaName ?? undefined} score={totalScore} />}
         </div>
+      </div>
+
+      <div className="tm-pv-head-role" style={{ marginTop: 8 }}>
+        <TargetRoleEditor role={targetRole} label="Scored for" />
       </div>
 
       {stats && (
