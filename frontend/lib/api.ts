@@ -786,6 +786,12 @@ export interface HostBulletCard {
   bullet_text: string
   skills: GapSkillRef[]
 }
+export interface GapHostBullet {
+  section: string
+  item_index: number
+  bullet_index: number
+  bullet_text: string
+}
 export interface BelowLevelCard {
   order: number
   skill: string
@@ -794,6 +800,9 @@ export interface BelowLevelCard {
   required_level: number
   surface_to: number
   is_primary: boolean
+  // Located host bullet when the skill's evidence can be surfaced one notch;
+  // null → practice-only (earn the level in Forge, flywheel surfaces it later).
+  host: GapHostBullet | null
 }
 export interface AbsentSkill {
   skill: string

@@ -25,6 +25,7 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { PursuitStageControl } from "./pursuit-stage-control"
 import { BulletRewrite } from "./bullet-rewrite"
 import { RestructureProposal } from "./restructure-proposal"
+import { GapSession } from "./gap-session"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { formatThreadVersionLabel, timeAgo } from "@/lib/cv/version-format"
@@ -83,6 +84,7 @@ export function PlaygroundView({
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [restructureOpen, setRestructureOpen] = useState(false)
+  const [gapSessionOpen, setGapSessionOpen] = useState(false)
   const queryClient = useQueryClient()
 
   // Accept a per-bullet rewrite → writes a new Main-CV baseline (mirrors
@@ -393,6 +395,15 @@ export function PlaygroundView({
           atsChecks={atsChecks}
           pageFill={pageFill}
         />
+        {missingTargets.length > 0 && (
+          <button
+            type="button"
+            className="cvb-btn sm primary cvb-gs-trigger"
+            onClick={() => setGapSessionOpen(true)}
+          >
+            <Icon name="sparkle" size={12}/> Close {missingTargets.length} gap{missingTargets.length === 1 ? "" : "s"} with Mentor
+          </button>
+        )}
       </div>
 
       <div className="cvb-pg-seg">
@@ -584,6 +595,24 @@ export function PlaygroundView({
             selectVersion(v.id)
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
           }}
+        />
+      )}
+
+      {gapSessionOpen && (
+        <GapSession
+          token={token}
+          jobId={jobId}
+          score={matchScore}
+          onApplied={() => {
+            // Each accepted surfacing writes a new baseline → refetch so the
+            // header meter + readout climb live (SE17 re-tag debounces).
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+            queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
+            queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+            queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+          }}
+          onClose={() => setGapSessionOpen(false)}
         />
       )}
     </div>
