@@ -660,7 +660,7 @@ class JobsRepository:
             columns=(
                 "job_id, company_name, industry, industry_group, role_domain, batch_date, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-                "first_seen, last_seen"
+                "main_skills, first_seen, last_seen"
             ),
             query_builder=query_builder,
         )
@@ -1316,10 +1316,14 @@ class JobsRepository:
         _hydrate_location_fields(row)
         raw_skills = [s.strip() for s in (row.get("main_skills") or []) if s and s.strip()]
         skills = raw_skills[:5]
-        matched = 0
+        # Which of THIS job's skills the user's CV covers — by display name, so the
+        # card can mark each chip ✓matched / ✗missing (T3-1). The frontend derives
+        # "missing" as the shown skills not in this set; we keep the count too for
+        # the fit pill.
+        matched_skills: list[str] = []
         if user_skill_keys:
-            lowered = {s.lower() for s in raw_skills}
-            matched = len(lowered & user_skill_keys)
+            matched_skills = [s for s in raw_skills if s.lower() in user_skill_keys]
+        matched = len(matched_skills)
         role_match = _role_match_score(
             row.get("job_title"), row.get("role_domain"), role_token_sets or []
         )
@@ -1342,6 +1346,7 @@ class JobsRepository:
             "is_stale": _is_marker_stale(row.get("last_seen")),
             "is_active": bool(row.get("is_active", True)),
             "skills": skills,
+            "matched_skills": matched_skills,
             "matched_skill_count": matched,
             "target_role_match": role_match,
         }

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
 
 
@@ -126,3 +127,19 @@ def test_recompiles_on_first_run_without_stored_marker() -> None:
     assert out["refreshed"] is True
     assert len(admin.upserts) == 1
     assert admin.upserts[0]["source_job_count"] == 100
+
+
+def test_fetch_analytics_rows_requests_main_skills(monkeypatch) -> None:
+    """compile() builds top_skills from each row's main_skills. If the row fetch
+    omits that column the aggregate is SILENTLY empty (no error) — the stuck
+    "skill-demand movers" card. Guard the column contract so it can't regress."""
+    captured: dict[str, str] = {}
+
+    def _fake_fetch_all_rows(db: Any, *, table: str, columns: str, query_builder: Any = None) -> list[Any]:
+        captured["columns"] = columns
+        return []
+
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    repo.fetch_analytics_rows(location_city="Bangalore")
+    assert "main_skills" in captured["columns"]
