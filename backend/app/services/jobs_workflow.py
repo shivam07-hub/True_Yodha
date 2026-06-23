@@ -347,4 +347,4 @@ def preview_imported_job(repo: JobsRepository, body: Any) -> dict[str, Any]:
 
 
 def save_imported_job(repo: JobsRepository, user_id: str, body: Any) -> dict[str, Any]:
-    return job_importer.save_imported_job(repo.client, user_id, body)
+    return repo.save_imported_job(user_id, body)
