@@ -1738,6 +1738,8 @@ export interface GapSkill {
   why_it_matters: string
   /** Honest projected Myro Score gain from practising +1 level (T2-3). 0 pre-recompute. */
   score_delta?: number
+  /** Scoring domain code (SD/DE/…) this gap rolls up to — groups levers under their domain row. */
+  domain?: string
 }
 
 export interface ScoreResponse {

@@ -1,0 +1,158 @@
+/* Personal Myro Score breakdown (T2-3 Part A). Tokens only; light + dark. */
+
+.sb {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-md);
+  background: var(--tm-surface);
+  animation: sb-unfold 240ms var(--tm-ease);
+}
+
+@keyframes sb-unfold {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb { animation: none; }
+}
+
+.sb-lede {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+.sb-lede strong { color: var(--tm-text); font-weight: 700; }
+
+.sb-domains {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sb-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sb-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.sb-row-score {
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
+}
+
+.sb-bar {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--tm-border-soft);
+  overflow: hidden;
+}
+.sb-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tm-text-faint);
+  transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Band colour — strongest reads as the edge, weakest as the opportunity. */
+.sb-row[data-band="strong"] .sb-bar-fill { background: var(--tm-success); }
+.sb-row[data-band="strong"] .sb-row-score { color: var(--tm-success); }
+.sb-row[data-band="building"] .sb-bar-fill { background: var(--data-1); }
+.sb-row[data-band="weak"] .sb-bar-fill { background: var(--tm-warning); }
+.sb-row[data-band="weak"] .sb-row-score { color: var(--tm-warning); }
+
+.sb-lever {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-interactive-rest);
+  text-decoration: none;
+  transition: color 160ms var(--tm-ease);
+}
+.sb-lever:hover { color: var(--tm-interactive); }
+.sb-lever-text { text-decoration: underline; text-underline-offset: 2px; }
+
+.sb-gain {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--data-1);
+  background: color-mix(in srgb, var(--data-1) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--data-1) 30%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* Uncounted-domain opportunity tier. */
+.sb-empty {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.sb-empty-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.sb-empty-note {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+.sb-empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sb-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm-text-muted);
+  background: var(--tm-surface-2, var(--tm-bg));
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.sb-empty-cta {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-interactive-rest);
+  text-decoration: none;
+}
+.sb-empty-cta:hover { color: var(--tm-interactive); text-decoration: underline; }
+
+.sb-method {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tm-text-faint);
+  text-decoration: none;
+}
+.sb-method:hover { color: var(--tm-text-muted); text-decoration: underline; }
