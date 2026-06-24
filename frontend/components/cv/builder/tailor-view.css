@@ -1,6 +1,6 @@
-/* Tailoring surface (CV journey, first slice). Reuses the --tm-*/cvb-font system.
-   The readiness number is the hero; everything else stays CV-quiet. Words ≤3.
-   Spec: project_cv_endtoend_journey.md. */
+/* Tailoring surface (CV journey, first slice). Reuses the design-token + cvb-font
+   system. The readiness number is the hero; everything else stays CV-quiet. Words
+   stay short. Spec: project_cv_endtoend_journey.md. */
 
 .cvb-ts {
   font-family: var(--cvb-font-sans);
