@@ -264,9 +264,10 @@ def count_jobs_first_seen_after(db: Client, marker: int) -> int:
     same rows). Date-granular by design: the feed is date-batched."""
     result = (
         db.table("jobs")
-        .select("job_id", count="exact", head=True)
+        .select("job_id", count="exact")
         .eq("is_active", True)
         .gt("first_seen", marker)
+        .limit(1)
         .execute()
     )
     return int(result.count or 0)
@@ -1771,9 +1772,10 @@ class JobsRepository:
             try:
                 query = (
                     self._admin_db.table("jobs")
-                    .select("job_id", count="exact", head=True)
+                    .select("job_id", count="exact")
                     .eq("is_active", True)
                     .contains("main_skills", [name])
+                    .limit(1)
                 )
                 if scope_clause is not None:
                     query = query.or_(scope_clause)
