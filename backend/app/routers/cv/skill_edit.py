@@ -233,6 +233,30 @@ async def rewrite_bullet(
     return RewriteBulletResponse(**result)
 
 
+# v2 reservoir: only experience/project bullets are points.
+_SECTION_TO_LIST = {"exp_bullet": "experience", "proj_bullet": "projects"}
+
+
+def _mirror_rewrite_to_reservoir(
+    cv_repo: CVVersionsRepository,
+    user_id: str,
+    located: "cv_skill_edit.BulletLocation",
+    old_text: str,
+    new_text: str,
+) -> None:
+    """Dual-write the accepted rewrite into the experience reservoir as a new canonical
+    phrasing of the point (shadow, best-effort). Never raises — the master write has
+    already succeeded; a reservoir hiccup must not fail the user's accept."""
+    list_key = _SECTION_TO_LIST.get(located.section)
+    if not list_key:
+        return
+    anchor = f"{list_key}:{located.item_index}"
+    try:
+        cv_repo.append_phrasing(user_id, anchor, old_text, new_text, source="restructure")
+    except Exception:  # noqa: BLE001 — best-effort shadow mirror, never block the accept
+        logger.info("reservoir append skipped (best-effort) for user=%s", user_id)
+
+
 @router.post("/rewrite-bullet/apply", response_model=SkillEditResponse, status_code=status.HTTP_201_CREATED)
 def rewrite_bullet_apply(
     body: RewriteApplyRequest,
@@ -308,6 +332,7 @@ def rewrite_bullet_apply(
         confidence_label="user-edited",
     )
     new_baseline = cv_repo.create(user_id, spec)
+    _mirror_rewrite_to_reservoir(cv_repo, user_id, located, body.old_text, body.new_text)
 
     dropped = cv_skill_edit.diff_keyword_skills(scores_repo, user_id, new_body_text)
 

@@ -250,6 +250,67 @@ class CVVersionsRepository:
         )
         return result.data[0] if result.data else None
 
+    # ── Experience Reservoir (v2) — cv_points ─────────────────────────────────
+
+    def reservoir_points(self, user_id: str) -> list[dict[str, Any]]:
+        """All active reservoir points (variants included) for the inventory view.
+        RLS scopes to the caller; the user_id filter is defensive."""
+        result = (
+            self._db.table("cv_points")
+            .select("id, point_key, role_anchor, section, text, audience_tags, source, is_canonical, ordering, status")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .order("role_anchor")
+            .order("ordering")
+            .execute()
+        )
+        return result.data or []
+
+    def append_phrasing(
+        self,
+        user_id: str,
+        role_anchor: str,
+        old_text: str,
+        new_text: str,
+        source: str = "restructure",
+    ) -> bool:
+        """Dual-write (v2): when a rewrite is accepted onto the master, mirror it into
+        the reservoir as a NEW canonical phrasing of the existing point, demoting the
+        prior canonical to an alternate (nothing lost — that is the whole reservoir
+        idea). Best-effort: no-op when the phrasing is unchanged or the point isn't in
+        the reservoir (un-backfilled user → the inventory is live-derived from the
+        master, which already holds new_text). Returns True if it appended."""
+        new_text = (new_text or "").strip()
+        if not new_text or new_text == (old_text or "").strip():
+            return False
+        found = (
+            self._db.table("cv_points")
+            .select("id, point_key, section, ordering")
+            .eq("user_id", user_id)
+            .eq("role_anchor", role_anchor)
+            .eq("text", old_text)
+            .eq("is_canonical", True)
+            .eq("status", "active")
+            .limit(1)
+            .execute()
+        )
+        if not found.data:
+            return False
+        row = found.data[0]
+        self._db.table("cv_points").insert({
+            "user_id": user_id,
+            "point_key": row["point_key"],
+            "role_anchor": role_anchor,
+            "section": row["section"],
+            "text": new_text,
+            "source": source,
+            "is_canonical": True,
+            "ordering": row.get("ordering") or 0,
+            "status": "active",
+        }).execute()
+        self._db.table("cv_points").update({"is_canonical": False}).eq("id", row["id"]).execute()
+        return True
+
     def find(self, version_id: int, user_id: str) -> dict[str, Any] | None:
         """Token-scoped find — RLS also protects, but we filter user_id defensively."""
         result = (
