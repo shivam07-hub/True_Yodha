@@ -1,0 +1,188 @@
+/* Experience Reservoir inventory — v2 Phase 1.
+   Reuses the --tm-* / cvb-font system. Spends its one bold move on the canonical
+   diamond + phrasing drawer; everything else stays CV-quiet. Spec:
+   memory/project_cv_experience_reservoir.md. */
+
+.cvb-rv {
+  font-family: var(--cvb-font-sans);
+  color: var(--tm-text);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  font-feature-settings: "ss01", "cv11";
+}
+.cvb-rv .mono { font-family: var(--cvb-font-mono); font-feature-settings: "tnum"; }
+.cvb-rv .tabnum { font-variant-numeric: tabular-nums; }
+
+/* ── Head ─────────────────────────────────────────────────────────────────── */
+.cvb-rv-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;
+  padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvb-rv-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tm-text-faint); margin-bottom: 8px;
+}
+.cvb-rv-title { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; }
+.cvb-rv-lede { font-size: 13px; line-height: 1.55; color: var(--tm-text-muted); margin: 0; max-width: 46ch; }
+
+.cvb-rv-stat {
+  display: grid; justify-items: end; align-content: start; gap: 1px;
+  padding: 10px 14px; border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  flex-shrink: 0;
+}
+.cvb-rv-stat-num { font-size: 28px; font-weight: 600; line-height: 1; color: var(--tm-accent-text); }
+.cvb-rv-stat-cap { font-size: 11px; color: var(--tm-text-muted); margin-top: 4px; }
+.cvb-rv-stat-sub { font-size: 10.5px; color: var(--tm-text-faint); }
+
+/* ── Summary + tail sections (read like a CV, not editable here) ───────────── */
+.cvb-rv-kicker {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tm-text-faint); margin-bottom: 7px;
+}
+.cvb-rv-summary { margin-bottom: 26px; }
+.cvb-rv-summary p { font-size: 13.5px; line-height: 1.6; color: var(--tm-text); margin: 0; }
+.cvb-rv-tail { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--tm-border-soft); }
+.cvb-rv-skills { font-size: 13px; line-height: 1.6; color: var(--tm-text-muted); margin: 0; }
+.cvb-rv-certs { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: var(--tm-text-muted); }
+
+/* ── Roles ────────────────────────────────────────────────────────────────── */
+.cvb-rv-roles { display: flex; flex-direction: column; }
+.cvb-rv-role { border-bottom: 1px solid var(--tm-border-soft); }
+.cvb-rv-role-head {
+  display: flex; align-items: baseline; gap: 10px; width: 100%;
+  padding: 16px 4px; background: none; border: 0; cursor: pointer; text-align: left;
+  color: inherit; font-family: inherit;
+}
+.cvb-rv-role-caret { color: var(--tm-text-faint); transition: transform 160ms var(--tm-ease); line-height: 0; align-self: center; }
+.cvb-rv-role.open .cvb-rv-role-caret { transform: rotate(90deg); }
+.cvb-rv-role-id { display: flex; align-items: baseline; gap: 10px; flex: 1; flex-wrap: wrap; }
+.cvb-rv-role-title { font-size: 15px; font-weight: 600; }
+.cvb-rv-role-meta { font-size: 11.5px; color: var(--tm-text-faint); }
+.cvb-rv-role-count { font-size: 11px; color: var(--tm-text-faint); flex-shrink: 0; }
+.cvb-rv-role-head:hover .cvb-rv-role-title { color: var(--tm-accent-text); }
+
+/* ── Points: the clean CV line ────────────────────────────────────────────── */
+.cvb-rv-points { padding: 2px 4px 18px 28px; display: flex; flex-direction: column; gap: 2px; }
+.cvb-rv-point { border-radius: var(--tm-radius-sm); }
+.cvb-rv-point.open { background: var(--tm-surface-sunken, var(--tm-surface)); }
+
+.cvb-rv-line { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; }
+.cvb-rv-bullet {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--tm-text-faint);
+  margin-top: 8px; flex-shrink: 0;
+}
+.cvb-rv-line-text { font-size: 13.5px; line-height: 1.55; flex: 1; }
+
+.cvb-rv-line-aff { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-top: 1px; }
+/* Curation affordances stay quiet until the row is hovered or focused within. */
+.cvb-rv-ways, .cvb-rv-expand { opacity: 0; transition: opacity 140ms var(--tm-ease); }
+.cvb-rv-point:hover .cvb-rv-ways,
+.cvb-rv-point:hover .cvb-rv-expand,
+.cvb-rv-point.open .cvb-rv-ways,
+.cvb-rv-point.open .cvb-rv-expand,
+.cvb-rv-point:focus-within .cvb-rv-ways,
+.cvb-rv-point:focus-within .cvb-rv-expand { opacity: 1; }
+
+.cvb-rv-ways {
+  font-size: 10.5px; color: var(--tm-text-muted); background: none;
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-pill);
+  padding: 2px 8px; cursor: pointer;
+}
+.cvb-rv-ways:hover { border-color: var(--tm-accent-text); color: var(--tm-accent-text); }
+.cvb-rv-expand {
+  display: inline-flex; background: none; border: 0; color: var(--tm-text-faint);
+  cursor: pointer; padding: 2px; line-height: 0; transition: transform 160ms var(--tm-ease), color 140ms var(--tm-ease);
+}
+.cvb-rv-point.open .cvb-rv-expand { transform: rotate(180deg); color: var(--tm-text-muted); }
+
+/* Weak-point nudge — quiet, never punitive (mirrors the no-fab guard). */
+.cvb-rv-weak {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: 10.5px; color: var(--tm-warning);
+  background: var(--tm-warning-wash); border-radius: var(--tm-radius-pill); padding: 2px 8px;
+}
+
+/* ── The signature: phrasing drawer ───────────────────────────────────────── */
+.cvb-rv-drawer {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 4px 10px 12px 25px; margin-top: -2px;
+}
+.cvb-rv-variant {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 10px; border-radius: var(--tm-radius-sm);
+  border: 1px solid transparent;
+}
+.cvb-rv-variant.canonical { border-color: var(--tm-border-soft); background: var(--tm-surface); }
+
+/* The canonical diamond — the one bold device. Filled = live on the CV. */
+.cvb-rv-pick {
+  background: none; border: 0; cursor: pointer; padding: 2px; line-height: 0;
+  color: var(--tm-text-faint); margin-top: 1px; flex-shrink: 0;
+  transition: color 140ms var(--tm-ease);
+}
+.cvb-rv-pick :is(svg) { fill: none; }
+.cvb-rv-variant.canonical .cvb-rv-pick { color: var(--tm-accent-text); cursor: default; }
+.cvb-rv-variant.canonical .cvb-rv-pick :is(svg) { fill: currentColor; }
+.cvb-rv-pick:not(:disabled):hover { color: var(--tm-accent-text); }
+
+.cvb-rv-variant-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.cvb-rv-variant-text { font-size: 12.5px; line-height: 1.5; color: var(--tm-text); }
+.cvb-rv-variant:not(.canonical) .cvb-rv-variant-text { color: var(--tm-text-muted); }
+.cvb-rv-variant-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cvb-rv-oncv { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tm-accent-text); }
+.cvb-rv-tag {
+  font-size: 9.5px; color: var(--tm-text-faint);
+  border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-pill); padding: 1px 7px;
+}
+.cvb-rv-prov { font-size: 9.5px; color: var(--tm-success); }
+
+.cvb-rv-del {
+  background: none; border: 0; cursor: pointer; color: var(--tm-text-faint);
+  padding: 2px; line-height: 0; flex-shrink: 0; opacity: 0; transition: opacity 140ms var(--tm-ease), color 140ms var(--tm-ease);
+}
+.cvb-rv-variant:hover .cvb-rv-del, .cvb-rv-variant:focus-within .cvb-rv-del { opacity: 1; }
+.cvb-rv-del:hover { color: var(--tm-danger); }
+
+.cvb-rv-add-phrasing {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: 4px;
+  font-size: 11.5px; color: var(--tm-accent-text); background: none; border: 0; cursor: pointer;
+  padding: 4px 6px; border-radius: var(--tm-radius-sm);
+}
+.cvb-rv-add-phrasing:hover { background: var(--tm-surface); }
+
+/* ── Brain-dump add + first-run nudge ─────────────────────────────────────── */
+.cvb-rv-add-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; padding-left: 10px; }
+.cvb-rv-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--tm-text-muted); background: none;
+  border: 1px dashed var(--tm-border-soft); border-radius: var(--tm-radius-sm);
+  padding: 7px 12px; cursor: pointer; transition: border-color 140ms var(--tm-ease), color 140ms var(--tm-ease);
+}
+.cvb-rv-add:hover { border-color: var(--tm-accent-text); color: var(--tm-accent-text); }
+.cvb-rv-hint {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--tm-text-muted);
+  background: var(--tm-surface-sunken, var(--tm-surface)); border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-pill); padding: 5px 6px 5px 12px;
+}
+.cvb-rv-hint-x { background: none; border: 0; cursor: pointer; color: var(--tm-text-faint); padding: 2px; line-height: 0; }
+.cvb-rv-hint-x:hover { color: var(--tm-text); }
+
+/* ── Focus + motion floor ─────────────────────────────────────────────────── */
+.cvb-rv :is(button):focus-visible { outline: 2px solid var(--tm-accent-text); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .cvb-rv * { transition: none !important; }
+}
+
+/* ── Mobile ───────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .cvb-rv { padding: 20px 14px 64px; }
+  .cvb-rv-head { flex-direction: column; gap: 14px; }
+  .cvb-rv-stat { flex-direction: row; align-items: baseline; gap: 8px; justify-items: start; }
+  .cvb-rv-points { padding-left: 14px; }
+  .cvb-rv-drawer { padding-left: 14px; }
+  /* Touch: affordances always visible (no hover). */
+  .cvb-rv-ways, .cvb-rv-expand, .cvb-rv-del { opacity: 1; }
+}
