@@ -9,6 +9,7 @@ import { QUALITY_REASONS } from "@/lib/jobs/feedback"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
+import { ApplyRow } from "@/components/jobs/apply-row"
 import { LocationLine, SkillChip } from "./job-card"
 import { JobReadinessPanel } from "./job-readiness"
 import { ShareJobButton } from "./share-job-button"
@@ -79,7 +80,9 @@ export function JobDetailDrawer({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {job.source_url ? (
                 <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={dead.markApplied} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
-              ) : null}
+              ) : (
+                <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" />
+              )}
               <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
               <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>
               <ShareJobButton job={job} variant="drawer" />
